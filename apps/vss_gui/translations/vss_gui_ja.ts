@@ -18384,4 +18384,12 @@ Networks: %5</source>
             <translation>セットアップは完了しましたが、この PC ではまだポートを作成できません: %1。助けを求める場合は詳細をコピーしてください。</translation>
         </message>
     </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
+    </context>
 </TS>

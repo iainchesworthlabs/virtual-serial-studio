@@ -18484,4 +18484,12 @@ Networks: %5</source>
             <translation>اكتمل الإعداد، لكن هذا الكمبيوتر ما زال لا يستطيع إنشاء المنافذ: %1. انسخ التفاصيل إذا طلبت المساعدة.</translation>
         </message>
     </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>إعداد Virtual Serial Studio</translation>
+        </message>
+    </context>
 </TS>

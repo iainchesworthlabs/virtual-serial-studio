@@ -18404,4 +18404,12 @@ Networks: %5</source>
             <translation>ההגדרה הסתיימה, אבל המחשב הזה עדיין לא יכול ליצור יציאות: %1. העתיקו את הפרטים אם אתם מבקשים עזרה.</translation>
         </message>
     </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+    </context>
 </TS>

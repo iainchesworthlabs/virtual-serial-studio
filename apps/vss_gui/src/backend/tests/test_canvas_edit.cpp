@@ -5,6 +5,7 @@
 //
 
 #include "backend/canvas_edit.hpp"
+#include "backend/driver_error.hpp"
 #include "backend/fake_studio_backend.hpp"
 
 #include "test_framework.hpp"
@@ -85,6 +86,33 @@ TEST_CASE("canvas edit: a failed link takes the new ports away again")
     REQUIRE(made.has_value());
     REQUIRE_EQ(made->created.size(), 2);
     REQUIRE(backend.links().front().shape == link_shape::split);
+}
+
+TEST_CASE("canvas edit: a refused driver port names the missing part")
+{
+    // The Advanced canvas used to show the bare "permission denied".
+    FakeStudioBackend backend;
+    setup_facts facts;
+    facts.platform = QStringLiteral("windows");
+    facts.driver.problem = driver_problem::helper_stopped;
+    backend.set_facts(facts);
+
+    const bundle_request request =
+        default_request(canvas_item::port, backend.ports());
+    backend.fail_next(vss::make_error_code(vss::errc::permission_denied));
+    const auto failed = build_bundle(backend, request);
+    REQUIRE(!failed.has_value());
+    const auto found = driver_problem_of(failed.error());
+    REQUIRE(found.has_value());
+    REQUIRE(*found == driver_problem::helper_stopped);
+    REQUIRE(backend.ports().empty());
+
+    // A fixture needs no driver, so a refusal of that is left as it was.
+    bundle_request fixture = default_request(canvas_item::fixture, {});
+    backend.fail_next(vss::make_error_code(vss::errc::permission_denied));
+    const auto other = build_bundle(backend, fixture);
+    REQUIRE(!other.has_value());
+    REQUIRE(!driver_problem_of(other.error()).has_value());
 }
 
 TEST_CASE("canvas edit: a switch gives the first program the line")

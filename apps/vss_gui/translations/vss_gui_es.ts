@@ -18404,4 +18404,12 @@ Redes: %5</translation>
             <translation>La configuración terminó, pero este equipo sigue sin poder crear puertos: %1. Copie los detalles si pide ayuda.</translation>
         </message>
     </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Configurar Virtual Serial Studio</translation>
+        </message>
+    </context>
 </TS>

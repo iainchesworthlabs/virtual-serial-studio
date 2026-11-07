@@ -8,6 +8,7 @@
 
 #include "advanced/link_settings_dialog.hpp"
 #include "advanced/port_settings_dialog.hpp"
+#include "backend/driver_error.hpp"
 #include "topology/add_sheet.hpp"
 #include "topology/toolbox.hpp"
 #include "topology/topology_text.hpp"
@@ -50,8 +51,16 @@ CanvasController::CanvasController(StudioBackend& backend, UndoService& undo,
     {
         topology::AddSheet sheet(item, backend_.ports(), parent_);
         sheet.set_attempt(attempt);
+        sheet.set_setup_offer([this] { return setup_offered_; });
+        bool set_up = false;
+        connect(&sheet, &topology::AddSheet::driver_setup_requested, this,
+                [&set_up] { set_up = true; });
         sheet.move(QCursor::pos() - QPoint(sheet.sizeHint().width() / 2, 24));
-        return sheet.exec() == QDialog::Accepted;
+        const bool added = sheet.exec() == QDialog::Accepted;
+        // Said after the sheet is gone, so the set-up dialog does not stack.
+        if (set_up)
+            Q_EMIT driver_setup_requested();
+        return added;
     };
     confirm_ = [this](const QString& title, const QString& body)
     {
@@ -183,8 +192,13 @@ bool CanvasController::add_item(canvas_item item, std::optional<QPointF> at)
                 });
             if (!made)
             {
+                // A driver problem is a whole sentence with its own next step.
+                const auto problem = driver_problem_of(made.error());
+                setup_offered_ = problem && driver_problem_offers_setup(*problem);
                 const QString error =
-                    tr("Nothing was added: %1").arg(error_text(made.error()));
+                    problem ? error_text(made.error())
+                            : tr("Nothing was added: %1")
+                                  .arg(error_text(made.error()));
                 Q_EMIT message(error);
                 return error;
             }

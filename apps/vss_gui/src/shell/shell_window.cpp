@@ -937,6 +937,8 @@ void ShellWindow::build_central()
                 status_->showMessage(text, 6000);
                 log_local(text);
             });
+    connect(canvas_, &CanvasController::driver_setup_requested, this,
+            [this] { open_driver_setup(); });
     connect(canvas_, &CanvasController::batch_finished, this,
             [this]
             {

@@ -18404,4 +18404,12 @@ Réseaux : %5</translation>
             <translation>La configuration est terminée, mais ce PC ne peut toujours pas créer de ports : %1. Copiez les détails si vous demandez de l’aide.</translation>
         </message>
     </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Configurer Virtual Serial Studio</translation>
+        </message>
+    </context>
 </TS>

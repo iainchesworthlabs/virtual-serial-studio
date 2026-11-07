@@ -18384,4 +18384,12 @@ Networks: %5</source>
             <translation>设置已完成，但此电脑仍无法创建端口：%1。如需求助，请复制详细信息。</translation>
         </message>
     </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
+        </message>
+    </context>
 </TS>

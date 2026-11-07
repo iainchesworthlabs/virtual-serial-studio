@@ -18404,4 +18404,12 @@ Networks: %5</source>
             <translation>די אײַנשטעלונג איז פֿאַרענדיקט, אָבער דער דאָזיקער קאָמפּיוטער קען נאָך אַלץ נישט שאַפֿן פּאָרטן: %1. קאָפּירט די פּרטים אויב איר בעט הילף.</translation>
         </message>
     </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>אײַנשטעלן Virtual Serial Studio</translation>
+        </message>
+    </context>
 </TS>
