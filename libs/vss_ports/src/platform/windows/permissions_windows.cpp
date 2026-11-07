@@ -498,7 +498,8 @@ bool platform_can_run_elevated() noexcept
 
 permissions::step_result
 platform_run_elevated(const std::string& executable,
-                      const std::vector<std::string>& arguments)
+                      const std::vector<std::string>& arguments,
+                      int wait_seconds)
 {
     VSS_PROFILE_ZONE("ports.permissions.elevate_windows");
     std::string command_line;
@@ -530,16 +531,18 @@ platform_run_elevated(const std::string& executable,
     if (info.hProcess == nullptr)
         return {step_status::failed, "the helper did not start a process"};
 
-    // The step is a short call into the firewall. A minute is long enough for a
-    // slow machine and short enough to notice a hang.
-    const DWORD waited = ::WaitForSingleObject(info.hProcess, 60000);
+    // The caller says how long its step may take: a call into the firewall is
+    // short, a driver install is not, and both must end so that a hang is seen.
+    const DWORD waited = ::WaitForSingleObject(
+        info.hProcess, static_cast<DWORD>(wait_seconds) * 1000U);
     DWORD code = 0;
     const bool have_code = waited == WAIT_OBJECT_0 &&
                            ::GetExitCodeProcess(info.hProcess, &code) != 0;
     ::CloseHandle(info.hProcess);
     if (!have_code)
         return {step_status::failed, "the helper did not finish"};
-    return {status_for_exit(code), "the helper finished"};
+    return {status_for_exit(code), "the helper finished",
+            static_cast<int>(code)};
 }
 
 bool platform_can_add_user_to_group() noexcept

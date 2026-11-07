@@ -33,6 +33,7 @@ public:
 Q_SIGNALS:
     void advanced_requested();
     void setup_check_requested();
+    void driver_setup_requested();
     void error_shown(const QString& title);
 
 private:

@@ -6,6 +6,7 @@
 
 #include "support/setup_facts.hpp"
 
+#include "backend/driver_error.hpp"
 #include "support/permission_rows.hpp"
 
 #include <vss/core/profile.hpp>
@@ -126,7 +127,9 @@ setup_row devices_row(const setup_facts& facts, const QStringList& paths,
 /// Either driver is enough for other programs to see Studio's ports.
 bool windows_ports_ready(const setup_facts& facts)
 {
-    return facts.driver_found || facts.com0com_found;
+    return (facts.driver_found &&
+            !driver_problem_offers_setup(facts.driver.problem)) ||
+           facts.com0com_found;
 }
 
 void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
@@ -145,7 +148,8 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
                 "SetupCheck", "Studio did not check for the virtual port "
                               "driver.")));
     }
-    else if (facts.driver_found)
+    else if (facts.driver_found &&
+             !driver_problem_offers_setup(facts.driver.problem))
     {
         QString sentence = QCoreApplication::translate(
             "SetupCheck", "The Virtual Serial Studio driver is installed, so "
@@ -183,6 +187,20 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
                       "ports as COM ports.");
         rows.push_back(ok_row(driver.title, sentence));
     }
+    else if (driver_problem_offers_setup(facts.driver.problem))
+    {
+        // One piece is missing, old or refused, and the guided set-up fixes
+        // it: say which, and offer the one action.
+        driver.state = setup_state::attention;
+        driver.sentence = driver_problem_body(facts.driver.problem);
+        driver.chip =
+            QCoreApplication::translate("SetupCheck", "Needs attention");
+        driver.action_text = QCoreApplication::translate(
+            "SetupCheck", "Set up Virtual Serial Studio");
+        driver.action = setup_action::setup_driver;
+        driver.highlight = true;
+        rows.push_back(driver);
+    }
     else
     {
         driver.state = setup_state::attention;
@@ -212,7 +230,8 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
                 "SetupCheck",
                 "Studio could not check for administrator rights.")));
     }
-    else if (facts.driver_found)
+    else if (facts.driver_found &&
+             !driver_problem_offers_setup(facts.driver.problem))
     {
         rows.push_back(ok_row(
             administrator.title,
@@ -495,6 +514,10 @@ setup_report build_setup_report(const setup_facts& facts,
         report.state = setup_report::readiness::needs_attention;
     else
         report.state = setup_report::readiness::ready;
+
+    if (windows && checks_available &&
+        driver_problem_offers_setup(normalised.driver.problem))
+        report.problem = normalised.driver.problem;
 
     if (!checks_available)
         report.ports_ready = false;

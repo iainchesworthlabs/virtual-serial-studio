@@ -60,6 +60,12 @@ public:
     {
         attempt_ = std::move(attempt);
     }
+    /// Asked after a failed attempt: true when the reason can be fixed by the
+    /// guided set-up, which adds that action to the reason.
+    void set_setup_offer(std::function<bool()> offered)
+    {
+        setup_offered_ = std::move(offered);
+    }
 
     bundle_request request() const;
     int count() const;
@@ -75,6 +81,11 @@ public:
     QString error_text() const;
     /// What Add does: the attempt, or accept when there is none.
     void submit();
+
+Q_SIGNALS:
+    /// The user chose "Set up Virtual Serial Studio" under the reason. The
+    /// sheet closes first, so the two dialogs do not stack.
+    void driver_setup_requested();
 
 private:
     struct row
@@ -101,6 +112,7 @@ private:
     QComboBox* framing_ = nullptr;
     NoteBanner* error_ = nullptr;
     attempt_function attempt_;
+    std::function<bool()> setup_offered_;
     QPushButton* add_ = nullptr;
 };
 

@@ -151,6 +151,12 @@ public:
     virtual std::vector<device_view> other_program_ports() const;
     virtual setup_facts facts() const = 0;
 
+    /// A fresh check of the driver set-up: the driver package, the helper
+    /// service and this user's access to it.  The answer of `facts()` may be a
+    /// few seconds old; a failed "add port" asks this, so the message names the
+    /// piece that is wrong now.  Makes no port.  The default reads `facts()`.
+    virtual driver_check check_driver() const { return facts().driver; }
+
     /// How long the answer of `facts()` and the platform probes behind the
     /// setup report may be reused.  A real backend asks the operating system
     /// (the driver, com0com, the serial devices, the firewall), which takes

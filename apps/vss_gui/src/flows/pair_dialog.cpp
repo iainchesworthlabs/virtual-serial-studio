@@ -56,7 +56,21 @@ void PairDialog::create_pair()
         {
             Q_EMIT error_shown(error.title);
             ErrorDialog dialog(error.title, error.body, error.details, this);
+            bool set_up = false;
+            if (error.offer_setup)
+            {
+                dialog.add_action(
+                    tr("Set up Virtual Serial Studio"),
+                    [&dialog, &set_up]
+                    {
+                        set_up = true;
+                        dialog.accept();
+                    },
+                    QStringLiteral("primary"));
+            }
             dialog.exec();
+            if (set_up)
+                Q_EMIT driver_setup_requested();
         }
         return;
     }

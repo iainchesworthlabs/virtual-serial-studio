@@ -70,6 +70,18 @@ std::string to_utf8(const std::wstring& text)
     return out;
 }
 
+/// The last step of making a port that failed in this process, so a refusal can
+/// say which call it came from.
+std::mutex failure_mutex;
+driver_failure failure_record;
+
+void note_failure(const char* step, DWORD code)
+{
+    const std::lock_guard lock(failure_mutex);
+    failure_record.step = step;
+    failure_record.code = code;
+}
+
 /// One port of the driver: the COM name an application opens, the path of the
 /// hub end, and the device instance id (VSSCOM\PORT\0000 for a port that the
 /// control device made).
@@ -383,6 +395,7 @@ errc ask_com_number(const port_origin& origin, HANDLE lease, unsigned number)
         own.reset(open_helper(error));
         if (own.get() == INVALID_HANDLE_VALUE)
         {
+            note_failure("open the helper pipe to set the COM number", error);
             if (error == ERROR_ACCESS_DENIED)
                 return errc::permission_denied;
             // No helper is installed: a COM number needs it.
@@ -401,7 +414,13 @@ errc ask_com_number(const port_origin& origin, HANDLE lease, unsigned number)
                            : VSSCOM_HELPER_OP_SET_COM_NUMBER,
         origin.slot, number);
     if (status == helper_failed)
+    {
+        note_failure("talk to the helper about the COM number",
+                     ::GetLastError());
         return errc::io_error;
+    }
+    if (status != ERROR_SUCCESS)
+        note_failure("the helper's answer to the COM number request", status);
     return errc_of_com_status(status);
 }
 
@@ -1212,11 +1231,15 @@ open_made_port(const transport::executor_type& executor,
     DWORD error = 0;
     const auto handle = open_hub(hub->path, error);
     if (handle == INVALID_HANDLE_VALUE)
+    {
+        note_failure("open the hub end of the new port", error);
         return make_error_code(errc::io_error);
+    }
 
     VSSCOM_VERSION_INFO version{};
     if (!read_version(handle, version) || version.Version != VSSCOM_VERSION)
     {
+        note_failure("read the version of the new port", ::GetLastError());
         ::CloseHandle(handle);
         return make_error_code(errc::unsupported);
     }
@@ -1241,6 +1264,7 @@ create_port_on_demand(const transport::executor_type& executor,
     if (control.get() == INVALID_HANDLE_VALUE)
     {
         // The closer ignores an invalid handle, so there is nothing to release.
+        note_failure("open the control device", error);
         return make_error_code(error == ERROR_ACCESS_DENIED
                                    ? errc::permission_denied
                                    : errc::io_error);
@@ -1260,6 +1284,7 @@ create_port_on_demand(const transport::executor_type& executor,
                          &request, sizeof(request), &made, sizeof(made),
                          error))
     {
+        note_failure("ask the control device for a port", error);
         // No slot left on the machine, or this user holds the most they may.
         if (error == ERROR_NO_SYSTEM_RESOURCES ||
             error == ERROR_NOT_ENOUGH_QUOTA)
@@ -1294,6 +1319,7 @@ create_port_via_helper(const transport::executor_type& executor,
     unique_handle pipe(open_helper(error));
     if (pipe.get() == INVALID_HANDLE_VALUE)
     {
+        note_failure("open the helper pipe", error);
         if (error == ERROR_ACCESS_DENIED)
             return make_error_code(errc::permission_denied);
         return make_error_code(error == ERROR_FILE_NOT_FOUND
@@ -1303,7 +1329,10 @@ create_port_via_helper(const transport::executor_type& executor,
 
     DWORD mode = PIPE_READMODE_MESSAGE;
     if (!::SetNamedPipeHandleState(pipe.get(), &mode, nullptr, nullptr))
+    {
+        note_failure("set the helper pipe to message mode", ::GetLastError());
         return make_error_code(errc::io_error);
+    }
 
     VSSCOM_HELPER_REQUEST request{};
     request.Version = VSSCOM_HELPER_VERSION;
@@ -1314,8 +1343,14 @@ create_port_via_helper(const transport::executor_type& executor,
     if (!::TransactNamedPipe(pipe.get(), &request, sizeof(request), &reply,
                              sizeof(reply), &returned, nullptr) ||
         returned != sizeof(reply) || reply.Version != VSSCOM_HELPER_VERSION)
+    {
+        note_failure("talk to the helper", ::GetLastError());
         return make_error_code(errc::io_error);
+    }
 
+    if (reply.Status != ERROR_SUCCESS)
+        note_failure("the helper's answer to the request for a port",
+                     reply.Status);
     switch (reply.Status)
     {
     case ERROR_SUCCESS:
@@ -1356,6 +1391,136 @@ bool helper_present()
     VSS_PROFILE_ZONE("ports.vcom.helper_present");
     return ::WaitNamedPipeW(VssComHelperPipeName, 1) != FALSE ||
            ::GetLastError() != ERROR_FILE_NOT_FOUND;
+}
+
+
+/// True when the key exists in the driver store's list of hardware IDs. The key
+/// is readable by every user. `unknown` when it could not be asked.
+driver_fact store_lists(const wchar_t* path)
+{
+    HKEY key = nullptr;
+    const LONG opened =
+        ::RegOpenKeyExW(HKEY_LOCAL_MACHINE, path, 0, KEY_READ, &key);
+    if (opened == ERROR_SUCCESS)
+    {
+        ::RegCloseKey(key);
+        return driver_fact::yes;
+    }
+    return opened == ERROR_FILE_NOT_FOUND || opened == ERROR_PATH_NOT_FOUND
+               ? driver_fact::no
+               : driver_fact::unknown;
+}
+
+/// The driver package is installed: the control device or a port is there, or
+/// the driver store lists a hardware ID of either driver.
+driver_fact package_installed(bool control_device)
+{
+    if (control_device || !enumerate_hubs().empty())
+        return driver_fact::yes;
+
+    const driver_fact user_mode =
+        store_lists(L"SYSTEM\\DriverDatabase\\DeviceIds\\VSSCOMUM\\PORT");
+    const driver_fact kernel_mode =
+        store_lists(L"SYSTEM\\DriverDatabase\\DeviceIds\\VSSCOM\\PORT");
+    if (user_mode == driver_fact::yes || kernel_mode == driver_fact::yes)
+        return driver_fact::yes;
+    if (user_mode == driver_fact::no && kernel_mode == driver_fact::no)
+        return driver_fact::no;
+    return driver_fact::unknown;
+}
+
+/// Asks the service control manager about the helper. Any user may ask.
+helper_service_state helper_service(DWORD& code)
+{
+    const SC_HANDLE manager =
+        ::OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
+    if (manager == nullptr)
+    {
+        code = ::GetLastError();
+        return helper_service_state::unknown;
+    }
+    const SC_HANDLE service =
+        ::OpenServiceW(manager, VssComHelperServiceName, SERVICE_QUERY_STATUS);
+    if (service == nullptr)
+    {
+        const DWORD error = ::GetLastError();
+        ::CloseServiceHandle(manager);
+        if (error == ERROR_SERVICE_DOES_NOT_EXIST)
+            return helper_service_state::not_installed;
+        code = error;
+        return helper_service_state::unknown;
+    }
+
+    SERVICE_STATUS status{};
+    const bool asked = ::QueryServiceStatus(service, &status) != FALSE;
+    if (!asked)
+        code = ::GetLastError();
+    ::CloseServiceHandle(service);
+    ::CloseServiceHandle(manager);
+    if (!asked)
+        return helper_service_state::unknown;
+    return status.dwCurrentState == SERVICE_RUNNING
+               ? helper_service_state::running
+               : helper_service_state::stopped;
+}
+
+/// Sends the helper a request that changes nothing: a COM number of 0 is outside
+/// the range, so a helper that knows COM numbers answers ERROR_INVALID_PARAMETER
+/// before it looks at anything, and one from before them answers
+/// ERROR_NOT_SUPPORTED. Either way the helper has identified the caller, which
+/// is the other thing worth knowing.
+helper_probe probe_helper(DWORD& code)
+{
+    DWORD error = 0;
+    unique_handle pipe(open_helper(error));
+    if (pipe.get() == INVALID_HANDLE_VALUE)
+    {
+        code = error;
+        if (error == ERROR_FILE_NOT_FOUND)
+            return helper_probe::no_pipe;
+        return error == ERROR_ACCESS_DENIED ? helper_probe::access_denied
+                                            : helper_probe::failed;
+    }
+
+    DWORD mode = PIPE_READMODE_MESSAGE;
+    if (!::SetNamedPipeHandleState(pipe.get(), &mode, nullptr, nullptr))
+    {
+        code = ::GetLastError();
+        return helper_probe::failed;
+    }
+
+    VSSCOM_HELPER_REQUEST request{};
+    request.Version = VSSCOM_HELPER_VERSION;
+    request.Op = VSSCOM_HELPER_OP_SET_COM_NUMBER;
+    VSSCOM_HELPER_REPLY reply{};
+    DWORD returned = 0;
+    if (!::TransactNamedPipe(pipe.get(), &request, sizeof(request), &reply,
+                             sizeof(reply), &returned, nullptr) ||
+        returned != sizeof(reply))
+    {
+        code = ::GetLastError();
+        return helper_probe::failed;
+    }
+    if (reply.Version != VSSCOM_HELPER_VERSION)
+    {
+        code = ERROR_NOT_SUPPORTED;
+        return helper_probe::incompatible;
+    }
+    code = reply.Status == ERROR_INVALID_PARAMETER ? 0 : reply.Status;
+    switch (reply.Status)
+    {
+    case ERROR_INVALID_PARAMETER:
+    // The helper is working and this user is at their limit: not a set-up problem.
+    case ERROR_NOT_ENOUGH_QUOTA:
+        return helper_probe::ok;
+    case ERROR_ACCESS_DENIED:
+        return helper_probe::access_denied;
+    case ERROR_NOT_SUPPORTED:
+        return helper_probe::incompatible;
+    default:
+        break;
+    }
+    return helper_probe::failed;
 }
 
 } // namespace
@@ -1521,6 +1686,29 @@ std::optional<driver_peer_info> platform_driver_peer(const std::string& com_name
             return candidate->peer();
     }
     return std::nullopt;
+}
+
+std::optional<driver_setup_observation> platform_observe_driver_setup()
+{
+    VSS_PROFILE_ZONE("ports.vcom.observe_setup");
+    driver_setup_observation seen;
+    seen.control_device = !find_control_path().empty();
+    seen.driver_installed = package_installed(seen.control_device);
+
+    DWORD service_code = 0;
+    seen.service = helper_service(service_code);
+
+    DWORD pipe_code = 0;
+    seen.pipe = probe_helper(pipe_code);
+    // The pipe says more about a refusal than the service does.
+    seen.code = pipe_code != 0 ? pipe_code : service_code;
+    return seen;
+}
+
+driver_failure platform_last_driver_failure()
+{
+    const std::lock_guard lock(failure_mutex);
+    return failure_record;
 }
 
 } // namespace vss::detail

@@ -57,6 +57,7 @@ public:
 
 Q_SIGNALS:
     void check_requested();
+    void driver_setup_requested();
     void open_requested();
     void save_requested();
     void examples_requested();

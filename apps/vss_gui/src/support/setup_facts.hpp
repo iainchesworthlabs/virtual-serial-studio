@@ -59,6 +59,9 @@ enum class setup_action
 {
     none,
     install_driver,
+    /// Open "Set up Virtual Serial Studio": install or repair the driver and
+    /// the helper service in one elevated step.
+    setup_driver,
     restart_elevated,
     refresh_devices,
     continue_test,
@@ -101,6 +104,9 @@ struct setup_report
     readiness state = readiness::not_checked;
     /// True when other programs can open newly created virtual ports.
     bool ports_ready = false;
+    /// The piece of the Windows driver set-up that is wrong, if the guided
+    /// set-up can fix it; `none` otherwise and on other systems.
+    driver_problem problem = driver_problem::none;
     /// "All set", "1 thing to fix" or "Not checked yet".
     QString header_chip;
     /// The warning above the rows; empty when nothing is wrong.

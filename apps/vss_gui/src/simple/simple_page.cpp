@@ -219,6 +219,8 @@ void SimplePage::build()
             [this](job kind) { open_job(kind); });
     connect(grid_, &JobGrid::check_requested, this,
             [this] { Q_EMIT check_requested(); });
+    connect(grid_, &JobGrid::driver_setup_requested, this,
+            [this] { Q_EMIT driver_setup_requested(); });
     connect(grid_, &JobGrid::open_requested, this,
             [this] { Q_EMIT open_requested(); });
     connect(grid_, &JobGrid::examples_requested, this,
@@ -380,6 +382,8 @@ void SimplePage::show_form(job kind, const std::optional<setup_view>& previous)
     form_ = new JobForm(backend_, kind, previous, prefs, stack_);
     stack_->addWidget(form_);
     stack_->setCurrentWidget(form_);
+    connect(form_, &JobForm::driver_setup_requested, this,
+            [this] { Q_EMIT driver_setup_requested(); });
     connect(form_, &JobForm::cancelled, this,
             [this]
             {

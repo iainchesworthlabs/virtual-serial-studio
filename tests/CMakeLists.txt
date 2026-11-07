@@ -8,6 +8,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_bytes.cpp
   unit/test_control_lines.cpp
   unit/test_document.cpp
+  unit/test_driver_setup.cpp
   unit/test_endpoint.cpp
   unit/test_endpoint_reopen.cpp
   unit/test_endpoint_status.cpp
@@ -244,7 +245,7 @@ if(TARGET vss_gui_ui_tests)
     set(VSS_UI_BUDGET_SCALE 12)
   endif()
   set(VSS_UI_ENV "${VSS_UI_ENV};VSS_UI_BUDGET_SCALE=${VSS_UI_BUDGET_SCALE}")
-  foreach(group simple advanced edge actions engine)
+  foreach(group simple advanced edge actions engine setup)
     add_test(NAME ui_${group}
       COMMAND vss_gui_ui_tests --verbose --filter=${group}:)
     set(_labels ui ui-${group})

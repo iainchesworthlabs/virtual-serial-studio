@@ -13,6 +13,7 @@
 #include <vss/core/hub.hpp>
 #include <vss/core/profile.hpp>
 #include <vss/ports/com0com.hpp>
+#include <vss/ports/driver_setup.hpp>
 #include <vss/ports/peer_open.hpp>
 #include <vss/ports/permissions.hpp>
 #include <vss/ports/process_control.hpp>
@@ -627,6 +628,39 @@ std::vector<traffic_view> EngineStudioBackend::traffic(int limit) const
     return out;
 }
 
+driver_check EngineStudioBackend::check_driver() const
+{
+    VSS_PROFILE_ZONE("gui.setup.facts.driver_check");
+    const vss::driver_setup_report report = vss::probe_driver_setup();
+    driver_check check;
+    switch (report.state)
+    {
+    case vss::driver_setup_state::driver_missing:
+        check.problem = driver_problem::driver_missing;
+        break;
+    case vss::driver_setup_state::helper_missing:
+        check.problem = driver_problem::helper_missing;
+        break;
+    case vss::driver_setup_state::helper_stopped:
+        check.problem = driver_problem::helper_stopped;
+        break;
+    case vss::driver_setup_state::helper_incompatible:
+        check.problem = driver_problem::helper_incompatible;
+        break;
+    case vss::driver_setup_state::helper_denied:
+        check.problem = driver_problem::helper_denied;
+        break;
+    case vss::driver_setup_state::unknown:
+        check.problem = driver_problem::unknown;
+        break;
+    case vss::driver_setup_state::not_applicable:
+    case vss::driver_setup_state::ready:
+        break;
+    }
+    check.details = QString::fromStdString(report.detail);
+    return check;
+}
+
 setup_facts EngineStudioBackend::facts() const
 {
     setup_facts facts;
@@ -648,6 +682,7 @@ setup_facts EngineStudioBackend::facts() const
         facts.serial_devices =
             static_cast<int>(studio_.serial_devices().size());
     }
+    facts.driver = check_driver();
     facts.platform = platform_name();
     // No platform helper proves elevation yet.  Leave it unknown rather than
     // telling the user something the build cannot check.

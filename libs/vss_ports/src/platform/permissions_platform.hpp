@@ -44,7 +44,8 @@ bool platform_can_run_elevated() noexcept;
 /// (`permissions::exit_*`).
 permissions::step_result
 platform_run_elevated(const std::string& executable,
-                      const std::vector<std::string>& arguments);
+                      const std::vector<std::string>& arguments,
+                      int wait_seconds);
 
 /// True when `pkexec` and `usermod` are installed, so a group can be changed
 /// through polkit.

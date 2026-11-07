@@ -435,6 +435,9 @@ struct step_result
     step_status status = step_status::failed;
     /// English text for the log, never shown as is.
     std::string detail;
+    /// The exit code of the elevated program, when it ran to the end; -1
+    /// otherwise.
+    int exit_code = -1;
 };
 
 /// Applies or removes the rule. Needs administrator rights; call it only from
@@ -442,10 +445,11 @@ struct step_result
 step_result apply_firewall_rule(const firewall_rule_spec& spec, bool remove);
 
 /// Starts `executable` with `arguments` elevated, through the operating
-/// system's own prompt, waits and returns its exit code as a status. The user
-/// sees the prompt and may decline.
+/// system's own prompt, waits up to `wait_seconds` and returns its exit code as
+/// a status (and as `exit_code`). The user sees the prompt and may decline.
 step_result run_elevated(const std::string& executable,
-                         const std::vector<std::string>& arguments);
+                         const std::vector<std::string>& arguments,
+                         int wait_seconds = 60);
 
 /// Exit codes of the elevated helper, so `run_elevated` can report them.
 inline constexpr int exit_done = 0;

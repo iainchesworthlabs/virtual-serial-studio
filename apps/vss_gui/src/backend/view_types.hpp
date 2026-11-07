@@ -175,6 +175,38 @@ struct device_view
 };
 
 /// Facts the setup check, launcher strip and status chip read.
+/// What stands between this PC and a virtual COM port that other programs can
+/// open (Windows).  Each value is one thing to fix, and the first four are
+/// fixed by the same guided set-up.
+enum class driver_problem
+{
+    /// Nothing is wrong, or this system needs no driver.
+    none,
+    /// The driver package is not installed.
+    driver_missing,
+    /// The helper service is not installed.
+    helper_missing,
+    /// The helper service is installed and not running.
+    helper_stopped,
+    /// The helper is older than this program, or speaks another version.
+    helper_incompatible,
+    /// The helper is there and refused this user.
+    helper_denied,
+    /// Something else, or the answer was not understood.
+    unknown
+};
+
+/// The answer of a check of the driver set-up.
+struct driver_check
+{
+    driver_problem problem = driver_problem::none;
+    /// One English line with what was seen, and the Win32 error behind it; for
+    /// the "Copy details" text and the log, never a sentence for the person.
+    QString details;
+
+    bool operator==(const driver_check&) const = default;
+};
+
 struct setup_facts
 {
     /// The Virtual Serial Studio COM port driver (`vsscom` or `vsscom_um`) is
@@ -191,6 +223,9 @@ struct setup_facts
     /// guess.
     bool elevation_known = false;
     bool elevated = false;
+    /// What is missing for the driver (Windows).  `facts()` fills it from a
+    /// check that sends the helper one harmless request.
+    driver_check driver;
 };
 
 /// One selected event from the hub, converted for the GUI thread.

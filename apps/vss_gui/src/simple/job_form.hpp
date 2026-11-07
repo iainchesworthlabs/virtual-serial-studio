@@ -110,6 +110,8 @@ public:
 
 Q_SIGNALS:
     void cancelled();
+    /// The error offered "Set up Virtual Serial Studio" and it was chosen.
+    void driver_setup_requested();
     void done(vss::endpoint_id port,
               const vss::gui::simple::setup_prefs& prefs);
 

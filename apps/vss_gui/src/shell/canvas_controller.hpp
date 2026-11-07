@@ -100,6 +100,9 @@ Q_SIGNALS:
     void message(const QString& text);
     /// A step ended; the window updates once and keeps its history.
     void batch_finished();
+    /// The user chose "Set up Virtual Serial Studio" from an Add that failed
+    /// because the driver or helper is not ready.
+    void driver_setup_requested();
 
 private:
     template <typename Function> auto batch(Function&& function)
@@ -132,6 +135,7 @@ private:
     confirm_function confirm_;
     std::function<void(canvas_item)> open_flow_;
     int batch_depth_ = 0;
+    bool setup_offered_ = false;
 };
 
 } // namespace vss::gui

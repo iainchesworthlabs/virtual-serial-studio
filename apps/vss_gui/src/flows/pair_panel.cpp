@@ -6,6 +6,7 @@
 
 #include "flows/pair_panel.hpp"
 
+#include "backend/driver_error.hpp"
 #include "theme/theme.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
@@ -600,12 +601,15 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
     {
         if (error != nullptr)
         {
+            const vss::error_code failure =
+                driver_aware_error(backend_, first.error());
             error->title = tr("Could not create the pair");
-            error->body = error_body(first.error(),
+            error->body = error_body(failure,
                                      tr("Studio could not create the first "
                                         "port. Nothing was changed."),
                                      tr(" Check the setup and try again."));
-            error->details = error_text(first.error());
+            error->details = error_details(failure);
+            apply_driver_problem(*error, failure);
         }
         return std::nullopt;
     }
@@ -617,12 +621,15 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         static_cast<void>(backend_.remove_port(*first));
         if (error != nullptr)
         {
+            const vss::error_code failure =
+                driver_aware_error(backend_, second.error());
             error->title = tr("Could not create the pair");
-            error->body = error_body(second.error(),
+            error->body = error_body(failure,
                                      tr("Studio could not create the second "
                                         "port. Nothing was changed."),
                                      tr(" Check the setup and try again."));
-            error->details = error_text(second.error());
+            error->details = error_details(failure);
+            apply_driver_problem(*error, failure);
         }
         return std::nullopt;
     }

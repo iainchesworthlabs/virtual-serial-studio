@@ -36,6 +36,8 @@ public:
     /// driving it.
     SegmentedControl* release_level_switch(QWidget* parent);
     void refresh();
+    /// Forgets the last readiness answer, so the next `refresh` asks again.
+    void invalidate_setup() { setup_cache_.invalidate(); }
 
 Q_SIGNALS:
     void level_requested(bool advanced);

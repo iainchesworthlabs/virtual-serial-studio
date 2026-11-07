@@ -16,6 +16,8 @@ add_library(vss_gui_support STATIC
   console.hpp
   diagnostic_bundle_dialog.cpp
   diagnostic_bundle_dialog.hpp
+  driver_setup_dialog.cpp
+  driver_setup_dialog.hpp
   elevated_step.cpp
   elevated_step.hpp
   event_log.cpp

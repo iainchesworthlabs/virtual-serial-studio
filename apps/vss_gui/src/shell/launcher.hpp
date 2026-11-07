@@ -54,10 +54,14 @@ public:
     explicit Launcher(StudioBackend& backend, QWidget* parent = nullptr);
 
     void refresh();
+    /// Forgets the last readiness answer, so the next `refresh` asks again.
+    void invalidate_setup() { setup_cache_.invalidate(); }
 
 Q_SIGNALS:
     void job_requested(const QString& job);
     void setup_check_requested();
+    /// The banner offered "Set up Virtual Serial Studio" and it was chosen.
+    void driver_setup_requested();
     void open_recent_requested(const QString& path);
     void browse_requested();
     void advanced_requested();
@@ -68,6 +72,7 @@ private:
 
     StudioBackend& backend_;
     support::setup_report_cache setup_cache_;
+    bool setup_offered_ = false;
     NoteBanner* readiness_ = nullptr;
     QLabel* recent_name_ = nullptr;
     QLabel* recent_summary_ = nullptr;

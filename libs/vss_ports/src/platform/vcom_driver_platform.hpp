@@ -8,6 +8,7 @@
 #define VSS_PORTS_VCOM_DRIVER_PLATFORM_HPP
 
 #include <vss/core/error.hpp>
+#include <vss/ports/driver_setup.hpp>
 #include <vss/ports/vcom_driver.hpp>
 #include <vss/ports/virtual_port.hpp>
 
@@ -40,6 +41,13 @@ result<std::uint32_t> platform_revoke_driver_port(transport& port);
 
 /// What the driver last said about the program on the COM port `com_name`.
 std::optional<driver_peer_info> platform_driver_peer(const std::string& com_name);
+
+/// Asks each piece of the driver set-up on its own. Empty where no driver is
+/// needed. Makes no port.
+std::optional<driver_setup_observation> platform_observe_driver_setup();
+
+/// The last failed step of making a port in this process.
+driver_failure platform_last_driver_failure();
 
 } // namespace vss::detail
 

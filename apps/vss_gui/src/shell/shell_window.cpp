@@ -43,6 +43,7 @@
 #include "shell/status_bar.hpp"
 #include "shell/studio_tray.hpp"
 #include "shell/undo_steps.hpp"
+#include "simple/job_grid.hpp"
 #include "simple/simple_page.hpp"
 #include "support/about_dialog.hpp"
 #include "support/build_info.hpp"
@@ -51,6 +52,7 @@
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
+#include "support/driver_setup_dialog.hpp"
 #include "support/setup_check_dialog.hpp"
 #include "support/setup_facts.hpp"
 #include "support/shortcuts_dialog.hpp"
@@ -775,6 +777,8 @@ void ShellWindow::build_central()
             [this](const QString& job) { run_job(job); });
     connect(launcher_, &Launcher::setup_check_requested, this,
             [this] { open_setup_check(); });
+    connect(launcher_, &Launcher::driver_setup_requested, this,
+            [this] { open_driver_setup(); });
     connect(launcher_, &Launcher::browse_requested, this,
             [this] { open_document(); });
     connect(launcher_, &Launcher::open_recent_requested, this,
@@ -788,6 +792,8 @@ void ShellWindow::build_central()
     simple_page_ = new simple::SimplePage(backend_, central_);
     connect(simple_page_, &simple::SimplePage::check_requested, this,
             [this] { open_setup_check(); });
+    connect(simple_page_, &simple::SimplePage::driver_setup_requested, this,
+            [this] { open_driver_setup(); });
     connect(simple_page_, &simple::SimplePage::open_requested, this,
             [this] { open_document(); });
     connect(simple_page_, &simple::SimplePage::save_requested, this,
@@ -931,6 +937,8 @@ void ShellWindow::build_central()
                 status_->showMessage(text, 6000);
                 log_local(text);
             });
+    connect(canvas_, &CanvasController::driver_setup_requested, this,
+            [this] { open_driver_setup(); });
     connect(canvas_, &CanvasController::batch_finished, this,
             [this]
             {
@@ -1973,6 +1981,8 @@ void ShellWindow::show_add_port(bool pair_selected)
             });
     connect(&dialog, &AddPortDialog::setup_check_requested, this,
             [this] { open_setup_check(); });
+    connect(&dialog, &AddPortDialog::driver_setup_requested, this,
+            [this] { open_driver_setup(); });
     if (dialog.exec() != QDialog::Accepted)
         return;
 
@@ -2011,6 +2021,8 @@ void ShellWindow::show_pair()
             });
     connect(&dialog, &PairDialog::setup_check_requested, this,
             [this] { open_setup_check(); });
+    connect(&dialog, &PairDialog::driver_setup_requested, this,
+            [this] { open_driver_setup(); });
     if (dialog.exec() != QDialog::Accepted)
         return;
     const auto outcome = dialog.outcome();
@@ -2736,6 +2748,25 @@ void ShellWindow::open_setup_check()
     dialog.exec();
     status_->refresh();
     launcher_->refresh();
+}
+
+void ShellWindow::open_driver_setup()
+{
+    DriverSetupDialog dialog(backend_, backend_.check_driver().problem, this);
+    dialog.exec();
+    // The banners keep an answer for a few seconds; this one is stale now.
+    status_->invalidate_setup();
+    launcher_->invalidate_setup();
+    simple_page_->jobs()->invalidate_setup();
+    status_->refresh();
+    launcher_->refresh();
+    simple_page_->jobs()->refresh();
+    if (dialog.is_ready())
+    {
+        ToastManager::instance().show(
+            this, tr("Virtual Serial Studio is set up. New ports can be "
+                     "opened by other programs."));
+    }
 }
 
 void ShellWindow::restart_elevated()

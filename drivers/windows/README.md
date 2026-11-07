@@ -134,6 +134,40 @@ Windows 11 guest with test signing off. The kernel-mode driver does not have tha
 freedom: Windows loads kernel code only if Microsoft signed it, or if test signing
 mode is on. The test certificate suffices for the second case only.
 
+## Setting up from Studio: signed and unsigned builds
+
+A new user has installed nothing. Studio checks the PC without making a port
+(`vss::probe_driver_setup`: the driver store, the service control manager, and
+one request that changes nothing on the helper's pipe), and when the driver is
+missing, the helper is not installed, not running, older than Studio or refuses
+the user, the first screen, the Setup check and the error of a refused port all
+offer one action, **Set up Virtual Serial Studio**. It runs `setup-driver.ps1`
+through one Windows permission prompt (UAC). Nothing is downloaded: the script
+takes the files from a `driver` folder beside the program (or the folder in
+`VSS_DRIVER_PACKAGE`), which holds `setup-driver.ps1`, `driver/` (`vsscom_um.inf`,
+`.dll`, `.cat`) and `helper/` (`vsscom_helper.exe`, `install-helper.ps1`). Run it
+again to repair a partial install. By hand, from a terminal opened as
+administrator:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-driver.ps1 -PackageRoot <folder>
+```
+
+Before it changes anything the script checks the signature of the driver DLL, its
+catalog and the helper. It never adds a certificate to the machine.
+
+| Build | What the user sees |
+|---|---|
+| A release, signed with a certificate the machine trusts (a Microsoft-trusted publisher, or the owner's CA after `trust/install-trust.ps1`) | The Windows prompt names the publisher. Setup installs the driver and the helper and says "Virtual Serial Studio is set up." |
+| A test-signed package (`SIGN_WINDOWS=test`) on a machine that does not trust the test CA | The prompt shows the publisher or "Unknown publisher". The script exits 6 before changing anything and Studio says "Windows does not trust the signature on the driver files, so nothing was installed." Run `trust/install-trust.ps1` with the CA's public certificates (it asks for administrator rights and prints the root's fingerprint to check), or turn on test signing (`prepare-test-signing.ps1`, in a guest or on a machine you own), then choose Set up again. |
+| An unsigned development build | The same as the line above: exit 6, nothing installed. A development machine either trusts the test certificate or runs in test signing mode. With test signing on, the script accepts a signed but untrusted chain and installs. |
+| No `driver` folder beside the program | The Set up button is off and the dialog says the driver files are not with this copy, and shows how to run the script by hand. |
+
+The prompt always belongs to the PowerShell that runs the script; the script is
+read from the program's own folder, so in an installed copy (Program Files) only
+an administrator can change it. A development copy in a folder you own can be
+changed by you, which is as it should be.
+
 ## Layout
 
 | Path | What |
@@ -158,6 +192,7 @@ mode is on. The test certificate suffices for the second case only.
 | `vsscom_helper/com_number.hpp` | the rules for COM numbers and friendly names, with nothing of Windows in them; unit-tested |
 | `vsscom_helper/protocol.h` | what the studio, the helper and the user-mode driver share: the pipe, the messages, the owner property |
 | `vsscom_helper/install-helper.ps1` | installs or removes the service |
+| `setup-driver.ps1` | one elevated step that checks the signatures and installs or repairs the user-mode driver and the helper service; what Studio runs for "Set up Virtual Serial Studio" |
 | `trust/install-trust.ps1` | makes a machine trust the owner's CA and the signer of a package, so a test-signed package installs with test signing off |
 | `build.ps1` | restore, build, `InfVerif`, `Inf2Cat`, for either driver, the helper or all |
 | `test/` | guest scripts, for either driver (`-Flavour kmdf` or `umdf`): `install-driver.ps1` (two ports made by hand, `-Count` for more, and for the kernel-mode driver the control device; `-Helper` installs the helper service), `test-driver.ps1` (tests D1 to D31, and H14 for the helper), `test-client.ps1` (the studio client against the driver), `test-wow64.ps1` (a 32-bit program and the hung-program tests), `hub-io.ps1` (its hub-end helpers), `client32/` (the C program they run), `uninstall-driver.ps1` |

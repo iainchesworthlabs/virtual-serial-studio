@@ -13,10 +13,12 @@
 #include "advanced/link_settings_dialog.hpp"
 #include "advanced/port_settings_dialog.hpp"
 #include "backend/canvas_edit.hpp"
+#include "backend/driver_error.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "shell/canvas_controller.hpp"
 #include "shell/shell_window.hpp"
 #include "shell/undo_service.hpp"
+#include "support/driver_setup_dialog.hpp"
 #include "theme/theme.hpp"
 #include "topology/add_sheet.hpp"
 #include "topology/node_item.hpp"
@@ -661,6 +663,100 @@ TEST_CASE("canvas: a failed Add keeps its sheet open with the reason")
     REQUIRE_EQ(seen.step, 2);
     REQUIRE_EQ(backend.ports().size(), std::size_t{1});
     REQUIRE(named(backend, QStringLiteral("my-port")).has_value());
+    clear_canvas_settings();
+}
+
+TEST_CASE("canvas: a refused driver port offers the set-up from the sheet")
+{
+    // The reported bug: a COM port dragged onto the Advanced canvas and Added
+    // said only "permission denied".
+    clear_canvas_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::setup_facts facts;
+    facts.platform = QStringLiteral("windows");
+    facts.driver.problem = vss::gui::driver_problem::helper_incompatible;
+    backend.set_facts(facts);
+    vss::gui::ShellWindow window(backend);
+    window.resize(1280, 800);
+    window.show();
+    QApplication::processEvents();
+    QAction* advanced =
+        window.findChild<QAction*>(QStringLiteral("view.advanced"));
+    REQUIRE(advanced != nullptr);
+    if (!advanced->isChecked())
+        advanced->trigger();
+    QApplication::processEvents();
+    auto* toolbox = window.findChild<topo::Toolbox*>();
+    REQUIRE(toolbox != nullptr);
+
+    struct drive
+    {
+        int step = 0;
+        QString error;
+        bool offered = false;
+        bool set_up_opened = false;
+    } seen;
+
+    QTimer driver;
+    driver.setInterval(5);
+    QObject::connect(
+        &driver, &QTimer::timeout,
+        [&]
+        {
+            QWidget* modal = QApplication::activeModalWidget();
+            if (auto* setup =
+                    qobject_cast<vss::gui::support::DriverSetupDialog*>(modal))
+            {
+                seen.set_up_opened = true;
+                setup->reject();
+                return;
+            }
+            auto* sheet = qobject_cast<topo::AddSheet*>(modal);
+            if (sheet == nullptr || seen.step != 0)
+                return;
+            seen.step = 1;
+            backend.fail_next(
+                vss::make_error_code(vss::errc::permission_denied));
+            sheet->add_button()->click();
+            seen.error = sheet->error_text();
+            const auto buttons = sheet->findChildren<QPushButton*>();
+            for (QPushButton* button : buttons)
+            {
+                if (button->text() ==
+                        QStringLiteral("Set up Virtual Serial Studio") &&
+                    button->isVisibleTo(sheet))
+                {
+                    seen.offered = true;
+                    button->click();
+                    return;
+                }
+            }
+            sheet->reject();
+        });
+    driver.start();
+    QTimer::singleShot(5000,
+                       [&]
+                       {
+                           if (auto* modal = qobject_cast<QDialog*>(
+                                   QApplication::activeModalWidget()))
+                               modal->reject();
+                       });
+
+    Q_EMIT toolbox->add_requested(canvas_item::port);
+    // The set-up dialog opens once the sheet has gone.
+    QElapsedTimer wait;
+    wait.start();
+    while (!seen.set_up_opened && seen.offered && wait.elapsed() < 2000)
+        QApplication::processEvents();
+    driver.stop();
+
+    REQUIRE_EQ(seen.error,
+               vss::gui::driver_problem_body(
+                   vss::gui::driver_problem::helper_incompatible));
+    REQUIRE(!seen.error.contains(QStringLiteral("permission denied")));
+    REQUIRE(seen.offered);
+    REQUIRE(seen.set_up_opened);
+    REQUIRE(backend.ports().empty());
     clear_canvas_settings();
 }
 

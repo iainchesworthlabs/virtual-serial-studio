@@ -456,6 +456,7 @@ QString AddSheet::slot_row_label(int index) const
 void AddSheet::show_error(const QString& text)
 {
     error_->set_text(text);
+    error_->clear_action();
     error_->setVisible(!text.isEmpty());
     adjustSize();
 }
@@ -484,6 +485,15 @@ void AddSheet::submit()
     // Stay open with what was typed, say why, and put the cursor back in the
     // first name so the next try is one edit away.
     show_error(failure);
+    if (setup_offered_ && setup_offered_())
+    {
+        error_->set_action(tr("Set up Virtual Serial Studio"),
+                           [this]
+                           {
+                               reject();
+                               Q_EMIT driver_setup_requested();
+                           });
+    }
     for (const row& line : rows_)
     {
         if (line.name->isVisibleTo(this))

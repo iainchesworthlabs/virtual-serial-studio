@@ -6,6 +6,8 @@
 
 #include "simple/job_plan.hpp"
 
+#include "backend/driver_error.hpp"
+
 #include <vss/core/profile.hpp>
 
 #include <QRegularExpression>
@@ -292,8 +294,13 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
                 end.com_number != 0 && backend.caps().com_numbers
                     ? backend.create_driver_port(name, true, end.com_number)
                     : backend.create_auto_port(name, true);
-            if (port)
-                made.push_back(*port);
+            if (!port)
+            {
+                // A missing driver or helper looks like any other refusal;
+                // say which, so the form can offer the set-up.
+                return driver_aware_error(backend, port.error());
+            }
+            made.push_back(*port);
             return port;
         }
         const QString path =

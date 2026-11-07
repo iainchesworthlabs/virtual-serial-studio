@@ -82,6 +82,8 @@ public:
 Q_SIGNALS:
     void advanced_requested();
     void setup_check_requested();
+    /// The error offered "Set up Virtual Serial Studio" and it was chosen.
+    void driver_setup_requested();
     void error_shown(const QString& title);
 
 private:

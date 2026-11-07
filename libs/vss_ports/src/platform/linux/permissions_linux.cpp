@@ -161,7 +161,8 @@ bool platform_can_run_elevated() noexcept
 }
 
 permissions::step_result platform_run_elevated(const std::string&,
-                                               const std::vector<std::string>&)
+                                               const std::vector<std::string>&,
+                                               int)
 {
     return {permissions::step_status::unsupported,
             "this platform has no generic elevated step"};

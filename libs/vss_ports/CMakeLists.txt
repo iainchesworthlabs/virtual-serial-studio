@@ -6,6 +6,7 @@
 
 add_library(vss_ports
   src/com0com.cpp
+  src/driver_setup.cpp
   src/listen_transport.cpp
   src/loopback_transport.cpp
   src/native_lines.cpp

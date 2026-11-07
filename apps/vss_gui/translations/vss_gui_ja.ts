@@ -571,6 +571,11 @@
             <source> Try a different name or kind, then try again.</source>
             <translation>別の名前または種類を試してから、もう一度やり直してください。</translation>
         </message>
+        <message>
+            <location filename="../src/flows/add_port_dialog.cpp" line="707" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
     </context>
     <context>
         <name>Advanced</name>
@@ -3128,6 +3133,11 @@ Networks: %5</source>
             <source>Could not set it up. %1 Nothing was changed.</source>
             <translation>設定できませんでした。%1 何も変更していません。</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1391" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
     </context>
     <context>
         <name>JobGrid</name>
@@ -3217,6 +3227,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_grid.cpp" line="349" />
             <source>Open setup check</source>
             <translation>セットアップチェックを開く</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="365" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
         </message>
     </context>
     <context>
@@ -3377,6 +3392,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="361" />
             <source>Saved setup</source>
             <translation>保存済みセットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="344" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
         </message>
     </context>
     <context>
@@ -4308,6 +4328,11 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>ペアを作成</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/pair_dialog.cpp" line="63" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
         </message>
     </context>
     <context>
@@ -5514,12 +5539,6 @@ Networks: %5</source>
             <translation>システムが許可しませんでした。何も変更されていません。「ツール」の「セットアップチェック」を開いてください。アカウントにシリアルデバイスのグループがないのか、AppArmor、SELinux、サンドボックスが妨げているのかが表示され、解決のコマンドも示されます。</translation>
         </message>
         <message>
-            <location filename="../src/flows/common.cpp" line="113" />
-            <location filename="../src/flows/common.cpp" line="140" />
-            <source>Windows did not allow this change. Nothing was changed. Run Virtual Serial Studio as administrator and try again.</source>
-            <translation>Windowsがこの変更を許可しませんでした。何も変更されていません。Virtual Serial Studioを管理者として実行して、もう一度やり直してください。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/common.cpp" line="69" />
             <source>COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Choose a different number.</source>
             <translation>COM%1 はこの PC のほかのデバイス（実際のポート、com0com、Windows が覚えている以前のポートなど）が使っています。何も変更していません。別の番号を選んでください。</translation>
@@ -5568,6 +5587,71 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="119" />
             <source>untitled</source>
             <translation>無題</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/common.cpp" line="117" />
+            <source>Windows did not allow this change. Nothing was changed. Open Tools, Setup check to see what is missing, or run Virtual Serial Studio as administrator and try again.</source>
+            <translation>Windows がこの変更を許可しませんでした。何も変更されていません。ツール、セットアップチェックを開いて足りないものを確認するか、Virtual Serial Studio を管理者として実行してもう一度やり直してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="110" />
+            <source>The Virtual Serial Studio driver is not installed</source>
+            <translation>Virtual Serial Studio のドライバーがインストールされていません</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="112" />
+            <source>The Virtual Serial Studio helper is not installed</source>
+            <translation>Virtual Serial Studio のヘルパーがインストールされていません</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="114" />
+            <source>The Virtual Serial Studio helper is not running</source>
+            <translation>Virtual Serial Studio のヘルパーが実行されていません</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="116" />
+            <source>The Virtual Serial Studio helper is out of date</source>
+            <translation>Virtual Serial Studio のヘルパーが古くなっています</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="118" />
+            <source>Your account cannot use the Virtual Serial Studio helper</source>
+            <translation>このアカウントでは Virtual Serial Studio のヘルパーを使えません</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="124" />
+            <source>Windows would not make the port</source>
+            <translation>Windows がポートを作成しませんでした</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="132" />
+            <source>Windows needs the Virtual Serial Studio driver to make a COM port that other programs can open, and this PC does not have it yet. Nothing was changed. Choose Set up Virtual Serial Studio to install it.</source>
+            <translation>他のプログラムが開ける COM ポートを作成するには Virtual Serial Studio のドライバーが必要ですが、この PC にはまだありません。何も変更していません。「Virtual Serial Studio をセットアップ」を選んでインストールしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="138" />
+            <source>The helper service that makes ports without asking for administrator rights each time is not installed. Nothing was changed. Choose Set up Virtual Serial Studio to install it.</source>
+            <translation>毎回管理者権限を求めずにポートを作成するヘルパーサービスがインストールされていません。何も変更していません。「Virtual Serial Studio をセットアップ」を選んでインストールしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="143" />
+            <source>The helper service that makes ports is installed but not running. Nothing was changed. Choose Set up Virtual Serial Studio to start it again.</source>
+            <translation>ポートを作成するヘルパーサービスはインストールされていますが、実行されていません。何も変更していません。「Virtual Serial Studio をセットアップ」を選んでもう一度開始してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="148" />
+            <source>The helper service on this PC is older than this program, so it cannot make ports. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>この PC のヘルパーサービスはこのプログラムより古いため、ポートを作成できません。何も変更していません。「Virtual Serial Studio をセットアップ」を選んで更新してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="153" />
+            <source>Windows did not let your account use the helper service that makes ports. Nothing was changed. Choose Set up Virtual Serial Studio to repair it, or ask an administrator of this PC.</source>
+            <translation>Windows は、ポートを作成するヘルパーサービスの使用をあなたのアカウントに許可しませんでした。何も変更していません。「Virtual Serial Studio をセットアップ」を選んで修復するか、この PC の管理者に相談してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="161" />
+            <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
+            <translation>Windows がポートを作成せず、Studio はどの部分が原因か判断できませんでした。何も変更していません。ツール、セットアップチェックを開いて足りないものを確認し、助けを求める場合は詳細をコピーしてください。</translation>
         </message>
     </context>
     <context>
@@ -6733,6 +6817,11 @@ Networks: %5</source>
             <location filename="../src/support/elevated_step.cpp" line="144" />
             <source>The group could not be changed. Use the command shown instead, in a terminal.</source>
             <translation>グループを変更できませんでした。代わりに表示されているコマンドを、ターミナルで実行してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="198" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
         </message>
     </context>
     <context>
@@ -8711,6 +8800,11 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2785" />
             <source>Layout reset.</source>
             <translation>レイアウトをリセットしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2765" />
+            <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
+            <translation>Virtual Serial Studio のセットアップが完了しました。新しいポートを他のプログラムから開けます。</translation>
         </message>
     </context>
     <context>
@@ -18170,6 +18264,132 @@ Networks: %5</source>
             <location filename="../src/profiling/profiling_controller.cpp" line="1" />
             <source>Profiling paused</source>
             <translation>プロファイリング一時停止中</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverSetup</name>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="266" />
+            <source>Virtual Serial Studio is set up. The driver and the helper service are installed and running.</source>
+            <translation>Virtual Serial Studio のセットアップが完了しました。ドライバーとヘルパーサービスがインストールされ、実行されています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="272" />
+            <source>Setup finished, but Windows needs a restart before the driver can be used. Restart Windows, then open Virtual Serial Studio again.</source>
+            <translation>セットアップは完了しましたが、ドライバーを使うには Windows の再起動が必要です。Windows を再起動してから、もう一度 Virtual Serial Studio を開いてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="279" />
+            <source>You declined the Windows permission prompt, so nothing was changed.</source>
+            <translation>Windows の許可の確認を拒否したため、何も変更されていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="285" />
+            <source>Windows does not trust the signature on the driver files, so nothing was installed. Released builds are signed and install without this step. For a build you made yourself, trust its test certificate or turn on test signing first (the Windows driver notes say how), then try again.</source>
+            <translation>Windows がドライバーのファイルの署名を信頼していないため、何もインストールしていません。公開されたビルドは署名されており、この手順なしでインストールできます。自分でビルドした場合は、先にテスト証明書を信頼するかテスト署名を有効にしてから(方法は Windows ドライバーのメモにあります)、もう一度お試しください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="294" />
+            <source>Windows could not install the driver, and nothing else was changed. Copy the details, or run the command shown in a terminal opened as administrator to see Windows' own message.</source>
+            <translation>Windows がドライバーをインストールできず、他は何も変更していません。詳細をコピーするか、管理者として開いたターミナルで表示されたコマンドを実行して、Windows 自身のメッセージを確認してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="301" />
+            <source>The driver is installed, but the helper service could not be installed or started. Choose Set up Virtual Serial Studio again to retry.</source>
+            <translation>ドライバーはインストールされましたが、ヘルパーサービスをインストールまたは開始できませんでした。「Virtual Serial Studio をセットアップ」をもう一度選んで再試行してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="308" />
+            <source>The setup files are not all there, so nothing was changed. Install Virtual Serial Studio again, or copy the whole driver folder next to the program.</source>
+            <translation>セットアップ用のファイルがすべてそろっていないため、何も変更していません。Virtual Serial Studio を再インストールするか、ドライバーのフォルダー全体をプログラムの隣にコピーしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="315" />
+            <source>Windows did not give setup administrator rights, so nothing was changed.</source>
+            <translation>Windows がセットアップに管理者権限を与えなかったため、何も変更していません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="321" />
+            <source>The driver files are not with this copy of Virtual Serial Studio, so it cannot set up for you. Install Virtual Serial Studio from its installer, or follow the steps for a build you made yourself.</source>
+            <translation>このコピーの Virtual Serial Studio にはドライバーのファイルが含まれていないため、自動でセットアップできません。インストーラーから Virtual Serial Studio をインストールするか、自分でビルドした場合の手順に従ってください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="329" />
+            <source>Setup did not finish. Copy the details, or run the command shown in a terminal opened as administrator to see what happened.</source>
+            <translation>セットアップは完了しませんでした。詳細をコピーするか、管理者として開いたターミナルで表示されたコマンドを実行して、何が起きたか確認してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="93" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="108" />
+            <source>Install or repair the driver and helper this PC needs.</source>
+            <translation>この PC に必要なドライバーとヘルパーをインストールまたは修復します。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="115" />
+            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, now, and not each time you add a port.</source>
+            <translation>Windows では、ドライバーだけが他のプログラムから開ける COM ポートを作成できます。セットアップでは Virtual Serial Studio のドライバーと、ポートを作成する小さなヘルパーサービスをインストールします。そのため管理者権限が必要なのは今回の 1 回だけで、ポートを追加するたびには必要ありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="123" />
+            <source>Windows will show one permission prompt. It names the program and its publisher: choose Yes if they match. Studio itself keeps running without administrator rights. Nothing is downloaded: the files come from this copy of Virtual Serial Studio.</source>
+            <translation>Windows の許可の確認が 1 回表示されます。そこにはプログラム名と発行元が表示されます。一致している場合は「はい」を選んでください。Studio 自体は管理者権限なしで動き続けます。何もダウンロードされません。ファイルはこのコピーの Virtual Serial Studio から使われます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="131" />
+            <source>The helper restarts, so ports that are open now are closed. Studio offers to make them again.</source>
+            <translation>ヘルパーが再起動するため、現在開いているポートは閉じられます。Studio がそれらを再作成するか尋ねます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="141" />
+            <source>Files: %1</source>
+            <translation>ファイル: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="155" />
+            <source>The same setup as a command, if you prefer to run it yourself in a terminal opened as administrator:</source>
+            <translation>同じセットアップをコマンドで行う場合は、管理者として開いたターミナルで自分で実行してください:</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="163" />
+            <source>Command</source>
+            <translation>コマンド</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="172" />
+            <source>Copy details</source>
+            <translation>詳細をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="184" />
+            <source>Windows will ask for administrator permission before anything is installed.</source>
+            <translation>何かをインストールする前に、Windows が管理者の許可を求めます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="192" />
+            <source>Close</source>
+            <translation>閉じる</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Setting up. Answer the Windows permission prompt, then wait: this can take a minute.</source>
+            <translation>セットアップ中です。Windows の許可の確認に答えて、しばらくお待ちください。1 分ほどかかることがあります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
+            <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
+            <translation>セットアップは完了しましたが、この PC ではまだポートを作成できません: %1。助けを求める場合は詳細をコピーしてください。</translation>
+        </message>
+    </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio をセットアップ</translation>
         </message>
     </context>
 </TS>

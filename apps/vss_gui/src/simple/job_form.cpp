@@ -7,6 +7,7 @@
 #include "simple/job_form.hpp"
 
 #include "backend/com_numbers.hpp"
+#include "backend/driver_error.hpp"
 #include "theme/icon_provider.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
@@ -17,9 +18,11 @@
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QComboBox>
 #include <QCompleter>
 #include <QFormLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -1379,6 +1382,29 @@ bool JobForm::submit()
     const auto built = build_setup(backend_, plan_, previous);
     if (!built)
     {
+        if (const auto problem = driver_problem_of(built.error()))
+        {
+            // The sentence already says that nothing was changed and what to do.
+            error_->set_text(driver_problem_body(*problem));
+            if (driver_problem_offers_setup(*problem))
+            {
+                error_->set_action(tr("Set up Virtual Serial Studio"),
+                                   [this] { Q_EMIT driver_setup_requested(); });
+            }
+            else
+            {
+                // Nothing to set up: the underlying code goes behind a button.
+                error_->set_action(
+                    tr("Copy details"),
+                    [] {
+                        QGuiApplication::clipboard()->setText(
+                            last_driver_details());
+                    });
+            }
+            error_->setVisible(true);
+            return false;
+        }
+        error_->clear_action();
         error_->set_text(
             editing()
                 ? tr("Could not change the setup. %1 What was there before "

@@ -7,6 +7,7 @@
 #include "support/setup_check_dialog.hpp"
 
 #include "support/check_row.hpp"
+#include "support/driver_setup_dialog.hpp"
 #include "support/elevated_step.hpp"
 #include "support/firewall_dialog.hpp"
 #include "support/permission_dialog.hpp"
@@ -328,7 +329,8 @@ void SetupCheckDialog::rebuild()
         spec.chip = row.chip;
         spec.sentence = row.sentence;
         spec.action_text = row.action_text;
-        spec.primary_action = row.action == setup_action::install_driver;
+        spec.primary_action = row.action == setup_action::install_driver ||
+                              row.action == setup_action::setup_driver;
         spec.highlight = row.highlight;
         spec.framed = false;
         if (!rows_.isEmpty())
@@ -362,6 +364,14 @@ void SetupCheckDialog::rebuild()
     if (!report_.driver_note.isEmpty())
         driver_note_->set_text(report_.driver_note);
     platform_note_->setText(report_.platform_note);
+}
+
+void SetupCheckDialog::show_driver_setup()
+{
+    DriverSetupDialog dialog(backend_, backend_.check_driver().problem, this);
+    dialog.exec();
+    // Whatever happened, ask again: the row changes when the set-up worked.
+    recheck();
 }
 
 void SetupCheckDialog::show_firewall_help()
@@ -406,6 +416,9 @@ void SetupCheckDialog::handle_action(setup_action action)
         break;
     case setup_action::install_driver:
         show_driver_instructions(this);
+        break;
+    case setup_action::setup_driver:
+        show_driver_setup();
         break;
     case setup_action::restart_elevated:
         Q_EMIT restart_as_administrator_requested();

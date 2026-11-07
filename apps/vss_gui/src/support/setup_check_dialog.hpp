@@ -52,6 +52,7 @@ private:
     void build();
     void rebuild();
     void handle_action(setup_action action);
+    void show_driver_setup();
     void show_firewall_help();
     void show_permission_help(vss::permissions::topic what);
 

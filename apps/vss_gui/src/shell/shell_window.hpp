@@ -184,6 +184,7 @@ private:
     void log_local(const QString& text);
 
     void open_setup_check();
+    void open_driver_setup();
     void open_settings();
     void open_troubleshoot();
     void open_shortcuts();

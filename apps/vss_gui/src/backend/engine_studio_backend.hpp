@@ -73,6 +73,7 @@ public:
     std::vector<device_view> devices() const override;
     std::vector<traffic_view> traffic(int limit) const override;
     setup_facts facts() const override;
+    driver_check check_driver() const override;
     std::chrono::milliseconds probe_cache_age() const override
     {
         return std::chrono::seconds(5);

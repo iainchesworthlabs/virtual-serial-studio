@@ -69,6 +69,8 @@ public:
     explicit JobGrid(StudioBackend& backend, QWidget* parent = nullptr);
 
     void refresh();
+    /// Forgets the last readiness answer, so the next `refresh` asks again.
+    void invalidate_setup() { setup_cache_.invalidate(); }
 
     /// The tile of `kind`, for tests and focus.
     JobTile* tile(job kind) const;
@@ -77,12 +79,16 @@ Q_SIGNALS:
     void job_chosen(vss::gui::simple::job kind);
     void watch_requested();
     void check_requested();
+    /// The readiness banner offered "Set up Virtual Serial Studio" and it was
+    /// chosen.
+    void driver_setup_requested();
     void open_requested();
     void examples_requested();
 
 private:
     StudioBackend& backend_;
     support::setup_report_cache setup_cache_;
+    bool setup_offered_ = false;
     NoteBanner* readiness_ = nullptr;
     QHash<int, JobTile*> tiles_;
 };

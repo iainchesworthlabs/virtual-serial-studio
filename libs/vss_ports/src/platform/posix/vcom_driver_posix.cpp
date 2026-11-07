@@ -43,4 +43,14 @@ std::optional<driver_peer_info> platform_driver_peer(const std::string&)
     return std::nullopt;
 }
 
+std::optional<driver_setup_observation> platform_observe_driver_setup()
+{
+    return std::nullopt;
+}
+
+driver_failure platform_last_driver_failure()
+{
+    return {};
+}
+
 } // namespace vss::detail

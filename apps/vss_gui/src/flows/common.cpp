@@ -6,6 +6,8 @@
 
 #include "flows/common.hpp"
 
+#include "backend/driver_error.hpp"
+
 #include <vss/ports/permissions.hpp>
 
 #include <QObject>
@@ -64,6 +66,8 @@ QString port_display_name(const port_view& port)
 QString com_number_refusal(const vss::error_code& error, unsigned number,
                            bool changing)
 {
+    if (const auto problem = driver_problem_of(error))
+        return driver_problem_body(*problem);
     if (error == vss::errc::already_exists)
     {
         return QObject::tr("COM%1 already belongs to another device on this "
@@ -111,7 +115,8 @@ QString com_number_refusal(const vss::error_code& error, unsigned number,
     if (error == vss::errc::permission_denied)
     {
         return QObject::tr("Windows did not allow this change. Nothing was "
-                           "changed. Run Virtual Serial Studio as "
+                           "changed. Open Tools, Setup check to see what is "
+                           "missing, or run Virtual Serial Studio as "
                            "administrator and try again.");
     }
     return QObject::tr("The COM number could not be set. Nothing was "
@@ -124,9 +129,31 @@ QString error_title(const QString& verb, const QString& thing)
     return QObject::tr("Could not %1 %2").arg(verb, thing);
 }
 
+QString error_details(const vss::error_code& error)
+{
+    if (driver_problem_of(error))
+        return last_driver_details();
+    return error_text(error);
+}
+
+bool apply_driver_problem(flow_error& error, const vss::error_code& failure)
+{
+    const auto problem = driver_problem_of(failure);
+    if (!problem)
+        return false;
+    // The title stays the dialog's own ("Could not create the port"): the
+    // copy deck's error template. The body says which piece is wrong.
+    error.body = driver_problem_body(*problem);
+    error.details = last_driver_details();
+    error.offer_setup = driver_problem_offers_setup(*problem);
+    return true;
+}
+
 QString error_body(const vss::error_code& error, const QString& cause,
                    const QString& next_step)
 {
+    if (const auto problem = driver_problem_of(error))
+        return driver_problem_body(*problem);
     if (error == vss::errc::permission_denied)
     {
         if (vss::permissions::host_name() != "windows")
@@ -138,7 +165,8 @@ QString error_body(const vss::error_code& error, const QString& cause,
                 "in the way, and shows the command to fix it.");
         }
         return QObject::tr("Windows did not allow this change. Nothing was "
-                           "changed. Run Virtual Serial Studio as "
+                           "changed. Open Tools, Setup check to see what is "
+                           "missing, or run Virtual Serial Studio as "
                            "administrator and try again.");
     }
     if (error == vss::errc::device_busy)

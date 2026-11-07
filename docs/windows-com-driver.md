@@ -139,6 +139,23 @@ ordinary users and keeps the same rules as the control device:
   with the user of the opener's token. A port without an owner was made by hand
   and opens for administrators only.
 
+### Telling the user which piece is missing
+
+A missing driver, a helper that is not installed, stopped or older than the
+studio, and a helper that refuses the user all used to come back as the same few
+codes, and the GUI showed "permission denied". `vss::probe_driver_setup()` asks
+each piece on its own and makes no port: the driver store (the hardware ID key
+under `HKLM\SYSTEM\DriverDatabase\DeviceIds`, readable by every user), the service
+control manager, and one request on the helper's pipe that changes nothing (a
+COM number of 0, which a current helper answers `ERROR_INVALID_PARAMETER` before
+it looks at anything, an older one `ERROR_NOT_SUPPORTED`, and one that cannot
+tell who the caller is `ERROR_ACCESS_DENIED`). `classify_driver_setup()` names the
+first piece that is wrong, in the order a person fixes it. The GUI turns each into
+its own sentence and, for the ones a setup fixes, the action "Set up Virtual
+Serial Studio" (`drivers/windows/README.md`, "Setting up from Studio"). The code
+of the call that failed is kept (`vss::last_driver_failure()`) and goes behind
+"Copy details".
+
 The pipe protocol is in `drivers/windows/vsscom_helper/protocol.h`. The studio
 tries the kernel-mode driver's control device first, then the helper, then a
 free port that already exists.

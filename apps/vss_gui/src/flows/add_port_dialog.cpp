@@ -6,6 +6,7 @@
 
 #include "flows/add_port_dialog.hpp"
 
+#include "backend/driver_error.hpp"
 #include "theme/theme.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
@@ -637,12 +638,19 @@ void AddPortDialog::create_virtual_ports()
         {
             for (const vss::endpoint_id id : created)
                 static_cast<void>(backend_.remove_port(id));
-            if (com_number != 0)
+            // A missing driver, a stopped helper, an old helper and a refused
+            // user all come back as the same few codes. Ask what is wrong, so
+            // the message names it and offers the set-up.
+            const vss::error_code failure =
+                kind == 2 ? added.error()
+                          : driver_aware_error(backend_, added.error());
+            const bool setup_problem = driver_problem_of(failure).has_value();
+            if (com_number != 0 && !setup_problem)
             {
                 // The refusal is about the number, so it is said beside the
                 // number and the form stays as it was.
                 com_row_->set_error(
-                    com_number_refusal(added.error(), com_number, false));
+                    com_number_refusal(failure, com_number, false));
                 com_->setFocus(Qt::OtherFocusReason);
                 Q_EMIT error_shown(tr("Could not create the port"));
                 return;
@@ -652,10 +660,11 @@ void AddPortDialog::create_virtual_ports()
                               ? tr("Could not create the port")
                               : tr("Could not create the ports");
             error.body = error_body(
-                added.error(),
+                failure,
                 tr("Studio could not create the port. Nothing was changed."),
                 tr(" Try a different name or kind, then try again."));
-            error.details = error_text(added.error());
+            error.details = error_details(failure);
+            apply_driver_problem(error, failure);
             show_error(error);
             return;
         }
@@ -691,7 +700,22 @@ void AddPortDialog::show_error(const flow_error& error)
 {
     Q_EMIT error_shown(error.title);
     ErrorDialog dialog(error.title, error.body, error.details, this);
+    bool set_up = false;
+    if (error.offer_setup)
+    {
+        dialog.add_action(
+            tr("Set up Virtual Serial Studio"),
+            [&dialog, &set_up]
+            {
+                set_up = true;
+                dialog.accept();
+            },
+            QStringLiteral("primary"));
+    }
     dialog.exec();
+    // Said after the error is gone, so the two dialogs do not stack.
+    if (set_up)
+        Q_EMIT driver_setup_requested();
 }
 
 PickCard* AddPortDialog::mode_card(mode value) const

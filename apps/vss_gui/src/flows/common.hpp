@@ -42,6 +42,9 @@ struct flow_error
     QString title;
     QString body;
     QString details;
+    /// True when the guided "Set up Virtual Serial Studio" fixes the cause, so
+    /// the dialog adds that action.
+    bool offer_setup = false;
 };
 
 /// Why a COM number was refused, in words a person can act on.  `changing` is
@@ -49,6 +52,15 @@ struct flow_error
 /// COM number that was asked for.
 QString com_number_refusal(const vss::error_code& error, unsigned number,
                            bool changing);
+
+/// The text behind "Copy details": the engine's code, or for a driver set-up
+/// problem what the check saw (the piece, the Win32 error, the failed call).
+QString error_details(const vss::error_code& error);
+
+/// If `failure` is a driver set-up problem (see `driver_aware_error`), gives
+/// `error` the body and the details of that problem and the set-up action; the
+/// title stays the caller's own. Returns true when it did.
+bool apply_driver_problem(flow_error& error, const vss::error_code& failure);
 
 QString error_title(const QString& verb, const QString& thing);
 QString error_body(const vss::error_code& error, const QString& cause,

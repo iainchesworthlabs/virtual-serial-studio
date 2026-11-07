@@ -571,6 +571,11 @@
             <source> Try a different name or kind, then try again.</source>
             <translation> נסו שם או סוג אחר, ואז נסו שוב.</translation>
         </message>
+        <message>
+            <location filename="../src/flows/add_port_dialog.cpp" line="707" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
     </context>
     <context>
         <name>Advanced</name>
@@ -3129,6 +3134,11 @@ Networks: %5</source>
             <source>Could not set it up. %1 Nothing was changed.</source>
             <translation>לא ניתן היה להגדיר זאת. %1 דבר לא השתנה.</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1391" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
     </context>
     <context>
         <name>JobGrid</name>
@@ -3218,6 +3228,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_grid.cpp" line="349" />
             <source>Open setup check</source>
             <translation>פתיחת בדיקת הגדרות</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="365" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -3378,6 +3393,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="361" />
             <source>Saved setup</source>
             <translation>תצורה שמורה</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="344" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -4309,6 +4329,11 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>יצירת זוג</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/pair_dialog.cpp" line="63" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -5516,12 +5541,6 @@ Networks: %5</source>
             <translation>המערכת לא התירה זאת. דבר לא שונה. פתחו כלים, בדיקת הגדרות: היא אומרת אם בחשבון שלכם חסרה קבוצת ההתקנים הטוריים או ש-AppArmor, ‏SELinux או ארגז חול מפריעים, ומציגה את הפקודה שמתקנת זאת.</translation>
         </message>
         <message>
-            <location filename="../src/flows/common.cpp" line="113" />
-            <location filename="../src/flows/common.cpp" line="140" />
-            <source>Windows did not allow this change. Nothing was changed. Run Virtual Serial Studio as administrator and try again.</source>
-            <translation>Windows לא איפשר שינוי זה. דבר לא השתנה. הפעילו את Virtual Serial Studio כמנהל ונסו שוב.</translation>
-        </message>
-        <message>
             <location filename="../src/flows/common.cpp" line="69" />
             <source>COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Choose a different number.</source>
             <translation>COM%1 כבר שייך להתקן אחר במחשב זה, כמו יציאה אמיתית, com0com או יציאה קודמת ש־Windows זוכר. דבר לא שונה. בחרו מספר אחר.</translation>
@@ -5570,6 +5589,71 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="119" />
             <source>untitled</source>
             <translation>ללא שם</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/common.cpp" line="117" />
+            <source>Windows did not allow this change. Nothing was changed. Open Tools, Setup check to see what is missing, or run Virtual Serial Studio as administrator and try again.</source>
+            <translation>Windows לא איפשר שינוי זה. דבר לא שונה. פתחו כלים, בדיקת הגדרות כדי לראות מה חסר, או הפעילו את Virtual Serial Studio כמנהל ונסו שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="110" />
+            <source>The Virtual Serial Studio driver is not installed</source>
+            <translation>מנהל ההתקן של Virtual Serial Studio אינו מותקן</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="112" />
+            <source>The Virtual Serial Studio helper is not installed</source>
+            <translation>שירות העזר של Virtual Serial Studio אינו מותקן</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="114" />
+            <source>The Virtual Serial Studio helper is not running</source>
+            <translation>שירות העזר של Virtual Serial Studio אינו פועל</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="116" />
+            <source>The Virtual Serial Studio helper is out of date</source>
+            <translation>שירות העזר של Virtual Serial Studio מיושן</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="118" />
+            <source>Your account cannot use the Virtual Serial Studio helper</source>
+            <translation>החשבון שלכם אינו יכול להשתמש בשירות העזר של Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="124" />
+            <source>Windows would not make the port</source>
+            <translation>Windows סירב ליצור את היציאה</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="132" />
+            <source>Windows needs the Virtual Serial Studio driver to make a COM port that other programs can open, and this PC does not have it yet. Nothing was changed. Choose Set up Virtual Serial Studio to install it.</source>
+            <translation>Windows צריך את מנהל ההתקן של Virtual Serial Studio כדי ליצור יציאת COM שתוכניות אחרות יכולות לפתוח, והמחשב הזה עדיין אין לו אותו. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי להתקין אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="138" />
+            <source>The helper service that makes ports without asking for administrator rights each time is not installed. Nothing was changed. Choose Set up Virtual Serial Studio to install it.</source>
+            <translation>שירות העזר שיוצר יציאות בלי לבקש הרשאות מנהל בכל פעם אינו מותקן. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי להתקין אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="143" />
+            <source>The helper service that makes ports is installed but not running. Nothing was changed. Choose Set up Virtual Serial Studio to start it again.</source>
+            <translation>שירות העזר שיוצר יציאות מותקן אבל אינו פועל. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי להפעיל אותו שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="148" />
+            <source>The helper service on this PC is older than this program, so it cannot make ports. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>שירות העזר במחשב הזה ישן מהתוכנית הזו, ולכן אינו יכול ליצור יציאות. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי לעדכן אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="153" />
+            <source>Windows did not let your account use the helper service that makes ports. Nothing was changed. Choose Set up Virtual Serial Studio to repair it, or ask an administrator of this PC.</source>
+            <translation>Windows לא איפשר לחשבון שלכם להשתמש בשירות העזר שיוצר יציאות. דבר לא שונה. בחרו ב״הגדרת Virtual Serial Studio״ כדי לתקן אותו, או פנו למנהל של המחשב הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="161" />
+            <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
+            <translation>Windows סירב ליצור את היציאה, ו-Studio לא הצליח לקבוע איזה חלק אשם. דבר לא שונה. פתחו כלים, בדיקת הגדרות כדי לראות מה חסר, והעתיקו את הפרטים אם אתם מבקשים עזרה.</translation>
         </message>
     </context>
     <context>
@@ -6736,6 +6820,11 @@ Networks: %5</source>
             <location filename="../src/support/elevated_step.cpp" line="144" />
             <source>The group could not be changed. Use the command shown instead, in a terminal.</source>
             <translation>לא ניתן היה לשנות את הקבוצה. השתמשו במקום זאת בפקודה המוצגת, בטרמינל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="198" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -8717,6 +8806,11 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2785" />
             <source>Layout reset.</source>
             <translation>הפריסה אופסה.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2765" />
+            <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
+            <translation>Virtual Serial Studio הוגדר. תוכניות אחרות יכולות לפתוח יציאות חדשות.</translation>
         </message>
     </context>
     <context>
@@ -18190,6 +18284,132 @@ Networks: %5</source>
             <location filename="../src/profiling/profiling_controller.cpp" line="1" />
             <source>Profiling paused</source>
             <translation>הפרופיילינג מושהה</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverSetup</name>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="266" />
+            <source>Virtual Serial Studio is set up. The driver and the helper service are installed and running.</source>
+            <translation>Virtual Serial Studio הוגדר. מנהל ההתקן ושירות העזר מותקנים ופועלים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="272" />
+            <source>Setup finished, but Windows needs a restart before the driver can be used. Restart Windows, then open Virtual Serial Studio again.</source>
+            <translation>ההגדרה הסתיימה, אבל Windows צריך להפעיל מחדש לפני שאפשר להשתמש במנהל ההתקן. הפעילו מחדש את Windows ופתחו שוב את Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="279" />
+            <source>You declined the Windows permission prompt, so nothing was changed.</source>
+            <translation>דחיתם את בקשת ההרשאה של Windows, ולכן דבר לא שונה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="285" />
+            <source>Windows does not trust the signature on the driver files, so nothing was installed. Released builds are signed and install without this step. For a build you made yourself, trust its test certificate or turn on test signing first (the Windows driver notes say how), then try again.</source>
+            <translation>Windows לא סומך על החתימה של קובצי מנהל ההתקן, ולכן דבר לא הותקן. גרסאות שפורסמו חתומות ומתקינות בלי השלב הזה. בגרסה שבניתם בעצמכם, סמכו תחילה על אישור הבדיקה שלה או הפעילו חתימת בדיקה (הערות מנהל ההתקן של Windows מסבירות איך), ונסו שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="294" />
+            <source>Windows could not install the driver, and nothing else was changed. Copy the details, or run the command shown in a terminal opened as administrator to see Windows' own message.</source>
+            <translation>Windows לא הצליח להתקין את מנהל ההתקן, ודבר נוסף לא שונה. העתיקו את הפרטים, או הריצו את הפקודה המוצגת במסוף שנפתח כמנהל כדי לראות את ההודעה של Windows עצמו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="301" />
+            <source>The driver is installed, but the helper service could not be installed or started. Choose Set up Virtual Serial Studio again to retry.</source>
+            <translation>מנהל ההתקן מותקן, אבל שירות העזר לא הותקן או לא הופעל. בחרו שוב ב״הגדרת Virtual Serial Studio״ כדי לנסות שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="308" />
+            <source>The setup files are not all there, so nothing was changed. Install Virtual Serial Studio again, or copy the whole driver folder next to the program.</source>
+            <translation>קובצי ההגדרה אינם שלמים, ולכן דבר לא שונה. התקינו שוב את Virtual Serial Studio, או העתיקו את כל תיקיית מנהל ההתקן לצד התוכנית.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="315" />
+            <source>Windows did not give setup administrator rights, so nothing was changed.</source>
+            <translation>Windows לא נתן להגדרה הרשאות מנהל, ולכן דבר לא שונה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="321" />
+            <source>The driver files are not with this copy of Virtual Serial Studio, so it cannot set up for you. Install Virtual Serial Studio from its installer, or follow the steps for a build you made yourself.</source>
+            <translation>קובצי מנהל ההתקן אינם חלק מהעותק הזה של Virtual Serial Studio, ולכן אי אפשר להגדיר בשבילכם. התקינו את Virtual Serial Studio ממתקין שלו, או פעלו לפי השלבים לגרסה שבניתם בעצמכם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="329" />
+            <source>Setup did not finish. Copy the details, or run the command shown in a terminal opened as administrator to see what happened.</source>
+            <translation>ההגדרה לא הסתיימה. העתיקו את הפרטים, או הריצו את הפקודה המוצגת במסוף שנפתח כמנהל כדי לראות מה קרה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="93" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="108" />
+            <source>Install or repair the driver and helper this PC needs.</source>
+            <translation>התקינו או תקנו את מנהל ההתקן ואת שירות העזר שהמחשב הזה צריך.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="115" />
+            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, now, and not each time you add a port.</source>
+            <translation>Windows מאפשר רק למנהל התקן ליצור יציאות COM שתוכניות אחרות יכולות לפתוח. ההגדרה מתקינה את מנהל ההתקן של Virtual Serial Studio ושירות עזר קטן שיוצר יציאות בשבילכם, ולכן הרשאות מנהל נדרשות פעם אחת, עכשיו, ולא בכל הוספת יציאה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="123" />
+            <source>Windows will show one permission prompt. It names the program and its publisher: choose Yes if they match. Studio itself keeps running without administrator rights. Nothing is downloaded: the files come from this copy of Virtual Serial Studio.</source>
+            <translation>Windows יציג בקשת הרשאה אחת. היא מציגה את שם התוכנית ואת המפרסם שלה: בחרו ״כן״ אם הם תואמים. Studio עצמו ממשיך לפעול בלי הרשאות מנהל. שום דבר לא יורד מהרשת: הקבצים מגיעים מהעותק הזה של Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="131" />
+            <source>The helper restarts, so ports that are open now are closed. Studio offers to make them again.</source>
+            <translation>שירות העזר מופעל מחדש, ולכן יציאות שפתוחות עכשיו ייסגרו. Studio מציע ליצור אותן מחדש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="141" />
+            <source>Files: %1</source>
+            <translation>קבצים: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="155" />
+            <source>The same setup as a command, if you prefer to run it yourself in a terminal opened as administrator:</source>
+            <translation>אותה הגדרה כפקודה, אם אתם מעדיפים להריץ אותה בעצמכם במסוף שנפתח כמנהל:</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="163" />
+            <source>Command</source>
+            <translation>פקודה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="172" />
+            <source>Copy details</source>
+            <translation>העתקת פרטים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="184" />
+            <source>Windows will ask for administrator permission before anything is installed.</source>
+            <translation>Windows יבקש הרשאת מנהל לפני שיותקן משהו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="192" />
+            <source>Close</source>
+            <translation>סגירה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Setting up. Answer the Windows permission prompt, then wait: this can take a minute.</source>
+            <translation>מגדירים. ענו על בקשת ההרשאה של Windows והמתינו: זה עשוי לקחת דקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
+            <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
+            <translation>ההגדרה הסתיימה, אבל המחשב הזה עדיין לא יכול ליצור יציאות: %1. העתיקו את הפרטים אם אתם מבקשים עזרה.</translation>
+        </message>
+    </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>הגדרת Virtual Serial Studio</translation>
         </message>
     </context>
 </TS>

@@ -1182,13 +1182,14 @@ step_result apply_firewall_rule(const firewall_rule_spec& spec, bool remove)
 }
 
 step_result run_elevated(const std::string& executable,
-                         const std::vector<std::string>& arguments)
+                         const std::vector<std::string>& arguments,
+                         int wait_seconds)
 {
     VSS_PROFILE_ZONE("ports.permissions.run_elevated");
     if (!detail::platform_can_run_elevated())
         return {step_status::unsupported,
                 "this build cannot start a helper elevated"};
-    return detail::platform_run_elevated(executable, arguments);
+    return detail::platform_run_elevated(executable, arguments, wait_seconds);
 }
 
 bool can_manage_firewall_rules() noexcept

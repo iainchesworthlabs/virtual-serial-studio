@@ -571,6 +571,11 @@
             <source> Try a different name or kind, then try again.</source>
             <translation>请更换名称或类型，然后重试。</translation>
         </message>
+        <message>
+            <location filename="../src/flows/add_port_dialog.cpp" line="707" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
+        </message>
     </context>
     <context>
         <name>Advanced</name>
@@ -3128,6 +3133,11 @@ Networks: %5</source>
             <source>Could not set it up. %1 Nothing was changed.</source>
             <translation>无法完成设置。%1 未做任何更改。</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1391" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
+        </message>
     </context>
     <context>
         <name>JobGrid</name>
@@ -3217,6 +3227,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_grid.cpp" line="349" />
             <source>Open setup check</source>
             <translation>打开配置检查</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_grid.cpp" line="365" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -3377,6 +3392,11 @@ Networks: %5</source>
             <location filename="../src/shell/launcher.cpp" line="361" />
             <source>Saved setup</source>
             <translation>已保存的配置</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/launcher.cpp" line="344" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -4308,6 +4328,11 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>创建串口对</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/pair_dialog.cpp" line="63" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -5514,12 +5539,6 @@ Networks: %5</source>
             <translation>系统不允许这样做。没有任何更改。请打开“工具”中的“配置检查”：它会说明是您的账户缺少串行设备组，还是 AppArmor、SELinux 或沙盒造成了阻碍，并给出修复命令。</translation>
         </message>
         <message>
-            <location filename="../src/flows/common.cpp" line="113" />
-            <location filename="../src/flows/common.cpp" line="140" />
-            <source>Windows did not allow this change. Nothing was changed. Run Virtual Serial Studio as administrator and try again.</source>
-            <translation>Windows 不允许此更改。未做任何更改。请以管理员身份运行 Virtual Serial Studio 后重试。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/common.cpp" line="69" />
             <source>COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Choose a different number.</source>
             <translation>COM%1 已被此电脑上的其他设备占用，例如真实端口、com0com 或 Windows 仍记得的旧端口。未做任何更改。请选择其他编号。</translation>
@@ -5568,6 +5587,71 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="119" />
             <source>untitled</source>
             <translation>未命名</translation>
+        </message>
+        <message>
+            <location filename="../src/flows/common.cpp" line="117" />
+            <source>Windows did not allow this change. Nothing was changed. Open Tools, Setup check to see what is missing, or run Virtual Serial Studio as administrator and try again.</source>
+            <translation>Windows 不允许此更改。未做任何更改。请打开“工具”、“配置检查”查看缺少什么，或以管理员身份运行 Virtual Serial Studio 后重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="110" />
+            <source>The Virtual Serial Studio driver is not installed</source>
+            <translation>未安装 Virtual Serial Studio 驱动程序</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="112" />
+            <source>The Virtual Serial Studio helper is not installed</source>
+            <translation>未安装 Virtual Serial Studio 辅助服务</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="114" />
+            <source>The Virtual Serial Studio helper is not running</source>
+            <translation>Virtual Serial Studio 辅助服务未运行</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="116" />
+            <source>The Virtual Serial Studio helper is out of date</source>
+            <translation>Virtual Serial Studio 辅助服务已过时</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="118" />
+            <source>Your account cannot use the Virtual Serial Studio helper</source>
+            <translation>您的账户无法使用 Virtual Serial Studio 辅助服务</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="124" />
+            <source>Windows would not make the port</source>
+            <translation>Windows 不愿创建该端口</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="132" />
+            <source>Windows needs the Virtual Serial Studio driver to make a COM port that other programs can open, and this PC does not have it yet. Nothing was changed. Choose Set up Virtual Serial Studio to install it.</source>
+            <translation>Windows 需要 Virtual Serial Studio 驱动程序才能创建其他程序可以打开的 COM 端口，而此电脑尚未安装。未做任何更改。请选择“设置 Virtual Serial Studio”进行安装。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="138" />
+            <source>The helper service that makes ports without asking for administrator rights each time is not installed. Nothing was changed. Choose Set up Virtual Serial Studio to install it.</source>
+            <translation>无需每次都请求管理员权限即可创建端口的辅助服务尚未安装。未做任何更改。请选择“设置 Virtual Serial Studio”进行安装。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="143" />
+            <source>The helper service that makes ports is installed but not running. Nothing was changed. Choose Set up Virtual Serial Studio to start it again.</source>
+            <translation>创建端口的辅助服务已安装，但未运行。未做任何更改。请选择“设置 Virtual Serial Studio”重新启动它。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="148" />
+            <source>The helper service on this PC is older than this program, so it cannot make ports. Nothing was changed. Choose Set up Virtual Serial Studio to update it.</source>
+            <translation>此电脑上的辅助服务比本程序旧，因此无法创建端口。未做任何更改。请选择“设置 Virtual Serial Studio”进行更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="153" />
+            <source>Windows did not let your account use the helper service that makes ports. Nothing was changed. Choose Set up Virtual Serial Studio to repair it, or ask an administrator of this PC.</source>
+            <translation>Windows 不允许您的账户使用创建端口的辅助服务。未做任何更改。请选择“设置 Virtual Serial Studio”进行修复，或联系此电脑的管理员。</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/driver_error.cpp" line="161" />
+            <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
+            <translation>Windows 不愿创建该端口，Studio 也无法判断是哪一部分出了问题。未做任何更改。请打开“工具”、“配置检查”查看缺少什么，如需求助请复制详细信息。</translation>
         </message>
     </context>
     <context>
@@ -6733,6 +6817,11 @@ Networks: %5</source>
             <location filename="../src/support/elevated_step.cpp" line="144" />
             <source>The group could not be changed. Use the command shown instead, in a terminal.</source>
             <translation>无法更改组。请改用所显示的命令，并在终端中运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/setup_facts.cpp" line="198" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
         </message>
     </context>
     <context>
@@ -8711,6 +8800,11 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2785" />
             <source>Layout reset.</source>
             <translation>已重置布局。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2765" />
+            <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
+            <translation>Virtual Serial Studio 已设置完成。其他程序可以打开新建的端口。</translation>
         </message>
     </context>
     <context>
@@ -18170,6 +18264,132 @@ Networks: %5</source>
             <location filename="../src/profiling/profiling_controller.cpp" line="1" />
             <source>Profiling paused</source>
             <translation>性能分析已暂停</translation>
+        </message>
+    </context>
+    <context>
+        <name>DriverSetup</name>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="266" />
+            <source>Virtual Serial Studio is set up. The driver and the helper service are installed and running.</source>
+            <translation>Virtual Serial Studio 已设置完成。驱动程序和辅助服务已安装并正在运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="272" />
+            <source>Setup finished, but Windows needs a restart before the driver can be used. Restart Windows, then open Virtual Serial Studio again.</source>
+            <translation>设置已完成，但 Windows 需要重新启动后才能使用驱动程序。请重新启动 Windows，然后再次打开 Virtual Serial Studio。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="279" />
+            <source>You declined the Windows permission prompt, so nothing was changed.</source>
+            <translation>您拒绝了 Windows 的权限提示，因此没有任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="285" />
+            <source>Windows does not trust the signature on the driver files, so nothing was installed. Released builds are signed and install without this step. For a build you made yourself, trust its test certificate or turn on test signing first (the Windows driver notes say how), then try again.</source>
+            <translation>Windows 不信任驱动程序文件上的签名，因此未安装任何内容。正式发布的版本已签名，无需此步骤即可安装。对于自行构建的版本，请先信任其测试证书或开启测试签名（Windows 驱动程序说明中有方法），然后重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="294" />
+            <source>Windows could not install the driver, and nothing else was changed. Copy the details, or run the command shown in a terminal opened as administrator to see Windows' own message.</source>
+            <translation>Windows 无法安装驱动程序，其他内容未做更改。请复制详细信息，或在以管理员身份打开的终端中运行所示命令，查看 Windows 自己的消息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="301" />
+            <source>The driver is installed, but the helper service could not be installed or started. Choose Set up Virtual Serial Studio again to retry.</source>
+            <translation>驱动程序已安装，但辅助服务无法安装或启动。请再次选择“设置 Virtual Serial Studio”重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="308" />
+            <source>The setup files are not all there, so nothing was changed. Install Virtual Serial Studio again, or copy the whole driver folder next to the program.</source>
+            <translation>设置文件不完整，因此未做任何更改。请重新安装 Virtual Serial Studio，或将整个驱动程序文件夹复制到程序旁边。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="315" />
+            <source>Windows did not give setup administrator rights, so nothing was changed.</source>
+            <translation>Windows 没有给予设置管理员权限，因此未做任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="321" />
+            <source>The driver files are not with this copy of Virtual Serial Studio, so it cannot set up for you. Install Virtual Serial Studio from its installer, or follow the steps for a build you made yourself.</source>
+            <translation>此 Virtual Serial Studio 副本不带驱动程序文件，因此无法为您完成设置。请使用安装程序安装 Virtual Serial Studio，或按照自行构建版本的步骤操作。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/elevated_step.cpp" line="329" />
+            <source>Setup did not finish. Copy the details, or run the command shown in a terminal opened as administrator to see what happened.</source>
+            <translation>设置未完成。请复制详细信息，或在以管理员身份打开的终端中运行所示命令，查看发生了什么。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="93" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="108" />
+            <source>Install or repair the driver and helper this PC needs.</source>
+            <translation>安装或修复此电脑所需的驱动程序和辅助服务。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="115" />
+            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, now, and not each time you add a port.</source>
+            <translation>Windows 只允许驱动程序创建其他程序可以打开的 COM 端口。设置会安装 Virtual Serial Studio 驱动程序和一个为您创建端口的小型辅助服务，因此只需在现在使用一次管理员权限，而不是每次添加端口时都需要。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="123" />
+            <source>Windows will show one permission prompt. It names the program and its publisher: choose Yes if they match. Studio itself keeps running without administrator rights. Nothing is downloaded: the files come from this copy of Virtual Serial Studio.</source>
+            <translation>Windows 会显示一次权限提示。它会显示程序名称和发布者：若两者相符，请选择“是”。Studio 本身仍无需管理员权限即可运行。不会下载任何内容：文件来自此 Virtual Serial Studio 副本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="131" />
+            <source>The helper restarts, so ports that are open now are closed. Studio offers to make them again.</source>
+            <translation>辅助服务会重新启动，因此当前已打开的端口会被关闭。Studio 会提示重新创建它们。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="141" />
+            <source>Files: %1</source>
+            <translation>文件：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="155" />
+            <source>The same setup as a command, if you prefer to run it yourself in a terminal opened as administrator:</source>
+            <translation>同样的设置也可作为命令，如果您想自己在以管理员身份打开的终端中运行：</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="163" />
+            <source>Command</source>
+            <translation>命令</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="172" />
+            <source>Copy details</source>
+            <translation>复制详细信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="184" />
+            <source>Windows will ask for administrator permission before anything is installed.</source>
+            <translation>安装任何内容之前，Windows 会请求管理员权限。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="192" />
+            <source>Close</source>
+            <translation>关闭</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="217" />
+            <source>Setting up. Answer the Windows permission prompt, then wait: this can take a minute.</source>
+            <translation>正在设置。请回应 Windows 权限提示，然后稍候：这可能需要一分钟。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/driver_setup_dialog.cpp" line="273" />
+            <source>Setup finished, but this PC still cannot make ports: %1. Copy the details if you ask for help.</source>
+            <translation>设置已完成，但此电脑仍无法创建端口：%1。如需求助，请复制详细信息。</translation>
+        </message>
+    </context>
+    <context>
+        <name>AddSheet</name>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="490" />
+            <source>Set up Virtual Serial Studio</source>
+            <translation>设置 Virtual Serial Studio</translation>
         </message>
     </context>
 </TS>

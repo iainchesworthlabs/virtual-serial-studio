@@ -5,6 +5,7 @@
 //
 
 #include "backend/canvas_edit.hpp"
+#include "backend/driver_error.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -117,6 +118,9 @@ make_slot_port(StudioBackend& backend, const bundle_slot& slot,
         break;
     case slot_kind::new_port:
         made = backend.create_auto_port(slot.name, true);
+        // A refused driver port is said in words, with the set-up to run.
+        if (!made)
+            return driver_aware_error(backend, made.error());
         break;
     case slot_kind::existing:
         return failure();

@@ -6,6 +6,7 @@
 
 #include "shell/launcher.hpp"
 
+#include "backend/driver_error.hpp"
 #include "shell/format.hpp"
 #include "support/setup_facts.hpp"
 #include "theme/focus_ring_style.hpp"
@@ -177,7 +178,13 @@ void Launcher::build()
 
     readiness_ = new NoteBanner(NoteBanner::kind::ok, {}, content);
     readiness_->set_action(tr("View setup check"),
-                           [this] { Q_EMIT setup_check_requested(); });
+                           [this]
+                           {
+                               if (setup_offered_)
+                                   Q_EMIT driver_setup_requested();
+                               else
+                                   Q_EMIT setup_check_requested();
+                           });
     layout->addWidget(readiness_);
 
     auto* heading = new QLabel(tr("What do you want to do?"), content);
@@ -282,6 +289,7 @@ void Launcher::refresh()
 {
     const support::setup_report& report = setup_cache_.get(backend_);
     const bool windows = host_platform() == QLatin1String("windows");
+    bool setup_offered = false;
     if (report.state == setup_report::readiness::not_checked)
     {
         readiness_->set_kind(NoteBanner::kind::warn);
@@ -324,6 +332,17 @@ void Launcher::refresh()
         if (readiness_->action_button() != nullptr)
             readiness_->action_button()->setText(tr("View setup check"));
     }
+    else if (driver_problem_offers_setup(report.problem))
+    {
+        // The first thing a new user sees: what is missing, and the one action
+        // that fixes it.
+        setup_offered = true;
+        readiness_->set_kind(NoteBanner::kind::warn);
+        readiness_->set_text(driver_problem_body(report.problem));
+        if (readiness_->action_button() != nullptr)
+            readiness_->action_button()->setText(
+                tr("Set up Virtual Serial Studio"));
+    }
     else
     {
         readiness_->set_kind(NoteBanner::kind::warn);
@@ -333,6 +352,7 @@ void Launcher::refresh()
         if (readiness_->action_button() != nullptr)
             readiness_->action_button()->setText(tr("Open setup check"));
     }
+    setup_offered_ = setup_offered;
 
     update_saved_setups();
     repaint();

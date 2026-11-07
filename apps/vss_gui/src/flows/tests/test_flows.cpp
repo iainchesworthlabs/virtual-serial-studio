@@ -662,6 +662,131 @@ TEST_CASE("flows: pair failure rolls back and uses ErrorDialog")
     REQUIRE(dialog.result() != QDialog::Accepted);
 }
 
+namespace
+{
+
+/// Presses `text` in the next modal dialog that opens.
+void press_in_next_modal(const QString& text, int remaining_ms = 30000)
+{
+    QTimer::singleShot(
+        10,
+        [text, remaining_ms]
+        {
+            auto* modal = QApplication::activeModalWidget();
+            if (modal == nullptr)
+            {
+                if (remaining_ms > 10)
+                    press_in_next_modal(text, remaining_ms - 10);
+                return;
+            }
+            if (auto* button = button_with_text(modal, text))
+                button->click();
+            else
+                modal->close();
+        });
+}
+
+vss::gui::setup_facts missing_driver_facts(vss::gui::driver_problem problem)
+{
+    vss::gui::setup_facts facts;
+    facts.platform = QStringLiteral("windows");
+    facts.driver.problem = problem;
+    facts.driver.details = QStringLiteral("driver package: test");
+    return facts;
+}
+
+} // namespace
+
+TEST_CASE("flows: add port names the missing piece and offers the set-up")
+{
+    clear_settings();
+    for (const auto problem : {vss::gui::driver_problem::driver_missing,
+                               vss::gui::driver_problem::helper_missing,
+                               vss::gui::driver_problem::helper_stopped,
+                               vss::gui::driver_problem::helper_incompatible,
+                               vss::gui::driver_problem::helper_denied})
+    {
+        vss::gui::FakeStudioBackend backend;
+        backend.set_facts(missing_driver_facts(problem));
+        vss::gui::AddPortDialog dialog(
+            backend, false, vss::gui::AddPortDialog::mode::virtual_port,
+            vss::gui::platform_kind::windows);
+        dialog.show();
+        settle();
+        // The engine's own code is the bare one.
+        backend.fail_next(vss::make_error_code(vss::errc::permission_denied));
+
+        QString title;
+        QObject::connect(&dialog, &vss::gui::AddPortDialog::error_shown,
+                         [&title](const QString& value) { title = value; });
+        bool requested = false;
+        QObject::connect(&dialog,
+                         &vss::gui::AddPortDialog::driver_setup_requested,
+                         [&requested] { requested = true; });
+        modal_probe probe;
+        close_next_modal(&probe);
+        dialog.primary_button()->click();
+        REQUIRE_EQ(title, QStringLiteral("Could not create the port"));
+        REQUIRE(probe.error_dialog);
+        REQUIRE(probe.buttons.contains(
+            QStringLiteral("Set up Virtual Serial Studio")));
+        REQUIRE(probe.buttons.contains(QStringLiteral("Copy details")));
+        // Closing the error is not asking for the set-up.
+        REQUIRE(!requested);
+        REQUIRE(backend.ports().empty());
+
+        // Pressing the action closes the error and asks the window to open it.
+        backend.fail_next(vss::make_error_code(vss::errc::permission_denied));
+        press_in_next_modal(QStringLiteral("Set up Virtual Serial Studio"));
+        dialog.primary_button()->click();
+        REQUIRE(requested);
+    }
+}
+
+TEST_CASE("flows: add port with a working set-up keeps the engine's message")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_facts(missing_driver_facts(vss::gui::driver_problem::none));
+    vss::gui::AddPortDialog dialog(backend, false,
+                                   vss::gui::AddPortDialog::mode::virtual_port,
+                                   vss::gui::platform_kind::windows);
+    dialog.show();
+    settle();
+    backend.fail_next(vss::make_error_code(vss::errc::device_busy));
+    modal_probe probe;
+    close_next_modal(&probe);
+    dialog.primary_button()->click();
+    REQUIRE(probe.error_dialog);
+    // Nothing to set up, so no set-up button.
+    REQUIRE(!probe.buttons.contains(
+        QStringLiteral("Set up Virtual Serial Studio")));
+    REQUIRE(probe.buttons.contains(QStringLiteral("Copy details")));
+}
+
+TEST_CASE("flows: a pair that cannot be made names the missing piece too")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    use_two_free_pairs(backend);
+    auto facts = backend.facts();
+    facts.driver = missing_driver_facts(vss::gui::driver_problem::helper_stopped)
+                       .driver;
+    backend.set_facts(facts);
+    vss::gui::PairDialog dialog(backend, false,
+                                vss::gui::platform_kind::windows);
+    dialog.show();
+    settle();
+    backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    bool requested = false;
+    QObject::connect(&dialog, &vss::gui::PairDialog::driver_setup_requested,
+                     [&requested] { requested = true; });
+    press_in_next_modal(QStringLiteral("Set up Virtual Serial Studio"));
+    dialog.primary_button()->click();
+    REQUIRE(requested);
+    REQUIRE(backend.ports().empty());
+}
+
 TEST_CASE("flows: attach enumerates, explains rows and refreshes")
 {
     clear_settings();

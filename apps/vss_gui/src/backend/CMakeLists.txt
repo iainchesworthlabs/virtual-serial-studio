@@ -13,6 +13,7 @@ add_library(vss_gui_backend STATIC
   share_edit.cpp
   canvas_edit.cpp
   com_numbers.cpp
+  driver_error.cpp
   studio_backend.hpp
   engine_studio_backend.hpp
   fake_studio_backend.hpp
@@ -20,6 +21,7 @@ add_library(vss_gui_backend STATIC
   share_edit.hpp
   canvas_edit.hpp
   com_numbers.hpp
+  driver_error.hpp
   capabilities.hpp
   other_ports.hpp
   view_types.hpp)
@@ -35,6 +37,12 @@ icl_platform_sources(vss_gui_backend
 set_target_properties(vss_gui_backend PROPERTIES AUTOMOC ON)
 vss_set_warnings(vss_gui_backend)
 
+# boost::system::error_category deliberately has a non-virtual destructor and
+# is meant to be derived from; GCC warns about the base anyway (the same
+# exception libs/vss_core makes for its own category).
+set_source_files_properties(driver_error.cpp PROPERTIES
+  COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wno-non-virtual-dtor>")
+
 if(VSS_BUILD_TESTS)
   add_executable(vss_gui_backend_tests
     tests/main.cpp
@@ -42,7 +50,8 @@ if(VSS_BUILD_TESTS)
     tests/test_event_bridge.cpp
     tests/test_share_edit.cpp
     tests/test_canvas_edit.cpp
-    tests/test_com_numbers.cpp)
+    tests/test_com_numbers.cpp
+    tests/test_driver_error.cpp)
 
   target_include_directories(vss_gui_backend_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/framework)

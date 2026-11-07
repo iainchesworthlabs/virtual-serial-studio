@@ -41,7 +41,8 @@ add_executable(vss_gui_ui_tests
   test_advanced_journeys.cpp
   test_edge_journeys.cpp
   test_engine_journeys.cpp
-  test_action_journeys.cpp)
+  test_action_journeys.cpp
+  test_setup_journeys.cpp)
 
 target_include_directories(vss_gui_ui_tests PRIVATE
   ${CMAKE_SOURCE_DIR}/tests/framework

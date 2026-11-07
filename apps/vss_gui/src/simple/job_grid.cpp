@@ -6,6 +6,7 @@
 
 #include "simple/job_grid.hpp"
 
+#include "backend/driver_error.hpp"
 #include "support/setup_facts.hpp"
 #include "theme/focus_ring_style.hpp"
 #include "theme/icon_provider.hpp"
@@ -229,7 +230,14 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
         text_style::bodyLarge, content));
 
     readiness_ = new NoteBanner(NoteBanner::kind::ok, {}, content);
-    readiness_->set_action(tr("Details"), [this] { Q_EMIT check_requested(); });
+    readiness_->set_action(tr("Details"),
+                           [this]
+                           {
+                               if (setup_offered_)
+                                   Q_EMIT driver_setup_requested();
+                               else
+                                   Q_EMIT check_requested();
+                           });
     layout->addWidget(readiness_);
 
     const bool bus_available = backend_.caps().shared_bus;
@@ -335,6 +343,7 @@ JobTile* JobGrid::tile(job kind) const
 void JobGrid::refresh()
 {
     const support::setup_report& report = setup_cache_.get(backend_);
+    setup_offered_ = false;
     if (report.state != support::setup_report::readiness::not_checked &&
         report.ports_ready)
     {
@@ -343,6 +352,17 @@ void JobGrid::refresh()
             tr("This PC can make ports that other programs can open."));
         if (readiness_->action_button() != nullptr)
             readiness_->action_button()->setText(tr("Details"));
+    }
+    else if (driver_problem_offers_setup(report.problem))
+    {
+        // A new user's first screen: what is missing and the one action that
+        // fixes it.
+        setup_offered_ = true;
+        readiness_->set_kind(NoteBanner::kind::warn);
+        readiness_->set_text(driver_problem_body(report.problem));
+        if (readiness_->action_button() != nullptr)
+            readiness_->action_button()->setText(
+                tr("Set up Virtual Serial Studio"));
     }
     else
     {
