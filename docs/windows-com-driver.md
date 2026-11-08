@@ -289,12 +289,13 @@ take weeks, and Windows 10+ will not load an unsigned kernel driver.
 The programs people start are signed in CI by the same mechanism as the driver
 package: the shared `sign-windows` action of `icl-common-infra`, behind the
 `SIGN_WINDOWS` repository variable. Today that action signs with a leaf
-certificate from the owner's personal certificate authority (`test`); its
-`production` mode, for a certificate that Windows trusts everywhere (an OV or EV
-certificate, or a cloud signing service), is reserved and fails until the owner
-chooses one. The repository wraps it in `.github/actions/sign-windows-binaries`,
-which signs, then runs `tools/ci/verify-windows-signatures.ps1` and fails the leg
-when a file is unsigned, altered after signing or has no timestamp.
+certificate from the owner's personal certificate authority (`test`), which is
+installed on the owner's machines and guests; that is enough while the studio is
+only run there. Its `production` mode, for a certificate that Windows trusts
+everywhere, is reserved for later. The repository wraps it in
+`.github/actions/sign-windows-binaries`, which signs, then runs
+`tools/ci/verify-windows-signatures.ps1` and fails the leg when a file is
+unsigned, altered after signing or has no timestamp.
 
 | Program | Where it is signed | When |
 |---|---|---|
@@ -318,11 +319,14 @@ publisher** everywhere except where the owner's CA is installed
 (`docs/test-signing.md` in `icl-common-infra`). A name such as "Iain Chesworth
 Labs" in the prompt needs the `production` mode.
 
-**What the owner creates** (an agent does not): the organisation secrets
-`WIN_TESTSIGN_PFX_BASE64` and `WIN_TESTSIGN_PFX_PASSWORD`, and the repository
-variable `SIGN_WINDOWS=test`. Until they exist the signing step logs a warning,
-writes a note in the job summary and leaves the files unsigned (named
-`-unsigned`); the leg still passes.
+**Where the certificate comes from.** The organisation secrets
+`WIN_TESTSIGN_PFX_BASE64` and `WIN_TESTSIGN_PFX_PASSWORD` are shared with every
+repository of the organisation, and the repository variable `SIGN_WINDOWS` is
+`test`, so the legs sign with the same test certificate as the other
+repositories. No new secret is needed. If the secrets are not available to a run
+(a pull request from a fork), the signing step logs a warning, writes a note in
+the job summary and leaves the files unsigned (named `-unsigned`); the leg still
+passes.
 
 **Trying it on your own machine** with a throwaway self-signed certificate, from
 PowerShell with the Windows SDK installed and a built `vss_gui.exe`:
