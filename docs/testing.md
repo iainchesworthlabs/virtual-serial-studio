@@ -333,7 +333,8 @@ not at the CTest timeout; a crash, an uncaught exception or a failed debug
 assertion prints the journey and its steps in the same way.
 
 Each journey has a budget in `apps/vss_gui/ui-tests/perf_budgets.json`
-(150 ms unless it lists one), written for a release build; CMake multiplies it
+(150 ms unless it lists one; a journey that runs several cases and names each after
+a colon shares the entry of the journey), written for a release build; CMake multiplies it
 by 12 for a debug build, 6 under AddressSanitizer, 25 under ThreadSanitizer
 and 60 for a coverage build (`VSS_UI_BUDGET_SCALE`).
 `VSS_UI_BUDGET_MS` replaces the table with one number, and `VSS_UI_TRACE=1`

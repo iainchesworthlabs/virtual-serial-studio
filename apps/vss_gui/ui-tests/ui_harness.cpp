@@ -167,7 +167,16 @@ int stall_budget_ms(const std::string& journey)
     if (forced > 0)
         return forced;
     const budget_table& table = budgets();
-    const auto found = table.journeys.find(journey);
+    auto found = table.journeys.find(journey);
+    // A journey that repeats itself for several cases names each one after a
+    // colon ("setup: creating a port: the driver is not installed"); the
+    // cases share the entry of the journey.
+    if (found == table.journeys.end())
+    {
+        const std::size_t colon = journey.rfind(": ");
+        if (colon != std::string::npos && colon > journey.find(": "))
+            found = table.journeys.find(journey.substr(0, colon));
+    }
     const int release_ms =
         found != table.journeys.end() ? found->second : table.default_ms;
     return release_ms * env_int("VSS_UI_BUDGET_SCALE", 1);
