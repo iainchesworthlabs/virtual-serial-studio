@@ -309,6 +309,56 @@ void session::subnegotiate(const std::string& payload, feed_result& result)
     command(static_cast<unsigned char>(payload[1]), payload.substr(2), result);
 }
 
+unsigned session::set_control(unsigned request, feed_result& result)
+{
+    unsigned answer = request;
+    switch (request)
+    {
+    case 0:
+        answer = flow_code(settings_.flow_control);
+        break;
+    case 1:
+        settings_.flow_control = flow_control_mode::none;
+        break;
+    case 2:
+        settings_.flow_control = flow_control_mode::software;
+        break;
+    case 3:
+        settings_.flow_control = flow_control_mode::hardware;
+        break;
+    case 4:
+        answer = outputs_.break_active() ? 5U : 6U;
+        break;
+    case 5:
+    case 6:
+        outputs_.set(control_line::break_signal, request == 5);
+        result.outputs_changed = true;
+        break;
+    case 7:
+        answer = outputs_.dtr() ? 8U : 9U;
+        break;
+    case 8:
+    case 9:
+        outputs_.set(control_line::dtr, request == 8);
+        result.outputs_changed = true;
+        break;
+    case 10:
+        answer = outputs_.rts() ? 11U : 12U;
+        break;
+    case 11:
+    case 12:
+        outputs_.set(control_line::rts, request == 11);
+        result.outputs_changed = true;
+        break;
+    case 13:
+        answer = 14; // no inbound flow control
+        break;
+    default:
+        break; // inbound and DCD, DTR and DSR flow control: acknowledged
+    }
+    return answer;
+}
+
 void session::command(unsigned char code, const std::string& value,
                       feed_result& result)
 {
@@ -383,55 +433,9 @@ void session::command(unsigned char code, const std::string& value,
                            one_byte(stop_code(settings_.stop_bits)));
         break;
     case cmd_set_control:
-    {
-        unsigned answer = first;
-        switch (first)
-        {
-        case 0:
-            answer = flow_code(settings_.flow_control);
-            break;
-        case 1:
-            settings_.flow_control = flow_control_mode::none;
-            break;
-        case 2:
-            settings_.flow_control = flow_control_mode::software;
-            break;
-        case 3:
-            settings_.flow_control = flow_control_mode::hardware;
-            break;
-        case 4:
-            answer = outputs_.break_active() ? 5U : 6U;
-            break;
-        case 5:
-        case 6:
-            outputs_.set(control_line::break_signal, first == 5);
-            result.outputs_changed = true;
-            break;
-        case 7:
-            answer = outputs_.dtr() ? 8U : 9U;
-            break;
-        case 8:
-        case 9:
-            outputs_.set(control_line::dtr, first == 8);
-            result.outputs_changed = true;
-            break;
-        case 10:
-            answer = outputs_.rts() ? 11U : 12U;
-            break;
-        case 11:
-        case 12:
-            outputs_.set(control_line::rts, first == 11);
-            result.outputs_changed = true;
-            break;
-        case 13:
-            answer = 14; // no inbound flow control
-            break;
-        default:
-            break; // inbound and DCD, DTR and DSR flow control: acknowledged
-        }
-        put_subnegotiation(result.reply, code, one_byte(answer));
+        put_subnegotiation(result.reply, code,
+                           one_byte(set_control(first, result)));
         break;
-    }
     case cmd_set_linestate_mask:
         line_mask_ = static_cast<unsigned char>(first);
         put_subnegotiation(result.reply, code, one_byte(line_mask_));

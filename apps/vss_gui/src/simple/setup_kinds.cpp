@@ -83,6 +83,117 @@ bool all_programs_or_devices(const std::vector<port_view>& ports,
                { return is_program(ports, id) || is_device(ports, id); });
 }
 
+/// A link between two ports: a pair of programs, a program and a test device,
+/// or a bridge between a device and a network port.
+void describe_two_way(setup_view& view, const link_view& link,
+                      const std::vector<port_view>& ports)
+{
+    if (link.sources.size() != 1 || link.targets.size() != 1)
+        return;
+    const auto a = link.sources.front();
+    const auto b = link.targets.front();
+    if (is_program(ports, a) && is_program(ports, b))
+    {
+        view.kind = job::pair;
+        view.programs = {a, b};
+        return;
+    }
+    const auto mock_side =
+        kind_of(ports, a) == vss::endpoint_kind::mock
+            ? a
+            : (kind_of(ports, b) == vss::endpoint_kind::mock ? b : 0);
+    if (mock_side != 0)
+    {
+        const auto other = mock_side == a ? b : a;
+        if (is_program(ports, other))
+        {
+            view.kind = job::port;
+            view.programs = {other};
+            view.echo = mock_side;
+        }
+        return;
+    }
+    // A bridge: a device on this PC and a network port other computers
+    // connect to.
+    const auto device =
+        kind_of(ports, a) == vss::endpoint_kind::physical
+            ? a
+            : (kind_of(ports, b) == vss::endpoint_kind::physical ? b : 0);
+    if (device != 0)
+    {
+        const auto other = device == a ? b : a;
+        if (is_network(ports, other))
+        {
+            view.kind = job::network;
+            view.device = device;
+            view.listener = other;
+        }
+    }
+}
+
+/// One device shared with several programs, or attached to a single one.
+void describe_split(setup_view& view, const link_view& link,
+                    const std::vector<port_view>& ports, bool duplex)
+{
+    if (!duplex || link.sources.size() != 1 ||
+        !is_device(ports, link.sources.front()) ||
+        !all_programs(ports, link.targets))
+        return;
+    if (link.options.policy != vss::merge_policy::interleave)
+        return;
+    view.device = link.sources.front();
+    view.programs = link.targets;
+    view.kind = link.targets.size() == 1 ? job::attach : job::share;
+}
+
+/// Several ports sending to one: programs taking turns with a device, or a
+/// group combined into one receiver.
+void describe_join(setup_view& view, const link_view& link,
+                   const std::vector<port_view>& ports)
+{
+    if (link.targets.size() != 1 ||
+        !all_programs_or_devices(ports, link.sources) ||
+        !all_programs_or_devices(ports, link.targets))
+        return;
+    if (link.options.policy == vss::merge_policy::owner)
+    {
+        // Programs that take turns sending to a device.
+        if (!all_programs(ports, link.sources) ||
+            !is_device(ports, link.targets.front()))
+            return;
+        view.kind = job::turns;
+        view.device = link.targets.front();
+        view.programs = link.sources;
+        view.owner = link.owner;
+        return;
+    }
+    view.kind = job::combine;
+    view.members = link.sources;
+    view.receiver = link.targets.front();
+    for (const auto id : link.sources)
+    {
+        if (is_program(ports, id))
+            view.programs.push_back(id);
+    }
+    if (is_program(ports, view.receiver))
+        view.programs.push_back(view.receiver);
+}
+
+/// A bus: every member hears every other.
+void describe_bus(setup_view& view, const link_view& link,
+                  const std::vector<port_view>& ports)
+{
+    if (!all_programs_or_devices(ports, link.sources))
+        return;
+    view.kind = job::bus;
+    view.members = link.sources;
+    for (const auto id : link.sources)
+    {
+        if (is_program(ports, id))
+            view.programs.push_back(id);
+    }
+}
+
 void describe_one_link(setup_view& view, const link_view& link,
                        const std::vector<port_view>& ports)
 {
@@ -91,106 +202,17 @@ void describe_one_link(setup_view& view, const link_view& link,
     switch (link.shape)
     {
     case link_shape::two_way:
-    {
-        if (link.sources.size() != 1 || link.targets.size() != 1)
-            return;
-        const auto a = link.sources.front();
-        const auto b = link.targets.front();
-        if (is_program(ports, a) && is_program(ports, b))
-        {
-            view.kind = job::pair;
-            view.programs = {a, b};
-            return;
-        }
-        const auto mock_side =
-            kind_of(ports, a) == vss::endpoint_kind::mock
-                ? a
-                : (kind_of(ports, b) == vss::endpoint_kind::mock ? b : 0);
-        if (mock_side != 0)
-        {
-            const auto other = mock_side == a ? b : a;
-            if (is_program(ports, other))
-            {
-                view.kind = job::port;
-                view.programs = {other};
-                view.echo = mock_side;
-            }
-            return;
-        }
-        // A bridge: a device on this PC and a network port other computers
-        // connect to.
-        const auto device =
-            kind_of(ports, a) == vss::endpoint_kind::physical
-                ? a
-                : (kind_of(ports, b) == vss::endpoint_kind::physical ? b : 0);
-        if (device != 0)
-        {
-            const auto other = device == a ? b : a;
-            if (is_network(ports, other))
-            {
-                view.kind = job::network;
-                view.device = device;
-                view.listener = other;
-            }
-        }
+        describe_two_way(view, link, ports);
         return;
-    }
     case link_shape::split:
-    {
-        if (!duplex || link.sources.size() != 1 ||
-            !is_device(ports, link.sources.front()) ||
-            !all_programs(ports, link.targets))
-            return;
-        if (link.options.policy != vss::merge_policy::interleave)
-            return;
-        view.device = link.sources.front();
-        view.programs = link.targets;
-        view.kind = link.targets.size() == 1 ? job::attach : job::share;
+        describe_split(view, link, ports, duplex);
         return;
-    }
     case link_shape::join:
-    {
-        if (link.targets.size() != 1 ||
-            !all_programs_or_devices(ports, link.sources) ||
-            !all_programs_or_devices(ports, link.targets))
-            return;
-        if (link.options.policy == vss::merge_policy::owner)
-        {
-            // Programs that take turns sending to a device.
-            if (!all_programs(ports, link.sources) ||
-                !is_device(ports, link.targets.front()))
-                return;
-            view.kind = job::turns;
-            view.device = link.targets.front();
-            view.programs = link.sources;
-            view.owner = link.owner;
-            return;
-        }
-        view.kind = job::combine;
-        view.members = link.sources;
-        view.receiver = link.targets.front();
-        for (const auto id : link.sources)
-        {
-            if (is_program(ports, id))
-                view.programs.push_back(id);
-        }
-        if (is_program(ports, view.receiver))
-            view.programs.push_back(view.receiver);
+        describe_join(view, link, ports);
         return;
-    }
     case link_shape::bus:
-    {
-        if (!all_programs_or_devices(ports, link.sources))
-            return;
-        view.kind = job::bus;
-        view.members = link.sources;
-        for (const auto id : link.sources)
-        {
-            if (is_program(ports, id))
-                view.programs.push_back(id);
-        }
+        describe_bus(view, link, ports);
         return;
-    }
     default:
         return;
     }
