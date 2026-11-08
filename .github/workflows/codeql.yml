@@ -37,12 +37,21 @@ jobs:
             build_mode: none
           - language: actions
             build_mode: none
-    env:
-      BOOST_ROOT: ${{ github.workspace }}/.cache/boost-root
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # Boost and the build tree live in the runner's temporary directory, outside the checkout.
+      # CodeQL reports only on files under the checkout, so the Boost headers, the Qt generated
+      # sources and the dependencies CMake fetches produce no alerts.
+      - name: Choose directories outside the checkout
+        if: matrix.build_mode == 'manual'
+        run: |
+          {
+            echo "BOOST_ROOT=${RUNNER_TEMP}/boost-root"
+            echo "VSS_BUILD_DIR=${RUNNER_TEMP}/build"
+          } >> "$GITHUB_ENV"
 
       - name: Set up the toolchain
         if: matrix.build_mode == 'manual'
@@ -54,6 +63,8 @@ jobs:
       - name: Prepare dependencies
         if: matrix.build_mode == 'manual'
         uses: ./.github/actions/prepare-deps
+        with:
+          boost-dest: ${{ runner.temp }}/boost-root
 
       - name: Install GUI system libraries
         if: matrix.build_mode == 'manual'
@@ -64,14 +75,15 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build_mode }}
+          config-file: ./.github/codeql/codeql-config.yml
           queries: security-and-quality
 
       - name: Build
         if: matrix.build_mode == 'manual'
         run: |
           set -euo pipefail
-          cmake --preset linux-release-gui
-          cmake --build --preset linux-release-gui
+          cmake --preset linux-release-gui -B "$VSS_BUILD_DIR"
+          cmake --build "$VSS_BUILD_DIR"
 
       - name: Analyze
         uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
