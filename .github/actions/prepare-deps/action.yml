@@ -4,13 +4,20 @@ description: >
   Fetch the Boost headers. Boost.VirtualSerial is fetched by CMake from its
   public repository at the release tag named in cmake/VssVirtualSerial.cmake.
 
+inputs:
+  boost-dest:
+    description: Directory the Boost headers are unpacked into.
+    default: .cache/boost-root
+
 runs:
   using: composite
   steps:
     - name: Fetch Boost
       shell: bash
+      env:
+        BOOST_DEST: ${{ inputs.boost-dest }}
       run: |
         set -euo pipefail
         PY=python
         command -v python3 >/dev/null 2>&1 && PY=python3
-        "$PY" tools/fetch_boost.py --dest .cache/boost-root
+        "$PY" tools/fetch_boost.py --dest "$BOOST_DEST"

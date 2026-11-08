@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Virtual Serial Studio CodeQL configuration
+
+# Only first-party code is analysed. The workflow already builds in the runner's temporary
+# directory so the fetched Boost headers, the Qt generated sources and the dependencies CMake
+# fetches never sit under the checkout. These filters stay as a second guard for a local or
+# future build that puts them back inside it.
+paths-ignore:
+  - .cache
+  - build
+  - build-*
+  - out
+  - vcpkg_installed
+  - "**/_deps"
+  - "**/*_autogen"
