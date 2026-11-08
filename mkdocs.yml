@@ -31,6 +31,7 @@ nav:
       - Architecture: architecture.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md
+      - Platforms: platforms.md
       - Virtual machine testing: vm-testing.md
       - Workstreams: workstreams.md
       - Migration: migration.md

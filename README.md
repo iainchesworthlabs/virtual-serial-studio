@@ -25,8 +25,8 @@ abstraction that makes the transport replaceable.
 |---|---|
 | Share one serial port with many applications | Create N virtual ports and `split` the real one across them |
 | Merge several writers into one device | `join` two or more publishers into one target |
-| Give an application its own serial port | Pseudo terminal on Linux/macOS, com0com pair on Windows, first-party driver planned |
-| Replace com0com entirely | The Windows driver is specified in [docs/windows-com-driver.md](docs/windows-com-driver.md); until it exists com0com is used |
+| Give an application its own serial port | Pseudo terminal on Linux/macOS; on Windows the first-party `vsscom` driver, or a com0com pair when the driver is not installed |
+| Replace com0com | The Windows driver is described in [docs/windows-com-driver.md](docs/windows-com-driver.md); its kernel-mode package is not signed yet, so Windows loads it only with test signing on |
 | Bridge a device to the network | `tcp://`, `udp://` and `rfc2217://` endpoints are first-class ports; `tcp-listen://`, `udp-listen://` and `rfc2217-listen://` wait for other computers to connect |
 | Test RS-232 control lines | DTR/RTS/BREAK are drivable, CTS/DSR/DCD/RI are reported, a null-modem link crosses them |
 | Watch traffic without disturbing it | One-way `monitor` links and a bounded traffic ring buffer |
@@ -43,9 +43,14 @@ abstraction that makes the transport replaceable.
 - [docs/architecture.md](docs/architecture.md) — how the libraries, hub and transports fit together.
 - [docs/scenarios.md](docs/scenarios.md) — worked recipes for share, join, bridge and loopback.
 - [docs/profiling.md](docs/profiling.md) — Tracy zones and how to capture a trace.
-- [docs/windows-com-driver.md](docs/windows-com-driver.md) — the optional KMDF COM port driver.
-- [docs/vm-testing.md](docs/vm-testing.md) — the VMware guest matrix and driver tests.
-- [docs/building.md](docs/building.md), [docs/testing.md](docs/testing.md), [docs/ci.md](docs/ci.md), [docs/fuzzing.md](docs/fuzzing.md) and [docs/releasing.md](docs/releasing.md) — build, test, CI, fuzzing and release.
+- [docs/posix-virtual-ports.md](docs/posix-virtual-ports.md) — stable virtual ports on Linux and macOS.
+- [docs/windows-com-driver.md](docs/windows-com-driver.md) — the optional Windows COM port driver.
+- [docs/platforms.md](docs/platforms.md) and [docs/vm-testing.md](docs/vm-testing.md) — what is tested on each platform, and the VMware guest matrix.
+- [docs/i18n.md](docs/i18n.md) — the languages and how to add one.
+- [docs/building.md](docs/building.md), [docs/testing.md](docs/testing.md), [docs/ci.md](docs/ci.md), [docs/fuzzing.md](docs/fuzzing.md), [docs/profiling.md](docs/profiling.md) and [docs/releasing.md](docs/releasing.md) — build, test, CI, fuzzing, profiling and release.
+- [docs/workstreams.md](docs/workstreams.md) and [docs/migration.md](docs/migration.md) — where the platform work stands, and the move to the shared repository standard.
+
+The same pages are published as a site by the Docs workflow (`mkdocs build --strict`).
 
 ## Building
 
@@ -227,18 +232,23 @@ apps/vss_gui         Qt 6 desktop application
 tests/               in-tree framework, unit and system suites
 perf/                performance suite and floors
 cmake/               dependency, warning, coverage and sanitizer helpers
-tools/               Boost fetch, changelog, coverage and performance reports,
-                     the PTY pair helper and the commit-message checker
+drivers/windows      the vsscom kernel-mode and user-mode COM port drivers
+tools/               Boost fetch, changelog, coverage, performance and Tracy
+                     reports, fuzz and analysis drivers, the PTY pair helper,
+                     CI planning and the VM harness
+requirements/        pinned Python tooling for the docs and workflow analysis
 docs/                user guide, design notes and scenario recipes
 ```
 
 ## Known limits
 
-* A real Windows `COMx` still comes from com0com. Windows has no user-mode COM
-  port API, so replacing com0com needs the kernel driver described in
-  [docs/windows-com-driver.md](docs/windows-com-driver.md). The application
-  already detects that driver, prefers it when present, and accepts
-  `"virtual_kind": "windows-driver"` in saved topologies.
+* Windows has no user-mode COM port API, so a real `COMx` needs either com0com
+  or the driver described in [docs/windows-com-driver.md](docs/windows-com-driver.md).
+  The application detects the driver, prefers it over com0com when present, and
+  accepts `"virtual_kind": "windows-driver"` in saved topologies. The
+  kernel-mode driver package is unsigned, so it loads only with test signing on;
+  the user-mode package is test-signed in CI. The driver raises no line-error
+  events (`EV_ERR`, `EV_BREAK`).
 * A named-pipe virtual port is not implemented.
 * Two loopback virtual ports cannot be linked duplex: a loopback device echoes
   its writes into its own receive path, which is a feedback loop. The GUI's
@@ -251,11 +261,9 @@ docs/                user guide, design notes and scenario recipes
 
 ## Roadmap
 
-1. **Windows COM driver** — the one piece that cannot be user-mode. Phase 0
-   (detection, selection order, configuration, ABI design) is done; the next
-   milestone is a test-signed driver that creates a port and carries bytes,
-   then the full serial contract (timeouts, purge, wait mask, line control),
-   then signing and an installer.
+1. **Windows COM driver** — the serial contract, the setup script and the guest
+   tests are done. What is left is signing the kernel-mode package and an
+   installer (there is no MSI yet).
 2. **Named-pipe virtual ports** — a cross-process port for applications that
    accept a pipe path, useful on machines without a driver.
 3. **macOS `/dev/cu.*` aliases** — an opt-in helper that creates a symlink with

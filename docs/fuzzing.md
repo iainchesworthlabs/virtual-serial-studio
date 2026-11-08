@@ -13,10 +13,11 @@ crashes in `regressions/`.
 
 | Run | When | What |
 |---|---|---|
-| Replay in the normal tests | Every build | CTest tests `fuzz_topology` and `fuzz_endpoint_uri` (label `fuzz`) run each corpus and regression file once. They work with any compiler and run under AddressSanitizer in the `linux-asan-ubsan` job |
-| `fuzz-regress` | Every pull request | The `Fuzz regression replay` job builds the libFuzzer targets and replays the same files under libFuzzer |
-| `fuzz-short` | Push to `develop` | 60 seconds a target (`.github/workflows/fuzz.yml`) |
-| `fuzz-nightly` | Every night | 10 minutes a target; the working corpus is kept between runs in the Actions cache |
+| Replay in the normal tests | Every build | CTest tests `fuzz_topology` and `fuzz_endpoint_uri` (label `fuzz`) run each corpus and regression file once, through the `fuzz_topology_replay` and `fuzz_endpoint_uri_replay` programs. They work with any compiler, and run under AddressSanitizer and UBSan in the `AddressSanitizer and UBSan` job |
+| `Fuzz regression replay` (`fuzz-regress` in `ci.yml`) | Every ready pull request and merge-queue entry | Builds the `linux-fuzz` targets and replays the same files under libFuzzer with `tools/fuzz.py --mode regress`, then runs the unit tests of that script |
+| `Fuzz` in `.github/workflows/fuzz.yml` | Push to `develop`: 60 seconds a target | Replays the files, then fuzzes each target |
+| | Every night: 10 minutes a target | The same; the working corpus is kept between runs in the Actions cache |
+| | On request (`workflow_dispatch`) | Either length, chosen in the run form |
 
 A crash fails the run, uploads the input as the `fuzz-crashes` artifact and, at
 night, opens or updates a `nightly-analysis` issue.
@@ -31,10 +32,18 @@ cmake --build --preset linux-fuzz
 python3 tools/fuzz.py --mode short
 ```
 
-`--mode regress` only replays the files, `--mode nightly` fuzzes for ten
-minutes a target, and `--seconds` sets another time. New inputs go to
+`--mode regress` only replays the files, `--mode short` fuzzes for 60 seconds a
+target, `--mode nightly` for ten minutes, and `--seconds` sets another time.
+`--build-dir` (default `build/linux-fuzz`) and `--work-dir` (default
+`.cache/fuzz`) move the two directories. New inputs go to
 `.cache/fuzz/<harness>`, which Git ignores; crash files go to
-`.cache/fuzz/artifacts`.
+`.cache/fuzz/artifacts`. The script finds a harness by the name
+`libs/<lib>/fuzz/fuzz_*.cpp`, and exits with status 1 if any target fails.
+
+The `linux-fuzz` build is RelWithDebInfo with `ICL_ENABLE_FUZZING`, which adds
+AddressSanitizer and UBSan at -O1 and stops at the first finding. It cannot be
+combined with the sanitizer presets, coverage or Tracy, so it has a build tree
+of its own.
 
 ## After a crash
 

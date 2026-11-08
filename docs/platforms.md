@@ -7,12 +7,16 @@ proves, how to run a cell, and the last result of each. A test that cannot run r
 
 | Cell | Kind | Runs |
 |---|---|---|
-| `ubuntu-24.04`, `ubuntu-26.04` | hosted runner | every night |
-| `windows-2025` | hosted runner | every night |
-| `macos-15`, `macos-26` (Apple silicon), `macos-15-intel`, `macos-26-intel` | hosted runner | every night |
+| `ubuntu-24.04`, `ubuntu-26.04` | hosted runner | every night, on request, and on a pull request that changes the matrix |
+| `windows-2025` | hosted runner | the same |
+| `macos-15`, `macos-26` (Apple silicon), `macos-15-intel`, `macos-26-intel` | hosted runner | the same |
 | `VSS - Windows 10`, `VSS - Windows 11` | VMware guest on the owner's machine | on request, with the driver |
 | `VSS - Ubuntu 26.04` | VMware guest on the owner's machine | on request |
 | `wsl-debian` | WSL2 Debian on the owner's machine | during development |
+
+The build uses the toolchains pinned in `.github/toolchain-versions.json`: GCC 16 on Linux, MSVC (toolset 14.51) on
+Windows and Qt 6.12.0 for the GUI. macOS uses the Apple Clang that the runner carries. The pull request gate and the
+other legs of `ci.yml` are described in [Continuous integration](ci.md).
 
 The hosted cells are the workflow `.github/workflows/platform-matrix.yml`. The guests are described in
 [`vm-testing.md`](vm-testing.md). A hosted macOS or Windows cell proves the build and the tests on a real installation of
@@ -52,7 +56,7 @@ python3 tools/matrix/merge_results.py out --check
 
 ## Last results
 
-The last hosted run is [run 42024525324](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/runs/42024525324), on commit `f249d31` of the guest-cell pull request, on 2026-11-05. Every cell passed every applicable test, including T8 and T9, and the macOS cells ran T5 and T6 again (the GUI had become an application bundle, which the runner did not find until that run).
+The last hosted run in which every cell passed is [run 42024525324](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/runs/42024525324), on commit `f249d31` of the guest-cell pull request, on 2026-11-05. Every cell passed every applicable test, including T8 and T9, and the macOS cells ran T5 and T6 again (the GUI had become an application bundle, which the runner did not find until that run). The scheduled runs on `develop` from 2026-11-06 failed, so the table below has not been refreshed since; the run list of the workflow has the current state.
 
 | Cell | System | T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 | T9 | T10 | T11 |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -80,7 +84,7 @@ What these runs showed:
 The guest rows ran on 2026-11-05 on `develop` at `dbf0c75` with the changes of the guest-cell pull request, each from the `clean` snapshot, with the tests run inside the guest. `tools/vm/guest-cell.ps1` ran them; [`vm-testing.md`](vm-testing.md) says how. The programs were built outside the guests (the Linux one in WSL Debian with GCC 13, the Windows one on the owner's machine with MSVC and Qt 6.12.0) and copied in with their Qt libraries, so a guest cell proves that the build runs and passes on that system, not that the guest can build it. T9 ran the unsigned package from the Release workflow's dry run (run 41937590004) for that system. All 26 `ctest` suites passed on the Windows guests and all 21 on Ubuntu (which has no `vm_*` tests).
 
 - **T11 runs on the Ubuntu guest.** The stock kernel has no `dummy_hcd`, but it has `usbip-vudc`, a virtual USB device controller, and `vhci-hcd`. With `g_serial` and `usbipd --device` they give a kernel serial pair: `/dev/ttyACM0` on the host side and `/dev/ttyGS0` on the gadget side. The test checks 1 KB each way, and `vss_cli bench` moves 1 MB between them at 3.8 MB/s. pyserial lists `ttyACM0`, which it does not do for a studio pseudo terminal.
-- **The driver tests passed on both Windows guests.** The `virtual-ports` session ran `drivers/windows/test` on the same guests on 2026-11-05: install, D0 to D13 and uninstall passed on Windows 10 and Windows 11. Those results are theirs; this page does not repeat them as a matrix cell.
+- **The driver tests are not a matrix cell.** `drivers/windows/test` runs on the same guests through `guest-cell.ps1 -DriverBundle`, and the state of each driver test is kept in [`drivers/windows/README.md`](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/drivers/windows/README.md).
 - A guest needs more than the program. The Ubuntu guest needed `cmake` for `ctest`, the OpenGL, EGL and fontconfig libraries for Qt, and Xvfb with the xcb libraries for T9. The Windows guests needed the `offscreen` platform plugin (`windeployqt` ships only `windows`), PowerShell 7 for the `vm_*` suites, and the build drive path, because some GUI tests read source files through the absolute path they were built with.
 - On the Windows guests the cell also takes a screenshot of the program on the guest's desktop (a scheduled task starts it in the logged-on user's session). It runs on both. On the guests' 1024 by 768 screen the main window is taller than the screen, so the status bar and the Simple and Advanced switch are off the bottom, and the toolbar shows icons without their text labels, which the 1280 by 800 offscreen images do not show.
 - The GUI tests that wait a fixed few milliseconds for an event can miss it on a slow guest. Windows 10 (two virtual CPUs) failed `gui_dialogs`, `gui_backend` and a timed-out `matrix_tools` on different runs while the host was busy, and passed on a quiet host. The guest scripts now rerun failed suites once and put the names in the T1 detail, so a rerun is never hidden.
@@ -90,14 +94,15 @@ The guest rows ran on 2026-11-05 on `develop` at `dbf0c75` with the changes of t
 
 The macOS build is compiled and tested only on GitHub-hosted macOS runners (macOS 15 and 26, Apple silicon and Intel). It has
 not been run on a Mac that anyone looks at. The graphical interface has not been seen on a real display, the application bundle
-is not signed or notarised and Gatekeeper behaviour has not been checked, and no third-party serial program has been tried
+is not signed or notarised (`SIGN_MACOS` is `false`, and `tools/macos/sign-and-notarize.sh` has not been run on a Mac) and Gatekeeper behaviour has not been checked, and no third-party serial program has been tried
 against a macOS virtual port. Virtual ports on macOS are pseudo terminals (`/dev/ttysNNN`), which programs that list ports through
 IOKit do not show.
 
 ## Windows
 
-Virtual ports on Windows need the `vsscom` driver. Until it is installed, `auto` falls back to com0com when present, and to an
-in-process loopback device otherwise. See [`windows-com-driver.md`](windows-com-driver.md).
+Virtual ports on Windows need a driver: `vsscom` (kernel mode) or `vsscom_um` (user mode, with its helper service). Until one is
+installed, `auto` falls back to com0com when present, and to an in-process loopback device otherwise. See
+[`windows-com-driver.md`](windows-com-driver.md); Studio checks the setup and offers to install it.
 
 ### Prompts Windows shows that the program did not ask for
 
@@ -105,10 +110,9 @@ A UAC window that appears while the tests run is not a request from the tests fo
 administrator rights. Windows Firewall shows the prompt when a program starts
 listening on every network address and has no rule yet; pressing **Allow access**
 then needs administrator approval, and that is the UAC window. The system tests
-and the performance suite used to do this with their TCP and UDP probes. They now
-listen on the loopback address only, which the firewall never asks about, and a
-test must keep to that: bind a test server to `127.0.0.1`, never to the wildcard
-address.
+and the performance suite listen on the loopback address only, which the firewall
+never asks about, and a test must keep to that: bind a test server to
+`127.0.0.1`, never to the wildcard address.
 
 Every program the project builds on Windows carries an application manifest with
 `requestedExecutionLevel asInvoker` (`cmake/windows/vss.manifest`, attached by
@@ -117,9 +121,9 @@ name and version strings whether to treat a program as an installer, so the
 manifest means Windows never guesses. The unit tests read the manifest of the test
 program itself.
 
-The old prompts leave firewall rules behind, one per build folder and protocol,
-named after the program. They are harmless, but a machine that ran the tests
-from many build folders has dozens. Remove them in the Windows Defender Firewall
+The earlier prompts left firewall rules behind, one per build folder and
+protocol, named after the program. They are harmless, but a machine that ran the
+tests from many build folders has dozens. Remove them in the Windows Defender Firewall
 with Advanced Security console (**Inbound Rules**, sort by name, delete the
 `vss_system_tests` rules) or from an administrator PowerShell:
 
@@ -148,8 +152,9 @@ cannot be asked answers `unknown`, and the Setup check shows "Not checked yet".
   validates its arguments (one port, one protocol, local subnet unless the caller
   said otherwise, never every network), refuses a program that is not `vss_gui.exe`
   or `vss_cli.exe` in its own folder, and replaces only a rule with its own name.
-  The prompt shows the helper's name and publisher. Until the release is signed the
-  publisher reads "Unknown", which the user guide says.
+  The prompt shows the helper's name and publisher. A release signed in `test` mode
+  reads "Unknown publisher" on a machine that does not trust the owner's CA (see
+  [the Windows driver notes](windows-com-driver.md#signing-the-studios-windows-programs)).
 - **Reading the rules.** An inbound rule decides a listener when it is enabled,
   names the program (or no program), covers the protocol and the port, and applies
   to a network the computer is on now. A block rule wins. "Block all incoming
@@ -159,11 +164,11 @@ cannot be asked answers `unknown`, and the Setup check shows "Not checked yet".
   step. Without it, or without `vss_cli` beside the program, the dialog explains
   and shows the command, and the button reads "Not available in this build".
 
-Not run on a real machine for this change (a check never changes the firewall of
-the machine the tests run on, so the step itself is covered by unit tests of the
-rule text, the argument round trip and the helper's refusals): adding and removing
-the rule in a Windows guest, the UAC prompt for a standard user, and a machine
-joined to a domain with policy-managed rules.
+Not run on a real machine (a check never changes the firewall of the machine the
+tests run on, so the step itself is covered by unit tests of the rule text, the
+argument round trip and the helper's refusals): adding and removing the rule in a
+Windows guest, the UAC prompt for a standard user, and a machine joined to a
+domain with policy-managed rules.
 
 ### Serial access, confinement and the firewall on Linux
 
@@ -187,13 +192,13 @@ one in force.
 - **Capability.** `capabilities::serial_group_step` is true where `pkexec` and
   `usermod` are installed; otherwise the dialog only explains and shows the command.
 
-Run for this change: the Linux part of the library compiled with GCC 14 and
+Run so far: the Linux part of the library compiled with GCC 14 and
 `-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Werror`, its unit tests, and a
 read-only probe in a Debian WSL distribution, which found `/dev/ttyS0` owned by
 `dialout` with the user outside the group and printed the exact command. Not run:
 the polkit prompt and the group change (they change the account), AppArmor and
-SELinux denials on real profiles, a Flatpak or Snap build, and Clang. Those need the
-Ubuntu guest of `docs/vm-testing.md` and a Fedora guest.
+SELinux denials on real profiles, and a Flatpak or Snap build. Those need the
+Ubuntu guest of [Testing in the VSS guests](vm-testing.md) and a Fedora guest.
 
 ### The Application Firewall, Local Network and the sandbox on macOS
 

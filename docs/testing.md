@@ -1,6 +1,7 @@
 # Testing
 
-The repository ships unit, system and performance suites, all driven by CTest.
+The repository ships unit, system, GUI, performance and fuzz suites, all driven
+by CTest.
 
 ```bash
 ctest --test-dir build --output-on-failure
@@ -8,19 +9,30 @@ ctest --test-dir build --output-on-failure
 ./build/bin/vss_unit_tests --list
 ```
 
-* **Unit** (149 cases) — bytes, control lines, serial settings, errors,
-  traffic log, the loopback transport, endpoints, topology, events, serial
-  transport, virtual ports, enumeration, com0com parsing, JSON documents and
-  the studio facade.
-* **System** (12 cases) — a real serial pair (a com0com pair on Windows, or
+`vss_unit_tests` and `vss_system_tests` take `--list`, `--verbose`,
+`--filter=TEXT` and `--exclude=TEXT` (each may be repeated and matches part of a
+test's name), `--repeat=N`, `--junit=FILE` and `--tracy`. `--list` prints the name
+of every selected case.
+
+* **Unit** — bytes, control lines, serial settings, errors, the traffic log, the
+  loopback, listening and RFC 2217 transports, serial transport, endpoints and
+  their reopening, topology, events, delay and latency, buses, virtual ports,
+  stable links, enumeration, com0com parsing, permissions, capture, replay,
+  responders, benchmarks, JSON documents, the driver set-up check, the control of
+  profiling, the studio facade and the portable core of the Windows driver
+  (`vsscom_core`). The cases for one operating system are in
+  `tests/unit/platform/<os>/` and are built only there.
+* **System** — a real serial pair (a com0com pair on Windows, or
   `VSS_LOOPBACK_A`/`VSS_LOOPBACK_B` elsewhere) carries data both ways, survives
-  a 256 KB integrity transfer, shares a port with listeners, drives the native
-  control-line layer, rolls back a failed bridge, and live TCP **and UDP**
-  peers exercise the network bridges. Every case skips cleanly when no hardware
-  exists, unless `VSS_REQUIRE_LOOPBACK=1` is set — which CI does, so a missing
-  pair fails the job instead of quietly reducing what is tested. Linux and
-  macOS CI create the pair with `tools/pty_loopback.py`, so the physical
-  backend runs on every platform.
+  an integrity transfer (256 KB over com0com, 8 KB elsewhere), shares a port with
+  listeners, drives the native control-line layer, rolls back a failed bridge,
+  and live TCP, UDP and RFC 2217 peers exercise the network bridges. On Linux and
+  macOS the `vport:` cases start `vss_cli` as a separate process. A case that
+  needs the pair skips cleanly when none exists, unless `VSS_REQUIRE_LOOPBACK=1`
+  is set. CI sets it on Linux and macOS, so a missing pair fails the job instead
+  of quietly reducing what is tested. Those jobs create the pair with
+  `tools/pty_loopback.py` (it prints the two device paths), so the physical
+  backend runs there.
 * **Polled bus** - one system case runs the whole bus scenario on every
   operating system, with no hardware: a master replayed from a recording, two
   devices answering from scripts (one labelled as a real serial device), and a
@@ -29,8 +41,22 @@ ctest --test-dir build --output-on-failure
   margin, 200 ms for two devices and 450 ms for one, and that no member hears
   itself. A run whose times miss is repeated up to three times, because another
   process taking the CPU can spoil a time; the byte checks run every time.
+* **GUI** — `gui_selftest` (the offscreen self-test, also at 200 percent scale),
+  one program per area of the GUI (`gui_backend`, `gui_language`, `gui_theme`,
+  `gui_shell`, `gui_simple`, `gui_panes`, `gui_topology`, `gui_advanced`,
+  `gui_support`, `gui_dialogs`, `gui_flows`), and the UI suite described
+  [below](#the-ui-suite). They exist only when Qt was found and run on
+  `QT_QPA_PLATFORM=offscreen`.
+* **Fuzz replays** — `fuzz_topology` and `fuzz_endpoint_uri` replay the corpora
+  once per build; see [Fuzzing](fuzzing.md).
+* **Tools** — `headers` (every public header compiles on its own),
+  `matrix_tools` (the Python under `tools/matrix`), the `vm_*` tests (the
+  PowerShell scripts of the [guest harness](vm-testing.md), checked against a
+  stand-in for `vmrun`, so no virtual machine is needed; they are added only when
+  PowerShell 7 is installed) and, on Windows, `gui_subsystem` (the GUI is a
+  Windows-subsystem program, so it opens no console).
 * **Performance** — routing, event dispatch, JSON round-trips and mock writes,
-  gated against `perf/floors.json`.
+  gated against `perf/floors.json`; see [Performance](#performance).
 * **Profiling** — `VSS_TRACY=ON` instruments the pipeline with Tracy from
   vcpkg; CI captures a trace of a real socket and pseudo-terminal round trip,
   exports it with `tracy-csvexport` and publishes the per-zone table. See
@@ -39,7 +65,8 @@ ctest --test-dir build --output-on-failure
 ## Coverage
 
 Coverage uses LLVM profile instrumentation and is gated at **90% statements**
-and **80% branches**:
+and **80% branches** of the libraries. CI runs it in the `Coverage` job, after a
+merge to `develop`:
 
 ```bash
 export CXX=clang++
@@ -58,8 +85,8 @@ python tools/coverage_report.py --build build/linux-coverage \
 
 Measured on Windows 11, clang-cl 23, Debug: **90.15% statements**, **82.28%
 branches**. The report lists every file and marks the ones outside the gated
-set; `vcom_driver.cpp` is outside it until the driver exists, because its
-detection path needs an installed kernel driver to exercise.
+set; `vcom_driver.cpp` is outside it, because its detection path needs an
+installed Windows driver to exercise.
 
 ### GUI coverage
 
@@ -74,8 +101,13 @@ build off the repository drive):
 cmake --preset windows-llvm-coverage-gui -B E:/vss-cov
 cmake --build E:/vss-cov
 mkdir E:/vss-cov/profiles
-LLVM_PROFILE_FILE="E:/vss-cov/profiles/%p-%m.profraw" QT_QPA_PLATFORM=offscreen   VSS_UI_BUDGET_MS=1000000 E:/vss-cov/bin/vss_gui_ui_tests     # and each other vss_gui_*_tests
-python tools/coverage_report.py --build E:/vss-cov --include apps/vss_gui/   --exclude tests/ --exclude moc_ --exclude mocs_compilation --exclude qrc_   --objects E:/vss-cov/bin/vss_gui.exe E:/vss-cov/bin/vss_gui_*_tests.exe
+export LLVM_PROFILE_FILE="E:/vss-cov/profiles/%p-%m.profraw"
+export QT_QPA_PLATFORM=offscreen VSS_UI_BUDGET_MS=1000000
+for program in E:/vss-cov/bin/vss_gui_*_tests.exe; do "$program"; done
+E:/vss-cov/bin/vss_gui.exe --selftest
+python tools/coverage_report.py --build E:/vss-cov --include apps/vss_gui/ \
+  --exclude tests/ --exclude moc_ --exclude mocs_compilation --exclude qrc_ \
+  --objects E:/vss-cov/bin/vss_gui.exe E:/vss-cov/bin/vss_gui_*_tests.exe
 ```
 
 (`clang-cl` stops at `__uuidof` in `permissions_windows.cpp` under `-Werror`;
@@ -83,14 +115,14 @@ set `CCC_OVERRIDE_OPTIONS=x-Werror` for a local measurement.) The standard is
 **90% of statements and 80% of branches**. Measured on Windows 11 with
 clang-cl, Debug, all GUI programs together: **83.5% of statements and 68.9%
 of branches**. The CI gate stands just below that (80% and 65%) so a change
-cannot lose ground, and is raised as journeys are added. The largest gaps, by
-uncovered lines: `shell_window.cpp` (the tray and background paths, drag and
-drop, window-state restore, rarely used menu paths), `topology_view.cpp`
-(wire-from-keyboard, loop note, rubber band, accessibility navigation),
-`json_validation.cpp`, `engine_studio_backend.cpp` (driver-only paths),
-`job_form.cpp` (the network and bus variants), the setup check and permission
-dialogs (they act on the machine), and `elevated_step.cpp` (it needs an
-elevated process).
+cannot lose ground, and is raised as journeys are added. At that measurement
+the largest gaps, by uncovered lines, were `shell_window.cpp` (the tray and
+background paths, drag and drop, window-state restore, rarely used menu paths),
+`topology_view.cpp` (wire-from-keyboard, loop note, rubber band, accessibility
+navigation), `json_validation.cpp`, `engine_studio_backend.cpp` (driver-only
+paths), `job_form.cpp` (the network and bus variants), the setup check and
+permission dialogs (they act on the machine), and `elevated_step.cpp` (it needs
+an elevated process).
 
 ## Performance
 
@@ -98,6 +130,15 @@ elevated process).
 vss_perf --output=perf-results.json
 python tools/perf_report.py perf-results.json --floors perf/floors.json
 ```
+
+`vss_perf` is built by the release presets (`VSS_BUILD_PERF`). `--quick` skips the
+slower benchmarks. Besides the four throughput benchmarks below it runs a
+micro-benchmark per component and measures the cost of a Tracy zone; see
+[Profiling](profiling.md#tests-and-benchmarks). `perf/floors.json` holds a limit
+for each: a `min` is a rate that must not fall below it, a `max` a cost that must
+not rise above it. The floors are conservative, because shared runners are noisy.
+CI checks them in the `Performance floors` job, which runs in the merge queue when
+library code changed.
 
 Indicative results (Windows 11, MSVC 19.51, x64, Release, `vss_perf`):
 
@@ -110,42 +151,18 @@ Indicative results (Windows 11, MSVC 19.51, x64, Release, `vss_perf`):
 
 ## Profiling
 
-Tracy is compiled into Debug builds by default, and can be compiled into a
-Release build too (`VSS_TRACY=ON`, or a `*-tracy*` preset). In a Release build
-it is dormant: no profiler thread, no socket, and each zone costs one relaxed
-load until the program is started with `--profile` (or `VSS_PROFILE=1`, or the
-switch in Settings, Performance, Profiling). The listener is bound to this
-computer, never broadcasts, and sends nothing until a profiler connects. Once
-started it runs in on-demand mode, so nothing is recorded until a profiler
-connects and attaching to an already running process is the normal workflow.
+Tracy is compiled into Debug builds by default and can be compiled into a
+Release build (`VSS_TRACY=ON`, or a `*-tracy*` preset); it is dormant until the
+program is told to profile. [The profiling page](profiling.md) has the options,
+the zones, how to capture a trace and what CI checks. For the tests:
 
 ```bash
-# Debug: Tracy is on when configured with the vcpkg toolchain
-cmake --preset linux-debug \
-  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"
-
-# Release with the profiler compiled in but dormant
-cmake --preset linux-tracy-gui
-cmake --build --preset linux-tracy-gui
-
-# Capture a run, then export it
-tracy-capture -a 127.0.0.1 -o trace.tracy &
-./build/linux-tracy-gui/bin/vss_perf --tracy --profile-wait=30
-wait
-tracy-csvexport trace.tracy > trace.csv
-python tools/tracy_report.py trace.csv --areas
+VSS_PROFILE=1 VSS_PROFILE_WAIT=30 ./build/linux-tracy-gui/bin/vss_unit_tests
 ```
 
 Every test case runs in a zone named after it, so `VSS_PROFILE=1` on any test
 program (or `--tracy` on `vss_unit_tests` and `vss_system_tests`) gives each
-test's duration and the zones it called. `vss_perf` adds a micro-benchmark per
-component; `perf/floors.json` gates them, with `max` limits for costs such as
-the dormant cost of a zone.
-
-CI captures the performance suite, the offscreen GUI self-test and the unit
-tests, checks each capture against its profile in `perf/required-zones.json`
-and publishes the tables; see [the profiling page](profiling.md) for the zone
-list, the options and the caveats.
+test's duration and the zones it called.
 
 ## Sanitizers
 
@@ -166,13 +183,15 @@ the whole of CTest. The GUI runs on `QT_QPA_PLATFORM=offscreen`.
 ```bash
 cmake --preset linux-asan-ubsan-gui        # or linux-tsan-gui, windows-msvc-asan-gui
 cmake --build --preset linux-asan-ubsan-gui
-ASAN_OPTIONS=detect_leaks=1:strict_string_checks=1 ctest --preset linux-asan-ubsan-gui
+ASAN_OPTIONS=detect_leaks=1:strict_string_checks=1 UBSAN_OPTIONS=print_stacktrace=1 \
+  ctest --preset linux-asan-ubsan-gui
 TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1:ignore_noninstrumented_modules=1:suppressions=$PWD/tests/tsan.supp \
   ctest --preset linux-tsan-gui
 ```
 
-Run the system tests with a serial pair, as CI does (`tools/pty_loopback.py`, then
-`VSS_LOOPBACK_A`, `VSS_LOOPBACK_B` and `VSS_REQUIRE_LOOPBACK=1`). Use the pinned Qt
+Run the system tests with a serial pair, as CI does on Linux (`tools/pty_loopback.py`
+prints two device paths; set `VSS_LOOPBACK_A` and `VSS_LOOPBACK_B` to them, and
+`VSS_REQUIRE_LOOPBACK=1`). Use the pinned Qt
 (`.github/toolchain-versions.json`): a distribution Qt of another version can differ in
 what it compiles, and CMake may pick it up in place of the kit in `QT_ROOT_DIR` unless
 you pass `-DQt6_DIR=<kit>/lib/cmake/Qt6`.
@@ -196,11 +215,6 @@ you pass `-DQt6_DIR=<kit>/lib/cmake/Qt6`.
   matches only that constructor, not the lambda bodies, so a race on the data a queued
   lambda touches is still reported. Add an entry only with a reason that holds for every
   report it can match.
-* **Found and fixed by this work.** `announce_name_change` leaked a `QAccessibleEvent` on
-  every name change, thousands per GUI test run (LeakSanitizer); `ToastManager` downcast a
-  toast that was being destroyed (UBSan); and `reconnector::run` waited on a time point
-  that lives in a map entry another thread could erase, a heap-use-after-free
-  (AddressSanitizer).
 
 ## Static analysis
 
@@ -248,8 +262,8 @@ is a required check; a finding is fixed or dismissed in code scanning with a
 reason. A nightly failure on `develop` also opens one `nightly-analysis` issue.
 
 The clang-tidy check set is the `CLANG_TIDY_CHECKS` constant in
-`tools/analyze.py`, and the naming rules are in `.clang-tidy`. Five checks are
-left out on purpose:
+`tools/analyze.py`, and the naming rules are in `.clang-tidy`. These five checks
+are left out on purpose:
 
 * `misc-const-correctness` asks for `const` on almost every local; it is style,
   not a defect.
@@ -264,6 +278,10 @@ left out on purpose:
   allows `#pragma once` and counts every guard against the ratchet in
   `tools/preprocessor-baseline.json`.
 
+`CLANG_TIDY_CHECKS` also turns off `bugprone-easily-swappable-parameters`,
+`concurrency-mt-unsafe`, `misc-include-cleaner`,
+`misc-non-private-member-variables-in-classes` and `misc-no-recursion`.
+
 CI pins a newer LLVM than most machines have (`.github/toolchain-versions.json`) and
 builds on Linux, so it can report checks and platform code that a local run does
 not see, such as `performance-use-std-move` or the POSIX permission code. The
@@ -275,7 +293,9 @@ line.
 
 ## Fuzzing
 
-The topology and endpoint URI parsers are fuzzed; see [Fuzzing](fuzzing.md).
+The topology and endpoint URI parsers are fuzzed. Their corpora are replayed by
+CTest in every build; see [Fuzzing](fuzzing.md) for the libFuzzer targets and
+where CI runs them.
 
 ## The UI suite
 
@@ -299,7 +319,8 @@ ctest --preset linux-debug-gui -LE ui-engine   # all but the real engine
 `--filter` takes part of a journey's name and may be given more than once.
 Presets for the other platforms are `macos-debug-gui-ui`,
 `windows-msvc-debug-gui-ui` and the `-release-gui-ui` forms. The older
-`gui_journeys` test (five journeys) runs under the same label.
+`gui_journeys` test (seven journeys, named `journey: ...`) runs under the same
+label.
 
 ### The journeys
 
@@ -312,7 +333,7 @@ Presets for the other platforms are `macos-debug-gui-ui`,
 | | send once and repeat from the Send dock; the Monitor shows traffic and can pause and clear; undo and redo (menu, shortcut, after a delete) | A repeat stays on the port it started on when the selection changes; Pause, Resume, Clear |
 | | save a workspace, start over and reopen it; attach a real device; put a device on the network; share a device with the wizard; connect ports with the Connect dialog; rename, change the settings of, and wire a port | File menu with Qt's file dialog, every flow dialog |
 | | every Simple job can be built by hand and Simple knows it | The same outcome by hand on the canvas is recognised as that job in Simple mode |
-| `ui_edge`, `ui-edge`, and `ui_edge_200` | cancelling every dialog; empty and duplicate names; a failing backend; adding many items; links between every pair of port types; rapid clicking; small and large windows; text at 200 percent; both themes; removing everything while a repeat runs | `ui_edge_200` runs the group again with `QT_SCALE_FACTOR=2` |
+| `ui_edge`, `ui-edge`, and `ui_edge_200` | cancelling every dialog; empty and duplicate names; a failing backend; adding many items; links between every pair of port types; rapid clicking; small and large windows; text at 200 percent; both themes; removing everything while a repeat runs; a status message does not draw over the counters | `ui_edge_200` runs the group again with `QT_SCALE_FACTOR=2` |
 | `ui_actions`, `ui-actions` | every menu entry in Simple mode; every menu entry in Advanced mode; edit the setup as JSON and apply it; the JSON editor explains each kind of mistake | Walks every enabled entry of every menu, looks at each dialog it opens by trying its buttons, check boxes and lists (not those that remove, install or restart), and closes it; the JSON editor takes pasted text, validates it, formats, reverts and applies |
 | `ui_setup`, `ui-setup` | the first screen names the missing piece and offers the set-up; a port that cannot be made says which piece is missing; a refusal with nothing wrong in the set-up is in words, with details; a PC that is ready is not asked to set up | One run for each state: no driver, no helper service, a stopped one, an old one, one that refuses the user. The window is started as a person starts the program, the banner or the error is read, and "Set up Virtual Serial Studio" is chosen. The dialog is read and closed; the set-up is never run, because it would show a Windows permission prompt |
 | `ui_engine`, `ui-engine` | link a loopback to a fixture and keep working; bytes cross a link and are counted; a repeat keeps the window responsive; Simple mode builds and removes a pair; save, tear down and reopen a workspace | The real `vss::studio` and `EngineStudioBackend`: the hub threads, the event bridge and the GUI thread together. Only in-process ports are used, so no driver or device is needed; the Simple journey skips itself when the Studio driver is installed, because it would make real COM ports |
@@ -328,16 +349,16 @@ and the CPU time of the gap. Only computing is held to the plain budget:
 on a busy machine every wait grows, and what the budget judges is the
 application's own work. A long wait still fails, which is how a lock a freeze
 sits in shows. A second thread ends a journey that stays in
-one step for 30 seconds and prints the step, so a freeze fails with a name and
-not at the CTest timeout; a crash, an uncaught exception or a failed debug
+one step for 30 seconds (`VSS_UI_HANG_MS` changes it) and prints the step, so a
+freeze fails with a name and not at the CTest timeout; a crash, an uncaught exception or a failed debug
 assertion prints the journey and its steps in the same way.
 
 Each journey has a budget in `apps/vss_gui/ui-tests/perf_budgets.json`
 (150 ms unless it lists one), written for a release build; CMake multiplies it
 by 12 for a debug build, 6 under AddressSanitizer, 25 under ThreadSanitizer
 and 60 for a coverage build (`VSS_UI_BUDGET_SCALE`).
-`VSS_UI_BUDGET_MS` replaces the table with one number, and `VSS_UI_TRACE=1`
-prints each step as it starts. The table is a ratchet: a journey that is
+`VSS_UI_BUDGET_MS` replaces the table with one number, `VSS_UI_BUDGETS_FILE`
+names another table, and `VSS_UI_TRACE=1` prints each step as it starts. The table is a ratchet: a journey that is
 slower than its entry fails, and an entry is lowered when the application gets
 faster, never raised to make a journey pass. `VSS_UI_PERF_REPORT=file.csv`
 appends a line per journey (time, steps, worst wall and CPU time of the GUI
@@ -368,7 +389,9 @@ once left a window waiting for the "save changes?" prompt of another test.
 Windows still shares the clipboard, the file dialogs' recent places and the
 window station, so on Windows run them with nothing else going on.
 
-The groups take about two to five minutes together on a release build (more
+CI runs the groups with `ctest --preset linux-release-gui-ui` in the
+`Qt GUI (offscreen self-test)` job, and the sanitizer jobs run them too. The
+groups take about two to five minutes together on a release build (more
 on a busy machine and about ten times that in a debug build; the job summary
 of the `gui` leg lists every journey).
 

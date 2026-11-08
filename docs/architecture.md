@@ -23,10 +23,30 @@ apps/vss_cli   apps/vss_gui
 * `vss::hub`, which owns the `io_context`, the endpoint registry, the routing
   table and the event dispatcher.
 
-`vss_ports` implements transports: a serial port through
-`boost::virtual_serial::any_serial_port`, a pseudo terminal on POSIX, a named
-loopback device, and the native control-line calls. `vss_config` is pure data.
-`vss_studio` composes all three into the operations a user actually asked for.
+`vss_ports` implements transports and the operating-system side of a port:
+
+* `serial_transport`, which carries a real serial port, an RFC 2217 client, a
+  raw TCP or UDP connection and the scripted mock device through
+  `boost::virtual_serial::any_serial_port`, chosen by the URI scheme;
+* `listen_transport`, an endpoint that waits for others (`tcp-listen://`,
+  `udp-listen://` and `rfc2217-listen://`), with the RFC 2217 protocol in
+  `rfc2217.hpp`;
+* `loopback_transport`, an in-memory device that echoes what it is sent;
+* `create_virtual_port`, which makes a pseudo terminal on Linux and macOS and a
+  driver port on Windows (`vcom_driver.hpp`), and `stable_link`, the symbolic
+  links that give a pseudo terminal a fixed name;
+* the native control-line calls, serial device enumeration, com0com detection,
+  the permission and firewall checks, and the probe of the Windows driver setup.
+
+`vss_config` is pure data: it reads, checks and writes the JSON topology file.
+`vss_studio` composes all three into the operations a user actually asked for,
+and holds the pieces that act on a running hub: capture and replay, scripted
+devices and masters (`responder`), reconnecting a lost client, the line-format
+check and the benchmark. `vss_testkit` is a small library for tests and depends
+on `vss_core` and `vss_ports`.
+
+The GUI reaches the studio through a backend interface in
+`apps/vss_gui/src/backend`, which has a fake for tests.
 
 The dependency direction matters: `vss_core` could be reused for a completely
 different kind of byte transport without dragging serial code along.
@@ -94,6 +114,18 @@ two ends of a cable) cannot be detected and are documented as a user error.
 the link has its bytes counted as dropped instead of forwarded. `interleave`
 links forward everything.
 
+### Link delay
+
+`connect`, `split`, `join`, `redirect` and `bus` take `link_options` with
+`delay_ms` and `jitter_ms`, to rehearse a slow wire or a network hop. Each route
+of such a link has its own `delay_line`: a first-in, first-out queue with one
+timer on a strand of its own. A chunk is written to the target when its delay
+has passed, drawn uniformly within the jitter either side of `delay_ms`. Due
+times never go backwards, so jitter cannot reorder the bytes of a route. The
+delay is at most one minute (`max_link_delay_ms`) and the jitter at most the
+delay, or the call fails with `invalid_argument`. `monitor` takes no options and
+has no delay. Removing a route drops whatever its line still holds.
+
 ### The shared bus
 
 A bus is the one link that is a broadcast domain rather than a set of
@@ -150,11 +182,13 @@ computer can sit on the same bus.
 
 `control_lines` is a bit set split into outputs (DTR, RTS, BREAK) and inputs
 (CTS, DSR, DCD, RI). When an endpoint's outputs change, the hub computes the
-peer's inputs from the null-modem mapping and pushes them to every linked
-endpoint:
+peer's inputs from the link's `modem_wiring` and pushes them to every linked
+endpoint. The default wiring is a straight-through null-modem cable: DTR drives
+DSR and DCD, and RTS drives CTS. A link can be rewired, and a link made with
+`emulate_modem_lines` off (a `monitor`, a bus) carries no lines at all.
 
 ```cpp
-control_lines peer = null_modem_peer(local);
+control_lines peer = link.options.wiring.apply(local);
 target->set_peer_inputs(peer);   // replaces the whole input set
 ```
 
@@ -167,8 +201,8 @@ the rest keep the model and report it through events.
 A loopback transport is a loopback *plug*: what you write comes back on the
 receive side. That makes it a useful demo device and a good test double, and it
 means two loopback devices wired duplex are an echo chamber. This is a property
-of the device, not a routing bug, and it is why the GUI's null-modem demo is a
-one-way link.
+of the device, not a routing bug. Use a one-way link (`redirect` or `monitor`)
+when the point is observation rather than full duplex.
 
 ## Events and capture
 

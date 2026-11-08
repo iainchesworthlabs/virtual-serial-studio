@@ -21,11 +21,13 @@ linked ttyVSS0:ttyVSS1
 
 - `vport` runs until Ctrl-C or SIGTERM and removes its links when it stops.
   `--seconds=N` stops it after N seconds. `vss_cli virtual` also runs until
-  stopped now; it used to exit at once and close the port it had printed.
+  stopped, because the port goes when the process does.
 - `--link=a:b` joins two ports as a null-modem cable does: bytes written to one
   come out of the other. Several links are separated by commas.
 - A name is one path component of letters, digits, `.`, `_` and `-`, at most
   64 characters. Another character in a port name becomes `-` in its link.
+- Only `vport` makes stable links. The GUI and `vss_cli virtual` show the
+  `/dev/pts/N` path.
 
 ### Where the links go
 
@@ -54,6 +56,21 @@ process still holds, and anything in the directory that is not a link.
 - The modem lines (DTR, RTS, CTS, DSR) do not reach a program on a Linux PTY,
   because the kernel's PTY has no modem control. The studio shows its own
   state for them.
+- The studio's own port list (`vss_cli devices` and the GUI) does include the links
+  in the link directory, marked as virtual ports, until the process behind them
+  is gone.
+
+## What the studio sees
+
+- The baud rate and framing a program sets with `tcsetattr` are read back
+  through the master. The slave starts raw at 38400 baud, 8N1, so a program that
+  sets exactly that is not told apart from one that sets nothing. Linux forces
+  8N1 on the slave, so there only the baud rate is reported. The last setting
+  stays after the program closes the port, because the studio keeps the slave
+  open.
+- On Linux the studio can tell whether another program has the slave open, by
+  reading the descriptors of other processes it is allowed to inspect. On macOS
+  it cannot yet, and the answer is "unknown".
 
 ## Windows
 
