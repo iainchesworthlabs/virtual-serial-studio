@@ -176,14 +176,30 @@ def write_evidence(out: Path, name: str, text: str) -> str:
 
 # ---------------------------------------------------------------- pty helpers
 
-def open_raw(path: str) -> int:
-    import termios
-    import tty
+class RawPort:
+    """A pseudo terminal opened non-blocking in raw mode; ``with`` closes it, also when setting it up fails."""
 
-    fd = os.open(path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
-    tty.setraw(fd)
-    termios.tcflush(fd, termios.TCIOFLUSH)
-    return fd
+    def __init__(self, path: str) -> None:
+        self.path = path
+        self.fd = -1
+
+    def __enter__(self) -> "RawPort":
+        import termios
+        import tty
+
+        self.fd = os.open(self.path, os.O_RDWR | os.O_NOCTTY | os.O_NONBLOCK)
+        try:
+            tty.setraw(self.fd)
+            termios.tcflush(self.fd, termios.TCIOFLUSH)
+        except BaseException:
+            self.__exit__()
+            raise
+        return self
+
+    def __exit__(self, *_exc) -> None:
+        if self.fd >= 0:
+            os.close(self.fd)
+            self.fd = -1
 
 
 def write_all(fd: int, data: bytes, timeout: float = 10.0) -> None:
@@ -363,20 +379,18 @@ def test_t2(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
         },
     )
     child = Child([str(cli), "run", str(topology), "--seconds=60"])
-    fds = []
     try:
         paths = topology_ports(child, ["a", "b"])
         if not paths:
             rec.add("T2", "fail", "vss_cli did not print both port paths", write_evidence(out, "t2.log", child.text()))
             return
-        fd_a, fd_b = open_raw(paths["a"]), open_raw(paths["b"])
-        fds = [fd_a, fd_b]
         forward = sequence(b"0123456789", 4096)
         backward = sequence(b"abcdefghij", 4096)
-        write_all(fd_a, forward)
-        got_forward = read_at_least(fd_b, len(forward), 15)
-        write_all(fd_b, backward)
-        got_backward = read_at_least(fd_a, len(backward), 15)
+        with RawPort(paths["a"]) as port_a, RawPort(paths["b"]) as port_b:
+            write_all(port_a.fd, forward)
+            got_forward = read_at_least(port_b.fd, len(forward), 15)
+            write_all(port_b.fd, backward)
+            got_backward = read_at_least(port_a.fd, len(backward), 15)
         evidence = write_evidence(out, "t2.log", child.text())
         if got_forward == forward and got_backward == backward:
             rec.add("T2", "pass", f"{paths['a']} <-> {paths['b']}: {len(forward)} bytes each way, in order", evidence)
@@ -390,8 +404,6 @@ def test_t2(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
     except Exception as error:  # noqa: BLE001 - a test reports, it does not crash the runner
         rec.add("T2", "fail", f"{type(error).__name__}: {error}", write_evidence(out, "t2.log", child.text()))
     finally:
-        for fd in fds:
-            os.close(fd)
         child.stop()
 
 
@@ -426,26 +438,21 @@ def test_t3(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
             },
         )
         child = Child([str(cli), "run", str(split), "--seconds=60"])
-        fds = []
         try:
             paths = topology_ports(child, ["l1", "l2"])
             if not paths:
                 raise RuntimeError("split: vss_cli did not print the listener paths")
-            fd_far = open_raw(far)
-            fd_1, fd_2 = open_raw(paths["l1"]), open_raw(paths["l2"])
-            fds = [fd_far, fd_1, fd_2]
             payload = sequence(b"0123456789abcdef", 8192)
-            write_all(fd_far, payload)
-            got_1 = read_at_least(fd_1, len(payload), 15)
-            got_2 = read_at_least(fd_2, len(payload), 15)
+            with RawPort(far) as port_far, RawPort(paths["l1"]) as port_1, RawPort(paths["l2"]) as port_2:
+                write_all(port_far.fd, payload)
+                got_1 = read_at_least(port_1.fd, len(payload), 15)
+                got_2 = read_at_least(port_2.fd, len(payload), 15)
             if got_1 == payload and got_2 == payload:
                 notes.append(f"split: {len(payload)} bytes reached both listeners in order")
             else:
                 failed = True
                 notes.append(f"split: listener 1 got {len(got_1)}, listener 2 got {len(got_2)} of {len(payload)}")
         finally:
-            for fd in fds:
-                os.close(fd)
             child.stop()
             write_evidence(out, "t3-split.log", child.text())
 
@@ -465,19 +472,16 @@ def test_t3(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
             },
         )
         child = Child([str(cli), "run", str(join), "--seconds=60"])
-        fds = []
         try:
             paths = topology_ports(child, ["p1", "p2"])
             if not paths:
                 raise RuntimeError("join: vss_cli did not print the publisher paths")
-            fd_far = open_raw(far)
-            fd_1, fd_2 = open_raw(paths["p1"]), open_raw(paths["p2"])
-            fds = [fd_far, fd_1, fd_2]
             digits = sequence(b"0123456789", 4096)
             letters = sequence(b"abcdefghij", 4096)
-            write_all(fd_1, digits)
-            write_all(fd_2, letters)
-            received = read_at_least(fd_far, len(digits) + len(letters), 15)
+            with RawPort(far) as port_far, RawPort(paths["p1"]) as port_1, RawPort(paths["p2"]) as port_2:
+                write_all(port_1.fd, digits)
+                write_all(port_2.fd, letters)
+                received = read_at_least(port_far.fd, len(digits) + len(letters), 15)
             only_digits = bytes(b for b in received if 0x30 <= b <= 0x39)
             only_letters = bytes(b for b in received if 0x61 <= b <= 0x6A)
             if only_digits == digits and only_letters == letters:
@@ -489,8 +493,6 @@ def test_t3(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
                     f"digits ok={only_digits == digits}, letters ok={only_letters == letters}"
                 )
         finally:
-            for fd in fds:
-                os.close(fd)
             child.stop()
             write_evidence(out, "t3-join.log", child.text())
     except Exception as error:  # noqa: BLE001
@@ -590,22 +592,20 @@ def link_is_live(link: Path) -> bool:
 
 def exchange_through_links(first: Path, second: Path) -> str | None:
     """Sends 1 KB each way across a linked pair. Returns the problem, or None."""
-    a = b = -1
     try:
-        a, b = open_raw(str(first)), open_raw(str(second))
-        for source, sink, label in ((a, b, "first to second"), (b, a, "second to first")):
-            data = sequence(b"0123456789abcdef", 1024)
-            write_all(source, data)
-            got = read_at_least(sink, len(data), 10)
-            if got != data:
-                return f"{label}: sent {len(data)} bytes and read {len(got)}"
-        return None
+        with RawPort(str(first)) as port_a, RawPort(str(second)) as port_b:
+            for source, sink, label in (
+                (port_a.fd, port_b.fd, "first to second"),
+                (port_b.fd, port_a.fd, "second to first"),
+            ):
+                data = sequence(b"0123456789abcdef", 1024)
+                write_all(source, data)
+                got = read_at_least(sink, len(data), 10)
+                if got != data:
+                    return f"{label}: sent {len(data)} bytes and read {len(got)}"
     except (OSError, TimeoutError) as error:
         return f"could not open or use the links: {error}"
-    finally:
-        for descriptor in (a, b):
-            if descriptor >= 0:
-                os.close(descriptor)
+    return None
 
 
 def test_t8(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
@@ -636,18 +636,22 @@ def test_t8(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
     try:
         if not first.reader.wait_for(r"^linked ttyVSS0:ttyVSS1", 20):
             log.append(first.text())
-            return fail("vport did not report the link within 20 s")
+            fail("vport did not report the link within 20 s")
+            return
         for link in (one, two):
             if link_target(link) is None or not link_is_live(link):
                 log.append(first.text())
-                return fail(f"{link.name} is not a symbolic link to a pseudo terminal")
+                fail(f"{link.name} is not a symbolic link to a pseudo terminal")
+                return
         if os.path.realpath(one) == os.path.realpath(two):
-            return fail("the two links point at the same terminal")
+            fail("the two links point at the same terminal")
+            return
         steps.append("links appear")
         problem = exchange_through_links(one, two)
         if problem:
             log.append(first.text())
-            return fail(problem)
+            fail(problem)
+            return
         steps.append("1 KB each way")
 
         # A running process holds its names: a second vport must refuse them.
@@ -656,28 +660,35 @@ def test_t8(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
             refused = second.process.wait(timeout=20)
         except subprocess.TimeoutExpired:
             log.append(second.text())
-            return fail("a second vport with the same names did not refuse them")
+            fail("a second vport with the same names did not refuse them")
+            return
         log.append("second vport output:\n" + second.text())
         if refused == 0:
-            return fail("a second vport with the same names exited 0")
+            fail("a second vport with the same names exited 0")
+            return
         if not link_is_live(one):
-            return fail("the refused vport damaged the running vport's link")
+            fail("the refused vport damaged the running vport's link")
+            return
         steps.append("held names refused")
 
         # A killed process cannot clean up. The next one replaces what it left.
         first.process.kill()
         first.process.wait()
         if link_target(one) is None:
-            return fail("the link was gone after kill -9, so no stale link was left to replace")
+            fail("the link was gone after kill -9, so no stale link was left to replace")
+            return
         third = Child(command)
         if not third.reader.wait_for(r"^linked ttyVSS0:ttyVSS1", 20):
             log.append("after kill -9:\n" + third.text())
-            return fail("a vport started over a stale link did not come up")
+            fail("a vport started over a stale link did not come up")
+            return
         if not (link_is_live(one) and link_is_live(two)):
-            return fail("the stale links were not replaced by live ones")
+            fail("the stale links were not replaced by live ones")
+            return
         problem = exchange_through_links(one, two)
         if problem:
-            return fail("after replacing stale links: " + problem)
+            fail("after replacing stale links: " + problem)
+            return
         steps.append("stale links replaced")
 
         # A clean stop removes the links.
@@ -685,13 +696,16 @@ def test_t8(rec: Recorder, cli: Path | None, out: Path, work: Path) -> None:
         try:
             code = third.process.wait(timeout=20)
         except subprocess.TimeoutExpired:
-            return fail("vport did not stop on SIGTERM within 20 s")
+            fail("vport did not stop on SIGTERM within 20 s")
+            return
         left = [link.name for link in (one, two) if os.path.lexists(link)]
         log.append("after SIGTERM:\n" + third.text())
         if left:
-            return fail(f"links left after SIGTERM: {', '.join(left)}")
+            fail(f"links left after SIGTERM: {', '.join(left)}")
+            return
         if code != 0:
-            return fail(f"vport exited {code} on SIGTERM; 0 was expected")
+            fail(f"vport exited {code} on SIGTERM; 0 was expected")
+            return
         steps.append("removed on SIGTERM")
         rec.add("T8", "pass", "; ".join(steps), write_evidence(out, "t8.log", "\n".join(log)))
     finally:
