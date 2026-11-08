@@ -337,11 +337,11 @@ void endpoint::request_write()
     const std::uint64_t generation = generation_.load();
     boost::asio::post(strand_, [self, generation] {
         if (generation == self->generation_.load())
-            self->start_next_write();
+            self->start_next_write(generation);
     });
 }
 
-void endpoint::start_next_write()
+void endpoint::start_next_write(std::uint64_t generation)
 {
     VSS_PROFILE_ZONE("endpoint.arm_write");
     std::shared_ptr<pending_write> next;
@@ -365,23 +365,33 @@ void endpoint::start_next_write()
         return;
     }
 
+    // reopen() bumps the generation before it swaps the transport and empties
+    // the queue.  The head of the queue and the transport above were read
+    // after the check that scheduled this write, so a reopen() that began in
+    // between could leave us holding bytes for the old connection and the new
+    // transport.  Checking again, now both are in hand, closes that window: if
+    // the generation still matches, the swap had not begun when they were
+    // read, so they belong together, and the completion is judged by it too.
+    if (generation != generation_.load())
+        return;
+
     auto self = shared_from_this();
     // As in do_read: the std::function loses an executor binding, so the
     // completion enters the strand explicitly.
-    const std::uint64_t generation = generation_.load();
     current->async_write_some(
         boost::asio::buffer(*next->data) + next->offset,
         [self, next, generation](boost::system::error_code ec,
                                  std::size_t count) {
             boost::asio::post(self->strand_, [self, next, generation, ec, count] {
                 if (generation == self->generation_.load())
-                    self->on_write(next, ec, count);
+                    self->on_write(next, generation, ec, count);
             });
         });
 }
 
 void endpoint::on_write(const std::shared_ptr<pending_write>& write,
-                        boost::system::error_code ec, std::size_t count)
+                        std::uint64_t generation, boost::system::error_code ec,
+                        std::size_t count)
 {
     VSS_PROFILE_ZONE_NAMED(zone, "endpoint.write");
     VSS_PROFILE_ZONE_VALUE(zone, count);
@@ -438,7 +448,7 @@ void endpoint::on_write(const std::shared_ptr<pending_write>& write,
         }
     }
 
-    start_next_write();
+    start_next_write(generation);
 }
 
 void endpoint::write(bytes_view data, write_handler handler)

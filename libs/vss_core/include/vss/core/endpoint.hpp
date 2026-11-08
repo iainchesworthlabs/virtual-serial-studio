@@ -160,9 +160,12 @@ private:
     void do_read();
     void on_read(boost::system::error_code ec, std::size_t count);
     void request_write();
-    void start_next_write();
+    /// \p generation is the generation that scheduled this write; a reopen()
+    /// that overtakes it makes everything read here stale.
+    void start_next_write(std::uint64_t generation);
     void on_write(const std::shared_ptr<pending_write>& write,
-                  boost::system::error_code ec, std::size_t count);
+                  std::uint64_t generation, boost::system::error_code ec,
+                  std::size_t count);
     void handle_read_failure(const boost::system::error_code& ec,
                              std::string_view what);
     void transition(endpoint_state next);
