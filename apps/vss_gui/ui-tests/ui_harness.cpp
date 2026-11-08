@@ -200,7 +200,17 @@ struct Probe::state
     std::string worst_step;
     int steps = 0;
     QTimer* timer = nullptr;
-    std::jthread watchdog;
+    // A plain thread and a flag, not std::jthread: the libc++ of the macOS 15
+    // toolchain does not have it.
+    std::atomic<bool> stopping{false};
+    std::thread watchdog;
+
+    ~state()
+    {
+        stopping = true;
+        if (watchdog.joinable())
+            watchdog.join();
+    }
 };
 
 Probe::Probe() : state_(std::make_unique<state>()) {}
@@ -242,10 +252,10 @@ void Probe::start(const std::string& journey)
     if (!state_->watchdog.joinable())
     {
         const int hang_ms = env_int("VSS_UI_HANG_MS", 30000);
-        state_->watchdog = std::jthread(
-            [this, hang_ms](const std::stop_token& token)
+        state_->watchdog = std::thread(
+            [this, hang_ms]()
             {
-                while (!token.stop_requested())
+                while (!state_->stopping)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(200));
                     if (!state_->armed)
