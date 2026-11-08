@@ -49,7 +49,11 @@ resolve_output_path(const std::string& requested, std::string& reason)
         return std::nullopt;
     }
     std::error_code ec;
-    fs::path resolved = fs::weakly_canonical(fs::path(requested), ec);
+    // Absolute first: weakly_canonical leaves a relative path relative when no
+    // part of it exists yet, and a bare file name has no directory to check.
+    fs::path resolved = fs::absolute(fs::path(requested), ec);
+    if (!ec)
+        resolved = fs::weakly_canonical(resolved, ec);
     if (ec)
     {
         reason = ec.message();

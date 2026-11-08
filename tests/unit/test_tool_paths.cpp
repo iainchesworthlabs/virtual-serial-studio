@@ -92,6 +92,16 @@ TEST_CASE("vss_perf: the output path is resolved before it is written")
                 .has_value());
 }
 
+TEST_CASE("vss_perf: a bare file name is written in the current directory")
+{
+    std::string reason;
+    const auto bare = vss_perf::resolve_output_path("perf-results.json", reason);
+    REQUIRE(bare.has_value());
+    REQUIRE(bare->is_absolute());
+    REQUIRE_EQ(bare->filename().string(), std::string("perf-results.json"));
+    REQUIRE_EQ(bare->parent_path(), fs::weakly_canonical(fs::current_path()));
+}
+
 TEST_CASE("vss_perf: an output path that cannot be written is refused")
 {
     scratch_directory scratch;
