@@ -252,30 +252,34 @@ void Probe::start(const std::string& journey)
     if (!state_->watchdog.joinable())
     {
         const int hang_ms = env_int("VSS_UI_HANG_MS", 30000);
-        state_->watchdog = std::thread(
-            [this, hang_ms]()
+        // The thread holds the state itself, not the Probe's pointer to it: at
+        // exit the pointer is already null (libc++) while ~state joins the
+        // thread, and reading through it crashed the macOS test programs.
+        state* const shared = state_.get();
+        shared->watchdog = std::thread(
+            [shared, hang_ms]()
             {
-                while (!state_->stopping)
+                while (!shared->stopping)
                 {
                     std::this_thread::sleep_for(std::chrono::milliseconds(200));
-                    if (!state_->armed)
+                    if (!shared->armed)
                         continue;
                     const std::int64_t gap =
-                        std::max((now_ns() - state_->last_beat),
-                                 (now_ns() - state_->step_started)) /
+                        std::max((now_ns() - shared->last_beat),
+                                 (now_ns() - shared->step_started)) /
                         1'000'000;
                     if (gap < hang_ms)
                         continue;
                     std::string text;
                     {
-                        const std::lock_guard<std::mutex> guard(state_->lock);
-                        text = "[HANG] " + state_->journey +
+                        const std::lock_guard<std::mutex> guard(shared->lock);
+                        text = "[HANG] " + shared->journey +
                                ": the journey "
                                "has been in one step, or away from the event "
                                "loop, for " +
                                std::to_string(gap) + " ms in step \"" +
-                               state_->current + "\"\n";
-                        for (const auto& line : state_->log)
+                               shared->current + "\"\n";
+                        for (const auto& line : shared->log)
                             text += "        step: " + line + "\n";
                     }
                     std::fputs(text.c_str(), stdout);
