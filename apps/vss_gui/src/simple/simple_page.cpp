@@ -123,6 +123,8 @@ SimplePage::SimplePage(StudioBackend& backend, QWidget* parent)
 void SimplePage::build()
 {
     VSS_PROFILE_ZONE("gui.simple.page.build");
+    // Two cards side by side: the list of setups on the left takes a fixed
+    // range of widths and the page on the right takes the rest.
     auto* layout = new QHBoxLayout(this);
     layout->setContentsMargins(8, 8, 8, 8);
     layout->setSpacing(8);
@@ -165,6 +167,7 @@ void SimplePage::build()
     list_->setFrameShape(QFrame::NoFrame);
     list_->setWordWrap(true);
     list_->setSelectionMode(QAbstractItemView::SingleSelection);
+    // The Delete key in the list asks to remove the setup now shown.
     list->on_delete = [this]
     {
         if (shown_ != 0)
@@ -173,6 +176,8 @@ void SimplePage::build()
     connect(
         list_, &QListWidget::itemClicked, this, [this](QListWidgetItem* item)
         { select_setup(item->data(Qt::UserRole).value<vss::endpoint_id>()); });
+    // Moving through the list with the keyboard selects as well, but only
+    // while it has focus, so changes made in code do not select.
     connect(list_, &QListWidget::currentItemChanged, this,
             [this](QListWidgetItem* item)
             {
@@ -182,6 +187,8 @@ void SimplePage::build()
             });
     side_layout->addWidget(list_, 1);
 
+    // The buttons under the list only emit requests; the owner of the page
+    // does the saving, opening and removing.
     auto* foot = new QHBoxLayout();
     auto* save = new QPushButton(tr("Save…"), side);
     set_role(save, "secondary");
@@ -209,6 +216,8 @@ void SimplePage::build()
     polish(main);
     auto* main_layout = new QVBoxLayout(main);
     main_layout->setContentsMargins(0, 0, 0, 0);
+    // The right-hand card is a stack. The grid of jobs is the first page in
+    // it; other pages are shown over it as needed.
     stack_ = new QStackedWidget(main);
     main_layout->addWidget(stack_);
     layout->addWidget(main, 1);
@@ -217,6 +226,7 @@ void SimplePage::build()
     stack_->addWidget(grid_);
     connect(grid_, &JobGrid::job_chosen, this,
             [this](job kind) { open_job(kind); });
+    // Requests the page cannot handle itself are passed on as signals.
     connect(grid_, &JobGrid::check_requested, this,
             [this] { Q_EMIT check_requested(); });
     connect(grid_, &JobGrid::driver_setup_requested, this,
@@ -225,6 +235,8 @@ void SimplePage::build()
             [this] { Q_EMIT open_requested(); });
     connect(grid_, &JobGrid::examples_requested, this,
             [this] { Q_EMIT examples_requested(); });
+    // Watching needs an existing setup: show the first one with its data view
+    // on, and tell the user how to pick a different one.
     connect(grid_, &JobGrid::watch_requested, this,
             [this]
             {
@@ -498,13 +510,13 @@ void SimplePage::show_setup(const setup_view& setup)
     Q_EMIT setup_selected(shown_);
 }
 
-// A copy is the point: refresh() below rebuilds setups_ under the caller's
-// reference.
-void SimplePage::change_programs(
-    setup_view setup, // NOLINT(performance-unnecessary-value-param)
-    vss::endpoint_id close)
+void SimplePage::change_programs(const setup_view& current,
+                                 vss::endpoint_id close)
 {
     VSS_PROFILE_ZONE("gui.simple.page.change_programs");
+    // A copy is the point: refresh() below rebuilds setups_ under the caller's
+    // reference.
+    const setup_view setup = current;
     job_plan plan = plan_from(setup, backend_.ports());
     auto& programs = setup.kind == job::share || setup.kind == job::attach
                          ? plan.second

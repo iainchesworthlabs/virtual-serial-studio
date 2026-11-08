@@ -87,9 +87,12 @@ struct arguments
 
 void print_usage()
 {
+    // One string literal, split across lines.  Only the two %s conversions
+    // near the end take arguments; keep a literal % out of the text.
     std::printf(
         "Virtual Serial Studio command line\n"
         "\n"
+        // Commands that open or create ports come first.
         "  vss_cli devices [--json]\n"
         "      List serial ports and com0com pairs on this machine.\n"
         "\n"
@@ -146,6 +149,7 @@ void print_usage()
         "      of the ports like a null-modem cable.  Runs until Ctrl-C or "
         "SIGTERM.\n"
         "\n"
+        // Topology and traffic commands: run, capture, play and respond.
         "  vss_cli run <topology.json> [--seconds=N] [--reconnect]\n"
         "      Apply a saved topology and keep it alive.  A virtual port with "
         "a\n"
@@ -187,22 +191,27 @@ void print_usage()
         "      would open, as for play.  Runs until Ctrl-C or SIGTERM, or for N\n"
         "      seconds.\n"
         "\n"
+        // Measurement and self-check commands need no topology file.
         "  vss_cli bench --from=<uri> --to=<uri> [--bytes=1MB] [--chunk=4KB]\n"
         "      Measure a real end-to-end transfer.\n"
         "\n"
         "  vss_cli selftest\n"
         "      Check the wiring without touching hardware.\n"
         "\n"
+        // First %s: the permission options, supplied by permissions_usage().
         "%s"
         "  Common: --verbose, --quiet\n"
         "\n"
         "  Profiling (Tracy; off unless asked, this computer only):\n"
+        // Second %s: the profiling options from vss::profiling::usage().
         "%s"
         "\n"
+        // The licence notice is the standard GPL interactive-program text.
         "Virtual Serial Studio is free software under the GNU General Public\n"
         "License, version 3 or later.  This program comes with ABSOLUTELY NO\n"
         "WARRANTY; see LICENSE for details.\n",
         vss_cli::permissions_usage(),
+        // usage() is a string_view; copy it to get a terminated %s string.
         std::string(vss::profiling::usage()).c_str());
 }
 
@@ -1073,8 +1082,11 @@ int command_play(const arguments& args)
         std::fprintf(stderr, "play needs a capture file\n");
         return 2;
     }
+    // positional[0] is the command name; the capture file follows it.
     const std::string& file = args.positional[1];
 
+    // Build the replay options from the flags; a bad value is a usage error
+    // (exit code 2) rather than a failure while running.
     vss::replay_options options;
     if (args.options.count("--direction") != 0)
     {
@@ -1092,6 +1104,8 @@ int command_play(const arguments& args)
     }
     if (args.options.count("--speed") != 0)
     {
+        // Text that does not parse becomes 0, which the check below rejects
+        // together with zero, negative and NaN speeds.
         try
         {
             options.speed = std::stod(args.get("--speed"));
@@ -1109,6 +1123,8 @@ int command_play(const arguments& args)
     options.loop = args.has("--loop");
     options.from_port = args.get("--from");
 
+    // Read the whole capture before any port is opened, so an unreadable
+    // file fails early.  Damaged lines are skipped, not fatal.
     const auto capture = vss::read_capture_file(file);
     if (!capture)
     {
@@ -1120,6 +1136,8 @@ int command_play(const arguments& args)
         std::fprintf(stderr, "%zu line(s) of %s could not be read and were skipped\n",
                      capture->skipped_lines, file.c_str());
 
+    // Open the topology (positional[2]) and any --uri, then pick the single
+    // port the records are written into.
     catch_stop_signals();
     studio app;
     if (const int code = open_ports(app, args, 2); code >= 0)
@@ -1128,6 +1146,8 @@ int command_play(const arguments& args)
     if (!port)
         return 2;
 
+    // start() returns nothing when no record matches the direction and
+    // --from filter, so there is nothing to wait for.
     auto player = vss::replay_player::start(app.engine(), port,
                                             capture->records, options);
     if (!player)
@@ -1143,6 +1163,8 @@ int command_play(const arguments& args)
                 port->name().c_str(), options.loop ? " in a loop" : "");
     std::fflush(stdout);
 
+    // Wait for the capture to finish, Ctrl-C or SIGTERM, or --seconds to
+    // pass.  A looping player never finishes, so those last two end it.
     const int seconds = args.number("--seconds", 0);
     const auto started = std::chrono::steady_clock::now();
     while (!g_stop_requested.load() && !(*player)->finished())
@@ -1157,6 +1179,7 @@ int command_play(const arguments& args)
     if ((*player)->finished())
         std::this_thread::sleep_for(200ms);
 
+    // Stop the player first so nothing more is sent while totals are read.
     (*player)->stop();
     std::printf("sent %llu record(s), %llu byte(s)\n",
                 static_cast<unsigned long long>((*player)->records_sent()),
@@ -1351,9 +1374,10 @@ bool takes_value(const std::string& name)
 arguments parse(int argc, char** argv)
 {
     arguments parsed;
-    for (int index = 1; index < argc; ++index)
+    int index = 1;
+    while (index < argc)
     {
-        const std::string value = argv[index];
+        const std::string value = argv[index++];
         if (value.rfind("--", 0) == 0)
         {
             const auto equals = value.find('=');
@@ -1363,10 +1387,10 @@ arguments parse(int argc, char** argv)
                 parsed.options[name] = value.substr(equals + 1);
                 parsed.repeated[name].push_back(value.substr(equals + 1));
             }
-            else if (takes_value(value) && index + 1 < argc)
+            else if (takes_value(value) && index < argc)
             {
-                parsed.options[value] = argv[index + 1];
-                parsed.repeated[value].push_back(argv[index + 1]);
+                parsed.options[value] = argv[index];
+                parsed.repeated[value].push_back(argv[index]);
                 ++index;
             }
             else
