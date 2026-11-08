@@ -219,3 +219,28 @@ TEST_CASE("reopen: bytes queued for the old transport are not sent to the new on
     REQUIRE(wait_until([&] { return slow.written() == "new"; }, 5000ms));
     REQUIRE_EQ(slow.written(), std::string("new"));
 }
+
+TEST_CASE("reopen: a write racing the reopen never reaches the new transport")
+{
+    // The write that was scheduled for the old transport reads the head of
+    // the queue and then the transport.  A reopen landing between the two
+    // used to hand the old bytes to the new transport, so the new transport
+    // saw "old" before "new" and the wait below timed out.  Repeat it so the
+    // two threads meet.
+    for (int round = 0; round < 300; ++round)
+    {
+        auto hub = start_hub();
+        auto stalled = std::make_shared<stalled_transport>(hub->executor());
+        const auto added =
+            hub->add_endpoint("slow", endpoint_kind::tcp, stalled);
+        REQUIRE(added);
+
+        (*added)->write(as_bytes("old"));
+        auto fresh = make_fresh(*hub, "slow");
+        REQUIRE((*added)->reopen(fresh));
+        const mock_endpoint slow{*added, fresh};
+        (*added)->write(as_bytes("new"));
+        REQUIRE(wait_until([&] { return slow.written() == "new"; }, 5000ms));
+        REQUIRE_EQ(slow.written(), std::string("new"));
+    }
+}
