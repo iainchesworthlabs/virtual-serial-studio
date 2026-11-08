@@ -118,6 +118,8 @@ QWidget* LineMatrixPanel::build_wiring_column()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(14);
 
+    // Left column: heading and intro, preset controls, the wiring matrix and
+    // its summary, then the live state of the lines.
     layout->addWidget(
         make_heading(tr("Line wiring"), text_style::subtitle, column));
     auto* intro = new QLabel(
@@ -127,6 +129,8 @@ QWidget* LineMatrixPanel::build_wiring_column()
     set_ink2(intro);
     layout->addWidget(intro);
 
+    // A preset sets the whole matrix at once; the switch turns modem-line
+    // emulation on or off.
     auto* controls = new QHBoxLayout();
     controls->setContentsMargins(0, 0, 0, 0);
     controls->setSpacing(16);
@@ -143,6 +147,8 @@ QWidget* LineMatrixPanel::build_wiring_column()
     controls->addStretch(1);
     layout->addLayout(controls);
 
+    // The matrix is a grid of check boxes: one row per output line this port
+    // drives (DTR, RTS) and one column per input line on the other port.
     auto* matrix = new QFrame(column);
     matrix->setProperty("card", true);
     polish(matrix);
@@ -155,6 +161,7 @@ QWidget* LineMatrixPanel::build_wiring_column()
     grid->setHorizontalSpacing(8);
     grid->setVerticalSpacing(6);
 
+    // Header row: a corner label, then one heading per input line.
     auto* corner = new QLabel(tr("This port drives"), grid_holder);
     corner->setFont(Theme::instance().font(text_style::caption));
     corner->setProperty("muted", true);
@@ -169,6 +176,8 @@ QWidget* LineMatrixPanel::build_wiring_column()
         grid->addWidget(heading, 0, column_index + 1);
     }
 
+    // One row per output line.  Each box gets a name such as "DTR to CTS" so
+    // a screen reader and the tests can tell the boxes apart.
     for (int row = 0; row < kRows; ++row)
     {
         const QString output =
@@ -195,6 +204,8 @@ QWidget* LineMatrixPanel::build_wiring_column()
     }
     matrix_layout->addWidget(grid_holder);
 
+    // A caption strip under the grid, on a sunken background.  The colour is
+    // set on the palette here, so it is not touched by the style sheet.
     caption_ = new QLabel(matrix);
     caption_->setFont(Theme::instance().font(text_style::caption));
     caption_->setProperty("muted", true);
@@ -208,9 +219,12 @@ QWidget* LineMatrixPanel::build_wiring_column()
     matrix_layout->addWidget(caption_);
     layout->addWidget(matrix);
 
+    // A plain-language sentence for the current wiring, filled in later.
     sentence_ = new NoteBanner(NoteBanner::kind::info, {}, column);
     layout->addWidget(sentence_);
 
+    // Live state: switches for the lines this port drives, a Break button and
+    // chips for the four input lines.
     auto* state_card = new QFrame(column);
     state_card->setProperty("card", true);
     polish(state_card);
@@ -225,6 +239,8 @@ QWidget* LineMatrixPanel::build_wiring_column()
     auto* state_row = new QHBoxLayout();
     state_row->setContentsMargins(0, 0, 0, 0);
     state_row->setSpacing(14);
+    // updating_ is set while the panel moves the switches itself, so only a
+    // user's toggle is sent on to the line.
     dtr_ = new Switch(tr("DTR"), state_card);
     dtr_->setAccessibleName(tr("DTR"));
     connect(dtr_, &QAbstractButton::toggled, this,
@@ -243,6 +259,7 @@ QWidget* LineMatrixPanel::build_wiring_column()
                     set_line(vss::control_line::rts, on);
             });
     state_row->addWidget(rts_);
+    // A break is a pulse: assert it, then clear it again after 100 ms.
     break_ = make_button(tr("Break"), nullptr, state_card);
     break_->setProperty("size", QStringLiteral("small"));
     polish(break_);
@@ -259,6 +276,8 @@ QWidget* LineMatrixPanel::build_wiring_column()
     state_row->addStretch(1);
     state_layout->addLayout(state_row);
 
+    // One chip per input line.  They start as "--" and are kept in inputs_ so
+    // that refresh() can show the real state.
     auto* chip_grid = new QGridLayout();
     chip_grid->setContentsMargins(0, 0, 0, 0);
     chip_grid->setHorizontalSpacing(6);
@@ -390,6 +409,8 @@ void LineMatrixPanel::refresh()
     const capabilities caps = backend_.caps();
     const auto port = backend_.port(endpoint_);
 
+    // Find the two-way link this port is on, if any, and the name of the
+    // port at its other end.  The first match wins.
     link_.reset();
     other_name_.clear();
     if (port)
@@ -411,6 +432,8 @@ void LineMatrixPanel::refresh()
         }
     }
 
+    // The port is gone (for example removed while the panel was open), so
+    // disable the wiring controls and stop here.
     if (!port)
     {
         for (int row = 0; row < kRows; ++row)
@@ -423,6 +446,8 @@ void LineMatrixPanel::refresh()
         return;
     }
 
+    // Show the wiring stored for the link.  Without a link, a stored value or
+    // line-matrix support, show the standard null-modem wiring.
     line_wiring wiring;
     if (link_ && caps.line_matrix)
     {
@@ -438,12 +463,16 @@ void LineMatrixPanel::refresh()
     }
     write_boxes(wiring);
 
+    // Select the preset that matches the boxes.  The signals are blocked so
+    // this does not count as the user choosing a preset.
     const wiring_preset matched = preset_for_wiring(current_wiring());
     {
         const QSignalBlocker blocker(preset_);
         preset_->set_current(static_cast<int>(matched));
     }
 
+    // The boxes can be edited only with line-matrix support and a link.
+    // Otherwise they stay disabled with a tooltip that says what is missing.
     for (int row = 0; row < kRows; ++row)
     {
         for (int column = 0; column < kColumns; ++column)
@@ -467,6 +496,7 @@ void LineMatrixPanel::refresh()
         }
     }
 
+    // The preset control follows the same rule as the boxes.
     if (caps.line_matrix && link_.has_value())
     {
         preset_->setEnabled(true);
@@ -480,11 +510,15 @@ void LineMatrixPanel::refresh()
                              : not_available_text());
     }
 
+    // Emulation is shown but always read-only: it is fixed when the link is
+    // created, so the switch only reports it.
     emulate_->setChecked(link_ ? link_->options.emulate_modem_lines : true);
     degrade(emulate_, not_available_text());
     emulate_->setAccessibleDescription(
         tr("The line crossing is fixed when the link is created."));
 
+    // The DTR and RTS switches and the Break button need a port that has
+    // control lines.
     const bool supports_lines = port->supports_control_lines;
     for (Switch* toggle : {dtr_, rts_})
     {
@@ -510,11 +544,14 @@ void LineMatrixPanel::refresh()
         degrade(break_);
     }
 
+    // The code sample is named after the current port.
     code_->set_text(QStringLiteral("studio app;\nconst auto device = "
                                    "app.create_mock_port(\"%1\");")
                         .arg(port->name),
                     tr("Create this fixture in code"));
 
+    // Faults can be injected only into a running fixture (a mock port) on a
+    // backend that supports faults; each other case gets its own reason.
     const bool is_fixture = port->kind == vss::endpoint_kind::mock;
     const bool running = port->state == vss::endpoint_state::open;
     const bool can_inject = caps.faults && is_fixture && running;
@@ -540,6 +577,7 @@ void LineMatrixPanel::refresh()
         }
     }
 
+    // Finish with the parts that are derived from the state set above.
     update_caption();
     update_line_state();
 }

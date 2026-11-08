@@ -107,6 +107,8 @@ void DiagnosticBundleDialog::build()
 {
     VSS_PROFILE_ZONE("gui.support.bundle_dialog.build");
     VSS_PROFILE_MESSAGE("gui.dialog.diagnostic_bundle.opened");
+    // Window chrome: accessible name, panel surface and the standard dialog
+    // width, which is also the minimum.
     setWindowTitle(
         QCoreApplication::translate("Bundle", "Create a diagnostic bundle"));
     setAccessibleName(
@@ -119,6 +121,9 @@ void DiagnosticBundleDialog::build()
     setMinimumWidth(Theme::instance().metric(
         QStringLiteral("layout.dialogWidths.standard")));
 
+    // The outer layout has no margins so the header, body and footer can set
+    // their own padding. The heading says up front that nothing is sent
+    // anywhere.
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->setSpacing(0);
@@ -137,11 +142,14 @@ void DiagnosticBundleDialog::build()
         header);
     outer->addWidget(header);
 
+    // Body: what to include, a privacy note, then the file name.
     auto* body = new QWidget(this);
     auto* body_layout = new QVBoxLayout(body);
     body_layout->setContentsMargins(24, 4, 24, 16);
     body_layout->setSpacing(14);
 
+    // Builds without diagnostics support get a banner here and disabled
+    // controls further down.
     if (!available_)
     {
         auto* note = new NoteBanner(
@@ -153,6 +161,7 @@ void DiagnosticBundleDialog::build()
         body_layout->addWidget(note);
     }
 
+    // A small bold caption over the list of things the bundle can contain.
     auto* include_label =
         new QLabel(QCoreApplication::translate("Bundle", "Include"), body);
     include_label->setFont(Theme::instance().font(text_style::caption));
@@ -161,6 +170,8 @@ void DiagnosticBundleDialog::build()
     include_label->setFont(label_font);
     body_layout->addWidget(include_label);
 
+    // One row per file in the bundle. include_row() creates each check box
+    // into the member passed to it and tags the row with the file name.
     auto* list = new QFrame(body);
     list->setProperty("card", true);
     polish(list);
@@ -191,6 +202,8 @@ void DiagnosticBundleDialog::build()
             "Bundle",
             "State, bytes in and out, and bytes dropped for each port."),
         QStringLiteral("counters.csv")));
+    // Traffic contents is the only row without a file name. It is
+    // highlighted with a chip because the bytes may hold private data.
     list_layout->addWidget(include_row(
         list, traffic_,
         QCoreApplication::translate("Bundle", "Traffic contents"),
@@ -210,6 +223,8 @@ void DiagnosticBundleDialog::build()
         body);
     body_layout->addWidget(privacy);
 
+    // Show the default file name and, beside it, how many files the current
+    // selection puts in the bundle (kept up to date by update_counts()).
     auto* name_label = new QLabel(
         QCoreApplication::translate("Bundle", "The bundle will be one file"),
         body);
@@ -236,6 +251,9 @@ void DiagnosticBundleDialog::build()
     body_layout->addStretch(1);
     outer->addWidget(body, 1);
 
+    // Name the check boxes so tests can find them, and start them from the
+    // remembered selection. This must happen after the rows exist, because
+    // include_row() is what creates them.
     setup_->setObjectName(QStringLiteral("bundleSetup"));
     event_log_->setObjectName(QStringLiteral("bundleLog"));
     environment_->setObjectName(QStringLiteral("bundleEnvironment"));
@@ -247,6 +265,9 @@ void DiagnosticBundleDialog::build()
     counters_->setChecked(selection_.counters);
     traffic_->setChecked(selection_.traffic);
 
+    // Connect after setChecked() above so the initial state does not fire
+    // toggled(). Each toggle writes its member of the selection and refreshes
+    // the file count.
     const auto connect_check =
         [this](QCheckBox* check, bool bundle_selection::* member)
     {
@@ -263,6 +284,8 @@ void DiagnosticBundleDialog::build()
     connect_check(counters_, &bundle_selection::counters);
     connect_check(traffic_, &bundle_selection::traffic);
 
+    // Without diagnostics support nothing can be chosen, so disable every
+    // check box and say why.
     if (!available_)
     {
         for (QCheckBox* check :
@@ -274,6 +297,9 @@ void DiagnosticBundleDialog::build()
         }
     }
 
+    // Footer. Copy environment only is a lighter alternative to a full
+    // bundle. Only Save bundle is the default button, so Enter saves and
+    // never copies or cancels by accident.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* copy = make_dialog_button(
@@ -301,6 +327,8 @@ void DiagnosticBundleDialog::build()
     footer_layout->addWidget(save);
     outer->addWidget(footer);
 
+    // Focus Save now and again once the event loop runs, in case showing the
+    // dialog moves focus elsewhere first.
     save->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, save,
                        [save] { save->setFocus(Qt::OtherFocusReason); });

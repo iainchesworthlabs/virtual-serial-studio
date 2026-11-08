@@ -69,6 +69,8 @@ void FirewallDialog::build(bool step_possible)
 {
     VSS_PROFILE_ZONE("gui.support.firewall.build");
     VSS_PROFILE_MESSAGE("gui.dialog.firewall.opened");
+    // Window chrome: accessible name, panel surface and the small dialog
+    // width as the minimum.
     setWindowTitle(
         QCoreApplication::translate("FirewallDialog", "Windows Firewall"));
     setAccessibleName(
@@ -82,6 +84,9 @@ void FirewallDialog::build(bool step_possible)
     layout->setContentsMargins(20, 20, 20, 0);
     layout->setSpacing(12);
 
+    // Three situations share this dialog. With no allow rule Studio can offer
+    // to add one; a block rule or the block-all setting needs the user to
+    // change Windows themselves.
     const bool no_rule = fact_.why == perm::reason::no_allow_rule;
     add_dialog_heading(
         layout,
@@ -96,6 +101,7 @@ void FirewallDialog::build(bool step_possible)
                       "port."),
         this);
 
+    // Explain the cause in words that match the reason.
     if (no_rule)
     {
         layout->addWidget(paragraph(
@@ -108,6 +114,8 @@ void FirewallDialog::build(bool step_possible)
     }
     else if (fact_.why == perm::reason::blocked_by_rule)
     {
+        // Studio never removes a block rule, so the text only says where to
+        // find it.
         layout->addWidget(paragraph(
             QCoreApplication::translate(
                 "FirewallDialog",
@@ -120,6 +128,8 @@ void FirewallDialog::build(bool step_possible)
     }
     else
     {
+        // The remaining reason: the block-all-incoming setting, which beats
+        // every rule.
         layout->addWidget(paragraph(
             QCoreApplication::translate(
                 "FirewallDialog",
@@ -130,6 +140,8 @@ void FirewallDialog::build(bool step_possible)
             this));
     }
 
+    // When there is a rule Studio could add, spell out exactly what it would
+    // allow, so the user can judge it before the permission prompt.
     if (fact_.step.has_value())
     {
         const perm::firewall_rule_spec& step = *fact_.step;
@@ -156,6 +168,8 @@ void FirewallDialog::build(bool step_possible)
         layout->addWidget(details);
     }
 
+    // Warn about the Windows permission prompt only when this build can
+    // really run the elevated step.
     if (fact_.step.has_value() && step_possible)
     {
         layout->addWidget(paragraph(
@@ -168,6 +182,8 @@ void FirewallDialog::build(bool step_possible)
             this));
     }
 
+    // Show the command form of the fix. The lead-in differs: an alternative
+    // when the button works, the only route when it does not.
     if (!fact_.remedy.empty())
     {
         layout->addWidget(paragraph(
@@ -188,11 +204,14 @@ void FirewallDialog::build(bool step_possible)
         layout->addWidget(command);
     }
 
+    // The result banner stays hidden until allow() reports an outcome.
     result_ = new NoteBanner(NoteBanner::kind::info, {}, this);
     result_->hide();
     layout->addWidget(result_);
     layout->addStretch(1);
 
+    // Footer. The Allow button exists only when no rule is the problem; the
+    // other reasons can only be fixed in Windows itself.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     if (no_rule)
@@ -201,6 +220,8 @@ void FirewallDialog::build(bool step_possible)
             QCoreApplication::translate("FirewallDialog",
                                         "Allow in Windows Firewall"),
             "primary", footer);
+        // Not an auto-default, so Enter never starts the elevated step; Close
+        // is the default button.
         allow_->setAutoDefault(false);
         allow_->setAccessibleName(QCoreApplication::translate(
             "FirewallDialog", "Allow in Windows Firewall"));
@@ -214,6 +235,8 @@ void FirewallDialog::build(bool step_possible)
         }
         else
         {
+            // Keep the button visible but disabled, with the reason in the
+            // tooltip, rather than hiding it.
             allow_->setEnabled(false);
             allow_->setToolTip(QCoreApplication::translate(
                 "FirewallDialog", "Not available in this build"));

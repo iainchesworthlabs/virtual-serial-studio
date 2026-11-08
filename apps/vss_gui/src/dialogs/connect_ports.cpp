@@ -762,6 +762,8 @@ void ConnectPortsDialog::update_result()
     if (result_ == nullptr)
         return;
 
+    // Resolve the names and checked ids for every mode up front; the switch
+    // below only uses the ones its own mode needs.
     QString rich;
     const QString from = single_name(from_id());
     const QString to = single_name(to_id());
@@ -771,6 +773,8 @@ void ConnectPortsDialog::update_result()
     const QVector<vss::endpoint_id> sources = checked_ids(mode::join);
     const QVector<vss::endpoint_id> members = checked_ids(mode::bus);
 
+    // Each mode describes the link in plain words, or asks for the missing
+    // choices first.
     switch (mode_)
     {
     case mode::two_way:
@@ -797,6 +801,8 @@ void ConnectPortsDialog::update_result()
                        .arg(bold_name(from), bold_name(to));
         break;
     case mode::split:
+        // A split needs a source and at least two targets before it can be
+        // described.
         if (source.isEmpty() || targets.size() < 2)
         {
             rich = source.isEmpty()
@@ -817,6 +823,7 @@ void ConnectPortsDialog::update_result()
         }
         break;
     case mode::join:
+        // A join needs a target and at least two sources.
         if (target.isEmpty() || sources.size() < 2)
         {
             rich = target.isEmpty()
@@ -838,6 +845,7 @@ void ConnectPortsDialog::update_result()
         }
         break;
     case mode::bus:
+        // A bus needs at least two members.
         if (members.size() < 2)
         {
             rich = tr("Choose the ports to put on the bus.");
@@ -855,6 +863,8 @@ void ConnectPortsDialog::update_result()
         break;
     }
 
+    // Pass the plain-text form alongside the rich text, with the markup
+    // stripped.
     result_->set_result_text(
         rich, QTextDocumentFragment::fromHtml(rich).toPlainText());
 }
@@ -1168,6 +1178,8 @@ bool ConnectPortsDialog::submit()
     }
     clear_error();
 
+    // Only a join has a merge policy: the owner option, or the default
+    // interleave.
     vss::link_options options;
     if (mode_ == mode::join)
     {
@@ -1176,10 +1188,13 @@ bool ConnectPortsDialog::submit()
                              : vss::merge_policy::interleave;
     }
 
+    // Start from an error result; each mode below overwrites it with the
+    // outcome of its backend call. from and to are the names used in messages.
     vss::result<vss::link_id> linked =
         vss::make_error_code(vss::errc::internal);
     QString from;
     QString to;
+    // Make the backend call for the chosen mode.
     switch (mode_)
     {
     case mode::two_way:
@@ -1228,12 +1243,15 @@ bool ConnectPortsDialog::submit()
     }
     }
 
+    // On failure explain it in the dialog and leave it open so the user can
+    // adjust and try again.
     if (!linked)
     {
         show_backend_error(linked.error(), from, to);
         return false;
     }
 
+    // Record the new link and a one-line summary for the caller.
     result_link_ = *linked;
     switch (mode_)
     {
@@ -1256,6 +1274,7 @@ bool ConnectPortsDialog::submit()
         result_summary_ = tr("Put %1 on a shared bus.").arg(from);
         break;
     }
+    // Close only after the result has been stored.
     QDialog::accept();
     return true;
 }

@@ -397,6 +397,8 @@ void SetupPage::rebuild_top()
 
 QWidget* SetupPage::program_row(const port_view& port, QWidget* parent)
 {
+    // One card for a port that a program opens: its name, whether a program
+    // has it open, then any warnings and actions.
     auto* row = new QFrame(parent);
     row->setProperty("group", true);
     polish(row);
@@ -408,12 +410,17 @@ QWidget* SetupPage::program_row(const port_view& port, QWidget* parent)
     layout->addWidget(
         muted(label.isEmpty() ? tr("Program opens") : tr("%1 opens").arg(label),
               row));
+    // The top line: name on the left, then the state chip, a copy button and,
+    // where allowed, a close button.
     auto* line = new QHBoxLayout();
     auto* name = new QLabel(port_shown_name(port), row);
     name->setFont(Theme::instance().font(text_style::portName));
     name->setTextInteractionFlags(Qt::TextSelectableByMouse);
     line->addWidget(name, 1);
 
+    // The chip says how far this port has got: closed, open with a program on
+    // the other side, open with none there yet, or open with the other side
+    // unknown. The same words are kept for port_lines() below.
     QString state;
     auto* chip = new StatusChip(row);
     if (!port.open)
@@ -443,11 +450,14 @@ QWidget* SetupPage::program_row(const port_view& port, QWidget* parent)
     connect(copy, &CopyButton::copied, this, [this, port]
             { Q_EMIT message(tr("%1 copied.").arg(port_shown_name(port))); });
     line->addWidget(copy);
+    // These jobs need at least two programs and the others one, so a port can
+    // only be closed while the setup stays above that.
     const int minimum = setup_.kind == job::share || setup_.kind == job::bus ||
                                 setup_.kind == job::combine ||
                                 setup_.kind == job::turns
                             ? 2
                             : 1;
+    // The receiver cannot be closed from here.
     if (can_add_program() && setup_.programs.size() > minimum &&
         setup_.programs.contains(port.id) && port.id != setup_.receiver)
     {
@@ -464,6 +474,7 @@ QWidget* SetupPage::program_row(const port_view& port, QWidget* parent)
     layout->addLayout(line);
     port_lines_ << tr("%1: %2").arg(shown(port.id), state);
 
+    // Until a program opens the port, say exactly which name it must choose.
     if (port.peer == peer_state::not_open)
     {
         auto* waiting = new QLabel(
@@ -482,6 +493,8 @@ QWidget* SetupPage::program_row(const port_view& port, QWidget* parent)
         layout->addWidget(waiting);
     }
 
+    // If the program opened the port at a different baud rate from the real
+    // device, the text will look garbled, so warn and say what to change.
     if (setup_.device != 0 && port.peer_format &&
         port.peer_format->baud_rate != 0)
     {
@@ -506,6 +519,8 @@ QWidget* SetupPage::program_row(const port_view& port, QWidget* parent)
         }
     }
 
+    // In a take-turns setup only one program sends. Mark that one, and give
+    // each of the others a button to hand sending to it.
     if (setup_.kind == job::turns && setup_.link != 0)
     {
         if (setup_.owner == port.id)

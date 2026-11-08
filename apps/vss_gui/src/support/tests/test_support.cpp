@@ -805,12 +805,16 @@ TEST_CASE("support: settings persist and apply immediately")
 TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
 {
     clear_settings();
+    // Arrange: one loopback port that has carried "hello", so the traffic
+    // file has something to show.
     FakeStudioBackend backend;
     const auto terminal = backend.create_virtual_port(
         QStringLiteral("terminal"), vss::virtual_port_kind::loopback, true);
     REQUIRE(terminal.has_value());
     REQUIRE(backend.send(*terminal, QByteArrayLiteral("hello")));
 
+    // Two log events: a plain one that must survive, and one carrying a
+    // credential-like token that the log file must redact.
     support::EventLog log;
     vss::gui::gui_event message;
     message.kind = vss::event_kind::log_message;
@@ -823,6 +827,8 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     secret.message = QStringLiteral("token=abc123");
     log.append(secret);
 
+    // By default traffic is off, so the bundle holds four files in a fixed
+    // order.
     support::bundle_selection selection;
     REQUIRE_EQ(selection.file_count(), 4);
     QVector<support::bundle_file> files =
@@ -833,6 +839,8 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     REQUIRE_EQ(files.at(2).name, QStringLiteral("environment.txt"));
     REQUIRE_EQ(files.at(3).name, QStringLiteral("counters.csv"));
 
+    // Check each file's content: the setup is valid JSON with the one port,
+    // the counters are CSV, and the log keeps "opened" but not the secret.
     QJsonParseError parse_error{};
     const QJsonDocument setup =
         QJsonDocument::fromJson(files.at(0).data, &parse_error);
@@ -845,6 +853,7 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     REQUIRE(!files.at(1).data.contains("abc123"));
     REQUIRE(files.at(2).data.contains("Commit:"));
 
+    // Opting in to traffic adds a fifth file, placed after the others.
     selection.traffic = true;
     REQUIRE_EQ(selection.file_count(), 5);
     files = support::build_bundle_files(backend, log, selection);
@@ -853,6 +862,8 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     REQUIRE(files.at(4).data.contains("hello"));
     REQUIRE(files.at(4).data.contains("TX"));
 
+    // The dialog starts from the same defaults, and ticking the traffic box
+    // moves the file count both ways.
     support::DiagnosticBundleDialog dialog(backend, log);
     REQUIRE(dialog.available());
     REQUIRE_EQ(dialog.selected_file_count(), 4);
@@ -867,6 +878,8 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     REQUIRE_EQ(dialog.selected_file_count(), 4);
     check_accessible(dialog);
 
+    // Write real zip files and read them back: the archive must match the
+    // checkbox state, with no traffic file unless it was chosen.
     QTemporaryDir directory;
     REQUIRE(directory.isValid());
     const QString plain_path = directory.filePath(QStringLiteral("plain.zip"));
@@ -881,6 +894,7 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     for (const zip_entry& entry : plain_entries)
         REQUIRE_NE(entry.name, QStringLiteral("traffic.txt"));
 
+    // Same dialog, traffic opted in this time.
     traffic->setChecked(true);
     const QString traffic_path =
         directory.filePath(QStringLiteral("traffic.zip"));
@@ -898,6 +912,8 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     }
     REQUIRE(saw_traffic);
 
+    // A backend without diagnostics support: the dialog reports itself
+    // unavailable and Save is disabled.
     vss::gui::capabilities caps;
     caps.diagnostics = false;
     backend.set_capabilities(caps);

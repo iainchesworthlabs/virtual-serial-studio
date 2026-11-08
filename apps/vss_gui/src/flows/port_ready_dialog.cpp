@@ -128,6 +128,8 @@ void PortReadyDialog::build(bool advanced)
 {
     VSS_PROFILE_ZONE("gui.flows.port_ready.build");
     VSS_PROFILE_MESSAGE("gui.dialog.port_ready.opened");
+    // Banner showing the path to open. A Studio-only port has no such path,
+    // so it shows its name instead.
     path_block_ = new QFrame(this);
     path_block_->setObjectName(QStringLiteral("portReadyPath"));
     auto* path_layout = new QHBoxLayout(path_block_);
@@ -158,6 +160,7 @@ void PortReadyDialog::build(bool advanced)
     path_column->addWidget(path_label_);
     path_layout->addLayout(path_column, 1);
 
+    // Only a port other programs can open gets a Copy button.
     if (!studio_only_)
     {
         copy_ = new QPushButton(tr("Copy name"), path_block_);
@@ -178,6 +181,8 @@ void PortReadyDialog::build(bool advanced)
     }
     body_layout()->addWidget(path_block_);
 
+    // The banner's colours come from the theme, so restyle it when the theme
+    // changes.
     const auto apply_path_style = [this]
     {
         if (path_block_ == nullptr)
@@ -195,8 +200,11 @@ void PortReadyDialog::build(bool advanced)
     apply_path_style();
     connect(&Theme::instance(), &Theme::theme_changed, this, apply_path_style);
 
+    // A Studio-only port needs an explanation and a way to set up a driver; a
+    // real port instead shows how to use it.
     if (studio_only_)
     {
+        // Pick the wording by whether a Windows driver is already present.
         const setup_facts facts = backend_.facts();
         const bool driver_present = windows_platform(platform_) &&
                                     (facts.driver_found || facts.com0com_found);
@@ -233,6 +241,7 @@ void PortReadyDialog::build(bool advanced)
                 .arg(port_.path));
         body_layout()->addWidget(paragraph_);
 
+        // Pseudo-terminal paths only exist while Studio runs, so say so.
         if (pseudo_terminal_platform(platform_))
         {
             auto* note = new NoteBanner(
@@ -244,6 +253,8 @@ void PortReadyDialog::build(bool advanced)
         }
     }
 
+    // Card showing whether another program has the port open. refresh_peer()
+    // fills it and hides it for Studio-only ports.
     peer_card_ = new QFrame(this);
     peer_card_->setObjectName(QStringLiteral("portReadyPeer"));
     peer_card_->setProperty("card", true);
@@ -260,6 +271,8 @@ void PortReadyDialog::build(bool advanced)
     peer_layout->addWidget(peer_text_, 1);
     body_layout()->addWidget(peer_card_);
 
+    // Collapsible details: name, kind, path, the saved-setup JSON and the
+    // command-line equivalent.
     details_ = new Disclosure(tr("Show details"), this);
     details_->setObjectName(QStringLiteral("portReadyDetails"));
     auto* details_content = new QWidget(details_);
@@ -300,6 +313,8 @@ void PortReadyDialog::build(bool advanced)
     details_->set_content(details_content);
     body_layout()->addWidget(details_);
 
+    // Start expanded in advanced mode, unless a remembered choice says
+    // otherwise.
     bool expanded = advanced;
     const QSettings settings;
     if (settings.contains(QString::fromLatin1(kDetailsRemembered)))
@@ -309,6 +324,7 @@ void PortReadyDialog::build(bool advanced)
     }
     details_->set_expanded(expanded);
     update_details_titles();
+    // Remember whether the user left the details open for next time.
     connect(details_, &Disclosure::expanded_changed, this,
             [this](bool open)
             {
@@ -317,6 +333,8 @@ void PortReadyDialog::build(bool advanced)
                 update_details_titles();
             });
 
+    // Footer actions. Connect and Create another pass the request on to the
+    // caller, then close the dialog.
     auto* connect_button =
         add_footer_button(tr("Connect %1 to something")
                               .arg(studio_only_ ? port_.name : port_.path));
@@ -335,6 +353,8 @@ void PortReadyDialog::build(bool advanced)
             });
     auto* done = add_footer_button(tr("Done"), QStringLiteral("primary"));
     connect(done, &QPushButton::clicked, this, &QDialog::accept);
+    // Defer making Done the default button until control returns to the
+    // event loop.
     QTimer::singleShot(0, done, [done] { done->setDefault(true); });
 }
 

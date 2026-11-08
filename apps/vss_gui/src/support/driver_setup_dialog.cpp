@@ -89,6 +89,8 @@ void DriverSetupDialog::build(driver_problem problem)
 {
     VSS_PROFILE_ZONE("gui.support.driver_setup.build");
     VSS_PROFILE_MESSAGE("gui.dialog.driver_setup.opened");
+    // Window chrome: the title doubles as the accessible name, and the
+    // dialog gets the panel surface and the small dialog width from the theme.
     const QString title =
         QCoreApplication::translate("DriverSetup", "Set up Virtual Serial Studio");
     setWindowTitle(title);
@@ -102,6 +104,8 @@ void DriverSetupDialog::build(driver_problem problem)
     layout->setContentsMargins(20, 20, 20, 0);
     layout->setSpacing(12);
 
+    // The subtitle names the problem that sent the user here, or falls back
+    // to a general line when they opened setup by choice.
     add_dialog_heading(
         layout, title,
         problem == driver_problem::none
@@ -119,6 +123,8 @@ void DriverSetupDialog::build(driver_problem problem)
             "small helper service that makes ports for you, so administrator "
             "rights are needed once, now, and not each time you add a port."),
         this));
+    // The next paragraphs set expectations before the permission prompt:
+    // what it will ask, that Studio stays unelevated, and the port restart.
     layout->addWidget(paragraph(
         QCoreApplication::translate(
             "DriverSetup",
@@ -134,6 +140,7 @@ void DriverSetupDialog::build(driver_problem problem)
             "Studio offers to make them again."),
         this));
 
+    // Show where the setup files come from, but only when they were found.
     const QString directory = driver_package_dir();
     if (!directory.isEmpty())
     {
@@ -144,11 +151,15 @@ void DriverSetupDialog::build(driver_problem problem)
         layout->addWidget(package_);
     }
 
+    // The result banner starts hidden. It is shown at once when setup cannot
+    // run here, and otherwise after a run finishes.
     result_ = new NoteBanner(NoteBanner::kind::info, {}, this);
     result_->hide();
     layout->addWidget(result_);
 
     show_unavailable();
+    // Offer the manual command only when setup is available and the command
+    // could be built.
     if (available_ && !driver_setup_command().isEmpty())
     {
         layout->addWidget(paragraph(
@@ -165,6 +176,8 @@ void DriverSetupDialog::build(driver_problem problem)
     }
     layout->addStretch(1);
 
+    // Footer buttons, left to right: Copy details, the primary setup action
+    // and Close.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
 
@@ -179,6 +192,8 @@ void DriverSetupDialog::build(driver_problem problem)
 
     setup_ = make_dialog_button(title, "primary", footer);
     setup_->setAccessibleName(title);
+    // Not an auto-default, so Enter never starts an elevated install by
+    // accident; Close is the default button.
     setup_->setAutoDefault(false);
     setup_->setEnabled(available_);
     setup_->setToolTip(QCoreApplication::translate(
@@ -197,10 +212,14 @@ void DriverSetupDialog::build(driver_problem problem)
     footer_layout->addWidget(close_);
     layout->addWidget(footer);
 
+    // The timer polls the running step; it is started by begin() and only
+    // wired up here.
     timer_ = new QTimer(this);
     timer_->setInterval(150);
     connect(timer_, &QTimer::timeout, this, [this] { poll(); });
 
+    // Focus the action the user most likely wants: setup, or Close when
+    // setup cannot run.
     (available_ ? setup_ : close_)->setFocus(Qt::OtherFocusReason);
 }
 

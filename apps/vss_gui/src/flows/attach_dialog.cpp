@@ -295,6 +295,7 @@ void AttachDialog::build_device_section()
 
 void AttachDialog::build_settings_section()
 {
+    // A one-line summary, shown while the settings are collapsed.
     settings_summary_ = new QLabel(this);
     settings_summary_->setObjectName(QStringLiteral("attachSettingsSummary"));
     settings_summary_->setFont(Theme::instance().font(text_style::caption));
@@ -302,6 +303,8 @@ void AttachDialog::build_settings_section()
     settings_summary_->setWordWrap(true);
     body_layout()->addWidget(settings_summary_);
 
+    // The settings sit in a collapsible section, open by default only in
+    // advanced mode.
     settings_ = new Disclosure(tr("Device settings"), this);
     settings_->setObjectName(QStringLiteral("attachSettings"));
     auto* content = new QWidget(settings_);
@@ -309,6 +312,8 @@ void AttachDialog::build_settings_section()
     content_layout->setContentsMargins(0, 0, 0, 0);
     content_layout->setSpacing(10);
 
+    // A shortcut that resets every setting to the common 115200 8N1 values
+    // with no flow control.
     auto* defaults_line = new QHBoxLayout();
     defaults_line->addStretch(1);
     auto* defaults = new QPushButton(tr("Use common defaults"), content);
@@ -324,6 +329,8 @@ void AttachDialog::build_settings_section()
     grid->setHorizontalSpacing(12);
     grid->setVerticalSpacing(10);
 
+    // Each combo starts on 115200 baud, 8 data bits, no parity, one stop bit
+    // and no flow control.
     baud_ = new QComboBox(content);
     baud_->setObjectName(QStringLiteral("attachBaud"));
     const int bauds[] = {9600, 19200, 38400, 57600, 115200, 230400};
@@ -383,6 +390,7 @@ void AttachDialog::build_settings_section()
     settings_->set_content(content);
     body_layout()->addWidget(settings_);
 
+    // The summary stands in for the full settings while they are collapsed.
     settings_->set_expanded(advanced_);
     settings_summary_->setVisible(!advanced_);
     connect(settings_, &Disclosure::expanded_changed, this,
@@ -391,6 +399,7 @@ void AttachDialog::build_settings_section()
                 settings_summary_->setVisible(!expanded);
                 update_summary();
             });
+    // Reset to the same values the combos start with.
     connect(defaults, &QPushButton::clicked, this,
             [this]
             {
@@ -401,6 +410,7 @@ void AttachDialog::build_settings_section()
                 flow_->setCurrentIndex(0);
                 update_summary();
             });
+    // Any setting change refreshes the summary, the address and the result.
     const auto changed = [this]
     {
         update_summary();
@@ -425,7 +435,10 @@ void AttachDialog::refresh_devices()
 void AttachDialog::rebuild_rows()
 {
     VSS_PROFILE_ZONE("gui.flows.attach.rebuild_rows");
+    // Suppress selection handling while the rows are rebuilt; selecting_ is
+    // cleared again at the end.
     selecting_ = true;
+    // Discard the old group and rows before listing the devices again.
     if (group_ != nullptr)
         group_->deleteLater();
     group_ = new QButtonGroup(this);
@@ -440,6 +453,8 @@ void AttachDialog::rebuild_rows()
     rows_.clear();
     selected_ = -1;
 
+    // One row per device. Virtual ports and devices another program holds are
+    // listed but cannot be selected.
     const auto devices = backend_.devices();
     for (int index = 0; index < static_cast<int>(devices.size()); ++index)
     {
@@ -447,6 +462,7 @@ void AttachDialog::rebuild_rows()
         const bool is_virtual = device.com0com || device.virtual_device;
         const bool available = !is_virtual && !device.in_use;
 
+        // Wording and chip for each kind of device, most specific kind first.
         QString description;
         QString chip_text;
         StatusChip::kind chip_kind = StatusChip::kind::healthy;
@@ -476,6 +492,7 @@ void AttachDialog::rebuild_rows()
             chip_kind = StatusChip::kind::healthy;
         }
 
+        // Build the row: radio button, path, description and status chip.
         auto* frame = new PickRow(device_card_);
         frame->setObjectName(QStringLiteral("attachDeviceRow"));
         frame->setCursor(available ? Qt::PointingHandCursor : Qt::ArrowCursor);
@@ -531,11 +548,14 @@ void AttachDialog::rebuild_rows()
     }
     rows_layout_->addStretch(1);
 
+    // With no devices, show the empty note instead of the list.
     const bool empty = rows_.isEmpty();
     empty_note_->setVisible(empty);
     device_card_->setVisible(!empty);
     refresh_row_styles();
 
+    // Preselect the first available device. selecting_ stops this from
+    // running select_device() for each toggle.
     selecting_ = true;
     for (int index = 0; index < rows_.size(); ++index)
     {
@@ -547,6 +567,8 @@ void AttachDialog::rebuild_rows()
         }
     }
     selecting_ = false;
+    // Bring the primary button, address and result up to date for the new
+    // selection.
     update_primary_state();
     update_address();
     update_result();

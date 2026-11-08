@@ -136,6 +136,9 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
                       const platform_facts& platform, bool checks_available,
                       const QStringList& paths)
 {
+    // Row 1: the virtual port driver. The cases run from best to worst:
+    // not checked, Studio's own driver working, com0com, a driver that the
+    // guided set-up can fix, and finally no driver at all.
     setup_row driver;
     driver.title =
         QCoreApplication::translate("SetupCheck", "Virtual port driver");
@@ -151,6 +154,8 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
     else if (facts.driver_found &&
              !driver_problem_offers_setup(facts.driver.problem))
     {
+        // Start with the main fact, then append the version and the com0com
+        // note only when they apply.
         QString sentence = QCoreApplication::translate(
             "SetupCheck", "The Virtual Serial Studio driver is installed, so "
                           "other programs can see ports Studio makes as COM "
@@ -174,6 +179,8 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
     }
     else if (facts.com0com_found)
     {
+        // Only com0com is present. Mention the pair count when it is known;
+        // the plural form handles one pair versus several.
         const QString sentence =
             facts.com0com_pairs > 0
                 ? plural(QT_TRANSLATE_NOOP(
@@ -203,6 +210,7 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
     }
     else
     {
+        // Nothing usable was found, so the only route is to install com0com.
         driver.state = setup_state::attention;
         driver.sentence = QCoreApplication::translate(
             "SetupCheck", "Neither the Virtual Serial Studio driver nor "
@@ -218,6 +226,9 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
         rows.push_back(driver);
     }
 
+    // Row 2: administrator rights. They are only needed to create linked
+    // pairs, so this row is informational unless the driver already makes
+    // ports without them.
     setup_row administrator;
     administrator.title =
         QCoreApplication::translate("SetupCheck", "Administrator rights");
@@ -241,6 +252,7 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
     }
     else if (platform.elevated)
     {
+        // Already elevated, so nothing is left for the user to do.
         rows.push_back(ok_row(
             administrator.title,
             QCoreApplication::translate(
@@ -250,6 +262,9 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
     }
     else
     {
+        // Not elevated and Studio's driver is not in use: explain the cost
+        // of that, and offer a restart
+        // as administrator for when the user gets to creating a pair.
         administrator.state = setup_state::info;
         administrator.sentence = QCoreApplication::translate(
             "SetupCheck",
@@ -276,6 +291,8 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
         rows.push_back(administrator);
     }
 
+    // Row 3: attached serial devices. Row 4 below always lets the user skip
+    // the driver and try Studio with in-process ports only.
     rows.push_back(devices_row(facts, paths, checks_available));
 
     setup_row carry_on;

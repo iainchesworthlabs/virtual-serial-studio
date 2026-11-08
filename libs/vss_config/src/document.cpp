@@ -279,9 +279,12 @@ result<endpoint_kind> to_endpoint_kind(std::string_view kind)
 
 error_code validate(const document& value)
 {
+    // The document needs a name.  Then the ports are checked, followed by
+    // the links, which refer to ports by name; the first problem is returned.
     if (value.name.empty())
         return make_error_code(errc::config_error);
 
+    // Port names must be non-empty and unique, and the kinds must be known.
     std::set<std::string> names;
     for (const auto& port : value.ports)
     {
@@ -294,6 +297,8 @@ error_code validate(const document& value)
         if (!contains_virtual_kind(port.virtual_kind))
             return make_error_code(errc::config_error);
 
+        // Virtual and mock ports are made by Studio, so they must not have a
+        // uri; every other kind opens something and must have one.
         if (port.kind == "virtual" || port.kind == "mock")
         {
             if (!port.uri.empty())
@@ -315,10 +320,13 @@ error_code validate(const document& value)
                 return make_error_code(errc::config_error);
         }
 
+        // The serial settings have their own rules, shared with other code.
         if (const error_code settings_error = vss::validate(port.serial))
             return settings_error;
     }
 
+    // Links: the mode must be known and the delay within its limit, and
+    // jitter cannot exceed the delay.
     for (const auto& link : value.links)
     {
         if (!contains_link_mode(link.mode))
@@ -339,6 +347,7 @@ error_code validate(const document& value)
                 link.policy != merge_policy::interleave)
                 return make_error_code(errc::config_error);
 
+            // Each member must be a known port and may be listed once.
             std::set<std::string> members;
             for (const auto& name : link.members)
             {
@@ -349,11 +358,14 @@ error_code validate(const document& value)
             }
             continue;
         }
+        // Any other mode uses sources and targets, never members, and both
+        // sides need at least one port.
         if (!link.members.empty())
             return make_error_code(errc::config_error);
         if (link.sources.empty() || link.targets.empty())
             return make_error_code(errc::config_error);
 
+        // Every port a link names must exist in the document.
         for (const auto& name : link.sources)
         {
             if (names.find(name) == names.end())
@@ -365,6 +377,9 @@ error_code validate(const document& value)
                 return make_error_code(errc::not_found);
         }
 
+        // How many ports a side may have depends on the mode: one to one for
+        // duplex, redirect and monitor, one source for split and one target
+        // for join.
         if (link.mode == "duplex" || link.mode == "redirect"
             || link.mode == "monitor")
         {
@@ -465,6 +480,7 @@ result<document> from_json(std::string_view text)
 {
     VSS_PROFILE_ZONE("config.from_json");
 
+    // The text must be valid JSON with an object at the top level.
     boost::system::error_code ec;
     const json::value root = json::parse(text, ec);
     if (ec)
@@ -472,11 +488,14 @@ result<document> from_json(std::string_view text)
     if (!root.is_object())
         return make_error_code(errc::config_error);
 
+    // Name and description are optional; a missing name reads "untitled".
     const json::object& object = root.as_object();
     document out;
     out.name = string_member(object, "name", "untitled");
     out.description = string_member(object, "description");
 
+    // Ports: the list is optional, but if present it must be an array of
+    // objects.  Missing members take the defaults chosen here.
     const auto* ports = object.if_contains("ports");
     if (ports && !ports->is_array())
         return make_error_code(errc::config_error);
@@ -497,6 +516,8 @@ result<document> from_json(std::string_view text)
             port.mock_target = string_member(entry, "mock_target", "scripted");
             port.capture = bool_member(entry, "capture", true);
 
+            // A com_number must be an integer in the allowed range.  Whether
+            // the port may have one is decided later, in validate().
             if (const auto* number = entry.if_contains("com_number"))
             {
                 if (!number->is_int64() || number->as_int64() < min_com_number
@@ -516,6 +537,7 @@ result<document> from_json(std::string_view text)
         }
     }
 
+    // Links follow the same rule as ports: optional, but an array of objects.
     const auto* links = object.if_contains("links");
     if (links && !links->is_array())
         return make_error_code(errc::config_error);
@@ -534,6 +556,8 @@ result<document> from_json(std::string_view text)
             link.emulate_modem_lines =
                 bool_member(entry, "emulate_modem_lines", link.mode != "bus");
 
+            // A missing list reads as empty; a list of anything but strings
+            // is an error.  Which lists a mode needs is checked in validate().
             auto sources = string_array(entry, "sources");
             if (!sources)
                 return make_error_code(errc::config_error);
@@ -549,6 +573,7 @@ result<document> from_json(std::string_view text)
                 return make_error_code(errc::config_error);
             link.members = std::move(*members);
 
+            // The merge policy is either owner or interleave (the default).
             const std::string policy = string_member(entry, "policy", "interleave");
             if (policy == "owner")
                 link.policy = merge_policy::owner;
@@ -565,6 +590,8 @@ result<document> from_json(std::string_view text)
         }
     }
 
+    // Parsing only checks types; validate() checks that the document makes
+    // sense as a whole, so a caller never receives an invalid document.
     if (const error_code invalid = validate(out))
         return invalid;
     return out;

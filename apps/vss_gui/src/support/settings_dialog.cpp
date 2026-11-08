@@ -79,6 +79,11 @@ SettingsDialog::SettingsDialog(StudioBackend& backend,
 
 void SettingsDialog::build()
 {
+    // The dialog is built in four stages: window chrome and header, the
+    // section list and the stacked pages, then the signal connections that
+    // apply each change at once, and last the footer.
+    // Window chrome: accessible name, panel surface and the wide dialog width,
+    // which is also the minimum.
     setWindowTitle(QCoreApplication::translate("Settings", "Settings"));
     setAccessibleName(QCoreApplication::translate("Settings", "Settings"));
     setProperty("surface", QStringLiteral("panel"));
@@ -88,6 +93,9 @@ void SettingsDialog::build()
     setMinimumWidth(
         Theme::instance().metric(QStringLiteral("layout.dialogWidths.wide")));
 
+    // The outer layout has no margins so the header, content and footer can
+    // set their own padding. The header shows the title with the shortcut
+    // that opens this dialog.
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->setSpacing(0);
@@ -106,6 +114,7 @@ void SettingsDialog::build()
     header_layout->addWidget(shortcut, 0, Qt::AlignVCenter);
     outer->addWidget(header);
 
+    // The content row: the section list on the left, the pages on the right.
     auto* content = new QWidget(this);
     auto* content_layout = new QHBoxLayout(content);
     content_layout->setContentsMargins(0, 0, 0, 0);
@@ -138,12 +147,16 @@ void SettingsDialog::build()
                      hex(colour_role::accentSoft),
                      hex(colour_role::accentText)));
     };
+    // The stylesheet bakes in theme colours, so it is applied now and again
+    // whenever the theme changes.
     apply_nav_style();
     connect(&Theme::instance(), &Theme::theme_changed, nav,
             [apply_nav_style] { apply_nav_style(); });
     auto* nav_layout = new QVBoxLayout(nav);
     nav_layout->setContentsMargins(16, 4, 0, 16);
     nav_layout->setSpacing(2);
+    // One checkable button per section. The button id is the page index in
+    // the stack, and the first section starts selected.
     auto* group = new QButtonGroup(this);
     group->setExclusive(true);
     nav_ = group;
@@ -165,6 +178,9 @@ void SettingsDialog::build()
     nav_layout->addStretch(1);
     content_layout->addWidget(nav);
 
+    // Pages must be added in the same order as the sections above, since the
+    // button id doubles as the page index. Each page is wrapped in a scroll
+    // area by scroll_page().
     pages_ = new QStackedWidget(content);
     content_layout->addWidget(pages_, 1);
 
@@ -176,6 +192,8 @@ void SettingsDialog::build()
     general_layout->addWidget(section_title(
         QCoreApplication::translate("Settings", "General"), general));
 
+    // Advanced mode adds panels to the same window, so its hint says that
+    // nothing already built changes.
     advanced_ = new Switch(
         QCoreApplication::translate("Settings", "Advanced mode"), general);
     advanced_->setObjectName(QStringLiteral("advancedSwitch"));
@@ -189,6 +207,9 @@ void SettingsDialog::build()
         general);
     general_layout->addWidget(advanced_hint);
 
+    // The holder caps the width so the combo box does not stretch across
+    // the page. If the saved baud rate is not in the list, the combo box
+    // keeps its first entry.
     auto* baud_holder = new QWidget(general);
     baud_holder->setMaximumWidth(320);
     auto* baud_layout = new QVBoxLayout(baud_holder);
@@ -234,6 +255,8 @@ void SettingsDialog::build()
             "watching them."),
         running));
 
+    // Closing the window either keeps the ports running in the background
+    // or stops them and quits. Exactly one of the radio buttons is checked.
     auto* close_label = new QLabel(
         QCoreApplication::translate("Settings", "When I close the window"),
         running);
@@ -259,6 +282,8 @@ void SettingsDialog::build()
     running_layout->addWidget(close_background_);
     running_layout->addWidget(close_quit_);
 
+    // Start at sign-in depends on the build. Where it is not supported the
+    // switch is shown off and disabled, with the reason in a tooltip.
     sign_in_ = new Switch(
         QCoreApplication::translate("Settings", "Start when I sign in"),
         running);
@@ -287,6 +312,8 @@ void SettingsDialog::build()
     appearance_layout->addWidget(section_title(
         QCoreApplication::translate("Settings", "Appearance"), appearance));
 
+    // Theme: three radio buttons sharing one group. The bold caption font is
+    // reused for the other captions on this page.
     auto* theme_label = new QLabel(
         QCoreApplication::translate("Settings", "Theme"), appearance);
     theme_label->setFont(Theme::instance().font(text_style::caption));
@@ -295,6 +322,9 @@ void SettingsDialog::build()
     theme_label->setFont(theme_bold);
     appearance_layout->addWidget(theme_label);
 
+    // add_theme() makes one radio button. Only the button being switched on
+    // acts: it stores the mode and applies it, and the one switching off is
+    // ignored so the change is applied once.
     auto* theme_group = new QButtonGroup(this);
     theme_group->setExclusive(true);
     const auto add_theme = [this, appearance, theme_group](const QString& text,
@@ -326,6 +356,8 @@ void SettingsDialog::build()
     for (QRadioButton* radio : {theme_system_, theme_light_, theme_dark_})
         appearance_layout->addWidget(radio);
 
+    // Density: a two-way control, comfortable (id 0) or compact (id 1),
+    // applied as soon as it changes.
     auto* density_label = new QLabel(
         QCoreApplication::translate("Settings", "Density"), appearance);
     density_label->setFont(theme_bold);
@@ -350,6 +382,9 @@ void SettingsDialog::build()
     density_layout->addWidget(density_);
     appearance_layout->addWidget(density_holder);
 
+    // Text size, scale, contrast and motion are not Studio settings, so a
+    // banner sends the user to the system settings. If those cannot be
+    // opened, an error dialog says where to find them.
     auto* display_note = new NoteBanner(
         NoteBanner::kind::info,
         QCoreApplication::translate(
@@ -386,6 +421,9 @@ void SettingsDialog::build()
     performance_layout->addWidget(section_title(
         QCoreApplication::translate("Settings", "Performance"), performance));
 
+    // Refresh interval: a slider with its current value above it, and the
+    // two ends labelled below. The value label is set after the slider so
+    // both start from the saved setting.
     auto* refresh_holder = new QWidget(performance);
     refresh_holder->setMaximumWidth(460);
     auto* refresh_layout = new QVBoxLayout(refresh_holder);
@@ -442,6 +480,8 @@ void SettingsDialog::build()
     auto* profiling_layout = new QVBoxLayout(profiling_holder);
     profiling_layout->setContentsMargins(0, 0, 0, 0);
     profiling_layout->setSpacing(8);
+    // Two switches and a status line. The initial state is not set here:
+    // sync_profiling() fills it in once the connections below exist.
     profiling_ = new Switch(
         QCoreApplication::translate("Settings", "Record a performance trace"),
         profiling_holder);
@@ -466,6 +506,10 @@ void SettingsDialog::build()
     performance_layout->addStretch(1);
     pages_->addWidget(scroll_page(performance, pages_));
 
+    // The rest of the connections come last, after every control has its
+    // initial value, so setting up the pages does not fire them. Each one
+    // updates the settings and persist() saves them: there is no Apply
+    // button.
     connect(group, &QButtonGroup::idClicked, this,
             [this](int id) { select_page(id); });
     connect(advanced_, &Switch::toggled, this,
@@ -493,6 +537,9 @@ void SettingsDialog::build()
                 settings_.keep_running_on_close = on;
                 persist();
             });
+    // Starting at sign-in changes the operating system, so it can fail. On
+    // failure show the real state again, with signals blocked so that this
+    // does not recurse, and say that nothing changed.
     connect(sign_in_, &Switch::toggled, this,
             [this](bool on)
             {
@@ -518,6 +565,9 @@ void SettingsDialog::build()
             });
     apply_refresh();
 
+    // Profiling is owned by a process-wide controller. The switch asks it to
+    // start or stop, and its changed signal brings the switches and status
+    // text back in line, including changes made elsewhere.
     auto& profiling = ProfilingController::instance();
     connect(profiling_, &Switch::toggled, this,
             [this](bool on)
@@ -534,6 +584,8 @@ void SettingsDialog::build()
     sync_profiling();
     outer->addWidget(content, 1);
 
+    // Footer: a note that changes apply at once, then Reset to defaults and
+    // Close. Reset is not a default button, so Enter never wipes settings.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* immediate = new QLabel(
@@ -558,6 +610,8 @@ void SettingsDialog::build()
     footer_layout->addWidget(close);
     outer->addWidget(footer);
 
+    // Focus Close now and again once the event loop runs, in case showing
+    // the dialog moves focus elsewhere first.
     close->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, close,
                        [close] { close->setFocus(Qt::OtherFocusReason); });

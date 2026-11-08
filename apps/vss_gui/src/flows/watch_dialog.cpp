@@ -75,6 +75,8 @@ void WatchDialog::build()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(14);
 
+    // Port picker: every port the engine reports, labelled by path or as
+    // Studio only.
     port_ = new QComboBox(this);
     port_->setObjectName(QStringLiteral("watchPort"));
     port_->setAccessibleName(tr("Port to watch"));
@@ -94,6 +96,8 @@ void WatchDialog::build()
         tr("Port to watch"), port_,
         ports.empty() ? QString() : other_ports_reason(others), this));
 
+    // The watcher is a new port. Its name is suggested from the chosen port
+    // until the user types their own (see name_auto_).
     name_ = new QLineEdit(this);
     name_->setObjectName(QStringLiteral("watchName"));
     name_->setAccessibleName(tr("Name of the watcher"));
@@ -109,6 +113,7 @@ void WatchDialog::build()
     open_monitor_->setAccessibleName(tr("Open the monitor when it is ready"));
     layout->addWidget(open_monitor_);
 
+    // Explanatory text; update_for_source() sets it for the chosen port.
     info_ = new QLabel(this);
     info_->setObjectName(QStringLiteral("watchInfo"));
     info_->setTextFormat(Qt::RichText);
@@ -136,6 +141,7 @@ void WatchDialog::build()
     card_layout->addWidget(card_text, 1);
     layout->addWidget(card);
 
+    // Warning shown only when this build cannot link ports.
     unavailable_ =
         new NoteBanner(NoteBanner::kind::warn,
                        tr("Watching is not available in this build."), this);
@@ -146,6 +152,8 @@ void WatchDialog::build()
 
     body_layout()->addLayout(layout);
 
+    // Changing the port refreshes the suggested name and info. Typing in the
+    // name stops the automatic naming.
     connect(port_, &QComboBox::currentIndexChanged, this,
             [this]
             {
@@ -166,6 +174,8 @@ void WatchDialog::build()
                 update_primary_state();
             });
 
+    // Explain an empty list, and warn when this build has no link support,
+    // which watching needs.
     if (ports.empty())
         show_empty_state(others, layout);
     if (!backend_.caps().links)

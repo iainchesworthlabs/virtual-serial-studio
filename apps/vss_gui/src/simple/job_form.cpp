@@ -441,6 +441,8 @@ QStringList JobForm::end_names(const std::vector<end_plan>& ends) const
 void JobForm::build()
 {
     VSS_PROFILE_ZONE("gui.simple.job_form.build");
+    // The form is two parts: a header that stays put and a scrolling body.
+    // Which fields the body holds depends on the job (kind_).
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->setSpacing(0);
@@ -460,6 +462,8 @@ void JobForm::build()
     back->setObjectName(QStringLiteral("jobFormBack"));
     connect(back, &QPushButton::clicked, this, [this] { Q_EMIT cancelled(); });
     titles->addWidget(back, 0, Qt::AlignLeft);
+    // When changing an existing setup the title names it: its saved name if
+    // it has one, otherwise a description built from its ports.
     QString heading = job_title(kind_);
     if (previous_)
         heading =
@@ -476,6 +480,9 @@ void JobForm::build()
     set_role(cancel, "secondary");
     connect(cancel, &QPushButton::clicked, this,
             [this] { Q_EMIT cancelled(); });
+    // The same button creates a new setup or applies a change. It is the
+    // default, so Enter submits; validate() enables it only when nothing
+    // blocks the job.
     create_ = new QPushButton(editing() ? tr("Apply") : tr("Create"), header);
     create_->setObjectName(QStringLiteral("jobFormCreate"));
     set_role(create_, "primary");
@@ -496,6 +503,8 @@ void JobForm::build()
     layout->setContentsMargins(24, 8, 24, 24);
     layout->setSpacing(12);
 
+    // The blocker label says why Create is disabled, if it is. It and the
+    // diagram below follow the answers (see validate and update_all).
     blocker_label_ = hint_label({}, body);
     blocker_label_->setObjectName(QStringLiteral("jobFormBlocker"));
     layout->addWidget(blocker_label_);
@@ -503,6 +512,8 @@ void JobForm::build()
     diagram_ = new WireDiagram(body);
     layout->addWidget(diagram_);
 
+    // The program and device rows live in ends_ and are thrown away and built
+    // again by rebuild_ends() whenever their number or kind changes.
     ends_ = new QWidget(body);
     ends_layout_ = new QVBoxLayout(ends_);
     ends_layout_->setContentsMargins(0, 0, 0, 0);
@@ -511,6 +522,8 @@ void JobForm::build()
 
     if (kind_ == job::port)
     {
+        // A single port also asks what is on the other end: the user typing
+        // to it, or everything sent being echoed straight back.
         layout->addWidget(group_label(tr("On the other end"), body));
         answer_type_ = new PickCard(
             tr("I'll type to it from this window"),
@@ -528,6 +541,8 @@ void JobForm::build()
         group->addButton(answer_echo_->radio());
         answer_type_->set_selected(!plan_.echo);
         answer_echo_->set_selected(plan_.echo);
+        // Echo needs fixture support. Where the build lacks it, the choice
+        // is still shown but cannot be picked.
         if (!backend_.caps().fixture_echo)
         {
             answer_echo_->setEnabled(false);
@@ -546,6 +561,7 @@ void JobForm::build()
 
     if (kind_ == job::network)
     {
+        // A network job asks for the TCP port other computers connect to.
         layout->addWidget(group_label(tr("Other computers connect to"), body));
         auto* row = new QHBoxLayout();
         auto* label = new QLabel(tr("Network port"), body);
@@ -593,6 +609,8 @@ void JobForm::build()
                                  "garbled later, this is usually why."),
                               device_fields_));
 
+    // The less common line settings are tucked into a disclosure, so the baud
+    // rate, which is the one most people need, stands alone above them.
     auto* more = new Disclosure(tr("Other device settings"), device_fields_);
     auto* more_body = new QWidget(more);
     auto* more_layout = new QFormLayout(more_body);
@@ -628,6 +646,8 @@ void JobForm::build()
     more_layout->addRow(tr("Flow control"), flow_);
     more->set_content(more_body);
     fields->addRow(more);
+    // The four secondary settings share one handler that copies all of them
+    // into the plan, rather than one handler each.
     const auto settings_changed = [this]
     {
         plan_.serial.data_bits = data_bits_->currentData().toUInt();
@@ -642,6 +662,8 @@ void JobForm::build()
         connect(combo, &QComboBox::currentIndexChanged, this, settings_changed);
     layout->addWidget(device_fields_);
 
+    // The name is kept in the preferences rather than the plan, and is trimmed
+    // as it is typed.
     auto* name_row = new QFormLayout();
     name_ = new QLineEdit(prefs_.name, body);
     name_->setObjectName(QStringLiteral("jobFormName"));
@@ -689,6 +711,9 @@ void JobForm::build()
         }
     }
 
+    // The banners at the foot start empty. The changes summary is only
+    // shown when editing, and the error banner stays hidden until a submit
+    // fails.
     changes_ = new NoteBanner(NoteBanner::kind::info, {}, body);
     changes_->setObjectName(QStringLiteral("jobFormChanges"));
     changes_->setVisible(editing());
@@ -704,6 +729,7 @@ void JobForm::build()
     layout->addWidget(error_);
     layout->addStretch(1);
 
+    // Build the end rows last, when everything they report into exists.
     rebuild_ends();
 }
 
@@ -889,8 +915,13 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
     auto* layout = new QVBoxLayout(row);
     layout->setContentsMargins(12, 8, 12, 8);
     layout->setSpacing(6);
+    // One row for a device end. The handlers below look the end up again by
+    // index instead of holding a reference, so they stay valid after the
+    // list changes.
     end_plan& end = list(second)[static_cast<std::size_t>(index)];
 
+    // Where this device is: plugged into this PC, or reached over the network.
+    // Only offered when the job allows a network device.
     if (allow_network)
     {
         auto* where = new SegmentedControl(row);
@@ -904,11 +935,16 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
                 {
                     end_plan& changed =
                         list(second)[static_cast<std::size_t>(index)];
+                    // Changing the kind of device drops any existing port
+                    // this row was bound to, and picks a free local device
+                    // when none is set.
                     changed.existing = 0;
                     changed.what = id == 1 ? end_plan::kind::network_device
                                            : end_plan::kind::device;
                     if (id == 0 && changed.device_path.isEmpty())
                         changed.device_path = free_devices().value(0);
+                    // Rebuild on the next event-loop turn, not inside this
+                    // control's own signal handler.
                     QTimer::singleShot(0, this,
                                        [this]
                                        {
@@ -919,6 +955,8 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
         layout->addWidget(where, 0, Qt::AlignLeft);
     }
 
+    // A network device is an address, a port and a protocol. Editing any
+    // of them makes it a new device, so the existing binding is dropped.
     if (end.what == end_plan::kind::network_device)
     {
         auto* line = new QHBoxLayout();
@@ -949,6 +987,8 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
                 });
         auto* protocol = new QComboBox(row);
         protocol->setAccessibleName(tr("How it talks"));
+        // The item data is whether the box speaks RFC 2217, which lets
+        // programs change the baud rate.
         protocol->addItem(QStringLiteral("TCP"), false);
         protocol->addItem(QStringLiteral("RFC 2217"), true);
         protocol->setCurrentIndex(end.rfc2217 ? 1 : 0);
@@ -976,9 +1016,12 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
         auto* device = new QComboBox(row);
         device->setObjectName(QStringLiteral("jobFormDevice"));
         device->setAccessibleName(tr("Device"));
+        // List the free local devices, keeping the one already chosen even
+        // if it is no longer free, so the row does not silently change.
         QStringList choices = free_devices();
         if (!end.device_path.isEmpty() && !choices.contains(end.device_path))
             choices.prepend(end.device_path);
+        // Show each device's description beside its path when it is known.
         const auto devices = backend_.devices();
         for (const QString& path : choices)
         {
@@ -1016,6 +1059,7 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
                 });
         line->addWidget(device, 1);
         line->addWidget(refresh);
+        // A remove button is only offered while the list is above its minimum.
         const auto list_spec_value = spec(second);
         if (list_spec_value &&
             static_cast<int>(list(second).size()) > list_spec_value->min)

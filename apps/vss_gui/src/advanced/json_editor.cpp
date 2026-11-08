@@ -205,6 +205,7 @@ void TopologyJsonEditor::build()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
+    // Toolbar across the top: document status, a hint, then the three actions.
     auto* toolbar = new QWidget(this);
     auto* toolbar_layout = new QHBoxLayout(toolbar);
     toolbar_layout->setContentsMargins(12, 6, 12, 6);
@@ -225,6 +226,7 @@ void TopologyJsonEditor::build()
     toolbar_layout->addWidget(caption_, 1);
     toolbar_layout->addStretch(0);
 
+    // Revert, Format and Apply use the small button size; Apply is primary.
     revert_ = make_button(tr("Revert"), nullptr, toolbar);
     revert_->setProperty("size", QStringLiteral("small"));
     polish(revert_);
@@ -248,15 +250,19 @@ void TopologyJsonEditor::build()
     toolbar_layout->addWidget(apply_);
     layout->addWidget(toolbar);
 
+    // Body: the editor takes the spare width, with a side panel to its right.
     auto* body = new QHBoxLayout();
     body->setContentsMargins(0, 0, 0, 0);
     body->setSpacing(0);
 
+    // Every edit schedules a re-validation (see schedule_validation()).
     editor_ = new JsonCodeEdit(this);
     connect(editor_, &QPlainTextEdit::textChanged, this,
             &TopologyJsonEditor::schedule_validation);
     body->addWidget(editor_, 1);
 
+    // Side panel: the command the topology runs with, the validation checks
+    // and an error box.  The fixed minimum width stops it being squeezed.
     auto* side = new QFrame(this);
     side->setObjectName(QStringLiteral("jsonSidePanel"));
     side->setFrameShape(QFrame::NoFrame);
@@ -273,6 +279,8 @@ void TopologyJsonEditor::build()
             &TopologyJsonEditor::message);
     side_layout->addWidget(command_);
 
+    // The check rows are not built here; the validation pass fills
+    // checks_holder_ each time it runs.
     auto* checks_box = new QWidget(side);
     auto* checks_layout = new QVBoxLayout(checks_box);
     checks_layout->setContentsMargins(0, 0, 0, 0);
@@ -288,12 +296,16 @@ void TopologyJsonEditor::build()
     checks_layout->addWidget(checks_holder_);
     side_layout->addWidget(checks_box);
 
+    // The error panel stays hidden until validation or Apply reports a
+    // problem.
     error_panel_ = build_error_panel();
     side_layout->addWidget(error_panel_);
     side_layout->addStretch(1);
     body->addWidget(side, 0);
     layout->addLayout(body, 1);
 
+    // The side panel's background is a palette colour, so set it now and
+    // again whenever the theme changes.
     repaint_on_theme_change(this);
     connect(&Theme::instance(), &Theme::theme_changed, this,
             [side]

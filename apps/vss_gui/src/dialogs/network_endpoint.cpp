@@ -127,6 +127,8 @@ void NetworkEndpointDialog::build()
     prepare_dialog(this, tr("Put a device on the network"), 760, 760);
     setMinimumWidth(640);
 
+    // The dialog is a fixed header, a scrolling body of settings and a footer
+    // holding the buttons.
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(24, 24, 24, 0);
     outer->setSpacing(12);
@@ -142,6 +144,7 @@ void NetworkEndpointDialog::build()
         this));
     outer->addLayout(header);
 
+    // Everything the user can set lives in the scrolling body.
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -152,6 +155,7 @@ void NetworkEndpointDialog::build()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(14);
 
+    // Which real serial device to share.
     device_combo_ = new QComboBox(body);
     device_combo_->setObjectName(QStringLiteral("networkDeviceCombo"));
     device_row_ =
@@ -159,6 +163,8 @@ void NetworkEndpointDialog::build()
                     tr("A real serial device plugged into this PC."), body);
     layout->addWidget(device_row_);
 
+    // Transport choice. The ids 0, 1 and 2 are cast straight to
+    // network_transport by the current_changed handler below.
     auto* transport_section = new QVBoxLayout();
     transport_section->setContentsMargins(0, 0, 0, 0);
     transport_section->setSpacing(6);
@@ -172,6 +178,7 @@ void NetworkEndpointDialog::build()
     transport_section->addWidget(transport_control_);
     layout->addLayout(transport_section);
 
+    // Server or client role. update_role_ui() shows the matching address page.
     role_row_ = new QWidget(body);
     auto* role_layout = new QHBoxLayout(role_row_);
     role_layout->setContentsMargins(0, 0, 0, 0);
@@ -188,6 +195,8 @@ void NetworkEndpointDialog::build()
     role_layout->addStretch(1);
     layout->addWidget(role_row_);
 
+    // Address row: one page per role (listen address for a server, remote
+    // address for a client) with the port field beside it.
     auto* address_grid = new QGridLayout();
     address_grid->setContentsMargins(0, 0, 0, 0);
     address_grid->setHorizontalSpacing(12);
@@ -240,6 +249,7 @@ void NetworkEndpointDialog::build()
     address_grid->setColumnStretch(0, 1);
     layout->addLayout(address_grid);
 
+    // Guidance, a live result sentence and the warnings that may apply.
     hint_ = new QLabel(
         tr("Choose This PC only (127.0.0.1) to test from this machine first."),
         body);
@@ -252,6 +262,7 @@ void NetworkEndpointDialog::build()
     result_->setObjectName(QStringLiteral("networkResult"));
     layout->addWidget(result_);
 
+    // Shown when this build cannot wait for connections (no server role).
     capability_note_ = new NoteBanner(NoteBanner::kind::warn, {}, body);
     capability_note_->set_text(
         tr("This build can connect to a server, but cannot wait for other "
@@ -259,6 +270,8 @@ void NetworkEndpointDialog::build()
     capability_note_->hide();
     layout->addWidget(capability_note_);
 
+    // The firewall note and button are only shown on Windows when other
+    // computers can reach the port; update_role_ui() decides.
     firewall_note_ = new NoteBanner(
         NoteBanner::kind::warn,
         tr("Allow Virtual Serial Studio through Windows Firewall, or other "
@@ -286,6 +299,7 @@ void NetworkEndpointDialog::build()
     connect(firewall_button_, &QPushButton::clicked, this,
             [this] { show_firewall_dialog(); });
     layout->addWidget(firewall_button_, 0, Qt::AlignLeft);
+    // RFC 2217 has no password, so warn when the address is open to anyone.
     open_note_ = new NoteBanner(
         NoteBanner::kind::warn,
         tr("RFC 2217 has no password. Anyone who can reach this port can use "
@@ -296,6 +310,8 @@ void NetworkEndpointDialog::build()
     open_note_->hide();
     layout->addWidget(open_note_);
 
+    // Address card: the generated address, an optional manual override and the
+    // equivalent command line.
     auto* address_card = new QFrame(body);
     address_card->setProperty("card", true);
     polish(address_card);
@@ -320,6 +336,8 @@ void NetworkEndpointDialog::build()
                              tr("Address"));
     address_layout->addWidget(address_block_);
 
+    // Editor for overriding the generated address; while it is edited its
+    // text wins over the fields above.
     override_panel_ = new QWidget(address_card);
     auto* override_layout = new QVBoxLayout(override_panel_);
     override_layout->setContentsMargins(0, 0, 0, 0);
@@ -347,6 +365,7 @@ void NetworkEndpointDialog::build()
     address_layout->addWidget(command_block_);
     layout->addWidget(address_card);
 
+    // Errors from submitting appear at the end of the body.
     error_ = new InlineError(body);
     layout->addWidget(error_);
     layout->addStretch(1);
@@ -354,6 +373,8 @@ void NetworkEndpointDialog::build()
     scroll->setWidget(body);
     outer->addWidget(scroll, 1);
 
+    // Footer: the test shortcut, then Cancel and the default Start bridge
+    // button.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     test_ = make_dialog_action_button(tr("Test from this PC first"), "quiet",
@@ -369,6 +390,8 @@ void NetworkEndpointDialog::build()
     footer_layout->addWidget(primary_);
     outer->addWidget(footer);
 
+    // Wire up the controls. Each edit clears any old error and refreshes the
+    // result sentence and the address blocks.
     connect(transport_control_, &SegmentedControl::current_changed, this,
             [this](int id)
             {
@@ -436,6 +459,8 @@ void NetworkEndpointDialog::build()
                 update_result();
                 update_address_blocks();
             });
+    // Entering edit mode seeds the override with the current address; leaving
+    // it drops the override so the fields rule again.
     connect(edit_address_, &QPushButton::toggled, this,
             [this](bool editing)
             {
@@ -464,6 +489,8 @@ void NetworkEndpointDialog::build()
                 update_result();
                 update_address_blocks();
             });
+    // Test from this PC first: switch to server mode on 127.0.0.1 without
+    // firing the radio handler, then update the UI once.
     connect(test_, &QPushButton::clicked, this,
             [this]
             {

@@ -104,6 +104,8 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
                    QWidget* parent)
     : QDialog(parent), item_(item), ports_(ports)
 {
+    // The title, name and surface style make this a panel-style dialog; the
+    // title doubles as the accessible name.
     const QString title = tr("Add %1").arg(item_label(item).toLower());
     setWindowTitle(title);
     setAccessibleName(title);
@@ -116,6 +118,8 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     layout->setContentsMargins(16, 16, 16, 16);
     layout->setSpacing(12);
 
+    // Top to bottom: heading and description, the count (if it can vary), one
+    // row per port, optional line settings, an error banner and the buttons.
     auto* heading = new QHBoxLayout();
     heading->setSpacing(8);
     auto* icon = new QLabel(this);
@@ -132,6 +136,8 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     description->setProperty("muted", true);
     layout->addWidget(description);
 
+    // The count box is only shown when the item can have a varying number of
+    // ports. Changing it rebuilds the rows.
     if (minimum_count(item) != maximum_count(item))
     {
         count_ = new QSpinBox(this);
@@ -144,6 +150,8 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
                 [this](int value) { rebuild_rows(slot_count(item_, value)); });
     }
 
+    // The rows are made and replaced by rebuild_rows(), so they get a host of
+    // their own to be built into.
     rows_host_ = new QWidget(this);
     grid_ = new QGridLayout(rows_host_);
     grid_->setContentsMargins(0, 0, 0, 0);
@@ -151,6 +159,8 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     grid_->setVerticalSpacing(8);
     layout->addWidget(rows_host_);
 
+    // Baud rate and framing are rarely needed, so they sit behind a toggle
+    // that is closed at first.
     more_ = new QToolButton(this);
     more_->setObjectName(QStringLiteral("addSheetMore"));
     more_->setText(tr("More settings"));
@@ -168,6 +178,7 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     for (const int value : {9600, 19200, 38400, 57600, 115200, 230400})
         baud_->addItem(QString::number(value), value);
     baud_->setCurrentText(QStringLiteral("115200"));
+    // The baud rate can be typed as well as chosen, within a sane range.
     baud_->setValidator(new QIntValidator(50, 4'000'000, baud_));
     framing_ = new QComboBox(settings_);
     framing_->setAccessibleName(tr("Framing"));
@@ -185,6 +196,7 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
                 adjustSize();
             });
 
+    // The error banner stays hidden until show_error() has something to say.
     error_ = new NoteBanner(NoteBanner::kind::danger, {}, this);
     error_->setObjectName(QStringLiteral("addSheetError"));
     error_->hide();
@@ -195,6 +207,7 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     auto* cancel = new QPushButton(tr("Cancel"), this);
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     buttons->addWidget(cancel);
+    // Add is the default button, so Enter adds; update_state() enables it.
     add_ = new QPushButton(tr("Add"), this);
     add_->setObjectName(QStringLiteral("addSheetAdd"));
     set_role(add_, "primary");
@@ -203,6 +216,7 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     buttons->addWidget(add_);
     layout->addLayout(buttons);
 
+    // Make the first set of rows now that the widgets they update exist.
     rebuild_rows(slot_count(item, default_count(item)));
 }
 
@@ -228,6 +242,8 @@ void AddSheet::rebuild_rows(int slots)
     }
     rows_.clear();
 
+    // Defaults for rows that did not exist before, plus the names already in
+    // use so new ones do not clash with them.
     bundle_request fresh = default_request(
         item_, ports_,
         count_ != nullptr ? count_->value() : default_count(item_));
@@ -235,6 +251,8 @@ void AddSheet::rebuild_rows(int slots)
     for (const bundle_slot& slot : kept)
         taken.append(slot.name);
 
+    // Build one row per slot: label, kind chooser and name box. The kind
+    // chooser lists the three new kinds, then every existing port.
     for (int index = 0; index < slots; ++index)
     {
         row line;
@@ -251,6 +269,8 @@ void AddSheet::rebuild_rows(int slots)
         line.name->setAccessibleName(
             tr("%1 name").arg(slot_label(item_, index, slots)));
 
+        // A row that was already there keeps what it had; the others take
+        // the default.
         bundle_slot slot =
             index < kept.size() ? kept[index] : fresh.slots.value(index);
         if (index >= kept.size())
@@ -265,6 +285,8 @@ void AddSheet::rebuild_rows(int slots)
                                        taken);
             taken.append(slot.name);
         }
+        // Select the matching kind: indexes 0 to 2 are the new kinds, in the
+        // order added above, and an existing port is found by its name.
         switch (slot.kind)
         {
         case slot_kind::new_port:
@@ -283,6 +305,7 @@ void AddSheet::rebuild_rows(int slots)
         }
         if (slot.kind != slot_kind::existing)
             line.name->setText(slot.name);
+        // Items that only ever make one kind of port have nothing to choose.
         line.kind->setVisible(!single_kind(item_));
 
         grid_->addWidget(line.label, index, 0);
@@ -290,6 +313,8 @@ void AddSheet::rebuild_rows(int slots)
         grid_->addWidget(line.name, index, 2);
         rows_.append(line);
 
+        // Changing a row's kind may rename it and show or hide its name box;
+        // any change revalidates the whole sheet.
         const int position = index;
         connect(line.kind, &QComboBox::currentIndexChanged, this,
                 [this, position]
@@ -302,6 +327,8 @@ void AddSheet::rebuild_rows(int slots)
                 [this] { update_state(); });
         sync_name_visibility(index);
     }
+    // Let the name column take the width, then size the dialog to fit and put
+    // focus on the first name.
     grid_->setColumnStretch(2, 1);
     update_state();
     adjustSize();

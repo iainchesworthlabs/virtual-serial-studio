@@ -105,6 +105,8 @@ void ShortcutsDialog::build()
 {
     VSS_PROFILE_ZONE("gui.support.shortcuts.build");
     VSS_PROFILE_MESSAGE("gui.dialog.shortcuts.opened");
+    // Window chrome: accessible name, panel surface and the wide dialog
+    // width, which is also the minimum.
     setWindowTitle(
         QCoreApplication::translate("Shortcuts", "Keyboard shortcuts"));
     setAccessibleName(
@@ -116,6 +118,9 @@ void ShortcutsDialog::build()
     setMinimumWidth(
         Theme::instance().metric(QStringLiteral("layout.dialogWidths.wide")));
 
+    // The outer layout has no margins so the header, body and footer can set
+    // their own padding. The header holds the heading and the filter box side
+    // by side.
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->setSpacing(0);
@@ -135,6 +140,8 @@ void ShortcutsDialog::build()
         header);
     header_layout->addLayout(heading, 1);
 
+    // The filter box has a leading search icon and a clear button. Typing
+    // re-filters the table through set_filter().
     filter_ = new QLineEdit(header);
     filter_->setObjectName(QStringLiteral("shortcutFilter"));
     filter_->setPlaceholderText(
@@ -154,6 +161,7 @@ void ShortcutsDialog::build()
     header_layout->addWidget(filter_, 0, Qt::AlignVCenter);
     outer->addWidget(header);
 
+    // Body: a group label over the shortcut table.
     auto* body = new QWidget(this);
     auto* body_layout = new QVBoxLayout(body);
     body_layout->setContentsMargins(24, 4, 24, 16);
@@ -161,6 +169,8 @@ void ShortcutsDialog::build()
     body_layout->addWidget(new GroupLabel(
         QCoreApplication::translate("Shortcuts", "Available today"), body));
 
+    // Three columns: the action stretches and the two shortcut columns keep
+    // a fixed width. The table starts empty; rebuild() fills the rows.
     table_ = new QTableWidget(0, 3, body);
     table_->setObjectName(QStringLiteral("shortcutTable"));
     table_->setAccessibleName(
@@ -178,6 +188,7 @@ void ShortcutsDialog::build()
                                                     Qt::AlignVCenter);
     table_->horizontalHeader()->setFont(
         Theme::instance().font(text_style::group));
+    // The table is read-only: rows can be selected for reading, not edited.
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
     table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -189,6 +200,7 @@ void ShortcutsDialog::build()
     body_layout->addWidget(table_, 1);
     outer->addWidget(body, 1);
 
+    // Footer: a note on the left, inserted before the button, and Close.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* note = new QLabel(
@@ -210,6 +222,8 @@ void ShortcutsDialog::build()
     footer_layout->addWidget(close);
     outer->addWidget(footer);
 
+    // Focus the filter now and again once the event loop runs, in case
+    // showing the dialog moves focus elsewhere first.
     filter_->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, filter_,
                        [this] { filter_->setFocus(Qt::OtherFocusReason); });

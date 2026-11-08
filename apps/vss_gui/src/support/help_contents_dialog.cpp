@@ -41,6 +41,8 @@ void HelpContentsDialog::build()
 {
     VSS_PROFILE_ZONE("gui.support.help.build");
     VSS_PROFILE_MESSAGE("gui.dialog.help.opened");
+    // Window chrome: accessible name, panel surface and the small dialog
+    // width, which is also the minimum.
     setWindowTitle(QCoreApplication::translate("Help", "Help contents"));
     setAccessibleName(QCoreApplication::translate("Help", "Help contents"));
     setProperty("surface", QStringLiteral("panel"));
@@ -51,6 +53,8 @@ void HelpContentsDialog::build()
     setMinimumWidth(
         Theme::instance().metric(QStringLiteral("layout.dialogWidths.small")));
 
+    // The outer layout has no margins so the header, body and footer can set
+    // their own padding. Header first: the dialog heading.
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->setSpacing(0);
@@ -66,11 +70,14 @@ void HelpContentsDialog::build()
         header);
     outer->addWidget(header);
 
+    // Body: one card per help topic.
     auto* body = new QWidget(this);
     auto* body_layout = new QVBoxLayout(body);
     body_layout->setContentsMargins(24, 4, 24, 16);
     body_layout->setSpacing(8);
 
+    // Titles and descriptions are marked for translation here and translated
+    // by t() when the card is built.
     struct topic
     {
         help_topic value{};
@@ -97,6 +104,8 @@ void HelpContentsDialog::build()
 
     for (const topic& item : topics)
     {
+        // Each card is a title and a muted description on the left and an
+        // Open button on the right.
         auto* card = new QFrame(body);
         card->setProperty("card", true);
         polish(card);
@@ -120,17 +129,24 @@ void HelpContentsDialog::build()
         card_layout->addLayout(column, 1);
         auto* open = make_dialog_button(
             QCoreApplication::translate("Help", "Open"), nullptr, card);
+        // Close is the default button, not Open. The topic goes in the
+        // accessible name so a screen reader can tell the Open buttons apart.
         open->setAutoDefault(false);
         open->setAccessibleName(tr("%1: %2").arg(
             QCoreApplication::translate("Help", "Open"), t(item.title)));
+        // Capture the topic by value: item is gone once the loop ends.
         connect(open, &QPushButton::clicked, this,
                 [this, value = item.value] { choose(value); });
         card_layout->addWidget(open, 0, Qt::AlignVCenter);
         body_layout->addWidget(card);
     }
+    // The stretch keeps the cards at the top when the dialog is resized
+    // taller.
     body_layout->addStretch(1);
     outer->addWidget(body, 1);
 
+    // Footer with a single Close button, which accepts the dialog without
+    // choosing a topic.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* close = make_dialog_button(
@@ -140,6 +156,8 @@ void HelpContentsDialog::build()
     footer_layout->addWidget(close);
     outer->addWidget(footer);
 
+    // Focus Close now and again once the event loop runs, in case showing
+    // the dialog moves focus elsewhere first.
     close->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, close,
                        [close] { close->setFocus(Qt::OtherFocusReason); });

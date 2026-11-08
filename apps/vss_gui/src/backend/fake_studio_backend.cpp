@@ -838,16 +838,22 @@ vss::config::document FakeStudioBackend::snapshot() const
 vss::result<void>
 FakeStudioBackend::apply(const vss::config::document& document, bool)
 {
+    // Fail first if a test queued an error, then reject an invalid document.
+    // Nothing is changed until the whole document has been built.
     if (const auto error = take_error())
         return *error;
     if (const vss::error_code invalid = vss::config::validate(document))
         return invalid;
 
+    // Build the new ports and links on the side.  names maps each port name
+    // in the document to the id it was given, for resolving links.
     std::vector<port_view> next_ports;
     std::vector<link_view> next_links;
     std::vector<std::pair<std::string, vss::endpoint_id>> names;
     vss::endpoint_id next_port = 1;
 
+    // Ports: every port starts open, numbered from 1.  A mock port has no
+    // control lines.
     for (const auto& entry : document.ports)
     {
         port_view view;
@@ -857,6 +863,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         view.state = vss::endpoint_state::open;
         view.open = true;
         view.supports_control_lines = entry.kind != "mock";
+        // The path shown depends on the kind: a loopback exists only inside
+        // Studio, and a mock port is shown by its target.
         if (entry.kind == "virtual")
         {
             view.kind = vss::endpoint_kind::virtual_port;
@@ -873,6 +881,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         }
         else
         {
+            // Physical and network ports use their uri as the path; the
+            // kind comes from the document's kind name.
             view.path = QString::fromStdString(entry.uri);
             const auto kind = vss::config::to_endpoint_kind(entry.kind);
             if (!kind)
@@ -883,6 +893,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         next_ports.push_back(std::move(view));
     }
 
+    // Links: numbered from 1, with ports looked up by name.  A name that no
+    // port has is a config error.
     vss::link_id next_link = 1;
     for (const auto& entry : document.links)
     {
@@ -901,6 +913,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         view.id = next_link++;
         view.options.emulate_modem_lines = entry.emulate_modem_lines;
         view.options.policy = entry.policy;
+        // Map the document's mode name to a shape.  Any other mode is
+        // one-way.  A bus needs a backend that supports shared buses.
         if (entry.mode == "duplex")
             view.shape = link_shape::two_way;
         else if (entry.mode == "split")
@@ -917,6 +931,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         }
         else
             view.shape = link_shape::one_way;
+        // Derive the direction of data flow from the shape: join, one-way
+        // and monitor links run one way and the rest are duplex.
         view.mode = view.shape == link_shape::bus ? vss::link_mode::bus
                     : view.shape == link_shape::join ||
                             view.shape == link_shape::one_way ||
@@ -924,6 +940,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
                         ? vss::link_mode::one_way
                         : vss::link_mode::duplex;
 
+        // The members of a bus are stored as sources, since a bus has no
+        // separate targets.
         for (const auto& name : entry.members)
         {
             const auto id = resolve(name);
@@ -949,6 +967,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         next_links.push_back(std::move(view));
     }
 
+    // Success: replace the old state in one step, so a failure above leaves
+    // it untouched.  The old wiring belongs to the old links, so drop it.
     ports_ = std::move(next_ports);
     links_ = std::move(next_links);
     wiring_.clear();

@@ -88,6 +88,7 @@ std::optional<network_endpoint> parse_network_uri(const QString& text,
     VSS_PROFILE_ZONE_TEXT(kProfileZone, text.toStdString());
     if (error != nullptr)
         error->clear();
+    // Every address needs a scheme followed by ://.
     const QString value = text.trimmed();
     const qsizetype scheme_end = value.indexOf(QStringLiteral("://"));
     if (scheme_end <= 0)
@@ -97,6 +98,8 @@ std::optional<network_endpoint> parse_network_uri(const QString& text,
         return std::nullopt;
     }
 
+    // Map the scheme to a transport. A -listen suffix means this side is the
+    // server; otherwise it is the client.
     const QString scheme = value.left(scheme_end);
     network_endpoint endpoint;
     endpoint.role = network_role::client;
@@ -128,6 +131,8 @@ std::optional<network_endpoint> parse_network_uri(const QString& text,
         return std::nullopt;
     }
 
+    // Only the host and port matter here, so ignore any query string such as
+    // ?allow=...
     QString rest = value.mid(scheme_end + 3);
     const qsizetype query = rest.indexOf(QLatin1Char('?'));
     if (query >= 0)
@@ -139,6 +144,8 @@ std::optional<network_endpoint> parse_network_uri(const QString& text,
         return std::nullopt;
     }
 
+    // Split host from port. A bracketed host is IPv6, so its port follows ]:
+    // otherwise the port follows the last colon.
     QString host;
     QString port_text;
     if (rest.startsWith(QLatin1Char('[')))
@@ -167,6 +174,8 @@ std::optional<network_endpoint> parse_network_uri(const QString& text,
         port_text = rest.mid(colon + 1);
     }
 
+    // Check the port, then reject empty hosts and hosts containing spaces or
+    // slashes.
     int port = 0;
     if (!parse_port(port_text, port))
     {
@@ -182,6 +191,7 @@ std::optional<network_endpoint> parse_network_uri(const QString& text,
         return std::nullopt;
     }
 
+    // Only a fully valid address reaches this point.
     endpoint.host = std::move(host);
     endpoint.port = port;
     return endpoint;

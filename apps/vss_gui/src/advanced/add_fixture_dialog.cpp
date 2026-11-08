@@ -58,6 +58,7 @@ void AddFixtureDialog::build()
         tr("A pretend device you can script, for testing without hardware."),
         this, true, {}));
 
+    // Name and baud rate share one row; the name column takes the spare width.
     auto* fields = new QGridLayout();
     fields->setContentsMargins(0, 0, 0, 0);
     fields->setHorizontalSpacing(12);
@@ -78,6 +79,8 @@ void AddFixtureDialog::build()
     fields->setColumnMinimumWidth(1, 200);
     layout->addLayout(fields);
 
+    // The port to attach the fixture to.  Id 0 stands for "no port", so the
+    // fixture can be added now and linked later.
     target_ = new QComboBox(this);
     target_->setAccessibleName(tr("Connect it to"));
     target_->addItem(tr("Nothing yet"), static_cast<qulonglong>(0));
@@ -90,6 +93,7 @@ void AddFixtureDialog::build()
                 : tr("%1 (%2), two-way").arg(port.name, port.path);
         target_->addItem(label, static_cast<qulonglong>(port.id));
     }
+    // Pre-select the port that was selected when the dialog was opened.
     if (selected_port_ != 0)
     {
         const auto found =
@@ -103,9 +107,11 @@ void AddFixtureDialog::build()
                                    this);
     layout->addWidget(target_row);
 
+    // The banner is filled in by update_result() to say what Add will do.
     result_ = new NoteBanner(NoteBanner::kind::info, {}, this);
     layout->addWidget(result_);
 
+    // A static card that lists the faults a fixture can raise.
     auto* card = new QFrame(this);
     card->setProperty("group", true);
     polish(card);
@@ -126,6 +132,8 @@ void AddFixtureDialog::build()
     card_layout->addWidget(card_body);
     layout->addWidget(card);
 
+    // Hidden until set_error() has a message to show.  The colour is set by
+    // style sheet, so it is re-applied whenever the theme changes.
     error_ = new QLabel(this);
     error_->setFont(Theme::instance().font(text_style::caption));
     error_->setWordWrap(true);
@@ -143,6 +151,7 @@ void AddFixtureDialog::build()
     layout->addWidget(error_);
     layout->addStretch(1);
 
+    // Footer buttons: Cancel rejects; Add runs add_fixture().
     QHBoxLayout* footer_layout = nullptr;
     auto* footer = make_footer(this, footer_layout);
     auto* cancel = make_button(tr("Cancel"), nullptr, footer);
@@ -155,15 +164,20 @@ void AddFixtureDialog::build()
     footer_layout->addWidget(add_);
     layout->addWidget(footer);
 
+    // A backend without fixture support leaves the dialog readable but Add
+    // disabled, with the standard "not available" tooltip.
     if (!backend_.caps().fixtures)
         degrade(add_);
 
+    // Any change to an input refreshes the summary banner.
     connect(name_, &QLineEdit::textChanged, this, [this] { update_result(); });
     connect(baud_, &QComboBox::currentIndexChanged, this,
             [this] { update_result(); });
     connect(target_, &QComboBox::currentIndexChanged, this,
             [this] { update_result(); });
 
+    // Focus the name field now, and again once the event loop runs so the
+    // focus still holds after the dialog is shown.
     name_->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, name_,
                        [this] { name_->setFocus(Qt::OtherFocusReason); });
