@@ -26,6 +26,7 @@
 #include <QVector>
 
 #include <functional>
+#include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -340,7 +341,9 @@ private:
     QPointF wire_start_;
     QGraphicsPathItem* wire_item_ = nullptr;
     QGraphicsRectItem* ghost_ = nullptr;
-    QRubberBand* band_ = nullptr;
+    // The rubber band is a child of the viewport; owning it here releases it
+    // with the view and before the viewport goes.
+    std::unique_ptr<QRubberBand> band_;
     QPoint band_origin_;
     bool band_active_ = false;
     bool band_adds_ = false;
