@@ -31,6 +31,28 @@ are not in the packages.
 A test-signed Windows package is trusted only on a machine that has the owner's
 certificate authority installed. The release notes say so.
 
+## Before you tag
+
+`python3 tools/release_preflight.py --tag v0.1.0-rc.1` reads these conditions from
+GitHub and the working tree and lists the ones that are not met. It changes nothing
+and exits with 1 until all are met, so run it again after each fix.
+
+| Condition | How it is checked |
+|---|---|
+| The tag matches `CMakeLists.txt` and `vcpkg.json` | `tools/check_release_version.py` |
+| No open code-scanning alert in first-party paths | `gh api "repos/{owner}/{repo}/code-scanning/alerts?state=open&ref=refs/heads/develop"`; paths under `.cache/`, `build/`, `_deps/` and `vcpkg_installed/` are third-party code and do not count |
+| No open issue labelled `nightly-analysis` | `gh issue list --label nightly-analysis` |
+| CI, Nightly, Platform matrix and Docs are green | The latest completed run of each on `develop` (Docs runs for pull requests and `main`, so its latest run on any branch) |
+| The Release dry run is green | The latest completed `release.yml` run on `develop`. The Monday schedule runs on `develop`, the default branch, so this is its status; `gh workflow run release.yml --ref develop` makes one now |
+| `docs/signing-key.asc` and `SECURITY.md` are in the repository | The publish job fails after signing when the key is missing |
+| The signing secrets exist | `REPO_GPG_PRIVATE_KEY`, `REPO_GPG_PASSPHRASE`, `RELEASE_BOT_APP_ID` and `RELEASE_BOT_PRIVATE_KEY`, plus the two `WIN_TESTSIGN_*` secrets while `SIGN_WINDOWS` is `test` |
+| The `release` environment has a required reviewer | The owner approves the publish job there |
+
+Make the first release a release candidate, `v0.1.0-rc.1`. It runs the whole publish
+path (checksums, signing, attestation, the GitHub Release) as a pre-release, takes its
+notes from the pending fragments, needs no change to `CHANGELOG.md` and does not move
+`main`. Tag `v0.1.0` after the candidate has been unpacked and tried on each system.
+
 ## Making a release
 
 1. Raise the version in `CMakeLists.txt` (`project(VERSION)`) and `vcpkg.json`
@@ -49,7 +71,8 @@ certificate authority installed. The release notes say so.
 `gh workflow run release.yml --ref develop` builds every package and keeps them
 as workflow artifacts without publishing. The same run happens every Monday and
 on a pull request that changes the workflow, so a change to the install rules
-cannot go unseen for long. Unpack each package on its system and run
+cannot go unseen for long. The Monday run is on `develop`, so it is the status of
+the packaging jobs for that branch. Unpack each package on its system and run
 `vss_cli selftest`; start `vss_gui` on a machine with a display.
 
 ## What the owner provides
