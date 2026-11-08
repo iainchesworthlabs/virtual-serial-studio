@@ -278,7 +278,7 @@ result<void> studio::link_pty(port_record& record)
 
 result<std::shared_ptr<endpoint>>
 studio::register_port(port_record record, std::shared_ptr<transport> transport,
-                      endpoint_options options)
+                      const endpoint_options& options)
 {
     VSS_PROFILE_ZONE("studio.register_port");
     if (!transport)
@@ -312,7 +312,7 @@ studio::register_port(port_record record, std::shared_ptr<transport> transport,
 
 result<std::shared_ptr<endpoint>>
 studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
-                            endpoint_options options, unsigned com_number)
+                            const endpoint_options& options, unsigned com_number)
 {
     VSS_PROFILE_ZONE("studio.create_virtual_port");
     if (kind == virtual_port_kind::pty && !supports(virtual_port_kind::pty))
@@ -343,7 +343,7 @@ studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
 
 result<std::shared_ptr<endpoint>>
 studio::create_auto_virtual_port(const std::string& name,
-                                 endpoint_options options, unsigned com_number)
+                                 const endpoint_options& options, unsigned com_number)
 {
     VSS_PROFILE_ZONE("studio.create_auto_virtual_port");
     const std::string final_name = unique_name(name);
@@ -430,7 +430,7 @@ studio::create_auto_virtual_port(const std::string& name,
 
 result<std::shared_ptr<endpoint>>
 studio::attach_serial(const std::string& name, const std::string& uri,
-                      endpoint_options options)
+                      const endpoint_options& options)
 {
     VSS_PROFILE_ZONE_NAMED(zone, "studio.attach_serial");
     if (zone.active())
@@ -1383,6 +1383,8 @@ result<void> studio::apply(const config::document& value,
     if (const error_code invalid = config::validate(value))
         return invalid;
 
+    // Track the ports made so far, and the id each document name got, so
+    // links can refer to ports by name and a failure can undo the ports.
     std::vector<endpoint_id> created;
     std::unordered_map<std::string, endpoint_id> ids;
 
@@ -1394,6 +1396,8 @@ result<void> studio::apply(const config::document& value,
             static_cast<void>(remove_port(id));
     };
 
+    // Ports come first because links need their ids.  Each port is created
+    // by the call that matches its kind; the document was validated above.
     for (const auto& port : value.ports)
     {
         endpoint_options options = default_options();
@@ -1431,6 +1435,8 @@ result<void> studio::apply(const config::document& value,
             added = attach_serial(port.name, port.uri, port.serial, options);
         }
 
+        // Stop at the first port that cannot be made, removing the earlier
+        // ones when the caller asked for a rollback.
         if (!added)
         {
             rollback();
@@ -1441,6 +1447,8 @@ result<void> studio::apply(const config::document& value,
         ids.emplace(port.name, (*added)->id());
     }
 
+    // Links: turn the names into ids.  at() cannot throw because validate()
+    // checked that every name belongs to a port of the document.
     for (const auto& link : value.links)
     {
         std::vector<endpoint_id> sources;
@@ -1456,6 +1464,8 @@ result<void> studio::apply(const config::document& value,
         for (const auto& name : link.members)
             members.push_back(ids.at(name));
 
+        // Create the link through the hub call for its mode.  The index
+        // [0] is safe because validate() requires one port on that side.
         link_options options;
         options.emulate_modem_lines = link.emulate_modem_lines;
         options.policy = link.policy;

@@ -75,7 +75,7 @@ public:
 
     result<std::shared_ptr<endpoint>> add_endpoint(
         const std::string& name, endpoint_kind kind,
-        std::shared_ptr<transport> transport, endpoint_options options = {});
+        std::shared_ptr<transport> transport, const endpoint_options& options = {});
 
     result<void> remove_endpoint(endpoint_id id);
     result<void> rename_endpoint(endpoint_id id, const std::string& name);

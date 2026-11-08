@@ -131,7 +131,7 @@ void hub::join()
 result<std::shared_ptr<endpoint>> hub::add_endpoint(
     const std::string& name, endpoint_kind kind,
     std::shared_ptr<transport> transport,
-    endpoint_options options)
+    const endpoint_options& options)
 {
     VSS_PROFILE_ZONE_NAMED(zone, "hub.add_endpoint");
     if (zone.active())
