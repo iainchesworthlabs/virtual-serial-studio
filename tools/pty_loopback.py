@@ -22,7 +22,6 @@ from __future__ import annotations
 import os
 import select
 import signal
-import sys
 import threading
 import time
 import tty
@@ -89,6 +88,7 @@ def main() -> int:
             try:
                 os.close(fd)
             except OSError:
+                # Best effort while exiting: a descriptor that cannot be closed has nothing left to release.
                 pass
     return 0
 
