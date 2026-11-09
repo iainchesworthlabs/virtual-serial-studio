@@ -516,6 +516,7 @@ void SimplePage::change_programs(const setup_view& current,
     VSS_PROFILE_ZONE("gui.simple.page.change_programs");
     // A copy is the point: refresh() below rebuilds setups_ under the caller's
     // reference.
+    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
     const setup_view setup = current;
     job_plan plan = plan_from(setup, backend_.ports());
     auto& programs = setup.kind == job::share || setup.kind == job::attach
