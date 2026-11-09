@@ -22,6 +22,7 @@
 #include "simple/setup_kinds.hpp"
 #include "simple/simple_page.hpp"
 
+#include <QFileDialog>
 #include <QFileInfo>
 #include <QSpinBox>
 #include <QTableView>
@@ -448,8 +449,19 @@ TEST_CASE("advanced: save a workspace, start over and reopen it")
             },
             [path, confirm](QWidget* d)
             {
-                type_into(named<QLineEdit>(d, "fileNameEdit"), path);
-                click(button(d, QString::fromLatin1(confirm)));
+                // Qt's own dialog, driven through its interface: on macOS
+                // the typed name and the click on its button do not confirm
+                // it reliably, and what is under test is the window's use of
+                // the file, not the dialog.
+                auto* chooser = qobject_cast<QFileDialog*>(d);
+                REQUIRE(chooser != nullptr);
+                chooser->selectFile(path);
+                QPushButton* ok = button(d, QString::fromLatin1(confirm));
+                // The dialog lists the folder in the background, and its
+                // button stays disabled until it knows the file.
+                REQUIRE(vss_test::wait_until([ok] { return ok->isEnabled(); },
+                                             5000));
+                static_cast<QDialog*>(chooser)->accept();
             });
     };
     s.step(QStringLiteral("File > Save as"));
