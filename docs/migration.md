@@ -78,7 +78,6 @@ Organisation side, in this order: settings part 1 (repository settings, security
 ## TODO(owner)
 
 - TODO(owner): copyright holder name and public contact address for the library's headers and `meta/libraries.json`.
-- TODO(owner): location of the public signing key in the library tree, and its fingerprint for `SECURITY.md`.
 - TODO(owner): whether the library documentation says anything about the tools used to write it.
 
 ## Changes to the standard this work raises

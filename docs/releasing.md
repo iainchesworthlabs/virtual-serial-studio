@@ -81,7 +81,10 @@ These are not in the repository and an agent does not create them.
 
 - `docs/signing-key.asc`, the public GPG key whose private half is the
   organisation secret `REPO_GPG_PRIVATE_KEY`, and its fingerprint in
-  `SECURITY.md` with the commands to verify a download.
+  `SECURITY.md` with the commands to verify a download. Both are in the
+  repository now and hold the organisation's release key (the same file as in
+  the other repositories). The publish job checks every signature against it, so
+  if the secret is ever a different key the run fails; the owner then updates both.
 - The organisation secrets `REPO_GPG_PASSPHRASE`, `RELEASE_BOT_APP_ID` and
   `RELEASE_BOT_PRIVATE_KEY`.
 - The `release` environment with the owner as required reviewer.
