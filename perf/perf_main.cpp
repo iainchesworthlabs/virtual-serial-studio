@@ -601,7 +601,15 @@ int main(int argc, char** argv)
 
     if (!output.empty())
     {
-        std::ofstream stream(output, std::ios::binary | std::ios::trunc);
+        std::string reason;
+        const auto destination = vss_perf::resolve_output_path(output, reason);
+        if (!destination)
+        {
+            std::fprintf(stderr, "cannot write %s: %s\n", output.c_str(),
+                         reason.c_str());
+            return 1;
+        }
+        std::ofstream stream(*destination, std::ios::binary | std::ios::trunc);
         if (!stream)
         {
             std::fprintf(stderr, "cannot write %s\n", output.c_str());

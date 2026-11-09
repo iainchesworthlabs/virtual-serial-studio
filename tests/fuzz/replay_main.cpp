@@ -9,17 +9,15 @@
 // platform and compiler.
 //
 
+#include "replay_inputs.hpp"
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <exception>
 #include <filesystem>
-#include <fstream>
 #include <iostream>
-#include <iterator>
-#include <optional>
-#include <system_error>
 #include <vector>
 
 // libFuzzer looks for exactly this name.
@@ -27,56 +25,9 @@
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
                                       std::size_t size);
 
-namespace
-{
-
+using vss_fuzz_replay::collect;
+using vss_fuzz_replay::read_file;
 namespace fs = std::filesystem;
-
-bool collect(const fs::path& root, std::vector<fs::path>& found)
-{
-    std::error_code ec;
-    if (fs::is_regular_file(root, ec))
-    {
-        found.push_back(root);
-        return true;
-    }
-    if (!fs::is_directory(root, ec))
-    {
-        std::cerr << "fuzz replay: cannot read " << root.string() << '\n';
-        return false;
-    }
-    for (const auto& entry : fs::recursive_directory_iterator(root, ec))
-    {
-        // Dot files (.gitkeep) keep an empty directory in version control.
-        if (entry.is_regular_file() &&
-            !entry.path().filename().string().starts_with('.'))
-        {
-            found.push_back(entry.path());
-        }
-    }
-    if (ec)
-    {
-        std::cerr << "fuzz replay: " << root.string() << ": " << ec.message()
-                  << '\n';
-        return false;
-    }
-    return true;
-}
-
-// An unreadable input must fail the replay, not run as an empty one.
-std::optional<std::vector<char>> read_file(const fs::path& path)
-{
-    std::ifstream in(path, std::ios::binary);
-    if (!in)
-        return std::nullopt;
-    std::vector<char> bytes{std::istreambuf_iterator<char>(in),
-                            std::istreambuf_iterator<char>()};
-    if (in.bad())
-        return std::nullopt;
-    return bytes;
-}
-
-} // namespace
 
 int main(int argc, char** argv)
 try

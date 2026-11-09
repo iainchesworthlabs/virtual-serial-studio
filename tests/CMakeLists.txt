@@ -35,6 +35,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio.cpp
   unit/test_studio_reopen.cpp
   unit/test_studio_links.cpp
+  unit/test_tool_paths.cpp
   unit/test_virtual_ports.cpp
   unit/test_vsscom_core.cpp)
 
@@ -55,7 +56,10 @@ add_executable(vss_unit_tests ${VSS_UNIT_TEST_SOURCES})
 target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/framework
-  ${CMAKE_CURRENT_SOURCE_DIR}/support)
+  ${CMAKE_CURRENT_SOURCE_DIR}/support
+  # replay_inputs.hpp and perf_common.hpp, which test_tool_paths.cpp exercises.
+  ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
+  ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core)
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.

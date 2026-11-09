@@ -248,7 +248,8 @@ private:
             }
             else if (value == 0xFA)
                 state_ = telnet::in_subnegotiation;
-            else if (value >= 0xFB && value <= 0xFE)
+            // 0xFF was taken above, so 0xFB or more is 0xFB to 0xFE.
+            else if (value >= 0xFB)
                 state_ = telnet::after_option_verb;
             else
                 state_ = telnet::data;

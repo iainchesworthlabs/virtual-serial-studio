@@ -1285,7 +1285,8 @@ void TopologyView::mousePressEvent(QMouseEvent* event)
                 band_origin_ = point;
                 if (band_ == nullptr)
                 {
-                    band_ = new QRubberBand(QRubberBand::Rectangle, viewport());
+                    band_ = std::make_unique<QRubberBand>(QRubberBand::Rectangle,
+                                                          viewport());
                     band_->setObjectName(QStringLiteral("topologyRubberBand"));
                 }
                 band_->setGeometry(QRect(point, QSize()));

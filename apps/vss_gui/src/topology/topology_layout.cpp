@@ -652,7 +652,7 @@ QPointF find_free_position(const QSizeF& size, const QRectF& anchor,
             {
                 const int rank = (index + 1) / 2;
                 const qreal offset =
-                    (index % 2 == 1 ? 1.0 : -1.0) * rank * step;
+                    (index % 2 != 0 ? 1.0 : -1.0) * rank * step;
                 const QRectF candidate(QPointF(column_x, y + offset), size);
                 if (!is_free(candidate))
                     continue;
