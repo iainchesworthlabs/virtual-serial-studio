@@ -75,6 +75,52 @@ cannot go unseen for long. The Monday run is on `develop`, so it is the status o
 the packaging jobs for that branch. Unpack each package on its system and run
 `vss_cli selftest`; start `vss_gui` on a machine with a display.
 
+## Where `main` fits
+
+All work happens on `develop`. `main` holds only released code: it does not move
+until a final release, when the publish job fast-forwards it to the tag, so
+`main` always names the latest release. A release candidate (a tag with a
+suffix) never moves it. Nobody commits or opens a pull request into `main`, and a
+fresh branch or session starts from `develop`, not `main`.
+
+## The release notes
+
+The page of a release has the layout of the established releases of the other
+projects in this organisation, so a reader sees the same thing every time:
+
+1. **A heading and a summary.** `## What's Changed since v<previous>` (leave out
+   "since" for the first release), then two or three sentences that say what the
+   release is for in the user's words: the biggest things first, what is new, what
+   changed, what a user should know before installing.
+2. **The changelog section**, as `### Added`, `### Changed`, `### Fixed` and
+   `### Security` lists, copied from `CHANGELOG.md` (for a release candidate, from
+   `python3 tools/changelog.py --dry-run`). Each entry is a bold headline and a
+   plain-language explanation (`changelog.d/README.md`). Relative links are
+   rewritten to the tagged files.
+3. **`## Install`**: a table of the file for each system and how to install it
+   (the installer, then the archive), what is signed and what is not, the
+   machine requirements (glibc 2.42 on Linux; the Windows driver and what to do
+   when it is not trusted; Gatekeeper on macOS), and how to check a download
+   (`SHA512SUMS`, the `.asc` signatures and `gh attestation verify`, with a link to
+   `SECURITY.md`).
+4. **`**Full Changelog**: …/compare/v<previous>...v<this>`** (leave out for the first
+   release).
+5. **For a pre-release, a closing block quote** that says what has been tested on
+   which system and what has not, and asks for reports.
+
+The publish job writes the section from the changelog (item 2). Writing the
+summary, the install section and the closing note is a step of the release, done
+after the publish job has run and before the release is announced:
+
+```bash
+gh release view v0.1.0 --json body --jq .body > notes.md   # edit: add 1, 3, 4, 5
+gh release edit v0.1.0 --notes-file notes.md
+```
+
+Read the page the way a user does before you tell anyone about it. Anything a
+user would not recognise (a work-package name, a CI job, a test count) belongs in
+a pull request, not in the notes.
+
 ## What the owner provides
 
 These are not in the repository and an agent does not create them.

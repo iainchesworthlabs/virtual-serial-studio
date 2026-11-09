@@ -1,1 +1,0 @@
-Added the Advanced tools: owner arbitration in the topology link bar, the line matrix and fault viewer, mock fixture creation, the live topology JSON editor with validation, the event log, the benchmark dialog and Export as command. Every control that needs a capability the engine does not expose is disabled with the "Not available in this build" tooltip.

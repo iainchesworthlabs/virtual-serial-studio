@@ -1,1 +1,0 @@
-**The Edit menu no longer lists every port after a big delete.** After deleting many ports at once, the Undo entry spelled out each port name and the menu grew wider than the screen, so the entry could not be reached. It now says how many ports ("Undo Delete 50 ports") when there are more than three.

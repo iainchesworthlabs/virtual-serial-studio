@@ -1,1 +1,0 @@
-**The design says "Open" is the normal state of a port.** The design documents no longer promise "Waiting for program" and "Program connected" on every build. Studio cannot see whether another program has opened a port, so a port shows "Open", and the two finer states are described as appearing only where the platform can report them. The program already behaved this way.

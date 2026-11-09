@@ -1,5 +1,0 @@
-- Add the Connect ports dialog with two-way, one-way redirect, monitor, split and join modes, live result sentences, self-link and two-loopback refusals, the engine cycle refusal and the Advanced owner policy.
-- Add the Share a device wizard with device settings, driver-pair planning, the free-pair warning and its two actions, real `share_serial` rollback, a live Ready table with Copy and Open monitor, and a Create another pair action through the GUI adapter.
-- Add the Put a device on the network dialog with TCP, UDP and RFC 2217 URI building and validation, the client bridge and the Advanced address override; the server role is capability-gated because the engine has no listening backend.
-- Add the Setups dialog with four bundled `vss_config` templates, Recent from QSettings, search, Browse and Save current setup as template.
-- Wire Topology, Ports, File and launcher entries to the real dialogs and add the Advanced toolbar-only Share action.

@@ -1,1 +1,0 @@
-The repository passes `reuse lint`, and CI runs it. `REUSE.toml` gives the files that have no copyright line of their own the holder "Iain Chesworth Labs contributors" and the licence GPL-3.0-or-later, `LICENSES/` now holds the GPL text, and `LICENSE` is the canonical text. Files that carry their own licence, such as the BSL-1.0 tools derived from the library, keep it.

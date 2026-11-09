@@ -1,1 +1,0 @@
-The shared CMake modules of `icl-common-infra` are vendored under `cmake/icl`, with `tools/sync_cmake.py` to update them and a CI step that fails when the copy differs from the pinned commit. Qt is now found by the shared `FindQt6.cmake`: set `VSS_QT_ROOT` (or `ICL_QT_ROOT`, `QT_ROOT_DIR`, `QTDIR`) instead of `QT_ROOT`. The `*-gui` presets no longer read `QT_ROOT`.

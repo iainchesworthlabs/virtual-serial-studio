@@ -1,1 +1,0 @@
-**Reopening a port no longer sends it bytes that were meant for its old connection.** A write that was already being started on the old transport could meet the reopen halfway and hand its bytes to the new transport, which showed up as an occasional failure of the reopen unit test in CI.

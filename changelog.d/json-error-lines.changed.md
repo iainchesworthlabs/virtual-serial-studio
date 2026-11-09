@@ -1,1 +1,0 @@
-**The Topology JSON editor names the line of more errors.** An invalid serial setting, a port or link of the wrong type, a list that is not a list and an unknown port in a link now show the line of the field at fault, and the line is found by position in the document, so a bad value in the second port no longer points at the first.

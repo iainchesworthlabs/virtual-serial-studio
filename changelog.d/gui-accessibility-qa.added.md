@@ -1,1 +1,0 @@
-- The GUI self-test now walks the main window and every shipped dialog in both themes and at 200 percent scale, failing on unnamed controls, targets below 24 by 24, lost keyboard focus or clipped text. `VSS_QA_SHOTS` writes the complete offscreen review set, `VSS_HIGH_CONTRAST=1` falls back to the platform palette, and the legacy flat GUI sources are removed.
