@@ -121,7 +121,9 @@ Two deliberate deviations from what a greenfield C++23 codebase might do:
 ## Packages and the Windows driver
 
 Release packages are built by `.github/workflows/release.yml`; see
-[Releasing](releasing.md). `VSS_INSTALL` provides the install rules they use. The
+[Releasing](releasing.md). `VSS_INSTALL` provides the install rules they use and, through
+`cmake/VssPackage.cmake`, the CPack settings of each system (`cmake/packaging/VssPackage-<system>.cmake`;
+the macOS disk image is `VssPackage-darwin.cmake`). The
 Windows virtual COM port driver is built separately with
 `drivers/windows/build.ps1`; see [the driver page](windows-com-driver.md).
 
