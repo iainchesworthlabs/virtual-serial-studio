@@ -36,7 +36,7 @@ fetched release.
 
 Options: `VSS_BUILD_TESTS`, `VSS_BUILD_GUI`, `VSS_GUI_REQUIRED`,
 `VSS_BUILD_TOOLS`, `VSS_BUILD_PERF`, `VSS_TRACY`, `VSS_COVERAGE`,
-`VSS_INSTALL`, `ICL_SANITIZERS` (a `-fsanitize=` list such as
+`VSS_INSTALL`, `VSS_PACKAGE`, `VSS_PACKAGE_PRERELEASE`, `ICL_SANITIZERS` (a `-fsanitize=` list such as
 `address,undefined` or `thread`) and `ICL_ENABLE_FUZZING`. CMake stops with an
 error if `ICL_SANITIZERS` is combined with `VSS_COVERAGE` or `VSS_TRACY`, or
 `ICL_ENABLE_FUZZING` with any of the three, so use a separate build directory for
@@ -122,8 +122,9 @@ Two deliberate deviations from what a greenfield C++23 codebase might do:
 
 Release packages are built by `.github/workflows/release.yml`; see
 [Releasing](releasing.md). `VSS_INSTALL` provides the install rules they use and, through
-`cmake/VssPackage.cmake`, the CPack settings of each system (`cmake/packaging/VssPackage-<system>.cmake`;
-the macOS disk image is `VssPackage-darwin.cmake`). The
+`cmake/VssPackage.cmake`, the CPack settings of each system (`cmake/packaging/VssPackage-<system>.cmake`).
+`VSS_PACKAGE=ON` configures the Linux `.deb` and `.rpm`, and `VSS_PACKAGE_PRERELEASE` names the pre-release
+part of the version, such as `rc.1`; the steps are in [Releasing](releasing.md). The
 Windows virtual COM port driver is built separately with
 `drivers/windows/build.ps1`; see [the driver page](windows-com-driver.md).
 

@@ -20,6 +20,10 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "tools/check_release_version.py"
+      - "cmake/VssPackage.cmake"
+      - "cmake/packaging/**"
+      - "packaging/**"
+      - "tools/ci/check_linux_packages.sh"
 
 permissions: {}
 
@@ -191,6 +195,32 @@ jobs:
           else
             tar -C stage -czf "dist/$NAME.tar.gz" .
           fi
+
+      # The Linux installers come from the same build tree: CPack packs the runtime install component (docs/releasing.md).
+      # The label after the hyphen in the tag becomes ~rc.1 in the deb version and 0.rc.1 in the rpm release.
+      - name: Build the deb and rpm
+        if: runner.os == 'Linux'
+        env:
+          PRESET: ${{ matrix.preset }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          set -euo pipefail
+          version="${TAG#v}"
+          pre=""
+          if [[ "$version" == *-* ]]; then pre="${version#*-}"; fi
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rpm
+          cmake -DVSS_PACKAGE=ON -DVSS_PACKAGE_PRERELEASE="$pre" "build/$PRESET"
+          # CPack leaves its staging tree beside the packages, so it works outside dist/.
+          cpack --config "build/$PRESET/CPackConfig.cmake" -B "$RUNNER_TEMP/cpack"
+          cp "$RUNNER_TEMP"/cpack/*.deb "$RUNNER_TEMP"/cpack/*.rpm dist/
+
+      # Each package is installed in a clean container of the system it is for, which runs what it installed and then removes it.
+      - name: Install the deb and rpm in clean containers
+        if: runner.os == 'Linux'
+        env:
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: tools/ci/check_linux_packages.sh dist "$TAG"
 
       # The disk image is made by CPack's DragNDrop generator from the same runtime component as the archive
       # (cmake/packaging/VssPackage-darwin.cmake). CPack stages its own copy, so a signing identity in the environment
