@@ -170,8 +170,8 @@ if(VSS_INSTALL)
   endif()
 
   # Installers for the "runtime" component (CPack). The settings of each system
-  # are in cmake/packaging/<system>.cmake, chosen by VssPackaging.
-  include(VssPackaging)
+  # are in cmake/packaging/VssPackage-<system>.cmake, chosen by VssPackage.
+  include(VssPackage)
 endif()
 
 # ---------------------------------------------------------------------------

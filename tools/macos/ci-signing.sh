@@ -21,7 +21,7 @@
 #
 # On success it puts VSS_SIGN_IDENTITY and VSS_NOTARY_PROFILE in GITHUB_ENV, so
 # the later cpack step signs the copy of the app that goes into the disk image
-# (cmake/packaging/DarwinSign.cmake). Nothing secret is printed.
+# (cmake/packaging/VssPackage-darwin-sign.cmake). Nothing secret is printed.
 
 set -euo pipefail
 

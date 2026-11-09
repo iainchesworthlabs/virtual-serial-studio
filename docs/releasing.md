@@ -146,12 +146,31 @@ xattr -dr com.apple.quarantine /Applications/vss_gui.app
 ```
 
 The Release workflow builds the image on a macOS 26 runner with CPack's DragNDrop
-generator. The settings are in `cmake/packaging/Darwin.cmake`, chosen by
-`cmake/VssPackaging.cmake` from the system name (each system has its own file in
-`cmake/packaging/`). A developer can make one from a macOS build directory with
+generator. The settings are in `cmake/packaging/VssPackage-darwin.cmake`, chosen by
+`cmake/VssPackage.cmake` from the system name (each system has its own
+`cmake/packaging/VssPackage-<system>.cmake`). A developer can make one from a macOS build directory with
 `cpack --config build/macos-release-gui/CPackConfig.cmake -G DragNDrop`. The job then mounts
 the image with `hdiutil attach`, runs `vss_cli selftest` and `vss_gui --version` from the
 mounted volume and detaches it, and uploads the image with the other packages.
+
+### What macOS needs besides the app
+
+Nothing. The image installs no driver, kernel extension, system extension, launch daemon
+or privileged helper, so there is nothing to uninstall: drag `vss_gui.app` (and `vss_cli`,
+if it was copied) to the Bin. The Windows package differs because Windows has a COM port
+driver; the reasons for each item on macOS are:
+
+| Item | Needed? | Why |
+|---|---|---|
+| Virtual ports | No driver | They are pseudo terminals (`/dev/ttysNNN`) opened with `openpty`, which any user process may do. A SerialDriverKit driver would make ports that programs listing ports through IOKit could see, but it needs an Apple entitlement and is not planned (`posix-virtual-ports.md`) |
+| Stable links, `/tmp/vss` | No installer step | `vss_cli vport` creates the directory when it runs, with mode 0700, owned by the user. macOS empties `/tmp` at restart, and the links go with the process anyway |
+| Serial devices, `/dev/cu.*` | No installer step | The notarised, non-sandboxed app opens them as the user does, with no prompt. Only a sandboxed build needs the serial and USB entitlements in `vss_gui.sandbox.entitlements`, and the release is not sandboxed |
+| Local Network | Already covered | `NSLocalNetworkUsageDescription` is in `Info.plist.in`. macOS 15 and later asks once, the first time a network endpoint is used. The Application Firewall asks once about incoming connections for a listener |
+| `vss_cli` on `PATH` | Optional, by hand | The image does not change `PATH`. The `install` command under "Installing on macOS" puts the tool in `/usr/local/bin` |
+
+This comes from reading the code and `docs/platforms.md`; it has not been tried on a Mac.
+A third-party program that offers a list of ports will not list a virtual one; one given
+the path (`/dev/ttysNNN` or a link in `/tmp/vss`) works.
 
 ## macOS signing and notarisation
 
@@ -184,7 +203,7 @@ The Release workflow is wired to call the script, and stays off until the owner 
 summary, warns, and succeeds. Otherwise it imports the certificate into a temporary
 keychain, stores the notary credentials, and signs and notarises the staged app and tool (the
 tar.gz) and, through the environment, the copy that CPack stages for the disk image
-(`cmake/packaging/DarwinSign.cmake`). A pull request never signs. None of this has run yet:
+(`cmake/packaging/VssPackage-darwin-sign.cmake`). A pull request never signs. None of this has run yet:
 it was written without the certificate, so the first signed run needs watching.
 
 The owner adds:

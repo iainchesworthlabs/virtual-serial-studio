@@ -193,8 +193,8 @@ jobs:
           fi
 
       # The disk image is made by CPack's DragNDrop generator from the same runtime component as the archive
-      # (cmake/packaging/Darwin.cmake). CPack stages its own copy, so a signing identity in the environment
-      # (set by the signing step above) makes cmake/packaging/DarwinSign.cmake sign that copy too.
+      # (cmake/packaging/VssPackage-darwin.cmake). CPack stages its own copy, so a signing identity in the environment
+      # (set by the signing step above) makes cmake/packaging/VssPackage-darwin-sign.cmake sign that copy too.
       - name: Build the macOS disk image
         if: runner.os == 'macOS'
         shell: bash
