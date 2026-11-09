@@ -14,6 +14,7 @@
 #include "support/console.hpp"
 #include "support/running_setup.hpp"
 #include "support/stall_probe.hpp"
+#include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "widgets/gallery.hpp"
 
@@ -118,6 +119,12 @@ try
     QApplication::setOrganizationName(QStringLiteral("Virtual Serial Studio"));
     QApplication::setOrganizationDomain(
         QStringLiteral("virtualserial.example"));
+    // The icon of every window and of the taskbar or dock entry, from the Qt
+    // resource. The desktop file name lets a Linux desktop pair the window with
+    // the icon in the hicolor theme that vss_gui.desktop names.
+    QGuiApplication::setDesktopFileName(QStringLiteral("vss_gui"));
+    QGuiApplication::setWindowIcon(
+        vss::gui::IconProvider::instance().app_icon());
     vss::gui::apply_language();
 
     QCommandLineParser parser;

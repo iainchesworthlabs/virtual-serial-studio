@@ -19,6 +19,9 @@
 #include "flows/rename_dialog.hpp"
 #include "qt_input.hpp"
 #include "qt_wait.hpp"
+#include "support/about_dialog.hpp"
+#include "support/build_info.hpp"
+#include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 
 #include <QElapsedTimer>
@@ -26,6 +29,7 @@
 #include <QMenuBar>
 #include <QPlainTextEdit>
 #include <QStatusBar>
+#include <QTabWidget>
 
 namespace
 {
@@ -500,5 +504,47 @@ TEST_CASE("edge: a status message does not draw over the counters")
             "the status bar shows \"" + bar->currentMessage().toStdString() +
             "\" and still draws " +
             drawn.join(QStringLiteral(" | ")).toStdString() + " under it");
+    s.finish();
+}
+
+TEST_CASE("edge: About shows the application icon, the version and the source")
+{
+    Session s("edge: About shows the application icon, the version and the "
+              "source");
+    s.step(QStringLiteral("the program has an application icon"));
+    REQUIRE(!IconProvider::instance().app_icon().isNull());
+    REQUIRE(!IconProvider::instance().app_icon().pixmap(32, 32).isNull());
+
+    s.step(QStringLiteral("choose Help, About"));
+    s.pilot().expect_type<support::AboutDialog>(
+        "the About dialog",
+        [](QWidget* dialog)
+        {
+            bool icon_drawn = false;
+            bool version_shown = false;
+            bool source_linked = false;
+            const QString version = support::current_build_info().version;
+            for (auto* label : dialog->findChildren<QLabel*>())
+            {
+                if (!label->pixmap(Qt::ReturnByValue).isNull())
+                    icon_drawn = true;
+                if (label->text().contains(QStringLiteral("Version ") +
+                                           version) &&
+                    label->text().contains(QStringLiteral("version 3 or later")))
+                    version_shown = true;
+                if (label->text().contains(
+                        support::AboutDialog::source_url()) &&
+                    label->textInteractionFlags().testFlag(
+                        Qt::LinksAccessibleByKeyboard))
+                    source_linked = true;
+            }
+            REQUIRE(icon_drawn);
+            REQUIRE(version_shown);
+            REQUIRE(source_linked);
+            click(button(dialog, QStringLiteral("Close")));
+        });
+    choose_menu(s, QStringLiteral("Help"), QStringLiteral("About"));
+    s.settle();
+    s.pilot().check();
     s.finish();
 }
