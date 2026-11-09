@@ -1,0 +1,1 @@
+**Virtual Serial Studio has an application icon.** Two serial connectors face each other across a split link, drawn in the accent colour. `apps/vss_gui/assets/icon/` holds the SVG master and the Windows `.ico`, macOS `.icns` and PNG files made from it by `tools/gen_app_icon.py`; CI fails when they drift from the SVG. The installers and the program use them in following changes.
