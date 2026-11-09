@@ -3,11 +3,13 @@
 ## Building and testing
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug \
-  -DVSS_BOOST_ROOT=/path/to/boost
-cmake --build build
-ctest --test-dir build --output-on-failure
+cmake --preset linux-debug-gui        # windows-msvc-debug-gui or macos-debug-gui elsewhere
+cmake --build --preset linux-debug-gui
+ctest --preset linux-debug-gui
 ```
+
+[docs/building.md](docs/building.md) lists every preset and option, and how Qt
+and Boost are found; [docs/testing.md](docs/testing.md) describes the suites.
 
 Boost.VirtualSerial is consumed as a custom library, not as a Boost release.
 CMake fetches a release tag from its public repository. To build against a local
@@ -17,6 +19,9 @@ checkout, set `VSS_VIRTUAL_SERIAL_DIR`, for example in a
 ## Before opening a pull request
 
 1. `ctest` passes, including the GUI self-test when Qt is available.
+   `python3 tools/ci/precheck.py` is clean: it runs the pull request gate's
+   static checks locally (commit and file text, action pinning, changelog
+   fragment, REUSE, formatting) and needs the commits to exist.
 2. New behaviour has a test. The suites are the specification; a bug fix should
    fail before the fix and pass after it.
 3. Coverage stays above the gates (`VSS_COVERAGE=ON`, then
@@ -38,13 +43,15 @@ A final paragraph made only of `Word: value` lines is read as trailers. To end a
 body with such a line, put a sentence after it. The rule covers pull request
 bodies because the squash merge uses the body as the commit message.
 
-The `Commit text` CI job runs `check_text_policy.py` from `icl-common-infra` over
+The `Policy` job of CI runs `check_text_policy.py` from `icl-common-infra` over
 every commit in a push or pull request, over the pull request text, and over the
-committed files. To run it locally, use a checkout of `icl-common-infra`:
+committed files. `python3 tools/ci/precheck.py` runs the same checks locally. To
+run just this one, use a checkout of `icl-common-infra`:
 
 ```bash
 python3 path/to/icl-common-infra/scripts/check_text_policy.py commits origin/develop..HEAD
 ```
+
 ## Changelog fragments
 
 Never edit `CHANGELOG.md` for an unreleased change. Add
@@ -99,16 +106,19 @@ repeated system tests (`vss_system_tests --repeat=10`) before they are merged.
 ## Branch model
 
 Development happens on **`develop`**, which is the trunk and the default
-branch. Feature work branches from `develop` and merges back into it; `main`
-is the release branch and only receives merges from `develop` when a release
-is cut. That keeps `main` stable for users and gives releases an obvious
-trigger.
+branch. A work branch is named `feature/*`, `bugfix/*`, `docs/*`, `chore/*` or
+`agent/*`, branches from `develop`, and merges back into it through a pull
+request and the merge queue, by squash. Nobody opens a pull request into `main`:
+it holds published releases, and the release workflow moves it to each final
+release tag.
 
 ```text
-feature/* ──► develop ──► (release) ──► main
+feature/* ──► develop ──► (v* tag) ──► main
                  ▲
             day-to-day work
 ```
 
-CI runs on pushes to `develop` and `main` and on every pull request. The
-commit-authorship and changelog checks run everywhere.
+[docs/ci.md](docs/ci.md) describes what runs on a draft pull request, a ready
+one, in the merge queue and after the merge, and [docs/releasing.md](docs/releasing.md)
+how a release is made. [AGENTS.md](AGENTS.md) has the rules for automated
+contributors.

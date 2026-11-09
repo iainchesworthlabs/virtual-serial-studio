@@ -45,17 +45,17 @@ has been built.
 
 ## Principles
 
-1. **Start from the job, not the mechanism.** The empty window is a launcher
-   with four jobs: give my program a port, connect two programs, share one
-   device, watch traffic. Each ends by saying what to open in the other
-   program.
+1. **Start from the job, not the mechanism.** The Simple level is a list of
+   your setups and a grid of jobs: give my program a port, connect two programs,
+   use or share a device, put several on one line, see the data. Each ends by
+   saying what to open in the other program.
 2. **Recognition over recall.** Operations are menu items, toolbar buttons or
    dialogs that list the actual ports by name. No address typing is needed for
    the everyday jobs, and the command palette (`Ctrl+K`) finds any action by
    its words.
 3. **Progressive disclosure.** Simple shows the everyday jobs. Advanced adds
-   panels, columns and options to the same window, and a dashed "More options"
-   row in a dialog says what is there and how to turn it on.
+   the diagram, the panes and the options, and a "More options" row in a dialog
+   says what is there and how to turn it on.
 4. **Plain language first.** "Two-way", "one-way", "split", "join", "watch",
    "linked pair". Internal names stay in the code.
 5. **Say what will happen.** Every dialog prints a sentence describing the
@@ -82,49 +82,67 @@ has been built.
 
 | Surface | Simple | Advanced |
 |---|---|---|
-| Menus | Same menus; some items hidden | Adds Network endpoint, Mock fixture, Export as command, Link wiring, Owner, Fit, Benchmark, Log, Topology JSON |
-| Toolbar | New, Open, Save, Add port, Attach, Connect, Remove, search | Adds Mock device, Share, Fit |
-| Ports dock | Three-line rows: name and state, role, path with copy | A table with RX, TX, Dropped and a filter |
-| Inspector | State, path, traffic, control lines read only | DTR and RTS switches, Break |
-| Send | Text or hex, Add CRLF | Repeat, saved sends |
-| Monitor | Pause, Clear, Hex, Follow | Port and direction filters, search, ASCII or Hex, Export, Log and Topology JSON tabs |
+| Menus | Same menus; some items hidden | Adds Network endpoint, Mock fixture, Export as command, Link wiring, Owner, Add port/fixture/pair, Tidy layout, Fit, Duplicate, Benchmark, Toolbox, Log, Topology JSON |
+| Main area | **Your setups** list and a page: the job grid, a job form, or the page of one setup | The topology diagram with a toolbox and a row of buttons (Attach, Connect, Mock, Share, Fit, Remove) |
+| Panes | None: the setup's page holds what to open, **Type to** and **Data going through** | Ports, Inspector, Send and Monitor |
+| Ports | A row per port on the setup's page, with a copy button and a chip | A table with name, role and path, state, RX, TX, Dropped and a filter |
+| Inspector | Not shown | State, path, COM number, traffic, control lines (DTR and RTS switches, Break), fixture behaviour, Release port |
+| Send and Monitor | A text box and a live data list per setup | Send (Repeat, Saved sends) and Monitor (filters, search, ASCII or Hex, Export) with Log and Topology JSON tabs |
 | Dialogs | Guided, address read only, settings folded away | Address editable, settings open, More options |
-| Status bar | Counts, rates, hub state, readiness chip, Simple switch | Adds a chip when bytes were dropped |
+| Status bar | Counts, rates, hub state, readiness chip | Adds a chip when bytes were dropped |
 
-The Ports, Topology, Inspector, Send and Monitor panes stay visible at both
-levels: they are how the user sees that the port is real and moving data.
-Advanced removes the training wheels, not the feedback.
+At Simple the Ports, Inspector, Send and Monitor panes and the diagram are not
+shown at all: a setup's own page carries the feedback a beginner needs (which
+port to open, whether a program has opened it, what is arriving). Advanced
+brings the panes and the diagram back, and adds a canvas to build on.
 
 Switching is one checkable menu item (**View → Advanced mode**, `Ctrl+Shift+A`),
-the segmented switch in the status bar, a switch in Settings, or the link in
-the launcher. The setting is global and persisted. The status bar always shows
-the current level so a screenshot is self-describing.
+the segmented switch at the right of the menu bar, a switch in Settings, or the
+links in the launcher and the dialogs. The setting is global and persisted. The
+current level is always on screen so a screenshot is self-describing.
 
 ### Screen map
 
+Simple:
+
 ```
-Menu: File Edit Ports Topology Tools View Help
-Toolbar: New Open Save | Add port Attach Connect Remove |  [Search actions]
-┌───────────────┐  ┌──────────────────────┐  ┌──────────────────┐
-│ Ports         │  │ Topology             │  │ Inspector        │
-│               │  │                      │  ├──────────────────┤
-│               │  │                      │  │ Send             │
-└───────────────┘  └──────────────────────┘  └──────────────────┘
-Monitor (Advanced: + Log, Topology JSON)
-Status: Ports Links RX TX Hub          Setup ready   [Simple|Advanced]
+Menu: File Edit Ports Topology Tools View Help     [Search actions] [Simple|Advanced]
+┌──────────────────┐  ┌──────────────────────────────────────────────┐
+│ Your setups      │  │ Job grid, a job form, or the page of a setup │
+│  (list)          │  │                                              │
+│ Save… Open…      │  │                                              │
+│        Remove all│  │                                              │
+└──────────────────┘  └──────────────────────────────────────────────┘
+Status: Ports Links RX TX Hub                          Setup ready
 ```
 
-With no ports, the launcher takes the place of the three docks. At the minimum
-window of 960 by 640 the right column becomes one tabbed dock, the toolbar
-shows icons only, and the monitor is shorter.
+Advanced:
+
+```
+Menu: File Edit Ports Topology Tools View Help     [Search actions] [Simple|Advanced]
+┌───────────────┐  ┌──────────────────────┐  ┌──────────────────┐
+│ Ports         │  │ Buttons              │  │ Inspector        │
+│               │  │ Toolbox | Topology   │  ├──────────────────┤
+│               │  │          Owner bar   │  │ Send             │
+└───────────────┘  └──────────────────────┘  └──────────────────┘
+Monitor | Log | Topology JSON
+Status: Ports Links RX TX Hub  [dropped]               Setup ready
+```
+
+At the Advanced level with no ports, the diagram is empty and the toolbox is
+shown; **View → Show launcher** brings up a page with the four first jobs. At the
+minimum window of 960 by 640 the toolbar shows icons only and the panes are
+shorter.
 
 ## Task flows
 
 ### Give my program a port (operator)
 
-Launcher card, or **Ports → Add port**, then **Create port**. The **Port ready**
-dialog shows the name to open in large type, with **Copy name**. The disclosure
-below it holds the saved-setup entry and the equivalent `vss_cli` command.
+At Simple, the **Give my program a serial port** job and **Create**; the setup's
+page then says which port to open. At Advanced (or from the Ports menu), **Ports
+→ Add port** and **Create port**: the **Port ready** dialog shows the name to
+open in large type, with **Copy name**. The disclosure below it holds the
+saved-setup entry and the equivalent `vss_cli` command.
 
 Design notes: the name field is pre-filled and the suffix is automatic; the
 dialog explains the three kinds in one sentence each; the result sentence
@@ -142,7 +160,8 @@ opens", and says which control lines are wired.
 **Topology → Connect ports** chooses a relationship in plain words (two-way,
 one-way, monitor, split, join, shared bus), lists only ports that exist, and updates its
 summary sentence live. It validates before closing; a failure leaves the
-dialog's data intact.
+dialog's data intact. At Advanced the same links can be drawn on the diagram by
+dragging from one box to another.
 
 ### Share a device (integrator)
 
@@ -150,7 +169,8 @@ dialog's data intact.
 programs and see which port each will open, then a summary of what to open in
 each program. When there are too few driver pairs it says so and offers to
 create another pair or keep the extras inside Studio. It is one rollback unit:
-a failure removes what it created.
+a failure removes what it created. A program can be added to or removed from a
+share later without disturbing the other programs.
 
 ### Watch traffic (diagnostician)
 
@@ -167,24 +187,32 @@ the setup, log and environment, with traffic contents off unless chosen.
 
 ## Human factors decisions
 
-- **The launcher is a page, not a wizard.** It shows only while there is
-  nothing else to show, names the four jobs in the user's words and says what
-  each produces. It disappears when it stops being true and returns on request.
-- **Readiness is always visible.** A strip in the launcher and a chip in the
-  status bar say whether other programs can open the ports Studio creates,
-  because "the port exists but nothing can see it" is the commonest failure.
-- **"Open" is the honest state.** Studio cannot see whether another program has
-  opened a port, so a healthy port reads *Open* and the troubleshooting list
-  says "Not checked yet" for the last steps. It does not guess.
+- **The job grid is a page, not a wizard.** It names the jobs in the user's
+  words and says what each produces. Each job is one short form with a sentence
+  that says what will be built, and the finished setup stays in the list on the
+  left. At Advanced a launcher page with four jobs is available from **View →
+  Show launcher** and **File → New**.
+- **Readiness is always visible.** A strip on the job grid and the launcher, and
+  a chip in the status bar, say whether other programs can open the ports Studio
+  creates, because "the port exists but nothing can see it" is the commonest
+  failure.
+- **Say only what Studio can see.** Where Studio can tell that a program has
+  opened a port (a pseudo terminal on Linux, a port of the Studio driver on
+  Windows) the port reads *Waiting for program* and then *Program connected*.
+  Elsewhere a healthy port reads *Open* and the troubleshooting list says "Not
+  checked yet" for the last steps. It does not guess.
 - **The log is Advanced.** It is invaluable when diagnosing and noise for
   everyone else; the monitor carries the everyday feedback.
-- **The topology stays visible in Simple.** Hiding it would turn a wiring tool
-  into a list; the boxes are the mental model. A list of links is available
-  from **View** for screen readers and for people who prefer one.
+- **Simple speaks of setups, not wiring.** The page of a setup says which port
+  to open in which program and hides the boxes and lines; a beginner should not
+  have to read a diagram to use a port. **See it on the canvas (Advanced
+  mode)** shows the diagram, where the boxes are the mental model. A list of
+  links is available from **View** at Advanced for screen readers and for people
+  who prefer one.
 - **Level is global, not per document.** A user is an operator or a
   diagnostician, not both from file to file.
-- **Refresh is adjustable.** 250 ms feels live; busy machines can slow it down
-  without changing what the studio does.
+- **Refresh is adjustable.** The default, 250 ms, feels live; busy machines can
+  slow it down without changing what the studio does.
 - **Theme and density follow the user.** The theme follows the desktop by
   default and can be forced, because lab machines and screenshots often need a
   fixed light or dark surface. Density is comfortable or compact.
@@ -195,8 +223,7 @@ the setup, log and environment, with traffic contents off unless chosen.
 
 ## Accessibility
 
-- Every control has an accessible name and role; the status bar repeats the
-  effect of the focused action.
+- Every control has an accessible name and role.
 - Colour is never the only signal: states are printed as text in the table and
   inspector, and the topology labels its links.
 - Shortcuts are standard where the platform has a standard, and the Help menu
@@ -212,24 +239,27 @@ the setup, log and environment, with traffic contents off unless chosen.
 
 ## Open design questions
 
-- Should Simple collapse the topology to a list on very small screens?
 - Should the Connect dialog remember the last relationship per user?
 - Which engine capabilities are worth building next? The disabled ones are
-  undo of port changes, observing whether a
-  program opened a port. Each is a row in
+  undo of adding and removing ports, and observing whether a program opened a
+  port on macOS or on a Windows port that is not from the Studio driver. Each
+  is a row in
   [08-engine-gaps.md](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/docs/gui-design/docs/08-engine-gaps.md).
 
 ## Roadmap
 
-1. Undo and redo for adding and removing ports, once the engine can restore
-   endpoint identities exactly. Link, owner and name changes can be undone now.
+1. Undo and redo for adding and removing ports with the menus and dialogs, once
+   the engine can restore endpoint identities exactly. Link, owner and name
+   changes, and the edits made on the Advanced diagram, can be undone now.
 2. Saving the line wiring in the setup file. The matrix and fault
    injection are done.
-3. Showing whether another program has opened a port on Windows and macOS.
-   Linux shows the *Waiting* and *Program connected* states for a pseudo
-   terminal already.
+3. Showing whether another program has opened a port on macOS, and on a
+   Windows port that is not from the Studio driver. Linux pseudo terminals and
+   Studio driver ports show the *Waiting for program* and *Program connected*
+   states already.
 4. Reconnect for a port that failed, with the note and button the design
-   specifies.
+   specifies. The **Recreate ports** banner covers Windows driver ports that a
+   restart took away.
 5. Real-device templates that open the attach dialog.
 6. Applying the baud rate and framing an RFC 2217 client asks for to a real
    device that the server is linked to.

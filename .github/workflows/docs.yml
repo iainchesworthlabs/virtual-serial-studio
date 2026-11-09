@@ -2,10 +2,12 @@
 name: Docs
 
 # A pull request that changes the documentation builds the site with
-# `mkdocs build --strict` and checks it against the repository. A push to main,
-# which the release workflow makes when it moves main to a release, builds the
-# site again and publishes it to GitHub Pages. The repository's Pages build
-# type must be "GitHub Actions".
+# `mkdocs build --strict` and checks it against the repository. A push to
+# develop does the same, so that the branch has a status of its own (the badge
+# in the README shows it) and a change that breaks the docs without touching a
+# docs path is caught on the trunk. A push to main, which the release workflow
+# makes when it moves main to a release, builds the site again and publishes it
+# to GitHub Pages. The repository's Pages build type must be "GitHub Actions".
 
 on:
   pull_request:
@@ -19,14 +21,14 @@ on:
       - "tools/check_docs.py"
       - ".github/workflows/docs.yml"
   push:
-    branches: [main]
+    branches: [develop, main]
 
 permissions: {}
 
 jobs:
   check:
     name: Check the docs against the repository
-    if: github.event_name == 'pull_request'
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
@@ -43,14 +45,14 @@ jobs:
 
   build:
     name: Build site
-    if: github.event_name == 'pull_request'
+    if: github.ref != 'refs/heads/main'
     permissions:
       contents: read
     uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
 
   publish:
     name: Build site for Pages
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     permissions:
       contents: read
     uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
@@ -60,7 +62,7 @@ jobs:
   deploy:
     name: Deploy site
     needs: publish
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     permissions:
       pages: write
       id-token: write

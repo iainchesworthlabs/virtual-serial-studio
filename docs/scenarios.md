@@ -1,7 +1,9 @@
 # Scenario recipes
 
 Each recipe can be built in the GUI, scripted with `vss_cli`, or written as a
-JSON topology that both accept. The URIs are examples.
+JSON topology that both accept. The URIs are examples. `vss_cli` keeps most of
+these setups alive only for the `--seconds` you give, as the examples do; see
+[Command line equivalents](user-guide.md#command-line-equivalents).
 
 ## Share one serial port with several applications
 
@@ -17,10 +19,12 @@ listener-2  loopback:listener-2
 listener-3  loopback:listener-3
 ```
 
-On Windows the first listener takes the other end of the com0com pair that
-`COM3` belongs to. Once that pair is claimed, further listeners fall back to
+On Windows with the Virtual Serial Studio driver, every listener is a driver
+port with its own COM number. With only com0com, a listener takes the free end
+of a com0com pair; once the free pairs are used, further listeners fall back to
 loopback, because a null-modem pair can only be wired into the hub once.
-On Linux and macOS, listeners are pseudo terminals.
+On Linux and macOS, listeners are pseudo terminals. In the window, **Share a
+device** does the same and also lets you add or remove a program later.
 
 In JSON:
 
@@ -40,17 +44,21 @@ In JSON:
 ## Bridge a device to the network
 
 ```bash
-vss_cli bridge serial://COM3 tcp://192.168.1.50:4001
+vss_cli bridge serial://COM3 tcp://192.168.1.50:4001 --seconds=60
 ```
 
-The same command accepts `udp://host:port` and `rfc2217://host:7001`. The
-bridge is a duplex link, so data from the network reaches the device and vice
-versa. Both directions are visible in the monitor.
+The same command accepts `udp://host:port` and `rfc2217://host:7001`, and the
+listening forms `tcp-listen://`, `udp-listen://` and `rfc2217-listen://` that
+wait for other computers (see [Network
+addresses](user-guide.md#network-addresses)). The bridge is a duplex link, so
+data from the network reaches the device and vice versa. Both directions are
+visible in the monitor. In the window the same job is **Ports → Network
+endpoint** (Advanced), or **Let other computers use my device** at Simple.
 
 ## Merge several publishers into one device
 
 ```bash
-vss_cli join serial://COM3 serial://COM5 --target=tcp://10.0.0.2:4001
+vss_cli join serial://COM3 serial://COM5 --target=tcp://10.0.0.2:4001 --seconds=60
 ```
 
 By default the publishers interleave. To hand the link to one publisher at a
@@ -61,9 +69,10 @@ time, use an `owner` policy:
   "policy": "owner" }
 ```
 
-`studio` exposes `set_owner`/`release_owner` through the hub; while one
-publisher owns the link the other publishers' bytes are counted as dropped, not
-silently interleaved.
+The hub has `set_owner` and `release_owner`, and the window's owner bar
+(Advanced) uses them; while one publisher owns the link the other publishers'
+bytes are counted as dropped, not silently interleaved. At Simple, **Let programs
+take turns sending to a device** builds this.
 
 ## Put several programs on one bus
 
@@ -188,14 +197,14 @@ programs and programs that try every port.
 ## Watch traffic without disturbing the device
 
 `monitor` links are one-way and do not emulate modem lines, so the observer
-cannot change what the device sees.
+cannot change what the device sees. **Topology → Watch traffic** makes one.
 
 ```bash
-vss_cli loopback      # a console port and a monitor port, no hardware
+vss_cli loopback --seconds=30   # two in-process ports and a one-way redirect, no hardware
 ```
 
-The GUI monitor reads from the hub's ring buffer and shows both directions with
-ASCII or hex previews. The send panel writes into any open endpoint.
+The GUI monitor shows both directions with ASCII or hex previews. The Send panel
+writes into any open port.
 
 ## One master, several programs and a silent listener
 
@@ -324,7 +333,8 @@ vss_cli bench --from=serial://COM3 --to=serial://COM5 --bytes=10MB --chunk=4KB
 
 `sender` and `receiver` are deliberately not linked: the bytes travel through
 the cable, the receiver counts what actually arrived, and the command fails if
-the count is short. That is the number the performance floors are based on.
+the count is short. It prints the bytes sent and received, the time taken and the
+throughput. **Tools → Benchmark** (Advanced) runs the same measurement.
 
 ## Reproduce a failure
 
@@ -337,13 +347,15 @@ const auto device = app.create_mock_port("modem");
 
 The fixture can inject parity errors, framing errors, overruns, breaks,
 hang-ups and disconnects, and the hub reports them as endpoint error events.
-That makes cable-pull and noisy-line behaviour reproducible without hardware.
+That makes cable-pull and noisy-line behaviour reproducible without hardware. In
+the window, add a fixture with **Ports → Mock fixture** and use **Open line
+matrix and faults** in the Inspector.
 
 ## Save and replay
 
-The GUI saves whatever topology it is showing. `vss_cli run lab.json` applies
-it again, so a support case, a demo or a benchmark can be reproduced with a
-file:
+**File → Save** writes whatever topology the window is running. `vss_cli run
+lab.json` applies it again, so a support case, a demo or a benchmark can be
+reproduced with a file:
 
 ```bash
 vss_cli run lab.json --seconds=30 --verbose

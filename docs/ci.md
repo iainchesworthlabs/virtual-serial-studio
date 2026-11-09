@@ -4,20 +4,24 @@ Development lands on `develop`, the trunk and default branch, through pull
 requests and a merge queue. `main` is the release branch: the release workflow
 moves it to each final release tag.
 
-## The pull request gate
+## The gate
 
-`.github/workflows/ci.yml` first runs the shared policy checks (branch name,
-commit and pull request text, file text, action pinning, changelog fragment,
-vcpkg baseline and REUSE) and a planner that skips the builds for
-documentation-only changes. It then builds with GCC, Clang, AppleClang and
-MSVC, runs the GUI self-test and journey tests on Linux with Qt, enforces the
-coverage gates, runs the performance floors, captures a Tracy profile of the
-end-to-end path, runs the tests, the GUI suites included, under
-AddressSanitizer with UBSan, replays the fuzz corpora, and analyses the
-workflows with zizmor. ThreadSanitizer, GUI suites included, runs when threading
-code changed and for merge-queue entries (see
-[Testing](testing.md#sanitizers)). Boost is fetched by `tools/fetch_boost.py`, so no
-job depends on a system Boost.
+`.github/workflows/ci.yml` runs the cheap checks on every pull request and the
+expensive ones as late as it can. `tools/ci/plan_legs.py` decides which jobs a
+run needs, from the event and the files changed, and the same answer goes to the
+`CI Status` check, so a job and its check cannot disagree.
+
+| Tier | When | Runs |
+|---|---|---|
+| Draft pull request | A draft is open or updated | The static jobs only: the shared policy checks (branch name, commit and pull request text, file text, action pinning, REUSE, vcpkg baseline), changelog fragments, design tokens and the workflow analysis |
+| Ready pull request | A pull request is ready for review | Linux GCC build and tests, AddressSanitizer with UBSan, the fuzz corpus replay; ThreadSanitizer when threading code changed |
+| Merge queue | An entry is queued | The same on the merged tree, plus Windows MSVC, ThreadSanitizer, the Qt GUI build with its self-test and journey tests, the performance floors when library code changed, macOS when a change can affect it, and the Windows driver when the driver changed |
+| Push to `develop` | After the merge | The legs the queue does not run: Linux Clang, macOS, the coverage gates, the Tracy profile of the end-to-end path and the Windows driver; one run at a time with at most one waiting |
+| `workflow_dispatch` | On request | Every job (`gh workflow run ci.yml --ref <branch>`) |
+
+A change to documentation, the changelog or licence text skips the builds. The
+sanitizer jobs run the GUI suites too; see [Testing](testing.md#sanitizers).
+Boost is fetched by `tools/fetch_boost.py`, so no job depends on a system Boost.
 
 The branch protection ruleset requires two checks, `CI Status` and
 `Scan dependency diff`. `CI Status` fails when any job the plan asked for failed,
@@ -29,7 +33,8 @@ was cancelled or was skipped.
 |---|---|---|
 | `fuzz.yml` | Push to `develop`, every night | Fuzzes each target for 60 seconds, or 10 minutes at night; see [Fuzzing](fuzzing.md) |
 | `release.yml` | A `v*` tag, every Monday, on request | Builds the packages and publishes them for a tag; see [Releasing](releasing.md) |
-| `docs.yml` | A pull request that changes the docs, a push to `main` | Builds this site with `mkdocs build --strict` and, from `main`, publishes it |
+| `docs.yml` | A pull request that changes the docs, a push to `develop` or `main` | Checks the presets and badges against the repository and builds this site with `mkdocs build --strict`; from `main` it also publishes the site to GitHub Pages. The push to `develop` gives the branch a status of its own |
+| `cache-hygiene.yml` | After a CI run on `develop`, a closed pull request, on request | Deletes Actions caches that nothing can restore any more, to keep the repository within its cache quota |
 | `dependabot-auto-merge.yml` | Dependabot pull requests | Turns on auto-merge for minor and patch updates of actions |
 
 ## Windows signing

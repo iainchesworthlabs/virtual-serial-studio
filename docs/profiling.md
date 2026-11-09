@@ -154,10 +154,11 @@ plots the duration of each. `test.failed <name>` is a message.
 VSS_PROFILE=1 VSS_PROFILE_WAIT=30 ./build/linux-tracy-gui/bin/vss_unit_tests
 ```
 
-`vss_perf` has a micro-benchmark per component under `bench.<name>`
-(`bytes_hex`, `traffic_log_push`, `serial_settings_label`, `config_validate`,
-`studio_port_cycle`, `studio_snapshot`, `studio_apply`) besides the throughput
-benchmarks, and `perf/floors.json` gates them. A limit with `"min"` is a rate that
+`vss_perf` has a micro-benchmark per component in a `bench.*` zone
+(`bench.bytes_hex`, `bench.traffic_log`, `bench.serial_settings`,
+`bench.config_validate`, `bench.studio_ports`, `bench.studio_snapshot`,
+`bench.studio_apply`) besides the throughput benchmarks, and `perf/floors.json`
+gates their results. A limit with `"min"` is a rate that
 must not fall below it; one with `"max"` is a cost that must not rise above it
 (`zone_dormant` is the cost of a zone in a build that is not profiling).
 
@@ -249,26 +250,27 @@ a layer. `--markdown` and `--json` write the same data to files.
 
 ## What CI does
 
-The `End-to-end profiling (Tracy)` job:
+The `End-to-end profiling (Tracy)` job runs after a merge to `develop` and on
+request, not on a pull request. It:
 
 1. installs vcpkg at the pinned baseline and resolves the manifest (the overlay
    port builds the client with manual lifetime and no broadcast),
 2. builds `tracy-capture` and `tracy-csvexport` from Tracy v0.14.1, or restores
    them from the cache. Building them downloads CPM.cmake and sources from
    GitHub, so a build retries up to three times, and the finished tools are
-   cached under a key that names the Tracy version. The cache fills on pushes
-   to `develop`, which pull requests can read. The tools are built with
+   cached under a key that names the Tracy version. The tools are built with
    `NO_ISA_EXTENSIONS=ON`, because Tracy otherwise builds for the CPU it runs
    on and a cached copy stops with an illegal instruction on another runner.
    Change `TRACY_VERSION` in `ci.yml` to move to another release,
 3. configures `linux-tracy-gui` (Release, profiler dormant), builds `vss_perf`,
    `vss_gui` and `vss_unit_tests`,
-4. creates a pseudo-terminal pair so the serial phase runs too,
-5. captures three runs, each started with `--profile-wait`: `vss_perf --tracy`,
+4. checks the dormant cost of a zone against `perf/floors.json`,
+5. creates a pseudo-terminal pair so the serial phase runs too,
+6. captures three runs, each started with `--profile-wait`: `vss_perf --tracy`,
    `vss_gui --selftest --profile` (the offscreen GUI scenario) and the unit tests,
    exports each, requires the zones of its profile in `perf/required-zones.json`
    and appends the per-zone and per-area tables to the job summary,
-6. uploads the traces, CSVs, reports and raw benchmark output as artifacts.
+7. uploads the traces, CSVs, reports and raw benchmark output as artifacts.
 
 ## Reading the numbers
 
@@ -294,22 +296,20 @@ zone, empty loop subtracted):
 | `zone_recording` | a profiler is attached |
 
 Measured on Windows 11 with MSVC 19.51 in Release, one zone, loop cost
-subtracted (the "before" column is the previous design, where the on-demand
-client started a profiler thread and a listening socket at program start):
+subtracted:
 
 | State | ns per zone |
 |---|---:|
 | `VSS_TRACY` off (compiled out) | 0 |
-| before: compiled in, profiler thread listening, no profiler attached | 1.8 |
 | **dormant** (compiled in, not started) | **1.0** (2.2 inside `vss_perf`, beside other code) |
 | armed (recording on, no profiler attached) | 6.5 |
 | recording (a profiler is attached) | 36 to 39 |
 
 Throughput through the hub is unchanged within the noise of the machine
 (`hub_route`, `config_roundtrip` and `event_dispatch` medians of five runs are
-within a few percent of each other with the instrumentation compiled out,
-before, and dormant). The `zone_dormant` limit in `perf/floors.json` keeps the
-dormant cost from growing.
+within a few percent of each other with the instrumentation compiled out and
+dormant). The `zone_dormant` limit in `perf/floors.json` keeps the dormant cost
+from growing.
 
 ## Design notes
 

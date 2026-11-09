@@ -5,7 +5,7 @@ the development machine. A snapshot is the unit of disposal.
 
 ## The guests
 
-The guests are being rebuilt from the install media; this page describes the result. `tools/vm/matrix.json` lists them. The harness works on these three and refuses every other VM.
+`tools/vm/matrix.json` lists the guests, and the scripts in `tools/vm` build them from the install media (see [Building a guest](#building-a-guest)). The harness works on these three and refuses every other VM.
 
 | Guest | System | Used for |
 |---|---|---|
@@ -76,7 +76,7 @@ $vm = 'D:\Virtual Machines\VSS - Windows 10\VSS - Windows 10.vmx'
 
 `run` returns no output from the guest, so write it to a file in the guest and bring it back with `copy-from`. `wait-guest` is the check that a guest is ready: it asks the guest a question with the credentials until it answers, and it takes about 30 seconds after a revert. `wait-tools` only reads the Tools state, asks without credentials (with them `vmrun` kept answering "installed" while Tools were running), and can report "installed" for minutes after the guest is up, so use `wait-guest` before copying or running anything. `run` exits with the exit code of the guest command, and fails if the guest does not report one. On a Windows guest the command line is PowerShell syntax; on Linux it is bash. `snapshot` creates a
 snapshot once and fails if the name exists. `revert` fails if the snapshot is missing. `-DryRun` prints the `vmrun` command
-lines without running them. `tools/vm/test-vmrun.ps1` checks all of this against a stand-in for `vmrun`, and `test-vm.ps1` and `test-seed.ps1` check the guest builders with placeholders. All three run in CI.
+lines without running them. `tools/vm/test-vmrun.ps1` checks all of this against a stand-in for `vmrun`, and `test-vm.ps1`, `test-seed.ps1` and `test-credentials.ps1` check the guest builders and the credentials script with placeholders. They run as the `ctest` suites `vm_harness`, `vm_builder`, `vm_seed` (Windows only) and `vm_credentials`, with `vm_guest_cell` for `test-guest-cell.ps1` (see below), so CI runs them wherever PowerShell 7 is present.
 
 ## Running a cell in a guest
 
@@ -125,9 +125,9 @@ the same guest. The evidence comes back to `<Out>\<guest>\driver-out\<kmdf|umdf>
 (`result-wow64.json` holds W1 to W4 and T1 to T7), a log per step, and the JSON the client printed
 (`exercise-x86.json`, `probe-x86-busy.json` and the others). The script exits with 1 when a test failed.
 A test that ends `unexpected` is a result to read, not a pass: the detail says what the driver did that the
-design did not predict. `skip` carries its reason (T5 waits for the driver's revoke request, T7 is for the
-user-mode driver). `tools/vm/test-guest-cell.ps1` checks the order of the `vmrun` calls of all of this with
-`-DryRun`, and it runs in CI.
+design did not predict. `skip` carries its reason (T5 is skipped only when the `public.h` shipped in the bundle has
+no revoke request, which the driver now has; T7 is for the user-mode driver). The guest side of a driver run is
+`tools/vm/guest/win-driver.ps1`, which `guest-cell.ps1` copies in with the bundle.
 
 Run the tests by hand in a guest that is already prepared with the folders `make-driver-bundle.ps1`
 makes (`kmdf\` and `umdf\`):
