@@ -95,7 +95,7 @@ fi
 
 # The launcher entry and icon are valid and the licence texts are where they should be.
 desktop-file-validate /usr/share/applications/virtual-serial-studio.desktop
-test -f /usr/share/icons/hicolor/scalable/apps/virtual-serial-studio.svg
+test -f /usr/share/icons/hicolor/scalable/apps/vss_gui.svg
 for f in copyright LICENSE THIRD_PARTY_NOTICES.md LICENSES/GPL-3.0-or-later.txt LICENSES/BSL-1.0.txt; do
   test -s "/usr/share/doc/virtual-serial-studio/$f"
 done
