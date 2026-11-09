@@ -143,13 +143,9 @@ jobs:
       # beside the program, which is where Studio's "Set up Virtual Serial Studio" looks. They are built and signed
       # as the driver job of ci.yml builds and signs them, in the same SIGN_WINDOWS mode. The kernel-mode driver is
       # not shipped (docs/releasing.md says why).
-      - name: Cache the NuGet packages
-        if: runner.os == 'Windows'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~\.nuget\packages
-          key: nuget-driver-${{ hashFiles('drivers/windows/vsscom/vsscom.vcxproj', 'drivers/windows/vsscom_um/vsscom_um.vcxproj', 'drivers/windows/vsscom_helper/vsscom_helper.vcxproj') }}
-
+      # No NuGet cache here: a workflow that publishes release artifacts must not restore a cache that a pull request
+      # could have written (zizmor, cache-poisoning). The driver job of ci.yml caches; the release restores the
+      # packages from NuGet each time.
       - name: Build and sign the user-mode driver
         if: runner.os == 'Windows'
         uses: ./.github/actions/build-windows-driver
