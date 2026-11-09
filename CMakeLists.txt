@@ -168,6 +168,10 @@ if(VSS_INSTALL)
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT development)
   endif()
+
+  # Installers for the "runtime" component (CPack). The settings of each system
+  # are in cmake/packaging/<system>.cmake, chosen by VssPackaging.
+  include(VssPackaging)
 endif()
 
 # ---------------------------------------------------------------------------

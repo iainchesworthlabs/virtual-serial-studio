@@ -163,6 +163,22 @@ jobs:
           pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
           pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
 
+      # Signs and notarises the staged app when the owner has set SIGN_MACOS=true and added the secrets
+      # (docs/releasing.md). Without them it says the package is unsigned in the job summary and goes on.
+      # Like the Windows step, a pull request never signs.
+      - name: Sign the macOS app
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          SIGN_MACOS: ${{ (github.event_name != 'pull_request' && vars.SIGN_MACOS) || 'false' }}
+          MACOS_SIGN_IDENTITY: ${{ vars.MACOS_SIGN_IDENTITY }}
+          MACOS_SIGN_CERT_BASE64: ${{ secrets.MACOS_SIGN_CERT_BASE64 }}
+          MACOS_SIGN_CERT_PASSWORD: ${{ secrets.MACOS_SIGN_CERT_PASSWORD }}
+          MACOS_NOTARY_KEY_BASE64: ${{ secrets.MACOS_NOTARY_KEY_BASE64 }}
+          MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
+          MACOS_NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
+        run: tools/macos/ci-signing.sh stage/vss_gui.app stage/bin/vss_cli
+
       - name: Archive
         shell: bash
         env:
@@ -175,6 +191,45 @@ jobs:
           else
             tar -C stage -czf "dist/$NAME.tar.gz" .
           fi
+
+      # The disk image is made by CPack's DragNDrop generator from the same runtime component as the archive
+      # (cmake/packaging/Darwin.cmake). CPack stages its own copy, so a signing identity in the environment
+      # (set by the signing step above) makes cmake/packaging/DarwinSign.cmake sign that copy too.
+      - name: Build the macOS disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          PRESET: ${{ matrix.preset }}
+          NAME: virtual-serial-studio-${{ github.ref_type == 'tag' && github.ref_name || 'dry-run' }}-${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/cpack"
+          cpack --config "build/$PRESET/CPackConfig.cmake" -G DragNDrop -B "$out"
+          find "$out/_CPack_Packages" -maxdepth 4 | sort
+          shopt -s nullglob
+          images=("$out"/*.dmg)
+          test "${#images[@]}" -eq 1
+          mkdir -p dist
+          mv "${images[0]}" "dist/$NAME.dmg"
+          ls -l dist
+
+      # Mount the image the way a user would and run what it holds, so a layout or bundling mistake fails the build.
+      - name: Run the programs from the disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          NAME: virtual-serial-studio-${{ github.ref_type == 'tag' && github.ref_name || 'dry-run' }}-${{ matrix.name }}
+        run: |
+          set -euo pipefail
+          mount="$RUNNER_TEMP/vss-image"
+          mkdir -p "$mount"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mount" "dist/$NAME.dmg"
+          trap 'hdiutil detach "$mount" -force' EXIT
+          ls -la "$mount"
+          test -d "$mount/vss_gui.app"
+          test "$(readlink "$mount/Applications")" = "/Applications"
+          "$mount/bin/vss_cli" selftest
+          "$mount/vss_gui.app/Contents/MacOS/vss_gui" --version
 
       - name: Upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
