@@ -12,6 +12,8 @@ shared publish workflow adds the checks.
 | Package | Built on | Holds |
 |---|---|---|
 | `virtual-serial-studio-<tag>-linux-x86_64.tar.gz` | Ubuntu 26.04 | `bin/vss_gui`, `bin/vss_cli`, the Qt libraries in `lib/` and `plugins/`, the licence texts. Needs glibc 2.42 or newer |
+| `virtual-serial-studio_<version>-1_amd64.deb` | Ubuntu 26.04 | The same programs and Qt libraries in `/opt/virtual-serial-studio`, links in `/usr/bin`, a launcher entry, an icon, the licence texts in `/usr/share/doc/virtual-serial-studio`. For Debian and Ubuntu; see [Linux packages](#linux-packages) |
+| `virtual-serial-studio-<version>-<release>.x86_64.rpm` | Ubuntu 26.04 | The same files, for Fedora and Red Hat |
 | `virtual-serial-studio-<tag>-macos-arm64.tar.gz` | macOS 26 | `vss_gui.app`, `bin/vss_cli`, the licence texts |
 | `virtual-serial-studio-<tag>-windows-x86_64.zip` | Windows 2025 | `bin/vss_gui.exe`, `bin/vss_cli.exe`, the Qt DLLs, the licence texts |
 
@@ -91,6 +93,59 @@ These are not in the repository and an agent does not create them.
 - For a test-signed Windows package: `SIGN_WINDOWS=test` and the secrets
   `WIN_TESTSIGN_PFX_BASE64` and `WIN_TESTSIGN_PFX_PASSWORD`.
 
+## Linux packages
+
+`cmake/packaging/VssPackage-linux.cmake` sets up CPack (`-DVSS_PACKAGE=ON`; the
+shared settings are in `cmake/VssPackage.cmake`) and the release workflow runs it
+after the archive step. The package is named `virtual-serial-studio` and takes its
+version from `project(VERSION)`. The tag decides the rest:
+
+| Tag | deb version | rpm version and release |
+|---|---|---|
+| `v0.1.0` | `0.1.0-1` | `0.1.0-1` |
+| `v0.1.0-rc.1` | `0.1.0~rc.1-1` | `0.1.0-0.rc.1` |
+
+A tilde sorts before everything, so `0.1.0~rc.1` upgrades to `0.1.0`; an rpm release
+that starts with 0 sorts before the 1 of the final release. The workflow passes the
+label as `-DVSS_PACKAGE_PRERELEASE=rc.1`.
+
+**Where the files go.** The programs, the Qt libraries and the Qt plug-ins are the
+`runtime` install component, in `/opt/virtual-serial-studio` exactly as in the
+`.tar.gz`, and `/usr/bin/vss_gui` and `/usr/bin/vss_cli` are links to them. A tree
+under `/usr` would put `libQt6*.so*` in `/usr/lib`, where it would clash with the
+distribution's own Qt packages and shadow them for other programs. The packages
+carry the tree the release job has already run, with the run path
+`$ORIGIN/../lib`, which the loader resolves from the real file, so the links work.
+The launcher entry, the icon and the licence texts are the `integration` component.
+
+**Qt is bundled, not a dependency.** `vss_gui` is built and tested with the Qt kit
+pinned in `.github/toolchain-versions.json`, which is newer than the Qt in the
+distributions the packages are for. Depending on the distribution's Qt would run
+something the release job did not test. The cost is size, and that a Qt fix reaches
+users with a new Studio package, not with the distribution's update.
+
+**Dependencies.** The packages depend on what they do not carry: glibc 2.42 or newer
+(the same floor as the `check-glibc-floor` step), `libstdc++` from GCC 16, and the
+system libraries that Qt, its `xcb` plug-in and its image and font code load, with
+the xcb libraries listed under Known gaps. `pkexec` (Debian: `pkexec`, Red Hat:
+`polkit`) is recommended: Studio uses it to offer to add the user to the serial group.
+Studio needs no udev rule and no group of its own. A pseudo terminal needs no
+permission, and a real serial device is opened with the group that already owns it
+(`dialout` on Debian, Ubuntu and Fedora); the setup check tells the user, so the
+package does not change any account.
+
+**What the workflow checks.** `tools/ci/check_linux_packages.sh` prints the metadata,
+checks the version against the tag, then installs the deb in an Ubuntu 26.04 container
+and the rpm in a Fedora 44 container (both with glibc 2.42 or newer and GCC 16, the
+oldest systems the packages claim), runs `vss_cli selftest`, runs `ldd` on the programs,
+the Qt libraries and the plug-ins Studio uses to find a missing dependency, validates the launcher
+entry, starts `vss_gui --version` under Xvfb (which loads the `xcb` plug-in), and
+removes the package. Run it on a machine with docker:
+
+```
+tools/ci/check_linux_packages.sh <directory with the .deb and .rpm> v0.1.0-rc.1
+```
+
 ## Known gaps
 
 - The Linux package needs glibc 2.42 or newer, which is Ubuntu 26.04 or later.
@@ -99,7 +154,9 @@ These are not in the repository and an agent does not create them.
   Ubuntu 24.04 (glibc 2.39). The release workflow passes `allowed: "2.42"` to
   the `check-glibc-floor` action for this reason. The package also relies on the
   system's libstdc++ from GCC 16. Building on an older system, or linking the C++
-  runtime statically, would lower the floor; neither is done yet.
+  runtime statically, would lower the floor; neither is done yet. The deb and rpm
+  declare the same floors (glibc 2.42, libstdc++ 16), so a system below them
+  refuses to install them.
 - The Linux package carries the `xcb` Qt platform plugin only, and that plugin needs
   `libxcb-cursor0` and the other xcb libraries from the system. On Ubuntu:
   `sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1
@@ -107,11 +164,14 @@ These are not in the repository and an agent does not create them.
   Without them `vss_gui` stops at start with "Could not load the Qt platform plugin
   xcb". There is no Wayland plugin.
   The platform matrix (T9) found this on a machine without them.
+  The deb and rpm depend on these libraries, so installing the package installs
+  them; the command above is for the `.tar.gz` only.
 - On Windows `vss_gui.exe` belongs to the Windows subsystem, so it opens no console window. Started from a
   terminal it attaches to that terminal and prints `--version`, `--help` and `--selftest` there. `cmd` and
   PowerShell do not wait for such a program: use `start /wait` or `Start-Process -Wait` when the exit code
   matters. The `gui_subsystem` test checks the subsystem of the built program.
-- The GUI package has no installer. Unpack it where you like.
+- The Windows and macOS packages have no installer. Unpack them where you like. Linux has a deb
+  and an rpm (above); the Linux `.tar.gz` stays for other distributions.
 
 ## macOS signing and notarisation
 

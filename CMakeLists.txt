@@ -168,6 +168,9 @@ if(VSS_INSTALL)
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT development)
   endif()
+
+  # The installer packages (deb, rpm and the others), when VSS_PACKAGE is ON.
+  include(VssPackage)
 endif()
 
 # ---------------------------------------------------------------------------

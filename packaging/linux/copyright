@@ -1,0 +1,35 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: Virtual Serial Studio
+Upstream-Contact: Iain Chesworth Labs Releases <iain.chesworth@gmail.com>
+Source: https://github.com/iainchesworthlabs/virtual-serial-studio
+Comment: SPDX-License-Identifier: GPL-3.0-or-later
+ The package carries the Qt 6 libraries and plug-ins that vss_gui is linked
+ to, in /opt/virtual-serial-studio/lib and /opt/virtual-serial-studio/plugins.
+ Qt is licensed under LGPL-3.0-only OR GPL-3.0-only OR a commercial licence,
+ and is used here under its GPL-3.0 option. Qt's own source and licence texts
+ are at https://code.qt.io and https://www.qt.io/licensing.
+
+Files: *
+Copyright: 2026 Iain Chesworth Labs contributors
+License: GPL-3+
+
+Files: /opt/virtual-serial-studio/bin/vss_cli /opt/virtual-serial-studio/bin/vss_gui
+Copyright: 2026 Iain Chesworth Labs contributors
+License: GPL-3+
+Comment: These programs also contain Boost.Asio, Boost.System, Boost.JSON and
+ Boost.VirtualSerial, which are licensed under the Boost Software License 1.0.
+ The text is in /usr/share/doc/virtual-serial-studio/LICENSES/BSL-1.0.txt.
+ THIRD_PARTY_NOTICES.md in the same directory lists every component.
+
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify it under
+ the terms of the GNU General Public License as published by the Free Software
+ Foundation, either version 3 of the License, or (at your option) any later
+ version.
+ .
+ This program is distributed in the hope that it will be useful, but WITHOUT
+ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+ .
+ The full text is in /usr/share/doc/virtual-serial-studio/LICENSES/GPL-3.0-or-later.txt
+ and, on a Debian system, in /usr/share/common-licenses/GPL-3.

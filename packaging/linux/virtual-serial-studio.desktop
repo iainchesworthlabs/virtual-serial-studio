@@ -1,0 +1,13 @@
+[Desktop Entry]
+# SPDX-License-Identifier: GPL-3.0-or-later
+Type=Application
+Version=1.5
+Name=Virtual Serial Studio
+GenericName=Serial port playground
+Comment=Create virtual serial ports and wire them to real ports, to each other and to the network
+Exec=vss_gui
+Icon=virtual-serial-studio
+Terminal=false
+Categories=Development;Debugger;
+Keywords=serial;com;tty;pty;rs232;rs485;virtual port;
+StartupNotify=false
