@@ -19,13 +19,18 @@
   Every .exe is also checked for the execution level in its manifest: a program that asks for
   requireAdministrator or highestAvailable would show the permission prompt at every start. Only
   a helper that a step starts on purpose may elevate, through ShellExecute and the runas verb,
-  never through its manifest.
+  never through its manifest. The one exception is an installer (-AllowElevation): it writes to
+  Program Files, so it asks for administrator rights once, when it starts, and its manifest says so.
 
 .PARAMETER Mode
   false, test or production, as SIGN_WINDOWS says.
 
 .PARAMETER Files
   Paths of the files to check.
+
+.PARAMETER AllowElevation
+  The files are installers, whose manifest may ask for requireAdministrator or highestAvailable.
+  Everything else is checked as before.
 
 .PARAMETER SummaryFile
   A file to append a Markdown table to. In CI this is $env:GITHUB_STEP_SUMMARY.
@@ -34,7 +39,8 @@
 param(
   [Parameter(Mandatory)][ValidateSet('false', 'test', 'production')][string]$Mode,
   [Parameter(Mandatory)][string[]]$Files,
-  [string]$SummaryFile = ''
+  [string]$SummaryFile = '',
+  [switch]$AllowElevation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -68,7 +74,7 @@ if ($Mode -eq 'false') {
     $detail = ''
     if ($f -match '\.exe$' -and (Test-Path -LiteralPath $f)) {
       $level = Get-ExecutionLevel $f
-      if ($level -in @('requireAdministrator', 'highestAvailable')) {
+      if (-not $AllowElevation -and $level -in @('requireAdministrator', 'highestAvailable')) {
         $failed++
         $detail = "manifest asks for $level"
         Write-Host "::error title=Windows manifest check failed::$f - $detail"
@@ -104,7 +110,7 @@ else {
     }
     if ($f -match '\.exe$') {
       $level = Get-ExecutionLevel $f
-      if ($level -in @('requireAdministrator', 'highestAvailable')) { $problems.Add("manifest asks for $level") }
+      if (-not $AllowElevation -and $level -in @('requireAdministrator', 'highestAvailable')) { $problems.Add("manifest asks for $level") }
     }
     $subject = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { '' }
     if ($problems.Count -gt 0) {

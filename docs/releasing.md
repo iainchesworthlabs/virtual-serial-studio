@@ -14,6 +14,7 @@ shared publish workflow adds the checks.
 | `virtual-serial-studio-<tag>-linux-x86_64.tar.gz` | Ubuntu 26.04 | `bin/vss_gui`, `bin/vss_cli`, the Qt libraries in `lib/` and `plugins/`, the licence texts. Needs glibc 2.42 or newer |
 | `virtual-serial-studio-<tag>-macos-arm64.tar.gz` | macOS 26 | `vss_gui.app`, `bin/vss_cli`, the licence texts |
 | `virtual-serial-studio-<tag>-windows-x86_64.zip` | Windows 2025 | `bin/vss_gui.exe`, `bin/vss_cli.exe`, the Qt DLLs, the licence texts |
+| `virtual-serial-studio-<tag>-windows-x86_64.exe` | Windows 2025 | The same files as the zip, as an NSIS installer ([below](#the-windows-installer)) |
 
 The release also has `SHA512SUMS`, a detached GPG signature (`.asc`) for every
 file, an SPDX software bill of materials and a build provenance attestation for
@@ -24,7 +25,7 @@ are not in the packages.
 
 | System | State |
 |---|---|
-| Windows | The `SIGN_WINDOWS` repository variable chooses: `false` (the default) leaves the files unsigned and names the package `-unsigned`, `test` signs with a leaf certificate from the owner's own certificate authority (`-testsigned`), and `production` is reserved for the signing service that has not been chosen yet. `vss_gui.exe`, `vss_cli.exe` and any `vss_*.dll` are signed before the zip is made and the signatures are verified; a run without the secrets leaves them unsigned and says so in the job summary |
+| Windows | The `SIGN_WINDOWS` repository variable chooses: `false` (the default) leaves the files unsigned and names the package `-unsigned`, `test` signs with a leaf certificate from the owner's own certificate authority (`-testsigned`), and `production` is reserved for the signing service that has not been chosen yet. `vss_gui.exe`, `vss_cli.exe` and any `vss_*.dll` are signed before the zip and the installer are made, the installer is built from those signed files, and then the installer `.exe` itself is signed. Every signature is verified; a run without the secrets leaves them all unsigned and says so in the job summary. The `Uninstall.exe` that the installer writes on the machine is not signed ([the installer](#the-windows-installer)) |
 | macOS | Not signed or notarised yet. Gatekeeper asks the user to allow the app. The owner signs and notarises with `tools/macos/sign-and-notarize.sh` (below) |
 | Linux | Not signed beyond the GPG signature on the file |
 
@@ -111,7 +112,69 @@ These are not in the repository and an agent does not create them.
   terminal it attaches to that terminal and prints `--version`, `--help` and `--selftest` there. `cmd` and
   PowerShell do not wait for such a program: use `start /wait` or `Start-Process -Wait` when the exit code
   matters. The `gui_subsystem` test checks the subsystem of the built program.
-- The GUI package has no installer. Unpack it where you like.
+- The macOS package has no installer. Unpack it where you like.
+
+## The Windows installer
+
+`cmake/VssPackagingWindows.cmake` configures CPack's NSIS generator, which builds the
+installer from the `runtime` component. `release.yml` signs the programs, packs that
+signed tree with `cpack -G NSIS` (`CPACK_INSTALLED_DIRECTORIES` names the tree, and an
+empty `CPACK_INSTALL_CMAKE_PROJECTS` stops CPack installing unsigned copies over it),
+and signs and verifies the `.exe`. Then, on the runner, it installs the installer
+silently twice (the second is an upgrade), runs `vss_cli selftest` and
+`vss_gui --version` from `%ProgramFiles%\Virtual Serial Studio`, uninstalls silently and
+checks that the folder, the Apps & features entry and the Start menu folder are gone.
+NSIS comes from Chocolatey through the `setup-toolchain` action, at the version in
+`.github/toolchain-versions.json`.
+
+What it does:
+
+- Installs for all users into `%ProgramFiles%\Virtual Serial Studio` and asks for
+  administrator rights once, when it starts. There is **no per-user mode**: CPack's NSIS
+  template cannot offer both, the Start menu and PATH entries would differ between them,
+  and the driver set-up that follows is per machine. The zip is the way to run Studio
+  without administrator rights.
+- Shows the GPL text on the licence page, adds a Start menu folder with **Virtual Serial
+  Studio** and **Uninstall**, and registers an uninstaller under Apps & features.
+- Removes an earlier version before it installs (the registry key and the folder carry no
+  version, so any version finds any other).
+- Offers, on a page whose default is "Do not add", to put `bin` on the PATH so that
+  `vss_cli` runs from any terminal. `bin` also holds the Qt DLLs, which is why it is not
+  the default. A silent install (`/S`) adds nothing, and `/D=<folder>` installs elsewhere.
+
+**What is left: the driver and the helper service are not in the installer.** It carries
+Studio and the command line tool only, and does not install `vsscom_um`,
+`vsscom_helper` or the kernel-mode driver. The reasons:
+
+- The kernel-mode driver is not signed for production. Windows loads it only if Microsoft
+  signed it (or test signing is on), and nothing signs it yet.
+- The user-mode driver and `vsscom_helper.exe` are signed in CI only with the owner's test
+  certificate, which a machine trusts once its owner has installed that authority
+  (`drivers/windows/trust/install-trust.ps1`). An installer that put them in place
+  silently, or that added the authority, would change what a machine trusts and start a
+  service that runs as SYSTEM without the person having chosen it. The signing service
+  for `production` has not been chosen.
+- The `driver` job in `ci.yml` builds them, not `release.yml`, so the release does not
+  hold them either.
+
+Studio already offers **Set up Virtual Serial Studio** on Windows. It runs
+`drivers/windows/setup-driver.ps1` from a `driver` folder beside the program, through one
+permission prompt, and checks the signatures first. That folder is not in the installed
+tree, so on an installed copy the action is unavailable and Studio says the driver is not
+set up. When the signing service exists, the follow-up is to build the packages in
+`release.yml`, sign them in `production` mode, install them into `bin\driver`
+(`setup-driver.ps1`, `driver\` and `helper\`), and have the installer offer that set-up as
+an unticked option that runs the same script, so the signature checks stay in one place.
+Nothing about test signing changes until then.
+
+Other known gaps:
+
+- The `Uninstall.exe` that the installer writes into the install folder is not signed.
+  NSIS makes it at install time, and signing it needs a second build pass that runs the
+  installer. The installer, and every program in it, is signed.
+- The Qt deploy step puts `vc_redist.x64.exe` in `bin`; the installer carries it (about
+  25 MB) but does not run it.
+- The installer has the default NSIS icon, because Studio has no icon yet.
 
 ## macOS signing and notarisation
 

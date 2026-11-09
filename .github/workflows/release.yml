@@ -87,6 +87,7 @@ jobs:
         with:
           compiler: ${{ matrix.compiler }}
           qt: "true"
+          nsis: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
       - uses: ./.github/actions/prepare-deps
 
@@ -162,6 +163,90 @@ jobs:
           files: ${{ steps.binaries.outputs.files }}
           pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
           pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
+
+      # The installer is made from the signed stage tree, so it holds the files that were just signed, and is then
+      # signed itself. Its name carries the same -unsigned or -testsigned suffix as the zip.
+      - name: Build the Windows installer
+        id: installer
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          PRESET: ${{ matrix.preset }}
+          NAME: virtual-serial-studio-${{ github.ref_type == 'tag' && github.ref_name || 'dry-run' }}-${{ matrix.name }}${{ steps.sign.outputs.suffix }}
+        run: |
+          set -euo pipefail
+          # CPACK_INSTALLED_DIRECTORIES packages the stage tree; the empty CPACK_INSTALL_CMAKE_PROJECTS keeps CPack from
+          # installing unsigned copies of the programs over it (cmake/VssPackagingWindows.cmake).
+          cpack --config "build/$PRESET/CPackConfig.cmake" -G NSIS -B dist \
+            -D "CPACK_INSTALLED_DIRECTORIES=$(cygpath -m "$PWD/stage");/" \
+            -D "CPACK_INSTALL_CMAKE_PROJECTS=" \
+            -D "CPACK_PACKAGE_FILE_NAME=$NAME"
+          rm -rf dist/_CPack_Packages
+          test -f "dist/$NAME.exe"
+          echo "path=dist/$NAME.exe" >> "$GITHUB_OUTPUT"
+
+      - name: Sign and verify the Windows installer
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/sign-windows-binaries
+        with:
+          mode: ${{ (github.event_name != 'pull_request' && vars.SIGN_WINDOWS) || 'false' }}
+          files: ${{ steps.installer.outputs.path }}
+          installer: "true"
+          pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
+          pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
+
+      # The runner is an administrator, so this is the real per-machine install. The second install is an upgrade: it
+      # must find the first one, remove it and install again.
+      - name: Install the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          INSTALLER: ${{ steps.installer.outputs.path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = (Resolve-Path $env:INSTALLER).Path
+          $folder = Join-Path $env:ProgramFiles 'Virtual Serial Studio'
+          $key = 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VirtualSerialStudio'
+          foreach ($round in 'first install', 'upgrade over it') {
+            $p = Start-Process $installer -ArgumentList '/S' -Wait -PassThru
+            if ($p.ExitCode -ne 0) { throw "The installer exited with $($p.ExitCode) ($round)." }
+            foreach ($file in 'bin\vss_gui.exe', 'bin\vss_cli.exe', 'Uninstall.exe') {
+              if (-not (Test-Path -LiteralPath (Join-Path $folder $file))) { throw "$file is missing after the $round." }
+            }
+            if (-not (Test-Path -LiteralPath $key)) { throw "No Apps & features entry after the $round." }
+          }
+          $shortcut = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Virtual Serial Studio\Virtual Serial Studio.lnk'
+          if (-not (Test-Path -LiteralPath $shortcut)) { throw 'The Start menu shortcut is missing.' }
+          # A silent install must not change the PATH.
+          $path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+          if ($path -like '*Virtual Serial Studio*') { throw 'A silent install added Studio to the PATH.' }
+
+      - name: Run the programs from the installed Windows folder
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          installed="$PROGRAMFILES/Virtual Serial Studio"
+          "$installed/bin/vss_cli.exe" selftest
+          "$installed/bin/vss_gui.exe" --version
+
+      - name: Uninstall the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = Join-Path $env:ProgramFiles 'Virtual Serial Studio'
+          # The uninstaller copies itself to a temporary folder and returns at once, so wait for the folder to go.
+          $p = Start-Process (Join-Path $folder 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "The uninstaller exited with $($p.ExitCode)." }
+          $deadline = (Get-Date).AddSeconds(120)
+          while ((Test-Path -LiteralPath $folder) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+          if (Test-Path -LiteralPath $folder) {
+            Get-ChildItem -LiteralPath $folder -Recurse | Select-Object -First 20 FullName | Out-String | Write-Host
+            throw "$folder is still there after the uninstall."
+          }
+          if (Test-Path 'HKLM:\Software\Microsoft\Windows\CurrentVersion\Uninstall\VirtualSerialStudio') { throw 'The Apps & features entry is still there.' }
+          if (Test-Path (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Virtual Serial Studio')) { throw 'The Start menu folder is still there.' }
 
       - name: Archive
         shell: bash

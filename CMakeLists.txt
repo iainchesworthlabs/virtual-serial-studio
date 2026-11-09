@@ -168,6 +168,11 @@ if(VSS_INSTALL)
       LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT development
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT development)
   endif()
+
+  # The installer of each system is configured in cmake/VssPackaging<System>.cmake
+  # (Windows, Linux, Darwin); a system without a file has none. The file ends
+  # with include(CPack), so it comes after every install() rule.
+  include(VssPackaging${CMAKE_SYSTEM_NAME} OPTIONAL)
 endif()
 
 # ---------------------------------------------------------------------------

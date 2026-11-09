@@ -300,7 +300,7 @@ the first byte, then for a gap". The driver implements all of them, in
 | User-mode driver | A catalog signed by a certificate the machine trusts. CI signs it with the organisation's test certificate when `SIGN_WINDOWS` is `test`, and `drivers/windows/trust/install-trust.ps1` makes a machine trust it with test signing off |
 | Kernel-mode driver, release | Windows loads kernel code only if Microsoft signed it or test signing is on. That needs an EV code-signing certificate and a Microsoft Hardware Dev Center account; attestation signing is enough (WHQL/HLK is not required for attestation). Not done: the kernel-mode package is unsigned |
 | Architectures | x64 and ARM64 are built, `InfVerif` and `Inf2Cat` pass. ARM64 is built but untried in a guest |
-| Installer | There is no installer. `drivers/windows/setup-driver.ps1` installs or repairs the user-mode driver and the helper service from the files beside the program, and Studio offers it as "Set up Virtual Serial Studio". The kernel-mode package is added with `pnputil`, as the guest script `install-driver.ps1` does |
+| Installer | The Studio installer ([releasing](releasing.md#the-windows-installer)) does not hold the driver or the helper. `drivers/windows/setup-driver.ps1` installs or repairs the user-mode driver and the helper service from the files beside the program, and Studio offers it as "Set up Virtual Serial Studio". The kernel-mode package is added with `pnputil`, as the guest script `install-driver.ps1` does |
 | GPL | The driver is GPL-3.0-or-later like the rest of the project; shipping the binary means offering its source, and this repository is that offer |
 
 The certificate is the long-lead item for the kernel-mode driver: procurement
@@ -322,7 +322,8 @@ unsigned, altered after signing or has no timestamp.
 
 | Program | Where it is signed | When |
 |---|---|---|
-| `vss_gui.exe`, `vss_cli.exe`, any `vss_*.dll` | `release.yml`, job `package`, before the zip is made | A tag, a manual run and the Monday run, never a pull request |
+| `vss_gui.exe`, `vss_cli.exe`, any `vss_*.dll` | `release.yml`, job `package`, before the zip and the installer are made | A tag, a manual run and the Monday run, never a pull request |
+| The NSIS installer `.exe` | `release.yml`, job `package`, after it is built from those signed files | The same runs. Its manifest asks for administrator rights, which the check accepts for an installer only |
 | `vsscom_um.dll`, `vsscom_um.cat`, `vsscom_helper.exe` | `ci.yml`, job `driver` | Wherever that job runs (a merge-queue entry that changes the driver, every push to `develop`, a manual run), except for a pull request from a fork |
 
 The Qt libraries in the package are the Qt Company's and ship as built. The

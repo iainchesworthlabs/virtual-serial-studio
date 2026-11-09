@@ -21,6 +21,11 @@ inputs:
   files:
     description: Newline-separated paths of the .exe, .dll and .cat files to sign and verify.
     required: true
+  installer:
+    description: >
+      "true" when the files are installers. An installer's manifest asks for administrator rights, which
+      the check refuses in a program Studio starts; with this set it is accepted.
+    default: "false"
   pfx-base64:
     description: Secret WIN_TESTSIGN_PFX_BASE64.
     default: ""
@@ -77,7 +82,10 @@ runs:
       env:
         MODE: ${{ steps.decide.outputs.mode }}
         FILES: ${{ inputs.files }}
+        INSTALLER: ${{ inputs.installer }}
         VERIFY_SCRIPT: ${{ github.action_path }}/../../../tools/ci/verify-windows-signatures.ps1
       run: |
         $ErrorActionPreference = 'Stop'
-        & $env:VERIFY_SCRIPT -Mode $env:MODE -Files $env:FILES -SummaryFile $env:GITHUB_STEP_SUMMARY
+        $extra = @{}
+        if ($env:INSTALLER -eq 'true') { $extra['AllowElevation'] = $true }
+        & $env:VERIFY_SCRIPT -Mode $env:MODE -Files $env:FILES -SummaryFile $env:GITHUB_STEP_SUMMARY @extra

@@ -52,7 +52,8 @@ Release packaging and the driver job sign the Windows programs with the
 - **Without the secrets** the step writes a warning and a note in the job summary
   and leaves the files unsigned; the leg passes.
 - **With them** every file is checked: a signature, an RFC 3161 timestamp and an
-  intact hash, plus a manifest that never asks for administrator rights. A
+  intact hash, plus a manifest that never asks for administrator rights (the
+  installer, checked with `installer: "true"`, is the one file that may). A
   failure fails the leg. In `production` mode the chain must also be trusted
   and `signtool verify /pa` must pass.
 
