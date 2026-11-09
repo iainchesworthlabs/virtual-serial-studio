@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!--
+  Virtual Serial Studio application icon: the master. Every other icon file in
+  this directory is made from it by tools/gen_app_icon.py (see README.md).
+
+  Two serial connectors face each other across a split link: a port, a virtual
+  twin, and the wire the program runs between them. There is no text, so no
+  font is needed.
+
+  The colours are the design tokens: the tile is `accent` (#2160E0), the
+  connectors are `onAccent` (#FFFFFF) and the link is `accentLine` (#B9CDF6),
+  all from the light set in apps/vss_gui/src/theme/resources/tokens.json. An
+  app icon is an image and does not follow the light or dark theme.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <title>Virtual Serial Studio</title>
+  <rect x="48" y="48" width="928" height="928" rx="208" fill="#2160E0"/>
+  <g id="connector-left" fill="#FFFFFF">
+    <rect x="132" y="296" width="132" height="432" rx="44"/>
+    <path d="M252 348 L372 400 Q392 410 392 432 V592 Q392 614 372 624 L252 676 Z"/>
+  </g>
+  <g id="connector-right" fill="#FFFFFF">
+    <rect x="760" y="296" width="132" height="432" rx="44"/>
+    <path d="M772 348 L652 400 Q632 410 632 432 V592 Q632 614 652 624 L772 676 Z"/>
+  </g>
+  <g fill="#2160E0">
+    <circle cx="198" cy="424" r="26"/>
+    <circle cx="198" cy="512" r="26"/>
+    <circle cx="198" cy="600" r="26"/>
+    <circle cx="826" cy="424" r="26"/>
+    <circle cx="826" cy="512" r="26"/>
+    <circle cx="826" cy="600" r="26"/>
+  </g>
+  <g stroke="#B9CDF6" stroke-width="64" stroke-linecap="round">
+    <path d="M436 512 H468"/>
+    <path d="M556 512 H588"/>
+  </g>
+</svg>

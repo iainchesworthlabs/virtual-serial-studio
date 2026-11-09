@@ -1,1 +1,0 @@
-**CI compiles with ccache.** Every compile job restores a compiler cache, and a nightly job seeds the caches from develop. The Windows presets now embed debug information (`/Z7`) so that MSVC objects can be cached.

@@ -15,6 +15,7 @@ shared publish workflow adds the checks.
 | `virtual-serial-studio_<version>-1_amd64.deb` | Ubuntu 26.04 | The same programs and Qt libraries in `/opt/virtual-serial-studio`, links in `/usr/bin`, a launcher entry, an icon, the licence texts in `/usr/share/doc/virtual-serial-studio`. For Debian and Ubuntu; see [Linux packages](#linux-packages) |
 | `virtual-serial-studio-<version>-<release>.x86_64.rpm` | Ubuntu 26.04 | The same files, for Fedora and Red Hat |
 | `virtual-serial-studio-<tag>-macos-arm64.tar.gz` | macOS 26 | `vss_gui.app`, `bin/vss_cli`, the licence texts |
+| `virtual-serial-studio-<tag>-macos-arm64.dmg` | macOS 26 | A disk image with `vss_gui.app`, an `Applications` link to drag it onto, `bin/vss_cli` and the licence texts. The same files as the tar.gz, made by CPack (below) |
 | `virtual-serial-studio-<tag>-windows-x86_64.zip` | Windows 2025 | `bin/vss_gui.exe`, `bin/vss_cli.exe`, the Qt DLLs, the licence texts |
 
 The release also has `SHA512SUMS`, a detached GPG signature (`.asc`) for every
@@ -27,7 +28,7 @@ are not in the packages.
 | System | State |
 |---|---|
 | Windows | The `SIGN_WINDOWS` repository variable chooses: `false` (the default) leaves the files unsigned and names the package `-unsigned`, `test` signs with a leaf certificate from the owner's own certificate authority (`-testsigned`), and `production` is reserved for the signing service that has not been chosen yet. `vss_gui.exe`, `vss_cli.exe` and any `vss_*.dll` are signed before the zip is made and the signatures are verified; a run without the secrets leaves them unsigned and says so in the job summary |
-| macOS | Not signed or notarised yet. Gatekeeper asks the user to allow the app. The owner signs and notarises with `tools/macos/sign-and-notarize.sh` (below) |
+| macOS | Not signed or notarised yet, so the `.dmg` and the tar.gz are unsigned and Gatekeeper asks the user to allow the app (see "Installing on macOS"). The `SIGN_MACOS` repository variable turns signing on once the owner has added the certificate and notary secrets (below); until then the job summary says the package is unsigned |
 | Linux | Not signed beyond the GPG signature on the file |
 
 A test-signed Windows package is trusted only on a machine that has the owner's
@@ -77,6 +78,52 @@ cannot go unseen for long. The Monday run is on `develop`, so it is the status o
 the packaging jobs for that branch. Unpack each package on its system and run
 `vss_cli selftest`; start `vss_gui` on a machine with a display.
 
+## Where `main` fits
+
+All work happens on `develop`. `main` holds only released code: it does not move
+until a final release, when the publish job fast-forwards it to the tag, so
+`main` always names the latest release. A release candidate (a tag with a
+suffix) never moves it. Nobody commits or opens a pull request into `main`, and a
+fresh branch or session starts from `develop`, not `main`.
+
+## The release notes
+
+The page of a release has the layout of the established releases of the other
+projects in this organisation, so a reader sees the same thing every time:
+
+1. **A heading and a summary.** `## What's Changed since v<previous>` (leave out
+   "since" for the first release), then two or three sentences that say what the
+   release is for in the user's words: the biggest things first, what is new, what
+   changed, what a user should know before installing.
+2. **The changelog section**, as `### Added`, `### Changed`, `### Fixed` and
+   `### Security` lists, copied from `CHANGELOG.md` (for a release candidate, from
+   `python3 tools/changelog.py --dry-run`). Each entry is a bold headline and a
+   plain-language explanation (`changelog.d/README.md`). Relative links are
+   rewritten to the tagged files.
+3. **`## Install`**: a table of the file for each system and how to install it
+   (the installer, then the archive), what is signed and what is not, the
+   machine requirements (glibc 2.42 on Linux; the Windows driver and what to do
+   when it is not trusted; Gatekeeper on macOS), and how to check a download
+   (`SHA512SUMS`, the `.asc` signatures and `gh attestation verify`, with a link to
+   `SECURITY.md`).
+4. **`**Full Changelog**: …/compare/v<previous>...v<this>`** (leave out for the first
+   release).
+5. **For a pre-release, a closing block quote** that says what has been tested on
+   which system and what has not, and asks for reports.
+
+The publish job writes the section from the changelog (item 2). Writing the
+summary, the install section and the closing note is a step of the release, done
+after the publish job has run and before the release is announced:
+
+```bash
+gh release view v0.1.0 --json body --jq .body > notes.md   # edit: add 1, 3, 4, 5
+gh release edit v0.1.0 --notes-file notes.md
+```
+
+Read the page the way a user does before you tell anyone about it. Anything a
+user would not recognise (a work-package name, a CI job, a test count) belongs in
+a pull request, not in the notes.
+
 ## What the owner provides
 
 These are not in the repository and an agent does not create them.
@@ -92,6 +139,8 @@ These are not in the repository and an agent does not create them.
 - The `release` environment with the owner as required reviewer.
 - For a test-signed Windows package: `SIGN_WINDOWS=test` and the secrets
   `WIN_TESTSIGN_PFX_BASE64` and `WIN_TESTSIGN_PFX_PASSWORD`.
+- For a signed and notarised macOS package: the Developer ID certificate, a notary API key,
+  and the variables and secrets listed under "macOS signing and notarisation".
 
 ## Linux packages
 
@@ -181,8 +230,63 @@ tools/ci/check_linux_packages.sh <directory with the .deb and .rpm> v0.1.0-rc.1
   terminal it attaches to that terminal and prints `--version`, `--help` and `--selftest` there. `cmd` and
   PowerShell do not wait for such a program: use `start /wait` or `Start-Process -Wait` when the exit code
   matters. The `gui_subsystem` test checks the subsystem of the built program.
-- The Windows and macOS packages have no installer. Unpack them where you like. Linux has a deb
-  and an rpm (above); the Linux `.tar.gz` stays for other distributions.
+- The Windows package has no installer yet. Unpack it where you like.
+- The macOS disk image is unsigned until the owner supplies the certificate and the notary credentials. Gatekeeper
+  blocks an unsigned app that was downloaded; "Installing on macOS" says how to allow it.
+- The macOS image is arm64 only. There is no Intel build.
+
+## Installing on macOS
+
+Open the `.dmg`, drag `vss_gui.app` onto the `Applications` link in the window and eject
+the image. The image also holds the command line tool, `bin/vss_cli`. It is not inside the
+app on purpose: macdeployqt seals the app bundle (and the signing script seals it again),
+and a file added afterwards breaks the seal, which stops the app opening on Apple silicon.
+To put the tool on `PATH`, copy it out of the mounted image:
+
+```bash
+sudo install -m 755 "/Volumes/Virtual Serial Studio/bin/vss_cli" /usr/local/bin/vss_cli
+```
+
+A second drag target would have meant a loose, unsigned executable the user has to find, and
+an installer package (`.pkg`) would have needed its own Developer ID Installer certificate
+and a second notarisation. The tar.gz holds the same files for a user who prefers it.
+
+**The image is not signed yet.** Until it is, macOS treats the app as from an unidentified
+developer. The first time, Gatekeeper refuses to open it ("cannot be opened because the
+developer cannot be verified"). Try to open it once, then open System Settings, Privacy &
+Security, and choose Open Anyway beside the message about `vss_gui` (on macOS 14 and earlier,
+Control-click the app, choose Open, then Open again). Removing the quarantine flag also works:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/vss_gui.app
+```
+
+The Release workflow builds the image on a macOS 26 runner with CPack's DragNDrop
+generator. The settings are in `cmake/packaging/VssPackage-darwin.cmake`, chosen by
+`cmake/VssPackage.cmake` from the system name (each system has its own
+`cmake/packaging/VssPackage-<system>.cmake`). A developer can make one from a macOS build directory with
+`cpack --config build/macos-release-gui/CPackConfig.cmake -G DragNDrop`. The job then mounts
+the image with `hdiutil attach`, runs `vss_cli selftest` and `vss_gui --version` from the
+mounted volume and detaches it, and uploads the image with the other packages.
+
+### What macOS needs besides the app
+
+Nothing. The image installs no driver, kernel extension, system extension, launch daemon
+or privileged helper, so there is nothing to uninstall: drag `vss_gui.app` (and `vss_cli`,
+if it was copied) to the Bin. The Windows package differs because Windows has a COM port
+driver; the reasons for each item on macOS are:
+
+| Item | Needed? | Why |
+|---|---|---|
+| Virtual ports | No driver | They are pseudo terminals (`/dev/ttysNNN`) opened with `openpty`, which any user process may do. A SerialDriverKit driver would make ports that programs listing ports through IOKit could see, but it needs an Apple entitlement and is not planned (`posix-virtual-ports.md`) |
+| Stable links, `/tmp/vss` | No installer step | `vss_cli vport` creates the directory when it runs, with mode 0700, owned by the user. macOS empties `/tmp` at restart, and the links go with the process anyway |
+| Serial devices, `/dev/cu.*` | No installer step | The notarised, non-sandboxed app opens them as the user does, with no prompt. Only a sandboxed build needs the serial and USB entitlements in `vss_gui.sandbox.entitlements`, and the release is not sandboxed |
+| Local Network | Already covered | `NSLocalNetworkUsageDescription` is in `Info.plist.in`. macOS 15 and later asks once, the first time a network endpoint is used. The Application Firewall asks once about incoming connections for a listener |
+| `vss_cli` on `PATH` | Optional, by hand | The image does not change `PATH`. The `install` command under "Installing on macOS" puts the tool in `/usr/local/bin` |
+
+This comes from reading the code and `docs/platforms.md`; it has not been tried on a Mac.
+A third-party program that offers a list of ports will not list a virtual one; one given
+the path (`/dev/ttysNNN` or a link in `/tmp/vss`) works.
 
 ## macOS signing and notarisation
 
@@ -208,5 +312,26 @@ Apple and stapled. The pieces are in the repository; the identity is not.
 The script reads `VSS_SIGN_IDENTITY` (the certificate name in the keychain) and
 `VSS_NOTARY_PROFILE` (a profile saved once with `xcrun notarytool
 store-credentials`). Neither is in the repository, a workflow does not hold them
-yet, and an agent does not create them. Making the Release workflow call the script
-needs the owner to add the certificate and the profile as organisation secrets.
+yet, and an agent does not create them. 
+The Release workflow is wired to call the script, and stays off until the owner turns it on.
+`tools/macos/ci-signing.sh` runs in the macOS leg of every run. If the repository variable
+`SIGN_MACOS` is not `true`, or any value below is missing, it writes "unsigned" to the job
+summary, warns, and succeeds. Otherwise it imports the certificate into a temporary
+keychain, stores the notary credentials, and signs and notarises the staged app and tool (the
+tar.gz) and, through the environment, the copy that CPack stages for the disk image
+(`cmake/packaging/VssPackage-darwin-sign.cmake`). A pull request never signs. None of this has run yet:
+it was written without the certificate, so the first signed run needs watching.
+
+The owner adds:
+
+| Name | Kind | Holds |
+|---|---|---|
+| `SIGN_MACOS` | variable | `true` to sign; absent or anything else leaves the package unsigned |
+| `MACOS_SIGN_IDENTITY` | variable | The certificate name, `Developer ID Application: ... (TEAMID)` |
+| `MACOS_SIGN_CERT_BASE64` | secret | The certificate and private key as a `.p12` file, base64 encoded |
+| `MACOS_SIGN_CERT_PASSWORD` | secret | The `.p12` password |
+| `MACOS_NOTARY_KEY_BASE64` | secret | An App Store Connect API key (`.p8`), base64 encoded |
+| `MACOS_NOTARY_KEY_ID`, `MACOS_NOTARY_ISSUER` | secrets | The key id and the issuer id of that key |
+
+The script notarises and staples the app. The disk image itself is not signed or notarised;
+its contents are, which is what Gatekeeper checks when the app is opened.

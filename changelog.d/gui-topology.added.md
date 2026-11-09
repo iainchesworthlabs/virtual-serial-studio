@@ -1,1 +1,0 @@
-Added the redesigned topology view with port and link nodes, deterministic split, join, two-way, one-way and monitor layouts, keyboard operation, zoom and Fit, an accessible summary and an optional links list.

@@ -1,1 +1,0 @@
-**Ports can be renamed.** Select a port and press F2, or use Ports, Rename port, or the node's context menu. Links, events and the saved setup use the new name, and a pseudo terminal on Linux or macOS moves its stable path to it. The hub's rename now changes the name an endpoint reports as well as the name it is found by, and the studio library gains `studio::rename_port`.

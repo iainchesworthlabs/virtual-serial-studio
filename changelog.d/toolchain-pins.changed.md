@@ -1,1 +1,0 @@
-CI now takes the compiler, CMake and Qt versions from `.github/toolchain-versions.json`: GCC 16, Clang 23, MSVC 19.51 and Qt 6.12 (the GUI job moves up from Qt 6.8.3). The Linux jobs run on Ubuntu 26.04, the Windows job on `windows-2025` and the macOS job on `macos-26`.

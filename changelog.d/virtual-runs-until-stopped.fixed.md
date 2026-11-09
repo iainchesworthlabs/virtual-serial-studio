@@ -1,1 +1,0 @@
-**`vss_cli virtual` keeps its port open.** The command printed the path to open and then exited, which closed the port it had just created, so nothing could use it. It now runs until Ctrl-C or SIGTERM, or for `--seconds=N`, and flushes its output so a script reading it through a pipe sees the path at once.

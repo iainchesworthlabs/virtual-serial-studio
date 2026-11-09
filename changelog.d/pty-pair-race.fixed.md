@@ -1,1 +1,0 @@
-**The pseudo terminal pair in CI is read only after both paths are printed.** The steps that start `tools/pty_loopback.py` stopped waiting as soon as the first path appeared, so on a slow runner the second path could be missing and the job failed with "no pty pair". They now wait for both lines, for up to 20 seconds.
