@@ -169,7 +169,8 @@ if(VSS_INSTALL)
       RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT development)
   endif()
 
-  # The installer packages (deb, rpm and the others), when VSS_PACKAGE is ON.
+  # Installers for the "runtime" component (CPack). The settings of each system
+  # are in cmake/packaging/VssPackage-<system>.cmake, chosen by VssPackage.
   include(VssPackage)
 endif()
 

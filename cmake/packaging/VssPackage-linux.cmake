@@ -1,7 +1,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Linux packages: a .deb for Debian and Ubuntu and an .rpm for Fedora and Red
-# Hat. Included by cmake/VssPackage.cmake when VSS_PACKAGE is ON.
+# Hat. Included by cmake/VssPackage.cmake, which holds the settings every system
+# shares. Nothing happens here unless VSS_PACKAGE is ON, because the install
+# rules below write to absolute paths that a plain `cmake --install` of every
+# component must not touch.
+#
+#   cmake -DVSS_PACKAGE=ON -DVSS_PACKAGE_PRERELEASE=rc.1 build/<preset>
+#   cpack --config build/<preset>/CPackConfig.cmake -G "DEB;RPM"
 #
 # What goes in
 #   The "runtime" install component, unchanged: bin/vss_gui, bin/vss_cli, the
@@ -31,6 +37,25 @@
 #   and that Qt's fixes arrive with this package, not with the distribution.
 #   The package depends on the system libraries that Qt and its xcb platform
 #   plug-in use, which it does not carry.
+
+option(VSS_PACKAGE
+  "Configure CPack to build the deb and rpm of the Linux release" OFF)
+set(VSS_PACKAGE_PRERELEASE "" CACHE STRING
+  "The pre-release label of the version being packaged, such as rc.1 for the tag v0.1.0-rc.1. Empty for a final release")
+if(NOT VSS_PACKAGE)
+  return()
+endif()
+
+# The identity of the release signing key (SECURITY.md).
+set(CPACK_PACKAGE_CONTACT "Iain Chesworth Labs Releases <iain.chesworth@gmail.com>")
+set(CPACK_PACKAGE_DESCRIPTION
+  "Virtual Serial Studio creates virtual serial ports and wires them to real ports, to each other and to the network, so that serial programs can be written and tried without hardware. It has a graphical studio (vss_gui) and a command line tool (vss_cli).")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE")
+
+# The pre-release label comes from the tag, which CMakeLists.txt does not know
+# (project(VERSION) holds 0.1.0 for the tag v0.1.0-rc.1). Keep only the
+# characters every package format accepts in a version.
+string(REGEX REPLACE "[^A-Za-z0-9.+]" "." VSS_PACKAGE_PRERELEASE_SAFE "${VSS_PACKAGE_PRERELEASE}")
 
 # The architecture the package is labelled with comes from the toolchain.
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")

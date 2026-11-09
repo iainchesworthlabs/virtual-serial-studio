@@ -121,10 +121,10 @@ Two deliberate deviations from what a greenfield C++23 codebase might do:
 ## Packages and the Windows driver
 
 Release packages are built by `.github/workflows/release.yml`; see
-[Releasing](releasing.md). `VSS_INSTALL` provides the install rules they use.
-`VSS_PACKAGE=ON` configures CPack for the installers of the system you build on (the
-`.deb` and `.rpm` on Linux), and `VSS_PACKAGE_PRERELEASE` names the pre-release part
-of the version, such as `rc.1`; the steps are in [Releasing](releasing.md). The
+[Releasing](releasing.md). `VSS_INSTALL` provides the install rules they use and, through
+`cmake/VssPackage.cmake`, the CPack settings of each system (`cmake/packaging/VssPackage-<system>.cmake`).
+`VSS_PACKAGE=ON` configures the Linux `.deb` and `.rpm`, and `VSS_PACKAGE_PRERELEASE` names the pre-release
+part of the version, such as `rc.1`; the steps are in [Releasing](releasing.md). The
 Windows virtual COM port driver is built separately with
 `drivers/windows/build.ps1`; see [the driver page](windows-com-driver.md).
 
