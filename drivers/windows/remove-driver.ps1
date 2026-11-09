@@ -35,6 +35,35 @@ function Stop-With([int] $Code, [string] $Message) {
     exit $Code
 }
 
+# Runs a program with a time limit and returns its exit code, or 124 when it ran out
+# of time (it is then stopped, with anything it started). Its output goes to the host,
+# so it reaches the installer's log. The same function is in setup-driver.ps1.
+function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = $File
+    $info.Arguments = (($Arguments | ForEach-Object { if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ } }) -join ' ')
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $process = [Diagnostics.Process]::Start($info)
+    $out = $process.StandardOutput.ReadToEndAsync()
+    $err = $process.StandardError.ReadToEndAsync()
+    if (-not $process.WaitForExit($Seconds * 1000)) {
+        & taskkill.exe /T /F /PID $process.Id | Out-Null
+        Write-Host "$File did not finish in $Seconds seconds and was stopped"
+        return 124
+    }
+    $process.WaitForExit()
+    foreach ($text in $out.Result, $err.Result) { if ($text.Trim()) { Write-Host $text.Trim() } }
+    return $process.ExitCode
+}
+
+# The whole script ends with exit code 124 after ten minutes, whatever it waits for. A
+# timer thread does it, because the script may be blocked inside a call that never returns.
+Add-Type -TypeDefinition 'public static class VssWatchdog { static System.Threading.Timer timer_; public static void Start(int milliseconds) { timer_ = new System.Threading.Timer(delegate { System.Console.Error.WriteLine("remove-driver.ps1 did not finish in time and was stopped"); System.Environment.Exit(124); }, null, milliseconds, -1); } }'
+[VssWatchdog]::Start(600000)
+
 $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Stop-With 2 'run this as an administrator'
@@ -70,10 +99,10 @@ try {
 
     $restart = $false
     foreach ($name in $published) {
-        $out = & pnputil.exe /delete-driver $name /uninstall /force 2>&1
-        $code = $LASTEXITCODE
-        Write-Host (($out | Out-String).Trim())
+        Write-Host "deleting the driver package $name"
+        $code = Invoke-Bounded 'pnputil.exe' @('/delete-driver', $name, '/uninstall', '/force') 300
         if ($code -eq 3010) { $restart = $true }
+        elseif ($code -eq 124) { Stop-With 7 "pnputil /delete-driver $name did not finish in 300 seconds and was stopped" }
         elseif ($code -ne 0) { Stop-With 7 "pnputil /delete-driver $name failed with $code" }
     }
 

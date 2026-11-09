@@ -44,6 +44,38 @@ function Stop-With([int] $Code, [string] $Message) {
     exit $Code
 }
 
+# Runs a program with a time limit and returns its exit code, or 124 when it ran out
+# of time (it is then stopped, with anything it started). Its output goes to the host,
+# so it reaches the installer's log. A program that waits for something nobody can
+# answer, such as a prompt on a desktop that is not there, then ends the script with
+# a reason and not an hour of silence.
+function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
+    $info = New-Object Diagnostics.ProcessStartInfo
+    $info.FileName = $File
+    $info.Arguments = (($Arguments | ForEach-Object { if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ } }) -join ' ')
+    $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    $process = [Diagnostics.Process]::Start($info)
+    $out = $process.StandardOutput.ReadToEndAsync()
+    $err = $process.StandardError.ReadToEndAsync()
+    if (-not $process.WaitForExit($Seconds * 1000)) {
+        & taskkill.exe /T /F /PID $process.Id | Out-Null
+        Write-Host "$File did not finish in $Seconds seconds and was stopped"
+        return 124
+    }
+    $process.WaitForExit()
+    foreach ($text in $out.Result, $err.Result) { if ($text.Trim()) { Write-Host $text.Trim() } }
+    return $process.ExitCode
+}
+
+# The whole script has a limit too: whatever else it waits for, it ends with exit code
+# 124 after fifteen minutes. A timer thread does it, because the script itself may be
+# blocked inside a call that never returns.
+Add-Type -TypeDefinition 'public static class VssWatchdog { static System.Threading.Timer timer_; public static void Start(int milliseconds) { timer_ = new System.Threading.Timer(delegate { System.Console.Error.WriteLine("setup-driver.ps1 did not finish in time and was stopped"); System.Environment.Exit(124); }, null, milliseconds, -1); } }'
+[VssWatchdog]::Start(900000)
+
 $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Stop-With 2 'run this as an administrator'
@@ -76,11 +108,24 @@ try {
         }
     }
 
-    $restart = $false
-    & pnputil.exe /add-driver $inf /install | Out-Null
-    if ($LASTEXITCODE -eq 3010) { $restart = $true }
-    elseif ($LASTEXITCODE -ne 0) { Stop-With 7 "pnputil failed with $LASTEXITCODE" }
+    # The errors Windows gives for a signature that is missing or whose publisher it does not trust:
+    # TRUST_E_SUBJECT_NOT_TRUSTED, TRUST_E_NOSIGNATURE, CERT_E_UNTRUSTEDROOT, CERT_E_CHAINING,
+    # CERT_E_UNTRUSTEDCA.
+    $untrusted = '0x800B0004', '0x800B0100', '0x800B0109', '0x800B010A', '0x800B0112'
 
+    $restart = $false
+    Write-Host "adding the driver package $inf"
+    $code = Invoke-Bounded 'pnputil.exe' @('/add-driver', $inf, '/install') 300
+    if ($code -eq 3010) { $restart = $true }
+    elseif ($code -eq 124) { Stop-With 7 'pnputil did not finish in 300 seconds and was stopped' }
+    elseif (('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)) -in $untrusted) {
+        # With test signing on, a signature that is present but not trusted passes the check above, and then
+        # Windows itself refuses the package. That is the same answer as an untrusted file: nothing was changed.
+        Stop-With 6 ('{0} is not signed by a publisher this machine trusts (pnputil refused it with {1})' -f $inf, ('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)))
+    }
+    elseif ($code -ne 0) { Stop-With 7 "pnputil failed with $code" }
+
+    Write-Host 'installing the helper service'
     & $installHelper -ExePath $exe
     if ($LASTEXITCODE -ne 0) { Stop-With 8 "install-helper.ps1 failed with $LASTEXITCODE" }
 

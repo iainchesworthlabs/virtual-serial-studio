@@ -245,57 +245,10 @@ jobs:
       - name: Install the Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
+        timeout-minutes: 20
         env:
           INSTALLER: ${{ steps.installer.outputs.path }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $installer = (Resolve-Path $env:INSTALLER).Path
-          $folder = Join-Path $env:ProgramFiles 'Virtual Serial Studio'
-          # The installer is a 32-bit program, so its registry entries are in the 32-bit view.
-          $key = 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\VirtualSerialStudio'
-          function Get-DriverPackages {
-            @(Get-WindowsDriver -Online -All | Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' })
-          }
-          function Assert-Studio([string] $when) {
-            foreach ($file in 'bin\vss_gui.exe', 'bin\vss_cli.exe', 'bin\driver\setup-driver.ps1', 'bin\driver\driver\vsscom_um.cat', 'bin\driver\helper\vsscom_helper.exe', 'Uninstall.exe') {
-              if (-not (Test-Path -LiteralPath (Join-Path $folder $file))) { throw "$file is missing after the $when." }
-            }
-            if (-not (Test-Path -LiteralPath $key)) { throw "No Apps & features entry after the $when." }
-          }
-
-          $p = Start-Process $installer -ArgumentList '/S', '/DRIVER=0' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "The installer exited with $($p.ExitCode) (first install, /DRIVER=0)." }
-          Assert-Studio 'first install'
-          if ((Get-ItemProperty -LiteralPath $key).VssDriver -ne 'skipped') { throw 'The driver was not recorded as skipped after /DRIVER=0.' }
-          if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw '/DRIVER=0 installed the helper service.' }
-          if ((Get-DriverPackages).Count -ne 0) { throw '/DRIVER=0 installed the driver.' }
-
-          $p = Start-Process $installer -ArgumentList '/S' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "The installer exited with $($p.ExitCode) (upgrade)." }
-          Assert-Studio 'upgrade'
-          $state = (Get-ItemProperty -LiteralPath $key).VssDriver
-          $log = Join-Path $folder 'driver-setup.log'
-          if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log | ForEach-Object { Write-Host "driver-setup.log: $_" } }
-          $service = Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue
-          switch ($state) {
-            { $_ -in 'installed', 'installed-restart-needed' } {
-              if (-not $service -or $service.Status -ne 'Running') { throw 'The driver is installed but the helper service is not running.' }
-              if ((Get-DriverPackages).Count -ne 1) { throw 'The driver package is not in the driver store.' }
-            }
-            'not-trusted' {
-              if ($service) { throw 'The driver was refused but a helper service exists.' }
-              if ((Get-DriverPackages).Count -ne 0) { throw 'The driver was refused but a package is in the driver store.' }
-              if ((Get-Content -LiteralPath $log -Raw) -notmatch 'not signed by a publisher this machine trusts') { throw 'driver-setup.log does not say why the driver was refused.' }
-            }
-            default { throw "Unexpected driver state '$state' after the upgrade." }
-          }
-          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value @('', '### Windows installer', '', "Silent install with the driver, on this runner: **$state**. A runner does not trust an unsigned or test-signed driver, so ``not-trusted`` (Studio installed, driver and service not) is the expected result here; the guest tests in docs/releasing.md cover the installed driver.")
-
-          $shortcut = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Virtual Serial Studio\Virtual Serial Studio.lnk'
-          if (-not (Test-Path -LiteralPath $shortcut)) { throw 'The Start menu shortcut is missing.' }
-          # A silent install must not change the PATH.
-          $path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
-          if ($path -like '*Virtual Serial Studio*') { throw 'A silent install added Studio to the PATH.' }
+        run: ./tools/ci/check-windows-installer.ps1 -Phase Install -Installer $env:INSTALLER -SummaryFile $env:GITHUB_STEP_SUMMARY
 
       - name: Run the programs from the installed Windows folder
         if: runner.os == 'Windows'
@@ -309,22 +262,8 @@ jobs:
       - name: Uninstall the Windows installer
         if: runner.os == 'Windows'
         shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $folder = Join-Path $env:ProgramFiles 'Virtual Serial Studio'
-          # The uninstaller copies itself to a temporary folder and returns at once, so wait for the folder to go.
-          $p = Start-Process (Join-Path $folder 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
-          if ($p.ExitCode -ne 0) { throw "The uninstaller exited with $($p.ExitCode)." }
-          $deadline = (Get-Date).AddSeconds(120)
-          while ((Test-Path -LiteralPath $folder) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
-          if (Test-Path -LiteralPath $folder) {
-            Get-ChildItem -LiteralPath $folder -Recurse | Select-Object -First 20 FullName | Out-String | Write-Host
-            throw "$folder is still there after the uninstall."
-          }
-          if (Test-Path 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\VirtualSerialStudio') { throw 'The Apps & features entry is still there.' }
-          if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw 'The helper service is still there.' }
-          if (@(Get-WindowsDriver -Online -All | Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' }).Count -ne 0) { throw 'The driver package is still in the driver store.' }
-          if (Test-Path (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Virtual Serial Studio')) { throw 'The Start menu folder is still there.' }
+        timeout-minutes: 15
+        run: ./tools/ci/check-windows-installer.ps1 -Phase Uninstall
 
       - name: Archive
         shell: bash
