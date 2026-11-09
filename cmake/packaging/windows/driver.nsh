@@ -88,9 +88,12 @@ FunctionEnd
 ; Runs a script of the driver folder under the 64-bit PowerShell, with its output
 ; in the log. $0 is the exit code afterwards. This installer is a 32-bit program,
 ; so it reaches the 64-bit cmd through Sysnative; that cmd is 64-bit and finds
-; PowerShell in System32 (Sysnative does not exist for it).
+; PowerShell in System32 (Sysnative does not exist for it). PSModulePath is cleared
+; for the child: an installer started from PowerShell 7 (a build agent, a script)
+; hands Windows PowerShell 5.1 the module path of PowerShell 7, and 5.1 then cannot
+; load its own Microsoft.PowerShell.Security. Without the variable it uses its own.
 !macro VssRunScript script
-  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C ""$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\bin\driver\${script}" > "$VssDriverLog" 2>&1"' $0
+  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\bin\driver\${script}" > "$VssDriverLog" 2>&1' $0
 !macroend
 
 Function VssInstallDriver
