@@ -1622,14 +1622,14 @@ TEST_CASE("topology canvas: the link style redraws the links at once")
     };
 
     // Curved is the default.
-    REQUIRE(view.style() == vss::gui::link_style::curved);
+    REQUIRE(view.link_style_mode() == vss::gui::link_style::curved);
     const QRectF before = view.node_rect(fixture.terminal);
     const QPainterPath curved = view.link_stroke(fixture.link);
     REQUIRE(!curved.isEmpty());
     REQUIRE(has_curve(curved));
 
     view.set_link_style(vss::gui::link_style::elbow);
-    REQUIRE(view.style() == vss::gui::link_style::elbow);
+    REQUIRE(view.link_style_mode() == vss::gui::link_style::elbow);
     const QPainterPath elbow = view.link_stroke(fixture.link);
     REQUIRE(!elbow.isEmpty());
     REQUIRE(upright_lines(elbow));

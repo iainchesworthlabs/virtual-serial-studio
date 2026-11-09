@@ -652,7 +652,7 @@ QVector<QPointF> edge_path(vss::endpoint_id source_id,
                            qreal clearance, const QVector<proxy_edge>& proxies,
                            link_style style)
 {
-    const QVector<QPointF> shortest =
+    QVector<QPointF> shortest =
         shortest_edge_path(source, target, others, clearance, style);
     if (shortest.size() <= 2)
         return shortest;
@@ -764,7 +764,7 @@ QVector<QPointF> offset_route(const QVector<QPointF>& route, qreal distance)
 /// none for the first, then to one side and the other, further each time.
 qreal lane_bow(int lane)
 {
-    return static_cast<qreal>((lane + 1) / 2) * kLaneStep *
+    return std::ceil(static_cast<qreal>(lane) / 2.0) * kLaneStep *
            (lane % 2 != 0 ? 1.0 : -1.0);
 }
 

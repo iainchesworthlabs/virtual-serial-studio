@@ -176,12 +176,12 @@ QPainterPath fitted_route(const QVector<QPointF>& route,
                !curve_blocked(candidate, ends, 0.0);
     };
 
-    const QPainterPath smooth = smooth_route(route);
+    QPainterPath smooth = smooth_route(route);
     if (clear(smooth))
         return smooth;
     for (const qreal radius : {kCornerRadius, kCornerRadius / 2.0})
     {
-        const QPainterPath rounded = rounded_route(route, radius);
+        QPainterPath rounded = rounded_route(route, radius);
         if (clear(rounded))
             return rounded;
     }
@@ -312,7 +312,7 @@ QPainterPath fitted_elbow_route(const QVector<QPointF>& route,
         return fitted_route(route, others, ends, clearance);
 
     const qreal soft = std::max(0.0, clearance - kCurveSlack);
-    const QPainterPath rounded = rounded_route(square, kElbowRadius);
+    QPainterPath rounded = rounded_route(square, kElbowRadius);
     if (!curve_blocked(rounded, others, soft) &&
         !curve_blocked(rounded, ends, 0.0))
     {

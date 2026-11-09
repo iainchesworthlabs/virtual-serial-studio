@@ -72,7 +72,7 @@ public:
     /// How links are drawn, curved or at right angles (Settings, Appearance).
     /// The links are redrawn at once; the nodes stay where they are.
     void set_link_style(link_style style);
-    link_style style() const noexcept { return link_style_; }
+    link_style link_style_mode() const noexcept { return link_style_; }
 
     /// Advanced mode: the canvas is an editor.  Tiles can be dropped on it,
     /// nodes show wiring handles, several items can be selected, and the
