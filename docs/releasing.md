@@ -396,6 +396,32 @@ The `driver` job and the installer steps of `release.yml` are not a driver test:
 runner trusts neither an unsigned nor a test-signed package, so there the outcome is
 `not-trusted` and the checks are that Studio installed, nothing of the driver did, the log
 says why, and the uninstall is clean. They do run the real driver build and signing.
+`tools/ci/check-windows-installer.ps1` makes those checks, and it runs by hand in a guest
+too. Every program it starts has a time limit; one that runs out is stopped and the process
+tree, the driver state and the installer logs are printed.
+
+**The signed path, and why a pull request run was not enough.** A run that signs
+(`SIGN_WINDOWS=test`, a tag, a manual run, the Monday run) hung once in the install step for
+the whole job limit. The hosted Windows runner has **test signing on**. With unsigned driver
+files `setup-driver.ps1` stops before it asks Windows anything (no signature), which is the
+path every pull request run takes. With signed files, and test signing on, it used to accept
+the package and call `pnputil /add-driver`, and for a signer that is not in Trusted
+Publishers `pnputil` asks "Would you like to install this device software?" on the desktop,
+where nobody can answer, and waits for ever. A guest reached through `vmrun` has no such
+desktop and `pnputil` refused at once, which is why it was not seen there. Now:
+
+- `setup-driver.ps1` accepts a package that is not trusted outright only when its signer is
+  in Trusted Publishers (`trust/install-trust.ps1` puts it there), and otherwise ends in
+  exit 6, `not-trusted`, before it calls `pnputil`. A refusal from `pnputil` for a trust
+  error (`0x800B0109` and its neighbours) is exit 6 as well.
+- Every `pnputil` call has a limit (180 seconds to add, 300 to delete), and the whole of
+  `setup-driver.ps1` and `remove-driver.ps1` ends with exit code 124 after fifteen and ten
+  minutes. The install and uninstall steps of the workflow have their own `timeout-minutes`.
+- A pull request run also **rehearses the signed path**
+  (`tools/ci/rehearse-signed-windows-installer.ps1`): the driver files in a copy of the
+  stage tree are signed with a throwaway certificate that nothing trusts, a second
+  installer is built from the copy, and it is installed, upgraded and uninstalled with the
+  same check. A signed run does not need it, because its own installer takes that path.
 
 **What is left**
 
