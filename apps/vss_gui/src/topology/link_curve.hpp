@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_GUI_TOPOLOGY_LINK_CURVE_HPP
-#define VSS_GUI_TOPOLOGY_LINK_CURVE_HPP
+#pragma once
 
 #include "backend/view_types.hpp"
 
@@ -101,5 +100,3 @@ QPointF flat_anchor(const QPainterPath& path);
 int path_crossings(const QPainterPath& first, const QPainterPath& second);
 
 } // namespace vss::gui::topology
-
-#endif // VSS_GUI_TOPOLOGY_LINK_CURVE_HPP
