@@ -1,1 +1,0 @@
-**The network test programs listen on the loopback address only.** The TCP and UDP probes of the system tests and the echo server of the performance suite used to listen on every address, which made Windows Firewall ask whether to allow `vss_system_tests.exe` and, after the user pressed Allow, show a UAC prompt, once for each build folder.

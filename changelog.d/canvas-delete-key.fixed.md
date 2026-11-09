@@ -1,1 +1,0 @@
-**Delete on the Advanced canvas deletes what is selected.** The window's Remove shortcut (Delete) ran before the canvas saw the key, so with several ports or a link selected it removed one port at a time, without the canvas's confirmation or its Undo step. The canvas now claims Delete while it is editing.

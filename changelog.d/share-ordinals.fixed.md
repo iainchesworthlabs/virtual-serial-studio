@@ -1,1 +1,0 @@
-**Share wizard sentences read correctly in every language.** The warning that names the port which works only inside Studio, and the button that keeps it that way, used an English ordinal word such as "third" in every language. The ordinal is now translated in all eight catalogues and the sentences around it are reworded where the word order needed it.

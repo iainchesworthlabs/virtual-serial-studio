@@ -1,1 +1,0 @@
-**A script makes a Windows machine trust the owner's certificate authority and a package's signer.** `drivers/windows/trust/install-trust.ps1` lets the test-signed user-mode driver and helper service install with test signing off. It handles public certificates only, checks the signer against the root it is given, and can undo what it did.

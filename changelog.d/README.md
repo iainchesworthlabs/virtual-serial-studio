@@ -47,6 +47,36 @@ standard library is required.
 Files whose name starts with `_` or `.`, and this `README.md`, are ignored by
 the tooling, which is why `_template.added.md` can live here.
 
+## What a fragment is for
+
+A fragment is a line in the release notes that a person who installs the program
+will read. The notes are the product's changelog, not the project's diary, so
+write for that reader:
+
+- **Start with a bold headline that says what the user can now do or what no longer
+  goes wrong**, then explain it in plain words: what it does, where to find it, what
+  it does not do, and what to do about a limit. Name the menu, button, command or
+  setting. Mention a library function only when users call it.
+- **One fragment per thing a user would name**, not one per pull request. Several pull
+  requests that build one feature extend that feature's fragment.
+- **Leave out what only developers see**: continuous integration, test suites,
+  sanitizers, static analysis, build presets, refactors, dependency updates and
+  internal renames. Those are in the pull request and in `docs/`. If a build or
+  contribution change matters to someone building from source, it is a `changed`
+  fragment that says so.
+- **A fix to something that has not been released is not a `fixed` entry.** Fold it
+  into the entry of the feature. A `fixed` fragment describes a problem a user could
+  have hit in a published version, in terms of what they saw.
+- No work-package numbers, test counts or "X is removed in the next change".
+- Say what is not done yet when a user could run into it ("The driver package is not
+  production-signed yet").
+
+## The release page
+
+The release page is the changelog section for the version plus a short summary
+above it and the install section below it. `docs/releasing.md` ("The release
+notes") has the layout.
+
 ## Commands
 
 ```bash

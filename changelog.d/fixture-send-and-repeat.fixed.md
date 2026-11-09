@@ -1,1 +1,0 @@
-**A repeating send stays on the port it started on.** Selecting another port no longer moves a running repeat. The Send panel now says "Sending from: <port>", can pin its target, shows which port a repeat uses and has a Stop repeat button.

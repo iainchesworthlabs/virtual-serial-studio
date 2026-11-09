@@ -1,1 +1,0 @@
-**A security policy and the release signing key.** `SECURITY.md` says how to report a vulnerability privately and how to check a download against the release signing key, which is now committed as `docs/signing-key.asc`.

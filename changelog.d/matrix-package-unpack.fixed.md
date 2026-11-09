@@ -1,1 +1,0 @@
-**The platform matrix refuses an unsafe package archive.** The T9 test unpacks the release package with the tarfile data filter and fails with a clear message on a Python that lacks it, or on an archive that tries to leave its folder.

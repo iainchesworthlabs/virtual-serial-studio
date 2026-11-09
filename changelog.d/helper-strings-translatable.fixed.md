@@ -1,1 +1,0 @@
-**Every window's text is in the language catalogues.** About 350 texts in the About, setup check, troubleshooting, settings, topology and Advanced tool windows went through helper functions that the translation tools cannot read, so they stayed English in every language. They now have catalogue entries and translations.

@@ -1,1 +1,0 @@
-**Icons are drawn correctly on displays scaled above 100 percent.** The icon renderer drew each SVG at device pixels instead of logical ones, so at 200 percent the toolbar icons were magnified and clipped and the four launcher tiles looked empty, in both themes. A test checks that every checked icon keeps its padding, and the theme tests now also run at 200 percent scale.

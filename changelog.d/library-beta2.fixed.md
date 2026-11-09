@@ -1,1 +1,0 @@
-**Timed reads and writes no longer race on a thread pool.** Studio now builds against Boost.VirtualSerial `v0.1.0-beta.2`, which arms each read and write timer before the backend can complete the operation. The earlier release could cancel a timer on one thread while another thread was still arming it, which the nightly ThreadSanitizer run reported.

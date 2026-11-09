@@ -1,1 +1,0 @@
-**Undo and Redo work for link and owner changes.** Edit, Undo and Edit, Redo (Ctrl+Z and Ctrl+Shift+Z) reverse connecting a link, removing a link, changing an owner and renaming a port, and the menu names the change. They do not cover adding or removing a port, a wizard or applying JSON, which start a new history, because a port that is made again is a different port.

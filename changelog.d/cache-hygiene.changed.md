@@ -1,1 +1,0 @@
-**CI keeps its cache quota in check.** A new Cache hygiene workflow deletes the Actions caches of closed pull requests and finished merge-queue entries, and older generations of the caches that are saved under a new key. The repository had reached 10.8 GB of the 10 GB quota, 6.6 GB of it NuGet caches for the Windows driver.
