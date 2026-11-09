@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: Build the user-mode driver package
+description: >
+  Builds the user-mode virtual COM port driver (vsscom_um) and its helper service
+  (vsscom_helper), signs each as the SIGN_WINDOWS mode says and verifies the signatures. The
+  packages are left in drivers/windows/artifacts/package-um/<platform> and package-helper/<platform>.
+
+  The catalog holds the hash of the signed DLL, so the build is in two stages with the signing
+  between them (drivers/windows/build.ps1). A mode of false leaves everything unsigned; test signs
+  with the organisation's test certificate when the secrets are present and otherwise leaves the
+  files unsigned and says so (.github/actions/sign-windows-binaries).
+
+  Used by the driver job of ci.yml and by the Windows leg of release.yml, so that the driver in a
+  release is built and signed the same way as the one CI tests. Run on a Windows runner, after
+  checkout and the NuGet cache.
+
+inputs:
+  platform:
+    description: x64 or ARM64.
+    default: x64
+  mode:
+    description: The SIGN_WINDOWS repository variable, or false when this run must not sign.
+    default: "false"
+  pfx-base64:
+    description: Secret WIN_TESTSIGN_PFX_BASE64.
+    default: ""
+  pfx-password:
+    description: Secret WIN_TESTSIGN_PFX_PASSWORD.
+    default: ""
+
+outputs:
+  um-suffix:
+    description: "-unsigned or -testsigned, or empty for production, for the name of the user-mode package."
+    value: ${{ steps.sign_catalog.outputs.suffix }}
+  helper-suffix:
+    description: "-unsigned or -testsigned, or empty for production, for the name of the helper package."
+    value: ${{ steps.sign_helper.outputs.suffix }}
+
+runs:
+  using: composite
+  steps:
+    - name: Build and verify the user-mode driver
+      shell: pwsh
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: ./drivers/windows/build.ps1 -Platform $env:PLATFORM -Driver umdf -Stage build
+    - name: Sign the user-mode driver
+      uses: ./.github/actions/sign-windows-binaries
+      with:
+        mode: ${{ inputs.mode }}
+        files: drivers/windows/artifacts/package-um/${{ inputs.platform }}/vsscom_um.dll
+        pfx-base64: ${{ inputs.pfx-base64 }}
+        pfx-password: ${{ inputs.pfx-password }}
+    - name: Make the catalog of the user-mode driver
+      shell: pwsh
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: ./drivers/windows/build.ps1 -Platform $env:PLATFORM -Driver umdf -Stage catalog
+    - name: Sign the catalog of the user-mode driver
+      id: sign_catalog
+      uses: ./.github/actions/sign-windows-binaries
+      with:
+        mode: ${{ inputs.mode }}
+        files: drivers/windows/artifacts/package-um/${{ inputs.platform }}/vsscom_um.cat
+        pfx-base64: ${{ inputs.pfx-base64 }}
+        pfx-password: ${{ inputs.pfx-password }}
+    # The helper service makes the user-mode driver's ports on demand. It is a program and not a
+    # driver, so there is no catalog: build it, sign it, ship it.
+    - name: Build the helper service
+      shell: pwsh
+      env:
+        PLATFORM: ${{ inputs.platform }}
+      run: ./drivers/windows/build.ps1 -Platform $env:PLATFORM -Driver helper
+    - name: Sign the helper service
+      id: sign_helper
+      uses: ./.github/actions/sign-windows-binaries
+      with:
+        mode: ${{ inputs.mode }}
+        files: drivers/windows/artifacts/package-helper/${{ inputs.platform }}/vsscom_helper.exe
+        pfx-base64: ${{ inputs.pfx-base64 }}
+        pfx-password: ${{ inputs.pfx-password }}

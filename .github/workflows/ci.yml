@@ -752,51 +752,19 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
         run: ./drivers/windows/build.ps1 -Platform $env:PLATFORM -Driver kmdf
-      # The user-mode package is built in two stages with the signing between them,
-      # because its catalog holds the hash of the signed binary. The SIGN_WINDOWS
-      # repository variable chooses: false leaves the files unsigned, test signs them
-      # with the organisation's test certificate (docs/releasing.md). A pull request
-      # from a fork has no secrets and so is never signed; when the secrets are not
-      # created yet the step says so and leaves the files unsigned. Each signed file is
-      # then verified (.github/actions/sign-windows-binaries).
-      - name: Build and verify the user-mode driver
-        shell: pwsh
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: ./drivers/windows/build.ps1 -Platform $env:PLATFORM -Driver umdf -Stage build
-      - name: Sign the user-mode driver
-        uses: ./.github/actions/sign-windows-binaries
+      # The user-mode package and the helper service are built and signed by one action, which the Windows
+      # leg of release.yml also uses, so a release holds the driver that CI tested. The package is built in two
+      # stages with the signing between them, because its catalog holds the hash of the signed binary. The
+      # SIGN_WINDOWS repository variable chooses: false leaves the files unsigned, test signs them with the
+      # organisation's test certificate (docs/releasing.md). A pull request from a fork has no secrets and so
+      # is never signed; when the secrets are not created yet the step says so and leaves the files unsigned.
+      # Each signed file is then verified (.github/actions/sign-windows-binaries).
+      - name: Build and sign the user-mode driver and the helper service
+        id: um
+        uses: ./.github/actions/build-windows-driver
         with:
+          platform: ${{ matrix.platform }}
           mode: ${{ (github.event.pull_request.head.repo.fork != true && vars.SIGN_WINDOWS) || 'false' }}
-          files: drivers/windows/artifacts/package-um/${{ matrix.platform }}/vsscom_um.dll
-          pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
-          pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
-      - name: Make the catalog of the user-mode driver
-        shell: pwsh
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: ./drivers/windows/build.ps1 -Platform $env:PLATFORM -Driver umdf -Stage catalog
-      - name: Sign the catalog of the user-mode driver
-        id: sign_catalog
-        uses: ./.github/actions/sign-windows-binaries
-        with:
-          mode: ${{ (github.event.pull_request.head.repo.fork != true && vars.SIGN_WINDOWS) || 'false' }}
-          files: drivers/windows/artifacts/package-um/${{ matrix.platform }}/vsscom_um.cat
-          pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
-          pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
-      # The helper service makes the user-mode driver's ports on demand. It is a
-      # program and not a driver, so there is no catalog: build it, sign it, ship it.
-      - name: Build the helper service
-        shell: pwsh
-        env:
-          PLATFORM: ${{ matrix.platform }}
-        run: ./drivers/windows/build.ps1 -Platform $env:PLATFORM -Driver helper
-      - name: Sign the helper service
-        id: sign_helper
-        uses: ./.github/actions/sign-windows-binaries
-        with:
-          mode: ${{ (github.event.pull_request.head.repo.fork != true && vars.SIGN_WINDOWS) || 'false' }}
-          files: drivers/windows/artifacts/package-helper/${{ matrix.platform }}/vsscom_helper.exe
           pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
           pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
       - name: Upload the kernel-mode package
@@ -810,13 +778,13 @@ jobs:
       - name: Upload the user-mode package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: vsscom-um-${{ matrix.platform }}${{ steps.sign_catalog.outputs.suffix }}
+          name: vsscom-um-${{ matrix.platform }}${{ steps.um.outputs.um-suffix }}
           path: drivers/windows/artifacts/package-um/${{ matrix.platform }}/
           if-no-files-found: error
       - name: Upload the helper service
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: vsscom-helper-${{ matrix.platform }}${{ steps.sign_helper.outputs.suffix }}
+          name: vsscom-helper-${{ matrix.platform }}${{ steps.um.outputs.helper-suffix }}
           path: drivers/windows/artifacts/package-helper/${{ matrix.platform }}/
           if-no-files-found: error
       # The test client for the guests (drivers/windows/test/client32). The driver is x64 and

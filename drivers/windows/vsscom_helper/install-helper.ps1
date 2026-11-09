@@ -18,12 +18,21 @@
 
 [CmdletBinding()]
 param(
-    [string] $ExePath = (Join-Path $PSScriptRoot 'vsscom_helper.exe'),
-    [string] $InstallDir = (Join-Path $env:ProgramFiles 'Virtual Serial Studio\Helper'),
+    [string] $ExePath,
+    [string] $InstallDir,
     [switch] $Uninstall
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty in a parameter default when the
+# script is started with -File, so the default is set in the body.
+if (-not $ExePath) { $ExePath = Join-Path $PSScriptRoot 'vsscom_helper.exe' }
+# A 64-bit PowerShell started by a 32-bit program (the installer) inherits ProgramFiles as the
+# x86 folder; ProgramW6432 is always the 64-bit one.
+if (-not $InstallDir) {
+    $programs = if ($env:ProgramW6432) { $env:ProgramW6432 } else { $env:ProgramFiles }
+    $InstallDir = Join-Path $programs 'Virtual Serial Studio\Helper'
+}
 $name = 'vsscom_helper'
 
 $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()

@@ -193,6 +193,8 @@ changed by you, which is as it should be.
 | `vsscom_helper/protocol.h` | what the studio, the helper and the user-mode driver share: the pipe, the messages, the owner property |
 | `vsscom_helper/install-helper.ps1` | installs or removes the service |
 | `setup-driver.ps1` | one elevated step that checks the signatures and installs or repairs the user-mode driver and the helper service; what Studio runs for "Set up Virtual Serial Studio" |
+| `remove-driver.ps1` | the reverse: stops and deletes the helper service (its ports go with it) and deletes the `vsscom_um` package from the driver store; what the Studio installer's uninstaller runs |
+| `stage-package.ps1` | puts the signed user-mode package, the helper and these scripts in the `driver` folder beside Studio, the layout `setup-driver.ps1` reads; the release workflow runs it before the zip and the installer are made |
 | `trust/install-trust.ps1` | makes a machine trust the owner's CA and the signer of a package, so a test-signed package installs with test signing off |
 | `build.ps1` | restore, build, `InfVerif`, `Inf2Cat`, for either driver, the helper or all |
 | `test/` | guest scripts, for either driver (`-Flavour kmdf` or `umdf`): `install-driver.ps1` (two ports made by hand, `-Count` for more, and for the kernel-mode driver the control device; `-Helper` installs the helper service), `test-driver.ps1` (tests D1 to D31, and H14 for the helper), `test-client.ps1` (the studio client against the driver), `test-wow64.ps1` (a 32-bit program and the hung-program tests), `hub-io.ps1` (its hub-end helpers), `client32/` (the C program they run), `uninstall-driver.ps1` |

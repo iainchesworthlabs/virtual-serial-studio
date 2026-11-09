@@ -31,10 +31,13 @@
 
 [CmdletBinding()]
 param(
-    [string] $PackageRoot = $PSScriptRoot
+    [string] $PackageRoot
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 leaves $PSScriptRoot empty in a parameter default when the
+# script is started with -File, so the default is set in the body.
+if (-not $PackageRoot) { $PackageRoot = $PSScriptRoot }
 
 function Stop-With([int] $Code, [string] $Message) {
     if ($Code -eq 0 -or $Code -eq 10) { Write-Host $Message } else { [Console]::Error.WriteLine($Message) }
