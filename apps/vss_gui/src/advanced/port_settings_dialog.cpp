@@ -131,6 +131,8 @@ void PortSettingsDialog::build()
 {
     VSS_PROFILE_ZONE("gui.advanced.port_settings.build");
     VSS_PROFILE_MESSAGE("gui.dialog.port_settings.opened");
+    // The title names the port, or counts the ports when several are edited
+    // together.
     const QString title = before_.size() == 1
                               ? tr("Settings for %1").arg(before_.first().first)
                               : tr("Settings for %n ports", nullptr,
@@ -148,6 +150,8 @@ void PortSettingsDialog::build()
     layout->setSpacing(14);
     layout->addWidget(make_header(title, {}, this, false, {}));
 
+    // The note says what the values mean for this kind of port, since a
+    // device, a remote, a fixture and a virtual port treat them differently.
     QString note;
     switch (kind_)
     {
@@ -163,6 +167,8 @@ void PortSettingsDialog::build()
     case settings_kind::virtual_port:
         note = tr("A program that opens this port sets its own speed. These "
                   "are the values saved with the setup.");
+        // For a single port, also report what the connected program last
+        // set, when the backend can tell.
         if (ports_.size() == 1)
         {
             const auto view = backend_.port(ports_.first());
@@ -187,6 +193,8 @@ void PortSettingsDialog::build()
     note_->setObjectName(QStringLiteral("portSettingsNote"));
     layout->addWidget(note_);
 
+    // The fields.  Baud rate is an editable combo, so a rate outside the list
+    // can be typed; the validator keeps it within the allowed range.
     auto* grid = new QGridLayout();
     grid->setContentsMargins(0, 0, 0, 0);
     grid->setHorizontalSpacing(12);
@@ -226,6 +234,7 @@ void PortSettingsDialog::build()
     flow_->addItem(tr("Software (XON/XOFF)"),
                    static_cast<int>(vss::flow_control_mode::software));
 
+    // Both timeouts are spin boxes in milliseconds; 0 is shown as "Wait".
     const auto make_timeout = [this](const QString& name)
     {
         auto* spin = new QSpinBox(this);
@@ -239,6 +248,7 @@ void PortSettingsDialog::build()
     read_timeout_ = make_timeout(tr("Read timeout"));
     write_timeout_ = make_timeout(tr("Write timeout"));
 
+    // Lay the fields out two to a row, in the order listed.
     const QVector<QPair<QString, QWidget*>> rows = {
         {tr("Baud rate"), baud_},
         {tr("Data bits"), data_bits_},
@@ -257,12 +267,15 @@ void PortSettingsDialog::build()
     grid->setColumnStretch(1, 1);
     layout->addLayout(grid);
 
+    // A one-line summary of the chosen values, refreshed by update_summary().
     summary_ = new QLabel(this);
     summary_->setObjectName(QStringLiteral("portSettingsSummary"));
     summary_->setFont(Theme::instance().font(text_style::data));
     set_ink2(summary_);
     layout->addWidget(summary_);
 
+    // Only kinds of port that must be restarted to take new settings carry
+    // the warning about bytes in flight.
     if (settings_restart(kind_))
     {
         auto* warn = new NoteBanner(
@@ -273,6 +286,8 @@ void PortSettingsDialog::build()
         layout->addWidget(warn);
     }
 
+    // Hidden until an apply fails.  The colour is set by style sheet, so it
+    // is re-applied whenever the theme changes.
     error_ = new QLabel(this);
     error_->setObjectName(QStringLiteral("portSettingsError"));
     error_->setWordWrap(true);
@@ -291,6 +306,8 @@ void PortSettingsDialog::build()
     layout->addWidget(error_);
     layout->addStretch(1);
 
+    // Footer: Cancel, and Apply as the default button.  The label says
+    // whether applying restarts the port.
     QHBoxLayout* footer_layout = nullptr;
     auto* footer = make_footer(this, footer_layout);
     auto* cancel = make_button(tr("Cancel"), nullptr, footer);
@@ -312,16 +329,20 @@ void PortSettingsDialog::build()
           static_cast<QWidget*>(parity_), static_cast<QWidget*>(stop_bits_),
           static_cast<QWidget*>(flow_)})
         field->setEnabled(any);
+    // Timeouts apply only to a device or a remote port.
     const bool timeouts =
         kind_ == settings_kind::device || kind_ == settings_kind::remote;
     read_timeout_->setEnabled(timeouts);
     write_timeout_->setEnabled(timeouts);
 
+    // Without backend support Apply is disabled with the standard reason;
+    // for a network port it is disabled with the note as the reason.
     if (!backend_.caps().port_settings)
         degrade(apply_);
     else if (!any)
         degrade(apply_, note);
 
+    // Any change, including typing a baud rate, refreshes the summary.
     for (QComboBox* combo : {baud_, data_bits_, parity_, stop_bits_, flow_})
     {
         connect(combo, &QComboBox::currentIndexChanged, this,

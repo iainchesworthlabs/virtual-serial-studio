@@ -151,7 +151,7 @@ private:
     };
 
     endpoint(hub& owner, endpoint_id id, std::string name, endpoint_kind kind,
-             std::shared_ptr<transport> transport, endpoint_options options);
+             std::shared_ptr<transport> transport, const endpoint_options& options);
 
     /// Called by the hub, which holds its lock, when it renames the endpoint.
     void set_name(std::string name);

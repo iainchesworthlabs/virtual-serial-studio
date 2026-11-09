@@ -76,6 +76,8 @@ void SendPanel::build()
     layout->setContentsMargins(8, 8, 8, 8);
     layout->setSpacing(6);
 
+    // Heading row: which port the bytes will leave from, and a pin to keep
+    // that choice when the selection moves elsewhere.
     auto* heading = new QHBoxLayout();
     heading->setSpacing(8);
     target_ = new QLabel(this);
@@ -90,6 +92,8 @@ void SendPanel::build()
     heading->addWidget(pin_);
     layout->addLayout(heading);
 
+    // Port chooser and Send button share a row. The combo may shrink so a
+    // narrow pane is not forced wider by a long port name.
     auto* top = new QHBoxLayout();
     top->setSpacing(8);
     ports_ = new QComboBox(this);
@@ -106,6 +110,8 @@ void SendPanel::build()
     top->addWidget(send_);
     layout->addLayout(top);
 
+    // The input is read as text or, with Hex ticked, as hex pairs. The error
+    // label stays hidden until validate_hex() finds bad hex.
     input_ = new QLineEdit(this);
     input_->setAccessibleName(tr("Bytes to send"));
     input_->setPlaceholderText(tr("Type text, or hex if Hex is ticked"));
@@ -122,6 +128,8 @@ void SendPanel::build()
     error_->setVisible(false);
     layout->addWidget(error_);
 
+    // Options row. Repeat and its interval are advanced-only; set_advanced()
+    // decides their visibility at the end of this function.
     auto* options = new QHBoxLayout();
     options->setSpacing(16);
     hex_ = new QCheckBox(tr("Hex"), this);
@@ -141,6 +149,8 @@ void SendPanel::build()
     options->addStretch(1);
     layout->addLayout(options);
 
+    // A status row for a running repeat, with a button to stop it. It is
+    // hidden until a repeat starts (see update_repeat_status).
     repeat_row_ = new QWidget(this);
     auto* repeat_layout = new QHBoxLayout(repeat_row_);
     repeat_layout->setContentsMargins(0, 0, 0, 0);
@@ -156,6 +166,7 @@ void SendPanel::build()
     repeat_row_->setVisible(false);
     layout->addWidget(repeat_row_);
 
+    // Saved sends are filled in by load_saved_sends() and are advanced-only.
     auto* saved_row = new QHBoxLayout();
     saved_row->setSpacing(8);
     saved_label_ = new QLabel(tr("Saved sends"), this);
@@ -169,10 +180,14 @@ void SendPanel::build()
     layout->addLayout(saved_row);
     layout->addStretch(1);
 
+    // The repeat timer is only started by start_repeat(); here it just takes
+    // the spin box's initial interval.
     repeat_timer_ = new QTimer(this);
     repeat_timer_->setInterval(interval_->value());
     connect(repeat_timer_, &QTimer::timeout, this, [this] { send_repeat(); });
 
+    // Wiring. Anything that changes what would be sent re-validates the hex
+    // and recomputes whether Send may be pressed.
     connect(send_, &QPushButton::clicked, this, [this] { send_now(); });
     connect(input_, &QLineEdit::textChanged, this,
             [this]
@@ -187,6 +202,8 @@ void SendPanel::build()
                 validate_hex();
                 update_send_enabled();
             });
+    // Ticking Repeat starts it at once; unticking stops it. The interval box
+    // is only shown in advanced mode while Repeat is on.
     connect(repeat_, &QCheckBox::toggled, this,
             [this](bool on)
             {
@@ -216,6 +233,7 @@ void SendPanel::build()
                 if (index >= 0)
                     input_->setText(saved_->itemData(index).toString());
             });
+    // Start in the simple layout, which hides the advanced-only controls.
     set_advanced(false);
 }
 

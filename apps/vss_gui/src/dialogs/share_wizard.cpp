@@ -251,6 +251,7 @@ QWidget* ShareWizard::build_device_page()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(14);
 
+    // Header row: the question on the left, a Refresh button on the right.
     auto* which = new QHBoxLayout();
     which->setContentsMargins(0, 0, 0, 0);
     which->setSpacing(8);
@@ -267,6 +268,8 @@ QWidget* ShareWizard::build_device_page()
     which->addWidget(refresh_);
     layout->addLayout(which);
 
+    // Scrolling list of devices; update_device_list() fills device_layout_
+    // with one row per device.
     auto* scroll = new QScrollArea(page);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -283,6 +286,7 @@ QWidget* ShareWizard::build_device_page()
     scroll->setWidget(card);
     layout->addWidget(scroll);
 
+    // Shown instead of the list when no serial device can be chosen.
     no_devices_ = new NoteBanner(
         NoteBanner::kind::warn,
         tr("No serial device is available. Plug one in, then choose Refresh."),
@@ -290,6 +294,8 @@ QWidget* ShareWizard::build_device_page()
     no_devices_->hide();
     layout->addWidget(no_devices_);
 
+    // Serial settings card: a one-line summary with a Change toggle that
+    // reveals the full editor.
     auto* settings_card = new QFrame(page);
     settings_card->setProperty("card", true);
     polish(settings_card);
@@ -325,6 +331,7 @@ QWidget* ShareWizard::build_device_page()
     grid->setContentsMargins(0, 4, 0, 0);
     grid->setHorizontalSpacing(12);
     grid->setVerticalSpacing(8);
+    // Common baud rates are offered, but any rate in range can be typed.
     baud_ = new QComboBox(settings_panel_);
     baud_->setEditable(true);
     baud_->addItems({QStringLiteral("9600"), QStringLiteral("19200"),
@@ -363,6 +370,7 @@ QWidget* ShareWizard::build_device_page()
                    static_cast<int>(vss::flow_control_mode::software));
     flow_->setCurrentIndex(
         flow_->findData(static_cast<int>(settings_.flow_control)));
+    // Lay the five settings out in a grid; flow control spans both columns.
     grid->addWidget(new FormRow(tr("Baud rate"), baud_, {}, settings_panel_), 0,
                     0);
     grid->addWidget(
@@ -378,6 +386,8 @@ QWidget* ShareWizard::build_device_page()
     layout->addWidget(settings_card);
     update_settings_summary();
 
+    // Copy every combo back into settings_ whenever one changes. A baud rate
+    // that does not parse keeps the previous value.
     const auto read_settings = [this]
     {
         bool ok = false;
@@ -408,6 +418,7 @@ QWidget* ShareWizard::build_device_page()
     connect(flow_, &QComboBox::currentIndexChanged, this,
             [read_settings](int) { read_settings(); });
 
+    // Advanced option: use a network device instead of a local serial one.
     auto* network_row = new QFrame(page);
     network_row->setProperty("dashed", true);
     polish(network_row);
@@ -432,6 +443,8 @@ QWidget* ShareWizard::build_device_page()
     network_hint->setProperty("muted", true);
     network_layout->addWidget(network_hint);
     layout->addWidget(network_row);
+    // Choosing a network device needs advanced mode, so switch it on and tell
+    // the owner before toggling.
     connect(network_toggle_, &QPushButton::clicked, this,
             [this]
             {
@@ -445,6 +458,7 @@ QWidget* ShareWizard::build_device_page()
                 update_step();
             });
 
+    // Address entry, shown only in network mode; typing clears its error.
     network_panel_ = new QWidget(page);
     auto* network_panel_layout = new QVBoxLayout(network_panel_);
     network_panel_layout->setContentsMargins(0, 0, 0, 0);
@@ -503,6 +517,7 @@ QWidget* ShareWizard::build_programs_page()
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(14);
 
+    // Count row: a minus/plus spinner with the upper limit beside it.
     auto* count_row = new QHBoxLayout();
     count_row->setContentsMargins(0, 0, 0, 0);
     count_row->setSpacing(10);
@@ -546,11 +561,14 @@ QWidget* ShareWizard::build_programs_page()
     later->setProperty("muted", true);
     later->setWordWrap(true);
     layout->addWidget(later);
+    // Both buttons hand the new count to set_programs().
     connect(minus, &QToolButton::clicked, this,
             [this] { set_programs(programs_ - 1); });
     connect(plus, &QToolButton::clicked, this,
             [this] { set_programs(programs_ + 1); });
 
+    // Read-only table of what each program will open; update_programs_table()
+    // fills it in.
     layout->addWidget(
         make_field_label(tr("What each program will open"), page));
     programs_table_ = new QTableWidget(0, 3, page);
@@ -565,6 +583,7 @@ QWidget* ShareWizard::build_programs_page()
     programs_table_->setShowGrid(false);
     programs_table_->setAlternatingRowColors(false);
     programs_table_->verticalHeader()->setDefaultSectionSize(40);
+    // The name column takes the spare width; the other two stay fixed.
     programs_table_->horizontalHeader()->setSectionResizeMode(
         0, QHeaderView::Stretch);
     programs_table_->horizontalHeader()->setSectionResizeMode(
@@ -586,6 +605,7 @@ QWidget* ShareWizard::build_programs_page()
     table_card_layout->addWidget(programs_table_);
     layout->addWidget(table_card);
 
+    // Warning panel with two ways out; update_warning() decides when it shows.
     warn_note_ = new QFrame(page);
     warn_note_->setProperty("note", QStringLiteral("warn"));
     warn_note_->setFrameShape(QFrame::NoFrame);
@@ -622,6 +642,7 @@ QWidget* ShareWizard::build_programs_page()
     warn_buttons->addWidget(keep_only_);
     warn_buttons->addStretch(1);
     warn_layout->addLayout(warn_buttons);
+    // Each button resolves the warning; their results are not needed here.
     connect(create_pair_, &QPushButton::clicked, this,
             [this] { static_cast<void>(create_another_pair()); });
     connect(keep_only_, &QPushButton::clicked, this,
@@ -629,6 +650,7 @@ QWidget* ShareWizard::build_programs_page()
     layout->addWidget(warn_note_);
     warn_note_->hide();
 
+    // Step 2 banner; update_warning() sets its text.
     share_info_ = new NoteBanner(NoteBanner::kind::info, {}, page);
     share_info_->setObjectName(QStringLiteral("shareStep2Info"));
     layout->addWidget(share_info_);
@@ -742,6 +764,7 @@ void ShareWizard::refresh_devices()
 void ShareWizard::update_device_list()
 {
     VSS_PROFILE_ZONE("gui.dialogs.share_wizard.update_device_list");
+    // Rebuild the list from scratch: drop the old rows and radio group first.
     while (QLayoutItem* item = device_layout_->takeAt(0))
     {
         delete item->widget();
@@ -751,10 +774,12 @@ void ShareWizard::update_device_list()
     device_group_ = new QButtonGroup(this);
     device_group_->setExclusive(true);
 
+    // Paths Studio already uses; those devices cannot be shared again.
     QStringList claimed;
     for (const port_view& port : backend_.ports())
         claimed << port.path;
 
+    // Whether any device can be chosen, and the first one that can.
     bool has_available = false;
     QString first_available;
     for (int index = 0; index < static_cast<int>(devices_.size()); ++index)
@@ -766,6 +791,8 @@ void ShareWizard::update_device_list()
         StatusChip::kind chip = StatusChip::kind::healthy;
         bool selectable = true;
 
+        // Classify each device. Virtual ports and devices Studio already
+        // uses are listed but cannot be selected.
         if (device.com0com)
         {
             description = tr("com0com pair end. This is a virtual port, not a "
@@ -794,6 +821,7 @@ void ShareWizard::update_device_list()
             chip_text = tr("Available");
         }
 
+        // Note the first choosable device, to use as the default.
         if (selectable)
         {
             has_available = true;
@@ -804,12 +832,16 @@ void ShareWizard::update_device_list()
         auto* row = new DeviceRow(device, description, chip_text, chip,
                                   selectable, index, device_card_);
         device_layout_->addWidget(row);
+        // Only selectable rows join the radio group; activating one goes
+        // straight to the next step.
         if (selectable)
         {
             device_group_->addButton(row->radio(), index);
             connect(row, &PickRow::activated, this,
                     [this] { static_cast<void>(next()); });
         }
+        // Ticking a radio chooses that device, unless a network address is
+        // in use.
         if (row->radio()->isEnabled())
         {
             connect(
@@ -831,6 +863,7 @@ void ShareWizard::update_device_list()
         }
     }
 
+    // With nothing to choose, clear the selection and show the empty note.
     if (!has_available)
     {
         selected_device_.clear();
@@ -839,6 +872,8 @@ void ShareWizard::update_device_list()
     else
     {
         no_devices_->hide();
+        // Keep the earlier choice if it is still a free real device; otherwise
+        // fall back to the first available one.
         bool found = false;
         for (QAbstractButton* button : device_group_->buttons())
         {
@@ -864,6 +899,8 @@ void ShareWizard::update_device_list()
                     devices_.at(static_cast<std::size_t>(index)).path ==
                         first_available)
                 {
+                    // Block signals so the default choice does not run the
+                    // toggled handler.
                     const QSignalBlocker blocker(button);
                     button->setChecked(true);
                     selected_device_ = std::move(first_available);
@@ -875,6 +912,7 @@ void ShareWizard::update_device_list()
 
     if (advanced_)
         set_advanced(true);
+    // Refresh the info banner and step state for the final selection.
     update_step1_info();
     update_step();
 }

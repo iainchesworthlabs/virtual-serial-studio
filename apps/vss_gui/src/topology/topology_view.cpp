@@ -977,12 +977,16 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
     const bool shift = event->modifiers().testFlag(Qt::ShiftModifier);
     const bool alt = event->modifiers().testFlag(Qt::AltModifier);
 
+    // Editing-only shortcuts come first. Any key they do not take falls
+    // through to the shortcuts that work in every mode, further down.
     if (editing_)
     {
         switch (event->key())
         {
         case Qt::Key_Return:
         case Qt::Key_Enter:
+            // Alt+Enter opens settings for the focused link, or else for
+            // the selected ports.
             if (alt)
             {
                 if (focused_link_ != 0)
@@ -992,6 +996,8 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
                 event->accept();
                 return;
             }
+            // While a wire is being drawn, Enter on another node finishes
+            // it by opening the wire menu there.
             if (wire_from_ != 0 && focused_port_ != 0 &&
                 focused_port_ != wire_from_)
             {
@@ -1017,6 +1023,8 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
                 return;
             }
             break;
+        // Ctrl+L starts a wire from the focused node, so wiring can be done
+        // without the mouse.
         case Qt::Key_L:
             if (control && focused_port_ != 0)
             {
@@ -1025,6 +1033,9 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
                 return;
             }
             break;
+        // Shift+Space toggles the focused item in the selection. A plain
+        // Space is held as the pan modifier (see mousePressEvent), and
+        // auto-repeat is ignored.
         case Qt::Key_Space:
             if (shift && (focused_port_ != 0 || focused_link_ != 0))
             {
@@ -1036,6 +1047,7 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
                 space_down_ = true;
             event->accept();
             return;
+        // Escape cancels a wire in progress.
         case Qt::Key_Escape:
             if (wire_from_ != 0)
             {
@@ -1046,6 +1058,8 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
             break;
         case Qt::Key_Delete:
         {
+            // Delete removes the whole selection, or the focused item when
+            // nothing is selected.
             QVector<vss::endpoint_id> ports = selected_ports();
             QVector<vss::link_id> links = selected_links();
             if (ports.isEmpty() && links.isEmpty())
@@ -1066,8 +1080,10 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
         }
     }
 
+    // These shortcuts work whether or not the view is being edited.
     switch (event->key())
     {
+    // Enter inspects the focused node, or reads out the focused link.
     case Qt::Key_Return:
     case Qt::Key_Enter:
         if (focused_port_ != 0)
@@ -1084,6 +1100,8 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
             return;
         }
         break;
+    // Outside editing, Delete removes the focused item, else the single
+    // selected one.
     case Qt::Key_Delete:
         if (focused_port_ != 0)
             Q_EMIT remove_port_requested(focused_port_);
@@ -1097,6 +1115,7 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
             break;
         event->accept();
         return;
+    // Shift+F10 and the Menu key open the context menu for the focused item.
     case Qt::Key_F10:
         if (shift)
         {
@@ -1109,6 +1128,7 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
         open_focused_menu();
         event->accept();
         return;
+    // Escape first closes the loop note; a second press clears the selection.
     case Qt::Key_Escape:
         if (loop_note_ != nullptr && loop_note_->isVisible())
         {
@@ -1128,6 +1148,7 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
             return;
         }
         break;
+    // Zoom shortcuts: Ctrl+0 fits everything, Ctrl+Plus and Ctrl+Minus zoom.
     case Qt::Key_0:
         if (control)
         {
@@ -1153,6 +1174,8 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
             return;
         }
         break;
+    // Arrow keys move the focused node, in larger steps with Shift. With Ctrl
+    // they are left to the base class.
     case Qt::Key_Left:
         if (!control && focused_port_ != 0)
         {
@@ -1189,6 +1212,7 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
         break;
     }
 
+    // Anything not handled above goes to the base class.
     QGraphicsView::keyPressEvent(event);
 }
 

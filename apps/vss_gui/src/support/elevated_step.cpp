@@ -221,6 +221,8 @@ driver_setup_report report_for_driver_setup(const perm::step_result& result)
 {
     driver_setup_report report;
     report.exit_code = result.exit_code;
+    // Step 1: classify. Unsupported and declined never ran the script, so
+    // their exit code means nothing and the status alone decides.
     if (result.status == perm::step_status::unsupported)
     {
         report.result = driver_setup_result::unavailable;
@@ -231,6 +233,7 @@ driver_setup_report report_for_driver_setup(const perm::step_result& result)
     }
     else
     {
+        // The script ran, so its exit code says how far setup got.
         switch (result.exit_code)
         {
         case kExitSetupDone:
@@ -255,11 +258,15 @@ driver_setup_report report_for_driver_setup(const perm::step_result& result)
             report.result = driver_setup_result::incomplete;
             break;
         default:
+            // Any code the script does not define is a generic failure.
             report.result = driver_setup_result::failed;
             break;
         }
     }
 
+    // Step 2: pick the text for the result. Each message says what changed
+    // (or that nothing did) and what the user can do next. The switch has no
+    // default so the compiler flags a result added without a message.
     switch (report.result)
     {
     case driver_setup_result::done:
@@ -282,6 +289,7 @@ driver_setup_report report_for_driver_setup(const perm::step_result& result)
             "changed.");
         break;
     case driver_setup_result::untrusted:
+        // Released builds are signed; only self-built ones reach this.
         report.message = QCoreApplication::translate(
             "DriverSetup",
             "Windows does not trust the signature on the driver files, so "
@@ -298,6 +306,8 @@ driver_setup_report report_for_driver_setup(const perm::step_result& result)
             "terminal opened as administrator to see Windows' own message.");
         break;
     case driver_setup_result::helper_failed:
+        // The driver step finished before the helper failed, so the driver
+        // stays installed and a retry only has the helper left to do.
         report.message = QCoreApplication::translate(
             "DriverSetup",
             "The driver is installed, but the helper service could not be "
@@ -318,6 +328,8 @@ driver_setup_report report_for_driver_setup(const perm::step_result& result)
             "was changed.");
         break;
     case driver_setup_result::unavailable:
+        // Setup cannot run here (no elevation, PowerShell or driver
+        // package), so no prompt was ever shown.
         report.message = QCoreApplication::translate(
             "DriverSetup",
             "The driver files are not with this copy of Virtual Serial "
@@ -333,6 +345,7 @@ driver_setup_report report_for_driver_setup(const perm::step_result& result)
             "happened.");
         break;
     }
+    // The caller shows the message and keeps the exit code for the details.
     return report;
 }
 

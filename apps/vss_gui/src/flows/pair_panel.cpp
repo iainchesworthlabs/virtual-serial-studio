@@ -87,6 +87,8 @@ void PairPanel::build(bool advanced)
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(16);
 
+    // Diagram: Program A, a connector labelled as a null-modem cable, then
+    // Program B.
     auto* diagram = new QFrame(this);
     diagram->setObjectName(QStringLiteral("pairDiagram"));
     auto* diagram_layout = new QHBoxLayout(diagram);
@@ -120,6 +122,7 @@ void PairPanel::build(bool advanced)
                                        tr("Program B opens")));
     layout->addWidget(diagram);
 
+    // The pair name is the base of both port names (suffixed -a and -b).
     pair_name_ = new QLineEdit(QStringLiteral("pair-1"), this);
     pair_name_->setObjectName(QStringLiteral("pairName"));
     pair_name_->setAccessibleName(tr("Pair name"));
@@ -128,6 +131,8 @@ void PairPanel::build(bool advanced)
                     tr("The name Studio uses for the two ports."), this);
     layout->addWidget(pair_name_row_);
 
+    // The two port names are read-only: they are chosen from free ports, not
+    // typed.
     auto* paths = new QHBoxLayout();
     paths->setSpacing(12);
     first_port_ = new QLineEdit(this);
@@ -147,6 +152,7 @@ void PairPanel::build(bool advanced)
     paths->addWidget(second_port_row_, 1);
     layout->addLayout(paths);
 
+    // Explains where the port names come from on each platform.
     hint_ = new QLabel(
         tr("Names are suggested from free COM numbers. This build chooses "
            "the free ports shown above. On Linux and macOS the ports are "
@@ -158,6 +164,7 @@ void PairPanel::build(bool advanced)
     hint_->setWordWrap(true);
     layout->addWidget(hint_);
 
+    // A live one-sentence summary of the pair that will be made.
     result_ = new ResultSentence(this);
     result_->setObjectName(QStringLiteral("pairResult"));
     layout->addWidget(result_);
@@ -177,12 +184,15 @@ void PairPanel::build(bool advanced)
         layout->addWidget(admin_note_);
     }
 
+    // Warns when the driver is not ready; its button opens the setup check.
     driver_note_ = new NoteBanner(NoteBanner::kind::warn, {}, this);
     driver_note_->setObjectName(QStringLiteral("pairDriverNote"));
     driver_note_->set_action(tr("Open setup check"),
                              [this] { Q_EMIT setup_check_requested(); });
     layout->addWidget(driver_note_);
 
+    // Simple mode shows a dashed prompt to turn on Advanced mode; advanced
+    // mode shows the real options below instead.
     more_simple_ = new QFrame(this);
     more_simple_->setObjectName(QStringLiteral("pairMoreSimple"));
     auto* more_layout = new QHBoxLayout(more_simple_);
@@ -220,6 +230,8 @@ void PairPanel::build(bool advanced)
     advanced_layout->setContentsMargins(0, 0, 0, 0);
     advanced_layout->setSpacing(12);
 
+    // Only standard null-modem wiring works in this build, so the other
+    // choices are disabled.
     wiring_ = new QComboBox(advanced_content);
     wiring_->setObjectName(QStringLiteral("pairWiring"));
     wiring_->addItem(tr("Standard null-modem"), true);
@@ -244,6 +256,7 @@ void PairPanel::build(bool advanced)
                     advanced_content);
     advanced_layout->addWidget(wiring_row);
 
+    // Port kind has only the automatic choice, shown disabled.
     kind_ = new QComboBox(advanced_content);
     kind_->setObjectName(QStringLiteral("pairKind"));
     kind_->addItem(tr("Best available (recommended)"));
@@ -255,10 +268,14 @@ void PairPanel::build(bool advanced)
     more_advanced_->set_content(advanced_content);
     layout->addWidget(more_advanced_);
 
+    // Show the simple or advanced variant of the extra options.
     set_advanced(advanced);
 
+    // A wiring change updates the result sentence.
     connect(wiring_, &QComboBox::currentIndexChanged, this,
             [this] { refresh_result(); });
+    // The stylesheets embed theme colours, so reapply them whenever the theme
+    // changes.
     connect(&Theme::instance(), &Theme::theme_changed, this,
             [this, diagram, connector_line]
             {
@@ -295,6 +312,7 @@ void PairPanel::build(bool advanced)
                 }
             });
 
+    // Apply the same styles now for the initial theme.
     diagram->setStyleSheet(
         QStringLiteral(
             "QFrame#pairDiagram { background: %1; border: 1px solid %2; "
@@ -309,6 +327,7 @@ void PairPanel::build(bool advanced)
                                       .arg(Theme::instance()
                                                .colour(colour_role::ink2)
                                                .name(QColor::HexRgb)));
+    // Each box in the diagram is styled through its object name.
     for (QFrame* box :
          diagram->findChildren<QFrame*>(QStringLiteral("pairBox")))
     {
@@ -572,11 +591,14 @@ bool PairPanel::validate()
 std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
 {
     VSS_PROFILE_ZONE("gui.flows.pair_panel.create");
+    // Start with no error, and stop early if the entered names are not valid.
     if (error != nullptr)
         *error = {};
     if (!validate())
         return std::nullopt;
 
+    // Without a usable driver or backend support no pair can be made, so
+    // explain that nothing was changed.
     if (!can_create_)
     {
         if (error != nullptr)
@@ -594,6 +616,7 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
+    // The pair is two ports named after the pair name, then linked together.
     const QString base = pair_name_->text().trimmed();
     const auto first =
         backend_.create_auto_port(base + QStringLiteral("-a"), true);
@@ -614,6 +637,8 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
+    // If the second port cannot be created, remove the first so nothing is
+    // left behind.
     const auto second =
         backend_.create_auto_port(base + QStringLiteral("-b"), true);
     if (!second)
@@ -634,6 +659,7 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
+    // Both ports must be ones other programs can open; otherwise undo both.
     const auto first_view = backend_.port(*first);
     const auto second_view = backend_.port(*second);
     if (!first_view || !second_view || first_view->studio_only ||
@@ -651,10 +677,13 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
+    // Standard null-modem wiring emulates the modem lines; so does a missing
+    // wiring selector.
     vss::link_options options;
     options.emulate_modem_lines =
         wiring_ == nullptr || wiring_->currentData().toBool();
     const auto linked = backend_.connect_ports(*first, *second, options);
+    // If linking fails, remove both ports so the failure leaves no change.
     if (!linked)
     {
         static_cast<void>(backend_.remove_port(*first));
@@ -671,6 +700,7 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
+    // Report the new ports and link, then refresh the backend's view of them.
     pair_outcome outcome;
     outcome.first = *first;
     outcome.second = *second;

@@ -56,10 +56,14 @@ PortsPanel::PortsPanel(StudioBackend& backend, SelectionService& selection,
 
 void PortsPanel::build()
 {
+    // Top to bottom: the filter box, the port views, and a note about ports
+    // held by other programs.
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
 
+    // Only shown in advanced mode (set_advanced). Filtering can drop the
+    // selected row from view, so it is selected again afterwards.
     filter_ = new QLineEdit(this);
     filter_->setPlaceholderText(tr("Filter ports"));
     filter_->setAccessibleName(tr("Filter ports"));
@@ -76,6 +80,8 @@ void PortsPanel::build()
             });
     layout->addWidget(filter_);
 
+    // Both views share one model; the stack shows either the plain list or
+    // the table.
     model_ = new PortModel(this);
     stack_ = new QStackedWidget(this);
 
@@ -105,6 +111,8 @@ void PortsPanel::build()
             this, [this](const QModelIndex& current, const QModelIndex&)
             { on_current_changed(current); });
 
+    // The table keeps every column except the first at a fixed width, so
+    // the first takes whatever space is left and nothing scrolls sideways.
     table_ = new QTableView(stack_);
     table_->setModel(model_);
     table_->setAccessibleName(tr("Ports table"));
@@ -127,6 +135,8 @@ void PortsPanel::build()
     }
     table_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     table_->verticalHeader()->setDefaultSectionSize(44);
+    // The same delegate class paints both views; table mode paints each
+    // cell for its own column instead of a whole row.
     table_delegate_ = new PortDelegate(table_);
     table_delegate_->set_table_mode(true);
     table_delegate_->set_copy_handler(
@@ -144,6 +154,8 @@ void PortsPanel::build()
             this, [this](const QModelIndex& current, const QModelIndex&)
             { on_current_changed(current); });
 
+    // The views take all spare height (stretch 1); the note below stays
+    // hidden until refresh_others() finds a reason to show it.
     stack_->addWidget(simple_);
     stack_->addWidget(table_);
     layout->addWidget(stack_, 1);

@@ -98,6 +98,8 @@ void AboutDialog::build()
 {
     VSS_PROFILE_ZONE("gui.support.about.build");
     VSS_PROFILE_MESSAGE("gui.dialog.about.opened");
+    // Window chrome: accessible name, panel surface and the standard dialog
+    // width, which is also the minimum.
     setWindowTitle(
         QCoreApplication::translate("About", "About Virtual Serial Studio"));
     setAccessibleName(
@@ -110,6 +112,9 @@ void AboutDialog::build()
     setMinimumWidth(Theme::instance().metric(
         QStringLiteral("layout.dialogWidths.standard")));
 
+    // The outer layout has no margins so the header, tabs and footer can set
+    // their own padding. The header is an app icon tile beside the name and
+    // version.
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->setSpacing(0);
@@ -135,11 +140,15 @@ void AboutDialog::build()
                 .icon(QStringLiteral("device"), colour_role::onAccent, 30)
                 .pixmap(30, 30));
     };
+    // The tile colours and icon come from the theme, so apply them now and
+    // again whenever the theme changes. The lambda copies the tile pointer;
+    // the connection ends with the tile as its receiver.
     apply_tile_style();
     connect(&Theme::instance(), &Theme::theme_changed, tile,
             [apply_tile_style] { apply_tile_style(); });
     header_layout->addWidget(tile, 0, Qt::AlignTop);
 
+    // Name on the first line, version and licence summary below it.
     auto* heading = new QVBoxLayout();
     heading->setContentsMargins(0, 0, 0, 0);
     heading->setSpacing(4);
@@ -163,12 +172,15 @@ void AboutDialog::build()
     header_layout->addLayout(heading, 1);
     outer->addWidget(header);
 
+    // Four tabs follow, in this order: About, Environment, Licences, Fonts.
+    // page() makes each tab's content page and its vertical layout.
     tabs_ = new QTabWidget(this);
     tabs_->setAccessibleName(
         QCoreApplication::translate("About", "About details"));
     tabs_->setDocumentMode(true);
 
     // About tab.
+    // The standard GPL notice, split into its three paragraphs.
     QVBoxLayout* about_layout = nullptr;
     QWidget* about_page = page(tabs_, about_layout);
     about_layout->addWidget(body_label(
@@ -199,6 +211,8 @@ void AboutDialog::build()
     tabs_->addTab(about_page, QCoreApplication::translate("About", "About"));
 
     // Environment tab.
+    // The build information shown as a label and value grid, built from the
+    // same info_ as the copied report. Values can be selected with the mouse.
     QVBoxLayout* environment_layout = nullptr;
     QWidget* environment_page = page(tabs_, environment_layout);
     environment_layout->addWidget(body_label(
@@ -229,6 +243,7 @@ void AboutDialog::build()
         grid->addWidget(label, index, 0);
         grid->addWidget(value, index, 1);
     }
+    // Let the value column take the spare width so long values wrap there.
     grid->setColumnStretch(1, 1);
     environment_layout->addWidget(card);
     environment_layout->addStretch(1);
@@ -236,6 +251,8 @@ void AboutDialog::build()
                   QCoreApplication::translate("About", "Environment"));
 
     // Licences tab.
+    // One entry per component, each with its licence and an optional note on
+    // how Studio uses it.
     QVBoxLayout* licences_layout = nullptr;
     QWidget* licences_page = page(tabs_, licences_layout);
     licences_layout->addWidget(body_label(
@@ -280,6 +297,8 @@ void AboutDialog::build()
                   QCoreApplication::translate("About", "Licences"));
 
     // Fonts tab.
+    // Studio bundles none, so report the families the system supplies for the
+    // interface and for fixed-width text.
     QVBoxLayout* fonts_layout = nullptr;
     QWidget* fonts_page = page(tabs_, fonts_layout);
     fonts_layout->addWidget(body_label(
@@ -302,6 +321,8 @@ void AboutDialog::build()
 
     outer->addWidget(tabs_, 1);
 
+    // Footer: the bundle request is only signalled here (the caller opens
+    // the bundle dialog), and Close is the one default button.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* bundle = make_dialog_button(
@@ -324,6 +345,8 @@ void AboutDialog::build()
     footer_layout->addWidget(close);
     outer->addWidget(footer);
 
+    // Focus Close now and again once the event loop runs, in case showing
+    // the dialog moves focus elsewhere first.
     close->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, close,
                        [close] { close->setFocus(Qt::OtherFocusReason); });

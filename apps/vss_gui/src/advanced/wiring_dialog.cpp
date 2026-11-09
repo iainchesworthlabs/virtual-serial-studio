@@ -58,6 +58,8 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
                            QWidget* parent)
     : QDialog(parent), backend_(backend), endpoint_(endpoint)
 {
+    // The port may have gone since the dialog was requested, so fall back to
+    // a number for the title and handle a missing port below.
     const auto port = backend_.port(endpoint);
     const QString name =
         port ? port->name
@@ -71,6 +73,8 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
         Theme::instance().metric(QStringLiteral("layout.dialogWidths.table")),
         760);
 
+    // Find the two-way link this port is on and the name of the port at its
+    // other end.  The first matching link wins.
     QString other_name;
     bool linked = false;
     if (port)
@@ -100,6 +104,7 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
     layout->setContentsMargins(24, 24, 24, 0);
     layout->setSpacing(16);
 
+    // No port: show only a heading and a Close button, then stop building.
     if (!port)
     {
         layout->addWidget(make_header(title, tr("That port is no longer open."),
@@ -116,6 +121,7 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
         return;
     }
 
+    // Header chips: a fixture marker for a mock port, then the port's state.
     QVector<QWidget*> chips;
     if (port->kind == vss::endpoint_kind::mock)
     {
@@ -129,6 +135,8 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
 
     layout->addWidget(make_header(title, {}, this, true, chips));
 
+    // The subtitle says which link the wiring edits apply to.  The rich text
+    // escapes the port name; the accessible name carries the plain text.
     subtitle_ = new QLabel(this);
     subtitle_->setFont(Theme::instance().font(text_style::body));
     subtitle_->setWordWrap(true);
@@ -151,11 +159,13 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
     }
     layout->addWidget(subtitle_);
 
+    // The panel does the real work; its messages appear in the notice below.
     panel_ = new LineMatrixPanel(backend_, endpoint_, this);
     connect(panel_, &LineMatrixPanel::message, this,
             &WiringDialog::show_notice);
     layout->addWidget(panel_, 1);
 
+    // Hidden until show_notice() has something to say.
     notice_ = new QLabel(this);
     notice_->setFont(Theme::instance().font(text_style::caption));
     notice_->setProperty("muted", true);
@@ -163,6 +173,7 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
     notice_->hide();
     layout->addWidget(notice_);
 
+    // Footer: a reminder on the left and Close on the right.
     QHBoxLayout* footer_layout = nullptr;
     auto* footer = make_footer(this, footer_layout);
     auto* note =
@@ -175,6 +186,8 @@ WiringDialog::WiringDialog(StudioBackend& backend, vss::endpoint_id endpoint,
     footer_layout->addWidget(close);
     layout->addWidget(footer);
 
+    // Close is the default button.  Focus it now, and again once the event
+    // loop runs so the focus still holds after the dialog is shown.
     close->setDefault(true);
     close->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, close,

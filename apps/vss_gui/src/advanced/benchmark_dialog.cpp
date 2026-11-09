@@ -93,6 +93,8 @@ void BenchmarkDialog::build()
         tr("Sends data from one port to another and counts what arrives."),
         this, true, {}));
 
+    // Input grid: the two ports on the first row, then the size of the run.
+    // The port lists are filled in later by refresh().
     auto* fields = new QGridLayout();
     fields->setContentsMargins(0, 0, 0, 0);
     fields->setHorizontalSpacing(12);
@@ -106,6 +108,8 @@ void BenchmarkDialog::build()
     to_->setAccessibleName(tr("Receive on"));
     fields->addWidget(new FormRow(tr("Receive on"), to_, {}, this), 0, 1);
 
+    // The item data holds the text the CLI takes for --bytes and --chunk, so
+    // update_command() can paste it straight into the command line.
     amount_ = new QComboBox(this);
     amount_->setAccessibleName(tr("Amount of data"));
     amount_->addItem(QStringLiteral("1 MB"), QStringLiteral("1MB"));
@@ -124,6 +128,8 @@ void BenchmarkDialog::build()
     fields->addWidget(new FormRow(tr("Chunk size"), chunk_, {}, this), 1, 1);
     layout->addLayout(fields);
 
+    // A fixed hint, plus a warning that update_state() shows only while the
+    // chosen ports are linked.
     layout->addWidget(new NoteBanner(
         NoteBanner::kind::info,
         tr("Do not link these two ports in Studio. The data has to travel "
@@ -137,6 +143,8 @@ void BenchmarkDialog::build()
     linked_note_->hide();
     layout->addWidget(linked_note_);
 
+    // Result card: a status chip and finish time, a progress bar, then four
+    // tiles.  Everything starts in its "not run" state.
     auto* result_card = new QFrame(this);
     result_card->setProperty("group", true);
     polish(result_card);
@@ -168,6 +176,8 @@ void BenchmarkDialog::build()
     auto* metrics = new QGridLayout();
     metrics->setContentsMargins(0, 0, 0, 0);
     metrics->setHorizontalSpacing(10);
+    // QT_TR_NOOP marks the names for translation; tr() looks them up below.
+    // The value labels are kept in metrics_ so a run can update them.
     const char* names[4] = {QT_TR_NOOP("Sent"), QT_TR_NOOP("Received"),
                             QT_TR_NOOP("Lost"), QT_TR_NOOP("Throughput")};
     for (int index = 0; index < 4; ++index)
@@ -201,6 +211,8 @@ void BenchmarkDialog::build()
     result_layout->addWidget(result_caption);
     layout->addWidget(result_card);
 
+    // The equivalent `vss_cli bench` command, kept current by
+    // update_command().
     auto* command_title =
         new QLabel(tr("Same thing from the command line"), this);
     command_title->setFont(Theme::instance().font(text_style::caption));
@@ -211,6 +223,7 @@ void BenchmarkDialog::build()
     layout->addWidget(command_);
     layout->addStretch(1);
 
+    // Footer: Copy result stays disabled until a run has produced a summary.
     QHBoxLayout* footer_layout = nullptr;
     auto* footer = make_footer(this, footer_layout);
     copy_result_ = make_button(tr("Copy result"), "quiet", footer);
@@ -236,6 +249,8 @@ void BenchmarkDialog::build()
     footer_layout->addWidget(run_);
     layout->addWidget(footer);
 
+    // Port choices change what can run; size choices change only the command.
+    // A change in the ports or links of the backend rebuilds the port lists.
     connect(from_, &QComboBox::currentIndexChanged, this,
             [this] { update_state(); });
     connect(to_, &QComboBox::currentIndexChanged, this,
@@ -249,6 +264,8 @@ void BenchmarkDialog::build()
     connect(&backend_, &StudioBackend::links_changed, this,
             &BenchmarkDialog::refresh);
 
+    // Focus the first field now, and again once the event loop runs so the
+    // focus still holds after the dialog is shown.
     from_->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, from_,
                        [this] { from_->setFocus(Qt::OtherFocusReason); });

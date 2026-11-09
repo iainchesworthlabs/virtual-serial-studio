@@ -94,6 +94,8 @@ private:
     void subnegotiate(const std::string& payload, feed_result& result);
     void command(unsigned char code, const std::string& value,
                  feed_result& result);
+    /// Applies a SET-CONTROL request and returns the value to answer with.
+    unsigned set_control(unsigned request, feed_result& result);
     option& option_for(unsigned char code);
 
     parse_state state_ = parse_state::data;

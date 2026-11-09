@@ -18,7 +18,7 @@ namespace vss {
 
 endpoint::endpoint(hub& owner, endpoint_id id, std::string name,
                    endpoint_kind kind, std::shared_ptr<transport> transport,
-                   endpoint_options options)
+                   const endpoint_options& options)
     : owner_(owner)
     , id_(id)
     , name_(std::move(name))

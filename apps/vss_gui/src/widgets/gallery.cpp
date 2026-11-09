@@ -284,12 +284,14 @@ void WidgetGallery::add_status_section()
 
 void WidgetGallery::add_controls_section()
 {
+    // One card with a row for each family of controls.
     QWidget* card_widget = nullptr;
     QVBoxLayout* layout = card(
         QStringLiteral("Controls"),
         QStringLiteral("Keyboard reachable, visible focus, 24 px minimum."),
         content_, card_widget);
 
+    // Buttons in each role, plus a disabled one and the copy button.
     auto* buttons = row(card_widget);
     auto* buttons_layout = row_layout(buttons);
     buttons_layout->addWidget(
@@ -311,6 +313,7 @@ void WidgetGallery::add_controls_section()
     buttons_layout->addStretch(1);
     layout->addWidget(buttons);
 
+    // A segmented control with the two-state switches beside it.
     auto* segments = row(card_widget);
     auto* segments_layout = row_layout(segments);
     auto* protocol = new SegmentedControl(segments);
@@ -330,6 +333,7 @@ void WidgetGallery::add_controls_section()
     segments_layout->addStretch(1);
     layout->addWidget(segments);
 
+    // Pick cards are exclusive choices, so they share one button group.
     auto* pick_row = row(card_widget);
     auto* pick_layout = row_layout(pick_row);
     auto* virtual_port = new PickCard(
@@ -347,6 +351,7 @@ void WidgetGallery::add_controls_section()
     pick_layout->addWidget(pair, 1);
     layout->addWidget(pick_row);
 
+    // A stepper, shown part way through its steps.
     auto* steps = row(card_widget);
     auto* steps_layout = row_layout(steps);
     auto* stepper = new Stepper(steps);
@@ -357,6 +362,7 @@ void WidgetGallery::add_controls_section()
     steps_layout->addStretch(1);
     layout->addWidget(steps);
 
+    // A collapsible section holding a caption and a field.
     auto* disclosure =
         new Disclosure(QStringLiteral("More options"), card_widget);
     auto* content = new QWidget(disclosure);
@@ -368,6 +374,7 @@ void WidgetGallery::add_controls_section()
     disclosure->set_content(content);
     layout->addWidget(disclosure);
 
+    // Toasts appear over the window, so a button is needed to show one.
     auto* toast_row = row(card_widget);
     auto* toast_layout = row_layout(toast_row);
     auto* toast_button =
@@ -386,6 +393,7 @@ void WidgetGallery::add_controls_section()
     toast_layout->addStretch(1);
     layout->addWidget(toast_row);
 
+    // Add the finished card to the gallery page.
     content_layout_->addWidget(card_widget);
 }
 

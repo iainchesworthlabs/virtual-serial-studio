@@ -249,8 +249,10 @@ topology_layout compute_topology_layout(const QVector<topo_node_input>& nodes,
         std::stable_sort(ids.begin(), ids.end(),
                          [&key](vss::endpoint_id left, vss::endpoint_id right)
                          {
-                             if (key.value(left) != key.value(right))
-                                 return key.value(left) < key.value(right);
+                             if (key.value(left) < key.value(right))
+                                 return true;
+                             if (key.value(right) < key.value(left))
+                                 return false;
                              return left < right;
                          });
     };
@@ -416,8 +418,10 @@ QVector<QRectF> sorted_rects(QVector<QRectF> rects)
     std::sort(rects.begin(), rects.end(),
               [](const QRectF& left, const QRectF& right)
               {
-                  if (left.left() != right.left())
-                      return left.left() < right.left();
+                  if (left.left() < right.left())
+                      return true;
+                  if (right.left() < left.left())
+                      return false;
                   return left.top() < right.top();
               });
     return rects;

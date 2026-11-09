@@ -152,6 +152,8 @@ void MonitorPanel::build()
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
 
+    // The panel is a tab widget whose tab bar stays hidden unless the extra
+    // tabs are enabled; the traffic page below is the one normally seen.
     tabs_ = new QTabWidget(this);
     tabs_->setDocumentMode(true);
     tabs_->setTabBarAutoHide(true);
@@ -163,6 +165,8 @@ void MonitorPanel::build()
     page_layout->setContentsMargins(0, 0, 0, 0);
     page_layout->setSpacing(0);
 
+    // Simple toolbar: pause, clear and the Hex and Follow options. Its Hex
+    // box is kept in step with the advanced preview selector below.
     simple_bar_ = new QWidget(monitor_page_);
     simple_bar_->setFixedHeight(36);
     auto* simple_layout = new QHBoxLayout(simple_bar_);
@@ -191,6 +195,8 @@ void MonitorPanel::build()
     simple_layout->addWidget(all_ports_);
     page_layout->addWidget(simple_bar_);
 
+    // Advanced toolbar: the filters (port, direction, payload search), the
+    // preview format, and the export buttons. Hidden until set_advanced().
     advanced_bar_ = new QWidget(monitor_page_);
     advanced_bar_->setFixedHeight(36);
     auto* advanced_layout = new QHBoxLayout(advanced_bar_);
@@ -203,6 +209,7 @@ void MonitorPanel::build()
     rx_ = new QCheckBox(tr("RX"), advanced_bar_);
     tx_ = new QCheckBox(tr("TX"), advanced_bar_);
     drop_ = new QCheckBox(tr("Dropped"), advanced_bar_);
+    // Every direction starts shown, so the table is unfiltered at first.
     rx_->setChecked(true);
     tx_->setChecked(true);
     drop_->setChecked(true);
@@ -229,6 +236,8 @@ void MonitorPanel::build()
     export_ = new QPushButton(tr("Export"), advanced_bar_);
     export_->setProperty("size", QStringLiteral("small"));
     polish(export_);
+    // Export saves the visible rows as text; Export capture writes the traffic
+    // with every byte and its exact time to a capture file.
     export_capture_ = new QPushButton(tr("Export capture"), advanced_bar_);
     export_capture_->setProperty("size", QStringLiteral("small"));
     export_capture_->setAccessibleName(tr("Export capture"));
@@ -252,6 +261,8 @@ void MonitorPanel::build()
     advanced_bar_->setVisible(false);
     page_layout->addWidget(advanced_bar_);
 
+    // The traffic table. The first four columns have fixed widths and the
+    // last one takes the remaining space.
     model_ = new MonitorModel(this);
     table_ = new QTableView(monitor_page_);
     table_->setModel(model_);
@@ -280,6 +291,8 @@ void MonitorPanel::build()
     table_->setMinimumHeight(60);
     table_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
 
+    // A placeholder is shown in place of the table while there is no traffic;
+    // update_empty() switches between the two.
     empty_ = new QLabel(monitor_page_);
     empty_->setAlignment(Qt::AlignCenter);
     empty_->setWordWrap(true);
@@ -296,6 +309,8 @@ void MonitorPanel::build()
     page_layout->addWidget(content_, 1);
     tabs_->addTab(monitor_page_, tr("Monitor"));
 
+    // The log tab keeps only the newest 10,000 lines so it cannot grow without
+    // bound.
     log_ = new QPlainTextEdit(tabs_);
     log_->setReadOnly(true);
     log_->setAccessibleName(tr("Log"));
@@ -303,6 +318,8 @@ void MonitorPanel::build()
     log_->setMaximumBlockCount(10'000);
     tabs_->addTab(log_, tr("Log"));
 
+    // The Log and Topology JSON tabs are hidden until set_advanced() shows
+    // them, and the tab bar with them.
     json_ = new QLabel(tr("The topology JSON editor arrives with WP7."), tabs_);
     json_->setAlignment(Qt::AlignCenter);
     json_->setWordWrap(true);
@@ -313,6 +330,9 @@ void MonitorPanel::build()
     tabs_->setTabVisible(2, false);
     tabs_->tabBar()->hide();
 
+    // Space pauses only while the table has focus, so it cannot steal the key
+    // from the search box or other widgets. Find jumps to the search box,
+    // which exists only in the advanced toolbar.
     auto* pause_shortcut = new QShortcut(QKeySequence(Qt::Key_Space), table_);
     pause_shortcut->setContext(Qt::WidgetShortcut);
     connect(pause_shortcut, &QShortcut::activated, this,
@@ -326,6 +346,8 @@ void MonitorPanel::build()
                     search_->setFocus();
             });
 
+    // Toolbar wiring. Both toolbars drive the same state: pause, clear and
+    // follow are shared, so either bar can be used.
     connect(pause_, &QPushButton::clicked, this, [this] { toggle_pause(); });
     connect(simple_pause_, &QPushButton::clicked, this,
             [this] { toggle_pause(); });
@@ -348,6 +370,8 @@ void MonitorPanel::build()
     connect(export_, &QPushButton::clicked, this, [this] { export_visible(); });
     connect(export_capture_, &QPushButton::clicked, this,
             [this] { export_capture(); });
+    // The Hex checkbox and the ASCII/Hex selector show one setting. Each
+    // handler blocks the other's signals so they do not call each other back.
     connect(hex_, &QCheckBox::toggled, this,
             [this](bool on)
             {
@@ -364,6 +388,7 @@ void MonitorPanel::build()
                 const QSignalBlocker blocker(hex_);
                 hex_->setChecked(id == 1);
             });
+    // Any change to a filter control re-applies all the filters together.
     connect(port_filter_, qOverload<int>(&QComboBox::currentIndexChanged), this,
             [this](int) { update_filters(); });
     for (QCheckBox* box : {rx_, tx_, drop_})
@@ -371,6 +396,7 @@ void MonitorPanel::build()
                 [this](bool) { update_filters(); });
     connect(search_, &QLineEdit::textChanged, this,
             [this](const QString&) { update_filters(); });
+    // Clicking a row selects the port that row came from.
     connect(table_, &QTableView::clicked, this,
             [this](const QModelIndex& index)
             {
@@ -378,6 +404,8 @@ void MonitorPanel::build()
                 if (id != 0)
                     Q_EMIT port_selected(id);
             });
+    // A model reset (such as Clear) refreshes the toolbar state and the
+    // placeholder, and scrolls to the end if following.
     connect(model_, &QAbstractItemModel::modelReset, this,
             [this]
             {

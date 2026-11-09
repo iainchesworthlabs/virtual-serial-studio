@@ -300,14 +300,19 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
 {
     VSS_PROFILE_ZONE("gui.shell.accessibility.check");
     QStringList failures;
+    // Every failure from every check is appended to one list for the caller.
     Checker checker(failures);
 
+    // The real main window is checked when one was given; the dialogs below
+    // are always built against a fake backend.
     if (main_window != nullptr)
     {
         checker.run(*main_window, QStringLiteral("main-window"));
         checker.compact(*main_window, QStringLiteral("main-window"));
     }
 
+    // No real driver or hub is touched. The fake gets two virtual ports to
+    // link and a mock port to act as a fixture.
     FakeStudioBackend backend;
     configure_fake(backend);
     const auto alpha = backend.create_virtual_port(
@@ -316,6 +321,7 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
         QStringLiteral("beta"), vss::virtual_port_kind::pty, true);
     const auto fixture = backend.create_mock_port(QStringLiteral("fixture"), {},
                                                   QStringLiteral("scripted"));
+    // Without these ports most dialogs cannot be built, so report it and stop.
     if (!alpha || !beta || !fixture)
     {
         failures << QStringLiteral(
@@ -324,6 +330,8 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
     }
 
     {
+        // One dialog per block so each is destroyed before the next is built.
+        // Each is only shown, never run modally, so this cannot block.
         AddPortDialog dialog(backend, true);
         checker.run(dialog, QStringLiteral("add-port"));
     }
@@ -352,6 +360,7 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
         checker.run(dialog, QStringLiteral("connect-ports"));
     }
     {
+        // Walk the wizard page by page, stopping if a step is refused.
         ShareWizard dialog(backend, true);
         checker.run(dialog, QStringLiteral("share-step1"));
         if (dialog.next())
@@ -386,6 +395,8 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
         checker.run(dialog, QStringLiteral("export-command"));
     }
     {
+        // Dialogs from the support area follow: setup, troubleshooting, the
+        // event log, settings, about, shortcuts and help.
         support::SetupCheckDialog dialog(backend);
         checker.run(dialog, QStringLiteral("setup-check"));
     }
@@ -415,6 +426,7 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
         checker.run(dialog, QStringLiteral("help-contents"));
     }
     {
+        // The generic confirm and error dialogs are checked with sample text.
         ConfirmDialog dialog(
             QStringLiteral("Remove port"), QStringLiteral("Remove alpha?"),
             QStringLiteral("Remove"), QStringLiteral("Cancel"), true);

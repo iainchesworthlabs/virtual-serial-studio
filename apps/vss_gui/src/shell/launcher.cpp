@@ -167,6 +167,8 @@ Launcher::Launcher(StudioBackend& backend, QWidget* parent)
 
 void Launcher::build()
 {
+    // The content is a fixed-width column centred in the window, with
+    // stretch on both sides.
     auto* outer = new QHBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     outer->addStretch(1);
@@ -176,6 +178,8 @@ void Launcher::build()
     layout->setContentsMargins(40, 32, 40, 32);
     layout->setSpacing(16);
 
+    // The banner's text and kind are set by refresh(). Its button opens the
+    // driver setup when refresh() offers it, else the setup check.
     readiness_ = new NoteBanner(NoteBanner::kind::ok, {}, content);
     readiness_->set_action(tr("View setup check"),
                            [this]
@@ -198,6 +202,8 @@ void Launcher::build()
     sub->setWordWrap(true);
     layout->addWidget(sub);
 
+    // Job cards, two by two. Each card reports its job name when activated and
+    // the owner of the launcher decides what to start.
     auto* grid = new QGridLayout();
     grid->setHorizontalSpacing(16);
     grid->setVerticalSpacing(16);
@@ -233,6 +239,8 @@ void Launcher::build()
              tr("Result: a live monitor, read only"), QStringLiteral("watch"));
     layout->addLayout(grid);
 
+    // Saved setups strip: the most recent setup with an Open button, or a note
+    // if there is none. refresh() decides which of the two is shown.
     auto* saved = new QFrame(content);
     saved->setProperty("card", true);
     polish(saved);
@@ -254,6 +262,7 @@ void Launcher::build()
     no_recent_->setFont(Theme::instance().font(text_style::body));
     no_recent_->setProperty("muted", true);
     saved_layout->addWidget(no_recent_);
+    // Open uses the path remembered by refresh(); Browse lets the user pick.
     recent_open_ = new QPushButton(tr("Open"), saved);
     recent_open_->setProperty("size", QStringLiteral("small"));
     polish(recent_open_);
@@ -268,6 +277,8 @@ void Launcher::build()
     saved_layout->addWidget(recent_browse_);
     layout->addWidget(saved);
 
+    // Pointer to Advanced mode, which adds tools to the same window without
+    // changing anything already built.
     auto* hint = new QLabel(
         tr("Need addresses, fault injection or port ownership? "
            "<a href=\"advanced\">Advanced mode</a> adds them to this "
@@ -281,6 +292,7 @@ void Launcher::build()
     layout->addWidget(hint);
     layout->addStretch(1);
 
+    // No stretch on the content itself; the two stretches keep it centred.
     outer->addWidget(content, 0);
     outer->addStretch(1);
 }

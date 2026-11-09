@@ -135,6 +135,8 @@ InspectorPanel::InspectorPanel(StudioBackend& backend, QWidget* parent)
 
 void InspectorPanel::build()
 {
+    // Two mutually exclusive children: a hint shown when no port is selected,
+    // and a scroll area holding the details. update_content() picks one.
     auto* root = new QVBoxLayout(this);
     root->setContentsMargins(0, 0, 0, 0);
     root->setSpacing(0);
@@ -155,6 +157,8 @@ void InspectorPanel::build()
     scroll_->setWidget(content_);
     root->addWidget(scroll_, 1);
 
+    // Everything below goes into the scrolled content, top to bottom: name,
+    // details form, help text, release button, then the control lines.
     auto* layout = new QVBoxLayout(content_);
     content_layout_ = layout;
     layout->setContentsMargins(12, 10, 12, 10);
@@ -165,6 +169,7 @@ void InspectorPanel::build()
     name_->setWordWrap(true);
     layout->addWidget(name_);
 
+    // Details form: captions in column 0, values in column 1, which stretches.
     auto* form = new QGridLayout();
     form->setHorizontalSpacing(8);
     form->setVerticalSpacing(4);
@@ -176,6 +181,7 @@ void InspectorPanel::build()
     form->addWidget(state_, row++, 1, Qt::AlignLeft);
 
     form->addWidget(caption(tr("Path"), content_), row, 0, Qt::AlignTop);
+    // The path can be selected with the mouse or copied with its own button.
     auto* path_row = new QWidget(content_);
     auto* path_layout = new QHBoxLayout(path_row);
     path_layout->setContentsMargins(0, 0, 0, 0);
@@ -190,6 +196,8 @@ void InspectorPanel::build()
     path_layout->addWidget(copy_, 0, Qt::AlignTop);
     form->addWidget(path_row, row++, 1);
 
+    // The COM number row exists for every port but is only shown for driver
+    // ports that have one (see update_content).
     com_caption_ = caption(tr("COM number"), content_);
     form->addWidget(com_caption_, row, 0, Qt::AlignTop);
     com_row_ = new QWidget(content_);
@@ -219,6 +227,8 @@ void InspectorPanel::build()
     traffic_->setFont(Theme::instance().font(text_style::data));
     form->addWidget(traffic_, row++, 1);
 
+    // The serial number spans both columns and is advanced-only (see
+    // set_advanced), and only for physical ports.
     serial_row_ = new QWidget(content_);
     auto* serial_layout = new QHBoxLayout(serial_row_);
     serial_layout->setContentsMargins(0, 0, 0, 0);
@@ -232,6 +242,8 @@ void InspectorPanel::build()
 
     layout->addLayout(form);
 
+    // Help block: a note about the port's state, a button to copy its name for
+    // the other program, and a link to troubleshooting.
     auto* help = new QWidget(content_);
     auto* help_layout = new QVBoxLayout(help);
     help_layout->setContentsMargins(0, 0, 0, 0);
@@ -264,6 +276,8 @@ void InspectorPanel::build()
     help_layout->addWidget(help_link_);
     layout->addWidget(help);
 
+    // Releasing is not done here: the request is emitted for whoever
+    // handles release_port_requested to carry out.
     release_ = new QPushButton(tr("Release port..."), content_);
     release_->setObjectName(QStringLiteral("inspectorRelease"));
     release_->setProperty("size", QStringLiteral("small"));
@@ -280,6 +294,7 @@ void InspectorPanel::build()
     auto* controls_title = caption(tr("Control lines"), content_);
     layout->addWidget(controls_title);
 
+    // Simple mode shows the control lines as read-only chips, three to a row.
     simple_lines_ = new QWidget(content_);
     auto* simple_grid = new QGridLayout(simple_lines_);
     simple_grid->setContentsMargins(0, 0, 0, 0);
@@ -293,6 +308,8 @@ void InspectorPanel::build()
     }
     layout->addWidget(simple_lines_);
 
+    // Advanced mode replaces the chips with switches for the output lines, a
+    // Break button and a row of chips for the input lines.
     advanced_lines_ = new QWidget(content_);
     auto* advanced_layout = new QVBoxLayout(advanced_lines_);
     advanced_layout->setContentsMargins(0, 0, 0, 0);
@@ -323,6 +340,7 @@ void InspectorPanel::build()
     advanced_layout->addLayout(input_grid);
     layout->addWidget(advanced_lines_);
 
+    // The link only emits a request for the owner of the panel to act on.
     advanced_link_ = new QLabel(
         tr("<a href=\"faults\">Open line matrix and faults</a>"), content_);
     advanced_link_->setTextFormat(Qt::RichText);
@@ -332,6 +350,9 @@ void InspectorPanel::build()
     layout->addWidget(advanced_link_);
     layout->addStretch(1);
 
+    // Both switches behave the same. If the backend refuses, put the switch
+    // back without re-triggering this handler and report the error. While
+    // refresh() updates the switches (refreshing_) their signals are ignored.
     const auto connect_switch = [this](Switch* toggle, vss::control_line line)
     {
         connect(toggle, &Switch::toggled, this,
@@ -351,6 +372,8 @@ void InspectorPanel::build()
     connect_switch(dtr_, vss::control_line::dtr);
     connect_switch(rts_, vss::control_line::rts);
 
+    // Break is held for as long as the button is pressed, so it is sent on
+    // press and cleared on release rather than on click.
     connect(break_, &QPushButton::pressed, this,
             [this] { set_line(vss::control_line::break_signal, true); });
     connect(break_, &QPushButton::released, this,

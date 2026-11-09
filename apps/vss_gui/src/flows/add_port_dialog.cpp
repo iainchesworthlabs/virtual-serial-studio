@@ -130,12 +130,15 @@ void AddPortDialog::build(bool advanced, mode initial)
     VSS_PROFILE_MESSAGE("gui.dialog.add_port.opened");
     advanced_ = advanced;
 
+    // One card per port type, in an exclusive group so only one is picked.
     auto* cards_layout = new QVBoxLayout();
     cards_layout->setContentsMargins(0, 0, 0, 0);
     cards_layout->setSpacing(12);
     auto* group = new QButtonGroup(this);
     group->setExclusive(true);
 
+    // Builds one card. Advanced-only cards are hidden unless advanced mode
+    // is on.
     const auto add_card = [this, cards_layout,
                            group](mode value, const QString& title,
                                   const QString& description,
@@ -151,6 +154,8 @@ void AddPortDialog::build(bool advanced, mode initial)
         return card;
     };
 
+    // The first three types are always offered; the network endpoint and mock
+    // fixture are advanced only.
     add_card(mode::virtual_port, tr("Virtual port"),
              tr("A port that other programs can open. Use it when a program "
                 "needs a COM port and this PC has none."),
@@ -170,6 +175,8 @@ void AddPortDialog::build(bool advanced, mode initial)
                 "hardware."),
              true);
 
+    // A dashed row under the cards points at the advanced types and offers to
+    // turn Advanced mode on.
     auto* more = new QFrame(this);
     more->setObjectName(QStringLiteral("addPortMore"));
     auto* more_layout = new QHBoxLayout(more);
@@ -200,6 +207,8 @@ void AddPortDialog::build(bool advanced, mode initial)
     more_row_ = more;
     cards_layout->addWidget(more);
 
+    // The row's fill and border come from theme colours, so restyle it when
+    // the theme changes.
     const auto apply_more_style = [more]
     {
         more->setStyleSheet(
@@ -224,6 +233,8 @@ void AddPortDialog::build(bool advanced, mode initial)
         flow_semibold(Theme::instance().font(text_style::body)));
     body_layout()->addWidget(settings_title_);
 
+    // One settings page per port type, in mode order; only the chosen type's
+    // page is shown.
     pages_ = new QStackedWidget(this);
     pages_->setObjectName(QStringLiteral("addPortPages"));
     virtual_page_ = new QWidget(pages_);
@@ -238,15 +249,19 @@ void AddPortDialog::build(bool advanced, mode initial)
     pages_->addWidget(mock_page_);
     body_layout()->addWidget(pages_);
 
+    // Fill in the pages; the advanced types get placeholder pages.
     build_virtual_page();
     build_pair_page();
     build_real_page();
     build_placeholder_page(mode::network_endpoint);
     build_placeholder_page(mode::mock_fixture);
 
+    // Clicking a card switches the mode and the page shown below.
     connect(group, &QButtonGroup::idClicked, this,
             [this](int id) { set_mode(static_cast<mode>(id)); });
 
+    // Show the advanced cards first when opening on an advanced type, then
+    // apply the caller's advanced setting.
     if (initial == mode::network_endpoint || initial == mode::mock_fixture)
         set_advanced(true);
     set_advanced(advanced);

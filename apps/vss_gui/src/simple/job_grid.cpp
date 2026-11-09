@@ -200,6 +200,8 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
     : QWidget(parent), backend_(backend)
 {
     setObjectName(QStringLiteral("simpleJobs"));
+    // The page is a scroll area holding a column of at most 920 pixels, so
+    // the tiles stay readable on a wide window.
     auto* outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     auto* scroll = new QScrollArea(this);
@@ -229,6 +231,8 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
            "where you can change or remove it."),
         text_style::bodyLarge, content));
 
+    // The readiness banner is filled in by refresh(). Its button opens the
+    // driver setup when that is offered, otherwise the setup check.
     readiness_ = new NoteBanner(NoteBanner::kind::ok, {}, content);
     readiness_->set_action(tr("Details"),
                            [this]
@@ -240,8 +244,12 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
                            });
     layout->addWidget(readiness_);
 
+    // Some jobs need features a build may not have; their tiles are disabled
+    // further down rather than hidden, so the list of jobs stays the same.
     const bool bus_available = backend_.caps().shared_bus;
     const bool bridge_available = backend_.caps().bridge;
+    // add_group lays out one titled group of tiles, two to a row. Tiles with
+    // an id of -1 are not jobs, so they are not recorded in tiles_.
     const auto add_group =
         [this, content, layout](const QString& name,
                                 const QList<QPair<int, JobTile*>>& tiles)
@@ -268,6 +276,7 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
         grid->setColumnStretch(1, 1);
         layout->addLayout(grid);
     };
+    // job_tile builds the tile for one job; activating it reports the job.
     const auto job_tile = [this, content](job kind)
     {
         auto* tile = new JobTile(icon_of(kind), job_title(kind),
@@ -286,6 +295,7 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
         tr("Several programs or devices at once"),
         {job_tile(job::bus), job_tile(job::combine), job_tile(job::turns)});
 
+    // Two tiles are not jobs, so they have their own signals instead.
     auto* watch = new JobTile(
         QStringLiteral("watch"), tr("See the data on a port"),
         tr("See what goes in and out of a port you already set up. Read only, "
@@ -302,6 +312,7 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
             [this] { Q_EMIT check_requested(); });
     add_group(tr("Look and check"), {{-1, watch}, {-1, check}});
 
+    // Disable, with a tooltip, the tiles whose feature this build lacks.
     if (!bus_available)
     {
         tiles_.value(static_cast<int>(job::bus))->setEnabled(false);
@@ -315,6 +326,8 @@ JobGrid::JobGrid(StudioBackend& backend, QWidget* parent)
             ->setToolTip(tr("Not available in this build"));
     }
 
+    // Ways in other than a new job: reopen a saved setup, or start from an
+    // example.
     auto* more = new QHBoxLayout();
     more->setSpacing(8);
     auto* open = new QPushButton(tr("Open a saved setup…"), content);

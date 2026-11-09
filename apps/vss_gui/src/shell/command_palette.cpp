@@ -293,12 +293,8 @@ void CommandPalette::update_footer()
 void CommandPalette::add_group(const QString& title,
                                const QVector<QAction*>& actions)
 {
-    if (!level_.advanced() && title == tr("Needs Advanced mode") &&
-        actions.isEmpty())
-    {
-        // The empty group is still shown with its explanation, per the spec.
-    }
-
+    // An empty group, such as "Needs Advanced mode", is still shown with its
+    // explanation, per the spec.
     auto* group_item = new QListWidgetItem(title.toUpper(), results_);
     group_item->setFlags(Qt::NoItemFlags);
     group_item->setForeground(Theme::instance().colour(colour_role::ink3));

@@ -97,7 +97,7 @@ public:
     result<std::shared_ptr<endpoint>>
     create_virtual_port(const std::string& name,
                         virtual_port_kind kind = virtual_port_kind::pty,
-                        endpoint_options options = {}, unsigned com_number = 0);
+                        const endpoint_options& options = {}, unsigned com_number = 0);
 
     /// Gives a port of the Windows driver a different COM number, as Device
     /// Manager's Advanced > COM Port Number does, and returns the new COM name.
@@ -110,7 +110,7 @@ public:
     /// Attaches a real serial port or a network backend from a URI.
     result<std::shared_ptr<endpoint>>
     attach_serial(const std::string& name, const std::string& uri,
-                  endpoint_options options = {});
+                  const endpoint_options& options = {});
 
     result<std::shared_ptr<endpoint>>
     attach_serial(const std::string& name, const std::string& uri,
@@ -349,10 +349,10 @@ private:
 
     result<std::shared_ptr<endpoint>>
     register_port(port_record record, std::shared_ptr<transport> transport,
-                  endpoint_options options);
+                  const endpoint_options& options);
 
     result<std::shared_ptr<endpoint>>
-    create_auto_virtual_port(const std::string& name, endpoint_options options,
+    create_auto_virtual_port(const std::string& name, const endpoint_options& options,
                              unsigned com_number = 0);
 
     /// Makes the stable link for a new pseudo terminal when the options ask

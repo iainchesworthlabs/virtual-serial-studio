@@ -475,9 +475,10 @@ int main(int argc, char** argv)
     // Profiling is never on by itself here, not even in Debug: the zone cost
     // benchmarks below need to see the dormant state first.
     auto profile = vss::profiling::request_from_environment(false);
-    for (int index = 1; index < argc; ++index)
+    int next_arg = 1;
+    while (next_arg < argc)
     {
-        const std::string argument = argv[index];
+        const std::string argument = argv[next_arg++];
         if (argument == "--quick")
             quick = true;
         else if (argument == "--tracy")
@@ -486,8 +487,8 @@ int main(int argc, char** argv)
             continue;
         else if (argument.rfind("--output=", 0) == 0)
             output = argument.substr(9);
-        else if (argument.rfind("--output", 0) == 0 && index + 1 < argc)
-            output = argv[++index];
+        else if (argument.rfind("--output", 0) == 0 && next_arg < argc)
+            output = argv[next_arg++];
         else if (argument == "--help" || argument == "-h")
         {
             std::printf("usage: vss_perf [--quick] [--tracy] [--output=FILE]\n"

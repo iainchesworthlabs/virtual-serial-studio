@@ -57,6 +57,8 @@ void FixturePanel::build()
     polish(this);
     setAccessibleName(tr("Fixture behaviour"));
 
+    // The card is a single column: echo toggle, a form grid, then the
+    // generator button and a status line.
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(12, 10, 12, 10);
     layout->setSpacing(8);
@@ -65,6 +67,7 @@ void FixturePanel::build()
     echo_ = new QCheckBox(tr("Echo received bytes"), this);
     layout->addWidget(echo_);
 
+    // Label and field pairs, one per row; the field column takes the slack.
     auto* grid = new QGridLayout();
     grid->setHorizontalSpacing(8);
     grid->setVerticalSpacing(6);
@@ -82,6 +85,8 @@ void FixturePanel::build()
                    static_cast<int>(generator_kind::random_bytes));
     grid->addWidget(kind_, row++, 1);
 
+    // The text and byte-count rows are shown or hidden to suit the chosen
+    // generator kind (see update_field_visibility).
     text_label_ = caption(tr("Line"), this);
     grid->addWidget(text_label_, row, 0);
     text_ = new QLineEdit(this);
@@ -105,6 +110,8 @@ void FixturePanel::build()
     grid->addWidget(rate_, row++, 1);
     layout->addLayout(grid);
 
+    // The button text and status line are refreshed by sync(), so only
+    // their styling is set here.
     generator_ = new QPushButton(tr("Start generator"), this);
     generator_->setProperty("role", QStringLiteral("primary"));
     polish(generator_);
@@ -117,6 +124,8 @@ void FixturePanel::build()
     polish(status_);
     layout->addWidget(status_);
 
+    // Edits are pushed to the behaviours object; syncing_ stops the echo of
+    // our own sync() back into it. A failed set_echo reverts the checkbox.
     connect(echo_, &QCheckBox::toggled, this,
             [this](bool on)
             {

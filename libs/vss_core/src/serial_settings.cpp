@@ -72,11 +72,8 @@ error_code validate(const serial_settings& settings) noexcept
         return make_error_code(errc::invalid_argument);
     if (settings.data_bits < 5 || settings.data_bits > 8)
         return make_error_code(errc::invalid_argument);
-    if (settings.parity == parity_mode::mark || settings.parity == parity_mode::space)
-    {
-        // Mark and space parity are accepted but rare; the virtual ports
-        // model them and physical UARTs may round them.
-    }
+    // Mark and space parity are accepted but rare; the virtual ports model
+    // them and physical UARTs may round them.
     if (settings.read_timeout.count() < 0 || settings.write_timeout.count() < 0)
         return make_error_code(errc::invalid_argument);
     return {};

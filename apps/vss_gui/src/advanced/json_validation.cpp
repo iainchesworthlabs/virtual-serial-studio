@@ -439,8 +439,12 @@ QString json_validation::status_text() const
 json_validation validate_json_document(const QString& text, bool shared_bus)
 {
     VSS_PROFILE_ZONE("gui.advanced.json_validate");
+    // The checks run in stages and stop at the first problem.  Each stage
+    // that fails returns three check rows: the stages before it passed and the
+    // ones after it are not_checked.
     json_validation out;
 
+    // Stage 1: syntax.  A parse failure is placed at the line of its offset.
     QJsonParseError parse_error;
     const QJsonDocument document =
         QJsonDocument::fromJson(text.toUtf8(), &parse_error);
@@ -469,8 +473,10 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             line};
         return out;
     }
+    // From here on the text is known to be well-formed JSON.
     out.json_valid = true;
 
+    // Stage 2: shape.  A setup file must have an object at the top level.
     if (!document.isObject())
     {
         out.checks = {
@@ -494,6 +500,9 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
         return out;
     }
 
+    // Stage 3: version.  Only version 1 is understood; a missing or
+    // non-numeric version reads as 0.  path_index maps a JSON path to the
+    // line it starts on, so each problem can point at the text.
     const QJsonObject root = document.object();
     const path_index lines(text);
     const QJsonValue version_value = root.value(QStringLiteral("version"));
@@ -524,6 +533,7 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
         return out;
     }
 
+    // The name is for display only; a missing or empty one reads "untitled".
     out.name =
         root.value(QStringLiteral("name")).toString(QStringLiteral("untitled"));
     if (out.name.isEmpty())
@@ -531,6 +541,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
 
     // -- ports ------------------------------------------------------------
     QSet<QString> port_names;
+    // Leaving "ports" out is allowed (an empty topology); a value that is not
+    // a list is not.
     const QJsonValue ports_value = root.value(QStringLiteral("ports"));
     if (!ports_value.isUndefined() && !ports_value.isArray())
     {
@@ -555,6 +567,7 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
         return out;
     }
 
+    // Check each port in order.  A failure here marks the "Ports" row failed.
     const QJsonArray ports = ports_value.toArray();
     for (int index = 0; index < ports.size(); ++index)
     {
@@ -583,6 +596,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
                 port_line};
             return out;
         }
+        // Links refer to ports by name, so every port needs a non-empty
+        // string name and the names must not repeat.
         const QJsonObject port = value.toObject();
         const QJsonValue name_value = port.value(QStringLiteral("name"));
         const QString name = name_value.toString();
@@ -643,8 +658,10 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             out.problem = problem;
             return out;
         }
+        // Remember the name: a later duplicate and the links check it.
         port_names.insert(name);
 
+        // The kind defaults to virtual and must be one of the known kinds.
         const QString kind = port.value(QStringLiteral("kind"))
                                  .toString(QStringLiteral("virtual"));
         bool kind_known = false;
@@ -685,6 +702,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             return out;
         }
 
+        // virtual_kind picks how a virtual port is made and defaults to auto.
+        // Only virtual ports are checked for it.
         const QString virtual_kind = port.value(QStringLiteral("virtual_kind"))
                                          .toString(QStringLiteral("auto"));
         if (kind == QLatin1String("virtual"))
@@ -729,6 +748,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             }
         }
 
+        // Virtual and mock ports are created by Studio and need no address;
+        // every other kind opens something outside, so it needs a uri.
         if (kind != QLatin1String("virtual") && kind != QLatin1String("mock"))
         {
             const QString uri = port.value(QStringLiteral("uri")).toString();
@@ -790,6 +811,10 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
         return out;
     }
 
+    // Record the counts for the status text.  edges holds the routes added
+    // by the links seen so far (port name to the names it feeds), so a link
+    // that would close a loop can be refused.  bus_members tracks ports that
+    // are already on a bus.
     const QJsonArray links = links_value.toArray();
     out.ports = static_cast<int>(ports.size());
     out.links = static_cast<int>(links.size());
@@ -826,6 +851,7 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             out.problem = problem;
             return out;
         }
+        // Each link has a mode, which defaults to duplex and must be known.
         const QJsonObject link = value.toObject();
         const QString mode = link.value(QStringLiteral("mode"))
                                  .toString(QStringLiteral("duplex"));
@@ -859,6 +885,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
                     : QCoreApplication::translate("TopologyJson",
                                                   "Unknown link mode \"%1\"")
                           .arg(mode);
+            // If a known mode is close to the typo, offer it as a fix the
+            // editor can apply (fix_from and fix_to).
             const QString suggestion = closest_mode(mode);
             if (!suggestion.isEmpty() && suggestion != mode)
             {
@@ -882,8 +910,12 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             return out;
         }
 
+        // A bus link lists its "members" instead of sources and targets, and
+        // is handled completely in this branch.
         if (mode == QLatin1String("bus"))
         {
+            // Every bus problem fails the links row; only the line, summary
+            // and detail differ.
             const auto reject =
                 [&out](int line, const QString& summary, const QString& detail)
             {
@@ -900,6 +932,7 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
                     with_line(line, summary), detail, {}, {}, line};
             };
 
+            // A build without shared-bus support cannot run a bus link.
             if (!shared_bus)
             {
                 reject(link_line,
@@ -913,6 +946,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
                 return out;
             }
 
+            // "members" must be a list of strings with between 2 and
+            // max_bus_members entries.
             QStringList members;
             bool members_ok = link.value(QStringLiteral("members")).isArray();
             if (members_ok)
@@ -942,6 +977,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
                 return out;
             }
 
+            // Each member must be a known port, and a port can sit on only
+            // one bus.
             for (qsizetype at = 0; at < members.size(); ++at)
             {
                 const QString& name = members.at(at);
@@ -987,6 +1024,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
                     return out;
                 }
             }
+            // Members of a bus hear each other, so add a route for every
+            // ordered pair for the checks of later links.
             for (const QString& first : members)
             {
                 for (const QString& second : members)
@@ -995,9 +1034,12 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
                         edges[first].insert(second);
                 }
             }
+            // The source and target checks below do not apply to a bus.
             continue;
         }
 
+        // Every other mode reads "sources" and "targets": non-empty lists of
+        // port names.
         QStringList sources;
         QStringList targets;
         const auto read_names = [](const QJsonObject& object, const char* key,
@@ -1046,6 +1088,9 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             return out;
         }
 
+        // How many ports each side may hold depends on the mode: split fans
+        // out from one source, join fans in to one target, and duplex,
+        // redirect and monitor are one to one.
         const bool one_source = sources.size() == 1;
         const bool one_target = targets.size() == 1;
         bool arity_ok = true;
@@ -1090,6 +1135,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             return out;
         }
 
+        // Every port a link names must exist.  The problem points at the
+        // entry that named it, looking in the sources first.
         for (const QString& name : sources + targets)
         {
             if (!port_names.contains(name))
@@ -1133,6 +1180,9 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
 
         // A loop is refused the same way the hub refuses one: check the
         // routes that already exist before adding this link.
+        // A link loops if a port feeds itself, if its target already reaches
+        // its source, or, for duplex, if the source already reaches the
+        // target (the reverse direction would then close a loop).
         bool loop = false;
         for (const QString& source : sources)
         {
@@ -1174,6 +1224,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             out.problem = problem;
             return out;
         }
+        // The link is accepted: record its routes for later links.  A duplex
+        // link carries bytes both ways.
         for (const QString& source : sources)
         {
             for (const QString& target : targets)
@@ -1186,6 +1238,8 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
     }
 
     // -- the engine has the final word ------------------------------------
+    // The checks above passed.  Show all three rows as passed, then let the
+    // real config parser decide: it enforces rules not repeated here.
     out.checks = {
         {QCoreApplication::translate("TopologyJson", "Valid JSON, version 1"),
          check_state::passed},
@@ -1194,6 +1248,9 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
     const auto parsed = vss::config::from_json(text.toStdString());
     if (!parsed)
     {
+        // The parser reports only an error code, so engine_problem_line()
+        // works out which line to highlight.  A fourth row records the
+        // failure.
         out.schema_valid = false;
         out.checks.push_back(
             {QCoreApplication::translate(
@@ -1211,12 +1268,16 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             engine_line};
         return out;
     }
+    // Take the name and counts from the parsed document, since that is what
+    // would be applied.
     out.document = *parsed;
     out.name = QString::fromStdString(out.document.name);
     out.ports = static_cast<int>(out.document.ports.size());
     out.links = static_cast<int>(out.document.links.size());
     out.checks[1] = {ports_check_text(out.ports, true), check_state::passed};
     out.checks[2] = {links_check_text(out.links, true), check_state::passed};
+    // Write the document back out as indented JSON.  That text is what the
+    // Format action shows, and a failure here counts as invalid too.
     const auto formatted = vss::config::to_json(out.document, true);
     if (!formatted)
     {

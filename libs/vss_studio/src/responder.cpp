@@ -98,6 +98,8 @@ result<responder_script> parse_responder_script(std::string_view text,
                                                 std::string* detail)
 {
     VSS_PROFILE_ZONE("studio.responder.parse_script");
+    // Every failure goes through bad_script(), which stores a readable
+    // message in `detail` for the caller and returns a config error.
     boost::system::error_code parse_error;
     const json::value root = json::parse(text, parse_error);
     if (parse_error)
@@ -106,6 +108,9 @@ result<responder_script> parse_responder_script(std::string_view text,
         return bad_script(detail, "the script must be a JSON object");
     const json::object& top = root.as_object();
 
+    // Reject keys the schema does not have, so a misspelt key is reported
+    // rather than silently ignored.  The version may be left out, but if it
+    // is given it must be 1.
     if (const auto problem = unknown_key(
             top, {"version", "name", "description", "seed", "rules", "poll"},
             "script"))
@@ -114,6 +119,8 @@ result<responder_script> parse_responder_script(std::string_view text,
         version != nullptr && (!version->is_int64() || version->as_int64() != 1))
         return bad_script(detail, "script: \"version\" must be 1");
 
+    // The seed, if any, fixes the random jitter so a run can be repeated.
+    // It may be written as a signed or an unsigned whole number.
     responder_script script;
     if (const auto* seed = top.if_contains("seed"))
     {
@@ -124,6 +131,8 @@ result<responder_script> parse_responder_script(std::string_view text,
             : static_cast<std::uint64_t>(seed->as_int64());
     }
 
+    // Rules: "when these bytes arrive, send those".  Errors name the rule
+    // by its position, such as rules[2].
     if (const auto* rules = top.if_contains("rules"))
     {
         if (!rules->is_array())
@@ -141,6 +150,8 @@ result<responder_script> parse_responder_script(std::string_view text,
                     where))
                 return bad_script(detail, *problem);
 
+            // The name is for display only.  Match and reply are required;
+            // the mask is optional but must cover exactly the match bytes.
             responder_rule rule;
             if (const auto* name = object.if_contains("name");
                 name != nullptr && name->is_string())
@@ -158,6 +169,7 @@ result<responder_script> parse_responder_script(std::string_view text,
             if (const auto problem =
                     hex_member(object, "reply", where, true, rule.reply))
                 return bad_script(detail, *problem);
+            // The reply delay and its jitter are optional, in milliseconds.
             if (const auto problem =
                     ms_member(object, "delay_ms", where, rule.delay))
                 return bad_script(detail, *problem);
@@ -168,6 +180,8 @@ result<responder_script> parse_responder_script(std::string_view text,
         }
     }
 
+    // Poll: a list of timed steps for a port that acts as a master.  It may
+    // repeat a number of cycles, one interval apart.
     if (const auto* poll_value = top.if_contains("poll"))
     {
         if (!poll_value->is_object())
@@ -189,10 +203,12 @@ result<responder_script> parse_responder_script(std::string_view text,
                 return bad_script(detail, "poll: \"cycles\" must be 0 or more");
             poll.cycles = static_cast<std::uint64_t>(cycles->as_int64());
         }
+        // More than one cycle needs a non-zero interval to space them out.
         if (poll.interval.count() == 0 && poll.cycles > 1)
             return bad_script(detail,
                               "poll: \"interval_ms\" is needed to repeat");
 
+        // A poll with no steps would do nothing, so at least one is needed.
         const auto* steps = object.if_contains("steps");
         if (steps == nullptr || !steps->is_array() || steps->as_array().empty())
             return bad_script(detail, "poll: \"steps\" must be a list with at "
@@ -207,6 +223,8 @@ result<responder_script> parse_responder_script(std::string_view text,
             if (const auto problem = unknown_key(
                     step_object, {"send", "at_ms", "jitter_ms"}, where))
                 return bad_script(detail, *problem);
+            // Each step sends some bytes, at an offset within the cycle plus
+            // optional jitter.
             responder_poll_step step;
             if (const auto problem =
                     hex_member(step_object, "send", where, true, step.send))
@@ -221,6 +239,7 @@ result<responder_script> parse_responder_script(std::string_view text,
         script.poll = std::move(poll);
     }
 
+    // A script with neither rules nor a poll would never do anything.
     if (script.rules.empty() && !script.poll)
         return bad_script(detail, "the script has no \"rules\" and no \"poll\"");
     return script;
