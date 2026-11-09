@@ -132,6 +132,11 @@ jobs:
         run: python3 tools/check_contrast.py
       - name: Render the theme style sheets
         run: python3 tools/gen_qss.py --out "${RUNNER_TEMP}/qss"
+      - name: Check the application icon files against the SVG
+        run: |
+          python3 -m pip install --quiet -r requirements/icon.txt
+          python3 tools/gen_app_icon.py --check
+          python3 -m unittest discover -s tools -p "test_gen_app_icon.py" -v
 
   build:
     strategy:
