@@ -16,7 +16,8 @@ shared publish workflow adds the checks.
 | `virtual-serial-studio-<version>-<release>.x86_64.rpm` | Ubuntu 26.04 | The same files, for Fedora and Red Hat |
 | `virtual-serial-studio-<tag>-macos-arm64.tar.gz` | macOS 26 | `vss_gui.app`, `bin/vss_cli`, the licence texts |
 | `virtual-serial-studio-<tag>-macos-arm64.dmg` | macOS 26 | A disk image with `vss_gui.app`, an `Applications` link to drag it onto, `bin/vss_cli` and the licence texts. The same files as the tar.gz, made by CPack (below) |
-| `virtual-serial-studio-<tag>-windows-x86_64.zip` | Windows 2025 | `bin/vss_gui.exe`, `bin/vss_cli.exe`, the Qt DLLs, the licence texts |
+| `virtual-serial-studio-<tag>-windows-x86_64.zip` | Windows 2025 | `bin/vss_gui.exe`, `bin/vss_cli.exe`, the Qt DLLs, the licence texts, and in `bin/driver` the user-mode COM port driver, its helper service and the set-up scripts |
+| `virtual-serial-studio-<tag>-windows-x86_64.exe` | Windows 2025 | The same files as the zip, as an NSIS installer that also sets up the driver and the helper service ([below](#the-windows-installer)) |
 
 The release also has `SHA512SUMS`, a detached GPG signature (`.asc`) for every
 file, an SPDX software bill of materials and a build provenance attestation for
@@ -27,7 +28,7 @@ are not in the packages.
 
 | System | State |
 |---|---|
-| Windows | The `SIGN_WINDOWS` repository variable chooses: `false` (the default) leaves the files unsigned and names the package `-unsigned`, `test` signs with a leaf certificate from the owner's own certificate authority (`-testsigned`), and `production` is reserved for the signing service that has not been chosen yet. `vss_gui.exe`, `vss_cli.exe` and any `vss_*.dll` are signed before the zip is made and the signatures are verified; a run without the secrets leaves them unsigned and says so in the job summary |
+| Windows | The `SIGN_WINDOWS` repository variable chooses: `false` (the default) leaves the files unsigned and names the package `-unsigned`, `test` signs with a leaf certificate from the owner's own certificate authority (`-testsigned`), and `production` is reserved for the signing service that has not been chosen yet. `vss_gui.exe`, `vss_cli.exe` and any `vss_*.dll` are signed before the zip and the installer are made, as are the driver files in `bin/driver` (`vsscom_um.dll`, its catalog and `vsscom_helper.exe`, signed by the same action the `driver` job of `ci.yml` uses). The installer is built from those signed files, and then the installer `.exe` itself is signed. Every signature is verified; a run without the secrets leaves them all unsigned and says so in the job summary. The `Uninstall.exe` that the installer writes on the machine is not signed ([the installer](#the-windows-installer)) |
 | macOS | Not signed or notarised yet, so the `.dmg` and the tar.gz are unsigned and Gatekeeper asks the user to allow the app (see "Installing on macOS"). The `SIGN_MACOS` repository variable turns signing on once the owner has added the certificate and notary secrets (below); until then the job summary says the package is unsigned |
 | Linux | Not signed beyond the GPG signature on the file |
 
@@ -230,7 +231,6 @@ tools/ci/check_linux_packages.sh <directory with the .deb and .rpm> v0.1.0-rc.1
   terminal it attaches to that terminal and prints `--version`, `--help` and `--selftest` there. `cmd` and
   PowerShell do not wait for such a program: use `start /wait` or `Start-Process -Wait` when the exit code
   matters. The `gui_subsystem` test checks the subsystem of the built program.
-- The Windows package has no installer yet. Unpack it where you like.
 - The macOS disk image is unsigned until the owner supplies the certificate and the notary credentials. Gatekeeper
   blocks an unsigned app that was downloaded; "Installing on macOS" says how to allow it.
 - The macOS image is arm64 only. There is no Intel build.
@@ -287,6 +287,138 @@ driver; the reasons for each item on macOS are:
 This comes from reading the code and `docs/platforms.md`; it has not been tried on a Mac.
 A third-party program that offers a list of ports will not list a virtual one; one given
 the path (`/dev/ttysNNN` or a link in `/tmp/vss`) works.
+
+## The Windows installer
+
+`cmake/packaging/VssPackage-windows.cmake` configures CPack's NSIS generator, and
+`cmake/packaging/windows/driver.nsh` is the part that handles the driver. The installer
+holds Studio, the command line tool and the virtual COM port driver with its helper
+service.
+
+**How it is made.** In the Windows leg of `release.yml`:
+
+1. The programs are built and installed into `stage`.
+2. `.github/actions/build-windows-driver` builds and signs the user-mode driver
+   (`vsscom_um.dll`, then its catalog, then `vsscom_helper.exe`), the same action the
+   `driver` job of `ci.yml` uses, in the same `SIGN_WINDOWS` mode.
+3. `drivers/windows/stage-package.ps1` puts the driver package and its scripts in
+   `stage/bin/driver`, where Studio's "Set up Virtual Serial Studio" looks for them
+   (`setup-driver.ps1`, `remove-driver.ps1`, `driver/`, `helper/`, `trust/`). They are in
+   the zip as well.
+4. The programs are signed, and `cpack -G NSIS` packs that signed tree
+   (`CPACK_INSTALLED_DIRECTORIES` names it, and an empty `CPACK_INSTALL_CMAKE_PROJECTS`
+   stops CPack installing unsigned copies over it). The installer `.exe` is then signed
+   and verified.
+5. On the runner the installer is run silently twice, the second time as an upgrade, then
+   `vss_cli selftest` and `vss_gui --version` run from `%ProgramFiles%\Virtual Serial Studio`,
+   and a silent uninstall must leave no folder, Apps & features entry, Start menu folder,
+   helper service or driver package.
+
+NSIS comes from Chocolatey through the `setup-toolchain` action, at the version in
+`.github/toolchain-versions.json`.
+
+**What it does.**
+
+- Installs for all users into `%ProgramFiles%\Virtual Serial Studio` and asks for
+  administrator rights once, when it starts. There is **no per-user mode**: CPack's NSIS
+  template cannot offer both, the Start menu and PATH entries would differ between them,
+  and the driver is per machine. The zip is the way to run Studio without administrator
+  rights.
+- Shows the GPL text on the licence page, adds a Start menu folder with **Virtual Serial
+  Studio** and **Uninstall**, and registers an uninstaller under Apps & features. The entry
+  is in the 32-bit registry view (`HKLM\Software\WOW6432Node\...\Uninstall\VirtualSerialStudio`)
+  because the NSIS program is a 32-bit one.
+- Removes an earlier version before it installs: the registry key and the folder carry no
+  version, so any version finds any other.
+- Offers, on a page whose default is "Do not add", to put `bin` on the PATH so that
+  `vss_cli` runs from any terminal. `bin` also holds the Qt DLLs, which is why it is not
+  the default. A silent install (`/S`) adds nothing, and `/D=<folder>` installs elsewhere.
+- Has a page with a ticked box, **Install the virtual COM port driver and its helper
+  service**. A silent install does the same unless it is given `/DRIVER=0`.
+
+**Which driver, and why the user-mode one.** The installer ships `vsscom_um`, the user-mode
+driver, with `vsscom_helper`. The kernel-mode driver needs a Microsoft signature to load
+without test signing and nothing signs it yet, so shipping it would be an installer that
+cannot work on an ordinary machine. The user-mode driver needs only a catalog signed by a
+publisher the machine trusts, no kernel-mode signature and no test signing, and it is the
+one Studio's own set-up flow and its helper service are built for. The kernel-mode package
+is still built and uploaded by the `driver` job of `ci.yml` for the guests.
+
+**What the driver step does.** After the files are copied the installer runs
+`bin\driver\setup-driver.ps1` (the script behind "Set up Virtual Serial Studio") with its
+output in `<install folder>\driver-setup.log`, and records the result in the Apps &
+features key as the value `VssDriver`:
+
+| `VssDriver` | Meaning |
+|---|---|
+| `installed` | The driver package is in the driver store and the helper service runs |
+| `installed-restart-needed` | The same, and Windows asks for a restart (the installer sets the restart flag) |
+| `skipped` | The box was cleared, or `/DRIVER=0` was given |
+| `not-trusted` | Windows does not trust the signature on the driver files (script exit 6). Nothing was changed: no package, no service |
+| `failed-<code>` | The script failed with that exit code; the log has the reason |
+
+The installer **does not add certificates and does not turn test signing on**, and it has
+no option that does. When the state is `not-trusted` it installs Studio anyway and shows
+a message saying that the driver was not installed, why, what to do (run
+`bin\driver\trust\install-trust.ps1` with the public certificates of the authority that
+signed the build, or turn on test signing on a test machine, then choose **Set up Virtual
+Serial Studio**) and where the log is. A silent install shows nothing, exits 0 and leaves
+the log and the `VssDriver` value; automation reads the value. A signed and trusted
+package installs with no step by hand.
+
+**Upgrade and uninstall.** An upgrade runs the old uninstaller in place, and the installer
+tells that apart from a real uninstall (the old uninstaller runs from the install folder
+itself, which a normal uninstall never does): it leaves the driver package, the helper
+service and the ports' COM numbers alone, replaces the files, and runs the set-up again,
+which stops the helper before it replaces `vsscom_helper.exe`. A real uninstall runs
+`bin\driver\remove-driver.ps1`: it stops and deletes the helper service (the ports it made go
+with it), deletes the `vsscom_um` package from the driver store (which removes the devices
+that use it), checks that none is left and removes the helper's folder. It touches no
+certificate and no setting, and no other driver. If it fails, the uninstaller says so and
+keeps `driver-remove.log`.
+
+**What was tried.** The Windows 11 guest (`VSS - Windows 11`, from its `clean` snapshot),
+with a package signed by a throwaway certificate, built by
+`drivers/windows/build.ps1`, never on the development machine:
+
+- Test signing on and the signer trusted (the certificate in Trusted Root and Trusted
+  Publishers, as `trust/install-trust.ps1` does for the owner's authority): `/S /DRIVER=0`
+  installs Studio only; a silent upgrade over it installs the driver, the helper runs and
+  the package is in the store; a second upgrade keeps both and does not call
+  `remove-driver.ps1`; a silent uninstall leaves no folder, entry, Start menu folder,
+  service, package or device.
+- Test signing off and the signer not trusted: the same steps, with the driver step
+  ending in `not-trusted`, no service, no package, the log naming the reason, and
+  test signing still off.
+- The pages and the message were looked at on the guest's screen.
+
+The `driver` job and the installer steps of `release.yml` are not a driver test: a hosted
+runner trusts neither an unsigned nor a test-signed package, so there the outcome is
+`not-trusted` and the checks are that Studio installed, nothing of the driver did, the log
+says why, and the uninstall is clean. They do run the real driver build and signing.
+
+**What is left**
+
+- The release has a signed driver only as far as `SIGN_WINDOWS` signs it: `test` gives the
+  owner's own certificate authority, which a machine trusts once `install-trust.ps1` has
+  run, and `production` waits for the signing service. Until then an ordinary machine ends
+  in `not-trusted`, which is as honest as the installer can be.
+- The kernel-mode driver is not shipped. It needs the Microsoft signature (an EV
+  certificate and attestation signing, in `docs/windows-com-driver.md`).
+- ARM64: the release builds x64 only. `stage-package.ps1 -Platform ARM64` and the CPack
+  file know the name, and the installer is untried on ARM64.
+- The `Uninstall.exe` that the installer writes into the install folder is not signed.
+  NSIS makes it at install time, and signing it needs a second build pass that runs the
+  installer. The installer, and every program and driver file in it, is signed.
+- The installer does not offer to trust the certificate authority. That would need the
+  authority's public certificates in the package and a page that explains what trusting a
+  root means; the existing script does it, with its checks, from the command line.
+- The Qt deploy step puts `vc_redist.x64.exe` in `bin`; the installer carries it (about
+  25 MB) but does not run it.
+- The installer and the uninstaller use `apps/vss_gui/assets/icon/vss_gui.ico` (the cache variable
+  `VSS_WINDOWS_ICON` in the CPack file repoints it). The icon of the Start menu entry and of the
+  Apps & features entry is the one in `vss_gui.exe`, which comes from the resource file that
+  gives the program its icon.
 
 ## macOS signing and notarisation
 

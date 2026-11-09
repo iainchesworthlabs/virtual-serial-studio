@@ -6,5 +6,6 @@
   "gcc_newest": "16",
   "llvm": "23",
   "llvm_newest": "23",
-  "msvc_toolset": "14.51"
+  "msvc_toolset": "14.51",
+  "nsis": "3.13.0"
 }

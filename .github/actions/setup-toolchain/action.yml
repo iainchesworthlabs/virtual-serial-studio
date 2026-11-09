@@ -11,6 +11,11 @@ inputs:
   qt:
     description: true to install the pinned Qt kit.
     default: "false"
+  nsis:
+    description: >
+      true to install NSIS (makensis) at the `nsis` pin, for the Windows installer. Windows runners only; the
+      release workflow is the only caller.
+    default: "false"
   gcc-version:
     description: GCC major version. Empty uses the `gcc` pin; the nightly newest-compiler leg passes `gcc_newest`.
     default: ""
@@ -49,6 +54,27 @@ runs:
     - name: Set up Qt
       if: inputs.qt == 'true'
       uses: iainchesworthlabs/icl-common-infra/actions/setup-qt@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+
+    # makensis builds the Windows installer (cmake/packaging/VssPackage-windows.cmake). Chocolatey is on the hosted Windows
+    # runners; the version comes from the pin and the installed copy is checked against it. PATH is not changed: CPack
+    # finds makensis through the registry entry the installer writes.
+    - name: Set up NSIS
+      if: inputs.nsis == 'true'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        $pins = Get-Content -Raw -LiteralPath "$env:GITHUB_WORKSPACE/.github/toolchain-versions.json" | ConvertFrom-Json
+        $version = $pins.nsis
+        if (-not $version) { throw 'nsis is not pinned in .github/toolchain-versions.json.' }
+        choco install nsis --version $version --yes --no-progress --limit-output
+        if ($LASTEXITCODE -ne 0) { throw "choco install nsis $version failed ($LASTEXITCODE)." }
+        $dir = Join-Path ${env:ProgramFiles(x86)} 'NSIS'
+        if (-not (Test-Path -LiteralPath (Join-Path $dir 'makensis.exe'))) { throw "makensis.exe is not in $dir." }
+        $reported = (& (Join-Path $dir 'makensis.exe') /VERSION).Trim()
+        Write-Host "makensis $reported"
+        # The Chocolatey package is 3.12.0 and makensis calls the same release v3.12.
+        $expected = 'v' + ($version -replace '\.0$', '')
+        if ($reported -ne $expected) { throw "makensis reports $reported, but the pin is $version." }
 
     - name: Set up ccache
       if: inputs.ccache != ''

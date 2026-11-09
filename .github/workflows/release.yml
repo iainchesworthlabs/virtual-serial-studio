@@ -20,6 +20,7 @@ on:
     paths:
       - ".github/workflows/release.yml"
       - "tools/check_release_version.py"
+      - "drivers/windows/**"
       - "cmake/VssPackage.cmake"
       - "cmake/packaging/**"
       - "packaging/**"
@@ -91,6 +92,7 @@ jobs:
         with:
           compiler: ${{ matrix.compiler }}
           qt: "true"
+          nsis: ${{ runner.os == 'Windows' && 'true' || 'false' }}
 
       - uses: ./.github/actions/prepare-deps
 
@@ -140,6 +142,27 @@ jobs:
           # The reason and the way out are in docs/releasing.md.
           allowed: "2.42"
 
+      # The user-mode virtual COM port driver and its helper service go into the Windows packages, in bin\driver
+      # beside the program, which is where Studio's "Set up Virtual Serial Studio" looks. They are built and signed
+      # as the driver job of ci.yml builds and signs them, in the same SIGN_WINDOWS mode. The kernel-mode driver is
+      # not shipped (docs/releasing.md says why).
+      # No NuGet cache here: a workflow that publishes release artifacts must not restore a cache that a pull request
+      # could have written (zizmor, cache-poisoning). The driver job of ci.yml caches; the release restores the
+      # packages from NuGet each time.
+      - name: Build and sign the user-mode driver
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/build-windows-driver
+        with:
+          platform: x64
+          mode: ${{ (github.event_name != 'pull_request' && vars.SIGN_WINDOWS) || 'false' }}
+          pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
+          pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
+
+      - name: Add the driver to the Windows package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./drivers/windows/stage-package.ps1 -Out stage/bin/driver -Platform x64
+
       # Every first-party program and library in the package is signed, so a new one is
       # covered without a change here. The Qt DLLs and plugins are the Qt Company's and
       # ship as they were built. A dry run on a pull request never signs: the signing
@@ -182,6 +205,126 @@ jobs:
           MACOS_NOTARY_KEY_ID: ${{ secrets.MACOS_NOTARY_KEY_ID }}
           MACOS_NOTARY_ISSUER: ${{ secrets.MACOS_NOTARY_ISSUER }}
         run: tools/macos/ci-signing.sh stage/vss_gui.app stage/bin/vss_cli
+
+      # The installer is made from the signed stage tree, so it holds the files that were just signed, and is then
+      # signed itself. Its name carries the same -unsigned or -testsigned suffix as the zip.
+      - name: Build the Windows installer
+        id: installer
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          PRESET: ${{ matrix.preset }}
+          NAME: virtual-serial-studio-${{ github.ref_type == 'tag' && github.ref_name || 'dry-run' }}-${{ matrix.name }}${{ steps.sign.outputs.suffix }}
+        run: |
+          set -euo pipefail
+          # CPACK_INSTALLED_DIRECTORIES packages the stage tree; the empty CPACK_INSTALL_CMAKE_PROJECTS keeps CPack from
+          # installing unsigned copies of the programs over it (cmake/packaging/VssPackage-windows.cmake).
+          cpack --config "build/$PRESET/CPackConfig.cmake" -G NSIS -B dist \
+            -D "CPACK_INSTALLED_DIRECTORIES=$(cygpath -m "$PWD/stage");/" \
+            -D "CPACK_INSTALL_CMAKE_PROJECTS=" \
+            -D "CPACK_PACKAGE_FILE_NAME=$NAME"
+          rm -rf dist/_CPack_Packages
+          test -f "dist/$NAME.exe"
+          echo "path=dist/$NAME.exe" >> "$GITHUB_OUTPUT"
+
+      - name: Sign and verify the Windows installer
+        if: runner.os == 'Windows'
+        uses: ./.github/actions/sign-windows-binaries
+        with:
+          mode: ${{ (github.event_name != 'pull_request' && vars.SIGN_WINDOWS) || 'false' }}
+          files: ${{ steps.installer.outputs.path }}
+          installer: "true"
+          pfx-base64: ${{ secrets.WIN_TESTSIGN_PFX_BASE64 }}
+          pfx-password: ${{ secrets.WIN_TESTSIGN_PFX_PASSWORD }}
+
+      # The runner is an administrator, so this is the real per-machine install. The first install leaves the driver
+      # out (/DRIVER=0); the second is an upgrade over it, with the driver, which is the default. A hosted runner
+      # trusts neither an unsigned nor a test-signed driver and the installer adds no certificate, so the expected
+      # outcome there is "not-trusted": Studio installed, no driver, no service, and a log that says why. A driver
+      # signed for a publisher the runner trusts would be installed, and then the service must be running.
+      - name: Install the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          INSTALLER: ${{ steps.installer.outputs.path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = (Resolve-Path $env:INSTALLER).Path
+          $folder = Join-Path $env:ProgramFiles 'Virtual Serial Studio'
+          # The installer is a 32-bit program, so its registry entries are in the 32-bit view.
+          $key = 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\VirtualSerialStudio'
+          function Get-DriverPackages {
+            @(Get-WindowsDriver -Online -All | Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' })
+          }
+          function Assert-Studio([string] $when) {
+            foreach ($file in 'bin\vss_gui.exe', 'bin\vss_cli.exe', 'bin\driver\setup-driver.ps1', 'bin\driver\driver\vsscom_um.cat', 'bin\driver\helper\vsscom_helper.exe', 'Uninstall.exe') {
+              if (-not (Test-Path -LiteralPath (Join-Path $folder $file))) { throw "$file is missing after the $when." }
+            }
+            if (-not (Test-Path -LiteralPath $key)) { throw "No Apps & features entry after the $when." }
+          }
+
+          $p = Start-Process $installer -ArgumentList '/S', '/DRIVER=0' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "The installer exited with $($p.ExitCode) (first install, /DRIVER=0)." }
+          Assert-Studio 'first install'
+          if ((Get-ItemProperty -LiteralPath $key).VssDriver -ne 'skipped') { throw 'The driver was not recorded as skipped after /DRIVER=0.' }
+          if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw '/DRIVER=0 installed the helper service.' }
+          if ((Get-DriverPackages).Count -ne 0) { throw '/DRIVER=0 installed the driver.' }
+
+          $p = Start-Process $installer -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "The installer exited with $($p.ExitCode) (upgrade)." }
+          Assert-Studio 'upgrade'
+          $state = (Get-ItemProperty -LiteralPath $key).VssDriver
+          $log = Join-Path $folder 'driver-setup.log'
+          if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log | ForEach-Object { Write-Host "driver-setup.log: $_" } }
+          $service = Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue
+          switch ($state) {
+            { $_ -in 'installed', 'installed-restart-needed' } {
+              if (-not $service -or $service.Status -ne 'Running') { throw 'The driver is installed but the helper service is not running.' }
+              if ((Get-DriverPackages).Count -ne 1) { throw 'The driver package is not in the driver store.' }
+            }
+            'not-trusted' {
+              if ($service) { throw 'The driver was refused but a helper service exists.' }
+              if ((Get-DriverPackages).Count -ne 0) { throw 'The driver was refused but a package is in the driver store.' }
+              if ((Get-Content -LiteralPath $log -Raw) -notmatch 'not signed by a publisher this machine trusts') { throw 'driver-setup.log does not say why the driver was refused.' }
+            }
+            default { throw "Unexpected driver state '$state' after the upgrade." }
+          }
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Value @('', '### Windows installer', '', "Silent install with the driver, on this runner: **$state**. A runner does not trust an unsigned or test-signed driver, so ``not-trusted`` (Studio installed, driver and service not) is the expected result here; the guest tests in docs/releasing.md cover the installed driver.")
+
+          $shortcut = Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Virtual Serial Studio\Virtual Serial Studio.lnk'
+          if (-not (Test-Path -LiteralPath $shortcut)) { throw 'The Start menu shortcut is missing.' }
+          # A silent install must not change the PATH.
+          $path = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+          if ($path -like '*Virtual Serial Studio*') { throw 'A silent install added Studio to the PATH.' }
+
+      - name: Run the programs from the installed Windows folder
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          installed="$PROGRAMFILES/Virtual Serial Studio"
+          "$installed/bin/vss_cli.exe" selftest
+          "$installed/bin/vss_gui.exe" --version
+
+      - name: Uninstall the Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = Join-Path $env:ProgramFiles 'Virtual Serial Studio'
+          # The uninstaller copies itself to a temporary folder and returns at once, so wait for the folder to go.
+          $p = Start-Process (Join-Path $folder 'Uninstall.exe') -ArgumentList '/S' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "The uninstaller exited with $($p.ExitCode)." }
+          $deadline = (Get-Date).AddSeconds(120)
+          while ((Test-Path -LiteralPath $folder) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
+          if (Test-Path -LiteralPath $folder) {
+            Get-ChildItem -LiteralPath $folder -Recurse | Select-Object -First 20 FullName | Out-String | Write-Host
+            throw "$folder is still there after the uninstall."
+          }
+          if (Test-Path 'HKLM:\Software\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\VirtualSerialStudio') { throw 'The Apps & features entry is still there.' }
+          if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw 'The helper service is still there.' }
+          if (@(Get-WindowsDriver -Online -All | Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' }).Count -ne 0) { throw 'The driver package is still in the driver store.' }
+          if (Test-Path (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Virtual Serial Studio')) { throw 'The Start menu folder is still there.' }
 
       - name: Archive
         shell: bash
