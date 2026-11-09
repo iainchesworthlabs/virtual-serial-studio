@@ -5,6 +5,11 @@
 
 #include <winver.h>
 
+// The program's icon. Windows shows the lowest-numbered icon in Explorer, the
+// taskbar and the Start menu. The line is empty for a program without one
+// (set the VSS_ICON property of its target).
+@VSS_ICON_RESOURCE@
+
 // With the MSVC linker the manifest is merged as a link input and this line is
 // empty. Elsewhere it is resource 1 of type 24 (RT_MANIFEST).
 @VSS_MANIFEST_RESOURCE@

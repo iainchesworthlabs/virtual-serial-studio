@@ -41,6 +41,11 @@
             <translation>Vous devriez avoir reçu un exemplaire de la GNU General Public License avec ce programme. Si ce n'est pas le cas, consultez https://www.gnu.org/licenses/.</translation>
         </message>
         <message>
+            <location filename="../src/support/about_dialog.cpp" line="200" />
+            <source>Source code: %1</source>
+            <translation>Code source : %1</translation>
+        </message>
+        <message>
             <location filename="../src/support/about_dialog.cpp" line="194" />
             <source>About</source>
             <translation>À propos</translation>

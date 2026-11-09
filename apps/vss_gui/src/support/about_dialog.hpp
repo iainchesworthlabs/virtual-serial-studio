@@ -26,6 +26,9 @@ class AboutDialog final : public QDialog
 public:
     explicit AboutDialog(QWidget* parent = nullptr);
 
+    /// Where the source of this program is published.
+    static QString source_url();
+
     /// The exact block "Copy environment" puts on the clipboard.
     QString environment_text() const;
     QTabWidget* tabs() const noexcept { return tabs_; }

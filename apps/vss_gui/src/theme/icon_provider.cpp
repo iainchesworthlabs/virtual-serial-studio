@@ -168,6 +168,13 @@ QIcon IconProvider::icon(const QString& name, const QColor& colour,
     return icon;
 }
 
+QIcon IconProvider::app_icon()
+{
+    if (app_icon_.isNull())
+        app_icon_ = load(QStringLiteral(":/app/vss_gui.svg"), std::nullopt, {});
+    return app_icon_;
+}
+
 void IconProvider::flush()
 {
     cache_.clear();
@@ -178,11 +185,17 @@ QIcon IconProvider::render(const QString& name, std::optional<colour_role> role,
 {
     VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.theme.icon.render");
     VSS_PROFILE_ZONE_TEXT(kProfileZone, name.toStdString());
-    QFile file(QStringLiteral(":/icons/%1.svg").arg(name));
+    return load(QStringLiteral(":/icons/%1.svg").arg(name), role, colour);
+}
+
+QIcon IconProvider::load(const QString& path, std::optional<colour_role> role,
+                         const QColor& colour)
+{
+    QFile file(path);
     if (!file.open(QIODevice::ReadOnly))
     {
         qWarning("IconProvider: missing icon \"%s\"",
-                 name.toUtf8().constData());
+                 path.toUtf8().constData());
         return {};
     }
 
@@ -192,7 +205,7 @@ QIcon IconProvider::render(const QString& name, std::optional<colour_role> role,
     source->fixed = colour;
     if (!source->renderer(false).isValid())
     {
-        qWarning("IconProvider: invalid SVG \"%s\"", name.toUtf8().constData());
+        qWarning("IconProvider: invalid SVG \"%s\"", path.toUtf8().constData());
         return {};
     }
     return QIcon(new svg_icon_engine(std::move(source)));

@@ -41,6 +41,11 @@
             <translation>עליכם לקבל עותק של הרישיון הציבורי הכללי של GNU יחד עם תוכנית זו. אם לא, ראו https://www.gnu.org/licenses/.</translation>
         </message>
         <message>
+            <location filename="../src/support/about_dialog.cpp" line="200" />
+            <source>Source code: %1</source>
+            <translation>קוד מקור: %1</translation>
+        </message>
+        <message>
             <location filename="../src/support/about_dialog.cpp" line="194" />
             <source>About</source>
             <translation>אודות</translation>

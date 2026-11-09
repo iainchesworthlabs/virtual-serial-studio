@@ -1,0 +1,20 @@
+[Desktop Entry]
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# The desktop entry of Virtual Serial Studio, installed as
+# share/applications/vss_gui.desktop. The program sets the same name
+# (QGuiApplication::setDesktopFileName in main.cpp) so a Wayland desktop pairs
+# its window with this entry, and Icon names the vss_gui.png installed in the
+# hicolor theme (share/icons/hicolor/<size>x<size>/apps).
+Type=Application
+Version=1.0
+Name=Virtual Serial Studio
+GenericName=Serial port tool
+Comment=A playground for real, virtual and networked serial ports
+Keywords=serial;port;COM;pty;virtual;RS-232;TCP;RFC 2217;
+Exec=vss_gui
+Icon=vss_gui
+Terminal=false
+StartupNotify=true
+StartupWMClass=vss_gui
+Categories=Utility;Development;

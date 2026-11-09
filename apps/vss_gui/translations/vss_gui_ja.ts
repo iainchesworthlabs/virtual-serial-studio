@@ -41,6 +41,11 @@
             <translation>このプログラムとともにGNU General Public Licenseのコピーを受け取っているはずです。受け取っていない場合は、https://www.gnu.org/licenses/ をご覧ください。</translation>
         </message>
         <message>
+            <location filename="../src/support/about_dialog.cpp" line="200" />
+            <source>Source code: %1</source>
+            <translation>ソースコード: %1</translation>
+        </message>
+        <message>
             <location filename="../src/support/about_dialog.cpp" line="194" />
             <source>About</source>
             <translation>バージョン情報</translation>

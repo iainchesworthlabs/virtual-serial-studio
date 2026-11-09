@@ -41,6 +41,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QLineEdit>
 #include <QProcess>
 #include <QPushButton>
@@ -1035,6 +1036,18 @@ TEST_CASE("support: About reports the environment and copies it")
     REQUIRE_EQ(tabs->tabText(1), QStringLiteral("Environment"));
     REQUIRE_EQ(tabs->tabText(2), QStringLiteral("Licences"));
     REQUIRE_EQ(tabs->tabText(3), QStringLiteral("Fonts"));
+
+    // The About tab offers the licence and a link to the source.
+    bool has_source_link = false;
+    for (QLabel* label : dialog.findChildren<QLabel*>())
+    {
+        if (label->text().contains(support::AboutDialog::source_url()) &&
+            label->text().contains(QStringLiteral("href=")))
+            has_source_link = true;
+    }
+    REQUIRE(has_source_link);
+    REQUIRE(support::AboutDialog::source_url().startsWith(
+        QStringLiteral("https://")));
 
     const QString environment = dialog.environment_text();
     REQUIRE(environment.contains(QStringLiteral("Commit:")));

@@ -89,6 +89,8 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QHash>
+#include <QIcon>
+#include <QImage>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
@@ -3528,6 +3530,32 @@ bool ShellWindow::run_selftest()
             "the empty Advanced studio did not show the canvas"));
     if (registry_.actions().isEmpty())
         fail(QStringLiteral("the action registry is empty"));
+    // The application icon is in the program and draws something at the sizes
+    // a title bar, a taskbar and a dock ask for.
+    {
+        const QIcon app_icon = IconProvider::instance().app_icon();
+        if (app_icon.isNull())
+        {
+            fail(QStringLiteral("the application icon is missing"));
+        }
+        else
+        {
+            for (const int side : {16, 32, 256})
+            {
+                // At a display scale above 100 percent the pixmap has more
+                // pixels than `side`, so the middle is found from its width.
+                const QImage image = app_icon.pixmap(side, side).toImage();
+                if (image.isNull() || image.width() < side ||
+                    qAlpha(image.pixel(image.width() / 2,
+                                       image.height() / 2)) == 0)
+                {
+                    fail(QStringLiteral(
+                             "the application icon draws nothing at %1 px")
+                             .arg(side));
+                }
+            }
+        }
+    }
     if (!registry_.shortcuts_unique())
     {
         fail(QStringLiteral("duplicate shortcuts: %1")

@@ -17,6 +17,7 @@
 
 #include <QClipboard>
 #include <QCoreApplication>
+#include <QDesktopServices>
 #include <QFontDatabase>
 #include <QFrame>
 #include <QGridLayout>
@@ -27,6 +28,7 @@
 #include <QScrollArea>
 #include <QTabWidget>
 #include <QTimer>
+#include <QUrl>
 #include <QVBoxLayout>
 
 namespace vss::gui::support
@@ -124,28 +126,13 @@ void AboutDialog::build()
     header_layout->setContentsMargins(24, 20, 24, 14);
     header_layout->setSpacing(14);
 
+    // The application icon is a picture in its own colours (the accent tile is
+    // part of it), so it is drawn as it is in both themes.
     auto* tile = new QLabel(header);
     tile->setFixedSize(56, 56);
     tile->setAlignment(Qt::AlignCenter);
-    const auto apply_tile_style = [tile]
-    {
-        tile->setStyleSheet(
-            QStringLiteral("QLabel { background: %1; border-radius: %2px; }")
-                .arg(Theme::instance()
-                         .colour(colour_role::accent)
-                         .name(QColor::HexRgb))
-                .arg(Theme::instance().radius(QStringLiteral("card"))));
-        tile->setPixmap(
-            IconProvider::instance()
-                .icon(QStringLiteral("device"), colour_role::onAccent, 30)
-                .pixmap(30, 30));
-    };
-    // The tile colours and icon come from the theme, so apply them now and
-    // again whenever the theme changes. The lambda copies the tile pointer;
-    // the connection ends with the tile as its receiver.
-    apply_tile_style();
-    connect(&Theme::instance(), &Theme::theme_changed, tile,
-            [apply_tile_style] { apply_tile_style(); });
+    tile->setPixmap(IconProvider::instance().app_icon().pixmap(
+        QSize(56, 56), tile->devicePixelRatioF()));
     header_layout->addWidget(tile, 0, Qt::AlignTop);
 
     // Name on the first line, version and licence summary below it.
@@ -207,6 +194,19 @@ void AboutDialog::build()
             "along with this program. If not, see "
             "https://www.gnu.org/licenses/."),
         about_page));
+    // The link to the source, which the licence asks us to offer. It opens in
+    // the system's browser when the user follows it.
+    auto* source = new QLabel(
+        QCoreApplication::translate("About", "Source code: %1")
+            .arg(QStringLiteral("<a href=\"%1\">%1</a>").arg(source_url())),
+        about_page);
+    source->setFont(Theme::instance().font(text_style::body));
+    source->setTextFormat(Qt::RichText);
+    source->setWordWrap(true);
+    source->setTextInteractionFlags(Qt::TextBrowserInteraction);
+    connect(source, &QLabel::linkActivated, this,
+            [](const QString& url) { QDesktopServices::openUrl(QUrl(url)); });
+    about_layout->addWidget(source);
     about_layout->addStretch(1);
     tabs_->addTab(about_page, QCoreApplication::translate("About", "About"));
 
@@ -350,6 +350,12 @@ void AboutDialog::build()
     close->setFocus(Qt::OtherFocusReason);
     QTimer::singleShot(0, close,
                        [close] { close->setFocus(Qt::OtherFocusReason); });
+}
+
+QString AboutDialog::source_url()
+{
+    return QStringLiteral(
+        "https://github.com/iainchesworthlabs/virtual-serial-studio");
 }
 
 QString AboutDialog::environment_text() const
