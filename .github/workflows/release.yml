@@ -265,6 +265,19 @@ jobs:
         timeout-minutes: 15
         run: ./tools/ci/check-windows-installer.ps1 -Phase Uninstall
 
+      # A pull request does not sign, so the installer above holds unsigned driver files and setup-driver.ps1 refuses
+      # them before it asks Windows anything. A signed run takes the other path, through pnputil, and once hung there
+      # while every pull request run passed. This rehearses that path on the runs that cannot sign: the driver files
+      # are signed in a copy with a throwaway certificate nothing trusts, and the copy is installed, upgraded and
+      # uninstalled with the same check.
+      - name: Rehearse the signed path of the Windows installer
+        if: runner.os == 'Windows' && steps.sign.outputs.mode == 'false'
+        shell: pwsh
+        timeout-minutes: 40
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: ./tools/ci/rehearse-signed-windows-installer.ps1 -Stage stage -CPackConfig "build/$env:PRESET/CPackConfig.cmake" -SummaryFile $env:GITHUB_STEP_SUMMARY
+
       - name: Archive
         shell: bash
         env:

@@ -108,6 +108,20 @@ try {
         }
     }
 
+    # Test signing is not enough for a user-mode driver. Windows installs a package only from a publisher
+    # it has been told to trust (the signer in Trusted Publishers); for any other signer pnputil asks
+    # "Would you like to install this device software?" on the desktop, and in a session with nobody to
+    # answer, such as a silent install on a build agent, it waits for ever. So a package that is accepted
+    # only because test signing is on must have its signer in Trusted Publishers, as
+    # trust\install-trust.ps1 puts it there, or nothing is changed.
+    $catalogSignature = Get-AuthenticodeSignature -LiteralPath $cat
+    if ($catalogSignature.Status.ToString() -ne 'Valid') {
+        $signer = $catalogSignature.SignerCertificate
+        if (-not $signer -or -not (Test-Path -LiteralPath "Cert:\LocalMachine\TrustedPublisher\$($signer.Thumbprint)")) {
+            Stop-With 6 "$cat is not signed by a publisher this machine trusts (its signer is not in Trusted Publishers, so Windows would ask whether to install it)"
+        }
+    }
+
     # The errors Windows gives for a signature that is missing or whose publisher it does not trust:
     # TRUST_E_SUBJECT_NOT_TRUSTED, TRUST_E_NOSIGNATURE, CERT_E_UNTRUSTEDROOT, CERT_E_CHAINING,
     # CERT_E_UNTRUSTEDCA.
@@ -115,9 +129,9 @@ try {
 
     $restart = $false
     Write-Host "adding the driver package $inf"
-    $code = Invoke-Bounded 'pnputil.exe' @('/add-driver', $inf, '/install') 300
+    $code = Invoke-Bounded 'pnputil.exe' @('/add-driver', $inf, '/install') 180
     if ($code -eq 3010) { $restart = $true }
-    elseif ($code -eq 124) { Stop-With 7 'pnputil did not finish in 300 seconds and was stopped' }
+    elseif ($code -eq 124) { Stop-With 7 'pnputil did not finish in 180 seconds and was stopped' }
     elseif (('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)) -in $untrusted) {
         # With test signing on, a signature that is present but not trusted passes the check above, and then
         # Windows itself refuses the package. That is the same answer as an untrusted file: nothing was changed.
