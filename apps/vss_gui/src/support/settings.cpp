@@ -20,6 +20,7 @@ namespace
 constexpr const char* kAdvanced = "ui/advanced";
 constexpr const char* kTheme = "ui/theme";
 constexpr const char* kDensity = "ui/density";
+constexpr const char* kLinkStyle = "ui/linkStyle";
 constexpr const char* kRefreshMs = "ui/refreshMs";
 constexpr const char* kDefaultBaud = "ui/defaultBaud";
 constexpr const char* kAskOnDiscard = "ui/askOnDiscard";
@@ -44,6 +45,9 @@ ui_settings load_ui_settings()
     settings.density = density_from_key(
         store.value(QLatin1String(kDensity), QStringLiteral("comfortable"))
             .toString());
+    settings.links = link_style_from_key(
+        store.value(QLatin1String(kLinkStyle), QStringLiteral("curved"))
+            .toString());
     settings.refresh_ms = std::clamp(
         store.value(QLatin1String(kRefreshMs), kRefreshDefaultMs).toInt(),
         kRefreshMinMs, kRefreshMaxMs);
@@ -64,6 +68,7 @@ void save_ui_settings(const ui_settings& settings)
     store.setValue(QLatin1String(kAdvanced), settings.advanced);
     store.setValue(QLatin1String(kTheme), theme_key(settings.theme));
     store.setValue(QLatin1String(kDensity), density_key(settings.density));
+    store.setValue(QLatin1String(kLinkStyle), link_style_key(settings.links));
     store.setValue(
         QLatin1String(kRefreshMs),
         std::clamp(settings.refresh_ms, kRefreshMinMs, kRefreshMaxMs));
@@ -107,6 +112,18 @@ density_mode density_from_key(const QString& key)
 {
     return key == QLatin1String("compact") ? density_mode::compact
                                            : density_mode::comfortable;
+}
+
+QString link_style_key(link_style style)
+{
+    return style == link_style::elbow ? QStringLiteral("elbow")
+                                      : QStringLiteral("curved");
+}
+
+link_style link_style_from_key(const QString& key)
+{
+    return key == QLatin1String("elbow") ? link_style::elbow
+                                         : link_style::curved;
 }
 
 QStringList baud_rate_choices()

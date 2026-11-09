@@ -758,6 +758,24 @@ TEST_CASE("support: settings persist and apply immediately")
     REQUIRE_EQ(vss::gui::Theme::instance().density(), density_mode::compact);
     REQUIRE_EQ(setting("ui/density"), QStringLiteral("compact"));
 
+    // Link lines default to curved, change at once, and are signalled so the
+    // canvas can redraw.
+    REQUIRE_EQ(support::default_ui_settings().links,
+               vss::gui::link_style::curved);
+    REQUIRE_EQ(dialog.settings().links, vss::gui::link_style::curved);
+    auto* link_lines = dialog.findChild<vss::gui::SegmentedControl*>(
+        QStringLiteral("linkStyleControl"));
+    REQUIRE(link_lines != nullptr);
+    vss::gui::link_style signalled = vss::gui::link_style::curved;
+    QObject::connect(&dialog, &support::SettingsDialog::settings_changed,
+                     [&signalled](const support::ui_settings& changed)
+                     { signalled = changed.links; });
+    link_lines->set_current(1);
+    REQUIRE_EQ(signalled, vss::gui::link_style::elbow);
+    REQUIRE_EQ(dialog.settings().links, vss::gui::link_style::elbow);
+    REQUIRE_EQ(setting("ui/linkStyle"), QStringLiteral("elbow"));
+    REQUIRE_EQ(support::load_ui_settings().links, vss::gui::link_style::elbow);
+
     auto* slider = dialog.findChild<QSlider*>(QStringLiteral("refreshSlider"));
     REQUIRE(slider != nullptr);
     slider->setValue(500);
@@ -780,6 +798,7 @@ TEST_CASE("support: settings persist and apply immediately")
     REQUIRE(saved.advanced);
     REQUIRE_EQ(saved.theme, theme_mode::dark);
     REQUIRE_EQ(saved.density, density_mode::compact);
+    REQUIRE_EQ(saved.links, vss::gui::link_style::elbow);
     REQUIRE_EQ(saved.refresh_ms, 500);
     REQUIRE_EQ(saved.default_baud, 9600);
     REQUIRE(!saved.ask_on_discard);
@@ -799,6 +818,8 @@ TEST_CASE("support: settings persist and apply immediately")
     REQUIRE_EQ(backend.refresh_interval_ms(), 250);
     REQUIRE(!QSettings().value(QStringLiteral("ui/advanced")).toBool());
     REQUIRE_EQ(setting("ui/theme"), QStringLiteral("system"));
+    REQUIRE_EQ(reopened.settings().links, vss::gui::link_style::curved);
+    REQUIRE_EQ(setting("ui/linkStyle"), QStringLiteral("curved"));
 
     clear_settings();
 }

@@ -6066,6 +6066,21 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Link lines</source>
+            <translation>リンクの線</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Curved</source>
+            <translation>曲線</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Right angles</source>
+            <translation>直角</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
             <source>Text size, display scale, high contrast and reduced motion follow your operating system.</source>
             <translation>文字サイズ、表示スケール、ハイコントラスト、視覚効果の軽減は、オペレーティングシステムの設定に従います。</translation>
         </message>

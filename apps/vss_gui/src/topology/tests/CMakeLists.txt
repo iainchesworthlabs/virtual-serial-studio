@@ -8,6 +8,7 @@ if(VSS_BUILD_TESTS)
   add_executable(vss_gui_topology_tests
     main.cpp
     test_topology.cpp
+    test_link_curves.cpp
     test_canvas.cpp)
 
   target_include_directories(vss_gui_topology_tests PRIVATE

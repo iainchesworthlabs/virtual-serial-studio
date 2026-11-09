@@ -6081,6 +6081,21 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Link lines</source>
+            <translation>خطوط الروابط</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Curved</source>
+            <translation>منحنية</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Right angles</source>
+            <translation>زوايا قائمة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
             <source>Text size, display scale, high contrast and reduced motion follow your operating system.</source>
             <translation>حجم النص ومقياس العرض والتباين العالي وتقليل الحركة تتبع نظام التشغيل لديك.</translation>
         </message>

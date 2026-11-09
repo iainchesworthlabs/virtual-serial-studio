@@ -47,7 +47,7 @@ Stored in settings and applied immediately. Advanced mode additions by area:
 | Dialogs | guided with defaults | editable address and command, More options sections |
 
 ## Persistence (QSettings keys, suggested)
-`ui/advanced` bool, `ui/theme` (system, light, dark), `ui/density` (comfortable, compact), `ui/refreshMs` int, `ui/defaultBaud` int, `ui/askOnDiscard` bool, `ui/closeAction` (background, quit), `ui/backgroundNoticeShown` bool, `ui/windowState`, `ui/geometry`, `ui/recentFiles` list. The title bar shows `*` while there are unsaved changes.
+`ui/advanced` bool, `ui/theme` (system, light, dark), `ui/density` (comfortable, compact), `ui/linkStyle` (curved, elbow), `ui/refreshMs` int, `ui/defaultBaud` int, `ui/askOnDiscard` bool, `ui/closeAction` (background, quit), `ui/backgroundNoticeShown` bool, `ui/windowState`, `ui/geometry`, `ui/recentFiles` list. The title bar shows `*` while there are unsaved changes.
 
 ## Removing things
 Three levels, all in Simple mode. **Remove link** removes one link. **Remove port** (Delete) removes the selected port. **Remove setup** closes everything that was built together: the ports joined by links, directly or through other ports. That is a linked pair, a shared device with all its program ports, or an attached device with its virtual port. It is on the toolbar, the Edit, Ports and Topology menus and in the command palette. Delete on a port that belongs to a setup asks which one is meant, with the buttons Cancel, "Remove only <port>" and "Remove the whole setup". A port with no links gets the plain "Remove port" confirmation.

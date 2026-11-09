@@ -40,7 +40,8 @@ struct link_item_callbacks
     std::function<void(vss::link_id)> hover_left;
 };
 
-/// One link drawn as a line, a fan with a mid-gap bar, or a dashed tap.
+/// One link drawn as a curve, a fan of curves from a junction in the middle of
+/// the gap, a bus on a rounded bar, or a dashed tap.
 ///
 /// The item has an 8 px hit tolerance, as the design asks, and the label text
 /// is part of the shape so clicking a label selects the link.

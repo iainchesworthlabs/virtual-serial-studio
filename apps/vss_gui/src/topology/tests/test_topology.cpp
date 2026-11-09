@@ -9,6 +9,7 @@
 #include "backend/fake_studio_backend.hpp"
 #include "shell/shell_window.hpp"
 #include "theme/theme.hpp"
+#include "topology/link_curve.hpp"
 #include "topology/links_list.hpp"
 #include "topology/node_item.hpp"
 #include "topology/topology_layout.hpp"
@@ -272,7 +273,8 @@ TEST_CASE("topology: layout for split, join, straight, chain and unlinked")
     const topo::topology_metrics metrics;
     const QVector<topo::topo_node_input> nodes = equal_nodes(6);
 
-    // Split: one source, three targets with one bar in the gap.
+    // Split: one source, three targets, one junction in the gap that a curve
+    // runs to each target from.
     {
         const QVector<topo::topo_link_input> links{
             {1, vss::gui::link_shape::split, {1}, {2, 3, 4}, false}};
@@ -280,8 +282,10 @@ TEST_CASE("topology: layout for split, join, straight, chain and unlinked")
             topo::compute_topology_layout(equal_nodes(4), links, metrics);
         REQUIRE_EQ(layout.links.size(), 1);
         const topo::topo_link_placement& link = layout.links.first();
-        REQUIRE(!link.bar.isNull());
+        REQUIRE(link.bar.isNull());
+        REQUIRE(!link.stroke.isEmpty());
         REQUIRE_EQ(link.segments.size(), 4);
+        const qreal junction_x = link.segments.first().p2().x();
 
         const QRectF source = layout.node_rect(1);
         const QRectF first = layout.node_rect(2);
@@ -292,12 +296,26 @@ TEST_CASE("topology: layout for split, join, straight, chain and unlinked")
                      0.01);
         REQUIRE_NEAR(second.top() - first.bottom(), metrics.vertical_gap, 0.01);
         REQUIRE_NEAR(third.top() - second.bottom(), metrics.vertical_gap, 0.01);
-        REQUIRE(link.bar.x1() > source.right());
-        REQUIRE(link.bar.x1() < first.left());
+        REQUIRE(junction_x > source.right());
+        REQUIRE(junction_x < first.left());
         const qreal group_centre = (first.top() + third.bottom()) / 2.0;
         REQUIRE_NEAR(source.center().y(), group_centre, 0.5);
         REQUIRE_NEAR(link.primary_anchor.x(),
-                     (source.right() + link.bar.x1()) / 2.0, 0.01);
+                     (source.right() + junction_x) / 2.0, 0.01);
+
+        // The curves never cross each other.
+        QVector<QPainterPath> curves;
+        for (const QPolygonF& polygon : link.stroke.toSubpathPolygons())
+        {
+            QPainterPath curve;
+            curve.addPolygon(polygon);
+            curves.append(curve);
+        }
+        for (qsizetype a = 0; a < curves.size(); ++a)
+        {
+            for (qsizetype b = a + 1; b < curves.size(); ++b)
+                REQUIRE_EQ(topo::path_crossings(curves.at(a), curves.at(b)), 0);
+        }
     }
 
     // Join mirrors the split: two sources into one target.
@@ -312,7 +330,8 @@ TEST_CASE("topology: layout for split, join, straight, chain and unlinked")
             topo::compute_topology_layout(join_nodes, links, metrics);
         REQUIRE_EQ(layout.links.size(), 1);
         const topo::topo_link_placement& link = layout.links.first();
-        REQUIRE(!link.bar.isNull());
+        REQUIRE(link.bar.isNull());
+        REQUIRE(!link.stroke.isEmpty());
         REQUIRE_EQ(link.segments.size(), 3);
 
         const QRectF first = layout.node_rect(2);
@@ -1566,4 +1585,59 @@ TEST_CASE("topology canvas: zoom in, zoom out, Fit and Tidy through the shell")
         window.close();
     }
     clear_settings();
+}
+
+TEST_CASE("topology canvas: the link style redraws the links at once")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(900, 600);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    const auto has_curve = [](const QPainterPath& path)
+    {
+        for (int index = 0; index < path.elementCount(); ++index)
+        {
+            if (path.elementAt(index).type == QPainterPath::CurveToElement)
+                return true;
+        }
+        return false;
+    };
+    const auto upright_lines = [](const QPainterPath& path)
+    {
+        QPointF last;
+        for (int index = 0; index < path.elementCount(); ++index)
+        {
+            const QPainterPath::Element element = path.elementAt(index);
+            const QPointF point(element.x, element.y);
+            if (element.type == QPainterPath::LineToElement &&
+                std::abs(point.x() - last.x()) > 0.01 &&
+                std::abs(point.y() - last.y()) > 0.01)
+                return false;
+            last = point;
+        }
+        return true;
+    };
+
+    // Curved is the default.
+    REQUIRE(view.style() == vss::gui::link_style::curved);
+    const QRectF before = view.node_rect(fixture.terminal);
+    const QPainterPath curved = view.link_stroke(fixture.link);
+    REQUIRE(!curved.isEmpty());
+    REQUIRE(has_curve(curved));
+
+    view.set_link_style(vss::gui::link_style::elbow);
+    REQUIRE(view.style() == vss::gui::link_style::elbow);
+    const QPainterPath elbow = view.link_stroke(fixture.link);
+    REQUIRE(!elbow.isEmpty());
+    REQUIRE(upright_lines(elbow));
+    REQUIRE(elbow != curved);
+    // Only the links change; the nodes stay where they are.
+    REQUIRE(view.node_rect(fixture.terminal) == before);
+
+    view.set_link_style(vss::gui::link_style::curved);
+    REQUIRE(view.link_stroke(fixture.link) == curved);
+    view.close();
 }
