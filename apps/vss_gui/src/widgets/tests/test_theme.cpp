@@ -233,10 +233,13 @@ TEST_CASE("theme: the application icon is present and draws at every size")
     for (const int side : {16, 24, 32, 48, 64, 128, 256, 512})
     {
         const QImage image = icon.pixmap(side, side).toImage();
-        REQUIRE_EQ(image.width(), side);
+        // At a display scale above 100 percent the pixmap has more pixels
+        // than `side`.
+        REQUIRE(image.width() >= side);
         // Rounded tile: the corner is clear and the middle is not.
         REQUIRE_EQ(qAlpha(image.pixel(0, 0)), 0);
-        REQUIRE_EQ(qAlpha(image.pixel(side / 2, side / 2)), 255);
+        REQUIRE_EQ(qAlpha(image.pixel(image.width() / 2, image.height() / 2)),
+                   255);
     }
 }
 

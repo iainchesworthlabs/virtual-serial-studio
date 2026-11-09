@@ -3542,9 +3542,12 @@ bool ShellWindow::run_selftest()
         {
             for (const int side : {16, 32, 256})
             {
+                // At a display scale above 100 percent the pixmap has more
+                // pixels than `side`, so the middle is found from its width.
                 const QImage image = app_icon.pixmap(side, side).toImage();
-                if (image.isNull() || image.width() != side ||
-                    qAlpha(image.pixel(side / 2, side / 2)) == 0)
+                if (image.isNull() || image.width() < side ||
+                    qAlpha(image.pixel(image.width() / 2,
+                                       image.height() / 2)) == 0)
                 {
                     fail(QStringLiteral(
                              "the application icon draws nothing at %1 px")
