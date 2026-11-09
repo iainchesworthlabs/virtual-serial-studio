@@ -54,6 +54,15 @@ enum class link_shape
     bus
 };
 
+/// How the canvas draws a link.  A user preference (Settings, Appearance).
+enum class link_style
+{
+    /// Smooth curves that run level for a short way at each port.
+    curved,
+    /// Right-angle lines with rounded corners.
+    elbow
+};
+
 /// One endpoint as the GUI needs it.  Engine snapshots are converted here,
 /// once, so no screen includes a core header for display data.
 struct port_view

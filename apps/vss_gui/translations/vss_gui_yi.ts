@@ -6069,6 +6069,21 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Link lines</source>
+            <translation>ליניעס פֿון לינקס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Curved</source>
+            <translation>געבויגן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Right angles</source>
+            <translation>רעכטע ווינקלען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
             <source>Text size, display scale, high contrast and reduced motion follow your operating system.</source>
             <translation>טעקסט־גרייס, אָנווײַז־מאַסשטאַב, הויכער קאָנטראַסט און פֿאַרמינערטע באַוועגונג פֿאָלגן אײַער אָפּעראַציע־סיסטעם.</translation>
         </message>

@@ -6,6 +6,8 @@
 
 #include "topology/topology_layout.hpp"
 
+#include "topology/link_curve.hpp"
+
 #include <vss/core/profile.hpp>
 
 #include <QMap>
@@ -15,6 +17,7 @@
 #include <cmath>
 #include <functional>
 #include <limits>
+#include <map>
 #include <utility>
 
 namespace vss::gui::topology
@@ -23,6 +26,7 @@ namespace
 {
 
 constexpr qreal kBusStub = 24.0;
+constexpr qreal kBusCorner = 12.0;
 constexpr qreal kArrowLength = 8.0;
 constexpr qreal kArrowHalfWidth = 4.5;
 
@@ -217,15 +221,17 @@ topology_layout compute_topology_layout(const QVector<topo_node_input>& nodes,
     // One barycentre pass in each direction: peers in the neighbouring column
     // decide the vertical order.  Ties fall back to the port id, so the result
     // is stable for a given setup.
-    const auto order_column = [&columns, &neighbours](int column, int reference)
+    using column_set = QVector<QVector<vss::endpoint_id>>;
+    const auto order_column =
+        [&neighbours](column_set& set, int column, int reference)
     {
         QHash<vss::endpoint_id, double> position;
-        const auto& reference_ids = columns.at(reference);
+        const auto& reference_ids = set.at(reference);
         for (int index = 0; index < reference_ids.size(); ++index)
             position.insert(reference_ids.at(index),
                             static_cast<double>(index));
 
-        auto& ids = columns[column];
+        auto& ids = set[column];
         QHash<vss::endpoint_id, double> fallback;
         for (int index = 0; index < ids.size(); ++index)
             fallback.insert(ids.at(index), static_cast<double>(index));
@@ -257,11 +263,15 @@ topology_layout compute_topology_layout(const QVector<topo_node_input>& nodes,
                          });
     };
 
-    for (int column = 1; column < columns.size(); ++column)
-        order_column(column, column - 1);
-    for (int column = static_cast<int>(columns.size()) - 2; column >= 0;
-         --column)
-        order_column(column, column + 1);
+    const auto sweep = [&order_column](column_set& set)
+    {
+        for (int column = 1; column < set.size(); ++column)
+            order_column(set, column, column - 1);
+        for (int column = static_cast<int>(set.size()) - 2; column >= 0;
+             --column)
+            order_column(set, column, column + 1);
+    };
+    sweep(columns);
 
     QVector<qreal> column_width(columns.size(), 0.0);
     QVector<qreal> column_height(columns.size(), 0.0);
@@ -284,23 +294,122 @@ topology_layout compute_topology_layout(const QVector<topo_node_input>& nodes,
     const qreal total_height =
         *std::max_element(column_height.begin(), column_height.end());
 
-    QHash<vss::endpoint_id, QRectF> rects;
-    qreal x = metrics.margin;
-    for (int column = 0; column < columns.size(); ++column)
+    const auto place = [&](const column_set& set)
     {
-        qreal y =
-            metrics.margin + (total_height - column_height.at(column)) / 2.0;
-        for (const vss::endpoint_id id : columns.at(column))
+        QHash<vss::endpoint_id, QRectF> placed;
+        qreal x = metrics.margin;
+        for (int column = 0; column < set.size(); ++column)
         {
-            const QSizeF size = sizes.value(id);
-            const QRectF rect(x + (column_width.at(column) - size.width()) /
-                                      2.0,
-                              y, size.width(), size.height());
-            result.nodes.append({id, rect});
-            rects.insert(id, rect);
-            y += size.height() + metrics.vertical_gap;
+            qreal y = metrics.margin +
+                      (total_height - column_height.at(column)) / 2.0;
+            for (const vss::endpoint_id id : set.at(column))
+            {
+                const QSizeF size = sizes.value(id);
+                placed.insert(
+                    id,
+                    QRectF(x + (column_width.at(column) - size.width()) / 2.0,
+                           y, size.width(), size.height()));
+                y += size.height() + metrics.vertical_gap;
+            }
+            x += column_width.at(column) + metrics.horizontal_gap;
         }
-        x += column_width.at(column) + metrics.horizontal_gap;
+        return placed;
+    };
+
+    // The barycentre sweeps leave some crossings behind.  Count the crossings
+    // of the straight lines between the ports and keep any order that has
+    // fewer: more sweeps, then swaps of two neighbours in a column.  Only a
+    // strictly better order replaces the current one, so a layout that is
+    // already free of crossings is left as the sweeps made it.
+    QVector<std::pair<vss::endpoint_id, vss::endpoint_id>> edges;
+    for (const auto& link : ordered_links)
+    {
+        for (const vss::endpoint_id source : link.sources)
+        {
+            for (const vss::endpoint_id target : link.targets)
+            {
+                const auto edge = std::make_pair(source, target);
+                if (rank.contains(source) && rank.contains(target) &&
+                    !edges.contains(edge))
+                    edges.append(edge);
+            }
+        }
+    }
+    const auto crossings =
+        [&edges](const QHash<vss::endpoint_id, QRectF>& placed)
+    {
+        QVector<QLineF> lines;
+        lines.reserve(edges.size());
+        for (const auto& edge : edges)
+        {
+            lines.append(QLineF(right_centre(placed.value(edge.first)),
+                                left_centre(placed.value(edge.second))));
+        }
+        int count = 0;
+        for (qsizetype left = 0; left < edges.size(); ++left)
+        {
+            for (qsizetype right = left + 1; right < edges.size(); ++right)
+            {
+                if (edges.at(left).first == edges.at(right).first ||
+                    edges.at(left).second == edges.at(right).second)
+                    continue;
+                if (lines.at(left).intersects(lines.at(right), nullptr) ==
+                    QLineF::BoundedIntersection)
+                    ++count;
+            }
+        }
+        return count;
+    };
+    constexpr qsizetype kMaxOptimisedEdges = 150;
+    constexpr qsizetype kMaxOptimisedNodes = 60;
+    if (columns.size() >= 2 && edges.size() >= 2 &&
+        edges.size() <= kMaxOptimisedEdges &&
+        ordered_nodes.size() <= kMaxOptimisedNodes)
+    {
+        VSS_PROFILE_ZONE("gui.topology.layout.reduce_crossings");
+        column_set best = columns;
+        int best_count = crossings(place(best));
+        column_set trial = columns;
+        for (int round = 0; round < 6 && best_count > 0; ++round)
+        {
+            sweep(trial);
+            const int count = crossings(place(trial));
+            if (count < best_count)
+            {
+                best = trial;
+                best_count = count;
+            }
+        }
+        bool improved = true;
+        for (int pass = 0; pass < 8 && improved && best_count > 0; ++pass)
+        {
+            improved = false;
+            for (auto& column : best)
+            {
+                for (qsizetype index = 0; index + 1 < column.size(); ++index)
+                {
+                    std::swap(column[index], column[index + 1]);
+                    const int count = crossings(place(best));
+                    if (count < best_count)
+                    {
+                        best_count = count;
+                        improved = true;
+                    }
+                    else
+                    {
+                        std::swap(column[index], column[index + 1]);
+                    }
+                }
+            }
+        }
+        columns = best;
+    }
+
+    const QHash<vss::endpoint_id, QRectF> rects = place(columns);
+    for (const auto& column : columns)
+    {
+        for (const vss::endpoint_id id : column)
+            result.nodes.append({id, rects.value(id)});
     }
 
     result.links = compute_link_geometry(ordered_links, rects, metrics);
@@ -310,15 +419,10 @@ topology_layout compute_topology_layout(const QVector<topo_node_input>& nodes,
         note_rect(bounds, node.rect);
     for (const auto& link : result.links)
     {
-        for (const QLineF& line : link.segments)
+        for (const QPolygonF& curve : link.stroke.toSubpathPolygons())
         {
-            note_point(bounds, line.p1());
-            note_point(bounds, line.p2());
-        }
-        if (!link.bar.isNull())
-        {
-            note_point(bounds, link.bar.p1());
-            note_point(bounds, link.bar.p2());
+            for (const QPointF& point : curve)
+                note_point(bounds, point);
         }
         for (const QPolygonF& arrow : link.arrows)
         {
@@ -441,13 +545,20 @@ QVector<QRectF> rects_except(const QHash<vss::endpoint_id, QRectF>& rects,
 
 /// The polyline between a source and a target: the straight line when it is
 /// clear, otherwise a route around every node, the two ends included.
-QVector<QPointF> edge_path(const QRectF& source, const QRectF& target,
-                           const QVector<QRectF>& others, qreal clearance)
+QVector<QPointF> shortest_edge_path(const QRectF& source, const QRectF& target,
+                                    const QVector<QRectF>& others,
+                                    qreal clearance, link_style style)
 {
     const QPointF start = right_centre(source);
     const QPointF finish = left_centre(target);
+    // The link is drawn as a curve or as right angles, so what is drawn is
+    // what has to be clear.
+    const QPainterPath direct =
+        style == link_style::curved
+            ? s_curve(start, finish)
+            : elbow_curve(start, finish, (start.x() + finish.x()) / 2.0);
     if (finish.x() > start.x() &&
-        !segment_blocked(QLineF(start, finish), others, clearance))
+        !curve_blocked(direct, others, std::max(0.0, clearance - kCurveSlack)))
     {
         return {start, finish};
     }
@@ -469,21 +580,243 @@ QVector<QPointF> edge_path(const QRectF& source, const QRectF& target,
     return simplified(path);
 }
 
-/// The midpoint of the longest segment: the label goes where there is room.
-QPointF path_anchor(const QVector<QPointF>& path)
+/// The line a link would take if it ran straight between two of its ports.
+/// Routes for a link are compared on how many of these they cross.
+struct proxy_edge
 {
-    qreal best = -1.0;
-    QPointF anchor;
+    vss::endpoint_id source = 0;
+    vss::endpoint_id target = 0;
+    QLineF line;
+};
+
+/// What crossing one other link costs a route, in pixels of extra length: a
+/// route may be this much longer to avoid one crossing.
+constexpr qreal kCrossingCost = 120.0;
+
+/// How many of the nodes on the straight line get a route of their own over
+/// and under them; more would cost a route search each on every drag.
+constexpr int kViaNodes = 3;
+
+qreal polyline_length(const QVector<QPointF>& path)
+{
+    qreal length = 0.0;
     for (qsizetype index = 1; index < path.size(); ++index)
+        length += QLineF(path.at(index - 1), path.at(index)).length();
+    return length;
+}
+
+/// How many links that share no node with this one the route crosses.
+int proxy_crossings(const QVector<QPointF>& path, vss::endpoint_id source,
+                    vss::endpoint_id target, const QVector<proxy_edge>& proxies)
+{
+    int count = 0;
+    for (const proxy_edge& proxy : proxies)
     {
-        const QLineF line(path.at(index - 1), path.at(index));
-        if (line.length() > best)
+        if (proxy.source == source || proxy.source == target ||
+            proxy.target == source || proxy.target == target)
+            continue;
+        for (qsizetype index = 1; index < path.size(); ++index)
         {
-            best = line.length();
-            anchor = (line.p1() + line.p2()) / 2.0;
+            if (QLineF(path.at(index - 1), path.at(index))
+                    .intersects(proxy.line, nullptr) ==
+                QLineF::BoundedIntersection)
+            {
+                ++count;
+                break;
+            }
         }
     }
-    return anchor;
+    return count;
+}
+
+/// True when every segment between the two end stubs keeps clear.
+bool route_clear(const QVector<QPointF>& path, const QVector<QRectF>& obstacles,
+                 qreal clearance)
+{
+    for (qsizetype index = 1; index + 2 < path.size(); ++index)
+    {
+        if (segment_blocked(QLineF(path.at(index), path.at(index + 1)),
+                            obstacles, clearance))
+            return false;
+    }
+    return true;
+}
+
+/// The route of one link.  The shortest route round the nodes in the way is
+/// the start; when nodes are in the way it is weighed against a route over
+/// the top of them and a route under them, and the one that crosses the fewest
+/// other links wins unless it is a lot longer.
+QVector<QPointF> edge_path(vss::endpoint_id source_id,
+                           vss::endpoint_id target_id, const QRectF& source,
+                           const QRectF& target, const QVector<QRectF>& others,
+                           qreal clearance, const QVector<proxy_edge>& proxies,
+                           link_style style)
+{
+    QVector<QPointF> shortest =
+        shortest_edge_path(source, target, others, clearance, style);
+    if (shortest.size() <= 2)
+        return shortest;
+
+    const QPointF start = right_centre(source);
+    const QPointF finish = left_centre(target);
+    const qreal left = std::min(start.x(), finish.x());
+    const qreal right = std::max(start.x(), finish.x());
+    bool found = false;
+    qreal top = 0.0;
+    qreal bottom = 0.0;
+    for (const QRectF& rect : others)
+    {
+        if (rect.right() <= left || rect.left() >= right)
+            continue;
+        top = found ? std::min(top, rect.top()) : rect.top();
+        bottom = found ? std::max(bottom, rect.bottom()) : rect.bottom();
+        found = true;
+    }
+
+    QVector<QVector<QPointF>> candidates{shortest};
+    if (found)
+    {
+        QVector<QRectF> obstacles = others;
+        obstacles.append(source);
+        obstacles.append(target);
+        obstacles = sorted_rects(obstacles);
+
+        const qreal stub = clearance + kExitMargin;
+        const qreal x = (left + right) / 2.0;
+        // Over and under everything between the ports, then over and under
+        // each node that sits on the straight line (the first few of them).
+        QVector<QPointF> vias{QPointF(x, top - stub),
+                              QPointF(x, bottom + stub)};
+        int in_the_way = 0;
+        for (const QRectF& rect : others)
+        {
+            if (in_the_way >= kViaNodes ||
+                !segment_blocked(QLineF(start, finish), {rect}, clearance))
+                continue;
+            ++in_the_way;
+            vias.append(QPointF(rect.center().x(), rect.top() - stub));
+            vias.append(QPointF(rect.center().x(), rect.bottom() + stub));
+        }
+        for (const QPointF& via : vias)
+        {
+            QVector<QPointF> path{start};
+            for (const QPointF& point : route_around(start + QPointF(stub, 0.0),
+                                                     via, obstacles, clearance))
+                path.append(point);
+            for (const QPointF& point : route_around(
+                     via, finish - QPointF(stub, 0.0), obstacles, clearance))
+                path.append(point);
+            path.append(finish);
+            path = simplified(path);
+            if (route_clear(path, obstacles, clearance))
+                candidates.append(path);
+        }
+    }
+
+    qsizetype best = 0;
+    qreal best_cost = std::numeric_limits<qreal>::infinity();
+    for (qsizetype index = 0; index < candidates.size(); ++index)
+    {
+        const QVector<QPointF>& path = candidates.at(index);
+        const qreal cost = polyline_length(path) +
+                           kCrossingCost * proxy_crossings(path, source_id,
+                                                           target_id, proxies);
+        if (cost < best_cost - 1e-6)
+        {
+            best = index;
+            best_cost = cost;
+        }
+    }
+    return candidates.at(best);
+}
+
+/// The arrow head at the end of a curve, pointing the way the curve arrives.
+QPolygonF arrow_at_end(const QPainterPath& curve)
+{
+    const QPointF tip = curve.currentPosition();
+    return arrow_head(tip, tip - end_direction(curve));
+}
+
+/// How far the second link between the same two ports bows away from the
+/// first, and each further one beyond that.
+constexpr qreal kLaneStep = 22.0;
+
+/// `route` with every point but the two ports moved `distance` to one side of
+/// the way the route runs there, the points next to a port by half as much.
+QVector<QPointF> offset_route(const QVector<QPointF>& route, qreal distance)
+{
+    QVector<QPointF> moved = route;
+    for (qsizetype index = 1; index + 1 < route.size(); ++index)
+    {
+        const QLineF way(route.at(index - 1), route.at(index + 1));
+        if (way.length() < 1e-6)
+            continue;
+        const bool next_to_port = index == 1 || index + 2 == route.size();
+        const qreal reach = next_to_port ? distance / 2.0 : distance;
+        moved[index] =
+            route.at(index) +
+            QPointF(way.dy() / way.length(), -way.dx() / way.length()) * reach;
+    }
+    return moved;
+}
+
+/// How far the link in `lane` bows away from the first link between its ports:
+/// none for the first, then to one side and the other, further each time.
+qreal lane_bow(int lane)
+{
+    return std::ceil(static_cast<qreal>(lane) / 2.0) * kLaneStep *
+           (lane % 2 != 0 ? 1.0 : -1.0);
+}
+
+/// The curve of a link that runs straight between two ports.  The first link
+/// between a pair takes the plain S-curve; the others bow to either side of it,
+/// across the line between the ports, so two links on the same ports can be
+/// told apart.
+QPainterPath lane_curve(const QPointF& from, const QPointF& to, int lane,
+                        const QVector<QRectF>& others, qreal clearance)
+{
+    const QLineF chord(from, to);
+    if (lane > 0 && chord.length() > 1e-6)
+    {
+        const QPointF across(chord.dy() / chord.length(),
+                             -chord.dx() / chord.length());
+        // The bow it is due, then less of it, then the far side of the first
+        // link, when a node is in the way.
+        const qreal bow = lane_bow(lane);
+        const QPointF run(port_run(chord.dx()), 0.0);
+        for (const qreal scale : {1.0, 0.6, -1.6})
+        {
+            const QPainterPath bowed = smooth_route(
+                {from, from + run, chord.center() + across * (bow * scale),
+                 to - run, to});
+            if (!curve_blocked(bowed, others, clearance))
+                return bowed;
+        }
+    }
+    return s_curve(from, to);
+}
+
+/// The right-angle link between two ports that run straight at each other:
+/// the first link between a pair bends halfway, the others bend to either side
+/// of that.
+QPainterPath lane_elbow(const QPointF& from, const QPointF& to, int lane,
+                        const QVector<QRectF>& others, qreal clearance)
+{
+    const qreal middle = (from.x() + to.x()) / 2.0;
+    const qreal low = from.x() + kElbowRadius;
+    const qreal high = to.x() - kElbowRadius;
+    if (lane > 0 && low < high)
+    {
+        const qreal bow = lane_bow(lane);
+        for (const qreal scale : {1.0, 0.6, -1.6})
+        {
+            const QPainterPath bent = elbow_curve(
+                from, to, std::clamp(middle + bow * scale, low, high));
+            if (!curve_blocked(bent, others, clearance))
+                return bent;
+        }
+    }
+    return elbow_curve(from, to, middle);
 }
 
 } // namespace
@@ -741,6 +1074,25 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                       const topology_metrics& metrics)
 {
     const qreal clearance = metrics.clearance;
+    const qreal soft = std::max(0.0, clearance - kCurveSlack);
+    const link_style style = metrics.style;
+    // How many links already run between a pair of ports.
+    std::map<std::pair<vss::endpoint_id, vss::endpoint_id>, int> lanes;
+    QVector<proxy_edge> proxies;
+    for (const auto& link : links)
+    {
+        for (const vss::endpoint_id source : link.sources)
+        {
+            for (const vss::endpoint_id target : link.targets)
+            {
+                if (!rects.contains(source) || !rects.contains(target))
+                    continue;
+                proxies.append({source, target,
+                                QLineF(right_centre(rects.value(source)),
+                                       left_centre(rects.value(target)))});
+            }
+        }
+    }
     QVector<topo_link_placement> placements;
     for (const auto& link : links)
     {
@@ -801,6 +1153,40 @@ compute_link_geometry(const QVector<topo_link_input>& links,
             }
             placement.bar = QLineF(bar_x, sources.first().center().y(), bar_x,
                                    sources.last().center().y());
+
+            // The bar turns into the first and the last member in a round
+            // corner; the members in between join it with a plain tap.
+            const QRectF top = sources.first();
+            const QRectF bottom = sources.last();
+            const qreal height = placement.bar.dy();
+            const qreal corner = std::min(kBusCorner, height / 2.0);
+            if (corner >= 1.0)
+            {
+                placement.stroke.moveTo(left_centre(top));
+                placement.stroke.lineTo(bar_x + corner, top.center().y());
+                placement.stroke.quadTo(
+                    QPointF(bar_x, top.center().y()),
+                    QPointF(bar_x, top.center().y() + corner));
+                placement.stroke.lineTo(bar_x, bottom.center().y() - corner);
+                placement.stroke.quadTo(
+                    QPointF(bar_x, bottom.center().y()),
+                    QPointF(bar_x + corner, bottom.center().y()));
+                placement.stroke.lineTo(left_centre(bottom));
+                for (qsizetype index = 1; index + 1 < sources.size(); ++index)
+                {
+                    placement.stroke.moveTo(left_centre(sources.at(index)));
+                    placement.stroke.lineTo(bar_x,
+                                            sources.at(index).center().y());
+                }
+            }
+            else
+            {
+                for (const QLineF& line : placement.segments)
+                {
+                    placement.stroke.moveTo(line.p1());
+                    placement.stroke.lineTo(line.p2());
+                }
+            }
             placement.primary_anchor = placement.bar.p1();
             placement.secondary_anchor = placement.primary_anchor;
             bar_shape = true;
@@ -817,36 +1203,32 @@ compute_link_geometry(const QVector<topo_link_input>& links,
             for (const auto& target : targets)
                 target_left = std::min(target_left, target.left());
 
+            // One trunk from the source to a junction in the middle of the
+            // gap, then a curve from the junction to every target.
             const qreal bar_x = (source.right() + target_left) / 2.0;
-            QVector<QLineF> legs;
-            legs.append(QLineF(right_centre(source),
-                               QPointF(bar_x, source.center().y())));
-            const QLineF bar(bar_x, targets.first().center().y(), bar_x,
-                             targets.last().center().y());
+            const QLineF trunk(right_centre(source),
+                               QPointF(bar_x, source.center().y()));
+            QVector<QPainterPath> fan;
+            bool clear = bar_x > source.right() && bar_x < target_left &&
+                         !segment_blocked(trunk, others, clearance);
             for (const auto& target : targets)
             {
-                legs.append(QLineF(bar_x, target.center().y(), target.left(),
-                                   target.center().y()));
+                fan.append(fan_out_leg(trunk.p2(), left_centre(target), style));
+                clear = clear && !curve_blocked(fan.last(), others, soft);
             }
-            bool clear = bar_x > source.right() && bar_x < target_left &&
-                         !segment_blocked(bar, others, clearance);
-            for (const QLineF& leg : legs)
-                clear = clear && !segment_blocked(leg, others, clearance);
 
             if (clear)
             {
-                add_segment(legs.first());
-                placement.bar = bar;
-                for (const auto& target : targets)
+                add_segment(trunk);
+                placement.stroke.moveTo(trunk.p1());
+                placement.stroke.lineTo(trunk.p2());
+                for (qsizetype index = 0; index < targets.size(); ++index)
                 {
-                    add_segment(QLineF(bar_x, target.center().y(),
-                                       target.left(), target.center().y()));
+                    add_segment(
+                        QLineF(trunk.p2(), left_centre(targets.at(index))));
+                    placement.stroke.addPath(fan.at(index));
                     if (link.arrow)
-                    {
-                        placement.arrows.append(arrow_head(
-                            QPointF(target.left(), target.center().y()),
-                            QPointF(bar_x, target.center().y())));
-                    }
+                        placement.arrows.append(arrow_at_end(fan.at(index)));
                 }
                 placement.primary_anchor = QPointF(
                     (source.right() + bar_x) / 2.0, source.center().y());
@@ -866,33 +1248,34 @@ compute_link_geometry(const QVector<topo_link_input>& links,
             for (const auto& source : sources)
                 source_right = std::max(source_right, source.right());
 
+            // A curve from every source to a junction in the middle of the
+            // gap, then one trunk from the junction to the target.
             const qreal bar_x = (source_right + target.left()) / 2.0;
-            QVector<QLineF> legs;
+            const QLineF trunk(QPointF(bar_x, target.center().y()),
+                               left_centre(target));
+            QVector<QPainterPath> fan;
+            bool clear = bar_x > source_right && bar_x < target.left() &&
+                         !segment_blocked(trunk, others, clearance);
             for (const auto& source : sources)
             {
-                legs.append(QLineF(right_centre(source),
-                                   QPointF(bar_x, source.center().y())));
+                fan.append(fan_in_leg(right_centre(source), trunk.p1(), style));
+                clear = clear && !curve_blocked(fan.last(), others, soft);
             }
-            const QLineF bar(bar_x, sources.first().center().y(), bar_x,
-                             sources.last().center().y());
-            const QLineF last(bar_x, target.center().y(), target.left(),
-                              target.center().y());
-            legs.append(last);
-            bool clear = bar_x > source_right && bar_x < target.left() &&
-                         !segment_blocked(bar, others, clearance);
-            for (const QLineF& leg : legs)
-                clear = clear && !segment_blocked(leg, others, clearance);
 
             if (clear)
             {
-                for (const QLineF& leg : legs)
-                    add_segment(leg);
-                placement.bar = bar;
+                for (qsizetype index = 0; index < sources.size(); ++index)
+                {
+                    add_segment(
+                        QLineF(right_centre(sources.at(index)), trunk.p1()));
+                    placement.stroke.addPath(fan.at(index));
+                }
+                add_segment(trunk);
+                placement.stroke.moveTo(trunk.p1());
+                placement.stroke.lineTo(trunk.p2());
                 if (link.arrow)
                 {
-                    placement.arrows.append(
-                        arrow_head(QPointF(target.left(), target.center().y()),
-                                   QPointF(bar_x, target.center().y())));
+                    placement.arrows.append(arrow_head(trunk.p2(), trunk.p1()));
                 }
                 placement.primary_anchor =
                     QPointF((bar_x + target.left()) / 2.0, target.center().y());
@@ -910,18 +1293,52 @@ compute_link_geometry(const QVector<topo_link_input>& links,
                 {
                     const QRectF source = rects.value(source_ids.at(from));
                     const QRectF target = rects.value(target_ids.at(to));
-                    const QVector<QPointF> path =
-                        edge_path(source, target, others, clearance);
+                    const QVector<QPointF> path = edge_path(
+                        source_ids.at(from), target_ids.at(to), source, target,
+                        others, clearance, proxies, style);
                     for (qsizetype index = 1; index < path.size(); ++index)
                         add_segment(QLineF(path.at(index - 1), path.at(index)));
-                    if (link.arrow && path.size() >= 2)
+
+                    const int lane =
+                        lanes[{source_ids.at(from), target_ids.at(to)}]++;
+                    QPainterPath curve;
+                    if (path.size() == 2 && path.last().x() > path.first().x())
                     {
-                        placement.arrows.append(
-                            arrow_head(path.last(), path.at(path.size() - 2)));
+                        curve = style == link_style::curved
+                                    ? lane_curve(path.first(), path.last(),
+                                                 lane, others, soft)
+                                    : lane_elbow(path.first(), path.last(),
+                                                 lane, others, soft);
                     }
+                    else
+                    {
+                        // A routed link on ports that already have a link
+                        // moves its bends aside, if there is room.
+                        QVector<QPointF> route = path;
+                        if (lane > 0)
+                        {
+                            QVector<QRectF> obstacles = others;
+                            obstacles.append(source);
+                            obstacles.append(target);
+                            const QVector<QPointF> aside =
+                                offset_route(path, lane_bow(lane));
+                            if (route_clear(aside, sorted_rects(obstacles),
+                                            clearance))
+                                route = aside;
+                        }
+                        curve = style == link_style::curved
+                                    ? fitted_route(route, others,
+                                                   {source, target}, clearance)
+                                    : fitted_elbow_route(route, others,
+                                                         {source, target},
+                                                         clearance);
+                    }
+                    placement.stroke.addPath(curve);
+                    if (link.arrow && path.size() >= 2)
+                        placement.arrows.append(arrow_at_end(curve));
                     if (first)
                     {
-                        placement.primary_anchor = path_anchor(path);
+                        placement.primary_anchor = flat_anchor(curve);
                         placement.secondary_anchor = placement.primary_anchor;
                         first = false;
                     }

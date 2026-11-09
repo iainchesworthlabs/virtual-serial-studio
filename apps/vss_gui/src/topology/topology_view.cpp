@@ -7,6 +7,7 @@
 #include "topology/topology_view.hpp"
 
 #include "theme/theme.hpp"
+#include "topology/link_curve.hpp"
 #include "topology/link_item.hpp"
 #include "topology/node_item.hpp"
 #include "topology/toolbox.hpp"
@@ -325,7 +326,9 @@ void TopologyView::rebuild_items()
 
     {
         VSS_PROFILE_ZONE("gui.topology.compute_layout");
-        layout_ = compute_topology_layout(inputs, link_inputs_);
+        topology_metrics metrics;
+        metrics.style = link_style_;
+        layout_ = compute_topology_layout(inputs, link_inputs_, metrics);
     }
     place_nodes();
 
@@ -622,6 +625,14 @@ void TopologyView::place_nodes()
     }
 }
 
+void TopologyView::set_link_style(link_style style)
+{
+    if (link_style_ == style)
+        return;
+    link_style_ = style;
+    apply_positions(true);
+}
+
 void TopologyView::apply_positions(bool refresh_scene_rect)
 {
     QHash<vss::endpoint_id, QRectF> rects;
@@ -639,7 +650,9 @@ void TopologyView::apply_positions(bool refresh_scene_rect)
     QVector<topo_link_placement> geometry;
     {
         VSS_PROFILE_ZONE("gui.topology.compute_link_geometry");
-        geometry = compute_link_geometry(link_inputs_, rects);
+        topology_metrics metrics;
+        metrics.style = link_style_;
+        geometry = compute_link_geometry(link_inputs_, rects, metrics);
     }
     for (const auto& placement : geometry)
     {
@@ -1796,6 +1809,12 @@ QVector<QLineF> TopologyView::link_segments(vss::link_id id) const
     return item == nullptr ? QVector<QLineF>() : item->geometry().segments;
 }
 
+QPainterPath TopologyView::link_stroke(vss::link_id id) const
+{
+    LinkItem* item = link_items_.value(id);
+    return item == nullptr ? QPainterPath() : item->geometry().stroke;
+}
+
 void TopologyView::tidy_layout()
 {
     if (ports_.empty())
@@ -2293,12 +2312,12 @@ void TopologyView::update_wire(const QPointF& scene_point)
         wire_item_->setPen(pen);
         wire_item_->setZValue(4.0);
     }
-    QPainterPath path(wire_start_);
-    const qreal bend =
-        std::max(40.0, std::abs(scene_point.x() - wire_start_.x()) / 2.0);
-    path.cubicTo(wire_start_ + QPointF(bend, 0.0),
-                 scene_point - QPointF(bend, 0.0), scene_point);
-    wire_item_->setPath(path);
+    // The wire is drawn the way the link will be once it is made.
+    wire_item_->setPath(
+        link_style_ == link_style::curved
+            ? s_curve(wire_start_, scene_point)
+            : elbow_curve(wire_start_, scene_point,
+                          (wire_start_.x() + scene_point.x()) / 2.0));
 }
 
 void TopologyView::update_wire_targets(vss::endpoint_id hovered)

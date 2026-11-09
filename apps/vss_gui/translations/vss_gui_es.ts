@@ -6069,6 +6069,21 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Link lines</source>
+            <translation>Líneas de enlace</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Curved</source>
+            <translation>Curvas</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Right angles</source>
+            <translation>Ángulos rectos</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
             <source>Text size, display scale, high contrast and reduced motion follow your operating system.</source>
             <translation>El tamaño del texto, la escala de pantalla, el alto contraste y la reducción de movimiento siguen a su sistema operativo.</translation>
         </message>

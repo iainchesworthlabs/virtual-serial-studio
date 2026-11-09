@@ -17,6 +17,7 @@
 #include <QGraphicsView>
 #include <QHash>
 #include <QLineF>
+#include <QPainterPath>
 #include <QPointF>
 #include <QRectF>
 #include <QSet>
@@ -67,6 +68,11 @@ public:
 
     /// What this build can do; a missing capability hides its control.
     void set_capabilities(const capabilities& caps);
+
+    /// How links are drawn, curved or at right angles (Settings, Appearance).
+    /// The links are redrawn at once; the nodes stay where they are.
+    void set_link_style(link_style style);
+    link_style link_style_mode() const noexcept { return link_style_; }
 
     /// Advanced mode: the canvas is an editor.  Tiles can be dropped on it,
     /// nodes show wiring handles, several items can be selected, and the
@@ -142,6 +148,8 @@ public:
     void move_node(vss::endpoint_id id, const QPointF& top_left);
     /// The polyline segments of a link, for the tests.
     QVector<QLineF> link_segments(vss::link_id id) const;
+    /// What is drawn for a link, for the tests.
+    QPainterPath link_stroke(vss::link_id id) const;
 
     /// The generated accessible description.
     QString summary() const { return summary_; }
@@ -294,6 +302,7 @@ private:
     std::vector<link_view> links_;
     QHash<vss::endpoint_id, QString> names_;
     QVector<topo_link_input> link_inputs_;
+    link_style link_style_ = link_style::curved;
     QVector<vss::endpoint_id> node_ids_;
 
     QHash<vss::endpoint_id, NodeItem*> node_items_;

@@ -13,6 +13,7 @@
 
 #include <QHash>
 #include <QLineF>
+#include <QPainterPath>
 #include <QPointF>
 #include <QPolygonF>
 #include <QRectF>
@@ -53,6 +54,9 @@ struct topology_metrics
     qreal clearance = 32.0;
     /// The least space left between two nodes when the user drops one.
     qreal drop_gap = 16.0;
+    /// How links are drawn: smooth curves or right angles.  It changes the
+    /// strokes only; the route a link follows is the same.
+    link_style style = link_style::curved;
 };
 
 struct topo_node_placement
@@ -63,12 +67,17 @@ struct topo_node_placement
 
 /// The pre-computed geometry of one link.  The item adds the label rectangles
 /// from these anchors, because their size depends on the font.
+///
+/// `segments` and `bar` are the route: the straight lines the link follows,
+/// with the node corners it goes around.  They are not drawn.  `stroke` is what
+/// is drawn: smooth curves along the route, level where they meet a port.
 struct topo_link_placement
 {
     vss::link_id id = 0;
     QVector<QLineF> segments;
-    /// The vertical bar of a split or a join; a null line when there is none.
+    /// The vertical bar of a bus; a null line when there is none.
     QLineF bar;
+    QPainterPath stroke;
     QVector<QPolygonF> arrows;
     QPointF primary_anchor;
     QPointF secondary_anchor;

@@ -66,6 +66,7 @@ private:
     QRadioButton* theme_light_ = nullptr;
     QRadioButton* theme_dark_ = nullptr;
     SegmentedControl* density_ = nullptr;
+    SegmentedControl* link_style_ = nullptr;
     QRadioButton* close_background_ = nullptr;
     QRadioButton* close_quit_ = nullptr;
     Switch* sign_in_ = nullptr;

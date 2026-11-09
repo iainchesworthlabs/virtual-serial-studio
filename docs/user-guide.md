@@ -1228,8 +1228,9 @@ turns it on.
 - **Running**: *When I close the window* (*Keep the ports running in the
   background* or *Stop the ports and quit*) and *Start when I sign in*; see
   [When the window is closed](#when-the-window-is-closed).
-- **Appearance**: *Theme* (follow the system, light or dark) and *Density*
-  (comfortable or compact). Text size, display scale, high contrast and reduced
+- **Appearance**: *Theme* (follow the system, light or dark), *Density*
+  (comfortable or compact) and *Link lines* (curved, the default, or right
+  angles with rounded corners). Text size, display scale, high contrast and reduced
   motion follow your operating system.
 - **Performance**: *Refresh interval*, 50 to 5000 ms. Shorter feels live;
   longer is lighter on a busy machine. Under *Profiling*, *Record a performance

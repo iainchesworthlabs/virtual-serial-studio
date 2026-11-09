@@ -7,6 +7,8 @@
 add_library(vss_gui_topology STATIC
   topology_layout.cpp
   topology_layout.hpp
+  link_curve.cpp
+  link_curve.hpp
   node_item.cpp
   node_item.hpp
   link_item.cpp

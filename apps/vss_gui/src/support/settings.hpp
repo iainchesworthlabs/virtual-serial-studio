@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_SUPPORT_SETTINGS_HPP
 #define VSS_GUI_SUPPORT_SETTINGS_HPP
 
+#include "backend/view_types.hpp"
 #include "theme/theme.hpp"
 
 #include <QString>
@@ -25,6 +26,9 @@ struct ui_settings
     bool advanced = false;
     theme_mode theme = theme_mode::system;
     density_mode density = density_mode::comfortable;
+    /// How the canvas draws links: smooth curves, or right angles with
+    /// rounded corners.
+    link_style links = link_style::curved;
     int refresh_ms = 250;
     int default_baud = 115200;
     bool ask_on_discard = true;
@@ -49,6 +53,8 @@ QString theme_key(theme_mode mode);
 theme_mode theme_from_key(const QString& key);
 QString density_key(density_mode mode);
 density_mode density_from_key(const QString& key);
+QString link_style_key(link_style style);
+link_style link_style_from_key(const QString& key);
 
 /// The baud rates offered in the Settings combo, most likely first.
 QStringList baud_rate_choices();

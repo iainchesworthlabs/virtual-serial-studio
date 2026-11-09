@@ -382,6 +382,32 @@ void SettingsDialog::build()
     density_layout->addWidget(density_);
     appearance_layout->addWidget(density_holder);
 
+    // Link lines: how the canvas draws a link, curved (id 0, the default) or
+    // at right angles (id 1).  The canvas redraws as soon as it changes.
+    auto* links_label = new QLabel(
+        QCoreApplication::translate("Settings", "Link lines"), appearance);
+    links_label->setFont(theme_bold);
+    appearance_layout->addWidget(links_label);
+    link_style_ = new SegmentedControl(appearance);
+    link_style_->setObjectName(QStringLiteral("linkStyleControl"));
+    link_style_->add_item(QCoreApplication::translate("Settings", "Curved"), 0);
+    link_style_->add_item(
+        QCoreApplication::translate("Settings", "Right angles"), 1);
+    link_style_->set_current(settings_.links == link_style::elbow ? 1 : 0);
+    connect(link_style_, &SegmentedControl::current_changed, this,
+            [this](int id)
+            {
+                settings_.links =
+                    id == 1 ? link_style::elbow : link_style::curved;
+                persist();
+            });
+    auto* links_holder = new QWidget(appearance);
+    links_holder->setMaximumWidth(320);
+    auto* links_layout = new QVBoxLayout(links_holder);
+    links_layout->setContentsMargins(0, 0, 0, 0);
+    links_layout->addWidget(link_style_);
+    appearance_layout->addWidget(links_holder);
+
     // Text size, scale, contrast and motion are not Studio settings, so a
     // banner sends the user to the system settings. If those cannot be
     // opened, an error dialog says where to find them.
@@ -716,6 +742,8 @@ void SettingsDialog::reset_to_defaults()
         refresh_->setValue(settings_.refresh_ms);
         const QSignalBlocker block_density(density_);
         density_->set_current(0);
+        const QSignalBlocker block_links(link_style_);
+        link_style_->set_current(0);
     }
     {
         const QSignalBlocker block_system(theme_system_);

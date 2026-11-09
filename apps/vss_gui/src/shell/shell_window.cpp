@@ -855,6 +855,7 @@ void ShellWindow::build_central()
 
     topology_ = new topology::TopologyView(card);
     topology_->set_capabilities(backend_.caps());
+    topology_->set_link_style(load_ui_settings().links);
     // Inset the diagram so its square view stays inside the pane's corners.
     // In Advanced mode the toolbox rail sits on the left of the canvas.
     auto* canvas_layout = new QHBoxLayout;
@@ -2795,6 +2796,9 @@ void ShellWindow::open_settings()
     SettingsDialog dialog(backend_, load_ui_settings(), this);
     connect(&dialog, &SettingsDialog::advanced_changed, this,
             [this](bool advanced) { level_.set_advanced(advanced); });
+    connect(&dialog, &SettingsDialog::settings_changed, this,
+            [this](const ui_settings& changed)
+            { topology_->set_link_style(changed.links); });
     dialog.exec();
     update_actions();
     status_->refresh();

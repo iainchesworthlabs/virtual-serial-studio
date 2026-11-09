@@ -127,15 +127,11 @@ QRectF LinkItem::boundingRect() const
         note_point(rect.bottomRight());
     };
 
-    for (const QLineF& line : geometry_.segments)
+    if (!geometry_.stroke.isEmpty())
     {
-        note_point(line.p1());
-        note_point(line.p2());
-    }
-    if (!geometry_.bar.isNull())
-    {
-        note_point(geometry_.bar.p1());
-        note_point(geometry_.bar.p2());
+        const QRectF extent = geometry_.stroke.controlPointRect();
+        note_point(extent.topLeft());
+        note_point(extent.bottomRight());
     }
     for (const QPolygonF& arrow : geometry_.arrows)
         note(arrow.boundingRect());
@@ -151,24 +147,11 @@ QRectF LinkItem::boundingRect() const
 
 QPainterPath LinkItem::shape() const
 {
-    QPainterPath path;
-    QPainterPath lines;
-    for (const QLineF& line : geometry_.segments)
-    {
-        lines.moveTo(line.p1());
-        lines.lineTo(line.p2());
-    }
-    if (!geometry_.bar.isNull())
-    {
-        lines.moveTo(geometry_.bar.p1());
-        lines.lineTo(geometry_.bar.p2());
-    }
-
     QPainterPathStroker stroker;
     stroker.setWidth(kHitTolerance);
     stroker.setCapStyle(Qt::RoundCap);
     stroker.setJoinStyle(Qt::RoundJoin);
-    path = stroker.createStroke(lines);
+    QPainterPath path = stroker.createStroke(geometry_.stroke);
     if (primary_rect_.isValid())
         path.addRect(primary_rect_);
     if (secondary_rect_.isValid())
@@ -201,13 +184,7 @@ void LinkItem::paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
         pen.setStyle(Qt::DashLine);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    for (const QLineF& line : geometry_.segments)
-    {
-        if (!line.isNull())
-            painter->drawLine(line);
-    }
-    if (!geometry_.bar.isNull())
-        painter->drawLine(geometry_.bar);
+    painter->drawPath(geometry_.stroke);
 
     if (!geometry_.arrows.isEmpty())
     {
