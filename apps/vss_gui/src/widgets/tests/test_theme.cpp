@@ -217,6 +217,29 @@ TEST_CASE("theme: icon cache flushes on a theme change")
     REQUIRE(icons.cache_size() > 0);
 }
 
+TEST_CASE("theme: the application icon is present and draws at every size")
+{
+    auto& icons = vss::gui::IconProvider::instance();
+    const QIcon icon = icons.app_icon();
+    REQUIRE(!icon.isNull());
+    // The same icon the second time, and unchanged by a theme change: it is a
+    // picture in its own colours.
+    auto& theme = vss::gui::Theme::instance();
+    const QImage before = icon.pixmap(48, 48).toImage();
+    theme.set_mode(vss::gui::theme_mode::dark);
+    const QImage after = icons.app_icon().pixmap(48, 48).toImage();
+    theme.set_mode(vss::gui::theme_mode::light);
+    REQUIRE(before == after);
+    for (const int side : {16, 24, 32, 48, 64, 128, 256, 512})
+    {
+        const QImage image = icon.pixmap(side, side).toImage();
+        REQUIRE_EQ(image.width(), side);
+        // Rounded tile: the corner is clear and the middle is not.
+        REQUIRE_EQ(qAlpha(image.pixel(0, 0)), 0);
+        REQUIRE_EQ(qAlpha(image.pixel(side / 2, side / 2)), 255);
+    }
+}
+
 TEST_CASE("theme: an icon keeps its padding at any display scale")
 {
     // At 200 percent the pixmap has twice the pixels. An icon drawn at device

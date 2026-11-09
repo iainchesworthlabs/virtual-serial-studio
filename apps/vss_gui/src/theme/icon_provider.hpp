@@ -34,6 +34,12 @@ public:
     QIcon icon(const QString& name, const QColor& colour,
                int logical_size = 16);
 
+    /// The application icon (`:/app/vss_gui.svg`, made from
+    /// apps/vss_gui/assets/icon/vss_gui.svg). It is a picture in its own
+    /// colours, so it does not follow the theme, and it renders at any size
+    /// and device pixel ratio like the other icons.
+    QIcon app_icon();
+
     void flush();
     int cache_size() const noexcept { return static_cast<int>(cache_.size()); }
 
@@ -42,8 +48,11 @@ private:
 
     QIcon render(const QString& name, std::optional<colour_role> role,
                  const QColor& colour);
+    QIcon load(const QString& path, std::optional<colour_role> role,
+               const QColor& colour);
 
     QHash<QString, QIcon> cache_;
+    QIcon app_icon_;
 };
 
 } // namespace vss::gui

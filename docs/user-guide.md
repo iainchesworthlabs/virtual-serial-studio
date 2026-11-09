@@ -1277,7 +1277,9 @@ registry on Windows, a configuration file on Linux and macOS).
 
 - **Help → Keyboard shortcuts** lists every shortcut; **Help → Copy
   environment** copies the build details for a bug report.
-- **Help → About** has four tabs: About (version and the GPLv3 notice),
+- **Help → About** shows the application icon, the version and the licence
+  at the top, and has four tabs: About (the GPLv3 notice and a link to the
+  source code),
   Environment (commit, branch, build, compiler, Qt, operating system and the
   language chosen), Licences (Qt, Boost, Boost.VirtualSerial, Tracy and the
   optional com0com driver) and Fonts (none are bundled).

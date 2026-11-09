@@ -41,6 +41,11 @@
             <translation>يجب أن تكون قد تلقيت نسخة من رخصة جنو العمومية مع هذا البرنامج. وإن لم يحدث ذلك، فراجع https://www.gnu.org/licenses/.</translation>
         </message>
         <message>
+            <location filename="../src/support/about_dialog.cpp" line="200" />
+            <source>Source code: %1</source>
+            <translation>الشيفرة المصدرية: %1</translation>
+        </message>
+        <message>
             <location filename="../src/support/about_dialog.cpp" line="194" />
             <source>About</source>
             <translation>حول</translation>

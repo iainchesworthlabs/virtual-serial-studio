@@ -3,6 +3,7 @@
   <qresource prefix="/">
     <file alias="tokens/tokens.json">resources/tokens.json</file>
     <file alias="tokens/style.qss.in">resources/style.qss.in</file>
+    <file alias="app/vss_gui.svg">../../assets/icon/vss_gui.svg</file>
     <file alias="icons/port.svg">resources/icons/port.svg</file>
     <file alias="icons/loopback.svg">resources/icons/loopback.svg</file>
     <file alias="icons/network.svg">resources/icons/network.svg</file>

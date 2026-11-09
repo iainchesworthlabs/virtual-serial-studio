@@ -41,6 +41,11 @@
             <translation>您应当已随本程序收到一份 GNU 通用公共许可证的副本。如果没有，请参阅 https://www.gnu.org/licenses/。</translation>
         </message>
         <message>
+            <location filename="../src/support/about_dialog.cpp" line="200" />
+            <source>Source code: %1</source>
+            <translation>源代码：%1</translation>
+        </message>
+        <message>
             <location filename="../src/support/about_dialog.cpp" line="194" />
             <source>About</source>
             <translation>关于</translation>

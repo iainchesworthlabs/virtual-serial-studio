@@ -17,6 +17,11 @@
 #
 #   set_property(TARGET vss_cli PROPERTY VSS_FILE_DESCRIPTION "...")
 #
+# A target with a VSS_ICON property (the path of an .ico file) also gets that
+# icon as its first icon resource:
+#
+#   set_property(TARGET vss_gui PROPERTY VSS_ICON "<dir>/vss_gui.ico")
+#
 # Do not put the words setup, install, update or patch in a description: they
 # are the words the Windows installer heuristic looks for.
 #
@@ -66,6 +71,14 @@ function(vss_windows_resources target)
     _vss_default_file_description(${target} _description)
   endif()
 
+  get_target_property(_icon ${target} VSS_ICON)
+  if(_icon)
+    # CMake paths use forward slashes, which are safe inside the quotes of an .rc.
+    set(VSS_ICON_RESOURCE "1 ICON \"${_icon}\"")
+  else()
+    set(VSS_ICON_RESOURCE "")
+  endif()
+
   set(VSS_TARGET "${target}")
   set(VSS_OUTPUT_NAME "${_output_name}")
   set(VSS_FILE_DESCRIPTION "${_description}")
@@ -95,6 +108,12 @@ function(vss_windows_resources target)
   configure_file("${_vss_windows_resources_dir}/vss.rc.in"
     "${_dir}/${target}.rc" @ONLY)
   target_sources(${target} PRIVATE "${_dir}/${target}.rc")
+  if(_icon)
+    # Rebuild the resource when the icon file changes.
+    set_source_files_properties("${_dir}/${target}.rc"
+      TARGET_DIRECTORY ${target}
+      PROPERTIES OBJECT_DEPENDS "${_icon}")
+  endif()
 endfunction()
 
 function(_vss_collect_directory_targets directory out)

@@ -26,6 +26,7 @@ nav:
       - Profiling: profiling.md
       - Releasing: releasing.md
       - Languages: i18n.md
+      - Application icon: app-icon.md
       - Contributing: contributing.md
   - How it works:
       - Architecture: architecture.md

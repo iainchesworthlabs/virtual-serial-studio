@@ -41,6 +41,11 @@
             <translation>איר דאַרפֿט האָבן באַקומען אַ קאָפּיע פֿון דער GNU General Public License צוזאַמען מיט דעם פּראָגראַם. אויב נישט, זעט https://www.gnu.org/licenses/.</translation>
         </message>
         <message>
+            <location filename="../src/support/about_dialog.cpp" line="200" />
+            <source>Source code: %1</source>
+            <translation>מקור־קאָד: %1</translation>
+        </message>
+        <message>
             <location filename="../src/support/about_dialog.cpp" line="194" />
             <source>About</source>
             <translation>וועגן</translation>

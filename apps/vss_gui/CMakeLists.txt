@@ -148,6 +148,17 @@ set_target_properties(vss_gui PROPERTIES
 
 vss_set_warnings(vss_gui)
 
+# The application icon (apps/vss_gui/assets/icon, made from vss_gui.svg by
+# tools/gen_app_icon.py). The window and taskbar icon is the Qt resource
+# :/app/vss_gui.svg in the theme library; the file icon of the Windows program
+# is the .ico in the resource that cmake/VssWindowsResources.cmake makes (the
+# property is ignored elsewhere); the macOS bundle and the Linux install below
+# take the .icns and the PNG files.
+set(VSS_APP_ICON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/assets/icon")
+set_target_properties(vss_gui PROPERTIES
+  VSS_ICON "${VSS_APP_ICON_DIR}/vss_gui.ico"
+  VSS_FILE_DESCRIPTION "Virtual Serial Studio")
+
 # The packaged program. The deploy script copies the Qt libraries and plugins
 # next to the program (and builds the bundle on macOS), so the installed tree
 # runs on a machine without Qt.
@@ -172,8 +183,34 @@ if(VSS_INSTALL)
     set_target_properties(vss_gui PROPERTIES
       INSTALL_RPATH "@executable_path/../Frameworks"
       INSTALL_RPATH_USE_LINK_PATH ON)
+
+    # The bundle icon: Contents/Resources/vss_gui.icns, named by
+    # CFBundleIconFile in Info.plist.in.
+    target_sources(vss_gui PRIVATE "${VSS_APP_ICON_DIR}/vss_gui.icns")
+    set_source_files_properties("${VSS_APP_ICON_DIR}/vss_gui.icns"
+      PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+    set_target_properties(vss_gui PROPERTIES
+      MACOSX_BUNDLE_ICON_FILE vss_gui.icns)
   elseif(UNIX)
     set_target_properties(vss_gui PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
+
+    # The icon in the hicolor theme, as <size>x<size>/apps/vss_gui.png, and the
+    # desktop entry that names it, so a desktop shows the icon in its menu, its
+    # task switcher and its dock.
+    foreach(_vss_icon_size 16 22 24 32 48 64 128 256 512)
+      install(FILES
+        "${VSS_APP_ICON_DIR}/png/vss_gui_${_vss_icon_size}.png"
+        DESTINATION
+          ${CMAKE_INSTALL_DATADIR}/icons/hicolor/${_vss_icon_size}x${_vss_icon_size}/apps
+        RENAME vss_gui.png
+        COMPONENT runtime)
+    endforeach()
+    install(FILES "${VSS_APP_ICON_DIR}/vss_gui.svg"
+      DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+      COMPONENT runtime)
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/linux/vss_gui.desktop"
+      DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+      COMPONENT runtime)
   endif()
 
   install(TARGETS vss_gui
