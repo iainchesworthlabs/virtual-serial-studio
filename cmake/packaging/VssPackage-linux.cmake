@@ -69,6 +69,9 @@ endif()
 set(VSS_PACKAGE_PREFIX "/opt/virtual-serial-studio")
 set(VSS_PACKAGE_DOCDIR "/usr/share/doc/virtual-serial-studio")
 set(VSS_PACKAGE_LINUX_DIR "${CMAKE_SOURCE_DIR}/packaging/linux")
+# The launcher icon. One line to repoint it at the application icon in
+# apps/vss_gui/assets/icon when that is on develop.
+set(VSS_PACKAGE_LINUX_ICON "${VSS_PACKAGE_LINUX_DIR}/virtual-serial-studio.svg")
 
 # ---------------------------------------------------------------------------
 # What the package holds
@@ -78,7 +81,7 @@ set(VSS_PACKAGE_LINUX_DIR "${CMAKE_SOURCE_DIR}/packaging/linux")
 # files with DESTDIR. Without it CPack would install to the real /usr.
 install(FILES "${VSS_PACKAGE_LINUX_DIR}/virtual-serial-studio.desktop"
   DESTINATION /usr/share/applications COMPONENT integration)
-install(FILES "${VSS_PACKAGE_LINUX_DIR}/virtual-serial-studio.svg"
+install(FILES "${VSS_PACKAGE_LINUX_ICON}" RENAME virtual-serial-studio.svg
   DESTINATION /usr/share/icons/hicolor/scalable/apps COMPONENT integration)
 install(FILES
     "${VSS_PACKAGE_LINUX_DIR}/copyright"

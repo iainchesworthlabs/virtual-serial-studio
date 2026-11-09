@@ -129,10 +129,21 @@ users with a new Studio package, not with the distribution's update.
 system libraries that Qt, its `xcb` plug-in and its image and font code load, with
 the xcb libraries listed under Known gaps. `pkexec` (Debian: `pkexec`, Red Hat:
 `polkit`) is recommended: Studio uses it to offer to add the user to the serial group.
-Studio needs no udev rule and no group of its own. A pseudo terminal needs no
-permission, and a real serial device is opened with the group that already owns it
-(`dialout` on Debian, Ubuntu and Fedora); the setup check tells the user, so the
-package does not change any account.
+
+**Drivers and system integration: nothing is installed beyond the files.** Windows needs
+a driver; Linux does not, and the packages add no kernel module, DKMS source, udev rule,
+`tmpfiles.d` entry, polkit action, group change or maintainer script, so there is nothing
+to remove on uninstall or purge beyond the files the package owns. Each part was checked
+in the code:
+
+| Part | Conclusion |
+|---|---|
+| Virtual ports | A pseudo terminal from `/dev/ptmx`, which any user may open. No kernel module |
+| Link directory (`stable_link.cpp`) | `$VSS_VPORT_DIR`, then `$XDG_RUNTIME_DIR/vss` (the normal case in a session), then `/run/vss`, then `/tmp/vss`. Studio makes the directory itself with mode 0700 and refuses one that another user owns, so a root-owned `/run/vss` from a `tmpfiles.d` entry would be refused and is not shipped. A user without a session runtime directory gets `/tmp/vss` |
+| Serial devices | Opened with the group that already owns the device (`dialout` on Debian, Ubuntu and Fedora, `uucp` on Arch). The distributions ship the udev rules that give a device that group, so Studio adds none |
+| The group step | The Setup check shows `sudo usermod -aG dialout <user>` and, when `pkexec` and `usermod` exist, a button that runs it through `pkexec`, which uses polkit's own `exec` action, so Studio ships no action file. The packages recommend `pkexec` (deb) or suggest `polkit` (rpm) |
+| A post-install hint about the group | Not added. The script runs as root, without knowing which user will run Studio, and a package manager prints it to nobody; the Setup check names the exact command for the person who needs it |
+| AppArmor and SELinux | The Setup check prints the lines to add when a profile blocks Studio. The packages ship no profile or policy. A Fedora system with SELinux enforcing was not tried: the container checks run without it, so the labels files under `/opt` get by default are unchecked |
 
 **What the workflow checks.** `tools/ci/check_linux_packages.sh` prints the metadata,
 checks the version against the tag, then installs the deb in an Ubuntu 26.04 container
