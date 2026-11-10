@@ -1307,6 +1307,42 @@ result<void> studio::remove_target(link_id id, std::string_view target)
     return hub_->remove_target(id, port->id());
 }
 
+result<void> studio::add_source(link_id id, std::string_view source)
+{
+    VSS_PROFILE_ZONE("studio.add_source");
+    const auto port = hub_->find_endpoint(source);
+    if (!port)
+        return make_error_code(errc::not_found);
+    return hub_->add_source(id, port->id());
+}
+
+result<void> studio::remove_source(link_id id, std::string_view source)
+{
+    VSS_PROFILE_ZONE("studio.remove_source");
+    const auto port = hub_->find_endpoint(source);
+    if (!port)
+        return make_error_code(errc::not_found);
+    return hub_->remove_source(id, port->id());
+}
+
+result<void> studio::add_member(link_id id, std::string_view member)
+{
+    VSS_PROFILE_ZONE("studio.add_member");
+    const auto port = hub_->find_endpoint(member);
+    if (!port)
+        return make_error_code(errc::not_found);
+    return hub_->add_member(id, port->id());
+}
+
+result<void> studio::remove_member(link_id id, std::string_view member)
+{
+    VSS_PROFILE_ZONE("studio.remove_member");
+    const auto port = hub_->find_endpoint(member);
+    if (!port)
+        return make_error_code(errc::not_found);
+    return hub_->remove_member(id, port->id());
+}
+
 result<studio::share_result> studio::share_serial(const std::string& uri,
                                                   int listeners)
 {

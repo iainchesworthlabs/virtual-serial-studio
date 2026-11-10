@@ -290,6 +290,25 @@ public:
     result<void> add_target(link_id id, std::string_view target);
     result<void> remove_target(link_id id, std::string_view target);
 
+    /// Adds the named port as one more source of a one-way link that exists
+    /// (a join, a redirect or a monitor), or takes one out, and leaves the
+    /// link's other ports linked and its id unchanged.  See
+    /// #hub::add_source and #hub::remove_source for the rules and the errors;
+    /// an unknown name is `errc::not_found`.  A removed port stays in the
+    /// studio.  `snapshot()` saves the link with the sources it has now: a
+    /// one-way link with several sources is saved as a join, and with one
+    /// again as a redirect (or a monitor, when it carries no modem lines).
+    result<void> add_source(link_id id, std::string_view source);
+    result<void> remove_source(link_id id, std::string_view source);
+
+    /// Puts the named port on a bus that exists, or takes one off it, and
+    /// leaves the other members on it and the bus's id unchanged.  See
+    /// #hub::add_member and #hub::remove_member for the rules and the errors;
+    /// an unknown name is `errc::not_found`.  A removed port stays in the
+    /// studio.
+    result<void> add_member(link_id id, std::string_view member);
+    result<void> remove_member(link_id id, std::string_view member);
+
     // -- scenarios ---------------------------------------------------------
 
     struct share_result
