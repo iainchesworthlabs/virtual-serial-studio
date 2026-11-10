@@ -16,7 +16,8 @@ using namespace vss;
 using namespace vss::testkit;
 using namespace vss_test_support;
 
-namespace {
+namespace
+{
 using namespace std::chrono_literals;
 
 struct owner_fixture
