@@ -28,6 +28,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDockWidget>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QProgressBar>
@@ -205,6 +206,133 @@ TEST_CASE("owner bar: join owner actions reach the engine")
     REQUIRE(split.has_value());
     REQUIRE(!OwnerBar::supports_owner(
         vss_test::require_value(backend.link(*split))));
+}
+
+TEST_CASE("owner bar: a split with the owner policy lists its targets")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    const vss::endpoint_id device =
+        make_port(backend, QStringLiteral("device"));
+    const vss::endpoint_id recipe =
+        make_port(backend, QStringLiteral("recipe-tool"));
+    const vss::endpoint_id qa = make_port(backend, QStringLiteral("qa-runner"));
+
+    vss::link_options options;
+    options.policy = vss::merge_policy::owner;
+    const auto split = backend.split(device, {recipe, qa}, options);
+    REQUIRE(split.has_value());
+    REQUIRE(OwnerBar::supports_owner(
+        vss_test::require_value(backend.link(*split))));
+    REQUIRE(OwnerBar::meets_at(vss_test::require_value(backend.link(*split)),
+                               device));
+    REQUIRE(!OwnerBar::meets_at(vss_test::require_value(backend.link(*split)),
+                                recipe));
+
+    OwnerBar bar(backend);
+    bar.set_link(backend.link(*split));
+    REQUIRE(bar.has_link());
+    REQUIRE_EQ(bar.summary(),
+               QStringLiteral("device to recipe-tool and qa-runner"));
+    REQUIRE_EQ(bar.owner_name(), QStringLiteral("Nobody yet"));
+    bool tagged_split = false;
+    for (const auto* tag : bar.findChildren<QLabel*>())
+    {
+        REQUIRE(tag->text() != QStringLiteral("Join"));
+        tagged_split = tagged_split ||
+                       (tag->text() == QStringLiteral("Split") &&
+                        tag->accessibleName() == QStringLiteral("Split link"));
+    }
+    REQUIRE(tagged_split);
+
+    // The candidates are the targets; the source is never offered.
+    REQUIRE_EQ(bar.give_button()->text(),
+               QStringLiteral("Give to recipe-tool"));
+    bar.give_button()->click();
+    QApplication::processEvents();
+    REQUIRE_EQ(vss_test::require_value(backend.link(*split)).owner, recipe);
+    REQUIRE_EQ(bar.owner_name(), QStringLiteral("recipe-tool"));
+    REQUIRE_EQ(bar.give_button()->text(), QStringLiteral("Give to qa-runner"));
+    REQUIRE(bar.release_button()->isEnabled());
+
+    bar.give_button()->click();
+    QApplication::processEvents();
+    REQUIRE_EQ(vss_test::require_value(backend.link(*split)).owner, qa);
+    REQUIRE_EQ(bar.give_button()->text(),
+               QStringLiteral("Give to recipe-tool"));
+
+    bar.release_button()->click();
+    QApplication::processEvents();
+    REQUIRE_EQ(vss_test::require_value(backend.link(*split)).owner,
+               vss::endpoint_id{0});
+    REQUIRE_EQ(bar.owner_name(), QStringLiteral("Nobody yet"));
+    REQUIRE(!bar.release_button()->isEnabled());
+
+    // The engine's rule holds whatever the bar offers: the source cannot own a
+    // split.
+    REQUIRE(!backend.set_owner(*split, device).has_value());
+    REQUIRE_EQ(vss_test::require_value(backend.link(*split)).owner,
+               vss::endpoint_id{0});
+
+    // A split with one target has nothing to choose between, and one without
+    // the owner policy has no owner.
+    const vss::endpoint_id lone = make_port(backend, QStringLiteral("lone"));
+    const vss::endpoint_id other = make_port(backend, QStringLiteral("other"));
+    const auto single = backend.split(other, {lone}, options);
+    REQUIRE(single.has_value());
+    REQUIRE(!OwnerBar::supports_owner(
+        vss_test::require_value(backend.link(*single))));
+    bar.set_link(backend.link(*single));
+    REQUIRE(!bar.has_link());
+}
+
+TEST_CASE("shell: the owner bar shows for a split with the owner policy")
+{
+    using namespace vss::gui;
+    clear_settings();
+    FakeStudioBackend backend;
+    const vss::endpoint_id device =
+        make_port(backend, QStringLiteral("device"));
+    const vss::endpoint_id recipe =
+        make_port(backend, QStringLiteral("recipe-tool"));
+    const vss::endpoint_id qa = make_port(backend, QStringLiteral("qa-runner"));
+
+    ShellWindow window(backend);
+    window.resize(1280, 800);
+    window.show();
+    QApplication::processEvents();
+    QAction* advanced =
+        window.findChild<QAction*>(QStringLiteral("view.advanced"));
+    REQUIRE(advanced != nullptr);
+    advanced->trigger();
+    QApplication::processEvents();
+    auto* owner = window.findChild<OwnerBar*>();
+    REQUIRE(owner != nullptr);
+    REQUIRE(!owner->isVisible());
+
+    vss::link_options options;
+    options.policy = vss::merge_policy::owner;
+    const auto split = backend.split(device, {recipe, qa}, options);
+    REQUIRE(split.has_value());
+    QApplication::processEvents();
+    REQUIRE(owner->has_link());
+    REQUIRE(owner->link_id() == *split);
+    REQUIRE_EQ(owner->summary(),
+               QStringLiteral("device to recipe-tool and qa-runner"));
+
+    // Topology, Owner goes to the bar's buttons instead of saying there is
+    // nothing to control.
+    QAction* owner_action =
+        window.findChild<QAction*>(QStringLiteral("topology.owner"));
+    REQUIRE(owner_action != nullptr);
+    owner_action->trigger();
+    QApplication::processEvents();
+    REQUIRE(owner->has_link());
+
+    // Back to Simple mode, as the saved setting is shared with other tests.
+    advanced->trigger();
+    QApplication::processEvents();
+    REQUIRE(!advanced->isChecked());
 }
 
 TEST_CASE("owner bar: capability off disables the actions with one tooltip")

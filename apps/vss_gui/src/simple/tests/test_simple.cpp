@@ -8,6 +8,7 @@
 
 #include "qt_input.hpp"
 
+#include "backend/engine_studio_backend.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "simple/job_form.hpp"
 #include "simple/job_grid.hpp"
@@ -16,6 +17,8 @@
 #include "simple/setup_page.hpp"
 #include "simple/simple_page.hpp"
 #include "widgets/notes.hpp"
+
+#include <vss/studio/studio.hpp>
 
 #include <QApplication>
 #include <QComboBox>
@@ -293,6 +296,228 @@ TEST_CASE("simple: take turns is a split with the owner policy and the first "
     REQUIRE_EQ(link.owner, found[0].programs[0]);
     REQUIRE_EQ(setup_title(found[0], backend.ports()),
                QStringLiteral("2 programs take turns sending to COM4"));
+}
+
+namespace
+{
+
+port_view hand_port(vss::endpoint_id id, vss::endpoint_kind kind,
+                    const QString& name)
+{
+    port_view port;
+    port.id = id;
+    port.kind = kind;
+    port.name = name;
+    port.path = name;
+    return port;
+}
+
+/// A link as the real engine adapter reports it: a duplex link with one source
+/// and one target is a two-way link, whatever its policy.
+link_view hand_link(vss::link_id id, vss::link_mode mode,
+                    vss::endpoint_id source, vss::endpoint_id target)
+{
+    link_view link;
+    link.id = id;
+    link.shape = link_shape::two_way;
+    link.mode = mode;
+    link.sources = {source};
+    link.targets = {target};
+    return link;
+}
+
+template <typename... Ids> QVector<vss::endpoint_id> ids(Ids... id)
+{
+    return QVector<vss::endpoint_id>{static_cast<vss::endpoint_id>(id)...};
+}
+
+setup_view only_setup(const std::vector<port_view>& ports,
+                      const std::vector<link_view>& links)
+{
+    const auto found = list_setups(ports, links);
+    if (found.size() != 1)
+        throw std::runtime_error("expected one setup");
+    return found.front();
+}
+
+} // namespace
+
+TEST_CASE("simple: a device and one program on a two-way link is an attach")
+{
+    const std::vector<port_view> ports = {
+        hand_port(1, vss::endpoint_kind::physical, QStringLiteral("COM3")),
+        hand_port(2, vss::endpoint_kind::virtual_port, QStringLiteral("COM5")),
+    };
+
+    // No policy set: the device is attached to the program.
+    auto link = hand_link(10, vss::link_mode::duplex, 1, 2);
+    link.options.policy = vss::merge_policy::interleave;
+    auto setup = only_setup(ports, {link});
+    REQUIRE(setup.kind == job::attach);
+    REQUIRE_EQ(setup.device, vss::endpoint_id{1});
+    REQUIRE(setup.programs == ids(2));
+    REQUIRE_EQ(setup.link, vss::link_id{10});
+    REQUIRE_EQ(setup.owner, vss::endpoint_id{0});
+    REQUIRE_EQ(setup_title(setup, ports), QStringLiteral("COM3 through COM5"));
+
+    // The owner policy is a take-turns setup closed down to one program, and
+    // it keeps who sends.
+    link.options.policy = vss::merge_policy::owner;
+    link.owner = 2;
+    setup = only_setup(ports, {link});
+    REQUIRE(setup.kind == job::turns);
+    REQUIRE_EQ(setup.device, vss::endpoint_id{1});
+    REQUIRE(setup.programs == ids(2));
+    REQUIRE_EQ(setup.owner, vss::endpoint_id{2});
+    link.owner = 0;
+    REQUIRE_EQ(only_setup(ports, {link}).owner, vss::endpoint_id{0});
+}
+
+TEST_CASE("simple: a network device and one program on a two-way link is an "
+          "attach")
+{
+    for (const auto kind : {vss::endpoint_kind::tcp, vss::endpoint_kind::udp,
+                            vss::endpoint_kind::rfc2217})
+    {
+        const std::vector<port_view> ports = {
+            hand_port(1, kind, QStringLiteral("remote")),
+            hand_port(2, vss::endpoint_kind::virtual_port,
+                      QStringLiteral("COM5")),
+        };
+        const auto setup =
+            only_setup(ports, {hand_link(10, vss::link_mode::duplex, 1, 2)});
+        REQUIRE(setup.kind == job::attach);
+        REQUIRE_EQ(setup.device, vss::endpoint_id{1});
+    }
+}
+
+TEST_CASE("simple: two-way links that are not a device and a program keep "
+          "their meaning")
+{
+    const auto device =
+        hand_port(1, vss::endpoint_kind::physical, QStringLiteral("COM3"));
+    const auto program =
+        hand_port(2, vss::endpoint_kind::virtual_port, QStringLiteral("COM5"));
+    const auto other_program =
+        hand_port(3, vss::endpoint_kind::virtual_port, QStringLiteral("COM6"));
+    const auto network =
+        hand_port(4, vss::endpoint_kind::tcp, QStringLiteral("tcp://:5000"));
+    const auto mock =
+        hand_port(5, vss::endpoint_kind::mock, QStringLiteral("echo"));
+
+    // The program is the source and the device the target: not how a setup is
+    // made, so it stays as made in Advanced mode.
+    auto setup = only_setup({device, program},
+                            {hand_link(10, vss::link_mode::duplex, 2, 1)});
+    REQUIRE(setup.kind == job::custom);
+    REQUIRE(setup.programs.isEmpty());
+    REQUIRE_EQ(setup.device, vss::endpoint_id{0});
+
+    // A one-way link from a device to a program is not an attach either.
+    setup = only_setup({device, program},
+                       {hand_link(10, vss::link_mode::one_way, 1, 2)});
+    REQUIRE(setup.kind == job::custom);
+
+    // A device on this PC and a network port is a bridge, either way round.
+    setup = only_setup({device, network},
+                       {hand_link(10, vss::link_mode::duplex, 1, 4)});
+    REQUIRE(setup.kind == job::network);
+    REQUIRE_EQ(setup.device, vss::endpoint_id{1});
+    REQUIRE_EQ(setup.listener, vss::endpoint_id{4});
+    setup = only_setup({device, network},
+                       {hand_link(10, vss::link_mode::duplex, 4, 1)});
+    REQUIRE(setup.kind == job::network);
+    REQUIRE_EQ(setup.device, vss::endpoint_id{1});
+    REQUIRE_EQ(setup.listener, vss::endpoint_id{4});
+
+    // A test device answering a program is a port with an echo.
+    for (const bool mock_first : {true, false})
+    {
+        setup = only_setup({program, mock},
+                           {mock_first
+                                ? hand_link(10, vss::link_mode::duplex, 5, 2)
+                                : hand_link(10, vss::link_mode::duplex, 2, 5)});
+        REQUIRE(setup.kind == job::port);
+        REQUIRE(setup.programs == ids(2));
+        REQUIRE_EQ(setup.echo, vss::endpoint_id{5});
+        REQUIRE_EQ(setup.device, vss::endpoint_id{0});
+    }
+
+    // Two programs are a pair.
+    setup = only_setup({program, other_program},
+                       {hand_link(10, vss::link_mode::duplex, 2, 3)});
+    REQUIRE(setup.kind == job::pair);
+    REQUIRE(setup.programs == ids(2, 3));
+}
+
+TEST_CASE("simple: the real engine's one-program setups are read back")
+{
+    // A listening network port stands for the device: it is a device kind that
+    // needs no hardware, and it only binds the loopback address.
+    vss::studio studio;
+    EngineStudioBackend backend(studio);
+    const auto device = backend.attach_serial(
+        QStringLiteral("device"), QStringLiteral("tcp-listen://127.0.0.1:0"),
+        {}, true);
+    REQUIRE(device.has_value());
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("first"), vss::virtual_port_kind::loopback, true);
+    const auto second = backend.create_virtual_port(
+        QStringLiteral("second"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    REQUIRE(vss_test::require_value(backend.port(*device)).kind ==
+            vss::endpoint_kind::tcp);
+
+    // One program: the adapter reports a two-way link, which Simple mode reads
+    // as the device attached to the program.
+    const auto link = backend.split(*device, {*first}, {});
+    REQUIRE(link.has_value());
+    REQUIRE(vss_test::require_value(backend.link(*link)).shape ==
+            link_shape::two_way);
+    const auto setup_of = [&backend](vss::endpoint_id device_id)
+    {
+        const auto found = list_setups(backend.ports(), backend.links());
+        const auto it = std::find_if(found.begin(), found.end(),
+                                     [device_id](const setup_view& setup)
+                                     { return setup.device == device_id; });
+        if (it == found.end())
+            throw std::runtime_error("no setup for the device");
+        return *it;
+    };
+    auto setup = setup_of(*device);
+    REQUIRE(setup.kind == job::attach);
+    REQUIRE(setup.programs == ids(*first));
+
+    // A second program makes it a share.
+    REQUIRE(backend.add_target(*link, *second).has_value());
+    setup = setup_of(*device);
+    REQUIRE(setup.kind == job::share);
+    REQUIRE_EQ(setup.programs.size(), qsizetype{2});
+
+    // Taking turns, closed down to one program, is still taking turns.
+    vss::link_options turns;
+    turns.policy = vss::merge_policy::owner;
+    const auto other = backend.create_virtual_port(
+        QStringLiteral("other"), vss::virtual_port_kind::loopback, true);
+    const auto third = backend.create_virtual_port(
+        QStringLiteral("third"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(other.has_value());
+    REQUIRE(third.has_value());
+    const auto next = backend.attach_serial(
+        QStringLiteral("device-2"), QStringLiteral("tcp-listen://127.0.0.1:0"),
+        {}, true);
+    REQUIRE(next.has_value());
+    const auto turn_link = backend.split(*next, {*other, *third}, turns);
+    REQUIRE(turn_link.has_value());
+    REQUIRE(backend.set_owner(*turn_link, *third).has_value());
+    REQUIRE(backend.remove_target(*turn_link, *other).has_value());
+    REQUIRE(vss_test::require_value(backend.link(*turn_link)).shape ==
+            link_shape::two_way);
+    setup = setup_of(*next);
+    REQUIRE(setup.kind == job::turns);
+    REQUIRE(setup.programs == ids(*third));
+    REQUIRE_EQ(setup.owner, *third);
 }
 
 TEST_CASE("simple: a join with an owner is shown as made in Advanced mode")

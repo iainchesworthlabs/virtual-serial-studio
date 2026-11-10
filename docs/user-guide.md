@@ -815,8 +815,11 @@ Inspector is an Advanced pane.
   fixture](#mock-fixture-advanced)) for the selected port, or for the first
   fixture when nothing is selected. It sets which signals the port drives on the
   port at the other end of its two-way link.
-- **Topology → Owner** goes to the owner bar under the diagram for a join that
-  uses an owner policy. The owner can be released or given to another port.
+- **Topology → Owner** goes to the owner bar under the diagram for a join or a
+  split that uses an owner policy. The owner can be released or given to another
+  port: on a join one of the sources, on a split one of the targets (never the
+  device the targets share). A link with one target has no choice to make, so it
+  has no bar.
 - **Tools → Benchmark** sends data from one port and counts what arrives on
   another, so you can measure a cable or a driver pair. Choose the two ports,
   the amount (1, 10 or 100 MB) and the chunk size, then **Run**. The bar shows
