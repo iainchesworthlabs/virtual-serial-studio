@@ -650,26 +650,8 @@ result<void> hub::remove_target(link_id id, endpoint_id target)
             std::remove(record.targets.begin(), record.targets.end(), target),
             record.targets.end());
 
-        const auto take = [&](endpoint_id from, endpoint_id to)
-        {
-            const auto it = routes_.find(from);
-            if (it == routes_.end())
-                return;
-            auto& routes = it->second;
-            const auto gone = std::remove_if(
-                routes.begin(), routes.end(), [&](const route_entry& route)
-                { return route.link == id && route.to == to; });
-            for (auto route = gone; route != routes.end(); ++route)
-            {
-                if (route->delay)
-                    held.push_back(std::move(route->delay));
-            }
-            routes.erase(gone, routes.end());
-            if (routes.empty())
-                routes_.erase(it);
-        };
-        take(source, target);
-        take(target, source);
+        take_routes(source, id, target, held);
+        take_routes(target, id, source, held);
 
         // An owner that is no longer on the link would silence it for good.
         endpoint_id owner = target;
