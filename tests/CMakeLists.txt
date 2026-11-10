@@ -16,6 +16,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_bus.cpp
   unit/test_hub_events.cpp
   unit/test_hub_latency.cpp
+  unit/test_hub_owner.cpp
   unit/test_hub_topology.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
