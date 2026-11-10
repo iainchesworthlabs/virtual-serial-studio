@@ -140,8 +140,10 @@ void churn(const link_options& options, int messages)
                 REQUIRE(hub->remove_endpoint(brief.endpoint->id()));
 
                 REQUIRE(hub->release_owner(*link));
-                REQUIRE(hub->remove_target(*link, goes.endpoint->id()));
+                // Not in the order they were added, so a route is taken
+                // from the middle of the source's routes as well as the end.
                 REQUIRE(hub->remove_target(*link, comes.endpoint->id()));
+                REQUIRE(hub->remove_target(*link, goes.endpoint->id()));
                 REQUIRE_EQ(hub->links().size(), std::size_t{1});
                 changes.fetch_add(1);
                 std::this_thread::yield();

@@ -656,15 +656,17 @@ result<void> hub::remove_target(link_id id, endpoint_id target)
             if (it == routes_.end())
                 return;
             auto& routes = it->second;
-            const auto gone = std::remove_if(
-                routes.begin(), routes.end(), [&](const route_entry& route)
-                { return route.link == id && route.to == to; });
-            for (auto route = gone; route != routes.end(); ++route)
+            const auto leaves = [&](const route_entry& route)
+            { return route.link == id && route.to == to; };
+            // The delay lines are taken before the entries are removed:
+            // what remove_if leaves behind it has been moved from.
+            for (auto& route : routes)
             {
-                if (route->delay)
-                    held.push_back(std::move(route->delay));
+                if (leaves(route) && route.delay)
+                    held.push_back(std::move(route.delay));
             }
-            routes.erase(gone, routes.end());
+            routes.erase(std::remove_if(routes.begin(), routes.end(), leaves),
+                         routes.end());
             if (routes.empty())
                 routes_.erase(it);
         };
