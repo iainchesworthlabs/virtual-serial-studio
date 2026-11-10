@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The agent's socket on Linux and macOS: the modes of the socket and of its
-// directory, the lock that keeps one agent for each name, and what happens to
-// a file that is in the way.  Refusing a connection of another user needs a
-// second account and is for a guest machine.
+// directory, the lock that keeps one agent for each name, what happens to a
+// file that is in the way, and a connection of another user.  The last needs a
+// second account: it uses `nobody` through `sudo` where that works without a
+// password (the hosted runners) and is skipped elsewhere.
 //
 
 #include <vss/agent/local_stream.hpp>
@@ -17,8 +18,12 @@
 
 #include <boost/asio/io_context.hpp>
 
+#include <signal.h>
+#include <spawn.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #include <atomic>
@@ -33,6 +38,9 @@
 #include <string>
 #include <system_error>
 #include <utility>
+#include <vector>
+
+extern char** environ;
 
 namespace agent = vss::agent;
 
@@ -158,6 +166,126 @@ bool accepts_a_connection(boost::asio::io_context& io,
     return !accepted->failed && accepted->stream != nullptr;
 }
 
+/// Starts a program found on the PATH.  0 when it could not be started.
+pid_t start_program(std::vector<std::string> words)
+{
+    std::vector<char*> arguments;
+    arguments.reserve(words.size() + 1);
+    for (std::string& word : words)
+        arguments.push_back(word.data());
+    arguments.push_back(nullptr);
+    pid_t child = 0;
+    if (::posix_spawnp(&child, arguments[0], nullptr, nullptr, arguments.data(),
+                       environ) != 0)
+        return 0;
+    return child;
+}
+
+/// The exit code of a program that has ended, or nothing while it runs.  A
+/// program that was ended by a signal counts as 255.
+std::optional<int> exit_code_now(pid_t child)
+{
+    int status = 0;
+    if (::waitpid(child, &status, WNOHANG) != child)
+        return std::nullopt;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 255;
+}
+
+int exit_code_of(std::vector<std::string> words)
+{
+    const pid_t child = start_program(std::move(words));
+    if (child == 0)
+        return 255;
+    int status = 0;
+    if (::waitpid(child, &status, 0) != child)
+        return 255;
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 255;
+}
+
+/// The words that run `python3 -c <script> <arguments>` as the user `nobody`.
+std::vector<std::string> as_nobody(std::string script,
+                                   std::vector<std::string> arguments)
+{
+    std::vector<std::string> words{
+        "sudo", "-n", "-u", "nobody", "python3", "-c", std::move(script)};
+    for (std::string& argument : arguments)
+        words.push_back(std::move(argument));
+    return words;
+}
+
+/// What the stranger does: connect to the socket and wait to be told the
+/// connection is over.  0 the agent closed it, 3 the system refused the
+/// connection, 4 nothing happened, 5 the agent sent something.
+constexpr const char* stranger_script =
+    "import socket, sys\n"
+    "s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n"
+    "s.settimeout(15)\n"
+    "try:\n"
+    "    s.connect(sys.argv[1])\n"
+    "except OSError:\n"
+    "    sys.exit(3)\n"
+    "try:\n"
+    "    data = s.recv(1)\n"
+    "except socket.timeout:\n"
+    "    sys.exit(4)\n"
+    "except OSError:\n"
+    "    sys.exit(0)\n"
+    "sys.exit(0 if data == b'' else 5)\n";
+
+/// Points the transport at a directory of the test's own for as long as it
+/// lives, and puts the environment back afterwards.  The usual directory is
+/// under one only this user can enter, so no other user could reach a socket
+/// in it whatever its mode.
+class scoped_runtime_base
+{
+public:
+    scoped_runtime_base()
+    {
+        // NOLINTBEGIN(concurrency-mt-unsafe)
+        if (const char* value = ::getenv("XDG_RUNTIME_DIR"))
+            runtime_ = value;
+        if (const char* value = ::getenv("TMPDIR"))
+            tmpdir_ = value;
+        // NOLINTEND(concurrency-mt-unsafe)
+
+        std::string made = "/tmp/vssxu.XXXXXX";
+        if (::mkdtemp(made.data()) == nullptr)
+            return;
+        base_ = made;
+        // Anybody may pass through; the transport's own directory inside it
+        // is what is private.
+        static_cast<void>(::chmod(base_.c_str(), 0755));
+        static_cast<void>(::unsetenv("XDG_RUNTIME_DIR"));
+        static_cast<void>(::setenv("TMPDIR", base_.c_str(), 1));
+    }
+
+    ~scoped_runtime_base()
+    {
+        if (runtime_)
+            static_cast<void>(
+                ::setenv("XDG_RUNTIME_DIR", runtime_->c_str(), 1));
+        if (tmpdir_)
+            static_cast<void>(::setenv("TMPDIR", tmpdir_->c_str(), 1));
+        else
+            static_cast<void>(::unsetenv("TMPDIR"));
+        if (!base_.empty())
+        {
+            std::error_code ignored;
+            std::filesystem::remove_all(base_, ignored);
+        }
+    }
+
+    scoped_runtime_base(const scoped_runtime_base&) = delete;
+    scoped_runtime_base& operator=(const scoped_runtime_base&) = delete;
+
+    bool made() const noexcept { return !base_.empty(); }
+
+private:
+    std::optional<std::string> runtime_;
+    std::optional<std::string> tmpdir_;
+    std::string base_;
+};
+
 } // namespace
 
 TEST_CASE("agent transport: the socket and its directory are private")
@@ -258,4 +386,64 @@ TEST_CASE("agent transport: a file in the way of the socket is replaced")
     REQUIRE(after.has_value());
     REQUIRE(S_ISSOCK(after->st_mode));
     REQUIRE(accepts_a_connection(io, **listener, instance.name()));
+}
+
+TEST_CASE("agent transport: a connection of another user is closed unseen")
+{
+    if (exit_code_of(as_nobody("pass", {})) != 0)
+        VSS_SKIP("needs sudo without a password, the user nobody and python3");
+
+    const scoped_runtime_base base;
+    REQUIRE(base.made());
+    const scoped_instance instance;
+    boost::asio::io_context io;
+    auto listener = agent::listen_local(io.get_executor(), instance.name());
+    REQUIRE(listener);
+    const std::filesystem::path socket((*listener)->address());
+    const std::filesystem::path directory = socket.parent_path();
+
+    // Open the two doors the modes keep shut, so that the question the agent
+    // asks about the other end is all that stands between the stranger and
+    // the server.  Nothing but this test ever does this.
+    REQUIRE_EQ(::chmod(directory.c_str(), 0755), 0);
+    REQUIRE_EQ(::chmod(socket.c_str(), 0666), 0);
+
+    const auto accepted = accept_into(**listener);
+    const pid_t stranger =
+        start_program(as_nobody(stranger_script, {socket.string()}));
+    REQUIRE(stranger != 0);
+
+    // The agent has to run for the connection to be looked at, so the wait
+    // for the stranger to end is a wait on the io_context in short turns.
+    std::optional<int> ended;
+    const auto deadline = steady::now() + long_wait;
+    while (!ended && steady::now() < deadline)
+    {
+        io.restart();
+        io.run_for(std::chrono::milliseconds(20));
+        ended = exit_code_now(stranger);
+    }
+    if (!ended)
+    {
+        static_cast<void>(::kill(stranger, SIGKILL));
+        int status = 0;
+        static_cast<void>(::waitpid(stranger, &status, 0));
+    }
+    REQUIRE(ended.has_value());
+    // The system let the stranger in (3 would mean a mode still stopped it and
+    // the test proved nothing), and the agent closed the connection without a
+    // byte (4: left open, 5: answered).
+    REQUIRE_EQ(*ended, 0);
+    // The server was never told about it.
+    REQUIRE(!accepted->done);
+
+    // The wait went on: with the doors shut again, this user's own client is
+    // the first connection the listener hands over.
+    REQUIRE_EQ(::chmod(socket.c_str(), 0600), 0);
+    REQUIRE_EQ(::chmod(directory.c_str(), 0700), 0);
+    const auto own = agent::connect_local(io.get_executor(), instance.name());
+    REQUIRE(own);
+    REQUIRE(run_until(io, [&] { return accepted->done; }, long_wait));
+    REQUIRE(!accepted->failed);
+    REQUIRE(accepted->stream != nullptr);
 }

@@ -192,7 +192,7 @@ Abuse cases:
 
 | Case | What happens | |
 |---|---|---|
-| A process of another user connects | Refused by the system; on Linux and macOS also by the peer check | [slice]; refusal across two real users was not run (section 9) |
+| A process of another user connects | Refused by the system; on Linux and macOS also by the peer check | [slice]; on Linux and macOS a test connects as the user `nobody` and is closed unseen, where `sudo` needs no password (section 9). Not run on Windows |
 | A malicious process of the **same** user connects | It can do what the user can do through the agent, which is what the user could do by running `vss_cli`. The agent is not a boundary inside one user account, and holds no secret | by design |
 | A program takes the pipe name before the agent | The agent does not start; a client refuses the pipe | [slice] for the agent side |
 | A client sends bytes that are not a frame, or a frame over 1 MiB | The length is checked when its four bytes arrive, before anything is buffered. The client gets an error and is closed | [slice], and the decoder is fuzzed |
@@ -424,8 +424,12 @@ the agent by default is decision 6.
 
 What these cannot cover:
 
-- **Two real users.** Refusing another user needs a second account. The tests check the mechanism (the access list,
-  the modes, the peer question); the refusal itself is for a VM guest (`docs/vm-testing.md`) with two accounts.
+- **Two real users.** Refusing another user needs a second account. On Linux and macOS one test has it: it opens the
+  directory and the socket to everyone on purpose, connects as `nobody` through `sudo`, and requires that the agent
+  closes the connection without a byte and without telling the server. It is skipped where `sudo` asks for a password.
+  It covers the agent's question about the other end, not the modes (those are read back in another test), and not a
+  client that refuses an agent of another user. On Windows the tests check the access list only; the refusal itself is
+  for a VM guest (`docs/vm-testing.md`) with two accounts.
 - **Windows driver ports in the agent**: a port outliving Studio, what a program sees when the agent is killed, COM
   numbers after a restart. VM guest with the driver installed.
 - **Sign-in start, sign-out, the installers** stopping an agent. VM guest.
