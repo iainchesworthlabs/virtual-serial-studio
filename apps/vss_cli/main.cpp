@@ -9,6 +9,7 @@
 // can be scripted, measured and put in CI.
 //
 
+#include "agent_command.hpp"
 #include "permissions_command.hpp"
 
 #include <vss/core/profile.hpp>
@@ -87,7 +88,7 @@ struct arguments
 
 void print_usage()
 {
-    // One string literal, split across lines.  Only the two %s conversions
+    // One string literal, split across lines.  Only the three %s conversions
     // near the end take arguments; keep a literal % out of the text.
     std::printf(
         "Virtual Serial Studio command line\n"
@@ -198,19 +199,21 @@ void print_usage()
         "  vss_cli selftest\n"
         "      Check the wiring without touching hardware.\n"
         "\n"
-        // First %s: the permission options, supplied by permissions_usage().
+        // First %s: the agent commands, supplied by agent_usage().
+        "%s"
+        // Second %s: the permission options, supplied by permissions_usage().
         "%s"
         "  Common: --verbose, --quiet\n"
         "\n"
         "  Profiling (Tracy; off unless asked, this computer only):\n"
-        // Second %s: the profiling options from vss::profiling::usage().
+        // Third %s: the profiling options from vss::profiling::usage().
         "%s"
         "\n"
         // The licence notice is the standard GPL interactive-program text.
         "Virtual Serial Studio is free software under the GNU General Public\n"
         "License, version 3 or later.  This program comes with ABSOLUTELY NO\n"
         "WARRANTY; see LICENSE for details.\n",
-        vss_cli::permissions_usage(),
+        vss_cli::agent_usage(), vss_cli::permissions_usage(),
         // usage() is a string_view; copy it to get a terminated %s string.
         std::string(vss::profiling::usage()).c_str());
 }
@@ -1533,6 +1536,12 @@ try
         {
             VSS_PROFILE_ZONE("cli.selftest");
             return command_selftest();
+        }
+        if (command == "agent")
+        {
+            VSS_PROFILE_ZONE("cli.agent");
+            return vss_cli::command_agent(
+                std::vector<std::string>(argv + 1, argv + argc));
         }
         if (command == "permissions")
         {

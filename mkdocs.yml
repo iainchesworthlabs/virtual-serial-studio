@@ -30,6 +30,7 @@ nav:
       - Contributing: contributing.md
   - How it works:
       - Architecture: architecture.md
+      - The per-user agent: agent.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md
       - Platforms: platforms.md

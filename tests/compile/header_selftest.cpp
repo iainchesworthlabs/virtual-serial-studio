@@ -6,6 +6,13 @@
 // Includes every public header on its own to prove each one is
 // self-contained.
 
+#include <vss/agent/client.hpp>
+#include <vss/agent/local_stream.hpp>
+#include <vss/agent/proto/error.hpp>
+#include <vss/agent/proto/frame.hpp>
+#include <vss/agent/proto/message.hpp>
+#include <vss/agent/server.hpp>
+
 #include <vss/core/bytes.hpp>
 #include <vss/core/control_lines.hpp>
 #include <vss/core/endpoint.hpp>

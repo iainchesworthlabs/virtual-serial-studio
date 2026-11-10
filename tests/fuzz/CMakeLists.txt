@@ -11,3 +11,7 @@ vss_add_fuzz_target(fuzz_topology
 vss_add_fuzz_target(fuzz_endpoint_uri
   SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_ports/fuzz/fuzz_endpoint_uri.cpp"
   LIBS vss_ports)
+
+vss_add_fuzz_target(fuzz_agent_frame
+  SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_agent_proto/fuzz/fuzz_agent_frame.cpp"
+  LIBS vss_agent_proto)

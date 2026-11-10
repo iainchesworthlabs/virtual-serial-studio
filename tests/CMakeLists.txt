@@ -5,6 +5,8 @@
 
 set(VSS_UNIT_TEST_SOURCES
   framework/main.cpp
+  unit/test_agent_proto.cpp
+  unit/test_agent_server.cpp
   unit/test_bytes.cpp
   unit/test_control_lines.cpp
   unit/test_document.cpp
@@ -43,12 +45,14 @@ set(VSS_UNIT_TEST_SOURCES
 # unit/platform/<os>/ and are compiled only there.
 if(WIN32)
   list(APPEND VSS_UNIT_TEST_SOURCES
+    unit/platform/windows/test_agent_transport_windows.cpp
     unit/platform/windows/test_driver_client_windows.cpp
     unit/platform/windows/test_helper_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
     unit/platform/windows/test_ports_windows.cpp)
 elseif(UNIX)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/platform/posix/test_ports_posix.cpp
+    unit/platform/posix/test_agent_transport_posix.cpp
     unit/platform/posix/test_permissions_posix.cpp)
 endif()
 
@@ -60,7 +64,8 @@ target_include_directories(vss_unit_tests PRIVATE
   # replay_inputs.hpp and perf_common.hpp, which test_tool_paths.cpp exercises.
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
-target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core)
+target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
+  vss_agent_proto vss_agent_core)
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE
@@ -88,6 +93,19 @@ if(NOT WIN32 AND TARGET vss_cli)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_vport.cpp)
 endif()
 
+# The agent tests start vss_agent and vss_cli as separate processes, on every
+# system. CMake chooses the file that knows how to start one.
+if(TARGET vss_agent AND TARGET vss_cli)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_agent.cpp)
+  if(WIN32)
+    list(APPEND VSS_SYSTEM_TEST_SOURCES
+      support/platform/windows/child_process_windows.cpp)
+  else()
+    list(APPEND VSS_SYSTEM_TEST_SOURCES
+      support/platform/posix/child_process_posix.cpp)
+  endif()
+endif()
+
 add_executable(vss_system_tests ${VSS_SYSTEM_TEST_SOURCES})
 target_include_directories(vss_system_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -106,11 +124,20 @@ if(NOT WIN32 AND TARGET vss_cli)
     VSS_CLI_PATH="$<TARGET_FILE:vss_cli>")
 endif()
 
+if(TARGET vss_agent AND TARGET vss_cli)
+  add_dependencies(vss_system_tests vss_agent vss_cli)
+  target_link_libraries(vss_system_tests PRIVATE vss_agent_core)
+  target_compile_definitions(vss_system_tests PRIVATE
+    VSS_AGENT_PROGRAM="$<TARGET_FILE:vss_agent>"
+    VSS_AGENT_CLI_PROGRAM="$<TARGET_FILE:vss_cli>")
+endif()
+
 add_subdirectory(fuzz)
 
 # A packaging smoke test: the public headers compile on their own.
 add_executable(vss_header_selftest compile/header_selftest.cpp)
-target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit)
+target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
+  vss_agent_proto vss_agent_core)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 
