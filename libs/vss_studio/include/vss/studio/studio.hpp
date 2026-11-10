@@ -290,6 +290,15 @@ public:
     result<void> add_target(link_id id, std::string_view target);
     result<void> remove_target(link_id id, std::string_view target);
 
+    /// Changes the delay, jitter, merge policy, modem lines and wiring of a
+    /// link that exists in place: the link keeps its id, ports and counters.
+    /// See #hub::set_link_options for the rules and the errors, including that
+    /// the bytes a delayed link still holds are discarded when its delay
+    /// changes.  `snapshot()` saves the options the link has now (the wiring
+    /// is not saved): a one-way link with one source and no modem lines is
+    /// saved as a monitor, and as a redirect once it carries lines.
+    result<void> set_link_options(link_id id, const link_options& options);
+
     /// Adds the named port as one more source of a one-way link that exists
     /// (a join, a redirect or a monitor), or takes one out, and leaves the
     /// link's other ports linked and its id unchanged.  See

@@ -1307,6 +1307,12 @@ result<void> studio::remove_target(link_id id, std::string_view target)
     return hub_->remove_target(id, port->id());
 }
 
+result<void> studio::set_link_options(link_id id, const link_options& options)
+{
+    VSS_PROFILE_ZONE("studio.set_link_options");
+    return hub_->set_link_options(id, options);
+}
+
 result<void> studio::add_source(link_id id, std::string_view source)
 {
     VSS_PROFILE_ZONE("studio.add_source");

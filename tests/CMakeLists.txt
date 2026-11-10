@@ -43,6 +43,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio.cpp
   unit/test_studio_reopen.cpp
   unit/test_studio_links.cpp
+  unit/test_studio_options.cpp
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
