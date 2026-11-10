@@ -242,6 +242,15 @@ public:
     /// member of the bus and `invalid_argument` for a bus of two members.
     virtual vss::result<void> remove_member(vss::link_id link,
                                             vss::endpoint_id member) = 0;
+    /// Changes the delay, jitter, merge policy, modem lines and wiring of a
+    /// link in place: the link keeps its id, ports, owner (unless the policy
+    /// leaves `owner`, which clears it) and counters.  A delayed link
+    /// discards the bytes its delay still holds when the delay changes.  A bus
+    /// stores modem lines off whatever is passed and `unsupported` refuses
+    /// any policy but interleave.  `invalid_argument` for a delay over a
+    /// minute or a jitter over the delay, `not_found` for an unknown link.
+    virtual vss::result<void>
+    set_link_options(vss::link_id link, const vss::link_options& options) = 0;
     virtual vss::result<void> set_owner(vss::link_id id,
                                         vss::endpoint_id owner) = 0;
     virtual vss::result<void> release_owner(vss::link_id id) = 0;

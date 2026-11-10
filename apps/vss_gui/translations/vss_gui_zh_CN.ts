@@ -3716,6 +3716,14 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>LinkSettingsDialog</name>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="45" />
+            <source>Applying changes the link where it is and keeps its ports. Bytes it still holds for its delay are discarded when the delay changes.</source>
+            <translation>应用时会就地更改该链接，并保留其端口。链接因延迟而仍保留的字节，会在更改延迟时被丢弃。</translation>
+        </message>
+    </context>
+    <context>
         <name>MonitorModel</name>
         <message>
             <location filename="../src/panes/monitor_model.cpp" line="219" />

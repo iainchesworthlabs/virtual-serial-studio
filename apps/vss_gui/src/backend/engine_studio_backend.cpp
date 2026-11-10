@@ -851,6 +851,17 @@ vss::result<void> EngineStudioBackend::remove_member(vss::link_id link,
     return {};
 }
 
+vss::result<void>
+EngineStudioBackend::set_link_options(vss::link_id link,
+                                      const vss::link_options& options)
+{
+    const auto done = studio_.engine().set_link_options(link, options);
+    if (!done)
+        return done.error();
+    rebuild();
+    return {};
+}
+
 vss::result<void> EngineStudioBackend::set_owner(vss::link_id id,
                                                  vss::endpoint_id owner)
 {

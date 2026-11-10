@@ -23,9 +23,9 @@ namespace vss::gui
 {
 
 /// "Settings for <link>": delay, jitter, what happens when two write at once,
-/// and the modem-line crossing.  The engine cannot change these on a link
-/// that exists, so the caller remakes the link with `options()`
-/// (`backend/canvas_edit`).  A bus offers delay and jitter only.
+/// and the modem-line crossing.  The caller changes the link in place with
+/// `options()` (`change_link_options` in `backend/canvas_edit`).  A bus offers
+/// delay and jitter only.
 class LinkSettingsDialog final : public QDialog
 {
     Q_OBJECT

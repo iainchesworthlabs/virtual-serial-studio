@@ -192,10 +192,11 @@ vss::result<void> apply_removal(StudioBackend& backend, const removal& what);
 vss::result<QVector<QStringList>> restore_removal(StudioBackend& backend,
                                                   const removal& what);
 
-/// Remakes a link with new options (delay, jitter, policy, modem lines): the
-/// engine cannot change them on a link that exists.  Restores the old link
-/// when the new one cannot be made.
-vss::result<vss::link_id> remake_link(StudioBackend& backend, vss::link_id id,
+/// Changes the options of a link in place (delay, jitter, policy, modem lines):
+/// the link keeps its id, ports, counters and, unless the policy leaves
+/// `owner`, its owner.  A delayed link discards the bytes its delay still holds
+/// when the delay changes.  Nothing is changed when the engine refuses.
+vss::result<void> change_link_options(StudioBackend& backend, vss::link_id id,
                                       const vss::link_options& options);
 
 } // namespace vss::gui

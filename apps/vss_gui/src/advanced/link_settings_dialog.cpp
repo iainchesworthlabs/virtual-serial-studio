@@ -42,8 +42,9 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     layout->setSpacing(14);
     layout->addWidget(make_header(
         title,
-        tr("Applying makes the link again with the same ports. Bytes in "
-           "flight while it is made can be lost."),
+        tr("Applying changes the link where it is and keeps its ports. Bytes "
+           "it still holds for its delay are discarded when the delay "
+           "changes."),
         this, false, {}));
 
     const auto make_ms = [this](const QString& label, int maximum)

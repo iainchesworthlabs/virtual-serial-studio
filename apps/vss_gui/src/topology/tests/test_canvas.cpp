@@ -825,6 +825,49 @@ TEST_CASE("canvas: wiring from the canvas links two ports and undoes it")
     REQUIRE_EQ(fixture.backend.links().back().targets.first(), fresh.first());
 }
 
+TEST_CASE("canvas: link Settings change the link in place and undo it in place")
+{
+    clear_canvas_settings();
+    canvas_fixture fixture;
+    vss::gui::UndoService undo;
+    vss::gui::CanvasController canvas(fixture.backend, undo, nullptr, nullptr,
+                                      nullptr);
+    const auto before = fixture.backend.links().front();
+
+    vss::link_options options = before.options;
+    options.delay_ms = 25;
+    options.jitter_ms = 5;
+    options.policy = vss::merge_policy::owner;
+    REQUIRE(canvas.change_link(before.id, options));
+    REQUIRE_EQ(fixture.backend.links().size(), std::size_t{1});
+    // The same link, not one made again with another id.
+    REQUIRE_EQ(fixture.backend.links().front().id, before.id);
+    REQUIRE_EQ(fixture.backend.links().front().options.delay_ms, 25u);
+    REQUIRE(undo.can_undo());
+
+    // The owner policy gave the link an owner; undo gives the options back and
+    // redo gives them again, each on the link that is there.
+    REQUIRE(fixture.backend.set_owner(before.id, fixture.tx).has_value());
+    REQUIRE(undo.undo());
+    REQUIRE_EQ(fixture.backend.links().front().id, before.id);
+    REQUIRE_EQ(fixture.backend.links().front().options.delay_ms, 0u);
+    REQUIRE(fixture.backend.links().front().options.policy ==
+            vss::merge_policy::interleave);
+    REQUIRE_EQ(fixture.backend.links().front().owner, vss::endpoint_id{0});
+    REQUIRE(undo.redo());
+    REQUIRE_EQ(fixture.backend.links().front().id, before.id);
+    REQUIRE_EQ(fixture.backend.links().front().options.delay_ms, 25u);
+
+    // A refusal changes nothing and records nothing.
+    vss::gui::UndoService other;
+    vss::gui::CanvasController refused(fixture.backend, other, nullptr, nullptr,
+                                       nullptr);
+    options.jitter_ms = 26;
+    REQUIRE(!refused.change_link(before.id, options));
+    REQUIRE(!other.can_undo());
+    REQUIRE_EQ(fixture.backend.links().front().options.jitter_ms, 5u);
+}
+
 TEST_CASE("canvas: renders a review screenshot in both themes")
 {
     clear_canvas_settings();

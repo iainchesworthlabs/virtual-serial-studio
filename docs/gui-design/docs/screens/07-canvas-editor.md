@@ -119,7 +119,7 @@ When applying restarts the port, the dialog's primary button reads "Apply and re
 
 ## The link menu (Advanced)
 1. Inspect (Enter)
-2. **Settings...** (Alt+Enter): Delay (0 to `max_link_delay_ms`), Jitter (0 to the delay), If two write at once (Mix them, One owner at a time), Emulate modem lines (two-way links), and the existing Line wiring when `line_matrix` is on. Applying remakes the link with the same ports and the new options (disconnect, then the same call), so the link keeps its shape but gets a new id. A bus offers Delay and Jitter only.
+2. **Settings...** (Alt+Enter): Delay (0 to `max_link_delay_ms`), Jitter (0 to the delay), If two write at once (Mix them, One owner at a time), Emulate modem lines (two-way links), and the existing Line wiring when `line_matrix` is on. Applying changes the link in place with `set_link_options`, so it keeps its id, ports, counters and, unless the policy leaves One owner at a time, its owner. Bytes the link still holds for its delay are discarded when the delay changes. A bus offers Delay and Jitter only.
 3. Reverse direction (one-way and redirect links)
 4. ---
 5. **Delete** (Delete)

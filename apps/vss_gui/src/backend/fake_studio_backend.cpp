@@ -725,6 +725,44 @@ vss::result<void> FakeStudioBackend::remove_member(vss::link_id link,
     return {};
 }
 
+vss::result<void>
+FakeStudioBackend::set_link_options(vss::link_id id,
+                                    const vss::link_options& options)
+{
+    if (const auto error = take_error())
+        return *error;
+    // The same rules as the engine, in the same order.
+    if (!vss::valid_latency(options))
+        return vss::make_error_code(vss::errc::invalid_argument);
+    link_view* view = find_link(id);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    const bool bus = view->mode == vss::link_mode::bus;
+    if (bus && options.policy != vss::merge_policy::interleave)
+        return vss::make_error_code(vss::errc::unsupported);
+
+    vss::link_options next = options;
+    if (bus)
+    {
+        // A bus has no modem lines to switch or wire.
+        next.emulate_modem_lines = false;
+        next.wiring = view->options.wiring;
+    }
+    // A link that interleaves has no owner to name.
+    if (view->options.policy == vss::merge_policy::owner &&
+        next.policy != vss::merge_policy::owner)
+        view->owner = 0;
+    view->options = next;
+    // A one-way link with one source is a monitor while it carries no lines.
+    if (view->mode == vss::link_mode::one_way && view->sources.size() == 1)
+    {
+        view->shape = next.emulate_modem_lines ? link_shape::one_way
+                                               : link_shape::monitor;
+    }
+    refresh();
+    return {};
+}
+
 vss::result<void> FakeStudioBackend::set_owner(vss::link_id id,
                                                vss::endpoint_id owner)
 {

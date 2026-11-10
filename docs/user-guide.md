@@ -589,8 +589,10 @@ topology file, add `delay_ms` (0 to 60000) to any link, and `jitter_ms` to vary
 each chunk by up to that much either side of the delay. In the window at the
 Advanced level, right-click the link and choose **Settings...**: **Delay** and
 **Jitter** are the same two numbers.
-Applying makes the link again with the same ports, so bytes in flight while it
-is made can be lost. A monitor link has no settings.
+Applying changes the link where it is: it keeps its ports, its owner and its
+counters. Bytes it still holds for its delay are discarded when the delay
+changes, and a new delay applies to what follows. A monitor link has no
+settings.
 
 ```json
 { "mode": "bus", "members": ["master", "device-1", "device-2"],

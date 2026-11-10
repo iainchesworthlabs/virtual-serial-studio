@@ -3717,6 +3717,14 @@ Netzwerke: %5</translation>
         </message>
     </context>
     <context>
+        <name>LinkSettingsDialog</name>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="45" />
+            <source>Applying changes the link where it is and keeps its ports. Bytes it still holds for its delay are discarded when the delay changes.</source>
+            <translation>Beim Anwenden wird die Verknüpfung an Ort und Stelle geändert; ihre Ports bleiben erhalten. Bytes, die sie noch für ihre Verzögerung zurückhält, werden verworfen, wenn sich die Verzögerung ändert.</translation>
+        </message>
+    </context>
+    <context>
         <name>MonitorModel</name>
         <message>
             <location filename="../src/panes/monitor_model.cpp" line="219" />
