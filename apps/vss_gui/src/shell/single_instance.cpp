@@ -6,6 +6,8 @@
 
 #include "shell/single_instance.hpp"
 
+#include "support/account_id.hpp"
+
 #include <vss/core/profile.hpp>
 
 #include <QCryptographicHash>
@@ -36,9 +38,14 @@ SingleInstance::~SingleInstance()
 
 QString SingleInstance::default_name()
 {
-    // The user's name keeps two people on one computer apart; the hash keeps
-    // the pipe name short and free of characters a pipe name cannot hold.
-    QString user = qEnvironmentVariable("USERNAME");
+    // The account's id keeps two people on one computer apart; the hash keeps
+    // the pipe name short and free of characters a pipe name cannot hold.  A
+    // user name from the environment would not do: whoever starts the program
+    // can change or empty it, and then two accounts ask for the same name.  It
+    // is used only where the system cannot be asked for the id.
+    QString user = support::account_id();
+    if (user.isEmpty())
+        user = qEnvironmentVariable("USERNAME");
     if (user.isEmpty())
         user = qEnvironmentVariable("USER");
     const QByteArray hash =
