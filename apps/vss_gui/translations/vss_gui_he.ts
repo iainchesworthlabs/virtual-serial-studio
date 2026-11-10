@@ -4247,6 +4247,16 @@ Networks: %5</source>
             <translation>קישור איחוד</translation>
         </message>
         <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="251" />
+            <source>Split</source>
+            <translation>פיצול</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="254" />
+            <source>Split link</source>
+            <translation>קישור פיצול</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/owner_bar.cpp" line="63" />
             <location filename="../src/advanced/owner_bar.cpp" line="74" />
             <source>If both write at once</source>
@@ -4293,6 +4303,11 @@ Networks: %5</source>
             <location filename="../src/advanced/owner_bar.cpp" line="161" />
             <source>Port %1</source>
             <translation>יציאה %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="209" />
+            <source>%1 to %2</source>
+            <translation>%1 אל %2</translation>
         </message>
         <message>
             <location filename="../src/advanced/owner_bar.cpp" line="180" />
@@ -8761,8 +8776,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>בחרו את היעד של איחוד עם מדיניות בעלים כדי לשלוט מי כותב.</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>בחרו את היעד של איחוד או את ההתקן של פיצול עם מדיניות בעלים כדי לשלוט מי כותב.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -16394,8 +16409,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>בחרו את היעד של איחוד עם מדיניות בעלים כדי לשלוט מי כותב.</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>בחרו את היעד של איחוד או את ההתקן של פיצול עם מדיניות בעלים כדי לשלוט מי כותב.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -17774,6 +17789,131 @@ Networks: %5</source>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="325" />
+            <source>Give my program a serial port</source>
+            <translation>יציאה טורית לתוכנית שלי</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="329" />
+            <source>Connect two programs to each other</source>
+            <translation>חיבור שתי תוכניות זו לזו</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="332" />
+            <source>Use my device through a new port</source>
+            <translation>שימוש בהתקן שלי דרך יציאה חדשה</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="336" />
+            <source>Share my device with several programs</source>
+            <translation>שיתוף ההתקן שלי בין כמה תוכניות</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="339" />
+            <source>Try my device from this window</source>
+            <translation>ניסוי ההתקן שלי מהחלון הזה</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="343" />
+            <source>Let other computers use my device</source>
+            <translation>מתן אפשרות למחשבים אחרים להשתמש בהתקן שלי</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="346" />
+            <source>Put several on one line</source>
+            <translation>הצבת כמה על קו אחד</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="349" />
+            <source>Send several into one</source>
+            <translation>שליחת כמה אל אחד</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="353" />
+            <source>Let programs take turns sending to a device</source>
+            <translation>תוכניות שולחות להתקן בתורות</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="358" />
+            <source>Made in Advanced mode</source>
+            <translation>נוצר במצב מתקדם</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="367" />
+            <source>For a program that needs a COM port when there is no device, or before the device arrives.</source>
+            <translation>לתוכנית שצריכה יציאת COM כשאין התקן, או לפני שההתקן מגיע.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="373" />
+            <source>Like a null-modem cable between two programs on this PC. What one sends, the other receives.</source>
+            <translation>כמו כבל null-modem בין שתי תוכניות במחשב הזה. מה שאחת שולחת, השנייה מקבלת.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="377" />
+            <source>Your program opens a new port instead of the device. Then you can watch, share or test without changing the program.</source>
+            <translation>התוכנית שלך פותחת יציאה חדשה במקום ההתקן. כך אפשר לצפות, לשתף או לבדוק בלי לשנות את התוכנית.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="383" />
+            <source>A device can normally be open in one program at a time. Here each program gets its own port, and all of them talk to the device.</source>
+            <translation>בדרך כלל אפשר לפתוח התקן רק בתוכנית אחת בכל פעם. כאן כל תוכנית מקבלת יציאה משלה, וכולן מתקשרות עם ההתקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="390" />
+            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
+            <translation>מקלידים להתקן וקוראים כאן את תשובותיו, בלי תוכנית נוספת. מתאים לבדיקה ראשונה שהוא עובד.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="396" />
+            <source>Other computers connect to this PC over the network and talk to the device.</source>
+            <translation>מחשבים אחרים מתחברים למחשב הזה דרך הרשת ומתקשרים עם ההתקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="400" />
+            <source>Like an RS-485 line. Everyone hears what the others send, and nobody hears themself.</source>
+            <translation>כמו קו RS-485. כולם שומעים מה שהאחרים שולחים, ואף אחד לא שומע את עצמו.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="406" />
+            <source>Everything the senders write arrives at one receiver, in the order it arrives. Nothing goes back.</source>
+            <translation>כל מה שהשולחים כותבים מגיע אל מקבל אחד, לפי סדר ההגעה. שום דבר לא חוזר.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="411" />
+            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
+            <translation>כמה תוכניות שולחות להתקן אחד, אבל רק אחת בכל פעם, כך שהבתים שלהן אף פעם לא מתערבבים. בוחרים איזו. כולן מקבלות את תשובות ההתקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="419" />
+            <source>Made in Advanced mode. You can use it here, and change it in Advanced mode.</source>
+            <translation>נוצר במצב מתקדם. אפשר להשתמש בו כאן ולשנות אותו במצב מתקדם.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="453" />
+            <source>Program port</source>
+            <translation>יציאת תוכנית</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="457" />
+            <source>Program port %1</source>
+            <translation>יציאת תוכנית %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="460" />
+            <source>%1 port %2</source>
+            <translation>היציאה %2 של %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="465" />
+            <source>%1 linked to %2</source>
+            <translation>%1 מקושר אל %2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="469" />
+            <source>%1 through %2</source>
+            <translation>%1 דרך %2</translation>
+        </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="405" />
             <source>%1 shared with %n programs</source>
@@ -17781,6 +17921,16 @@ Networks: %5</source>
                 <numerusform>%1 משותף עם %n תוכנית</numerusform>
                 <numerusform>%1 משותף עם %n תוכניות</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="478" />
+            <source>Trying %1</source>
+            <translation>בדיקת %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="482" />
+            <source>%1 on the network</source>
+            <translation>%1 ברשת</translation>
         </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="414" />
@@ -17819,6 +17969,11 @@ Networks: %5</source>
                 <numerusform>%n תוכנית שולחת אל %1 בתורות</numerusform>
                 <numerusform>%n תוכניות שולחות אל %1 בתורות</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="508" />
+            <source>%1 and %2 more</source>
+            <translation>%1 ועוד %2</translation>
         </message>
     </context>
     <context>

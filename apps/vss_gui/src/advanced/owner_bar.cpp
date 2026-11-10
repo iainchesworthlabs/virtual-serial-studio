@@ -25,6 +25,25 @@
 namespace vss::gui
 {
 
+namespace
+{
+
+/// The ports that can own the link: its sources on a join, and its targets on
+/// a two-way link or a split, where the owner arbitrates the replies.
+const QVector<vss::endpoint_id>& owner_candidates(const link_view& link)
+{
+    return link.mode == vss::link_mode::duplex ? link.targets : link.sources;
+}
+
+/// The ports the candidates meet at: the target of a join, and the source of a
+/// split.
+const QVector<vss::endpoint_id>& meeting_ports(const link_view& link)
+{
+    return link.mode == vss::link_mode::duplex ? link.sources : link.targets;
+}
+
+} // namespace
+
 OwnerBar::OwnerBar(StudioBackend& backend, QWidget* parent)
     : QFrame(parent), backend_(backend)
 {
@@ -129,8 +148,15 @@ OwnerBar::OwnerBar(StudioBackend& backend, QWidget* parent)
 
 bool OwnerBar::supports_owner(const link_view& link)
 {
-    return link.options.policy == vss::merge_policy::owner &&
-           link.sources.size() >= 2;
+    if (link.options.policy != vss::merge_policy::owner ||
+        link.mode == vss::link_mode::bus)
+        return false;
+    return owner_candidates(link).size() >= 2;
+}
+
+bool OwnerBar::meets_at(const link_view& link, vss::endpoint_id port)
+{
+    return meeting_ports(link).contains(port);
 }
 
 void OwnerBar::set_link(std::optional<link_view> link)
@@ -168,19 +194,22 @@ QString OwnerBar::summary() const
 {
     if (!link_)
         return {};
-    QStringList sources;
-    for (const vss::endpoint_id id : link_->sources)
-        sources << port_name(id);
-    const QString source_text = join_names(sources);
-    QString target_text;
-    for (const vss::endpoint_id id : link_->targets)
+    QStringList candidates;
+    for (const vss::endpoint_id id : owner_candidates(*link_))
+        candidates << port_name(id);
+    QString meeting;
+    for (const vss::endpoint_id id : meeting_ports(*link_))
     {
-        if (!target_text.isEmpty())
-            target_text += QStringLiteral(", ");
-        target_text += port_name(id);
+        if (!meeting.isEmpty())
+            meeting += QStringLiteral(", ");
+        meeting += port_name(id);
     }
+    const QString candidate_text = join_names(candidates);
+    if (link_->mode == vss::link_mode::duplex)
+        return QCoreApplication::translate("OwnerBar", "%1 to %2")
+            .arg(meeting, candidate_text);
     return QCoreApplication::translate("OwnerBar", "%1 into %2")
-        .arg(source_text, target_text);
+        .arg(candidate_text, meeting);
 }
 
 QString OwnerBar::owner_name() const
@@ -194,7 +223,7 @@ vss::endpoint_id OwnerBar::give_target() const
 {
     if (!link_)
         return 0;
-    for (const vss::endpoint_id id : link_->sources)
+    for (const vss::endpoint_id id : owner_candidates(*link_))
     {
         if (id != link_->owner)
             return id;
@@ -217,6 +246,13 @@ void OwnerBar::refresh()
     }
     link_ = *fresh;
 
+    const bool split = link_->mode == vss::link_mode::duplex;
+    shape_tag_->set_text(split
+                             ? QCoreApplication::translate("OwnerBar", "Split")
+                             : QCoreApplication::translate("OwnerBar", "Join"));
+    shape_tag_->setAccessibleName(
+        split ? QCoreApplication::translate("OwnerBar", "Split link")
+              : QCoreApplication::translate("OwnerBar", "Join link"));
     summary_->setText(summary());
     {
         const QSignalBlocker blocker(policy_);

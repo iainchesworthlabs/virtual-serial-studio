@@ -456,8 +456,10 @@ and it coalesces by construction.
    keeps `ui/recentFiles` for ordering and adds per-path summary/date keys.
 6. **Share semantics.** The wizard calls `share_serial` as one operation; a
    failure leaves the studio unchanged (the fake's mid-share failure test
-   covers the rollback). Add another program re-runs the operation after
-   removing the previous share, because the engine cannot add one listener.
+   covers the rollback). Add another program, from step 3, adds one port to the
+   share's link in place with `add_target` and leaves the device, the link and
+   the other programs' ports alone; going back to step 2 and sharing again
+   removes the previous share and runs the operation again.
 7. **Peer states.** The real backend reports `unknown`; step 3 shows "Open"
    and omits the waiting sentence. Definite `not_open`/`open` values map to
    "Waiting for program"/"Program connected" in the fake tests.

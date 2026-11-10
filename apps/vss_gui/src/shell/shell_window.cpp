@@ -2664,8 +2664,8 @@ void ShellWindow::show_owner_controls()
     if (owner_bar_ == nullptr || !owner_bar_->has_link())
     {
         status_->showMessage(
-            tr("Select the target of a join with the owner policy "
-               "to control who writes."),
+            tr("Select the target of a join or the device of a split with "
+               "the owner policy to control who writes."),
             6000);
         return;
     }
@@ -2704,7 +2704,7 @@ void ShellWindow::update_owner_bar()
     {
         for (const auto& link : backend_.links())
         {
-            if (link.targets.contains(selection_.port()))
+            if (OwnerBar::meets_at(link, selection_.port()))
                 consider(link);
         }
     }

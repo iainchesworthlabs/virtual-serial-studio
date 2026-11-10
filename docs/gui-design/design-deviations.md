@@ -760,16 +760,22 @@ shows "Waiting for program" or "Program connected"; the fake backend and the
 tests cover both mappings, and a pseudo terminal on Linux reports them for real
 (see "Peer-open honesty").
 
-### Add another program re-runs the one-step share
+### Add another program adds to the share in place
 
-The engine has no add-listener operation: `studio::share_serial` creates the
-source, every listener and the split link as one rollback unit. From step 3,
-"Add another program" therefore goes back to step 2, and the next "Share
-device" removes the previous share and creates the complete new one. A failed
-replacement reports "The previous share was removed. Check the device, then
-try again." A first share failure keeps the "The studio is unchanged"
-sentence. The alternative, silently adding a listener outside the engine's
-rollback unit, would not leave a failed share recoverable.
+The first "Share device" is one operation: `studio::share_serial` creates the
+source, every listener and the split link as one rollback unit, and a failure
+leaves the studio unchanged. From step 3, "Add another program" does not run
+it again. It makes one more program port and adds it to the share's link with
+`add_target` (`add_program_port` in `backend/share_edit.cpp`). The device, the
+link and the other programs' ports are not touched, so a program that has its
+port open keeps it, and the wizard stays on step 3 with the new program in the
+title and the table. If adding fails, the new port is removed, and the wizard
+says "Could not add another program" and "The share is as it was. Check the
+device, then try again." The wizard stops at 32 programs.
+
+Going back to step 2 and choosing "Share device" again still removes the
+previous share and creates the complete new one. A failure then reports "The
+previous share was removed. Check the device, then try again."
 
 ### Error pattern is inline in these dialogs
 
