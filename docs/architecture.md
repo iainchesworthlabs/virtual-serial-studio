@@ -164,8 +164,8 @@ them; the rules below are what keep it sound.
 * **Only `interleave`.** `merge_policy::owner` names one publisher per link, which
   on a bus would silence the replies a polled protocol needs, so it is refused
   (`unsupported`) and so is `set_owner`. Bytes from different members are mixed
-  in the order the hub sees them, and nothing arbitrates a collision; chunks
-  from one member keep their order.
+  in the order the hub sees them, and nothing arbitrates a collision unless the
+  bus is a half-duplex line (below); chunks from one member keep their order.
 * **Counting.** The link counts each delivery, as a split does, so a chunk of
   `n` bytes from one member of a bus of five adds `4n` bytes and four messages
   to the link. The traffic ring shows it once as received on the sender and
@@ -250,7 +250,7 @@ port a program opens today:
 | Windows driver port | The program's, but read only when asked; a change is not seen in step with the bytes | No |
 | Pseudo terminal | None: a pty has no modem lines, the model holds RTS high | No |
 | Real serial port | Studio's own output to the device, not the device's transmitter | No |
-| `rfc2217-listen://` | The client's, but several changes that arrive together are seen as one | No |
+| `rfc2217-listen://` | The client's, but a change that arrives with bytes is seen after them, and several together as one | No |
 | TCP, UDP, RFC 2217 client, mock | None | No |
 
 A program that raises RTS, writes and drops RTS does all three within

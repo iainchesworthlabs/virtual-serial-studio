@@ -438,7 +438,10 @@ A join has **Choose one owner at a time** under **More options** (Advanced):
 only the owner's bytes reach the target and the others' are counted as dropped.
 The owner bar under the diagram says who the owner is, with **Give to** and
 **Release owner**. A shared bus carries no modem lines and has no owner, and a
-port can be on only one bus (at most 64 members). Where the engine has no bus
+port can be on only one bus (at most 64 members). At the Advanced level the bus
+page has **Half-duplex line**, which gives the bus a line rate and reports two
+ports sending at once; see [RS-485 is half-duplex, and a bus can
+be](#rs-485-is-half-duplex-and-a-bus-can-be). Where the engine has no bus
 (**What this build cannot do**), the choice is disabled with "Not available in
 this build".
 
@@ -623,7 +626,7 @@ hears whom, and links model that:
 |---|---|---|
 | RS-232, one device | A **two-way** link (a null-modem cable) | Each end hears the other. |
 | RS-422, or RS-485 with four wires: a master transmits to many devices, and the devices answer on a pair that only the master hears | A **split** from the master's port to the device ports, with modem lines off | A device hears the master. The master hears every device. The devices do not hear each other. |
-| RS-485 with two wires: every station on one pair | A **shared bus** | Every station hears every other, and none hears itself. |
+| RS-485 with two wires: every station on one pair | A **shared bus**, as a half-duplex line if you want collisions reported | Every station hears every other, and none hears itself. |
 
 Make the four-wire case with **Topology → Connect ports…** and **Split one port
 to many**, or `{ "mode": "split", "sources": ["master"], "targets": ["device-1",
@@ -635,30 +638,94 @@ from `vss_cli`). To listen without taking part, give a
 listener a **monitor** or a **join** from the ports, as in [One master, several
 programs and a silent listener](#one-master-several-programs-and-a-silent-listener).
 
-### RS-485 is half-duplex, and the bus is not yet
+### RS-485 is half-duplex, and a bus can be
 
 On a real two-wire RS-485 line one station talks at a time. A station switches its
 transmitter on, sends, and switches it off, either in hardware (automatic
-direction) or by the program raising and dropping RTS. Studio's shared bus gives
-the same hearing, and a master that waits for the answer to each poll works as it
-would on the wire. It does not enforce the one-at-a-time rule:
+direction) or by the program raising and dropping RTS. A shared bus gives the same
+hearing, and a master that waits for the answer to each poll works as it would on
+the wire. Made the plain way it does not enforce the one-at-a-time rule: two
+programs that send at once are both heard, whole, in the order their bytes
+arrived.
 
-- **Overlap is not reported.** If two programs send at once, their bytes are
-  interleaved in the order they arrive. A real line would garble them, and Studio
-  neither garbles them nor says that it happened.
-- **RTS is not carried.** A program that raises RTS to enable its transmitter
-  runs, but nothing is gated by it.
+A bus can be made a **half-duplex line** instead. It then has a line rate, and
+Studio tells you when two stations were on the line together or one answered too
+soon. Tick **Half-duplex line** on the **Shared bus** page of **Topology →
+Connect ports…** (Advanced), or in **Settings for** the bus, or write it in the
+topology file:
+
+```json
+{ "mode": "bus", "members": ["master", "device-1", "device-2"],
+  "half_duplex": { "bit_rate": 9600, "turnaround_ms": 2,
+                   "collisions": "garble", "rts_gating": false } }
+```
+
+Every member of `half_duplex` may be left out; `"half_duplex": {}` is a line at
+9600 bit/s that reports and changes nothing. A bus without `half_duplex` is the
+plain bus, as before, and Studio writes nothing for it.
+
+- **The line rate** (`bit_rate`, 50 to 4000000 bit/s; **Line rate**). A byte
+  takes ten bits, as at 8N1. A message of `n` bytes is on the line for
+  `10 × n ÷ bit_rate` seconds from the moment its program sent it, and **the
+  other stations hear it when its last byte has left the line**, not before: 8
+  bytes at 9600 bit/s arrive 8.3 ms after they were sent. If a program sends two
+  messages in a row, the second follows the first. Set the rate your equipment
+  uses. It is the bus's own rate and does not read or change the baud rate of any
+  port.
+- **Overlap is reported.** A message that starts while another station's is still
+  on the line has collided with it. The Monitor and the Log show a line such as
+  "device-2 sent 6 bytes while device-1 was sending", and the bus counts it
+  (**collisions**).
+- **What the stations hear of a collision** (`collisions`; **If two send at
+  once**). With `report` both messages arrive as they were sent, so your programs
+  carry on and you read what happened in the log. With `garble` every byte of
+  both messages arrives inverted (`41` arrives as `BE`), as a receiver on a real
+  line reads rubbish; a checksum fails, and a master that retries does. The bus
+  counts the bytes it spoilt (**garbled**), and a capture still shows what was
+  sent. Studio spoils the whole of each message it was handed, not only the part
+  that overlapped, because it does not know where a frame ends. A collision never
+  loses a byte.
+- **Turn-around** (`turnaround_ms`, 0 to 60000; **Turn-around**). The line stays
+  taken for this long after a station's last byte, while its transmitter lets go.
+  Another station that starts inside that time has answered too soon: it is
+  reported ("device-1 sent 5 bytes inside the turn-around time after master")
+  and counted as a collision, and with `garble` the hasty answer alone is
+  spoilt. The turn-around holds nothing back. To make a device answer *later*,
+  use a delay in a [scripted device](#delay-and-jitter-on-a-link); a delay on the
+  bus itself (`delay_ms`) is added after the line, to every station alike.
+- **RTS** (`rts_gating`; **Send only while RTS is high**). A station sends only
+  while its RTS is high, and holds the line for as long as it is: what it sends
+  with RTS low is not carried (reported, and counted as **dropped**), and anyone
+  else who sends while it holds RTS high has collided with it. **In this build
+  this applies to loopback ports only**, where you set RTS yourself in the
+  Inspector. Every other kind of port always sends, as a station with an adapter
+  that switches by itself does, and is never muted. The reason is in the next
+  list.
+- **Too far ahead.** A program that writes faster than the line for a long time
+  would fill the memory. A message that could not start within a minute of being
+  sent is dropped, reported and counted as **dropped**.
+
+What a half-duplex line still does not do:
+
+- **It does not follow a program's RTS.** A program on a port raises RTS, writes
+  and drops RTS within microseconds, and Studio does not learn of the RTS in step
+  with the bytes: a Windows driver port reports it only when asked, a pseudo
+  terminal has no modem lines, and the RTS of a real serial port is Studio's own
+  output to the device. Gating by an RTS that was read too late would mute a
+  program that did everything right, so Studio does not. For the same reason RTS
+  dropped before the last byte has gone, which cuts a frame short on real
+  hardware, is not noticed.
 - **No echo.** A port never hears its own bytes. A transceiver that echoes what
   its station sends, which some adapters do, is not modelled, so a program that
   expects to read its own transmission back will not.
-- **Turn-around time is yours to add.** The time a device takes to switch from
-  receiving to sending is not modelled. To rehearse a late answer use a delay on
-  the link or in a [scripted device](#delay-and-jitter-on-a-link), and measure
-  with a capture.
-
-A bus option that reports overlap, and optionally holds the line for a turn-around
-time, is planned and is not in this build; the plan is in
-[gui-design/docs/08-engine-gaps.md](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/docs/gui-design/docs/08-engine-gaps.md).
+- **No electrical mode.** A port still has no RS-232, RS-422 or RS-485 label.
+  The line belongs to the bus.
+- **Real devices bring their own time.** Bytes from a real serial port or from
+  another computer have already spent their time on a real wire or a network
+  when Studio reads them, and the line rate is added on top. Two real devices
+  that overlapped before the bytes reached Studio are not seen as a collision.
+- **Timing is the PC's.** Nothing arrives before its time on the line is over; a
+  busy machine can make it later.
 
 ## Old programs on Windows
 
@@ -1376,9 +1443,14 @@ available in this build". It never pretends. At the moment:
   bits, flow control): the server accepts and reports them but does not apply
   them to a real device linked to it. DTR, RTS and break from the client are
   passed on as control lines.
-- **Half-duplex behaviour of a bus**: a shared bus does not report two programs
-  sending at once, does not hold the line for a turn-around time and does not
-  carry RTS. See [RS-485 is half-duplex, and the bus is not yet](#rs-485-is-half-duplex-and-the-bus-is-not-yet).
+- **A program's RTS on a half-duplex bus**: a bus made a half-duplex line reports
+  two programs sending at once and an answer inside the turn-around time, but it
+  gates by RTS on loopback ports only, and does not echo a station's own bytes.
+  See [RS-485 is half-duplex, and a bus can be](#rs-485-is-half-duplex-and-a-bus-can-be).
+- A **half-duplex line** in a build whose engine has none: the choice in
+  **Connect ports** is disabled with "Not available in this build", and a
+  topology file whose bus has `half_duplex` is refused with "Half-duplex buses
+  are not available in this build".
 - A **shared bus** in a build whose engine has no bus link: the choice in
   **Connect ports** is disabled, and a topology file with a `bus` link is
   refused with "Bus links are not available in this build". The star (one port
