@@ -70,7 +70,45 @@ std::string read_instance_id(HDEVINFO info, SP_DEVINFO_DATA& data)
     return to_utf8(buffer.c_str());
 }
 
+/// The `ComDB` bitmap of the COM name arbiter, readable by every user.
+std::optional<std::vector<unsigned char>> read_com_db()
+{
+    DWORD size = 0;
+    constexpr const wchar_t* key =
+        L"SYSTEM\\CurrentControlSet\\Control\\COM Name Arbiter";
+    if (::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
+                       nullptr, nullptr, &size) != ERROR_SUCCESS ||
+        size == 0)
+        return std::nullopt;
+    std::vector<unsigned char> bitmap(size);
+    if (::RegGetValueW(HKEY_LOCAL_MACHINE, key, L"ComDB", RRF_RT_REG_BINARY,
+                       nullptr, bitmap.data(), &size) != ERROR_SUCCESS)
+        return std::nullopt;
+    bitmap.resize(size);
+    return bitmap;
+}
+
 } // namespace
+
+std::optional<std::vector<unsigned>> platform_reserved_com_numbers()
+{
+    VSS_PROFILE_ZONE("ports.reserved_com_numbers.windows");
+    const auto bitmap = read_com_db();
+    if (!bitmap)
+        return std::nullopt;
+    std::vector<unsigned> numbers = com_numbers_in_bitmap(*bitmap);
+
+    // A name can resolve with no entry in the database (com0com, a port that
+    // went but kept its name); the helper that makes ports refuses these too.
+    for (unsigned number = 1; number <= 255; ++number)
+    {
+        const std::wstring name = L"COM" + std::to_wstring(number);
+        wchar_t target[512];
+        if (::QueryDosDeviceW(name.c_str(), target, 512) != 0)
+            numbers.push_back(number);
+    }
+    return numbers;
+}
 
 std::vector<serial_device_info> platform_enumerate_serial_devices()
 {

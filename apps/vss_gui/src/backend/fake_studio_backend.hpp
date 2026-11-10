@@ -41,6 +41,19 @@ public:
     {
         taken_com_numbers_ = std::move(numbers);
     }
+    /// COM numbers that another device has but that `reserved_com_numbers`
+    /// does not report (the database could not be read in full): a driver port
+    /// still cannot take them.
+    void set_hidden_com_numbers(QSet<unsigned> numbers)
+    {
+        hidden_com_numbers_ = std::move(numbers);
+    }
+    /// The backend cannot say which COM numbers Windows keeps (the window
+    /// then does not offer numbers).
+    void set_reservations_unknown(bool unknown)
+    {
+        reservations_unknown_ = unknown;
+    }
     /// The program that has a driver port open, as the driver would name it.
     void set_holder(vss::endpoint_id id, std::optional<holder_view> holder);
     /// The releases asked for so far, in order.
@@ -134,6 +147,14 @@ public:
     std::vector<port_view> ports() const override { return ports_; }
     std::vector<link_view> links() const override { return links_; }
     std::vector<device_view> devices() const override { return devices_; }
+    std::optional<std::vector<unsigned>> reserved_com_numbers() const override
+    {
+        if (reservations_unknown_)
+            return std::nullopt;
+        std::vector<unsigned> numbers(taken_com_numbers_.begin(),
+                                      taken_com_numbers_.end());
+        return numbers;
+    }
     std::vector<traffic_view> traffic(int limit) const override;
     setup_facts facts() const override { return facts_; }
     std::chrono::milliseconds probe_cache_age() const override
@@ -231,6 +252,8 @@ private:
     int free_pairs_ = -1;
     int next_com_number_ = 7;
     QSet<unsigned> taken_com_numbers_;
+    QSet<unsigned> hidden_com_numbers_;
+    bool reservations_unknown_ = false;
     QHash<vss::endpoint_id, holder_view> holders_;
     std::vector<std::pair<vss::endpoint_id, release_method>> releases_;
     std::optional<std::pair<int, vss::error_code>> share_failure_;

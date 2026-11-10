@@ -3134,19 +3134,34 @@ Networks: %5</source>
             <translation>此版本不支持原样返回所有内容。</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>无法更改配置。%1 Studio 已尽可能恢复了原来的内容。</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>无法完成设置。%1 未做任何更改。</translation>
-        </message>
-        <message>
             <location filename="../src/simple/job_form.cpp" line="1391" />
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>无法完成设置。COM%1 已被此电脑上的其他设备占用，例如真实端口、com0com 或 Windows 仍记得的旧端口。未做任何更改。Studio 已为你选择了其他编号。请选择“创建”重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>无法更改配置。COM%1 已被此电脑上的其他设备占用，例如真实端口、com0com 或 Windows 仍记得的旧端口。Studio 已尽可能恢复了原来的内容。Studio 已为你选择了其他编号。请选择“应用”重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>无法完成设置。Studio 报告：%1。未做任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>无法更改配置。Studio 报告：%1。Studio 已尽可能恢复了原来的内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio 无法读取 Windows 保留了哪些 COM 编号，因此会在创建端口时选择一个空闲编号，并在端口就绪时显示。</translation>
         </message>
     </context>
     <context>
@@ -17712,14 +17727,29 @@ Networks: %5</source>
             <translation>此版本不支持原样返回所有内容。</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>无法更改配置。%1 Studio 已尽可能恢复了原来的内容。</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>无法完成设置。COM%1 已被此电脑上的其他设备占用，例如真实端口、com0com 或 Windows 仍记得的旧端口。未做任何更改。Studio 已为你选择了其他编号。请选择“创建”重试。</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>无法完成设置。%1 未做任何更改。</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>无法更改配置。COM%1 已被此电脑上的其他设备占用，例如真实端口、com0com 或 Windows 仍记得的旧端口。Studio 已尽可能恢复了原来的内容。Studio 已为你选择了其他编号。请选择“应用”重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>无法完成设置。Studio 报告：%1。未做任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>无法更改配置。Studio 报告：%1。Studio 已尽可能恢复了原来的内容。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio 无法读取 Windows 保留了哪些 COM 编号，因此会在创建端口时选择一个空闲编号，并在端口就绪时显示。</translation>
         </message>
     </context>
     <context>

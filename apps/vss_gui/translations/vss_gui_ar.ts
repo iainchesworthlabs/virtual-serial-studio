@@ -3139,19 +3139,34 @@ Networks: %5</source>
             <translation>إرجاع كل شيء غير متاح في هذا الإصدار.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>تعذر تغيير الإعداد. %1 أعاد Studio ما كان موجودًا من قبل قدر ما استطاع.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>تعذر إعداده. %1 لم يتغير شيء.</translation>
-        </message>
-        <message>
             <location filename="../src/simple/job_form.cpp" line="1391" />
             <source>Set up Virtual Serial Studio</source>
             <translation>إعداد Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>تعذر إعداده. COM%1 يخص بالفعل جهازًا آخر في هذا الكمبيوتر، مثل منفذ حقيقي أو com0com أو منفذ سابق يتذكره Windows. لم يتغير شيء. اختار Studio رقمًا آخر لك. اختر إنشاء للمحاولة مرة أخرى.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>تعذر تغيير الإعداد. COM%1 يخص بالفعل جهازًا آخر في هذا الكمبيوتر، مثل منفذ حقيقي أو com0com أو منفذ سابق يتذكره Windows. أعاد Studio ما كان موجودًا من قبل قدر ما استطاع. اختار Studio رقمًا آخر لك. اختر تطبيق للمحاولة مرة أخرى.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>تعذر إعداده. أبلغ Studio: %1. لم يتغير شيء.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. أعاد Studio ما كان موجودًا من قبل قدر ما استطاع.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
         </message>
     </context>
     <context>
@@ -17772,14 +17787,29 @@ Networks: %5</source>
             <translation>إرجاع كل شيء غير متاح في هذا الإصدار.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>تعذر تغيير الإعداد. %1 أعاد Studio ما كان موجودًا من قبل قدر ما استطاع.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>تعذر إعداده. COM%1 يخص بالفعل جهازًا آخر في هذا الكمبيوتر، مثل منفذ حقيقي أو com0com أو منفذ سابق يتذكره Windows. لم يتغير شيء. اختار Studio رقمًا آخر لك. اختر إنشاء للمحاولة مرة أخرى.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>تعذر إعداده. %1 لم يتغير شيء.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>تعذر تغيير الإعداد. COM%1 يخص بالفعل جهازًا آخر في هذا الكمبيوتر، مثل منفذ حقيقي أو com0com أو منفذ سابق يتذكره Windows. أعاد Studio ما كان موجودًا من قبل قدر ما استطاع. اختار Studio رقمًا آخر لك. اختر تطبيق للمحاولة مرة أخرى.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>تعذر إعداده. أبلغ Studio: %1. لم يتغير شيء.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. أعاد Studio ما كان موجودًا من قبل قدر ما استطاع.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
         </message>
     </context>
     <context>

@@ -3135,19 +3135,34 @@ Networks: %5</source>
             <translation>שליחת הכול בחזרה אינה זמינה בגרסה הזו.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>לא ניתן היה לשנות את התצורה. %1 מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>לא ניתן היה להגדיר זאת. %1 דבר לא השתנה.</translation>
-        </message>
-        <message>
             <location filename="../src/simple/job_form.cpp" line="1391" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>לא ניתן היה להגדיר זאת. COM%1 כבר שייך להתקן אחר במחשב זה, כמו יציאה אמיתית, com0com או יציאה קודמת ש־Windows זוכר. דבר לא השתנה. Studio בחר עבורכם מספר אחר. בחרו ביצירה כדי לנסות שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>לא ניתן היה לשנות את התצורה. COM%1 כבר שייך להתקן אחר במחשב זה, כמו יציאה אמיתית, com0com או יציאה קודמת ש־Windows זוכר. מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח. Studio בחר עבורכם מספר אחר. בחרו בהחלה כדי לנסות שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>לא ניתן היה להגדיר זאת. Studio דיווח: %1. דבר לא השתנה.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio לא הצליח לקרוא אילו מספרי COM Windows שומר, ולכן הוא בוחר מספר פנוי בעת יצירת היציאה ומציג אותו כשהיציאה מוכנה.</translation>
         </message>
     </context>
     <context>
@@ -17724,14 +17739,29 @@ Networks: %5</source>
             <translation>שליחת הכול בחזרה אינה זמינה בגרסה הזו.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>לא ניתן היה לשנות את התצורה. %1 מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>לא ניתן היה להגדיר זאת. COM%1 כבר שייך להתקן אחר במחשב זה, כמו יציאה אמיתית, com0com או יציאה קודמת ש־Windows זוכר. דבר לא השתנה. Studio בחר עבורכם מספר אחר. בחרו ביצירה כדי לנסות שוב.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>לא ניתן היה להגדיר זאת. %1 דבר לא השתנה.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>לא ניתן היה לשנות את התצורה. COM%1 כבר שייך להתקן אחר במחשב זה, כמו יציאה אמיתית, com0com או יציאה קודמת ש־Windows זוכר. מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח. Studio בחר עבורכם מספר אחר. בחרו בהחלה כדי לנסות שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>לא ניתן היה להגדיר זאת. Studio דיווח: %1. דבר לא השתנה.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio לא הצליח לקרוא אילו מספרי COM Windows שומר, ולכן הוא בוחר מספר פנוי בעת יצירת היציאה ומציג אותו כשהיציאה מוכנה.</translation>
         </message>
     </context>
     <context>

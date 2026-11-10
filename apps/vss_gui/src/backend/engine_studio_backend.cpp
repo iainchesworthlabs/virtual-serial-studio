@@ -422,7 +422,11 @@ EngineStudioBackend::create_port_with_com_number(
         paths.push_back(device.path);
     for (const auto& info : studio_.endpoint_infos())
         paths.push_back(info.path);
-    const std::vector<unsigned> in_use = com_numbers_in_use(paths);
+    std::vector<unsigned> in_use = com_numbers_in_use(paths);
+    // The names Windows keeps for ports that are not listed come first, so the
+    // refusals below are the exception rather than the rule.
+    if (const auto kept = studio_.reserved_com_numbers())
+        in_use.insert(in_use.end(), kept->begin(), kept->end());
 
     const unsigned start = first_com_candidate(in_use);
     unsigned candidate = start;

@@ -71,6 +71,10 @@ public:
     std::vector<port_view> ports() const override { return ports_; }
     std::vector<link_view> links() const override { return links_; }
     std::vector<device_view> devices() const override;
+    std::optional<std::vector<unsigned>> reserved_com_numbers() const override
+    {
+        return studio_.reserved_com_numbers();
+    }
     std::vector<traffic_view> traffic(int limit) const override;
     setup_facts facts() const override;
     driver_check check_driver() const override;

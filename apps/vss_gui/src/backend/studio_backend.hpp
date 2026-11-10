@@ -137,6 +137,17 @@ public:
     virtual std::vector<port_view> ports() const = 0;
     virtual std::vector<link_view> links() const = 0;
     virtual std::vector<device_view> devices() const = 0;
+    /// The COM numbers Windows keeps for a port that no list shows (the COM
+    /// name database holds the number of a port that is unplugged or was
+    /// removed), which a new driver port cannot take.  Only a driver port can
+    /// be asked for a number, so this is read where `capabilities::com_numbers`
+    /// is on.  `nullopt` when the backend cannot tell: the window then does not
+    /// offer numbers to choose from and lets Studio pick (see
+    /// `08-engine-gaps.md`).  It reads the computer each time.
+    virtual std::optional<std::vector<unsigned>> reserved_com_numbers() const
+    {
+        return std::nullopt;
+    }
     /// The engine's bounded traffic ring, oldest first.  A limit of zero
     /// returns everything retained.  Used by the diagnostic bundle only when
     /// the user opts in to traffic contents.

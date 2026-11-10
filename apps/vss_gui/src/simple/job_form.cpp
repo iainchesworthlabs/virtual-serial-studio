@@ -310,10 +310,20 @@ const std::vector<end_plan>& JobForm::list(bool second) const
 
 bool JobForm::com_numbers_shown() const
 {
-    return backend_.caps().com_numbers;
+    // The numbers are offered only when Studio can tell which are free: ports
+    // that are listed are not the only ones Windows keeps a number for.
+    return backend_.caps().com_numbers && reserved_.has_value();
 }
 
-std::vector<unsigned> JobForm::free_com_numbers(const end_plan* keep) const
+void JobForm::refresh_reserved()
+{
+    reserved_.reset();
+    if (backend_.caps().com_numbers)
+        reserved_ = backend_.reserved_com_numbers();
+}
+
+std::vector<unsigned> JobForm::free_com_numbers(const end_plan* keep,
+                                                std::size_t limit) const
 {
     std::vector<std::string> paths;
     for (const auto& port : backend_.ports())
@@ -321,6 +331,11 @@ std::vector<unsigned> JobForm::free_com_numbers(const end_plan* keep) const
     for (const auto& device : backend_.devices())
         paths.push_back(to_std(device.path));
     std::vector<unsigned> in_use = com_numbers_in_use(paths);
+    // Numbers Windows keeps for a port that is not listed, and numbers it
+    // refused a moment ago.
+    if (reserved_)
+        in_use.insert(in_use.end(), reserved_->begin(), reserved_->end());
+    in_use.insert(in_use.end(), refused_.begin(), refused_.end());
     for (const auto* ends : {&plan_.first, &plan_.second})
     {
         for (const auto& end : *ends)
@@ -329,14 +344,44 @@ std::vector<unsigned> JobForm::free_com_numbers(const end_plan* keep) const
                 in_use.push_back(end.com_number);
         }
     }
+    const auto is_free = [&in_use](unsigned number)
+    { return std::find(in_use.begin(), in_use.end(), number) == in_use.end(); };
     std::vector<unsigned> free;
     for (unsigned number = kFirstGuiComNumber;
-         number <= kLastGuiComNumber && free.size() < 8; ++number)
+         number <= kLastGuiComNumber && free.size() < limit; ++number)
     {
-        if (std::find(in_use.begin(), in_use.end(), number) == in_use.end())
+        if (is_free(number))
             free.push_back(number);
     }
+    // The row's own number stays in its list when it is free, so the list
+    // never shows a different number from the one the plan holds.
+    if (keep != nullptr && keep->com_number >= kFirstGuiComNumber &&
+        keep->com_number <= kLastGuiComNumber && is_free(keep->com_number) &&
+        std::find(free.begin(), free.end(), keep->com_number) == free.end())
+    {
+        free.push_back(keep->com_number);
+        std::sort(free.begin(), free.end());
+    }
     return free;
+}
+
+void JobForm::fix_com_numbers()
+{
+    if (!com_numbers_shown())
+        return;
+    for (auto* ends : {&plan_.first, &plan_.second})
+    {
+        for (auto& end : *ends)
+        {
+            if (end.what != end_plan::kind::program || end.existing != 0)
+                continue;
+            const auto free = free_com_numbers(&end, kLastGuiComNumber);
+            if (end.com_number != 0 && std::find(free.begin(), free.end(),
+                                                 end.com_number) != free.end())
+                continue;
+            end.com_number = free.empty() ? 0 : free.front();
+        }
+    }
 }
 
 QStringList JobForm::free_devices() const
@@ -381,6 +426,7 @@ end_plan JobForm::new_program()
 {
     end_plan end;
     end.what = end_plan::kind::program;
+    refresh_reserved();
     if (com_numbers_shown())
     {
         const auto free = free_com_numbers(nullptr);
@@ -736,6 +782,10 @@ void JobForm::build()
 void JobForm::rebuild_ends()
 {
     VSS_PROFILE_ZONE("gui.simple.job_form.rebuild_ends");
+    // Read what Windows keeps again, so a number that was taken while the form
+    // was open is not offered, and move any end that holds one to a free one.
+    refresh_reserved();
+    fix_com_numbers();
     QWidget* focused = QApplication::focusWidget();
     const bool focus_inside =
         focused != nullptr && ends_->isAncestorOf(focused);
@@ -901,8 +951,12 @@ QWidget* JobForm::program_row(bool second, int index)
             hint_label(tr("Some older programs only list COM1 to COM9."), row));
     if (end.existing == 0 && !com_numbers_shown())
         layout->addWidget(hint_label(
-            tr("Studio picks the name, such as /dev/pts/3 or COM7, and shows "
-               "it when the port is ready."),
+            backend_.caps().com_numbers
+                ? tr("Studio could not read which COM numbers Windows keeps, "
+                     "so it picks a free one when the port is made and shows "
+                     "it when the port is ready.")
+                : tr("Studio picks the name, such as /dev/pts/3 or COM7, and "
+                     "shows it when the port is ready."),
             row));
     return row;
 }
@@ -1423,7 +1477,8 @@ bool JobForm::submit()
         return false;
     error_->setVisible(false);
     const setup_view* previous = previous_ ? &*previous_ : nullptr;
-    const auto built = build_setup(backend_, plan_, previous);
+    unsigned clashed = 0;
+    const auto built = build_setup(backend_, plan_, previous, &clashed);
     if (!built)
     {
         if (const auto problem = driver_problem_of(built.error()))
@@ -1449,12 +1504,39 @@ bool JobForm::submit()
             return false;
         }
         error_->clear_action();
+        if (clashed != 0)
+        {
+            // Windows refused a number that was offered: never offer it again,
+            // and give the row a free one so Create can simply be tried again.
+            refused_.push_back(clashed);
+            rebuild_ends();
+            update_all();
+            error_->set_text(
+                editing()
+                    ? tr("Could not change the setup. COM%1 already belongs "
+                         "to another device on this PC, such as a real port, "
+                         "com0com or an earlier port that Windows "
+                         "remembers. What was there before was put back "
+                         "where Studio could. Studio has chosen another "
+                         "number for you. Choose Apply to try again.")
+                          .arg(clashed)
+                    : tr("Could not set it up. COM%1 already belongs to "
+                         "another device on this PC, such as a real port, "
+                         "com0com or an earlier port that Windows "
+                         "remembers. Nothing was changed. Studio has chosen "
+                         "another number for you. Choose Create to try "
+                         "again.")
+                          .arg(clashed));
+            error_->setVisible(true);
+            return false;
+        }
         error_->set_text(
             editing()
-                ? tr("Could not change the setup. %1 What was there before "
-                     "was put back where Studio could.")
+                ? tr("Could not change the setup. Studio reported: %1. What "
+                     "was there before was put back where Studio could.")
                       .arg(error_text(built.error()))
-                : tr("Could not set it up. %1 Nothing was changed.")
+                : tr("Could not set it up. Studio reported: %1. Nothing was "
+                     "changed.")
                       .arg(error_text(built.error())));
         error_->setVisible(true);
         return false;

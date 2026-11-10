@@ -3135,19 +3135,34 @@ Networks: %5</source>
             <translation>אַלץ צוריקשיקן איז נישט פֿאַראַן אין דער דאָזיקער ווערסיע.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. %1 וואָס איז פֿריִער געווען איז צוריקגעשטעלט געוואָרן וווּ Studio האָט געקענט.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>ס׳האָט נישט געקענט אײַנשטעלן. %1 גאָרנישט איז געענדערט געוואָרן.</translation>
-        </message>
-        <message>
             <location filename="../src/simple/job_form.cpp" line="1391" />
             <source>Set up Virtual Serial Studio</source>
             <translation>אײַנשטעלן Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>ס׳האָט נישט געקענט אײַנשטעלן. COM%1 געהערט שוין צו אַן אַנדער אַפּאַראַט אין דעם קאָמפּיוטער, ווי אַ אמתער פּאָרט, com0com אָדער אַ פֿריִערדיקער פּאָרט וואָס Windows געדענקט. גאָרנישט איז געענדערט געוואָרן. Studio האָט אויסגעקליבן אַן אַנדער נומער פֿאַר אײַך. קלײַבט באַשאַפֿן כדי נאָכאַמאָל צו פּרובירן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. COM%1 געהערט שוין צו אַן אַנדער אַפּאַראַט אין דעם קאָמפּיוטער, ווי אַ אמתער פּאָרט, com0com אָדער אַ פֿריִערדיקער פּאָרט וואָס Windows געדענקט. וואָס איז פֿריִער געווען איז צוריקגעשטעלט געוואָרן וווּ Studio האָט געקענט. Studio האָט אויסגעקליבן אַן אַנדער נומער פֿאַר אײַך. קלײַבט אָנווענדן כדי נאָכאַמאָל צו פּרובירן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>ס׳האָט נישט געקענט אײַנשטעלן. Studio האָט געמאָלדן: %1. גאָרנישט איז געענדערט געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. Studio האָט געמאָלדן: %1. וואָס איז פֿריִער געווען איז צוריקגעשטעלט געוואָרן וווּ Studio האָט געקענט.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio האָט נישט געקענט לייענען וועלכע COM־נומערן Windows האַלט, דעריבער קלײַבט עס אויס אַ פֿרײַען ווען דער פּאָרט ווערט באַשאַפֿן און ווײַזט אים ווען דער פּאָרט איז גרייט.</translation>
         </message>
     </context>
     <context>
@@ -17724,14 +17739,29 @@ Networks: %5</source>
             <translation>אַלץ צוריקשיקן איז נישט פֿאַראַן אין דער דאָזיקער ווערסיע.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. %1 וואָס איז פֿריִער געווען איז צוריקגעשטעלט געוואָרן וווּ Studio האָט געקענט.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>ס׳האָט נישט געקענט אײַנשטעלן. COM%1 געהערט שוין צו אַן אַנדער אַפּאַראַט אין דעם קאָמפּיוטער, ווי אַ אמתער פּאָרט, com0com אָדער אַ פֿריִערדיקער פּאָרט וואָס Windows געדענקט. גאָרנישט איז געענדערט געוואָרן. Studio האָט אויסגעקליבן אַן אַנדער נומער פֿאַר אײַך. קלײַבט באַשאַפֿן כדי נאָכאַמאָל צו פּרובירן.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>ס׳האָט נישט געקענט אײַנשטעלן. %1 גאָרנישט איז געענדערט געוואָרן.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. COM%1 געהערט שוין צו אַן אַנדער אַפּאַראַט אין דעם קאָמפּיוטער, ווי אַ אמתער פּאָרט, com0com אָדער אַ פֿריִערדיקער פּאָרט וואָס Windows געדענקט. וואָס איז פֿריִער געווען איז צוריקגעשטעלט געוואָרן וווּ Studio האָט געקענט. Studio האָט אויסגעקליבן אַן אַנדער נומער פֿאַר אײַך. קלײַבט אָנווענדן כדי נאָכאַמאָל צו פּרובירן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>ס׳האָט נישט געקענט אײַנשטעלן. Studio האָט געמאָלדן: %1. גאָרנישט איז געענדערט געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. Studio האָט געמאָלדן: %1. וואָס איז פֿריִער געווען איז צוריקגעשטעלט געוואָרן וווּ Studio האָט געקענט.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio האָט נישט געקענט לייענען וועלכע COM־נומערן Windows האַלט, דעריבער קלײַבט עס אויס אַ פֿרײַען ווען דער פּאָרט ווערט באַשאַפֿן און ווײַזט אים ווען דער פּאָרט איז גרייט.</translation>
         </message>
     </context>
     <context>
