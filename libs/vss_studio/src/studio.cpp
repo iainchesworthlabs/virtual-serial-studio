@@ -938,17 +938,16 @@ std::optional<driver_peer_info> studio::driver_holder(endpoint_id id) const
 {
     VSS_PROFILE_ZONE("studio.driver_holder");
     std::string com_name;
-    bool held = false;
     {
         std::lock_guard lock(record_mutex_);
         const auto it = records_.find(id);
-        held = it != records_.end() && !it->second.driver.expired();
-        if (held)
+        if (it == records_.end())
+            return std::nullopt;
+        if (!it->second.driver.expired())
             com_name = it->second.target;
     }
-    // No return while the lock is held: the analyser cannot follow a scoped
-    // lock through an early return.
-    if (!held)
+    // An empty name means there is no live driver port to ask about.
+    if (com_name.empty())
         return std::nullopt;
     return driver_peer(com_name);
 }
