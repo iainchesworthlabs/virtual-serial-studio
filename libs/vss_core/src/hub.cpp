@@ -15,6 +15,7 @@
 #include <boost/asio/post.hpp>
 
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <unordered_set>
 
@@ -722,7 +723,7 @@ void hub::route_data(endpoint_id from, bytes_view data)
     std::shared_ptr<bus_wire> wire;
     std::vector<bus_wire::delivery> on_wire;
     bus_verdict verdict;
-    endpoint_event fault;
+    std::optional<endpoint_event> fault;
     {
         std::shared_lock lock(mutex_);
         auto it = routes_.find(from);
@@ -764,12 +765,13 @@ void hub::route_data(endpoint_id from, bytes_view data)
                                        ? std::string()
                                        : found->second->name();
                         };
-                        fault.kind = event_kind::bus_fault;
-                        fault.endpoint = from;
-                        fault.name = name_of(from);
-                        fault.fault = verdict.fault;
-                        fault.link = record.id;
-                        fault.message = describe_fault(
+                        fault.emplace();
+                        fault->kind = event_kind::bus_fault;
+                        fault->endpoint = from;
+                        fault->name = name_of(from);
+                        fault->fault = verdict.fault;
+                        fault->link = record.id;
+                        fault->message = describe_fault(
                             verdict.fault, data.size(), name_of(verdict.other),
                             record.options.half_duplex.on_collision ==
                                 collision_action::garble);
@@ -809,10 +811,10 @@ void hub::route_data(endpoint_id from, bytes_view data)
     if (wire && !on_wire.empty())
         wire->push(from, verdict.ends, data, std::move(verdict.transmission),
                    std::move(on_wire));
-    if (fault.kind == event_kind::bus_fault)
+    if (fault)
     {
-        fault.when = clock_type::now();
-        publish(std::move(fault));
+        fault->when = clock_type::now();
+        publish(std::move(*fault));
     }
 }
 
