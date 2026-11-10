@@ -414,14 +414,13 @@ TEST_CASE("document: the links of a plain bus are written exactly as before")
     REQUIRE(text);
     const auto at = text->find("\"links\":");
     REQUIRE(at != std::string::npos);
-    REQUIRE_EQ(
-        text->substr(at),
-        std::string(
-            R"("links":[{"mode":"bus","members":["master","one","two"],)"
-            R"("emulate_modem_lines":false,"policy":"interleave"},)"
-            R"({"mode":"join","sources":["master","one","two"],)"
-            R"("targets":["tap"],"emulate_modem_lines":false,)"
-            R"("policy":"interleave"}]})"));
+    REQUIRE_EQ(text->substr(at),
+               std::string(
+                   R"("links":[{"mode":"bus","members":["master","one","two"],)"
+                   R"("emulate_modem_lines":false,"policy":"interleave"},)"
+                   R"({"mode":"join","sources":["master","one","two"],)"
+                   R"("targets":["tap"],"emulate_modem_lines":false,)"
+                   R"("policy":"interleave"}]})"));
 }
 
 TEST_CASE("document: a bus in a hand written file needs only its members")
@@ -664,10 +663,9 @@ TEST_CASE("document: a half-duplex bus round trips and stays out when off")
 
     const auto text = to_json(value, false);
     REQUIRE(text);
-    REQUIRE(text->find(
-                R"("delay_ms":3,"half_duplex":{"bit_rate":19200,)"
-                R"("turnaround_ms":2,"collisions":"garble",)"
-                R"("rts_gating":true}})") != std::string::npos);
+    REQUIRE(text->find(R"("delay_ms":3,"half_duplex":{"bit_rate":19200,)"
+                       R"("turnaround_ms":2,"collisions":"garble",)"
+                       R"("rts_gating":true}})") != std::string::npos);
     // The version is still 1.
     REQUIRE(text->find("\"version\":1") != std::string::npos);
 
@@ -712,10 +710,10 @@ TEST_CASE("document: a half-duplex bus in a hand written file")
             collision_action::report);
     REQUIRE(!bare->links[0].half_duplex.rts_gating);
 
-    const auto full = parse(
-        R"({"mode":"bus","members":["a","b"],"half_duplex":)"
-        R"({"bit_rate":4000000,"turnaround_ms":60000,)"
-        R"("collisions":"report","rts_gating":false}})");
+    const auto full =
+        parse(R"({"mode":"bus","members":["a","b"],"half_duplex":)"
+              R"({"bit_rate":4000000,"turnaround_ms":60000,)"
+              R"("collisions":"report","rts_gating":false}})");
     REQUIRE(full);
     REQUIRE_EQ(full->links[0].half_duplex.bit_rate, max_bus_bit_rate);
     REQUIRE_EQ(full->links[0].half_duplex.turnaround_ms, max_link_delay_ms);
@@ -723,8 +721,7 @@ TEST_CASE("document: a half-duplex bus in a hand written file")
     const auto expect_invalid = [&](const std::string& line)
     {
         const auto parsed = parse(
-            R"({"mode":"bus","members":["a","b"],"half_duplex":)" + line +
-            "}");
+            R"({"mode":"bus","members":["a","b"],"half_duplex":)" + line + "}");
         REQUIRE(!parsed);
         REQUIRE(parsed.error() == make_error_code(errc::config_error));
     };

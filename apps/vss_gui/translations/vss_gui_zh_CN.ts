@@ -1972,6 +1972,11 @@
             <source>Traffic</source>
             <translation>流量</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="51" />
+            <source>Bus</source>
+            <translation>总线</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -3771,6 +3776,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_model.cpp" line="311" />
             <source>not the owner, not forwarded</source>
             <translation>不是所有者，未转发</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="286" />
+            <source>Not carried by the bus.</source>
+            <translation>未经总线传送。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="354" />
+            <source>not carried by the bus</source>
+            <translation>未经总线传送</translation>
         </message>
     </context>
     <context>
@@ -5657,6 +5672,11 @@ Networks: %5</source>
             <location filename="../src/backend/driver_error.cpp" line="161" />
             <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
             <translation>Windows 不愿创建该端口，Studio 也无法判断是哪一部分出了问题。未做任何更改。请打开“工具”、“配置检查”查看缺少什么，如需求助请复制详细信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="68" />
+            <source>bus</source>
+            <translation>总线</translation>
         </message>
     </context>
     <context>
@@ -9949,6 +9969,76 @@ Networks: %5</source>
             <location filename="../src/advanced/json_validation.cpp" line="1222" />
             <source>The setup format rejected this document</source>
             <translation>配置格式拒绝了此文档</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="322" />
+            <source>Half-duplex buses are not available in this build</source>
+            <translation>此版本不提供半双工总线</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="325" />
+            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
+            <translation>此版本无法将总线作为半双工线路运行。请从该链接中删除 "half_duplex"。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="334" />
+            <source>Only a bus can be a half-duplex line</source>
+            <translation>只有总线才能是半双工线路</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="336" />
+            <source>Remove "half_duplex", or make the link a bus.</source>
+            <translation>请删除 "half_duplex"，或将该链接改为总线。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="345" />
+            <source>"half_duplex" must be an object</source>
+            <translation>"half_duplex" 必须是对象</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="347" />
+            <source>Use bit_rate, turnaround_ms, collisions and rts_gating inside it, each one optional.</source>
+            <translation>其中可以使用 bit_rate、turnaround_ms、collisions 和 rts_gating，每项都可省略。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="371" />
+            <source>The line rate must be between %1 and %2 bit/s</source>
+            <translation>线路速率必须在 %1 到 %2 bit/s 之间</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="375" />
+            <source>Set "bit_rate" to a whole number in that range.</source>
+            <translation>请将 "bit_rate" 设为该范围内的整数。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="384" />
+            <source>The turn-around must be between 0 and %1 ms</source>
+            <translation>转向时间必须在 0 到 %1 ms 之间</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="387" />
+            <source>Set "turnaround_ms" to a whole number in that range.</source>
+            <translation>请将 "turnaround_ms" 设为该范围内的整数。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="401" />
+            <source>"collisions" must be report or garble</source>
+            <translation>"collisions" 必须是 report 或 garble</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="403" />
+            <source>Use report or garble.</source>
+            <translation>请使用 report 或 garble。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="412" />
+            <source>"rts_gating" must be true or false</source>
+            <translation>"rts_gating" 必须是 true 或 false</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="414" />
+            <source>Use true or false.</source>
+            <translation>请使用 true 或 false。</translation>
         </message>
     </context>
     <context>
@@ -18410,6 +18500,79 @@ Networks: %5</source>
             <location filename="../src/topology/add_sheet.cpp" line="490" />
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
+        </message>
+    </context>
+    <context>
+        <name>HalfDuplexFields</name>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="52" />
+            <source>Half-duplex line</source>
+            <translation>半双工线路</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="50" />
+            <source>One port sends at a time, as on a two-wire RS-485 line. Studio reports when two send at once.</source>
+            <translation>同一时刻只有一个串口发送，就像两线制 RS-485 线路。两个串口同时发送时，Studio 会报告。</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="73" />
+            <source>Line rate</source>
+            <translation>线路速率</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> bit/s</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
+            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
+            <translation>一个字节占十位。其他串口在它的最后一个字节离开线路时才收到这条消息。</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="83" />
+            <source>Turn-around</source>
+            <translation>转向时间</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="84" />
+            <source>The line stays taken this long after a port stops sending. An answer that starts inside it is reported.</source>
+            <translation>串口停止发送后，线路在这段时间内仍被占用。在此期间开始的应答会被报告。</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="95" />
+            <source>If two send at once</source>
+            <translation>两个串口同时发送时</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="90" />
+            <source>Report it</source>
+            <translation>报告</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="92" />
+            <source>Report it and garble the bytes</source>
+            <translation>报告并扰乱字节</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="100" />
+            <source>Send only while RTS is high</source>
+            <translation>仅在 RTS 为高电平时发送</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="98" />
+            <source>For ports whose RTS Studio can follow. In this build that is a loopback port. Every other port always sends.</source>
+            <translation>适用于 Studio 能跟踪其 RTS 的串口。在此版本中是回环串口。其他串口始终发送。</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
+            <source>Not available in this build</source>
+            <translation>此版本不可用</translation>
         </message>
     </context>
 </TS>

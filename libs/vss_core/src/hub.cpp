@@ -35,8 +35,8 @@ constexpr endpoint_id bus_node_tag = endpoint_id{1} << 63;
 std::string describe_fault(bus_fault fault, std::size_t bytes,
                            const std::string& other, bool garble)
 {
-    const std::string sent = "sent " + std::to_string(bytes) +
-                             (bytes == 1 ? " byte" : " bytes");
+    const std::string sent =
+        "sent " + std::to_string(bytes) + (bytes == 1 ? " byte" : " bytes");
     switch (fault)
     {
     case bus_fault::overlap:
@@ -757,7 +757,8 @@ void hub::route_data(endpoint_id from, bytes_view data)
                     verdict = record.line->transmit(from, data.size(), now());
                     if (verdict.fault != bus_fault::none)
                     {
-                        const auto name_of = [this](endpoint_id id) {
+                        const auto name_of = [this](endpoint_id id)
+                        {
                             const auto found = endpoints_.find(id);
                             return found == endpoints_.end()
                                        ? std::string()

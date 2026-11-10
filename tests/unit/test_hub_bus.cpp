@@ -461,9 +461,9 @@ TEST_CASE("bus: a plain bus forwards two senders at once and reports nothing")
 {
     bus_fixture fixture(3);
     event_recorder events;
-    const subscription_guard guard(
-        *fixture.hub, {},
-        [events](const endpoint_event& event) { events.record(event); });
+    const subscription_guard guard(*fixture.hub, {},
+                                   [events](const endpoint_event& event)
+                                   { events.record(event); });
 
     const auto bus = fixture.hub->bus(fixture.ids(0, 3));
     REQUIRE(bus);
@@ -492,7 +492,7 @@ TEST_CASE("bus: a plain bus forwards two senders at once and reports nothing")
 
     // The hub reported the traffic itself, two chunks received and four
     // sent, and no error about any of it.
-    REQUIRE(wait_until(
-        [&] { return events.count(event_kind::data) == 6; }, 5000ms));
+    REQUIRE(wait_until([&] { return events.count(event_kind::data) == 6; },
+                       5000ms));
     REQUIRE_EQ(events.count(event_kind::error), std::size_t{0});
 }

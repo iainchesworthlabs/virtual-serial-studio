@@ -198,7 +198,8 @@ error_code half_duplex_from_json(const json::object& object, link_entry& link)
 
     half_duplex_options options;
     options.enabled = true;
-    const auto number = [&line](std::string_view key, std::uint32_t& out) {
+    const auto number = [&line](std::string_view key, std::uint32_t& out)
+    {
         const auto* value = line.if_contains(key);
         if (!value)
             return true;

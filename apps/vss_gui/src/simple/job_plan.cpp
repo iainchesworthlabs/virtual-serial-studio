@@ -118,7 +118,7 @@ vss::result<vss::link_id> relink(StudioBackend& backend, const link_view& link)
         }
         break;
     case link_shape::bus:
-        return backend.bus(sources);
+        return backend.bus(sources, link.options);
     default:
         break;
     }
@@ -410,7 +410,7 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         linked = backend.split(a[0], b, {});
         break;
     case job::bus:
-        linked = backend.bus(a);
+        linked = backend.bus(a, {});
         break;
     case job::combine:
         if (b.empty())

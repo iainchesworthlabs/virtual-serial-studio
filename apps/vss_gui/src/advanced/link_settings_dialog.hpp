@@ -22,17 +22,22 @@ class QSpinBox;
 namespace vss::gui
 {
 
+class HalfDuplexFields;
+
 /// "Settings for <link>": delay, jitter, what happens when two write at once,
 /// and the modem-line crossing.  The engine cannot change these on a link
 /// that exists, so the caller remakes the link with `options()`
-/// (`backend/canvas_edit`).  A bus offers delay and jitter only.
+/// (`backend/canvas_edit`).  A bus offers delay and jitter and, where the
+/// backend has `capabilities::half_duplex_bus`, the half-duplex line.
 class LinkSettingsDialog final : public QDialog
 {
     Q_OBJECT
 
 public:
+    /// `half_duplex_available` is `capabilities::half_duplex_bus` of the
+    /// backend; without it a bus shows the half-duplex choice disabled.
     LinkSettingsDialog(const link_view& link, const QString& name,
-                       QWidget* parent = nullptr);
+                       bool half_duplex_available, QWidget* parent = nullptr);
 
     vss::link_options options() const;
     void set_delay(int milliseconds);
@@ -40,6 +45,11 @@ public:
     QPushButton* apply_button() const noexcept { return apply_; }
     bool policy_shown() const;
     bool modem_lines_shown() const;
+    bool half_duplex_shown() const;
+    HalfDuplexFields* half_duplex_fields() const noexcept
+    {
+        return half_duplex_;
+    }
 
 private:
     void update_state();
@@ -49,6 +59,7 @@ private:
     QSpinBox* jitter_ = nullptr;
     QComboBox* policy_ = nullptr;
     QCheckBox* modem_lines_ = nullptr;
+    HalfDuplexFields* half_duplex_ = nullptr;
     QLabel* error_ = nullptr;
     QPushButton* apply_ = nullptr;
 };

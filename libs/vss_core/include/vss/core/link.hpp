@@ -133,10 +133,9 @@ inline constexpr bool valid_latency(const link_options& options) noexcept
 inline constexpr bool
 valid_half_duplex(const half_duplex_options& options) noexcept
 {
-    return !options.enabled ||
-           (options.bit_rate >= min_bus_bit_rate &&
-            options.bit_rate <= max_bus_bit_rate &&
-            options.turnaround_ms <= max_link_delay_ms);
+    return !options.enabled || (options.bit_rate >= min_bus_bit_rate &&
+                                options.bit_rate <= max_bus_bit_rate &&
+                                options.turnaround_ms <= max_link_delay_ms);
 }
 
 /// Snapshot of a link for the GUI and the CLI.

@@ -94,6 +94,9 @@ QString EventLog::format(const gui_event& event, const QString& stamp)
         if (event.message.isEmpty())
             return {};
         return QStringLiteral("[%1] %2 %3").arg(stamp, name, event.message);
+    case vss::event_kind::bus_fault:
+        return QStringLiteral("[%1] %2 bus: %3")
+            .arg(stamp, name, event.message);
     case vss::event_kind::stats:
         return {};
     }

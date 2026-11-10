@@ -12,6 +12,7 @@
 #include "widgets/chips.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
+#include "widgets/half_duplex_fields.hpp"
 #include "widgets/notes.hpp"
 
 #include <vss/core/profile.hpp>
@@ -454,6 +455,10 @@ QWidget* ConnectPortsDialog::build_bus_page()
     bus_count_->setFont(Theme::instance().font(text_style::caption));
     bus_count_->setWordWrap(true);
     layout->addWidget(bus_count_);
+
+    half_duplex_ = new HalfDuplexFields(page);
+    half_duplex_->set_available(backend_.caps().half_duplex_bus);
+    layout->addWidget(half_duplex_);
     layout->addStretch(1);
     return page;
 }
@@ -696,6 +701,8 @@ void ConnectPortsDialog::update_ui()
     cards_[static_cast<int>(mode::bus)]->radio()->setEnabled(bus_available);
     cards_[static_cast<int>(mode::bus)]->setToolTip(
         bus_available ? QString() : tr("Not available in this build"));
+    if (half_duplex_ != nullptr)
+        half_duplex_->set_available(backend_.caps().half_duplex_bus);
 
     const QString block = block_reason();
     if (!block.isEmpty())
@@ -993,6 +1000,10 @@ void ConnectPortsDialog::set_advanced(bool advanced)
     }
     if (advanced_button_ != nullptr)
         advanced_button_->setVisible(!advanced_);
+    // The half-duplex line is an Advanced setting; a bus made in Simple mode
+    // is a plain one.
+    if (half_duplex_ != nullptr)
+        half_duplex_->setVisible(advanced_);
 }
 
 void ConnectPortsDialog::select_from(vss::endpoint_id id)
@@ -1237,8 +1248,11 @@ bool ConnectPortsDialog::submit()
     {
         const QVector<vss::endpoint_id> members = checked_ids(mode::bus);
         from = names_for(members);
+        if (half_duplex_ != nullptr && advanced_)
+            options.half_duplex = half_duplex_->options();
         linked = backend_.bus(
-            std::vector<vss::endpoint_id>(members.begin(), members.end()));
+            std::vector<vss::endpoint_id>(members.begin(), members.end()),
+            options);
         break;
     }
     }

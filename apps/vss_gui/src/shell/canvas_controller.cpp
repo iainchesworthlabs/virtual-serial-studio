@@ -624,7 +624,7 @@ void CanvasController::open_link_settings(vss::link_id id)
     for (const port_view& port : backend_.ports())
         names.insert(port.id, port.name);
     LinkSettingsDialog dialog(*link, topology_text::link_name(*link, names),
-                              parent_);
+                              backend_.caps().half_duplex_bus, parent_);
     if (dialog.exec() != QDialog::Accepted)
         return;
     if (change_link(id, dialog.options()))

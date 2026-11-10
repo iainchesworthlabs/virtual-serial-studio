@@ -1972,6 +1972,11 @@
             <source>Traffic</source>
             <translation>טראַפֿיק</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="51" />
+            <source>Bus</source>
+            <translation>באַס</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -3772,6 +3777,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_model.cpp" line="311" />
             <source>not the owner, not forwarded</source>
             <translation>נישט דער באַזיצער, נישט ווײַטערגעשיקט</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="286" />
+            <source>Not carried by the bus.</source>
+            <translation>נישט געטראָגן דורכן באַס.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="354" />
+            <source>not carried by the bus</source>
+            <translation>נישט געטראָגן דורכן באַס</translation>
         </message>
     </context>
     <context>
@@ -5659,6 +5674,11 @@ Networks: %5</source>
             <location filename="../src/backend/driver_error.cpp" line="161" />
             <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
             <translation>Windows האָט נישט געוואָלט שאַפֿן דעם פּאָרט, און Studio האָט נישט געקענט זען וועלכער טייל איז שולדיק. גאָרנישט איז געענדערט געוואָרן. עפֿנט געצײַג, אײַנשטעלונג־קאָנטראָלע כּדי צו זען וואָס פֿעלט, און קאָפּירט דערנאָך די פּרטים אויב איר בעט הילף.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="68" />
+            <source>bus</source>
+            <translation>באַס</translation>
         </message>
     </context>
     <context>
@@ -9956,6 +9976,76 @@ Networks: %5</source>
             <location filename="../src/advanced/json_validation.cpp" line="1222" />
             <source>The setup format rejected this document</source>
             <translation>דער אײַנשטעלונג־פֿאָרמאַט האָט אָפּגעוואָרפֿן דעם דאָקומענט</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="322" />
+            <source>Half-duplex buses are not available in this build</source>
+            <translation>האַלב־דופּלעקס־באַסן זענען נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="325" />
+            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
+            <translation>די דאָזיקע ווערסיע קען נישט לאָזן אַ באַס אַרבעטן ווי אַ האַלב־דופּלעקס־ליניע. נעמט אַראָפּ "half_duplex" פֿון דער פֿאַרבינדונג.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="334" />
+            <source>Only a bus can be a half-duplex line</source>
+            <translation>נאָר אַ באַס קען זײַן אַ האַלב־דופּלעקס־ליניע</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="336" />
+            <source>Remove "half_duplex", or make the link a bus.</source>
+            <translation>נעמט אַראָפּ "half_duplex", אָדער מאַכט די פֿאַרבינדונג צו אַ באַס.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="345" />
+            <source>"half_duplex" must be an object</source>
+            <translation>"half_duplex" מוז זײַן אַן אָביעקט</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="347" />
+            <source>Use bit_rate, turnaround_ms, collisions and rts_gating inside it, each one optional.</source>
+            <translation>ניצט דעראינעם bit_rate, turnaround_ms, collisions און rts_gating, יעדער איינער אָפּציאָנעל.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="371" />
+            <source>The line rate must be between %1 and %2 bit/s</source>
+            <translation>די ליניע־גיכקייט מוז זײַן צווישן %1 און %2 ביט/סעק</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="375" />
+            <source>Set "bit_rate" to a whole number in that range.</source>
+            <translation>שטעלט "bit_rate" אויף אַ גאַנצער צאָל אין דעם באַרייך.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="384" />
+            <source>The turn-around must be between 0 and %1 ms</source>
+            <translation>די איבערשטעל־צײַט מוז זײַן צווישן 0 און %1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="387" />
+            <source>Set "turnaround_ms" to a whole number in that range.</source>
+            <translation>שטעלט "turnaround_ms" אויף אַ גאַנצער צאָל אין דעם באַרייך.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="401" />
+            <source>"collisions" must be report or garble</source>
+            <translation>"collisions" מוז זײַן report אָדער garble</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="403" />
+            <source>Use report or garble.</source>
+            <translation>ניצט report אָדער garble.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="412" />
+            <source>"rts_gating" must be true or false</source>
+            <translation>"rts_gating" מוז זײַן true אָדער false</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="414" />
+            <source>Use true or false.</source>
+            <translation>ניצט true אָדער false.</translation>
         </message>
     </context>
     <context>
@@ -18430,6 +18520,79 @@ Networks: %5</source>
             <location filename="../src/topology/add_sheet.cpp" line="490" />
             <source>Set up Virtual Serial Studio</source>
             <translation>אײַנשטעלן Virtual Serial Studio</translation>
+        </message>
+    </context>
+    <context>
+        <name>HalfDuplexFields</name>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="52" />
+            <source>Half-duplex line</source>
+            <translation>האַלב־דופּלעקס־ליניע</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="50" />
+            <source>One port sends at a time, as on a two-wire RS-485 line. Studio reports when two send at once.</source>
+            <translation>נאָר איין פּאָרט שיקט אין אַ מאָל, ווי אויף אַ צוויי־דראָטיקער RS-485־ליניע. Studio מעלדט ווען צוויי שיקן גלײַכצײַטיק.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="73" />
+            <source>Line rate</source>
+            <translation>ליניע־גיכקייט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> ביט/סעק</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
+            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
+            <translation>אַ בײַט נעמט צען ביטן. די אַנדערע הערן אַ מעלדונג ווען איר לעצטער בײַט האָט פֿאַרלאָזט די ליניע.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="83" />
+            <source>Turn-around</source>
+            <translation>איבערשטעל־צײַט</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="84" />
+            <source>The line stays taken this long after a port stops sending. An answer that starts inside it is reported.</source>
+            <translation>די ליניע בלײַבט פֿאַרנומען אַזוי לאַנג נאָכדעם ווי אַ פּאָרט הערט אויף צו שיקן. אַן ענטפֿער וואָס הייבט זיך אָן אין דער צײַט ווערט געמאָלדן.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="95" />
+            <source>If two send at once</source>
+            <translation>אויב צוויי שיקן גלײַכצײַטיק</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="90" />
+            <source>Report it</source>
+            <translation>מעלדן עס</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="92" />
+            <source>Report it and garble the bytes</source>
+            <translation>מעלדן עס און פֿאַרשטערן די בײַטן</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="100" />
+            <source>Send only while RTS is high</source>
+            <translation>שיקן נאָר ווען RTS איז הויך</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="98" />
+            <source>For ports whose RTS Studio can follow. In this build that is a loopback port. Every other port always sends.</source>
+            <translation>פֿאַר פּאָרטן וועמענס RTS Studio קען נאָכפֿאָלגן. אין דער דאָזיקער ווערסיע איז דאָס אַ לופּבעק־פּאָרט. יעדער אַנדערער פּאָרט שיקט תּמיד.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
+            <source>Not available in this build</source>
+            <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
         </message>
     </context>
 </TS>

@@ -378,7 +378,7 @@ vss::result<bundle_made> build_bundle(StudioBackend& backend,
         linked = add(link);
         break;
     case canvas_item::bus:
-        link = backend.bus(to_vector(ids));
+        link = backend.bus(to_vector(ids), {});
         linked = add(link);
         break;
     case canvas_item::switch_link:
@@ -512,7 +512,7 @@ vss::result<vss::link_id> make_link(StudioBackend& backend,
             backend.join(to_vector(*sources), targets->first(), recipe.options);
         break;
     case link_shape::bus:
-        made = backend.bus(to_vector(*sources));
+        made = backend.bus(to_vector(*sources), recipe.options);
         break;
     }
     if (!made)

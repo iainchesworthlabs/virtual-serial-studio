@@ -67,7 +67,7 @@ bool create_link(StudioBackend& backend, const link_view& spec)
                             spec.options);
         break;
     case link_shape::bus:
-        made = backend.bus(to_vector(spec.sources));
+        made = backend.bus(to_vector(spec.sources), spec.options);
         break;
     }
     if (!made)
