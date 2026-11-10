@@ -42,8 +42,16 @@ directory named by an option or an environment variable has no fallback.
 ### If a process dies
 
 A process that is killed cannot remove its links. The next start with the same
-name replaces a link whose target is gone. It refuses a name that a running
-process still holds, and anything in the directory that is not a link.
+name replaces a link whose target is gone or is no longer a character device.
+It refuses a link whose target is a device that exists, and anything in the
+directory that is not a link.
+
+The check looks at the target, not at the process that made the link. The
+system gives the number of a closed pseudo terminal to the next one that is
+opened, so a link left by a killed process can point at a terminal that now
+belongs to another program (a terminal window, another port). Such a link
+counts as held: the name is refused until the link is removed by hand
+(`rm <directory>/<name>`), and the port list shows it meanwhile.
 
 ## What programs see
 
@@ -57,8 +65,9 @@ process still holds, and anything in the directory that is not a link.
   because the kernel's PTY has no modem control. The studio shows its own
   state for them.
 - The studio's own port list (`vss_cli devices` and the GUI) does include the links
-  in the link directory, marked as virtual ports, until the process behind them
-  is gone.
+  in the link directory, marked as virtual ports, for as long as each points at
+  a character device. That is normally until the process behind the link is
+  gone; see "If a process dies" for the case where it is not.
 
 ## What the studio sees
 
