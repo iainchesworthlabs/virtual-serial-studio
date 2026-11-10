@@ -1321,7 +1321,7 @@ QString JobForm::result_text() const
     case job::turns:
         return tr("<b>%1</b> can all send to <b>%2</b>, but only one at a "
                   "time. You choose which on the next page. What the device "
-                  "sends back does not reach them.")
+                  "sends back reaches all of them.")
                    .arg(and_list(end_names(plan_.first)), second_name()) +
                programs_open(plan_.first, plan_.second.data());
     case job::custom:

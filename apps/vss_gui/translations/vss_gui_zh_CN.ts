@@ -3073,8 +3073,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容不会到达它们。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容会到达它们全部。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17566,8 +17566,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容不会到达它们。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容会到达它们全部。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />

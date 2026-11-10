@@ -3073,8 +3073,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; können alle an &lt;b&gt;%2&lt;/b&gt; senden, aber nur eines nach dem anderen. Auf der nächsten Seite wählen Sie, welches. Was das Gerät zurücksendet, erreicht sie nicht.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; können alle an &lt;b&gt;%2&lt;/b&gt; senden, aber nur eines nach dem anderen. Auf der nächsten Seite wählen Sie, welches. Was das Gerät zurücksendet, erreicht sie alle.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17577,8 +17577,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; können alle an &lt;b&gt;%2&lt;/b&gt; senden, aber nur eines nach dem anderen. Auf der nächsten Seite wählen Sie, welches. Was das Gerät zurücksendet, erreicht sie nicht.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; können alle an &lt;b&gt;%2&lt;/b&gt; senden, aber nur eines nach dem anderen. Auf der nächsten Seite wählen Sie, welches. Was das Gerät zurücksendet, erreicht sie alle.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />

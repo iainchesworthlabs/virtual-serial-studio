@@ -174,7 +174,10 @@ TEST_CASE("simple: build a share, add and close a program without touching the "
         program_label(vss_test::require_value(backend.port(second_program))),
         QString());
 
-    // Add one: the two ports that were there keep their identities.
+    // Add one: the two ports that were there keep their identities, and the
+    // link stays the same link.
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    const vss::link_id link_id = backend.links().front().id;
     job_plan plan = plan_from(found[0], backend.ports());
     plan.second.push_back(end_plan{});
     REQUIRE(build_setup(backend, plan, &found[0]).has_value());
@@ -183,6 +186,9 @@ TEST_CASE("simple: build a share, add and close a program without touching the "
     REQUIRE_EQ(found[0].programs.size(), qsizetype{3});
     REQUIRE(found[0].programs.contains(first_program));
     REQUIRE(found[0].programs.contains(second_program));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(found[0].link, link_id);
 
     // Close the second: it goes, the others stay.
     plan = plan_from(found[0], backend.ports());
@@ -199,6 +205,21 @@ TEST_CASE("simple: build a share, add and close a program without touching the "
     found = setups(backend);
     REQUIRE_EQ(found[0].programs.size(), qsizetype{2});
     REQUIRE(found[0].programs.contains(first_program));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+
+    // Close down to one program: still the same link, now an attached device.
+    plan = plan_from(found[0], backend.ports());
+    plan.kind = job::attach;
+    plan.second.erase(std::remove_if(plan.second.begin(), plan.second.end(),
+                                     [first_program](const end_plan& end)
+                                     { return end.existing == first_program; }),
+                      plan.second.end());
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::attach);
+    REQUIRE_EQ(backend.links().front().id, link_id);
 }
 
 TEST_CASE("simple: a failed build leaves nothing behind")
@@ -216,22 +237,213 @@ TEST_CASE("simple: a failed build leaves nothing behind")
     REQUIRE(backend.ports().empty());
 }
 
-TEST_CASE("simple: take turns gives the first program the right to send")
+namespace
 {
-    FakeStudioBackend backend;
-    backend.set_capabilities(windows_caps());
-    with_devices(backend);
+
+job_plan turns_plan(int programs)
+{
     job_plan plan;
     plan.kind = job::turns;
-    plan.first = {end_plan{}, end_plan{}};
+    for (int index = 0; index < programs; ++index)
+        plan.first.push_back(end_plan{});
     end_plan device;
     device.what = end_plan::kind::device;
     device.device_path = QStringLiteral("COM4");
     plan.second = {device};
-    REQUIRE(build_setup(backend, plan).has_value());
+    return plan;
+}
+
+void close_program(job_plan& plan, vss::endpoint_id id)
+{
+    auto& programs = plan.kind == job::share || plan.kind == job::attach
+                         ? plan.second
+                         : plan.first;
+    programs.erase(std::remove_if(programs.begin(), programs.end(),
+                                  [id](const end_plan& end)
+                                  { return end.existing == id; }),
+                   programs.end());
+}
+
+} // namespace
+
+TEST_CASE("simple: take turns is a split with the owner policy and the first "
+          "program sends")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, turns_plan(2)).has_value());
     const auto found = setups(backend);
     REQUIRE_EQ(found.size(), std::size_t{1});
     REQUIRE(found[0].kind == job::turns);
+    REQUIRE_EQ(found[0].owner, found[0].programs[0]);
+
+    // One duplex link from the device to the programs, so the device's
+    // replies reach every program; only the owner's bytes go to the device.
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    const link_view link = backend.links().front();
+    REQUIRE(link.mode == vss::link_mode::duplex);
+    REQUIRE(link.shape == link_shape::split);
+    REQUIRE(link.options.policy == vss::merge_policy::owner);
+    REQUIRE_EQ(link.sources.size(), qsizetype{1});
+    REQUIRE_EQ(link.sources.front(), found[0].device);
+    REQUIRE_EQ(link.targets.size(), qsizetype{2});
+    REQUIRE_EQ(link.owner, found[0].programs[0]);
+    REQUIRE_EQ(setup_title(found[0], backend.ports()),
+               QStringLiteral("2 programs take turns sending to COM4"));
+}
+
+TEST_CASE("simple: a join with an owner is shown as made in Advanced mode")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    const auto device = backend.attach_serial(
+        QStringLiteral("device-com4"),
+        QStringLiteral("serial://COM4?baud=9600"), {}, true);
+    const auto a = backend.create_auto_port(QStringLiteral("a"), true);
+    const auto b = backend.create_auto_port(QStringLiteral("b"), true);
+    REQUIRE(device.has_value());
+    vss::link_options options;
+    options.policy = vss::merge_policy::owner;
+    const auto joined = backend.join({*a, *b}, *device, options);
+    REQUIRE(joined.has_value());
+    REQUIRE(backend.set_owner(*joined, *a).has_value());
+
+    const auto found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::custom);
+    REQUIRE_EQ(found[0].owner, vss::endpoint_id{0});
+    REQUIRE(found[0].programs.isEmpty());
+}
+
+TEST_CASE("simple: changing take turns keeps the link and the owner")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, turns_plan(2)).has_value());
+    auto found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    const vss::link_id link_id = backend.links().front().id;
+    const vss::endpoint_id first = found[0].programs[0];
+    const vss::endpoint_id second = found[0].programs[1];
+
+    // The second program has the turn.
+    REQUIRE(backend.set_owner(link_id, second).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found[0].owner, second);
+
+    // Add a program: same link, same owner, the others stay.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.first.push_back(end_plan{});
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::turns);
+    REQUIRE_EQ(found[0].programs.size(), qsizetype{3});
+    REQUIRE(found[0].programs.contains(first));
+    REQUIRE(found[0].programs.contains(second));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE(backend.links().front().options.policy == vss::merge_policy::owner);
+    REQUIRE_EQ(found[0].owner, second);
+
+    // Close one that does not have the turn: same link, same owner.
+    plan = plan_from(found[0], backend.ports());
+    close_program(plan, first);
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE(!backend.port(first).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found[0].programs.size(), qsizetype{2});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(found[0].owner, second);
+
+    // Close the one that has the turn: same link, the first program left
+    // takes the turn.
+    plan = plan_from(found[0], backend.ports());
+    close_program(plan, second);
+    const vss::endpoint_id remaining = found[0].programs[0] == second
+                                           ? found[0].programs[1]
+                                           : found[0].programs[0];
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE(!backend.port(second).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE_EQ(found[0].programs.size(), qsizetype{1});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(backend.links().front().owner, remaining);
+    REQUIRE_EQ(found[0].owner, remaining);
+}
+
+TEST_CASE("simple: closing the program that has the turn gives the first "
+          "program the turn")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, turns_plan(3)).has_value());
+    auto found = setups(backend);
+    const vss::link_id link_id = backend.links().front().id;
+    const vss::endpoint_id first = found[0].programs[0];
+    const vss::endpoint_id second = found[0].programs[1];
+    const vss::endpoint_id third = found[0].programs[2];
+    REQUIRE_EQ(found[0].owner, first);
+
+    job_plan plan = plan_from(found[0], backend.ports());
+    close_program(plan, first);
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(found[0].programs.size(), qsizetype{2});
+    REQUIRE_EQ(found[0].owner, second);
+    REQUIRE(found[0].programs.contains(third));
+}
+
+TEST_CASE("simple: a failed in-place change leaves the setup as it was")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, turns_plan(2)).has_value());
+    const auto found = setups(backend);
+    const vss::link_id link_id = backend.links().front().id;
+    const std::size_t ports = backend.ports().size();
+
+    // Adding the program: a port is made, then adding it to the link fails.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.first.push_back(end_plan{});
+    backend.fail_after(1, vss::make_error_code(vss::errc::io_error));
+    REQUIRE(!build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE_EQ(backend.ports().size(), ports);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(backend.links().front().targets.size(), qsizetype{2});
+    REQUIRE_EQ(backend.links().front().owner, found[0].programs[0]);
+}
+
+TEST_CASE("simple: another kind or another policy makes the link again")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, share_plan(2)).has_value());
+    auto found = setups(backend);
+    const vss::link_id share_link = backend.links().front().id;
+
+    // A share has the interleave policy; take turns needs the owner policy,
+    // so the engine has no in-place edit: the link is replaced.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.kind = job::turns;
+    std::swap(plan.first, plan.second);
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::turns);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE(backend.links().front().id != share_link);
+    REQUIRE_EQ(found[0].programs.size(), qsizetype{2});
     REQUIRE_EQ(found[0].owner, found[0].programs[0]);
 }
 

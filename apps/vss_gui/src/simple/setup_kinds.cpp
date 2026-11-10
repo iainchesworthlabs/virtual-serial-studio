@@ -131,7 +131,9 @@ void describe_two_way(setup_view& view, const link_view& link,
     }
 }
 
-/// One device shared with several programs, or attached to a single one.
+/// One device shared with several programs, or attached to a single one; with
+/// the owner policy, programs taking turns sending to the device while all of
+/// them get its replies.
 void describe_split(setup_view& view, const link_view& link,
                     const std::vector<port_view>& ports, bool duplex)
 {
@@ -139,15 +141,20 @@ void describe_split(setup_view& view, const link_view& link,
         !is_device(ports, link.sources.front()) ||
         !all_programs(ports, link.targets))
         return;
-    if (link.options.policy != vss::merge_policy::interleave)
-        return;
     view.device = link.sources.front();
     view.programs = link.targets;
+    if (link.options.policy == vss::merge_policy::owner)
+    {
+        view.kind = job::turns;
+        view.owner = link.owner;
+        return;
+    }
     view.kind = link.targets.size() == 1 ? job::attach : job::share;
 }
 
-/// Several ports sending to one: programs taking turns with a device, or a
-/// group combined into one receiver.
+/// Several ports sending to one, combined into one receiver.  A join with the
+/// owner policy is not something Simple mode builds (its replies do not come
+/// back), so it is left as made in Advanced mode.
 void describe_join(setup_view& view, const link_view& link,
                    const std::vector<port_view>& ports)
 {
@@ -156,17 +163,7 @@ void describe_join(setup_view& view, const link_view& link,
         !all_programs_or_devices(ports, link.targets))
         return;
     if (link.options.policy == vss::merge_policy::owner)
-    {
-        // Programs that take turns sending to a device.
-        if (!all_programs(ports, link.sources) ||
-            !is_device(ports, link.targets.front()))
-            return;
-        view.kind = job::turns;
-        view.device = link.targets.front();
-        view.programs = link.sources;
-        view.owner = link.owner;
         return;
-    }
     view.kind = job::combine;
     view.members = link.sources;
     view.receiver = link.targets.front();
@@ -374,8 +371,7 @@ QString job_description(job kind)
     case job::turns:
         return tr_simple("Several programs send to one device, but only one "
                          "at a time, so their bytes never mix. You choose "
-                         "which. The device's replies do not go back to the "
-                         "programs.");
+                         "which. All of them get the device's replies.");
     case job::custom:
         break;
     }

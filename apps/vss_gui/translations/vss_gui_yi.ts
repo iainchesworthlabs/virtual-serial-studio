@@ -3073,8 +3073,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי נישט.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי אַלע.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17577,8 +17577,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי נישט.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי אַלע.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />

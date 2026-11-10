@@ -71,8 +71,12 @@ time, use an `owner` policy:
 
 The hub has `set_owner` and `release_owner`, and the window's owner bar
 (Advanced) uses them; while one publisher owns the link the other publishers'
-bytes are counted as dropped, not silently interleaved. At Simple, **Let programs
-take turns sending to a device** builds this.
+bytes are counted as dropped, not silently interleaved. The owner is one of the
+publishers on a join. On a duplex link, a `connect` or a `split`, the owner is one
+of the targets: only its bytes reach the source and the others' are counted as
+dropped, and what the source sends reaches every target. At Simple, **Let
+programs take turns sending to a device** builds that split, so the device's
+replies reach every program.
 
 ## Put several programs on one bus
 

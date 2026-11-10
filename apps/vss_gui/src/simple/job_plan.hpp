@@ -76,9 +76,14 @@ job_plan plan_from(const setup_view& setup,
                    const std::vector<port_view>& ports);
 
 /// Builds `plan`.  With `previous`, changes that setup instead: the ends
-/// marked `existing` stay open, new ends are made, the link is replaced and
-/// the ports that are no longer in the plan are removed.  A failure removes
-/// what this call made and, where it can, puts the previous link back.
+/// marked `existing` stay open, new ends are made, the link is changed and
+/// the ports that are no longer in the plan are removed.  An attached device,
+/// a share and programs taking turns on the same device change their link in
+/// place (programs are added to it and taken off it), so it keeps its id,
+/// options and owner and the other programs lose no bytes.  Every other setup
+/// has no in-place edit in the engine, so its link is replaced.  A failure
+/// removes what this call made and puts the previous link back, or leaves it
+/// as it was.
 /// Returns a port of the setup, to select it.
 vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
                                           const job_plan& plan,

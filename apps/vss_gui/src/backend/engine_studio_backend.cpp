@@ -787,6 +787,26 @@ vss::result<void> EngineStudioBackend::disconnect(vss::link_id id)
     return {};
 }
 
+vss::result<void> EngineStudioBackend::add_target(vss::link_id link,
+                                                  vss::endpoint_id target)
+{
+    const auto added = studio_.engine().add_target(link, target);
+    if (!added)
+        return added.error();
+    rebuild();
+    return {};
+}
+
+vss::result<void> EngineStudioBackend::remove_target(vss::link_id link,
+                                                     vss::endpoint_id target)
+{
+    const auto removed = studio_.engine().remove_target(link, target);
+    if (!removed)
+        return removed.error();
+    rebuild();
+    return {};
+}
+
 vss::result<void> EngineStudioBackend::set_owner(vss::link_id id,
                                                  vss::endpoint_id owner)
 {

@@ -192,6 +192,18 @@ public:
         return vss::make_error_code(vss::errc::unsupported);
     }
     virtual vss::result<void> disconnect(vss::link_id id) = 0;
+    /// Adds one target to a duplex link (a pair or a split) in place: the link
+    /// keeps its id, options, owner and counters, and the other targets lose
+    /// no bytes.  `unsupported` for a one-way link or a bus, `not_found` for
+    /// an unknown link or port, `invalid_argument` for the link's source,
+    /// `already_exists` for a port that is a target already.
+    virtual vss::result<void> add_target(vss::link_id link,
+                                         vss::endpoint_id target) = 0;
+    /// Takes one target off a duplex link and leaves the others linked.  The
+    /// port stays.  Errors as `add_target`, and `not_found` for a port that is
+    /// not a target of the link and `invalid_argument` for the last target.
+    virtual vss::result<void> remove_target(vss::link_id link,
+                                            vss::endpoint_id target) = 0;
     virtual vss::result<void> set_owner(vss::link_id id,
                                         vss::endpoint_id owner) = 0;
     virtual vss::result<void> release_owner(vss::link_id id) = 0;

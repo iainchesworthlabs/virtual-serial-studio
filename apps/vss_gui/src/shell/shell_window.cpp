@@ -2279,8 +2279,8 @@ void ShellWindow::remove_port(vss::endpoint_id id)
     const auto ports = backend_.ports();
     const auto links = backend_.links();
     const setup_group group = find_setup(ports, links, id);
-    // One program of a share: the engine drops the link when any port on it
-    // goes, so the others are shared again after this one is removed.
+    // One program of a share: the port is taken off the link first, so the
+    // link and the other programs carry on while this one is removed.
     const auto share = find_share(ports, links, id);
     const bool program_of_share =
         share && share->programs.contains(id) && share->programs.size() > 1;

@@ -3073,8 +3073,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、これらには届きません。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、すべてに届きます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17566,8 +17566,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、これらには届きません。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、すべてに届きます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />

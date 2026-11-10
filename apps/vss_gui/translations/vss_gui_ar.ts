@@ -3073,8 +3073,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>يمكن لـ &lt;b&gt;%1&lt;/b&gt; جميعًا الإرسال إلى &lt;b&gt;%2&lt;/b&gt;، لكن واحدًا فقط في كل مرة. تختار أيهما في الصفحة التالية. وما يرسله الجهاز لا يصل إليها.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>يمكن لـ &lt;b&gt;%1&lt;/b&gt; جميعًا الإرسال إلى &lt;b&gt;%2&lt;/b&gt;، لكن واحدًا فقط في كل مرة. تختار أيهما في الصفحة التالية. وما يرسله الجهاز يصل إليها جميعًا.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17621,8 +17621,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>يمكن لـ &lt;b&gt;%1&lt;/b&gt; جميعًا الإرسال إلى &lt;b&gt;%2&lt;/b&gt;، لكن واحدًا فقط في كل مرة. تختار أيهما في الصفحة التالية. وما يرسله الجهاز لا يصل إليها.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>يمكن لـ &lt;b&gt;%1&lt;/b&gt; جميعًا الإرسال إلى &lt;b&gt;%2&lt;/b&gt;، لكن واحدًا فقط في كل مرة. تختار أيهما في الصفحة التالية. وما يرسله الجهاز يصل إليها جميعًا.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
