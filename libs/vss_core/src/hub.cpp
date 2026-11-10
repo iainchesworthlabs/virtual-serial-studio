@@ -23,14 +23,14 @@ bool contains(const std::vector<endpoint_id>& values, endpoint_id value)
     return std::find(values.begin(), values.end(), value) != values.end();
 }
 
-/// The endpoints that may own a link under `merge_policy::owner`: the ones
-/// whose routes meet at one endpoint.  A one-way link merges its sources into
-/// its target; a duplex link merges its targets' replies into its one source.
-const std::vector<endpoint_id>&
-owner_candidates(link_mode mode, const std::vector<endpoint_id>& sources,
-                 const std::vector<endpoint_id>& targets)
+/// Whether `id` may own a link under `merge_policy::owner`: it is one of the
+/// endpoints whose routes meet at one endpoint.  A one-way link merges its
+/// sources into its target; a duplex link merges its targets' replies into
+/// its one source.
+bool may_own(link_mode mode, const std::vector<endpoint_id>& sources,
+             const std::vector<endpoint_id>& targets, endpoint_id id)
 {
-    return mode == link_mode::duplex ? targets : sources;
+    return contains(mode == link_mode::duplex ? targets : sources, id);
 }
 
 /// Marks a node of the cycle graph as a bus rather than an endpoint.  Endpoint
@@ -532,7 +532,7 @@ hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
     // What the single source of a duplex link sends is never arbitrated.
     const bool arbitrated =
         link.options.policy == merge_policy::owner &&
-        contains(owner_candidates(link.mode, link.sources, link.targets), from);
+        may_own(link.mode, link.sources, link.targets, from);
     return route_entry{link.id, to, std::move(delay), arbitrated};
 }
 
@@ -813,8 +813,7 @@ result<void> hub::set_owner(link_id id, endpoint_id owner)
     auto& record = *it->second;
     if (record.mode == link_mode::bus)
         return make_error_code(errc::unsupported);
-    if (!contains(owner_candidates(record.mode, record.sources, record.targets),
-                  owner))
+    if (!may_own(record.mode, record.sources, record.targets, owner))
         return make_error_code(errc::invalid_argument);
     record.owner.store(owner);
     return {};
