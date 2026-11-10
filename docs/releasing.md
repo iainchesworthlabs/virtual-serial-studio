@@ -314,7 +314,11 @@ service.
    `vss_cli selftest` and `vss_gui --version` run from `%ProgramFiles%\Virtual Serial Studio`,
    and a silent uninstall must leave no folder, Apps & features entry, Start menu folder,
    helper service or driver package, and must give the machine PATH back as it was. The
-   check also requires the folder on the PATH exactly once after the upgrade.
+   check also requires the folder on the PATH exactly once after the upgrade. Before the
+   upgrade and before the uninstall it starts `vss_cli virtual` from the installed folder
+   and requires that the installer closed it, and before the uninstall it makes a start at
+   sign-in entry and a running setup for the runner's user and requires the entry gone and
+   the setup marked as stopped afterwards.
 
 NSIS comes from Chocolatey through the `setup-toolchain` action, at the version in
 `.github/toolchain-versions.json`.
@@ -387,6 +391,39 @@ that use it), checks that none is left and removes the helper's folder. It touch
 certificate and no setting, and no other driver. If it fails, the uninstaller says so and
 keeps `driver-remove.log`.
 
+**A Studio that is running.** Windows cannot replace or delete a program that runs, so
+before an upgrade copies the files and before an uninstall deletes them the installer
+closes `vss_gui.exe` and `vss_cli.exe`, in every session, when they run from the install
+folder (`bin\stop-studio.ps1`; a Studio from the zip or a build tree is not touched). The
+programs are ended, not asked: an elevated installer has no way to ask the Studio of
+another user to quit. Studio writes what runs to the user's `running-setup.json` a second
+after every change, so the ports start again the next time it is opened; nothing opens it
+again after an upgrade. A person who runs the uninstaller is asked first ("Virtual Serial
+Studio is running. Uninstalling closes it, and that stops its ports."); an upgrade and a
+silent uninstall ask nobody, because the old version is uninstalled before the new
+installer shows its first page.
+
+**What an uninstall takes from each user.** Studio keeps two things outside the install
+folder that matter after it is gone, and a real uninstall (not an upgrade) deals with both:
+
+- The **Start when I sign in** entry, a value under
+  `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`. It is deleted for every user whose
+  registry hive is loaded (the users who are signed in), and only when it starts the
+  program in this install folder. An entry of a user who is not signed in stays; it starts
+  nothing, because the program is gone, and Windows says nothing about it.
+- `running-setup.json` in each profile's `AppData\Roaming\Virtual Serial Studio\Virtual
+  Serial Studio`. It is **not deleted**, because it can be the only copy of a setup nobody
+  saved. The uninstaller records in it that the ports were stopped, which is what File,
+  Quit does, so a Studio that is installed again shows "When you last quit, ..." with
+  **Start again** and does not start old ports by itself.
+
+The uninstaller runs as an administrator and these files are in folders that ordinary
+users own, so it never deletes there, skips a folder or file that is a link, and writes a
+file only when it holds the exact text `"stopped": false`. Settings in
+`HKCU\Software\Virtual Serial Studio` and saved setups are left, as before.
+`tools/test_stop_studio.py` tests the script against scratch folders and a scratch
+registry key.
+
 **What was tried.** The Windows 11 guest (`VSS - Windows 11`, from its `clean` snapshot),
 with a package signed by a throwaway certificate, built by
 `drivers/windows/build.ps1`, never on the development machine:
@@ -401,6 +438,11 @@ with a package signed by a throwaway certificate, built by
   ending in `not-trusted`, no service, no package, the log naming the reason, and
   test signing still off.
 - The pages and the message were looked at on the guest's screen.
+- Closing a running Studio and the per-user clean-up were added later and have **not** been
+  tried on the guest: the script has its own tests and the hosted runner checks one user
+  (the runner's own). Two signed-in users, a user who is not signed in, a Studio in the
+  notification area with driver ports, and the question the uninstaller asks are still to
+  be looked at there.
 
 The `driver` job and the installer steps of `release.yml` are not a driver test: a hosted
 runner trusts neither an unsigned nor a test-signed package, so there the outcome is
