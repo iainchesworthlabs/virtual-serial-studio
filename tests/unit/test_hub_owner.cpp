@@ -51,66 +51,101 @@ link_options owner_options()
 }
 } // namespace
 
-TEST_CASE("owner: on a split the rule drops the targets' replies")
+TEST_CASE("owner: on a split the targets take turns and all hear the source")
 {
     owner_fixture f;
     const auto link =
         f.hub->split(f.id_a(), {f.id_b(), f.id_c()}, owner_options());
     REQUIRE(link);
-    REQUIRE(f.hub->set_owner(*link, f.id_a()));
+    REQUIRE(f.hub->set_owner(*link, f.id_b()));
 
+    // What the source sends is not the policy's business: every target
+    // hears it, the owner and the others alike.
     f.a.inject_read("out");
     REQUIRE(wait_until([&] { return f.b.written() == "out"; }, 2000ms));
     REQUIRE(wait_until([&] { return f.c.written() == "out"; }, 2000ms));
+    REQUIRE_EQ(f.dropped(*link), std::uint64_t{0});
 
-    // The reply's publisher is a target, which is not the owner.
-    f.b.inject_read("reply");
-    REQUIRE(wait_until([&] { return f.dropped(*link) == 5; }, 2000ms));
-    REQUIRE_EQ(f.a.written(), std::string());
+    // Only the owner's bytes reach the source.
+    f.c.inject_read("no");
+    REQUIRE(wait_until([&] { return f.dropped(*link) == 2; }, 2000ms));
+    f.b.inject_read("yes");
+    REQUIRE(wait_until([&] { return f.a.written() == "yes"; }, 2000ms));
+
+    REQUIRE(f.hub->set_owner(*link, f.id_c()));
+    f.c.inject_read("now");
+    REQUIRE(wait_until([&] { return f.a.written() == "yesnow"; }, 2000ms));
+    f.b.inject_read("late");
+    REQUIRE(wait_until([&] { return f.dropped(*link) == 6; }, 2000ms));
+    REQUIRE_EQ(f.a.written(), std::string("yesnow"));
 }
 
-TEST_CASE("owner: a reply takes a split that has no owner")
+TEST_CASE("owner: the source of a split never takes it")
 {
     owner_fixture f;
     const auto link =
         f.hub->split(f.id_a(), {f.id_b(), f.id_c()}, owner_options());
     REQUIRE(link);
 
-    f.b.inject_read("first");
-    REQUIRE(wait_until([&] { return f.a.written() == "first"; }, 2000ms));
-    REQUIRE_EQ(f.owner(*link), f.id_b());
-
-    // The source is now shut out of its own link, on both of its routes.
+    // The source sends first, and the link still has no owner.
     f.a.inject_read("data");
-    REQUIRE(wait_until([&] { return f.dropped(*link) == 8; }, 2000ms));
-    REQUIRE_EQ(f.b.written(), std::string());
-    REQUIRE_EQ(f.c.written(), std::string());
+    REQUIRE(wait_until([&] { return f.b.written() == "data"; }, 2000ms));
+    REQUIRE(wait_until([&] { return f.c.written() == "data"; }, 2000ms));
+    REQUIRE_EQ(f.owner(*link), endpoint_id{0});
+
+    // The first target to send does take it, and the source is still heard.
+    f.c.inject_read("first");
+    REQUIRE(wait_until([&] { return f.a.written() == "first"; }, 2000ms));
+    REQUIRE_EQ(f.owner(*link), f.id_c());
+    f.a.inject_read("!");
+    REQUIRE(wait_until([&] { return f.b.written() == "data!"; }, 2000ms));
+    REQUIRE(wait_until([&] { return f.c.written() == "data!"; }, 2000ms));
+    REQUIRE_EQ(f.dropped(*link), std::uint64_t{0});
+
+    // Released, it goes to whichever target sends next.
+    REQUIRE(f.hub->release_owner(*link));
+    REQUIRE_EQ(f.owner(*link), endpoint_id{0});
+    f.b.inject_read("mine");
+    REQUIRE(wait_until([&] { return f.a.written() == "firstmine"; }, 2000ms));
+    REQUIRE_EQ(f.owner(*link), f.id_b());
 }
 
-TEST_CASE("owner: only the source of a split can be made its owner")
+TEST_CASE("owner: only a target of a split can be made its owner")
 {
     owner_fixture f;
-    const auto link =
-        f.hub->split(f.id_a(), {f.id_b(), f.id_c()}, owner_options());
+    const auto link = f.hub->split(f.id_a(), {f.id_b()}, owner_options());
     REQUIRE(link);
-    REQUIRE(f.hub->set_owner(*link, f.id_a()));
-    REQUIRE_EQ(f.hub->set_owner(*link, f.id_b()),
+    REQUIRE(f.hub->set_owner(*link, f.id_b()));
+    REQUIRE_EQ(f.hub->set_owner(*link, f.id_a()),
                make_error_code(errc::invalid_argument));
+    // Neither can an endpoint that is not on the link, or does not exist.
+    REQUIRE_EQ(f.hub->set_owner(*link, f.id_c()),
+               make_error_code(errc::invalid_argument));
+    REQUIRE_EQ(f.hub->set_owner(*link, endpoint_id{9999}),
+               make_error_code(errc::invalid_argument));
+    REQUIRE_EQ(f.owner(*link), f.id_b());
 }
 
-TEST_CASE("owner: on a two-way link the first to send shuts the other out")
+TEST_CASE("owner: on a two-way link both ends are always heard")
 {
+    // One source and one target: nothing meets, so nothing is arbitrated.
     owner_fixture f;
     const auto link = f.hub->connect(f.id_a(), f.id_b(), owner_options());
     REQUIRE(link);
 
+    f.a.inject_read("data");
+    REQUIRE(wait_until([&] { return f.b.written() == "data"; }, 2000ms));
+    REQUIRE_EQ(f.owner(*link), endpoint_id{0});
+
     f.b.inject_read("first");
     REQUIRE(wait_until([&] { return f.a.written() == "first"; }, 2000ms));
     REQUIRE_EQ(f.owner(*link), f.id_b());
 
-    f.a.inject_read("data");
-    REQUIRE(wait_until([&] { return f.dropped(*link) == 4; }, 2000ms));
-    REQUIRE_EQ(f.b.written(), std::string());
+    f.a.inject_read("!");
+    REQUIRE(wait_until([&] { return f.b.written() == "data!"; }, 2000ms));
+    REQUIRE_EQ(f.dropped(*link), std::uint64_t{0});
+    REQUIRE_EQ(f.hub->set_owner(*link, f.id_a()),
+               make_error_code(errc::invalid_argument));
 }
 
 TEST_CASE("owner: on a join the first source to send takes the link")

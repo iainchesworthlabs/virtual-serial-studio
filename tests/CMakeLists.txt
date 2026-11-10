@@ -17,6 +17,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_events.cpp
   unit/test_hub_latency.cpp
   unit/test_hub_owner.cpp
+  unit/test_hub_targets.cpp
+  unit/test_hub_targets_stress.cpp
   unit/test_hub_topology.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
@@ -36,6 +38,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio.cpp
   unit/test_studio_reopen.cpp
   unit/test_studio_links.cpp
+  unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
   unit/test_virtual_ports.cpp
   unit/test_vsscom_core.cpp)
