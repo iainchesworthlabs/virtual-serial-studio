@@ -9,6 +9,7 @@
 
 #include <vss/ports/serial_enumeration.hpp>
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,6 +20,10 @@ namespace vss::detail
 /// Implemented once for each operating system in `src/platform/<os>/`.
 /// Lists what the system reports; the caller normalises the list.
 std::vector<serial_device_info> platform_enumerate_serial_devices();
+
+/// The COM name database bitmap and the names that resolve, read for
+/// `reserved_com_numbers`.  `nullopt` where there is none or it cannot be read.
+std::optional<std::vector<unsigned>> platform_reserved_com_numbers();
 
 /// The `COMn` name in the last pair of brackets of `text`, or empty.
 std::string extract_com_name(std::string_view text);

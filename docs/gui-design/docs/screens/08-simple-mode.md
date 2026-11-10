@@ -73,8 +73,14 @@ Body:
      Moxa or Lantronix. Its manual gives the address and port. Choose RFC 2217 if the box supports it, so programs can
      change the baud rate."
 3. **Program ends**: one row per program: port name, and "Program, e.g. PuTTY (optional)". Where
-   `Capabilities::com_numbers` is on the port name is a combo of the next free COM numbers (from COM3, skipping numbers
-   in use); a number above 9 shows the hint "Some older programs only list COM1 to COM9." Elsewhere the row shows
+   `Capabilities::com_numbers` is on the port name is a combo of the next free COM numbers (from COM3), and the first
+   one is the default. In use means any of: a port Studio lists, a device the PC lists, another row of the form, a
+   number Windows keeps for a port that no list shows (an unplugged or removed port: `StudioBackend::reserved_com_numbers`,
+   read again whenever the rows are built), and a number Windows refused while the form was open. A number above 9
+   shows the hint "Some older programs only list COM1 to COM9." Where the computer cannot say which numbers Windows
+   keeps (`reserved_com_numbers` is empty), the combo is not shown, because a list that might offer a taken number is
+   worse than none: the row shows "New port" and the hint "Studio could not read which COM numbers Windows keeps, so
+   it picks a free one when the port is made and shows it when the port is ready." Elsewhere the row shows
    "Studio picks the name, such as /dev/pts/3." A minus button removes a row while more than the minimum remain. Under
    the rows: "+ Add a program" (and "+ Add a device" where devices may take part), then "Up to N. You can add more
    later." The program name is a label only; it becomes the port's name in Studio. Studio does not start or look for
@@ -98,6 +104,16 @@ Body:
 
 Create builds the setup in one go and rolls back what it made if a step fails, then shows the error pattern of
 `screens/06` in the form. On success the new setup is selected in the list and its page opens.
+
+A COM number that Windows refuses (`errc::already_exists`) is named in the sentence, never reported as a bare engine
+message: "Could not set it up. COM4 already belongs to another device on this PC, such as a real port, com0com or an
+earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try
+again." When changing a setup: "Could not change the setup. COM4 already belongs to another device on this PC, such as a
+real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could.
+Studio has chosen another number for you. Choose Apply to try again." The refused number is not offered again in that
+form and the row already holds a free number. Any other refusal reads "Could not set it up. Studio reported: <the
+reason>. Nothing was changed." or, when changing, "Could not change the setup. Studio reported: <the reason>. What was
+there before was put back where Studio could."
 
 ## What each job builds
 

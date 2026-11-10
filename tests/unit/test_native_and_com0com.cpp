@@ -16,6 +16,41 @@
 
 using namespace vss;
 
+TEST_CASE("enumeration: the COM name database bitmap gives the numbers kept")
+{
+    // Bit 0 of byte 0 is COM1; the bits are the Windows database's.
+    REQUIRE(com_numbers_in_bitmap({}).empty());
+    REQUIRE(com_numbers_in_bitmap(std::vector<unsigned char>(32, 0)).empty());
+    std::vector<unsigned char> bitmap(32, 0);
+    bitmap[0] = 0xFC;  // COM3 to COM8
+    bitmap[1] = 0x01;  // COM9
+    bitmap[31] = 0x40; // COM255
+    const std::vector<unsigned> expected{3, 4, 5, 6, 7, 8, 9, 255};
+    REQUIRE(com_numbers_in_bitmap(bitmap) == expected);
+
+    // Bits past COM255 and bytes past the 32 that cover it are not numbers.
+    bitmap[31] = 0xFF;
+    bitmap.push_back(0xFF);
+    const auto numbers = com_numbers_in_bitmap(bitmap);
+    REQUIRE_EQ(numbers.back(), 255u);
+    // COM3 to COM9, then COM249 to COM255: the eighth bit of the last byte
+    // would be COM256.
+    REQUIRE_EQ(numbers.size(), std::size_t{7 + 7});
+}
+
+TEST_CASE("enumeration: the kept COM numbers are a sorted set or unknown")
+{
+    // Windows answers; every other system says it cannot be asked.
+    const auto kept = reserved_com_numbers();
+    if (kept)
+    {
+        for (std::size_t index = 1; index < kept->size(); ++index)
+            REQUIRE((*kept)[index - 1] < (*kept)[index]);
+        for (const unsigned number : *kept)
+            REQUIRE(number >= 1 && number <= 255);
+    }
+}
+
 TEST_CASE("enumeration: COM names are parsed from descriptions")
 {
     REQUIRE_EQ(parse_com_port_name("USB Serial Device (COM13)"),

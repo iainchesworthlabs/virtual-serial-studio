@@ -3130,19 +3130,34 @@ Réseaux : %5</translation>
             <translation>Tout renvoyer n'est pas disponible dans cette version.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>Impossible de modifier la configuration. %1 L'état précédent a été rétabli là où Studio le pouvait.</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>Impossible de la mettre en place. %1 Rien n'a été modifié.</translation>
-        </message>
-        <message>
             <location filename="../src/simple/job_form.cpp" line="1391" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurer Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>Impossible de la mettre en place. COM%1 appartient déjà à un autre appareil de ce PC, comme un port réel, com0com ou un ancien port dont Windows se souvient. Rien n'a été modifié. Studio a choisi un autre numéro pour vous. Choisissez Créer pour réessayer.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>Impossible de modifier la configuration. COM%1 appartient déjà à un autre appareil de ce PC, comme un port réel, com0com ou un ancien port dont Windows se souvient. L'état précédent a été rétabli là où Studio le pouvait. Studio a choisi un autre numéro pour vous. Choisissez Appliquer pour réessayer.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>Impossible de la mettre en place. Studio a signalé : %1. Rien n'a été modifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>Impossible de modifier la configuration. Studio a signalé : %1. L'état précédent a été rétabli là où Studio le pouvait.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio n'a pas pu lire quels numéros COM Windows conserve ; il en choisit donc un libre à la création du port et l'affiche quand le port est prêt.</translation>
         </message>
     </context>
     <context>
@@ -17634,14 +17649,29 @@ Réseaux : %5</translation>
             <translation>Tout renvoyer n'est pas disponible dans cette version.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>Impossible de modifier la configuration. %1 L'état précédent a été rétabli là où Studio le pouvait.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>Impossible de la mettre en place. COM%1 appartient déjà à un autre appareil de ce PC, comme un port réel, com0com ou un ancien port dont Windows se souvient. Rien n'a été modifié. Studio a choisi un autre numéro pour vous. Choisissez Créer pour réessayer.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>Impossible de la mettre en place. %1 Rien n'a été modifié.</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>Impossible de modifier la configuration. COM%1 appartient déjà à un autre appareil de ce PC, comme un port réel, com0com ou un ancien port dont Windows se souvient. L'état précédent a été rétabli là où Studio le pouvait. Studio a choisi un autre numéro pour vous. Choisissez Appliquer pour réessayer.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>Impossible de la mettre en place. Studio a signalé : %1. Rien n'a été modifié.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>Impossible de modifier la configuration. Studio a signalé : %1. L'état précédent a été rétabli là où Studio le pouvait.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Studio n'a pas pu lire quels numéros COM Windows conserve ; il en choisit donc un libre à la création du port et l'affiche quand le port est prêt.</translation>
         </message>
     </context>
     <context>

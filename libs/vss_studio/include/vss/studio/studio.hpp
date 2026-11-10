@@ -323,6 +323,9 @@ public:
 
     com0com_installation detect_com0com() const;
     std::vector<serial_device_info> serial_devices() const;
+    /// The COM numbers Windows keeps for a port that is not listed (see
+    /// `vss::reserved_com_numbers`); `nullopt` when it cannot be asked.
+    std::optional<std::vector<unsigned>> reserved_com_numbers() const;
 
 private:
     struct port_record

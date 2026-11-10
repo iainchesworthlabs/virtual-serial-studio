@@ -13,7 +13,9 @@
 
 #include "dialogs/templates_dialog.hpp"
 #include "simple/setup_page.hpp"
+#include "widgets/notes.hpp"
 
+#include <QComboBox>
 #include <QPlainTextEdit>
 
 namespace
@@ -60,6 +62,54 @@ TEST_CASE("simple: connect two programs to each other")
     st::require_counts(s, {2, 1});
     REQUIRE(page->steps_text().contains(QStringLiteral("Terminal")));
     REQUIRE(page->steps_text().contains(QStringLiteral("Logger")));
+    st::verify_in_advanced(s);
+    s.step(QStringLiteral("remove the setup"));
+    st::remove_shown_setup(s);
+    s.finish();
+}
+
+TEST_CASE("simple: connect two programs when Windows keeps some COM numbers")
+{
+    // A PC with the Studio driver: ports are COM numbers.
+    auto windows = full_capabilities();
+    windows.com_numbers = true;
+    Session s(
+        "simple: connect two programs when Windows keeps some COM numbers",
+        Session::mode::simple, windows);
+    // COM3 to COM6 belong to ports that are no longer plugged in; COM7 is held
+    // by something the list of numbers does not show.
+    s.fake().set_taken_com_numbers({3, 4, 5, 6});
+    s.fake().set_hidden_com_numbers({7});
+    s.step(QStringLiteral("choose 'Connect two programs to each other'"));
+    auto* form = st::open_job(s, job::pair);
+    s.step(QStringLiteral("look at the numbers offered"));
+    for (auto* combo :
+         form->findChildren<QComboBox*>(QStringLiteral("jobFormPort")))
+    {
+        for (int index = 0; index < combo->count(); ++index)
+        {
+            const unsigned number = combo->itemData(index).toUInt();
+            REQUIRE(number > 6);
+        }
+    }
+    s.step(QStringLiteral("click Create: Windows refuses COM7"));
+    click(form->create_button());
+    s.settle();
+    // The form stays open with the failure, and nothing was made.
+    REQUIRE(s.simple_page()->form() == form);
+    st::require_counts(s, {0, 0});
+    bool named = false;
+    for (auto* banner : form->findChildren<NoteBanner*>())
+    {
+        if (banner->isVisibleTo(form) &&
+            banner->text().contains(QStringLiteral("COM7 already belongs")))
+            named = true;
+    }
+    REQUIRE(named);
+    s.step(QStringLiteral("click Create again with the new numbers"));
+    auto* page = st::create(s);
+    st::require_counts(s, {2, 1});
+    REQUIRE(!page->steps_text().contains(QStringLiteral("COM7")));
     st::verify_in_advanced(s);
     s.step(QStringLiteral("remove the setup"));
     st::remove_shown_setup(s);

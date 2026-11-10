@@ -123,6 +123,34 @@ normalise(std::vector<serial_device_info> devices)
     return out;
 }
 
+std::vector<unsigned>
+com_numbers_in_bitmap(const std::vector<unsigned char>& bitmap)
+{
+    std::vector<unsigned> numbers;
+    for (std::size_t byte = 0; byte < bitmap.size() && byte < 32; ++byte)
+    {
+        for (unsigned bit = 0; bit < 8; ++bit)
+        {
+            const unsigned number = static_cast<unsigned>(byte) * 8 + bit + 1;
+            if (number <= 255 && ((bitmap[byte] >> bit) & 1u) != 0)
+                numbers.push_back(number);
+        }
+    }
+    return numbers;
+}
+
+std::optional<std::vector<unsigned>> reserved_com_numbers()
+{
+    VSS_PROFILE_ZONE("ports.reserved_com_numbers");
+    auto numbers = detail::platform_reserved_com_numbers();
+    if (!numbers)
+        return std::nullopt;
+    std::sort(numbers->begin(), numbers->end());
+    numbers->erase(std::unique(numbers->begin(), numbers->end()),
+                   numbers->end());
+    return numbers;
+}
+
 std::vector<serial_device_info> enumerate_serial_devices()
 {
     VSS_PROFILE_ZONE_NAMED(zone, "ports.enumerate");

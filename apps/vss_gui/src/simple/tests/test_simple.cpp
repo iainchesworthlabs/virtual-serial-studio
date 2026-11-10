@@ -15,8 +15,10 @@
 #include "simple/setup_kinds.hpp"
 #include "simple/setup_page.hpp"
 #include "simple/simple_page.hpp"
+#include "widgets/notes.hpp"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QLabel>
 #include <QListWidget>
 #include <QPushButton>
@@ -503,6 +505,168 @@ TEST_CASE("simple: the form says when a COM name is chosen twice")
     REQUIRE(form.create_button()->isEnabled());
     REQUIRE(form.plan().first.front().com_number !=
             form.plan().second.front().com_number);
+}
+
+namespace
+{
+
+/// The COM numbers a form's port pickers offer, row by row.
+std::vector<QStringList> offered_numbers(JobForm& form)
+{
+    std::vector<QStringList> rows;
+    for (auto* combo :
+         form.findChildren<QComboBox*>(QStringLiteral("jobFormPort")))
+    {
+        QStringList items;
+        for (int index = 0; index < combo->count(); ++index)
+            items << combo->itemText(index);
+        rows.push_back(items);
+    }
+    return rows;
+}
+
+/// The visible failure note of a form, or an empty string.
+QString failure_text(JobForm& form)
+{
+    for (auto* banner : form.findChildren<NoteBanner*>())
+    {
+        if (banner->isVisibleTo(&form) &&
+            banner->text().startsWith(QStringLiteral("Could not")))
+            return banner->text();
+    }
+    return {};
+}
+
+} // namespace
+
+TEST_CASE("simple: numbers Windows keeps are neither offered nor chosen")
+{
+    // COM3 and COM4 are plugged in; COM5, COM6 and COM8 belong to ports that
+    // are not listed (a removed port keeps its number).
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    backend.set_taken_com_numbers({5, 6, 8});
+
+    JobForm form(backend, job::pair);
+    REQUIRE_EQ(form.plan().first.front().com_number, 7u);
+    REQUIRE_EQ(form.plan().second.front().com_number, 9u);
+    const auto rows = offered_numbers(form);
+    REQUIRE_EQ(rows.size(), std::size_t{2});
+    for (const auto& items : rows)
+    {
+        for (const QString& gone :
+             {QStringLiteral("COM3"), QStringLiteral("COM4"),
+              QStringLiteral("COM5"), QStringLiteral("COM6"),
+              QStringLiteral("COM8")})
+            REQUIRE(!items.contains(gone));
+    }
+    // Each row keeps its own number in its list, the other row's is not there.
+    REQUIRE(rows[0].contains(QStringLiteral("COM7")));
+    REQUIRE(!rows[0].contains(QStringLiteral("COM9")));
+    REQUIRE(rows[1].contains(QStringLiteral("COM9")));
+    REQUIRE(!rows[1].contains(QStringLiteral("COM7")));
+
+    REQUIRE(form.submit());
+    const auto made = backend.ports();
+    REQUIRE_EQ(made.size(), std::size_t{2});
+    REQUIRE(std::any_of(made.begin(), made.end(), [](const port_view& port)
+                        { return port.com_number == 7; }));
+    REQUIRE(std::any_of(made.begin(), made.end(), [](const port_view& port)
+                        { return port.com_number == 9; }));
+}
+
+TEST_CASE(
+    "simple: no numbers are offered when Studio cannot tell which are free")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    backend.set_reservations_unknown(true);
+
+    JobForm form(backend, job::pair);
+    REQUIRE(offered_numbers(form).empty());
+    REQUIRE_EQ(form.plan().first.front().com_number, 0u);
+    REQUIRE_EQ(form.plan().second.front().com_number, 0u);
+    REQUIRE(visible_texts(&form)
+                .join(QLatin1Char('\n'))
+                .contains(QStringLiteral("could not read which COM numbers "
+                                         "Windows keeps")));
+    // Studio picks the numbers, so the setup is still made.
+    REQUIRE(form.submit());
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+}
+
+TEST_CASE("simple: a refused number is named and replaced")
+{
+    // COM3 is held by a port the list of numbers does not show, so it is
+    // offered and refused.
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    backend.set_hidden_com_numbers({3});
+
+    JobForm form(backend, job::pair);
+    REQUIRE_EQ(form.plan().first.front().com_number, 3u);
+    REQUIRE_EQ(form.plan().second.front().com_number, 4u);
+    REQUIRE(!form.submit());
+    REQUIRE(backend.ports().empty());
+
+    const QString failure = failure_text(form);
+    REQUIRE(failure.startsWith(QStringLiteral("Could not set it up. COM3 "
+                                              "already belongs to another "
+                                              "device")));
+    REQUIRE(failure.contains(QStringLiteral("Nothing was changed.")));
+    REQUIRE(!failure.contains(QStringLiteral("already exists")));
+
+    // The refused number is gone from both rows and the form holds a free one.
+    REQUIRE_EQ(form.plan().first.front().com_number, 5u);
+    REQUIRE_EQ(form.plan().second.front().com_number, 4u);
+    // The old rows wait to be deleted; only the new ones count.
+    settle();
+    const auto rows = offered_numbers(form);
+    REQUIRE_EQ(rows.size(), std::size_t{2});
+    for (const auto& items : rows)
+        REQUIRE(!items.contains(QStringLiteral("COM3")));
+    REQUIRE(form.submit());
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+}
+
+TEST_CASE("simple: a failure that is not a number reads as a sentence")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    JobForm form(backend, job::pair);
+    backend.fail_next(vss::make_error_code(vss::errc::timeout));
+    REQUIRE(!form.submit());
+    const QString failure = failure_text(form);
+    REQUIRE(failure.startsWith(QStringLiteral("Could not set it up. Studio "
+                                              "reported: ")));
+    REQUIRE(failure.endsWith(QStringLiteral("Nothing was changed.")));
+}
+
+TEST_CASE("simple: building reports the COM number that clashed")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    backend.set_hidden_com_numbers({6});
+    job_plan plan;
+    plan.kind = job::pair;
+    end_plan first;
+    first.com_number = 5;
+    end_plan second;
+    second.com_number = 6;
+    plan.first = {first};
+    plan.second = {second};
+
+    unsigned clashed = 99;
+    const auto built = build_setup(backend, plan, nullptr, &clashed);
+    REQUIRE(!built.has_value());
+    REQUIRE_EQ(clashed, 6u);
+    // What was made before the clash is taken away again.
+    REQUIRE(backend.ports().empty());
+
+    plan.second.front().com_number = 7;
+    REQUIRE(build_setup(backend, plan, nullptr, &clashed).has_value());
+    REQUIRE_EQ(clashed, 0u);
 }
 
 TEST_CASE("simple: Simple-mode words name no Studio part")

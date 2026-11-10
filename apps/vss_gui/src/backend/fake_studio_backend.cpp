@@ -202,6 +202,7 @@ FakeStudioBackend::create_driver_port(const QString& name, bool capture,
         return vss::make_error_code(vss::errc::invalid_argument);
     if (com_number != 0 &&
         (taken_com_numbers_.contains(com_number) ||
+         hidden_com_numbers_.contains(com_number) ||
          std::any_of(ports_.begin(), ports_.end(),
                      [com_number](const port_view& view)
                      { return view.com_number == com_number; })))

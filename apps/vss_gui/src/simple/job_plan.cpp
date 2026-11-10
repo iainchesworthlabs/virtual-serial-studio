@@ -306,9 +306,12 @@ plan_changes compare(const job_plan& plan, const setup_view& previous)
 
 vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
                                           const job_plan& plan,
-                                          const setup_view* previous)
+                                          const setup_view* previous,
+                                          unsigned* clashed_com)
 {
     VSS_PROFILE_ZONE("gui.simple.job_plan.build_setup");
+    if (clashed_com != nullptr)
+        *clashed_com = 0;
     const auto before = backend.ports();
     QSet<QString> taken;
     for (const auto& port : before)
@@ -361,6 +364,9 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
                     : backend.create_auto_port(name, true);
             if (!port)
             {
+                if (clashed_com != nullptr && end.com_number != 0 &&
+                    port.error() == vss::errc::already_exists)
+                    *clashed_com = end.com_number;
                 // A missing driver or helper looks like any other refusal;
                 // say which, so the form can offer the set-up.
                 return driver_aware_error(backend, port.error());

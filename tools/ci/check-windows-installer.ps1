@@ -103,7 +103,14 @@ try {
     $path = (Resolve-Path $Installer).Path
     Show-State 'State before the install'
 
-    $code = Invoke-Bounded $path @('/S', '/DRIVER=0') 'First install, without the driver'
+    # The machine PATH before anything: the installer must add one folder to it, however long it is
+    # (a hosted runner's is far longer than the 1024 characters CPack's own PATH code stops at), and
+    # the uninstall must give the same PATH back.
+    $pathBefore = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    Write-Host "The machine PATH is $($pathBefore.Length) characters before the install."
+    if ($env:RUNNER_TEMP) { Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'vss-path-before.txt') -Value $pathBefore -NoNewline -Encoding utf8 }
+
+    $code = Invoke-Bounded $path @('/S', '/DRIVER=0', '/ADDTOPATH=1') 'First install, without the driver, on the PATH'
     if ($code -ne 0) { throw "The installer exited with $code (first install, /DRIVER=0)." }
     Assert-Studio 'first install'
     if ((Get-ItemProperty -LiteralPath $key).VssDriver -ne 'skipped') { throw 'The driver was not recorded as skipped after /DRIVER=0.' }
@@ -135,8 +142,15 @@ try {
     }
 
     if (-not (Test-Path -LiteralPath (Join-Path $startMenu 'Virtual Serial Studio.lnk'))) { throw 'The Start menu shortcut is missing.' }
-    # A silent install must not change the PATH.
-    if ([Environment]::GetEnvironmentVariable('Path', 'Machine') -like '*Virtual Serial Studio*') { throw 'A silent install added Studio to the PATH.' }
+    # /ADDTOPATH=1 put the folder on the machine PATH once, left the rest as it was, and the upgrade
+    # (a plain /S) did not take it away or add it again.
+    $bin = Join-Path $folder 'bin'
+    # Empty entries (a trailing ;) do not count: the installer drops them.
+    $pathNow = @([Environment]::GetEnvironmentVariable('Path', 'Machine').Split(';') | Where-Object { $_ })
+    $ours = @($pathNow | Where-Object { $_.TrimEnd([char]92) -ieq $bin })
+    if ($ours.Count -ne 1) { throw "The folder $bin is on the machine PATH $($ours.Count) times after /ADDTOPATH=1 and an upgrade; it should be once." }
+    $expected = (@($pathBefore.Split(';') | Where-Object { $_ }) + $bin) -join ';'
+    if (($pathNow -join ';') -ne $expected) { throw 'The installer changed more of the machine PATH than its own folder.' }
   }
   else {
     Show-State 'State before the uninstall'
@@ -153,6 +167,14 @@ try {
     if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw 'The helper service is still there.' }
     if ((Get-DriverPackages).Count -ne 0) { throw 'The driver package is still in the driver store.' }
     if (Test-Path -LiteralPath $startMenu) { throw 'The Start menu folder is still there.' }
+    $pathNow = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    if ($pathNow -like '*Virtual Serial Studio*') { throw 'The folder is still on the machine PATH.' }
+    $before = if ($env:RUNNER_TEMP) { Join-Path $env:RUNNER_TEMP 'vss-path-before.txt' } else { '' }
+    if ($before -and (Test-Path -LiteralPath $before)) {
+      # The PATH is what it was, apart from empty entries.
+      $was = (Get-Content -LiteralPath $before -Raw).Split(';') | Where-Object { $_ }
+      if ((($pathNow.Split(';') | Where-Object { $_ }) -join ';') -ne ($was -join ';')) { throw 'The machine PATH is not what it was before the install.' }
+    }
     Write-Host 'The uninstall left nothing behind.'
   }
 }
