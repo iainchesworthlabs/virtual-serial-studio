@@ -8,6 +8,7 @@
 
 #include "backend/driver_error.hpp"
 
+#include <vss/core/link.hpp>
 #include <vss/core/profile.hpp>
 
 #include <QRegularExpression>
@@ -125,49 +126,148 @@ vss::result<vss::link_id> relink(StudioBackend& backend, const link_view& link)
     return vss::make_error_code(vss::errc::unsupported);
 }
 
-/// Whether `old` can be changed into what `kind` builds with `add_target` and
-/// `remove_target`: a duplex link from the same device with the merge policy
-/// the kind needs.  The shape is not asked: the real engine reports a duplex
-/// link with one target as `two_way`, and with more as `split`.
-bool edits_in_place(const link_view& old, job kind, vss::endpoint_id device)
+/// Which list of a link an in-place edit changes.
+enum class edit_list
 {
-    if (kind != job::attach && kind != job::share && kind != job::turns)
-        return false;
-    const vss::merge_policy wanted = kind == job::turns
-                                         ? vss::merge_policy::owner
-                                         : vss::merge_policy::interleave;
-    return old.mode == vss::link_mode::duplex && old.sources.size() == 1 &&
-           old.sources.front() == device && old.options.policy == wanted;
+    /// The targets of a duplex link (`add_target`, `remove_target`).
+    targets,
+    /// The sources of a one-way link (`add_source`, `remove_source`).
+    sources,
+    /// The members of a bus (`add_member`, `remove_member`).
+    members
+};
+
+/// What `build_setup` does to a link without replacing it: the list it
+/// changes, and what that list is to hold afterwards.
+struct in_place_edit
+{
+    edit_list list = edit_list::targets;
+    std::vector<vss::endpoint_id> wanted;
+};
+
+/// Whether `old` can be changed into what `kind` builds by adding and taking
+/// off the ends of one of its lists, and if so how.  `first` and `second` are
+/// the plan's ends, made or kept.
+///
+/// - attach, share, turns: a duplex link from the same device with the merge
+///   policy the kind needs, whose targets become the programs.  The shape is
+///   not asked: the real engine reports a duplex link with one target as
+///   `two_way`, and with more as `split`.
+/// - combine: a one-way link into the same receiver, with the interleave
+///   policy, whose sources become the senders.
+/// - bus: a bus, whose members become the plan's.  Every new member is on the
+///   bus before an old one leaves, so a plan that swaps most of a large bus
+///   is made again instead of going over the most a bus takes.
+std::optional<in_place_edit>
+edits_in_place(const link_view& old, job kind,
+               const std::vector<vss::endpoint_id>& first,
+               const std::vector<vss::endpoint_id>& second)
+{
+    switch (kind)
+    {
+    case job::attach:
+    case job::share:
+    case job::turns:
+    {
+        const bool turns = kind == job::turns;
+        const auto& programs = turns ? first : second;
+        const vss::endpoint_id device =
+            turns ? (second.empty() ? vss::endpoint_id{0} : second.front())
+                  : first.front();
+        const vss::merge_policy wanted =
+            turns ? vss::merge_policy::owner : vss::merge_policy::interleave;
+        if (!programs.empty() && device != 0 &&
+            old.mode == vss::link_mode::duplex && old.sources.size() == 1 &&
+            old.sources.front() == device && old.options.policy == wanted)
+            return in_place_edit{edit_list::targets, programs};
+        break;
+    }
+    case job::combine:
+        if (!first.empty() && !second.empty() &&
+            old.mode == vss::link_mode::one_way && old.targets.size() == 1 &&
+            old.targets.front() == second.front() &&
+            old.options.policy == vss::merge_policy::interleave)
+            return in_place_edit{edit_list::sources, first};
+        break;
+    case job::bus:
+    {
+        if (old.mode != vss::link_mode::bus)
+            break;
+        std::size_t newcomers = 0;
+        for (const auto id : first)
+        {
+            if (!old.sources.contains(id))
+                ++newcomers;
+        }
+        if (static_cast<std::size_t>(old.sources.size()) + newcomers <=
+            vss::max_bus_members)
+            return in_place_edit{edit_list::members, first};
+        break;
+    }
+    default:
+        break;
+    }
+    return std::nullopt;
 }
 
-/// Makes the targets of `old` the `programs`: adds the new ones first, so the
-/// link always has a target, then takes off the ones that are not wanted.  The
-/// link keeps its id, options and counters.  A failure puts the targets back,
-/// so the link is as it was.
-vss::result<void> edit_targets(StudioBackend& backend, const link_view& old,
-                               const std::vector<vss::endpoint_id>& programs)
+/// Makes the ends of one list of `old` the `wanted` ones: adds the new ones
+/// first, so the link always has an end of that kind, then takes off the ones
+/// that are not wanted.  The link keeps its id, options and counters.  A
+/// failure puts the list back, so the link is as it was (an end that was
+/// taken off and is put back goes to the end of the list).
+vss::result<void> edit_ends(StudioBackend& backend, const link_view& old,
+                            const in_place_edit& edit)
 {
-    VSS_PROFILE_ZONE("gui.simple.job_plan.edit_targets");
+    VSS_PROFILE_ZONE("gui.simple.job_plan.edit_ends");
+    const QVector<vss::endpoint_id>& current =
+        edit.list == edit_list::targets ? old.targets : old.sources;
+    const auto add = [&](vss::endpoint_id id)
+    {
+        switch (edit.list)
+        {
+        case edit_list::targets:
+            return backend.add_target(old.id, id);
+        case edit_list::sources:
+            return backend.add_source(old.id, id);
+        case edit_list::members:
+            return backend.add_member(old.id, id);
+        }
+        return vss::result<void>{vss::make_error_code(vss::errc::unsupported)};
+    };
+    const auto take = [&](vss::endpoint_id id)
+    {
+        switch (edit.list)
+        {
+        case edit_list::targets:
+            return backend.remove_target(old.id, id);
+        case edit_list::sources:
+            return backend.remove_source(old.id, id);
+        case edit_list::members:
+            return backend.remove_member(old.id, id);
+        }
+        return vss::result<void>{vss::make_error_code(vss::errc::unsupported)};
+    };
+
     std::vector<vss::endpoint_id> added;
     std::vector<vss::endpoint_id> removed;
     const auto roll_back = [&]
     {
         for (const auto id : removed)
-            static_cast<void>(backend.add_target(old.id, id));
+            static_cast<void>(add(id));
         for (auto it = added.rbegin(); it != added.rend(); ++it)
-            static_cast<void>(backend.remove_target(old.id, *it));
+            static_cast<void>(take(*it));
         // Taking the owner off the link released it.
         if (old.owner != 0 && std::find(removed.begin(), removed.end(),
                                         old.owner) != removed.end())
             static_cast<void>(backend.set_owner(old.id, old.owner));
     };
 
-    for (const auto id : programs)
+    for (const auto id : edit.wanted)
     {
-        if (old.targets.contains(id) ||
+        if (current.contains(id) ||
             std::find(added.begin(), added.end(), id) != added.end())
             continue;
-        const auto result = backend.add_target(old.id, id);
+        const auto result = add(id);
         if (!result)
         {
             roll_back();
@@ -175,11 +275,12 @@ vss::result<void> edit_targets(StudioBackend& backend, const link_view& old,
         }
         added.push_back(id);
     }
-    for (const auto id : old.targets)
+    for (const auto id : current)
     {
-        if (std::find(programs.begin(), programs.end(), id) != programs.end())
+        if (std::find(edit.wanted.begin(), edit.wanted.end(), id) !=
+            edit.wanted.end())
             continue;
-        const auto result = backend.remove_target(old.id, id);
+        const auto result = take(id);
         if (!result)
         {
             roll_back();
@@ -470,21 +571,20 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         }
     };
 
-    // Programs added to or taken off a device that several programs use change
-    // its link in place, so the link and the other programs are not
-    // disturbed.  The other setups have no in-place edit in the engine (a
-    // join's sources, a bus's members), and are made again.
+    // Programs added to or taken off a device that several programs use, the
+    // senders of a combine and the members of a bus change their link in place,
+    // so the link and the ports that stay are not disturbed.  The other setups
+    // have no in-place edit in the engine (a pair, a lone port with its echo)
+    // or are one engine operation (the network bridge), and are made again.
     if (previous != nullptr && previous->link != 0)
     {
-        const bool turns = plan.kind == job::turns;
-        const auto& programs = turns ? a : b;
-        const vss::endpoint_id device =
-            turns ? (b.empty() ? vss::endpoint_id{0} : b.front()) : a.front();
         const auto old = backend.link(previous->link);
-        if (old && !programs.empty() && device != 0 &&
-            edits_in_place(*old, plan.kind, device))
+        const auto edit = old && !a.empty()
+                              ? edits_in_place(*old, plan.kind, a, b)
+                              : std::nullopt;
+        if (edit)
         {
-            const auto edited = edit_targets(backend, *old, programs);
+            const auto edited = edit_ends(backend, *old, *edit);
             if (!edited)
             {
                 undo_made();
@@ -492,7 +592,7 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
             }
             // Taking the owner off the link released it; a link whose owner
             // stays keeps it.
-            if (turns)
+            if (plan.kind == job::turns)
             {
                 const auto now = backend.link(old->id);
                 if (now && now->owner == 0)

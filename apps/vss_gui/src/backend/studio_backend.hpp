@@ -215,6 +215,33 @@ public:
     /// not a target of the link and `invalid_argument` for the last target.
     virtual vss::result<void> remove_target(vss::link_id link,
                                             vss::endpoint_id target) = 0;
+    /// Adds one source to a one-way link (a join, a one-way link or a monitor)
+    /// in place: the link keeps its id, options, owner and counters, and the
+    /// other sources lose no bytes.  `unsupported` for a duplex link or a bus,
+    /// `not_found` for an unknown link or port, `invalid_argument` for the
+    /// link's target, `already_exists` for a port that is a source already,
+    /// `cycle_detected` for a source that would close a loop.
+    virtual vss::result<void> add_source(vss::link_id link,
+                                         vss::endpoint_id source) = 0;
+    /// Takes one source off a one-way link and leaves the others linked.  The
+    /// port stays.  Errors as `add_source`, with `not_found` for a port that
+    /// is not a source of the link and `invalid_argument` for the last source.
+    virtual vss::result<void> remove_source(vss::link_id link,
+                                            vss::endpoint_id source) = 0;
+    /// Puts one more port on a bus in place: the bus keeps its id, options
+    /// and counters, and the routes between the other members are not
+    /// disturbed.  `unsupported` for a link that is not a bus, `not_found`
+    /// for an unknown link or port, `already_exists` for a port that is on
+    /// a bus already (this one or another), `invalid_argument` for a bus that
+    /// would have more members than a bus takes, `cycle_detected` for a port
+    /// that would close a loop with it.
+    virtual vss::result<void> add_member(vss::link_id link,
+                                         vss::endpoint_id member) = 0;
+    /// Takes one port off a bus and leaves the others on it.  The port stays.
+    /// Errors as `add_member`, with `not_found` for a port that is not a
+    /// member of the bus and `invalid_argument` for a bus of two members.
+    virtual vss::result<void> remove_member(vss::link_id link,
+                                            vss::endpoint_id member) = 0;
     virtual vss::result<void> set_owner(vss::link_id id,
                                         vss::endpoint_id owner) = 0;
     virtual vss::result<void> release_owner(vss::link_id id) = 0;

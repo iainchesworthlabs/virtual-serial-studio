@@ -157,7 +157,9 @@ Sections, each with a group label:
    - Take turns: each program row has "Let this one send" or the chip "Sending now".
    - "+ Add a program" under the rows for share, line, send into one and take turns. Adding or closing one port does
      not interrupt the other programs. For a share, an attached device and take turns the link is edited in place, so
-     it keeps its id and its owner (`backend/share_edit`, `hub::add_target`, `hub::remove_target`).
+     it keeps its id and its owner (`backend/share_edit`, `hub::add_target`, `hub::remove_target`); so are the senders
+     of send into one and the members of a line (`hub::add_source`, `hub::remove_source`, `hub::add_member`,
+     `hub::remove_member`).
 3. **Type to <port>** (try my device, a lone program port, or when "Let me type" was ticked): one sentence on where the
    text goes, the received text (mono, read only), an input with "Send", and a switch "Enter adds a line ending".
 4. **Data going through**: when off, the secondary button "Show me the data going through" with "Read only. Useful when a
@@ -172,9 +174,12 @@ Change opens the job form filled from the setup, titled "Change <title>", with t
 sentence a note "What Apply changes" lists the ports that stay open ("Programs using them are not interrupted"), the new
 ones and the ones that close ("A program using it loses it"). Apply keeps the ports that stay, makes the new ones and
 removes the ports that close. For a share, an attached device and take turns on the same device it adds and takes off
-targets on the same link, so the link keeps its id, its options and its owner. For the other setups (a pair, a port with
-an echo, a bus, send into one, a network device, or a different device or kind) it replaces the link, because the engine
-has no in-place edit for a join's sources or a bus's members.
+targets on the same link; for send into one with the same receiver it adds and takes off sources (`hub::add_source`,
+`hub::remove_source`); for a bus it adds and takes off members (`hub::add_member`, `hub::remove_member`). The link keeps
+its id, its options and its owner, and the ports that stay lose no bytes. New ones are added before old ones are taken off,
+so the link never has fewer ends than it needs; a failed step puts the link back. For the other setups (a pair, a port with
+an echo, a network device, a different device, receiver or kind, or a bus that would pass 64 members while the new ones
+join) it replaces the link, because the engine has no in-place edit for them.
 
 ## Removing
 
