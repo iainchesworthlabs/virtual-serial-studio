@@ -406,6 +406,24 @@ TEST_CASE("document: a bus round trips with its members")
     REQUIRE(parsed->links[0].targets.empty());
 }
 
+TEST_CASE("document: the links of a plain bus are written exactly as before")
+{
+    // The whole text of the links, so that an option added to a bus later
+    // cannot change what a file without it looks like.
+    const auto text = to_json(bus_document(), false);
+    REQUIRE(text);
+    const auto at = text->find("\"links\":");
+    REQUIRE(at != std::string::npos);
+    REQUIRE_EQ(
+        text->substr(at),
+        std::string(
+            R"("links":[{"mode":"bus","members":["master","one","two"],)"
+            R"("emulate_modem_lines":false,"policy":"interleave"},)"
+            R"({"mode":"join","sources":["master","one","two"],)"
+            R"("targets":["tap"],"emulate_modem_lines":false,)"
+            R"("policy":"interleave"}]})"));
+}
+
 TEST_CASE("document: a bus in a hand written file needs only its members")
 {
     const auto parsed =

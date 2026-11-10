@@ -456,3 +456,43 @@ TEST_CASE("bus: concurrent publishers each reach everyone else intact")
             REQUIRE(heard[at] == heard[at + 1] && heard[at] == heard[at + 2]);
     }
 }
+
+TEST_CASE("bus: a plain bus forwards two senders at once and reports nothing")
+{
+    bus_fixture fixture(3);
+    event_recorder events;
+    const subscription_guard guard(
+        *fixture.hub, {},
+        [events](const endpoint_event& event) { events.record(event); });
+
+    const auto bus = fixture.hub->bus(fixture.ids(0, 3));
+    REQUIRE(bus);
+    const auto made = fixture.hub->find_link(*bus);
+    REQUIRE(made);
+    REQUIRE_EQ(made->options.delay_ms, std::uint32_t{0});
+    REQUIRE_EQ(made->options.jitter_ms, std::uint32_t{0});
+    REQUIRE(made->options.policy == merge_policy::interleave);
+
+    // Two members speak with nothing between them.  Each chunk reaches the
+    // other two members whole, at once and unchanged.
+    fixture.ports[0].inject_read("first");
+    fixture.ports[1].inject_read("second");
+    REQUIRE(wait_until(
+        [&] { return fixture.ports[2].written() == "firstsecond"; }, 5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[1].written() == "first"; },
+                       5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[0].written() == "second"; },
+                       5000ms));
+
+    const auto info = fixture.hub->find_link(*bus);
+    REQUIRE(info);
+    REQUIRE_EQ(info->stats.bytes, std::uint64_t{22});
+    REQUIRE_EQ(info->stats.messages, std::uint64_t{4});
+    REQUIRE_EQ(info->stats.dropped, std::uint64_t{0});
+
+    // The hub reported the traffic itself, two chunks received and four
+    // sent, and no error about any of it.
+    REQUIRE(wait_until(
+        [&] { return events.count(event_kind::data) == 6; }, 5000ms));
+    REQUIRE_EQ(events.count(event_kind::error), std::size_t{0});
+}
