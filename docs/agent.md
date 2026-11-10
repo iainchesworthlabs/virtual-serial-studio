@@ -434,19 +434,20 @@ What these cannot cover:
 ## 10. The pull requests
 
 Each is reviewable alone and green alone. Sizes are lines of code and tests together, to within a factor of two.
+The slice came out at a little more than one line of test for each line of code, and the estimates assume the same.
 
 | PR | What | Size |
 |---|---|---|
-| 1 (this slice) | This page; `libs/vss_agent_proto`; `libs/vss_agent` (transport, server, client); `vss_agent`; `vss_cli agent`; the tests of section 9. Loopback ports only, not installed | 5 000 |
-| 2 | The whole snapshot (full port and link views, capabilities by name), the rest of the quick operations, the error table for Asio and serial categories | 2 500 |
-| 3 | Late replies: progress, cancel, the asynchronous client; driver ports, COM numbers, `attach_serial`, `share`, `bridge`, `apply`, the benchmark | 3 000 |
-| 4 | `batch` with rollback and the single writer; the free-COM-number search in the agent | 1 500 |
-| 5 | Traffic: the filtered tap, pages of history, capture in the agent | 1 500 |
-| 6 | The running setup and its restore move into the agent; start on demand; exit when idle; refuse to run elevated; `RegisterApplicationRestart` | 1 500 |
-| 7 | `RemoteStudioBackend`, behind a switch, with the window's tests run against it | 3 500 |
-| 8 | The window uses the agent by default: what the tray, the single-instance lock and the sign-in entry become (decision 4); the restart-the-agent prompt | 1 500 |
+| 1 (this slice) | This page; `libs/vss_agent_proto`; `libs/vss_agent` (transport, server, client); `vss_agent`; `vss_cli agent`; the tests of section 9. Loopback ports only, not installed | 10 700 measured: 4 800 of code, 5 400 of tests and the fuzz harness, 500 of documents |
+| 2 | The whole snapshot (full port and link views, capabilities by name), the rest of the quick operations, the error table for Asio and serial categories | 4 000 |
+| 3 | Late replies: progress, cancel, the asynchronous client; driver ports, COM numbers, `attach_serial`, `share`, `bridge`, `apply`, the benchmark | 5 000 |
+| 4 | `batch` with rollback and the single writer; the free-COM-number search in the agent | 2 500 |
+| 5 | Traffic: the filtered tap, pages of history, capture in the agent | 2 500 |
+| 6 | The running setup and its restore move into the agent; start on demand; exit when idle; refuse to run elevated; `RegisterApplicationRestart` | 2 500 |
+| 7 | `RemoteStudioBackend`, behind a switch, with the window's tests run against it | 6 000 |
+| 8 | The window uses the agent by default: what the tray, the single-instance lock and the sign-in entry become (decision 4); the restart-the-agent prompt | 2 500 |
 | 9 | Installers: `vss_agent` in all four, stopping agents on Windows, the signing lists, the optional systemd unit and launchd agent | 1 000 |
-| 10 | `--agent` for the `vss_cli` commands of section 8, `agent apply`, `respond` in the agent | 1 500 |
+| 10 | `--agent` for the `vss_cli` commands of section 8, `agent apply`, `respond` in the agent | 2 500 |
 | 11 | VM guest runs: two users, driver ports, sign-in, upgrade | scripts |
 
 PR 7 is the large one and cannot be cut smaller without a backend that does half of the interface. PRs 2 to 6 can
