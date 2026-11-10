@@ -12,6 +12,7 @@ it and runs them, together with `gen_app_icon.py --check`.
 
 from __future__ import annotations
 
+import importlib.util
 import struct
 import sys
 import tempfile
@@ -22,12 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import gen_app_icon as icon  # noqa: E402
 
-try:
-    import resvg_py  # noqa: F401, E402
-
-    HAVE_RENDERER = True
-except ImportError:
-    HAVE_RENDERER = False
+# Only whether the renderer can be imported matters here, so look for it without
+# importing it.
+HAVE_RENDERER = importlib.util.find_spec("resvg_py") is not None
 
 
 def solid(size: int, rgba: tuple[int, int, int, int]) -> bytes:
@@ -105,7 +103,7 @@ class Containers(unittest.TestCase):
 
     def test_sizes_cover_the_platforms(self) -> None:
         self.assertEqual(icon.ICO_SIZES, (16, 24, 32, 48, 64, 128, 256))
-        self.assertTrue({16, 32, 48, 64, 128, 256, 512, 1024} <= set(icon.PNG_SIZES))
+        self.assertLessEqual({16, 32, 48, 64, 128, 256, 512, 1024}, set(icon.PNG_SIZES))
 
 
 class Comparison(unittest.TestCase):
