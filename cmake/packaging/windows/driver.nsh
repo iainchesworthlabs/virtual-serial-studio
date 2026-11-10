@@ -299,5 +299,8 @@ Function un.VssRemovePath
   ${EndIf}
 
 done:
+  ; The script is not in CPack's list of installed files (VssInstallPath puts it
+  ; there), so the uninstaller would leave it, and the folder with it.
+  Delete "$INSTDIR\bin\edit-path.ps1"
   Pop $0
 FunctionEnd
