@@ -17,6 +17,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_events.cpp
   unit/test_hub_latency.cpp
   unit/test_hub_members.cpp
+  unit/test_hub_options.cpp
+  unit/test_hub_options_stress.cpp
   unit/test_hub_owner.cpp
   unit/test_hub_sources.cpp
   unit/test_hub_sources_stress.cpp

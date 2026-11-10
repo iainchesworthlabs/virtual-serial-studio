@@ -267,6 +267,58 @@ public:
     /// the bus under two members.)
     result<void> remove_member(link_id id, endpoint_id member);
 
+    /// Changes the delay, jitter, merge policy, `emulate_modem_lines` and
+    /// wiring of a link that exists, in place: the link keeps its id, its
+    /// sources, its targets and its counters, and the other links are not
+    /// touched.  It works on every kind of link, a #monitor and a #bus
+    /// included.
+    ///
+    /// It fails, and changes nothing, with
+    /// - `errc::invalid_argument` for a delay over #max_link_delay_ms or a
+    ///   jitter over the delay, as on creation (checked first),
+    /// - `errc::not_found` for an unknown link,
+    /// - `errc::unsupported` for a #bus and any policy but `interleave`, as
+    ///   #bus is.
+    ///
+    /// A #bus stores `emulate_modem_lines = false` whatever is passed, as
+    /// #bus does, and keeps the wiring it has: a bus has no modem lines, so
+    /// the wiring of one has no meaning and is ignored here, whereas
+    /// #set_link_wiring, which is asked for nothing else, refuses it.  Its
+    /// delay and jitter change like any other link's.  A #monitor is a
+    /// one-way link with `emulate_modem_lines` false; every option may change.
+    /// Turning the lines on makes it a redirect in the saved topology
+    /// (`studio::snapshot()` tells the two apart by that flag), and every
+    /// combination of options is a valid saved link, so none is refused for
+    /// that reason.  The wiring is not saved at all.
+    ///
+    /// - **Merge policy.**  Whether each route of the link is arbitrated is
+    ///   worked out again for the new policy.  Into `owner`, the link is owned
+    ///   by nobody until a publisher on an arbitrated route sends first or
+    ///   #set_owner names one (an owner named while the link interleaved is
+    ///   kept).  Out of `owner` the owner is cleared, so the link does not
+    ///   name an owner it no longer has.
+    /// - **Delay and jitter.**  When either changes, every route of the link
+    ///   gets a new delay line (none when both are now zero) and the old ones
+    ///   are closed before the call returns: the bytes they still hold are
+    ///   DISCARDED, as when a target is removed.  When neither changes the
+    ///   lines are the same objects and keep their bytes, so a change of
+    ///   policy or wiring loses nothing.
+    /// - **Order.**  A chunk routed before the call may be discarded (a
+    ///   delayed link) or delivered; a chunk routed while the call runs may
+    ///   be discarded; chunks routed after it returns are delivered in order,
+    ///   and never ahead of one that came before them.  Bytes can be lost at
+    ///   a change but are not reordered or repeated.
+    /// - **Modem lines.**  Turned on, or rewired while on, the link pushes the
+    ///   current outputs of every sender along it, as #set_link_wiring does,
+    ///   so the receivers' inputs follow at once.  Turned off, each endpoint
+    ///   the link drove loses the inputs it drove, as when a cable is pulled,
+    ///   unless another link still drives it, and then it shows that link's
+    ///   sender, as after #remove_target.
+    ///
+    /// The options are validated and every delay line is made before the
+    /// first stored change, so a failed call changes nothing.
+    result<void> set_link_options(link_id id, const link_options& options);
+
     std::vector<link_info> links() const;
     std::optional<link_info> find_link(link_id id) const;
 
@@ -341,6 +393,10 @@ private:
         std::atomic<std::uint64_t> bytes{0};
         std::atomic<std::uint64_t> messages{0};
         std::atomic<std::uint64_t> dropped{0};
+        /// Above zero while #set_link_options closes the delay lines it has
+        /// replaced.  A chunk routed in that time is discarded, so none can
+        /// take the new route and pass one that is still in an old line.
+        std::atomic<unsigned> retiming{0};
     };
 
     struct subscription
@@ -363,6 +419,10 @@ private:
                  const std::unordered_set<endpoint_id>& goals) const;
     route_entry make_route(const link_record& link, endpoint_id from,
                            endpoint_id to);
+    /// The delay line for a route to `to` under `options`; null when they
+    /// have no delay.  The caller holds the lock.
+    std::shared_ptr<delay_line> make_delay(endpoint_id to,
+                                           const link_options& options);
     void add_route(const link_record& link, endpoint_id from, endpoint_id to);
     /// Removes the routes of `link` that leave `from` for `to` (for any
     /// endpoint when `to` is 0) and hands their delay lines to `held`, to be

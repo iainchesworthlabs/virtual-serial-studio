@@ -33,6 +33,18 @@ owner_candidates(link_mode mode, const std::vector<endpoint_id>& sources,
     return mode == link_mode::duplex ? targets : sources;
 }
 
+/// True when the owner policy arbitrates the routes that leave `from`: the
+/// ones that meet at one endpoint, which are all of a one-way link's and, on a
+/// duplex link, the ones from its targets.  What the single source of a duplex
+/// link sends is never arbitrated.
+bool arbitrates(merge_policy policy, link_mode mode,
+                const std::vector<endpoint_id>& sources,
+                const std::vector<endpoint_id>& targets, endpoint_id from)
+{
+    return policy == merge_policy::owner &&
+           contains(owner_candidates(mode, sources, targets), from);
+}
+
 /// Marks a node of the cycle graph as a bus rather than an endpoint.  Endpoint
 /// and link ids count up from one, so they never reach this bit.
 constexpr endpoint_id bus_node_tag = endpoint_id{1} << 63;
@@ -514,26 +526,25 @@ bool hub::bus_would_create_cycle(const std::vector<endpoint_id>& members) const
     return false;
 }
 
+std::shared_ptr<delay_line> hub::make_delay(endpoint_id to,
+                                            const link_options& options)
+{
+    if (!options.has_latency())
+        return nullptr;
+    // The caller holds the lock and has checked that `to` exists.
+    const auto target = endpoints_.find(to);
+    if (target == endpoints_.end())
+        return nullptr;
+    return std::make_shared<delay_line>(io_.get_executor(), target->second,
+                                        options.delay_ms, options.jitter_ms);
+}
+
 hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
                                  endpoint_id to)
 {
-    std::shared_ptr<delay_line> delay;
-    if (link.options.has_latency())
-    {
-        // The caller holds the lock and has checked that `to` exists.
-        const auto target = endpoints_.find(to);
-        if (target != endpoints_.end())
-            delay = std::make_shared<delay_line>(
-                io_.get_executor(), target->second, link.options.delay_ms,
-                link.options.jitter_ms);
-    }
-    // The owner policy arbitrates the routes that meet at one endpoint: all
-    // of a one-way link's, and on a duplex link the ones from its targets.
-    // What the single source of a duplex link sends is never arbitrated.
-    const bool arbitrated =
-        link.options.policy == merge_policy::owner &&
-        contains(owner_candidates(link.mode, link.sources, link.targets), from);
-    return route_entry{link.id, to, std::move(delay), arbitrated};
+    return route_entry{link.id, to, make_delay(to, link.options),
+                       arbitrates(link.options.policy, link.mode, link.sources,
+                                  link.targets, from)};
 }
 
 void hub::add_route(const link_record& link, endpoint_id from, endpoint_id to)
@@ -1093,6 +1104,186 @@ result<void> hub::set_link_wiring(link_id id, const modem_wiring& wiring)
     return {};
 }
 
+result<void> hub::set_link_options(link_id id, const link_options& options)
+{
+    VSS_PROFILE_ZONE("hub.set_link_options");
+    if (!valid_latency(options))
+        return make_error_code(errc::invalid_argument);
+
+    struct line_driver
+    {
+        std::shared_ptr<endpoint> from;
+        modem_wiring wiring;
+    };
+    // An endpoint the link stops driving, and what else drives it.
+    struct released_input
+    {
+        std::shared_ptr<endpoint> target;
+        std::vector<line_driver> drivers;
+    };
+    // Lowers the link's retiming count when the old lines are closed, or when
+    // the scope is left some other way.
+    struct gate_lifter
+    {
+        std::shared_ptr<link_record>& record;
+        ~gate_lifter()
+        {
+            if (record)
+                record->retiming.fetch_sub(1, std::memory_order_release);
+        }
+    };
+
+    std::vector<std::shared_ptr<delay_line>> held;
+    std::shared_ptr<link_record> gated;
+    std::vector<std::pair<endpoint_id, control_lines>> senders;
+    std::vector<released_input> released;
+    {
+        std::unique_lock lock(mutex_);
+        const auto found = links_.find(id);
+        if (found == links_.end())
+            return make_error_code(errc::not_found);
+        const std::shared_ptr<link_record> record = found->second;
+        const bool bus = record->mode == link_mode::bus;
+        if (bus && options.policy != merge_policy::interleave)
+            return make_error_code(errc::unsupported);
+
+        // A bus has no modem lines to switch or wire.
+        link_options next = options;
+        if (bus)
+        {
+            next.emulate_modem_lines = false;
+            next.wiring = record->options.wiring;
+        }
+        const link_options previous = record->options;
+        const bool retime = next.delay_ms != previous.delay_ms ||
+                            next.jitter_ms != previous.jitter_ms;
+        const bool lines_on =
+            next.emulate_modem_lines &&
+            (!previous.emulate_modem_lines || next.wiring != previous.wiring);
+        const bool lines_off =
+            !next.emulate_modem_lines && previous.emulate_modem_lines;
+
+        struct slot
+        {
+            endpoint_id from;
+            route_entry* route;
+        };
+        std::vector<slot> mine;
+        for (auto& [from, routes] : routes_)
+        {
+            for (auto& route : routes)
+            {
+                if (route.link == id)
+                    mine.push_back({from, &route});
+            }
+        }
+
+        // Everything that can fail happens before the first stored change,
+        // so a failure (an allocation) leaves the link as it was.
+        std::vector<std::shared_ptr<delay_line>> fresh;
+        if (retime)
+        {
+            fresh.reserve(mine.size());
+            held.reserve(mine.size());
+            for (const auto& entry : mine)
+                fresh.push_back(make_delay(entry.route->to, next));
+        }
+        if (lines_on)
+        {
+            for (const auto& entry : mine)
+            {
+                if (!senders.empty() && senders.back().first == entry.from)
+                    continue;
+                const auto sender = endpoints_.find(entry.from);
+                if (sender != endpoints_.end())
+                    senders.emplace_back(entry.from, sender->second->lines());
+            }
+        }
+        if (lines_off)
+        {
+            std::unordered_set<endpoint_id> seen;
+            for (const auto& entry : mine)
+            {
+                const endpoint_id to = entry.route->to;
+                const auto target = endpoints_.find(to);
+                if (target == endpoints_.end() || !seen.insert(to).second)
+                    continue;
+                released_input input{target->second, {}};
+                for (const auto& [from, routes] : routes_)
+                {
+                    for (const auto& route : routes)
+                    {
+                        if (route.to != to || route.link == id)
+                            continue;
+                        const auto other = links_.find(route.link);
+                        if (other == links_.end() ||
+                            !other->second->options.emulate_modem_lines)
+                            continue;
+                        const auto driver = endpoints_.find(from);
+                        if (driver != endpoints_.end())
+                            input.drivers.push_back(
+                                {driver->second,
+                                 other->second->options.wiring});
+                    }
+                }
+                released.push_back(std::move(input));
+            }
+        }
+
+        // From here nothing can fail.
+        if (retime)
+        {
+            for (std::size_t at = 0; at < mine.size(); ++at)
+            {
+                auto& route = *mine[at].route;
+                if (route.delay)
+                    held.push_back(std::move(route.delay));
+                route.delay = std::move(fresh[at]);
+            }
+            // Chunks routed from now until the old lines are closed are
+            // discarded, so none takes the new route and passes a chunk that
+            // an old line is still writing.
+            if (!held.empty())
+            {
+                record->retiming.fetch_add(1, std::memory_order_acq_rel);
+                gated = record;
+            }
+        }
+        for (const auto& entry : mine)
+            entry.route->arbitrated =
+                arbitrates(next.policy, record->mode, record->sources,
+                           record->targets, entry.from);
+        // A link that interleaves has no owner to name.
+        if (previous.policy == merge_policy::owner &&
+            next.policy != merge_policy::owner)
+            record->owner.store(0);
+        record->options = next;
+        VSS_PROFILE_MESSAGE("hub.link_options_changed");
+    }
+
+    // After this nothing the old lines held can reach an endpoint, and the
+    // link takes chunks again.
+    {
+        const gate_lifter lifter{gated};
+        for (const auto& line : held)
+            line->close();
+    }
+
+    // The receivers lose what the link drove, unless another link drives it.
+    for (const auto& input : released)
+    {
+        if (input.drivers.empty())
+            input.target->set_peer_inputs(control_lines{});
+        for (const auto& driver : input.drivers)
+            input.target->set_peer_inputs(
+                driver.wiring.apply(driver.from->lines()));
+    }
+    // The peers must see what the wires carry now, not at the next change.
+    for (const auto& [from, lines] : senders)
+        route_lines(from, lines);
+    return {};
+}
+
 void hub::route_data(endpoint_id from, bytes_view data)
 {
     VSS_PROFILE_ZONE("hub.route");
@@ -1120,6 +1311,10 @@ void hub::route_data(endpoint_id from, bytes_view data)
             if (link_it == links_.end())
                 continue;
             auto& record = *link_it->second;
+
+            // set_link_options is closing the lines it replaced.
+            if (record.retiming.load(std::memory_order_acquire) != 0)
+                continue;
 
             if (route.arbitrated)
             {

@@ -263,6 +263,65 @@ What a change does to traffic and state:
   The file format is unchanged, and a snapshot after any sequence of the calls is
   valid and reads back as the same links.
 
+### Changing the options of a link
+
+`hub::set_link_options(link, options)` changes the delay, jitter, merge policy,
+`emulate_modem_lines` and wiring of a link that exists, in place. The link keeps
+its id, its sources, its targets and its counters, and the other links are not
+touched. Before it, the GUI made the link again with a new id for any of these.
+
+| Option | What a change does |
+|---|---|
+| `delay_ms`, `jitter_ms` | Every route gets a new delay line (none when both are now zero) and the old lines are closed, so the bytes they still hold are **discarded**, as when a target is removed. If neither changed, the lines are the same objects and keep their bytes. |
+| `policy` | Each route's `arbitrated` flag is worked out again. Into `owner` the link has no owner until a publisher on an arbitrated route sends first or `set_owner` names one. Out of `owner` the stored owner is cleared. `owner` to `owner` leaves the owner as it is. |
+| `emulate_modem_lines` on, or `wiring` while on | The current outputs of every sender are pushed along the link through the new wiring, as `set_link_wiring` does, so the receivers' inputs follow at once. |
+| `emulate_modem_lines` off | Each endpoint the link drove loses the inputs it drove, as when a cable is pulled, unless another link still drives it, and then it shows that link's sender, as after `remove_target`. |
+
+The rules for each kind of link:
+
+| Link | Rule |
+|---|---|
+| `connect`, `split`, `join`, `redirect` | Every option may change. |
+| `monitor` | Every option may change. A `monitor` is a one-way link with `emulate_modem_lines` false, and the saved topology tells it from a `redirect` by that flag, so turning the lines on saves it as a `redirect` and off again as a `monitor`. The file takes a delay and a policy on every link, so no combination is refused for being unsaveable, and the options read back from the saved file are the ones set. The wiring is the one option the file does not store. |
+| `bus` | Delay and jitter may change. `emulate_modem_lines` is stored as false whatever is passed, as on creation. Any policy but `interleave` is `unsupported`. The wiring is ignored and the bus keeps the wiring it has: it has no lines, so it means nothing, and only `set_link_wiring`, which is asked for nothing else, refuses it with `unsupported`. |
+
+The refusals, and nothing is changed by any of them: `invalid_argument` for a
+delay over one minute or a jitter over the delay (checked first, as on
+creation), `not_found` for an unknown link, `unsupported` for a bus and the
+owner policy. The new delay lines are made before the first stored change, so
+a failed call leaves the link as it was.
+
+What a change does to traffic:
+
+* **Which fields are read.** `route_data` reads, under the shared lock, the
+  route's `link`, `to`, `delay` and `arbitrated`, and the link's `owner`,
+  counters and `retiming` count. `route_lines` reads the route's `link` and `to`
+  and the link's `emulate_modem_lines` and `wiring`. `set_link_options` writes
+  every one of them under the exclusive lock, so no reader sees a link half
+  changed: it sees the options, the lines and the flags from before, or all of
+  them from after.
+* **Bytes on the way.** A chunk routed before the call, on a delayed link, is
+  either delivered or discarded (the old line is closed after the lock is
+  released, and a chunk that reaches a closed line is dropped). On an undelayed
+  link it is delivered. A chunk routed after the call returns is delivered, in
+  order, through the new lines. Because one publisher's chunks are routed one at a
+  time on its strand, and the old lines are closed before the call returns, bytes
+  can be lost at a change but are never reordered or repeated.
+* **The gate.** Closing a line waits for a write under way, which happens after
+  the lock is released. A chunk routed in between would take the new route and could
+  pass a chunk that an old line is still writing (a delayed link made undelayed).
+  So when lines are replaced the link's `retiming` count is raised under the
+  exclusive lock and lowered once the old lines are closed. `route_data` skips a
+  link while the count is above zero, so a chunk routed in that short time is
+  discarded and counts nothing. The count rather than a flag lets two overlapping
+  calls on one link keep the gate shut until both have closed their lines.
+* **Counters and owner.** The counters belong to the link and keep counting. A
+  discarded chunk was counted in `bytes` when it went into its line. The owner is
+  kept unless the policy leaves `owner`.
+* **A line change being routed** when the lines are switched off may still reach
+  its receiver just after the call, as with `remove_target` and
+  `set_link_wiring`; the next change corrects it.
+
 ### Link delay
 
 `connect`, `split`, `join`, `redirect` and `bus` take `link_options` with
@@ -273,7 +332,8 @@ has passed, drawn uniformly within the jitter either side of `delay_ms`. Due
 times never go backwards, so jitter cannot reorder the bytes of a route. The
 delay is at most one minute (`max_link_delay_ms`) and the jitter at most the
 delay, or the call fails with `invalid_argument`. `monitor` takes no options and
-has no delay. Removing a route drops whatever its line still holds.
+has no delay. Removing a route drops whatever its line still holds, and so does
+changing the delay of the link (see *Changing the options of a link*).
 
 ### The shared bus
 
