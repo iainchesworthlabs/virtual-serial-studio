@@ -79,10 +79,13 @@ job_plan plan_from(const setup_view& setup,
 /// marked `existing` stay open, new ends are made, the link is replaced and
 /// the ports that are no longer in the plan are removed.  A failure removes
 /// what this call made and, where it can, puts the previous link back.
-/// Returns a port of the setup, to select it.
+/// Returns a port of the setup, to select it.  When a COM number the plan asked
+/// for belongs to another device (`errc::already_exists`), `clashed_com`, if
+/// given, is set to that number so the form can name it; otherwise it is 0.
 vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
                                           const job_plan& plan,
-                                          const setup_view* previous = nullptr);
+                                          const setup_view* previous = nullptr,
+                                          unsigned* clashed_com = nullptr);
 
 /// The ports `plan` keeps, makes and closes compared with `previous`, for the
 /// "What Apply changes" note.

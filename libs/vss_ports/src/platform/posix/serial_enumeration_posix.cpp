@@ -36,6 +36,12 @@ bool looks_like_serial(const std::string& name)
 
 } // namespace
 
+std::optional<std::vector<unsigned>> platform_reserved_com_numbers()
+{
+    // COM numbers are a Windows idea: nothing to ask here.
+    return std::nullopt;
+}
+
 std::vector<serial_device_info> platform_enumerate_serial_devices()
 {
     VSS_PROFILE_ZONE("ports.enumerate.posix");

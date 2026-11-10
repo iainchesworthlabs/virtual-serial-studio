@@ -16,7 +16,9 @@
 #include <QStringList>
 #include <QWidget>
 
+#include <cstddef>
 #include <optional>
+#include <vector>
 
 class QCheckBox;
 class QComboBox;
@@ -141,7 +143,17 @@ private:
     const std::vector<end_plan>& list(bool second) const;
     end_plan new_program();
     end_plan new_device();
-    std::vector<unsigned> free_com_numbers(const end_plan* keep) const;
+    /// The free COM numbers a row may offer, lowest first, at most `limit`
+    /// (and the row's own number when it is free).  Not the numbers of ports
+    /// Studio lists, of devices, of other rows, that Windows keeps for a port
+    /// that is not listed, or that Windows refused earlier in this form.
+    std::vector<unsigned> free_com_numbers(const end_plan* keep,
+                                           std::size_t limit = 8) const;
+    /// Reads which COM numbers Windows keeps; unknown when it cannot be asked.
+    void refresh_reserved();
+    /// Gives every new program end a free COM number where it holds none or a
+    /// taken one.
+    void fix_com_numbers();
     QStringList free_devices() const;
     QString end_name(const end_plan& end) const;
     QStringList end_names(const std::vector<end_plan>& ends) const;
@@ -154,6 +166,11 @@ private:
     job_plan plan_;
     QHash<vss::endpoint_id, QString> original_labels_;
     QString blocker_;
+    /// The COM numbers Windows keeps for a port that is not listed, or
+    /// nothing when it could not be read.
+    std::optional<std::vector<unsigned>> reserved_;
+    /// Numbers Windows refused while this form was open.
+    std::vector<unsigned> refused_;
 
     QPushButton* create_ = nullptr;
     QLabel* blocker_label_ = nullptr;

@@ -3129,19 +3129,34 @@ Networks: %5</source>
             <translation>送られたものをそのまま返す機能は、このバージョンでは使えません。</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>設定を変更できませんでした。%1 以前の状態は、Studio で可能なところは元に戻しました。</translation>
-        </message>
-        <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>設定できませんでした。%1 何も変更していません。</translation>
-        </message>
-        <message>
             <location filename="../src/simple/job_form.cpp" line="1391" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>設定できませんでした。COM%1 はこの PC のほかのデバイス（実際のポート、com0com、Windows が覚えている以前のポートなど）が使っています。何も変更していません。Studio が別の番号を選びました。もう一度試すには「作成」を選んでください。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>設定を変更できませんでした。COM%1 はこの PC のほかのデバイス（実際のポート、com0com、Windows が覚えている以前のポートなど）が使っています。以前の状態は、Studio で可能なところは元に戻しました。Studio が別の番号を選びました。もう一度試すには「適用」を選んでください。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>設定できませんでした。Studio からの報告：%1。何も変更していません。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>設定を変更できませんでした。Studio からの報告：%1。以前の状態は、Studio で可能なところは元に戻しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
         </message>
     </context>
     <context>
@@ -17622,14 +17637,29 @@ Networks: %5</source>
             <translation>送られたものをそのまま返す機能は、このバージョンでは使えません。</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1367" />
-            <source>Could not change the setup. %1 What was there before was put back where Studio could.</source>
-            <translation>設定を変更できませんでした。%1 以前の状態は、Studio で可能なところは元に戻しました。</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. Nothing was changed. Studio has chosen another number for you. Choose Create to try again.</source>
+            <translation>設定できませんでした。COM%1 はこの PC のほかのデバイス（実際のポート、com0com、Windows が覚えている以前のポートなど）が使っています。何も変更していません。Studio が別の番号を選びました。もう一度試すには「作成」を選んでください。</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1370" />
-            <source>Could not set it up. %1 Nothing was changed.</source>
-            <translation>設定できませんでした。%1 何も変更していません。</translation>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. COM%1 already belongs to another device on this PC, such as a real port, com0com or an earlier port that Windows remembers. What was there before was put back where Studio could. Studio has chosen another number for you. Choose Apply to try again.</source>
+            <translation>設定を変更できませんでした。COM%1 はこの PC のほかのデバイス（実際のポート、com0com、Windows が覚えている以前のポートなど）が使っています。以前の状態は、Studio で可能なところは元に戻しました。Studio が別の番号を選びました。もう一度試すには「適用」を選んでください。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not set it up. Studio reported: %1. Nothing was changed.</source>
+            <translation>設定できませんでした。Studio からの報告：%1。何も変更していません。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
+            <translation>設定を変更できませんでした。Studio からの報告：%1。以前の状態は、Studio で可能なところは元に戻しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
+            <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
         </message>
     </context>
     <context>
