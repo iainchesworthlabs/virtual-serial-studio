@@ -734,6 +734,257 @@ result<void> hub::remove_target(link_id id, endpoint_id target)
     return {};
 }
 
+void hub::take_routes(endpoint_id from, link_id link, endpoint_id to,
+                      std::vector<std::shared_ptr<delay_line>>& held)
+{
+    const auto it = routes_.find(from);
+    if (it == routes_.end())
+        return;
+    auto& routes = it->second;
+    const auto matches = [&](const route_entry& route)
+    { return route.link == link && (to == 0 || route.to == to); };
+
+    // The delay lines come out first: `remove_if` leaves the elements it
+    // drops in an unspecified state, so they cannot be read afterwards.
+    for (auto& route : routes)
+    {
+        if (matches(route) && route.delay)
+            held.push_back(std::move(route.delay));
+    }
+    routes.erase(std::remove_if(routes.begin(), routes.end(), matches),
+                 routes.end());
+    if (routes.empty())
+        routes_.erase(it);
+}
+
+result<void> hub::add_source(link_id id, endpoint_id source)
+{
+    VSS_PROFILE_ZONE("hub.add_source");
+    std::unique_lock lock(mutex_);
+    const auto found = links_.find(id);
+    if (found == links_.end())
+        return make_error_code(errc::not_found);
+    auto& record = *found->second;
+    if (record.mode != link_mode::one_way)
+        return make_error_code(errc::unsupported);
+    if (endpoints_.find(source) == endpoints_.end())
+        return make_error_code(errc::not_found);
+    if (contains(record.targets, source))
+        return make_error_code(errc::invalid_argument);
+    if (contains(record.sources, source))
+        return make_error_code(errc::already_exists);
+    for (const endpoint_id target : record.targets)
+    {
+        if (would_create_cycle(source, target))
+            return make_error_code(errc::cycle_detected);
+    }
+
+    // Everything that can fail happens before the first change that stays, so
+    // a refusal (or an allocation that fails) leaves no half of a route.  The
+    // source joins the list before its routes are made: the owner policy
+    // arbitrates a one-way link's routes by their source being listed.
+    record.sources.reserve(record.sources.size() + 1);
+    auto& routes = routes_[source];
+    std::vector<route_entry> fresh;
+    bool listed = false;
+    try
+    {
+        routes.reserve(routes.size() + record.targets.size());
+        fresh.reserve(record.targets.size());
+        record.sources.push_back(source);
+        listed = true;
+        for (const endpoint_id target : record.targets)
+            fresh.push_back(make_route(record, source, target));
+    }
+    catch (...)
+    {
+        if (listed)
+            record.sources.pop_back();
+        if (routes.empty())
+            routes_.erase(source);
+        throw;
+    }
+    // Room was reserved above, so these cannot fail.
+    for (auto& route : fresh)
+        routes.push_back(std::move(route));
+    VSS_PROFILE_MESSAGE("hub.source_added");
+    return {};
+}
+
+result<void> hub::remove_source(link_id id, endpoint_id source)
+{
+    VSS_PROFILE_ZONE("hub.remove_source");
+
+    struct line_driver
+    {
+        std::shared_ptr<endpoint> from;
+        modem_wiring wiring;
+    };
+
+    std::vector<std::shared_ptr<delay_line>> held;
+    // The targets whose inputs the removed source may have been driving, and
+    // the sources that drive them now.
+    std::vector<std::shared_ptr<endpoint>> target_ends;
+    std::vector<line_driver> drivers;
+    {
+        std::unique_lock lock(mutex_);
+        const auto found = links_.find(id);
+        if (found == links_.end())
+            return make_error_code(errc::not_found);
+        auto& record = *found->second;
+        if (record.mode != link_mode::one_way)
+            return make_error_code(errc::unsupported);
+        if (!contains(record.sources, source))
+            return make_error_code(errc::not_found);
+        if (record.sources.size() == 1)
+            return make_error_code(errc::invalid_argument);
+
+        record.sources.erase(
+            std::remove(record.sources.begin(), record.sources.end(), source),
+            record.sources.end());
+        for (const endpoint_id target : record.targets)
+            take_routes(source, id, target, held);
+
+        // An owner that is no longer on the link would silence it for good.
+        endpoint_id owner = source;
+        record.owner.compare_exchange_strong(owner, 0);
+        VSS_PROFILE_MESSAGE("hub.source_removed");
+
+        if (record.options.emulate_modem_lines)
+        {
+            const auto end_of = [&](endpoint_id which)
+            {
+                const auto it = endpoints_.find(which);
+                return it == endpoints_.end() ? nullptr : it->second;
+            };
+            for (const endpoint_id target : record.targets)
+            {
+                if (auto end = end_of(target))
+                    target_ends.push_back(std::move(end));
+            }
+            for (const endpoint_id other : record.sources)
+            {
+                if (auto from = end_of(other))
+                    drivers.push_back({std::move(from), record.options.wiring});
+            }
+        }
+    }
+
+    // After this nothing the removed route still held can reach the target,
+    // so a source that is added again starts from an empty line.
+    for (const auto& line : held)
+        line->close();
+
+    // The target may have been showing the removed source's lines.
+    for (const auto& end : target_ends)
+    {
+        for (const auto& driver : drivers)
+            end->set_peer_inputs(driver.wiring.apply(driver.from->lines()));
+    }
+    return {};
+}
+
+result<void> hub::add_member(link_id id, endpoint_id member)
+{
+    VSS_PROFILE_ZONE("hub.add_member");
+    std::unique_lock lock(mutex_);
+    const auto found = links_.find(id);
+    if (found == links_.end())
+        return make_error_code(errc::not_found);
+    auto& record = *found->second;
+    if (record.mode != link_mode::bus)
+        return make_error_code(errc::unsupported);
+    if (endpoints_.find(member) == endpoints_.end())
+        return make_error_code(errc::not_found);
+    // A member of this bus or of another: an endpoint is on one bus at most.
+    if (bus_of_.find(member) != bus_of_.end())
+        return make_error_code(errc::already_exists);
+    if (record.sources.size() >= max_bus_members)
+        return make_error_code(errc::invalid_argument);
+
+    // The endpoint becomes part of the bus node.  Every route in the table
+    // joins two nodes of a graph that has no cycle, with the endpoint and the
+    // bus as two of them; making them one node closes a loop exactly when
+    // one reaches the other, however long the way.
+    const endpoint_id bus_node = bus_node_tag | id;
+    if (reaches(member, {bus_node}) || reaches(bus_node, {member}))
+        return make_error_code(errc::cycle_detected);
+
+    // Everything that can fail happens before the first change that stays:
+    // the delay lines, the room for the 2 * n routes and the entry in
+    // `bus_of_`.  What follows only moves into reserved space.
+    const std::vector<endpoint_id> members = record.sources;
+    std::vector<std::pair<endpoint_id, route_entry>> fresh;
+    fresh.reserve(2 * members.size());
+    for (const endpoint_id other : members)
+    {
+        fresh.emplace_back(other, make_route(record, other, member));
+        fresh.emplace_back(member, make_route(record, member, other));
+    }
+
+    auto& own_routes = routes_[member];
+    try
+    {
+        own_routes.reserve(own_routes.size() + members.size());
+        for (const endpoint_id other : members)
+        {
+            auto& routes = routes_[other];
+            routes.reserve(routes.size() + 1);
+        }
+        record.sources.reserve(record.sources.size() + 1);
+        bus_of_.emplace(member, id);
+    }
+    catch (...)
+    {
+        if (own_routes.empty())
+            routes_.erase(member);
+        throw;
+    }
+
+    // Room was reserved above, and every entry of `routes_` used here exists,
+    // so none of this can fail.
+    for (auto& [from, route] : fresh)
+        routes_[from].push_back(std::move(route));
+    record.sources.push_back(member);
+    VSS_PROFILE_MESSAGE("hub.member_added");
+    return {};
+}
+
+result<void> hub::remove_member(link_id id, endpoint_id member)
+{
+    VSS_PROFILE_ZONE("hub.remove_member");
+    std::vector<std::shared_ptr<delay_line>> held;
+    {
+        std::unique_lock lock(mutex_);
+        const auto found = links_.find(id);
+        if (found == links_.end())
+            return make_error_code(errc::not_found);
+        auto& record = *found->second;
+        if (record.mode != link_mode::bus)
+            return make_error_code(errc::unsupported);
+        if (!contains(record.sources, member))
+            return make_error_code(errc::not_found);
+        if (record.sources.size() <= 2)
+            return make_error_code(errc::invalid_argument);
+
+        record.sources.erase(
+            std::remove(record.sources.begin(), record.sources.end(), member),
+            record.sources.end());
+        bus_of_.erase(member);
+
+        take_routes(member, id, 0, held);
+        for (const endpoint_id other : record.sources)
+            take_routes(other, id, member, held);
+        VSS_PROFILE_MESSAGE("hub.member_removed");
+    }
+
+    // After this nothing the removed routes still held can reach an
+    // endpoint, so a member that is added again starts from empty lines.
+    for (const auto& line : held)
+        line->close();
+    return {};
+}
+
 void hub::erase_routes(link_id link)
 {
     for (auto& entry : routes_)
