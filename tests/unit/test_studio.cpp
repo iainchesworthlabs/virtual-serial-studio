@@ -1018,3 +1018,83 @@ TEST_CASE("studio: a port that is not a driver port has no holder to release")
     REQUIRE_EQ(revoked.error(), make_error_code(errc::unsupported));
     REQUIRE_EQ(app.revoke_port(9999).error(), make_error_code(errc::not_found));
 }
+
+TEST_CASE("studio: a half-duplex bus is applied and saved again")
+{
+    const auto make_port = [](const std::string& name)
+    {
+        config::port_entry port;
+        port.name = name;
+        port.kind = "virtual";
+        port.virtual_kind = "loopback";
+        return port;
+    };
+
+    config::document document;
+    document.name = "line";
+    document.ports = {make_port("master"), make_port("one"), make_port("two")};
+
+    config::link_entry bus;
+    bus.mode = "bus";
+    bus.members = {"master", "one", "two"};
+    bus.emulate_modem_lines = false;
+    bus.delay_ms = 4;
+    bus.half_duplex.enabled = true;
+    bus.half_duplex.bit_rate = 19200;
+    bus.half_duplex.turnaround_ms = 3;
+    bus.half_duplex.on_collision = collision_action::garble;
+    bus.half_duplex.rts_gating = true;
+    document.links.push_back(bus);
+
+    studio app;
+    REQUIRE(app.apply(document));
+
+    const auto links = app.link_infos();
+    REQUIRE_EQ(links.size(), std::size_t{1});
+    REQUIRE_EQ(links[0].mode, link_mode::bus);
+    REQUIRE(links[0].options.half_duplex == bus.half_duplex);
+    REQUIRE_EQ(links[0].options.delay_ms, std::uint32_t{4});
+    REQUIRE_EQ(links[0].stats.collisions, std::uint64_t{0});
+    REQUIRE_EQ(links[0].stats.garbled, std::uint64_t{0});
+
+    // What the snapshot saves is what was loaded, so the option survives
+    // save and open.
+    const auto snapshot = app.snapshot();
+    REQUIRE_EQ(snapshot.links.size(), std::size_t{1});
+    REQUIRE(snapshot.links[0] == bus);
+    REQUIRE(!config::validate(snapshot));
+
+    studio again;
+    REQUIRE(again.apply(snapshot));
+    REQUIRE(again.link_infos().front().options.half_duplex == bus.half_duplex);
+
+    // The hub follows the RTS of a loopback port, which is what RTS gating
+    // goes by; it is low until someone raises it.
+    const auto master = app.engine().find_endpoint("master");
+    REQUIRE(master != nullptr);
+    REQUIRE(master->peer_rts().has_value());
+    REQUIRE(!master->peer_rts().value());
+    REQUIRE(!master->set_line(control_line::rts, true));
+    REQUIRE(master->peer_rts().value());
+}
+
+TEST_CASE("studio: a bus made through the facade takes a half-duplex line")
+{
+    studio app;
+    REQUIRE(app.create_virtual_port("a", virtual_port_kind::loopback));
+    REQUIRE(app.create_virtual_port("b", virtual_port_kind::loopback));
+
+    link_options options;
+    options.half_duplex.enabled = true;
+    options.half_duplex.bit_rate = min_bus_bit_rate - 1;
+    const auto refused = app.bus({"a", "b"}, options);
+    REQUIRE(!refused);
+    REQUIRE(refused.error() == make_error_code(errc::invalid_argument));
+
+    options.half_duplex.bit_rate = 2400;
+    const auto made = app.bus({"a", "b"}, options);
+    REQUIRE(made);
+    const auto snapshot = app.snapshot();
+    REQUIRE_EQ(snapshot.links.size(), std::size_t{1});
+    REQUIRE(snapshot.links[0].half_duplex == options.half_duplex);
+}

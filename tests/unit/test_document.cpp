@@ -650,3 +650,115 @@ TEST_CASE("document: delay and jitter are checked")
     value.links[0].jitter_ms = 11;
     REQUIRE_EQ(validate(value), make_error_code(errc::config_error));
 }
+
+TEST_CASE("document: a half-duplex bus round trips and stays out when off")
+{
+    document value = bus_document();
+    value.links[0].delay_ms = 3;
+    value.links[0].half_duplex.enabled = true;
+    value.links[0].half_duplex.bit_rate = 19200;
+    value.links[0].half_duplex.turnaround_ms = 2;
+    value.links[0].half_duplex.on_collision = collision_action::garble;
+    value.links[0].half_duplex.rts_gating = true;
+    REQUIRE(!validate(value));
+
+    const auto text = to_json(value, false);
+    REQUIRE(text);
+    REQUIRE(text->find(
+                R"("delay_ms":3,"half_duplex":{"bit_rate":19200,)"
+                R"("turnaround_ms":2,"collisions":"garble",)"
+                R"("rts_gating":true}})") != std::string::npos);
+    // The version is still 1.
+    REQUIRE(text->find("\"version\":1") != std::string::npos);
+
+    const auto parsed = from_json(*text);
+    REQUIRE(parsed);
+    REQUIRE(*parsed == value);
+    REQUIRE(parsed->links[0].half_duplex == value.links[0].half_duplex);
+    // The join beside it has none.
+    REQUIRE(!parsed->links[1].half_duplex.enabled);
+
+    // A bus without the option does not mention it.
+    const auto plain = to_json(bus_document());
+    REQUIRE(plain);
+    REQUIRE(plain->find("half_duplex") == std::string::npos);
+
+    // Values of an option that is off are not written either.
+    document off = bus_document();
+    off.links[0].half_duplex.bit_rate = 300;
+    const auto silent = to_json(off);
+    REQUIRE(silent);
+    REQUIRE(silent->find("half_duplex") == std::string::npos);
+}
+
+TEST_CASE("document: a half-duplex bus in a hand written file")
+{
+    const auto parse = [](const std::string& link)
+    {
+        return from_json(
+            R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+            R"({"name":"b","kind":"virtual"}],"links":[)" +
+            link + "]}");
+    };
+
+    // The object alone turns the option on, with the defaults.
+    const auto bare =
+        parse(R"({"mode":"bus","members":["a","b"],"half_duplex":{}})");
+    REQUIRE(bare);
+    REQUIRE(bare->links[0].half_duplex.enabled);
+    REQUIRE_EQ(bare->links[0].half_duplex.bit_rate, std::uint32_t{9600});
+    REQUIRE_EQ(bare->links[0].half_duplex.turnaround_ms, std::uint32_t{0});
+    REQUIRE(bare->links[0].half_duplex.on_collision ==
+            collision_action::report);
+    REQUIRE(!bare->links[0].half_duplex.rts_gating);
+
+    const auto full = parse(
+        R"({"mode":"bus","members":["a","b"],"half_duplex":)"
+        R"({"bit_rate":4000000,"turnaround_ms":60000,)"
+        R"("collisions":"report","rts_gating":false}})");
+    REQUIRE(full);
+    REQUIRE_EQ(full->links[0].half_duplex.bit_rate, max_bus_bit_rate);
+    REQUIRE_EQ(full->links[0].half_duplex.turnaround_ms, max_link_delay_ms);
+
+    const auto expect_invalid = [&](const std::string& line)
+    {
+        const auto parsed = parse(
+            R"({"mode":"bus","members":["a","b"],"half_duplex":)" + line +
+            "}");
+        REQUIRE(!parsed);
+        REQUIRE(parsed.error() == make_error_code(errc::config_error));
+    };
+    expect_invalid("true");
+    expect_invalid("[]");
+    expect_invalid(R"({"bit_rate":49})");
+    expect_invalid(R"({"bit_rate":4000001})");
+    expect_invalid(R"({"bit_rate":-9600})");
+    expect_invalid(R"({"bit_rate":"fast"})");
+    expect_invalid(R"({"bit_rate":9600.5})");
+    expect_invalid(R"({"turnaround_ms":60001})");
+    expect_invalid(R"({"turnaround_ms":-1})");
+    expect_invalid(R"({"turnaround_ms":"2"})");
+    expect_invalid(R"({"collisions":"drop"})");
+    expect_invalid(R"({"collisions":1})");
+    expect_invalid(R"({"rts_gating":"yes"})");
+
+    // Only a bus is one wire that its members take turns on.
+    for (const char* mode : {"duplex", "redirect", "monitor"})
+    {
+        const auto parsed = parse(
+            std::string(R"({"mode":")") + mode +
+            R"(","sources":["a"],"targets":["b"],"emulate_modem_lines":false,)"
+            R"("half_duplex":{}})");
+        REQUIRE(!parsed);
+        REQUIRE(parsed.error() == make_error_code(errc::config_error));
+    }
+
+    // validate() says the same of a document built in code.
+    document value = bus_document();
+    value.links[1].half_duplex.enabled = true;
+    REQUIRE(validate(value) == make_error_code(errc::config_error));
+    value = bus_document();
+    value.links[0].half_duplex.enabled = true;
+    value.links[0].half_duplex.bit_rate = min_bus_bit_rate - 1;
+    REQUIRE(validate(value) == make_error_code(errc::config_error));
+}

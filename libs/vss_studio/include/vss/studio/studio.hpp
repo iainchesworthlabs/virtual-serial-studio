@@ -274,8 +274,8 @@ public:
     /// other and none hears itself.  Modem lines are not carried.  See
     /// #hub::bus for the rules, including how a bus meets other links.
     ///
-    /// `options` may carry a `delay_ms` and `jitter_ms`; the other fields are
-    /// fixed for a bus.
+    /// `options` may carry a `delay_ms` and `jitter_ms`, and a `half_duplex`
+    /// line; the other fields are fixed for a bus.
     result<link_id> bus(const std::vector<std::string>& members,
                         link_options options = {});
     result<void> disconnect(link_id id);

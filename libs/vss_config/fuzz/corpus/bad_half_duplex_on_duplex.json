@@ -1,0 +1,1 @@
+{"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"},{"name":"c","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":["b"],"half_duplex":{"bit_rate":9600}}]}
