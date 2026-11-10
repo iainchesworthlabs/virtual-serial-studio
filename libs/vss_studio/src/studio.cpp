@@ -1592,4 +1592,10 @@ std::vector<serial_device_info> studio::serial_devices() const
     return enumerate_serial_devices();
 }
 
+std::optional<std::vector<unsigned>> studio::reserved_com_numbers() const
+{
+    VSS_PROFILE_ZONE("studio.reserved_com_numbers");
+    return vss::reserved_com_numbers();
+}
+
 } // namespace vss
