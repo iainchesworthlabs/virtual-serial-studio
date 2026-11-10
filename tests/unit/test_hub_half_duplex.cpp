@@ -65,10 +65,10 @@ std::shared_ptr<vss::hub> start_hub_on(const hand_clock& clock)
     return hub;
 }
 
-link_options half_duplex(
-    std::uint32_t turnaround_ms = 0,
-    collision_action on_collision = collision_action::report,
-    bool rts_gating = false)
+link_options
+half_duplex(std::uint32_t turnaround_ms = 0,
+            collision_action on_collision = collision_action::report,
+            bool rts_gating = false)
 {
     link_options options;
     options.half_duplex.enabled = true;
@@ -91,10 +91,10 @@ std::string inverted(std::string text)
 /// carried or dropped, so that whatever the test does next comes after the
 /// line has judged the chunk.  (An endpoint counts the bytes it read before
 /// it routes them, so its own counter says too little.)
-template <class Send>
-void send_on(vss::hub& hub, link_id link, Send&& send)
+template <class Send> void send_on(vss::hub& hub, link_id link, Send&& send)
 {
-    const auto routed = [&]() -> std::uint64_t {
+    const auto routed = [&]() -> std::uint64_t
+    {
         const auto info = hub.find_link(link);
         return info ? info->stats.bytes + info->stats.dropped : 0;
     };
@@ -119,9 +119,8 @@ struct line_fixture
         event_filter faults;
         faults.kind = event_kind::bus_fault;
         guard.emplace(*hub, faults,
-                      [recorder = events](const endpoint_event& event) {
-                          recorder.record(event);
-                      });
+                      [recorder = events](const endpoint_event& event)
+                      { recorder.record(event); });
     }
 
     endpoint_id id(std::size_t index) const
@@ -220,9 +219,9 @@ public:
             pending.swap(read_);
         }
         if (pending)
-            boost::asio::post(executor_, [pending] {
-                pending(boost::asio::error::operation_aborted, 0);
-            });
+            boost::asio::post(
+                executor_, [pending]
+                { pending(boost::asio::error::operation_aborted, 0); });
     }
 
     bool supports_control_lines() const noexcept override { return true; }
@@ -292,8 +291,7 @@ struct station
 
     bool heard(const std::string& text) const
     {
-        return wait_until([&] { return transport->written() == text; },
-                          5000ms);
+        return wait_until([&] { return transport->written() == text; }, 5000ms);
     }
 };
 
@@ -359,8 +357,7 @@ TEST_CASE("half-duplex: only a bus can be a half-duplex line")
                unsupported);
     REQUIRE_EQ(fixture.hub->join({a, b}, c, half_duplex()).error(),
                unsupported);
-    REQUIRE_EQ(fixture.hub->redirect(a, b, half_duplex()).error(),
-               unsupported);
+    REQUIRE_EQ(fixture.hub->redirect(a, b, half_duplex()).error(), unsupported);
     REQUIRE(fixture.hub->links().empty());
 }
 
@@ -430,8 +427,7 @@ TEST_CASE("half-duplex: two members at once are reported and both are heard")
     REQUIRE_EQ(fault.endpoint, fixture.id(1));
     REQUIRE_EQ(fault.name, std::string("p1"));
     REQUIRE_EQ(fault.link, bus);
-    REQUIRE_EQ(fault.message,
-               std::string("sent 2 bytes while p0 was sending"));
+    REQUIRE_EQ(fault.message, std::string("sent 2 bytes while p0 was sending"));
 
     // Reporting changes no byte.  The short chunk left the wire first.
     fixture.clock.advance(20ms);
@@ -451,15 +447,16 @@ TEST_CASE("half-duplex: two members at once are reported and both are heard")
 TEST_CASE("half-duplex: with garble the chunks that collided arrive inverted")
 {
     line_fixture fixture(3);
-    const link_id bus = fixture.make_bus(half_duplex(0, collision_action::garble));
+    const link_id bus =
+        fixture.make_bus(half_duplex(0, collision_action::garble));
 
     fixture.send(0, "aaaa");
     fixture.clock.advance(10ms);
     fixture.send(1, "bb");
     REQUIRE(fixture.faults(1));
-    REQUIRE_EQ(fixture.events.snapshot().front().message,
-               std::string(
-                   "sent 2 bytes while p0 was sending: both were garbled"));
+    REQUIRE_EQ(
+        fixture.events.snapshot().front().message,
+        std::string("sent 2 bytes while p0 was sending: both were garbled"));
 
     fixture.clock.advance(30ms);
     REQUIRE(fixture.heard(0, inverted("bb")));
@@ -486,7 +483,8 @@ TEST_CASE("half-duplex: with garble the chunks that collided arrive inverted")
 TEST_CASE("half-duplex: back-to-back chunks of one member are clean")
 {
     line_fixture fixture(3);
-    const link_id bus = fixture.make_bus(half_duplex(5, collision_action::garble));
+    const link_id bus =
+        fixture.make_bus(half_duplex(5, collision_action::garble));
 
     // Three writes with no time between them leave one after another.
     fixture.send(0, "one");
@@ -507,7 +505,8 @@ TEST_CASE("half-duplex: back-to-back chunks of one member are clean")
 TEST_CASE("half-duplex: an answer inside the turn-around is reported")
 {
     line_fixture fixture(3);
-    const link_id bus = fixture.make_bus(half_duplex(5, collision_action::garble));
+    const link_id bus =
+        fixture.make_bus(half_duplex(5, collision_action::garble));
 
     fixture.send(0, "q"); // leaves the wire at 10 ms
     fixture.clock.advance(10ms);
@@ -547,9 +546,9 @@ TEST_CASE("half-duplex: RTS gates a member that has one and no other")
     event_recorder events;
     event_filter faults;
     faults.kind = event_kind::bus_fault;
-    const subscription_guard guard(
-        *hub, faults,
-        [events](const endpoint_event& event) { events.record(event); });
+    const subscription_guard guard(*hub, faults,
+                                   [events](const endpoint_event& event)
+                                   { events.record(event); });
 
     const station gated = add_station(*hub, "gated");
     const station other = add_station(*hub, "other");
@@ -562,14 +561,14 @@ TEST_CASE("half-duplex: RTS gates a member that has one and no other")
     // RTS is low: the transmitter is off and the bytes go nowhere.  They are
     // counted for each member that did not hear them, and it is said.
     gated.send(*hub, *bus, "lost");
-    REQUIRE(wait_until(
-        [&] { return events.count(event_kind::bus_fault) == 1; }, 5000ms));
+    REQUIRE(wait_until([&] { return events.count(event_kind::bus_fault) == 1; },
+                       5000ms));
     auto fault = events.snapshot().back();
     REQUIRE(fault.fault == bus_fault::transmitter_off);
     REQUIRE_EQ(fault.name, std::string("gated"));
-    REQUIRE_EQ(fault.message,
-               std::string(
-                   "sent 4 bytes with RTS low: the bus did not carry them"));
+    REQUIRE_EQ(
+        fault.message,
+        std::string("sent 4 bytes with RTS low: the bus did not carry them"));
     auto stats = vss_test::require_value(hub->find_link(*bus)).stats;
     REQUIRE_EQ(stats.dropped, std::uint64_t{8});
     REQUIRE_EQ(stats.bytes, std::uint64_t{0});
@@ -592,8 +591,8 @@ TEST_CASE("half-duplex: RTS gates a member that has one and no other")
 
     // While it keeps RTS high it holds the line against the others.
     send_on(*hub, *bus, [&] { plain.inject_read("x"); });
-    REQUIRE(wait_until(
-        [&] { return events.count(event_kind::bus_fault) == 2; }, 5000ms));
+    REQUIRE(wait_until([&] { return events.count(event_kind::bus_fault) == 2; },
+                       5000ms));
     fault = events.snapshot().back();
     REQUIRE(fault.fault == bus_fault::line_held);
     REQUIRE_EQ(fault.name, std::string("plain"));
@@ -621,8 +620,8 @@ TEST_CASE("half-duplex: without RTS gating a low RTS mutes nobody")
     auto hub = start_hub_on(clock);
     const station first = add_station(*hub, "first");
     const station second = add_station(*hub, "second");
-    const auto bus = hub->bus({first.endpoint->id(), second.endpoint->id()},
-                              half_duplex());
+    const auto bus =
+        hub->bus({first.endpoint->id(), second.endpoint->id()}, half_duplex());
     REQUIRE(bus);
 
     first.send(*hub, *bus, "free");
@@ -635,7 +634,8 @@ TEST_CASE("half-duplex: without RTS gating a low RTS mutes nobody")
 TEST_CASE("half-duplex: a sender removed in mid-chunk lets go of the line")
 {
     line_fixture fixture(3);
-    const link_id bus = fixture.make_bus(half_duplex(50, collision_action::garble));
+    const link_id bus =
+        fixture.make_bus(half_duplex(50, collision_action::garble));
 
     fixture.send(0, "unplugged"); // 90 ms on the wire
     fixture.clock.advance(10ms);
@@ -709,16 +709,15 @@ TEST_CASE("half-duplex: a member too far ahead of the line is dropped and said")
     REQUIRE(fault.fault == bus_fault::overrun);
     REQUIRE_EQ(
         fault.message,
-        std::string(
-            "sent 100 bytes too far ahead of the line rate: dropped"));
+        std::string("sent 100 bytes too far ahead of the line rate: dropped"));
     auto stats = fixture.stats(bus);
     REQUIRE_EQ(stats.dropped, std::uint64_t{100});
     REQUIRE_EQ(stats.bytes, std::uint64_t{400});
 
     // What was carried arrives in full, in order.
     fixture.clock.advance(80s);
-    REQUIRE(wait_until(
-        [&] { return fixture.ports[1].written().size() == 400; }, 5000ms));
+    REQUIRE(wait_until([&] { return fixture.ports[1].written().size() == 400; },
+                       5000ms));
     REQUIRE_EQ(fixture.ports[1].written(), std::string(400, 'z'));
 }
 
@@ -758,9 +757,9 @@ TEST_CASE("half-duplex: on the steady clock a chunk is never heard early")
 TEST_CASE("half-duplex: a plain bus beside it is untouched")
 {
     line_fixture fixture(5);
-    const auto line = fixture.hub->bus(
-        {fixture.id(0), fixture.id(1)},
-        half_duplex(0, collision_action::garble));
+    const auto line =
+        fixture.hub->bus({fixture.id(0), fixture.id(1)},
+                         half_duplex(0, collision_action::garble));
     const auto plain =
         fixture.hub->bus({fixture.id(2), fixture.id(3), fixture.id(4)});
     REQUIRE(line);
@@ -768,13 +767,10 @@ TEST_CASE("half-duplex: a plain bus beside it is untouched")
 
     // The clock never moves: the half-duplex bus holds its chunk, the plain
     // bus forwards at once, both senders together, unchanged.
-    send_on(*fixture.hub, *line,
-            [&] { fixture.ports[0].inject_read("held"); });
-    send_on(*fixture.hub, *plain,
-            [&] { fixture.ports[2].inject_read("now"); });
+    send_on(*fixture.hub, *line, [&] { fixture.ports[0].inject_read("held"); });
+    send_on(*fixture.hub, *plain, [&] { fixture.ports[2].inject_read("now"); });
     REQUIRE(fixture.heard(4, "now"));
-    send_on(*fixture.hub, *plain,
-            [&] { fixture.ports[3].inject_read("too"); });
+    send_on(*fixture.hub, *plain, [&] { fixture.ports[3].inject_read("too"); });
     REQUIRE(fixture.heard(4, "nowtoo"));
     REQUIRE(fixture.heard(3, "now"));
     REQUIRE(fixture.heard(2, "too"));
@@ -829,9 +825,8 @@ TEST_CASE("half-duplex: senders in a storm lose no byte and count every one")
             });
     }
     threads.emplace_back(
-        [&hub, &leaver] {
-            static_cast<void>(hub->remove_endpoint(leaver.endpoint->id()));
-        });
+        [&hub, &leaver]
+        { static_cast<void>(hub->remove_endpoint(leaver.endpoint->id())); });
     for (auto& thread : threads)
         thread.join();
 

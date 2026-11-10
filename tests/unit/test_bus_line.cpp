@@ -25,10 +25,10 @@ constexpr endpoint_id a = 1;
 constexpr endpoint_id b = 2;
 constexpr endpoint_id c = 3;
 
-half_duplex_options line_options(
-    std::uint32_t turnaround_ms = 0,
-    collision_action on_collision = collision_action::report,
-    bool rts_gating = false)
+half_duplex_options
+line_options(std::uint32_t turnaround_ms = 0,
+             collision_action on_collision = collision_action::report,
+             bool rts_gating = false)
 {
     half_duplex_options options;
     options.enabled = true;
@@ -229,7 +229,7 @@ TEST_CASE("bus line: a member need not wait for its own turn-around")
 TEST_CASE("bus line: an overlap is named before a turn-around")
 {
     bus_line line(line_options(50));
-    static_cast<void>(line.transmit(a, 1, at(0)));  // 0 to 10
+    static_cast<void>(line.transmit(a, 1, at(0)));   // 0 to 10
     static_cast<void>(line.transmit(b, 10, at(20))); // too soon, 20 to 120
     // c is inside a's turn-around and on top of b: the overlap is the news.
     const auto third = line.transmit(c, 1, at(30));
@@ -346,8 +346,7 @@ TEST_CASE("bus line: what has long left the wire is forgotten")
     {
         const auto base = static_cast<std::int64_t>(round) * 1000;
         REQUIRE(line.transmit(a, 10, at(base)).fault == bus_fault::none);
-        REQUIRE(line.transmit(b, 10, at(base + 500)).fault ==
-                bus_fault::none);
+        REQUIRE(line.transmit(b, 10, at(base + 500)).fault == bus_fault::none);
     }
     REQUIRE_EQ(line.collisions(), std::uint64_t{0});
 }

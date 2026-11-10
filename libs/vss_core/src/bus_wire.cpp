@@ -15,8 +15,10 @@
 #include <cstddef>
 #include <utility>
 
-namespace vss {
-namespace {
+namespace vss
+{
+namespace
+{
 
 /// How often a wire on a clock that is not the steady clock looks at it.  A
 /// timer cannot be asked to wait for such a clock, which a test moves by
@@ -28,10 +30,8 @@ constexpr std::chrono::milliseconds foreign_clock_poll{1};
 bus_wire::bus_wire(const boost::asio::any_io_executor& executor,
                    clock_function clock,
                    std::shared_ptr<std::atomic<std::uint64_t>> garbled)
-    : strand_(boost::asio::make_strand(executor))
-    , timer_(strand_)
-    , clock_(std::move(clock))
-    , garbled_(std::move(garbled))
+    : strand_(boost::asio::make_strand(executor)), timer_(strand_),
+      clock_(std::move(clock)), garbled_(std::move(garbled))
 {
 }
 
@@ -64,10 +64,12 @@ void bus_wire::push(endpoint_id sender, time_point due, bytes_view data,
     // bus that goes away takes its wire with it.
     if (!first)
         return;
-    boost::asio::post(strand_, [weak = weak_from_this()] {
-        if (const auto self = weak.lock())
-            self->arm();
-    });
+    boost::asio::post(strand_,
+                      [weak = weak_from_this()]
+                      {
+                          if (const auto self = weak.lock())
+                              self->arm();
+                      });
 }
 
 void bus_wire::forget(endpoint_id member)
@@ -76,9 +78,8 @@ void bus_wire::forget(endpoint_id member)
     for (auto it = queue_.begin(); it != queue_.end();)
     {
         auto& receivers = it->second.receivers;
-        std::erase_if(receivers, [member](const delivery& entry) {
-            return entry.target->id() == member;
-        });
+        std::erase_if(receivers, [member](const delivery& entry)
+                      { return entry.target->id() == member; });
         if (it->second.sender == member || receivers.empty())
             it = queue_.erase(it);
         else
@@ -106,12 +107,14 @@ void bus_wire::arm()
     {
         timer_.expires_at(due);
     }
-    timer_.async_wait([weak = weak_from_this()](boost::system::error_code ec) {
-        if (ec)
-            return;
-        if (const auto self = weak.lock())
-            self->fire();
-    });
+    timer_.async_wait(
+        [weak = weak_from_this()](boost::system::error_code ec)
+        {
+            if (ec)
+                return;
+            if (const auto self = weak.lock())
+                self->fire();
+        });
 }
 
 void bus_wire::fire()
@@ -134,8 +137,8 @@ void bus_wire::fire()
         // this one while it was on the wire set the flag since.
         if (chunk.transmission && chunk.transmission->garble.load())
         {
-            for (auto& byte : chunk.data)
-                byte = static_cast<byte_buffer::value_type>(~byte);
+            for (auto& value : chunk.data)
+                value = static_cast<byte_buffer::value_type>(~value);
             garbled_->fetch_add(chunk.data.size() * chunk.receivers.size());
         }
         for (const delivery& entry : chunk.receivers)

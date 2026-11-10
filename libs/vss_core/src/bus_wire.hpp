@@ -25,7 +25,8 @@
 #include <mutex>
 #include <vector>
 
-namespace vss {
+namespace vss
+{
 
 /// Holds the chunks of a half-duplex bus while they are on the wire, and
 /// hands each to its receivers when its last byte has left it.

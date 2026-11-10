@@ -9,11 +9,12 @@
 #include <algorithm>
 #include <chrono>
 
-namespace vss {
+namespace vss
+{
 
 bus_line::bus_line(const half_duplex_options& options)
-    : options_(options)
-    , turnaround_(std::chrono::milliseconds(options.turnaround_ms))
+    : options_(options),
+      turnaround_(std::chrono::milliseconds(options.turnaround_ms))
 {
 }
 
@@ -37,9 +38,8 @@ bus_verdict bus_line::transmit(endpoint_id member, std::size_t bytes,
     std::lock_guard lock(mutex_);
 
     // What left the wire longer ago than the turn-around no longer matters.
-    std::erase_if(active_, [&](const span& entry) {
-        return entry.end + turnaround_ <= now;
-    });
+    std::erase_if(active_, [&](const span& entry)
+                  { return entry.end + turnaround_ <= now; });
 
     bus_verdict verdict;
     verdict.ends = now;
@@ -134,8 +134,8 @@ void bus_line::set_rts(endpoint_id member, std::optional<bool> high)
 void bus_line::remove(endpoint_id member)
 {
     std::lock_guard lock(mutex_);
-    std::erase_if(active_,
-                  [member](const span& entry) { return entry.member == member; });
+    std::erase_if(active_, [member](const span& entry)
+                  { return entry.member == member; });
     rts_.erase(member);
 }
 

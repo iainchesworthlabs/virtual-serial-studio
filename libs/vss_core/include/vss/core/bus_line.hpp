@@ -19,7 +19,8 @@
 #include <optional>
 #include <vector>
 
-namespace vss {
+namespace vss
+{
 
 /// One chunk on the wire of a half-duplex bus, shared by the line that judged
 /// it and by the copy waiting to be delivered.
