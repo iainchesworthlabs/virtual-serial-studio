@@ -38,6 +38,12 @@ result<std::uint32_t> platform_revoke_driver_port(transport&)
     return make_error_code(errc::unsupported);
 }
 
+result<void> platform_raise_driver_line_error(transport&, driver_line_error,
+                                              std::optional<std::uint8_t>)
+{
+    return make_error_code(errc::unsupported);
+}
+
 std::optional<driver_peer_info> platform_driver_peer(const std::string&)
 {
     return std::nullopt;

@@ -10,6 +10,7 @@
 // the Windows guest script sets.
 //
 
+#include <vss/ports/loopback_transport.hpp>
 #include <vss/ports/vcom_driver.hpp>
 
 #include "test_framework.hpp"
@@ -19,6 +20,7 @@
 #include <boost/asio/io_context.hpp>
 
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
@@ -26,6 +28,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -34,6 +37,7 @@
 #include <windows.h>
 #include <winioctl.h>
 #include <devpropdef.h>
+#include <ntddser.h>
 
 #include <vsscom/public.h>
 #include <vsscom_helper/protocol.h>
@@ -48,7 +52,39 @@ TEST_CASE("driver client: the control codes are the ones the guest scripts use")
     REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_WAIT_STATE), 0x80002008ul);
     REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_SET_LINES), 0x8000200Cul);
     REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_REVOKE), 0x80002010ul);
-    REQUIRE_EQ(static_cast<int>(VSSCOM_VERSION), 3);
+    REQUIRE_EQ(static_cast<unsigned long>(IOCTL_VSSCOM_HUB_LINE_ERROR),
+               0x80002014ul);
+    REQUIRE_EQ(static_cast<int>(VSSCOM_VERSION), 4);
+}
+
+TEST_CASE("driver client: a line error has the layout and the bits the driver reads")
+{
+    // Three 32-bit words, and the bits of SERIAL_ERROR_* in ntddser.h, which
+    // the driver hands to ClearCommError as they are.
+    REQUIRE_EQ(sizeof(VSSCOM_HUB_LINE_ERROR), 12u);
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_LINE_ERROR, Errors), 0u);
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_LINE_ERROR, HasByte), 4u);
+    REQUIRE_EQ(offsetof(VSSCOM_HUB_LINE_ERROR, Byte), 8u);
+    REQUIRE_EQ(static_cast<unsigned long>(VSSCOM_LINE_ERROR_BREAK),
+               static_cast<unsigned long>(SERIAL_ERROR_BREAK));
+    REQUIRE_EQ(static_cast<unsigned long>(VSSCOM_LINE_ERROR_FRAMING),
+               static_cast<unsigned long>(SERIAL_ERROR_FRAMING));
+    REQUIRE_EQ(static_cast<unsigned long>(VSSCOM_LINE_ERROR_OVERRUN),
+               static_cast<unsigned long>(SERIAL_ERROR_OVERRUN));
+    REQUIRE_EQ(static_cast<unsigned long>(VSSCOM_LINE_ERROR_QUEUE_OVERRUN),
+               static_cast<unsigned long>(SERIAL_ERROR_QUEUEOVERRUN));
+    REQUIRE_EQ(static_cast<unsigned long>(VSSCOM_LINE_ERROR_PARITY),
+               static_cast<unsigned long>(SERIAL_ERROR_PARITY));
+}
+
+TEST_CASE("driver client: a line error for a transport that is not a driver port is refused")
+{
+    boost::asio::io_context io;
+    auto loopback = loopback_transport::create(io.get_executor(), "x");
+    const auto raised =
+        raise_driver_line_error(*loopback, driver_line_error::parity);
+    REQUIRE(!raised.has_value());
+    REQUIRE_EQ(raised.error(), make_error_code(errc::invalid_argument));
 }
 
 TEST_CASE("driver client: the hub state has the layout the driver fills")
@@ -158,6 +194,53 @@ bool wait_gone(const std::string& name)
     return false;
 }
 
+/// Ends the requests a program has waiting on `handle` when the case has not
+/// finished with it in `limit`.  A wait for an event that never comes then
+/// fails the case (`ERROR_OPERATION_ABORTED`) instead of holding it for ever.
+class io_deadline
+{
+public:
+    io_deadline(HANDLE handle, std::chrono::seconds limit)
+        : watcher_([this, handle, limit] { watch(handle, limit); })
+    {
+    }
+
+    io_deadline(const io_deadline&) = delete;
+    io_deadline& operator=(const io_deadline&) = delete;
+
+    ~io_deadline()
+    {
+        {
+            const std::lock_guard lock(mutex_);
+            finished_ = true;
+        }
+        changed_.notify_one();
+        watcher_.join();
+    }
+
+private:
+    void watch(HANDLE handle, std::chrono::seconds limit)
+    {
+        std::unique_lock lock(mutex_);
+        const auto until = std::chrono::steady_clock::now() + limit;
+        // After the limit every request the case starts is ended as well, so
+        // the case reaches a failing check whichever call it was in.
+        while (!finished_)
+        {
+            if (changed_.wait_until(lock, until) == std::cv_status::timeout)
+            {
+                ::CancelIoEx(handle, nullptr);
+                changed_.wait_for(lock, 100ms);
+            }
+        }
+    }
+
+    std::mutex mutex_;
+    std::condition_variable changed_;
+    bool finished_ = false;
+    std::thread watcher_;
+};
+
 } // namespace
 
 // The one case that needs the driver. It runs in a Windows guest with the
@@ -245,6 +328,116 @@ TEST_CASE("driver client: against the real driver, a port is made, carries bytes
         const std::string other = second->path;
         second->port->close();
         REQUIRE(wait_gone(other));
+    }
+    catch (...)
+    {
+        stop();
+        throw;
+    }
+    stop();
+}
+
+// Needs the driver too (test-client.ps1, test C3): a line error raised through
+// the transport reaches a program as it would on hardware.
+TEST_CASE("driver client: against the real driver, a line error reaches the program")
+{
+    char enabled[8]{};
+    const DWORD length = ::GetEnvironmentVariableA("VSS_TEST_DRIVER", enabled,
+                                                   sizeof(enabled));
+    if (length != 1 || enabled[0] != '1')
+        VSS_SKIP("needs the driver: set VSS_TEST_DRIVER=1 in a guest that has it");
+
+    boost::asio::io_context io;
+    auto guard = boost::asio::make_work_guard(io);
+    std::thread runner([&io] { io.run(); });
+    auto stop = [&]
+    {
+        guard.reset();
+        io.stop();
+        runner.join();
+    };
+
+    try
+    {
+        auto made = create_driver_port(io.get_executor(), "guest line errors");
+        REQUIRE(made.has_value());
+        const std::string name = made->path;
+        transport& hub = *made->port;
+
+        // With no program on the port the error is dropped, and the call still
+        // succeeds.
+        REQUIRE(raise_driver_line_error(hub, driver_line_error::overrun));
+
+        const auto app = open_com(name);
+        REQUIRE(app != INVALID_HANDLE_VALUE);
+        COMMTIMEOUTS timeouts{};
+        timeouts.ReadIntervalTimeout = 100;
+        timeouts.ReadTotalTimeoutConstant = 5000;
+        REQUIRE(::SetCommTimeouts(app, &timeouts) != FALSE);
+        REQUIRE(::SetCommMask(app, EV_ERR | EV_BREAK) != FALSE);
+
+        // The waits below have no timeout of their own: an event that is lost
+        // must fail the case, not hold it.
+        std::optional<io_deadline> deadline;
+        deadline.emplace(app, 60s);
+
+        DWORD errors = 0xFFFFFFFFul;
+        REQUIRE(::ClearCommError(app, &errors, nullptr) != FALSE);
+        REQUIRE_EQ(errors, DWORD{0});
+
+        // A parity error between bytes: the call returns before the driver has
+        // raised it, so the event is what says it has arrived.
+        transport_write(hub, "ab");
+        REQUIRE(raise_driver_line_error(hub, driver_line_error::parity,
+                                        std::uint8_t{'x'}));
+        transport_write(hub, "cd");
+        DWORD events = 0;
+        REQUIRE(::WaitCommEvent(app, &events, nullptr) != FALSE);
+        REQUIRE_EQ(events, DWORD{EV_ERR});
+        REQUIRE(::ClearCommError(app, &errors, nullptr) != FALSE);
+        REQUIRE_EQ(errors, DWORD{CE_RXPARITY});
+        REQUIRE(::ClearCommError(app, &errors, nullptr) != FALSE);
+        REQUIRE_EQ(errors, DWORD{0});
+        char text[16]{};
+        DWORD done = 0;
+        REQUIRE(::ReadFile(app, text, 5, &done, nullptr) != FALSE);
+        REQUIRE(std::string(text, done) == "abxcd");
+
+        // Each kind, as the name ClearCommError gives it.
+        const std::pair<driver_line_error, DWORD> kinds[] = {
+            {driver_line_error::framing, CE_FRAME},
+            {driver_line_error::overrun, CE_OVERRUN},
+            {driver_line_error::break_condition, CE_BREAK},
+        };
+        for (const auto& [kind, reported] : kinds)
+        {
+            REQUIRE(raise_driver_line_error(hub, kind));
+            REQUIRE(::WaitCommEvent(app, &events, nullptr) != FALSE);
+            const DWORD expected = kind == driver_line_error::break_condition
+                                       ? DWORD{EV_BREAK}
+                                       : DWORD{EV_ERR};
+            REQUIRE_EQ(events, expected);
+            REQUIRE(::ClearCommError(app, &errors, nullptr) != FALSE);
+            REQUIRE_EQ(errors, reported);
+        }
+
+        // A full receive queue raises no event; a break after it says both
+        // have arrived, because requests keep their order.
+        REQUIRE(raise_driver_line_error(hub, driver_line_error::queue_overrun));
+        REQUIRE(raise_driver_line_error(hub, driver_line_error::break_condition));
+        REQUIRE(::WaitCommEvent(app, &events, nullptr) != FALSE);
+        REQUIRE_EQ(events, DWORD{EV_BREAK});
+        REQUIRE(::ClearCommError(app, &errors, nullptr) != FALSE);
+        REQUIRE_EQ(errors, DWORD{CE_RXOVER | CE_BREAK});
+
+        deadline.reset();
+        ::CloseHandle(app);
+
+        // A closed transport refuses.
+        hub.close();
+        REQUIRE(!raise_driver_line_error(hub, driver_line_error::parity)
+                     .has_value());
+        REQUIRE(wait_gone(name));
     }
     catch (...)
     {

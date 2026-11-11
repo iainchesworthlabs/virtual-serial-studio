@@ -87,6 +87,14 @@ foreach ($name in $Flavour) {
         # The helper is a service that has just started; give it and the ports a moment.
         Start-Sleep -Seconds 5
         if ($Suite) { Invoke-Step $name 'suite' 'test-driver.ps1' $driverArgs | Out-Null }
+        # The studio's own client, when the bundle carries it (make-driver-bundle.ps1 -UnitTests).
+        # -Exe is given: Windows PowerShell leaves $PSScriptRoot empty in a parameter default.
+        # It runs before the hung-program tests, which kill programs and restart the helper
+        # service and can leave a port behind.
+        $unitTests = Join-Path $folder 'vss_unit_tests.exe'
+        if (Test-Path $unitTests) {
+            Invoke-Step $name 'client' 'test-client.ps1' @('-Exe', $unitTests) | Out-Null
+        }
         Invoke-Step $name 'wow64' 'test-wow64.ps1' ($driverArgs + @('-ClientDir', $folder)) | Out-Null
     }
     Invoke-Step $name 'uninstall' 'uninstall-driver.ps1' $driverArgs | Out-Null

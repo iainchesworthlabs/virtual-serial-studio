@@ -46,6 +46,11 @@
 .PARAMETER Client
     A folder with vss_com_client_x86.exe and vss_com_client_x64.exe. Built when left out.
 
+.PARAMETER UnitTests
+    Optional. A vss_unit_tests.exe that needs no runtime installed (a release build with the
+    static C runtime). With it the guest run also runs test-client.ps1, the studio's own client
+    against the driver (tests C1 to C3).
+
 .EXAMPLE
     ./drivers/windows/build.ps1 -Driver all
     ./tools/vm/make-driver-bundle.ps1 -Repository . -Out D:\bundle-driver\driver-bundle.zip
@@ -60,6 +65,7 @@ param(
     [string] $Um,
     [string] $Helper,
     [string] $Client,
+    [string] $UnitTests,
     [string] $Work = (Join-Path ([IO.Path]::GetTempPath()) 'vss-driver-bundle')
 )
 
@@ -89,6 +95,8 @@ foreach ($name in 'vss_com_client_x86.exe', 'vss_com_client_x64.exe') {
     if (-not (Test-Path (Join-Path $Client $name))) { throw "$name is not in $Client" }
 }
 
+if ($UnitTests -and -not (Test-Path -LiteralPath $UnitTests)) { throw "no such file: $UnitTests" }
+
 $stage = Join-Path $Work 'stage'
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $stage | Out-Null
@@ -105,6 +113,7 @@ function Add-Driver([string] $Name, [string[]] $PackageFolders) {
     Copy-Item (Join-Path $tests '*.ps1') $folder -Force
     Copy-Item (Join-Path $windows 'vsscom\public.h') $folder -Force
     Copy-Item (Join-Path $Client 'vss_com_client_*.exe') $folder -Force
+    if ($UnitTests) { Copy-Item -LiteralPath $UnitTests (Join-Path $folder 'vss_unit_tests.exe') -Force }
 }
 
 Add-Driver 'kmdf' @($Kmdf)
