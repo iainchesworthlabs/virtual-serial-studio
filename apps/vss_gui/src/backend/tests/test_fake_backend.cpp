@@ -141,7 +141,7 @@ TEST_CASE("fake backend: the owner of a duplex link is a target")
     vss::gui::capabilities caps = backend.caps();
     caps.shared_bus = true;
     backend.set_capabilities(caps);
-    const auto bus = backend.bus({*d, *e});
+    const auto bus = backend.bus({*d, *e}, {});
     REQUIRE(bus.has_value());
     REQUIRE(backend.set_owner(*bus, *d).error() ==
             vss::make_error_code(vss::errc::unsupported));
@@ -224,7 +224,7 @@ TEST_CASE("fake backend: add_target and remove_target edit a duplex link")
     vss::gui::capabilities caps = backend.caps();
     caps.shared_bus = true;
     backend.set_capabilities(caps);
-    const auto bus = backend.bus({*b, *c});
+    const auto bus = backend.bus({*b, *c}, {});
     REQUIRE(bus.has_value());
     REQUIRE(backend.add_target(*bus, *a).error() == unsupported);
     REQUIRE(backend.remove_target(*bus, *b).error() == unsupported);

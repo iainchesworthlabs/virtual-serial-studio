@@ -87,20 +87,29 @@ std::string inverted(std::string text)
     return text;
 }
 
-/// Does `send` and waits until the hub has routed what it sent on `link`,
+/// Does `send`, which gives the bus `link` a chunk of `bytes` bytes from one
+/// member, and waits until the hub has routed it to every other member,
 /// carried or dropped, so that whatever the test does next comes after the
-/// line has judged the chunk.  (An endpoint counts the bytes it read before
-/// it routes them, so its own counter says too little.)
-template <class Send> void send_on(vss::hub& hub, link_id link, Send&& send)
+/// line has judged the chunk and after every count of it.  (An endpoint
+/// counts the bytes it read before it routes them, so its own counter says
+/// too little, and the link counts the chunk once for each member that is
+/// to hear it, one after another.)
+template <class Send>
+void send_on(vss::hub& hub, link_id link, std::size_t bytes, Send&& send)
 {
+    std::uint64_t hearers = 0;
     const auto routed = [&]() -> std::uint64_t
     {
         const auto info = hub.find_link(link);
-        return info ? info->stats.bytes + info->stats.dropped : 0;
+        if (!info)
+            return 0;
+        hearers = info->sources.empty() ? 0 : info->sources.size() - 1;
+        return info->stats.bytes + info->stats.dropped;
     };
     const std::uint64_t before = routed();
+    const std::uint64_t after = before + bytes * hearers;
     send();
-    REQUIRE(wait_until([&] { return routed() != before; }, 5000ms));
+    REQUIRE(wait_until([&] { return routed() == after; }, 5000ms));
 }
 
 struct line_fixture
@@ -149,7 +158,8 @@ struct line_fixture
     /// Sends from a member of that bus, and waits for the hub to route it.
     void send(std::size_t index, const std::string& text) const
     {
-        send_on(*hub, link, [&] { ports[index].inject_read(text); });
+        send_on(*hub, link, text.size(),
+                [&] { ports[index].inject_read(text); });
     }
 
     bool heard(std::size_t index, const std::string& text) const
@@ -287,7 +297,7 @@ struct station
 
     void send(vss::hub& hub, link_id link, const std::string& text) const
     {
-        send_on(hub, link, [&] { transport->inject(text); });
+        send_on(hub, link, text.size(), [&] { transport->inject(text); });
     }
 
     bool heard(const std::string& text) const
@@ -576,7 +586,7 @@ TEST_CASE("half-duplex: RTS gates a member that has one and no other")
     REQUIRE_EQ(stats.collisions, std::uint64_t{0});
 
     // A member with no RTS is never muted, gating or not.
-    send_on(*hub, *bus, [&] { plain.inject_read("hi"); });
+    send_on(*hub, *bus, 2, [&] { plain.inject_read("hi"); });
     clock.advance(20ms);
     REQUIRE(gated.heard("hi"));
     REQUIRE(other.heard("hi"));
@@ -591,7 +601,7 @@ TEST_CASE("half-duplex: RTS gates a member that has one and no other")
     REQUIRE_EQ(events.count(event_kind::bus_fault), std::size_t{1});
 
     // While it keeps RTS high it holds the line against the others.
-    send_on(*hub, *bus, [&] { plain.inject_read("x"); });
+    send_on(*hub, *bus, 1, [&] { plain.inject_read("x"); });
     REQUIRE(wait_until([&] { return events.count(event_kind::bus_fault) == 2; },
                        5000ms));
     fault = events.snapshot().back();
@@ -604,7 +614,7 @@ TEST_CASE("half-duplex: RTS gates a member that has one and no other")
 
     // Dropping RTS lets go of the line.
     REQUIRE(!gated.endpoint->set_line(control_line::rts, false));
-    send_on(*hub, *bus, [&] { plain.inject_read("y"); });
+    send_on(*hub, *bus, 1, [&] { plain.inject_read("y"); });
     clock.advance(10ms);
     REQUIRE(other.heard("hisentxy"));
     REQUIRE_EQ(events.count(event_kind::bus_fault), std::size_t{2});
@@ -768,10 +778,13 @@ TEST_CASE("half-duplex: a plain bus beside it is untouched")
 
     // The clock never moves: the half-duplex bus holds its chunk, the plain
     // bus forwards at once, both senders together, unchanged.
-    send_on(*fixture.hub, *line, [&] { fixture.ports[0].inject_read("held"); });
-    send_on(*fixture.hub, *plain, [&] { fixture.ports[2].inject_read("now"); });
+    send_on(*fixture.hub, *line, 4,
+            [&] { fixture.ports[0].inject_read("held"); });
+    send_on(*fixture.hub, *plain, 3,
+            [&] { fixture.ports[2].inject_read("now"); });
     REQUIRE(fixture.heard(4, "now"));
-    send_on(*fixture.hub, *plain, [&] { fixture.ports[3].inject_read("too"); });
+    send_on(*fixture.hub, *plain, 3,
+            [&] { fixture.ports[3].inject_read("too"); });
     REQUIRE(fixture.heard(4, "nowtoo"));
     REQUIRE(fixture.heard(3, "now"));
     REQUIRE(fixture.heard(2, "too"));
