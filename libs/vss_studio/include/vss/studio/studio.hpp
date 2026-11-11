@@ -280,6 +280,16 @@ public:
                         link_options options = {});
     result<void> disconnect(link_id id);
 
+    /// Adds the named port as one more target of a two-way link or a split
+    /// that exists, or takes one out, and leaves the link's other ports
+    /// linked and its id unchanged.  See #hub::add_target and
+    /// #hub::remove_target for the rules and the errors; an unknown name is
+    /// `errc::not_found`.  A removed port stays in the studio.  `snapshot()`
+    /// saves the link with the targets it has now: a two-way link that was
+    /// given a second target is saved as a split.
+    result<void> add_target(link_id id, std::string_view target);
+    result<void> remove_target(link_id id, std::string_view target);
+
     // -- scenarios ---------------------------------------------------------
 
     struct share_result

@@ -245,6 +245,14 @@ TEST_CASE("simple: let programs take turns sending to a device")
     auto* page = st::create(s);
     st::require_counts(s, {3, 1});
     REQUIRE(page->steps_text().contains(QStringLiteral("Choose below")));
+    s.step(QStringLiteral("one duplex link from the device, so replies come "
+                          "back; the first program sends"));
+    const auto link = s.fake().links().front();
+    REQUIRE(link.mode == vss::link_mode::duplex);
+    REQUIRE(link.options.policy == vss::merge_policy::owner);
+    REQUIRE_EQ(link.sources.size(), qsizetype{1});
+    REQUIRE_EQ(link.targets.size(), qsizetype{2});
+    REQUIRE_EQ(link.owner, link.targets.front());
     st::verify_in_advanced(s);
     s.step(QStringLiteral("remove the setup"));
     st::remove_shown_setup(s);
@@ -295,6 +303,14 @@ TEST_CASE("simple: close one program of a shared device")
     click(button(form, QStringLiteral("Add a program")));
     auto* page = st::create(s);
     st::require_counts(s, {4, 1});
+    const vss::link_id link_id = s.fake().links().front().id;
+    s.step(QStringLiteral("add a fourth program from the setup page"));
+    click(button(page, QStringLiteral("Add a program")));
+    s.settle();
+    st::require_counts(s, {5, 1});
+    REQUIRE_EQ(s.fake().links().front().id, link_id);
+    REQUIRE_EQ(s.fake().links().front().targets.size(), qsizetype{4});
+    page = st::setup_page(s);
     s.step(QStringLiteral("close the first program port"));
     QPushButton* close = nullptr;
     for (auto* candidate : page->findChildren<QPushButton*>())
@@ -309,7 +325,9 @@ TEST_CASE("simple: close one program of a shared device")
     REQUIRE(close != nullptr);
     click(close);
     s.settle();
-    st::require_counts(s, {3, 1});
+    st::require_counts(s, {4, 1});
+    REQUIRE_EQ(s.fake().links().front().id, link_id);
+    REQUIRE_EQ(s.fake().links().front().targets.size(), qsizetype{3});
     st::remove_shown_setup(s);
     s.finish();
 }

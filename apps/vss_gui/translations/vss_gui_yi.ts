@@ -3073,8 +3073,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי נישט.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי אַלע.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -4239,6 +4239,16 @@ Networks: %5</source>
             <translation>פֿאַראייניק־פֿאַרבינדונג</translation>
         </message>
         <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="251" />
+            <source>Split</source>
+            <translation>צעטיילן</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="254" />
+            <source>Split link</source>
+            <translation>צעטייל־פֿאַרבינדונג</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/owner_bar.cpp" line="63" />
             <location filename="../src/advanced/owner_bar.cpp" line="74" />
             <source>If both write at once</source>
@@ -4285,6 +4295,11 @@ Networks: %5</source>
             <location filename="../src/advanced/owner_bar.cpp" line="161" />
             <source>Port %1</source>
             <translation>פּאָרט %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="209" />
+            <source>%1 to %2</source>
+            <translation>%1 צו %2</translation>
         </message>
         <message>
             <location filename="../src/advanced/owner_bar.cpp" line="180" />
@@ -8753,8 +8768,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>קלײַבט אויס דעם ציל פֿון אַ פֿאַראייניקונג מיט דער באַזיצער־פּאָליסי כדי צו קאָנטראָלירן ווער שרײַבט.</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>קלײַבט אויס דעם ציל פֿון אַ פֿאַראייניקונג אָדער דעם אַפּאַראַט פֿון אַ צעטיילונג מיט דער באַזיצער־פּאָליסי כדי צו קאָנטראָלירן ווער שרײַבט.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -16386,8 +16401,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>קלײַבט אויס דעם ציל פֿון אַ פֿאַראייניקונג מיט דער באַזיצער־פּאָליסי כדי צו קאָנטראָלירן ווער שרײַבט.</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>קלײַבט אויס דעם ציל פֿון אַ פֿאַראייניקונג אָדער דעם אַפּאַראַט פֿון אַ צעטיילונג מיט דער באַזיצער־פּאָליסי כדי צו קאָנטראָלירן ווער שרײַבט.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -17592,8 +17607,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי נישט.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; קענען אַלע שיקן צו &lt;b&gt;%2&lt;/b&gt;, נאָר איינער אין אַ צײַט. איר קלײַבט אויף דער קומענדיקער זײַט וועלכער. וואָס דער אַפּאַראַט שיקט צוריק דערגרייכט זיי אַלע.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17766,6 +17781,131 @@ Networks: %5</source>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="325" />
+            <source>Give my program a serial port</source>
+            <translation>געבן מײַן פּראָגראַם אַ סעריעלן פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="329" />
+            <source>Connect two programs to each other</source>
+            <translation>פֿאַרבינדן צוויי פּראָגראַמען איינער מיטן אַנדערן</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="332" />
+            <source>Use my device through a new port</source>
+            <translation>ניצן מײַן אַפּאַראַט דורך אַ נײַעם פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="336" />
+            <source>Share my device with several programs</source>
+            <translation>צעטיילן מײַן אַפּאַראַט צווישן עטלעכע פּראָגראַמען</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="339" />
+            <source>Try my device from this window</source>
+            <translation>פּרובירן מײַן אַפּאַראַט פֿון דעם פֿענצטער</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="343" />
+            <source>Let other computers use my device</source>
+            <translation>לאָזן אַנדערע קאָמפּיוטערס ניצן מײַן אַפּאַראַט</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="346" />
+            <source>Put several on one line</source>
+            <translation>אַרויפֿשטעלן עטלעכע אויף איין ליניע</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="349" />
+            <source>Send several into one</source>
+            <translation>שיקן עטלעכע צו איינעם</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="353" />
+            <source>Let programs take turns sending to a device</source>
+            <translation>לאָזן פּראָגראַמען שיקן צו אַן אַפּאַראַט איינס נאָכן אַנדערן</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="358" />
+            <source>Made in Advanced mode</source>
+            <translation>געמאַכט אין אַוואַנסירטן מאָדע</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="367" />
+            <source>For a program that needs a COM port when there is no device, or before the device arrives.</source>
+            <translation>פֿאַר אַ פּראָגראַם וואָס דאַרף אַ COM־פּאָרט ווען עס איז נישטאָ קיין אַפּאַראַט, אָדער איידער דער אַפּאַראַט קומט אָן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="373" />
+            <source>Like a null-modem cable between two programs on this PC. What one sends, the other receives.</source>
+            <translation>ווי אַ נאַל־מאָדעם־קאַבל צווישן צוויי פּראָגראַמען אויף דעם קאָמפּיוטער. וואָס איינער שיקט, באַקומט דער אַנדערער.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="377" />
+            <source>Your program opens a new port instead of the device. Then you can watch, share or test without changing the program.</source>
+            <translation>אײַער פּראָגראַם עפֿנט אַ נײַעם פּאָרט אַנשטאָט דעם אַפּאַראַט. דעמאָלט קענט איר באַטראַכטן, צעטיילן אָדער טעסטן אָן ענדערן דעם פּראָגראַם.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="383" />
+            <source>A device can normally be open in one program at a time. Here each program gets its own port, and all of them talk to the device.</source>
+            <translation>אַן אַפּאַראַט קען געוויינטלעך זײַן אָפֿן אין בלויז איין פּראָגראַם אין אַ צײַט. דאָ באַקומט יעדער פּראָגראַם זײַן אייגענעם פּאָרט, און אַלע רעדן מיטן אַפּאַראַט.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="390" />
+            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
+            <translation>שרײַבט צום אַפּאַראַט און לייענט דאָ זײַנע ענטפֿערס, אָן נאָך אַ פּראָגראַם. גוט פֿאַר אַ ערשטער קאָנטראָלע אַז ער אַרבעט.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="396" />
+            <source>Other computers connect to this PC over the network and talk to the device.</source>
+            <translation>אַנדערע קאָמפּיוטערס פֿאַרבינדן זיך מיט דעם קאָמפּיוטער דורכן נעץ און רעדן מיטן אַפּאַראַט.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="400" />
+            <source>Like an RS-485 line. Everyone hears what the others send, and nobody hears themself.</source>
+            <translation>ווי אַ RS-485 ליניע. יעדער הערט וואָס די אַנדערע שיקן, און קיינער הערט זיך נישט אַליין.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="406" />
+            <source>Everything the senders write arrives at one receiver, in the order it arrives. Nothing goes back.</source>
+            <translation>אַלץ וואָס די שיקער שרײַבן קומט אָן ביי איין באַקומער, אין דער סדר ווי עס קומט אָן. גאָרנישט גייט צוריק.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="411" />
+            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
+            <translation>עטלעכע פּראָגראַמען שיקן צו איין אַפּאַראַט, נאָר איינס אין אַ צײַט, אַזוי אַז זייערע בײַטן פֿאַרמישן זיך קיינמאָל. איר קלײַבט וועלכע. אַלע באַקומען די ענטפֿערס פֿון אַפּאַראַט.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="419" />
+            <source>Made in Advanced mode. You can use it here, and change it in Advanced mode.</source>
+            <translation>געמאַכט אין אַוואַנסירטן מאָדע. איר קענט עס ניצן דאָ און ענדערן אין אַוואַנסירטן מאָדע.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="453" />
+            <source>Program port</source>
+            <translation>פּראָגראַם־פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="457" />
+            <source>Program port %1</source>
+            <translation>פּראָגראַם־פּאָרט %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="460" />
+            <source>%1 port %2</source>
+            <translation>%1 פּאָרט %2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="465" />
+            <source>%1 linked to %2</source>
+            <translation>%1 פֿאַרבונדן מיט %2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="469" />
+            <source>%1 through %2</source>
+            <translation>%1 דורך %2</translation>
+        </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="405" />
             <source>%1 shared with %n programs</source>
@@ -17773,6 +17913,16 @@ Networks: %5</source>
                 <numerusform>%1 געטיילט מיט %n פּראָגראַם</numerusform>
                 <numerusform>%1 געטיילט מיט %n פּראָגראַמען</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="478" />
+            <source>Trying %1</source>
+            <translation>פּרובירן %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="482" />
+            <source>%1 on the network</source>
+            <translation>%1 אויפֿן נעץ</translation>
         </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="414" />
@@ -17811,6 +17961,11 @@ Networks: %5</source>
                 <numerusform>%n פּראָגראַם שיקט צו %1</numerusform>
                 <numerusform>%n פּראָגראַמען שיקן צו %1 איינס נאָכן אַנדערן</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="508" />
+            <source>%1 and %2 more</source>
+            <translation>%1 און %2 נאָך</translation>
         </message>
     </context>
     <context>

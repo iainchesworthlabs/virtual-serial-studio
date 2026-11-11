@@ -48,7 +48,7 @@ Jobs, as tiles (kind tile icon, title, two-line description) in four groups with
 | | **Let other computers use my device** | Other computers connect to this PC over the network and talk to the device. |
 | Several programs or devices at once | **Put several on one line** | Like an RS-485 line. Everyone hears what the others send, and nobody hears themself. |
 | | **Send several into one** | Everything the senders write arrives at one receiver, in the order it arrives. Nothing goes back. |
-| | **Let programs take turns sending to a device** | Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. The device's replies do not go back to the programs. |
+| | **Let programs take turns sending to a device** | Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies. |
 | Look and check | **See the data on a port** | See what goes in and out of a port you already set up. Read only, so nothing changes for the programs using it. |
 | | **Check this PC is ready** | Find out whether this PC can make ports that other programs can open, and what to do if not. |
 
@@ -127,7 +127,7 @@ there before was put back where Studio could."
 | Let other computers use my device | `bridge(serial, tcp://0.0.0.0:port)` |
 | Put several on one line | N ports (virtual or device), `bus` |
 | Send several into one | N senders, `join` into the receiver |
-| Let programs take turns | device, N virtual ports, `join` into the device with `merge_policy::owner`; the first program owns it. The engine applies the owner rule to every direction of a link, so a two-way version would drop the device's replies (see `08-engine-gaps.md`) |
+| Let programs take turns | device, N virtual ports, `split` from the device to the programs with `merge_policy::owner`, then `set_owner` to the first program. On a duplex link the owner rule applies to the routes from the targets back to the source, so only the owner's bytes reach the device and the device's replies reach every program (see `08-engine-gaps.md`) |
 
 Typing in Simple mode uses `send` on the port it is aimed at (the device, or the lone virtual port), so no extra port is
 made. The data view reads the traffic events of the setup's ports.
@@ -156,7 +156,8 @@ Sections, each with a group label:
      connected computers.
    - Take turns: each program row has "Let this one send" or the chip "Sending now".
    - "+ Add a program" under the rows for share, line, send into one and take turns. Adding or closing one port does
-     not interrupt the other programs (`backend/share_edit`).
+     not interrupt the other programs. For a share, an attached device and take turns the link is edited in place, so
+     it keeps its id and its owner (`backend/share_edit`, `hub::add_target`, `hub::remove_target`).
 3. **Type to <port>** (try my device, a lone program port, or when "Let me type" was ticked): one sentence on where the
    text goes, the received text (mono, read only), an input with "Send", and a switch "Enter adds a line ending".
 4. **Data going through**: when off, the secondary button "Show me the data going through" with "Read only. Useful when a
@@ -169,8 +170,11 @@ Footer link: "See it on the canvas (Advanced mode)".
 
 Change opens the job form filled from the setup, titled "Change <title>", with the primary "Apply". Above the result
 sentence a note "What Apply changes" lists the ports that stay open ("Programs using them are not interrupted"), the new
-ones and the ones that close ("A program using it loses it"). Apply keeps the ports that stay, makes the new ones,
-replaces the links and removes the ports that close.
+ones and the ones that close ("A program using it loses it"). Apply keeps the ports that stay, makes the new ones and
+removes the ports that close. For a share, an attached device and take turns on the same device it adds and takes off
+targets on the same link, so the link keeps its id, its options and its owner. For the other setups (a pair, a port with
+an echo, a bus, send into one, a network device, or a different device or kind) it replaces the link, because the engine
+has no in-place edit for a join's sources or a bus's members.
 
 ## Removing
 

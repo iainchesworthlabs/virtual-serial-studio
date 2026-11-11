@@ -24,7 +24,7 @@ namespace vss::gui
 class StatusChip;
 class Tag;
 
-/// The link bar under the topology diagram for an owner-policy join.
+/// The link bar under the topology diagram for an owner-policy join or split.
 ///
 /// It renders "Links on device", the policy, the current owner and the two
 /// owner actions.  Owner changes go to the engine through
@@ -37,9 +37,15 @@ class OwnerBar final : public QFrame
 public:
     explicit OwnerBar(StudioBackend& backend, QWidget* parent = nullptr);
 
-    /// True when this link is a join with the owner policy: the only shape the
-    /// owner bar applies to.
+    /// True when this link has the owner policy and more than one port that
+    /// can own it: a join with several sources, or a split with several
+    /// targets (the owner of a link that carries replies is one of its
+    /// targets).  The only links the owner bar applies to.
     static bool supports_owner(const link_view& link);
+
+    /// True when `port` is the one the candidates meet at: the target of a
+    /// join, or the source of a split.
+    static bool meets_at(const link_view& link, vss::endpoint_id port);
 
     /// Shows the given link, or hides the bar when there is none.
     void set_link(std::optional<link_view> link);

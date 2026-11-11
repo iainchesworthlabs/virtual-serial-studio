@@ -125,6 +125,71 @@ vss::result<vss::link_id> relink(StudioBackend& backend, const link_view& link)
     return vss::make_error_code(vss::errc::unsupported);
 }
 
+/// Whether `old` can be changed into what `kind` builds with `add_target` and
+/// `remove_target`: a duplex link from the same device with the merge policy
+/// the kind needs.  The shape is not asked: the real engine reports a duplex
+/// link with one target as `two_way`, and with more as `split`.
+bool edits_in_place(const link_view& old, job kind, vss::endpoint_id device)
+{
+    if (kind != job::attach && kind != job::share && kind != job::turns)
+        return false;
+    const vss::merge_policy wanted = kind == job::turns
+                                         ? vss::merge_policy::owner
+                                         : vss::merge_policy::interleave;
+    return old.mode == vss::link_mode::duplex && old.sources.size() == 1 &&
+           old.sources.front() == device && old.options.policy == wanted;
+}
+
+/// Makes the targets of `old` the `programs`: adds the new ones first, so the
+/// link always has a target, then takes off the ones that are not wanted.  The
+/// link keeps its id, options and counters.  A failure puts the targets back,
+/// so the link is as it was.
+vss::result<void> edit_targets(StudioBackend& backend, const link_view& old,
+                               const std::vector<vss::endpoint_id>& programs)
+{
+    VSS_PROFILE_ZONE("gui.simple.job_plan.edit_targets");
+    std::vector<vss::endpoint_id> added;
+    std::vector<vss::endpoint_id> removed;
+    const auto roll_back = [&]
+    {
+        for (const auto id : removed)
+            static_cast<void>(backend.add_target(old.id, id));
+        for (auto it = added.rbegin(); it != added.rend(); ++it)
+            static_cast<void>(backend.remove_target(old.id, *it));
+        // Taking the owner off the link released it.
+        if (old.owner != 0 && std::find(removed.begin(), removed.end(),
+                                        old.owner) != removed.end())
+            static_cast<void>(backend.set_owner(old.id, old.owner));
+    };
+
+    for (const auto id : programs)
+    {
+        if (old.targets.contains(id) ||
+            std::find(added.begin(), added.end(), id) != added.end())
+            continue;
+        const auto result = backend.add_target(old.id, id);
+        if (!result)
+        {
+            roll_back();
+            return result.error();
+        }
+        added.push_back(id);
+    }
+    for (const auto id : old.targets)
+    {
+        if (std::find(programs.begin(), programs.end(), id) != programs.end())
+            continue;
+        const auto result = backend.remove_target(old.id, id);
+        if (!result)
+        {
+            roll_back();
+            return result.error();
+        }
+        removed.push_back(id);
+    }
+    return {};
+}
+
 } // namespace
 
 QString device_uri(const end_plan& end, const vss::serial_settings& serial)
@@ -384,6 +449,60 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         }
     }
 
+    const auto& a = *first;
+    const auto& b = *second;
+
+    // The ports of the plan stay; the ones the setup had before and the plan
+    // leaves out close.
+    const auto close_dropped = [&]
+    {
+        if (previous == nullptr)
+            return;
+        QSet<vss::endpoint_id> keep(a.begin(), a.end());
+        for (const auto id : b)
+            keep.insert(id);
+        if (echo != 0)
+            keep.insert(echo);
+        for (const auto id : previous->group.ports)
+        {
+            if (!keep.contains(id))
+                static_cast<void>(backend.remove_port(id));
+        }
+    };
+
+    // Programs added to or taken off a device that several programs use change
+    // its link in place, so the link and the other programs are not
+    // disturbed.  The other setups have no in-place edit in the engine (a
+    // join's sources, a bus's members), and are made again.
+    if (previous != nullptr && previous->link != 0)
+    {
+        const bool turns = plan.kind == job::turns;
+        const auto& programs = turns ? a : b;
+        const vss::endpoint_id device =
+            turns ? (b.empty() ? vss::endpoint_id{0} : b.front()) : a.front();
+        const auto old = backend.link(previous->link);
+        if (old && !programs.empty() && device != 0 &&
+            edits_in_place(*old, plan.kind, device))
+        {
+            const auto edited = edit_targets(backend, *old, programs);
+            if (!edited)
+            {
+                undo_made();
+                return edited.error();
+            }
+            // Taking the owner off the link released it; a link whose owner
+            // stays keeps it.
+            if (turns)
+            {
+                const auto now = backend.link(old->id);
+                if (now && now->owner == 0)
+                    static_cast<void>(backend.set_owner(old->id, a[0]));
+            }
+            close_dropped();
+            return a[0];
+        }
+    }
+
     std::optional<link_view> old_link;
     if (previous != nullptr && previous->link != 0)
     {
@@ -397,8 +516,6 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
     }
 
     vss::result<vss::link_id> linked = vss::link_id{0};
-    const auto& a = *first;
-    const auto& b = *second;
     switch (plan.kind)
     {
     case job::port:
@@ -431,12 +548,12 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
             linked = vss::make_error_code(vss::errc::invalid_argument);
             break;
         }
-        // The engine applies the owner rule to every direction of a link, so
-        // this is a join: the programs send to the device one at a time, and
-        // the device's replies do not come back (08-engine-gaps.md).
+        // A split from the device with the owner policy: the programs send
+        // to the device one at a time, and the device's replies reach every
+        // program (08-engine-gaps.md).
         vss::link_options options;
         options.policy = vss::merge_policy::owner;
-        linked = backend.join(a, b[0], options);
+        linked = backend.split(b[0], a, options);
         if (linked)
         {
             vss::endpoint_id owner = a[0];
@@ -460,19 +577,7 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         return linked.error();
     }
 
-    if (previous != nullptr)
-    {
-        QSet<vss::endpoint_id> keep(a.begin(), a.end());
-        for (const auto id : b)
-            keep.insert(id);
-        if (echo != 0)
-            keep.insert(echo);
-        for (const auto id : previous->group.ports)
-        {
-            if (!keep.contains(id))
-                static_cast<void>(backend.remove_port(id));
-        }
-    }
+    close_dropped();
     return a[0];
 }
 

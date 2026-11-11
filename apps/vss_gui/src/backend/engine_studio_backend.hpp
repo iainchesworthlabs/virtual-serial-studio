@@ -102,6 +102,10 @@ public:
     vss::result<vss::link_id>
     bus(const std::vector<vss::endpoint_id>& members) override;
     vss::result<void> disconnect(vss::link_id id) override;
+    vss::result<void> add_target(vss::link_id link,
+                                 vss::endpoint_id target) override;
+    vss::result<void> remove_target(vss::link_id link,
+                                    vss::endpoint_id target) override;
     vss::result<void> set_owner(vss::link_id id,
                                 vss::endpoint_id owner) override;
     vss::result<void> release_owner(vss::link_id id) override;

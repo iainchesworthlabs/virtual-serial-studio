@@ -144,6 +144,11 @@ std::optional<vss::error_code> FakeStudioBackend::take_error()
 {
     if (!next_error_)
         return std::nullopt;
+    if (calls_before_error_ > 0)
+    {
+        --calls_before_error_;
+        return std::nullopt;
+    }
     const vss::error_code error = *next_error_;
     next_error_.reset();
     return error;
@@ -571,6 +576,54 @@ vss::result<void> FakeStudioBackend::disconnect(vss::link_id id)
     return {};
 }
 
+vss::result<void> FakeStudioBackend::add_target(vss::link_id link,
+                                                vss::endpoint_id target)
+{
+    if (const auto error = take_error())
+        return *error;
+    link_view* view = find_link(link);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->mode != vss::link_mode::duplex)
+        return vss::make_error_code(vss::errc::unsupported);
+    if (find_port(target) == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->sources.isEmpty() || target == view->sources.first())
+        return vss::make_error_code(vss::errc::invalid_argument);
+    if (view->targets.contains(target))
+        return vss::make_error_code(vss::errc::already_exists);
+    view->targets.push_back(target);
+    view->shape = link_shape::split;
+    refresh();
+    return {};
+}
+
+vss::result<void> FakeStudioBackend::remove_target(vss::link_id link,
+                                                   vss::endpoint_id target)
+{
+    if (const auto error = take_error())
+        return *error;
+    link_view* view = find_link(link);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->mode != vss::link_mode::duplex)
+        return vss::make_error_code(vss::errc::unsupported);
+    if (find_port(target) == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->sources.isEmpty() || target == view->sources.first())
+        return vss::make_error_code(vss::errc::invalid_argument);
+    const qsizetype at = view->targets.indexOf(target);
+    if (at < 0)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->targets.size() == 1)
+        return vss::make_error_code(vss::errc::invalid_argument);
+    view->targets.remove(at);
+    if (view->owner == target)
+        view->owner = 0;
+    refresh();
+    return {};
+}
+
 vss::result<void> FakeStudioBackend::set_owner(vss::link_id id,
                                                vss::endpoint_id owner)
 {
@@ -579,7 +632,15 @@ vss::result<void> FakeStudioBackend::set_owner(vss::link_id id,
     link_view* view = find_link(id);
     if (view == nullptr)
         return vss::make_error_code(vss::errc::not_found);
-    if (!view->sources.contains(owner))
+    if (view->mode == vss::link_mode::bus)
+        return vss::make_error_code(vss::errc::unsupported);
+    // Like the engine: on a duplex link the owner arbitrates the routes from
+    // the targets back to the source, so it is a target; on a one-way link it
+    // is one of the sources.
+    const bool allowed = view->mode == vss::link_mode::duplex
+                             ? view->targets.contains(owner)
+                             : view->sources.contains(owner);
+    if (!allowed)
         return vss::make_error_code(vss::errc::invalid_argument);
     view->owner = owner;
     refresh();
