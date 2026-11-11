@@ -123,6 +123,31 @@ TEST_CASE("vsscom ring: a full ring takes what fits and no more")
     REQUIRE_EQ(drain(ring, 8), std::string("ok"));
 }
 
+TEST_CASE("vsscom ring: the newest bytes can be taken back")
+{
+    std::array<std::uint8_t, 8> storage{};
+    vsscom_ring ring;
+    vsscom_ring_init(&ring, storage.data(), 8);
+
+    REQUIRE_EQ(put(ring, "old"), 3u);
+    REQUIRE_EQ(put(ring, "new"), 3u);
+    REQUIRE_EQ(vsscom_ring_drop_newest(&ring, 3), 3u);
+    REQUIRE_EQ(drain(ring, 8), std::string("old"));
+
+    // The reader took some of what was asked back: only what is left goes.
+    REQUIRE_EQ(put(ring, "abcd"), 4u);
+    REQUIRE_EQ(drain(ring, 2), std::string("ab"));
+    REQUIRE_EQ(vsscom_ring_drop_newest(&ring, 4), 2u);
+    REQUIRE_EQ(vsscom_ring_count(&ring), 0u);
+    REQUIRE_EQ(vsscom_ring_drop_newest(&ring, 1), 0u);
+
+    // The ring is whole afterwards, across the end of the storage too.
+    REQUIRE_EQ(put(ring, "123456"), 6u);
+    REQUIRE_EQ(vsscom_ring_drop_newest(&ring, 2), 2u);
+    REQUIRE_EQ(put(ring, "xyzw"), 4u);
+    REQUIRE_EQ(drain(ring, 8), std::string("1234xyzw"));
+}
+
 TEST_CASE("vsscom timeouts: only all three MAXDWORD read values are refused")
 {
     REQUIRE(!valid(timeouts(max_dword, max_dword, max_dword)));
@@ -254,6 +279,37 @@ TEST_CASE("vsscom events: events that happen before the wait are kept")
     // A second wait now has to wait.
     REQUIRE(!vsscom_events_wait(&events, &fired));
     REQUIRE(events.waiting);
+}
+
+TEST_CASE("vsscom events: events of a cancelled wait go back to the history")
+{
+    vsscom_events events;
+    vsscom_events_init(&events);
+    std::uint32_t fired = 0;
+
+    vsscom_events_set_mask(&events, VSSCOM_EV_RXCHAR | VSSCOM_EV_BREAK);
+    REQUIRE(!vsscom_events_wait(&events, &fired));
+    REQUIRE(vsscom_events_raise(&events, VSSCOM_EV_BREAK, &fired));
+    REQUIRE_EQ(fired, VSSCOM_EV_BREAK);
+
+    // The request was cancelled before it could take them: the driver raises
+    // them again. With no wait parked they are kept for the next one.
+    REQUIRE(!vsscom_events_raise(&events, fired, &fired));
+    REQUIRE(vsscom_events_wait(&events, &fired));
+    REQUIRE_EQ(fired, VSSCOM_EV_BREAK);
+
+    // With a wait parked meanwhile, they complete that one instead.
+    REQUIRE(!vsscom_events_wait(&events, &fired));
+    std::uint32_t again = 0;
+    REQUIRE(vsscom_events_raise(&events, VSSCOM_EV_RXCHAR, &again));
+    REQUIRE(!vsscom_events_wait(&events, &fired));
+    REQUIRE(vsscom_events_raise(&events, again, &fired));
+    REQUIRE_EQ(fired, VSSCOM_EV_RXCHAR);
+
+    // A new mask drops them, as it drops any history.
+    REQUIRE(!vsscom_events_raise(&events, VSSCOM_EV_BREAK, &fired));
+    vsscom_events_set_mask(&events, VSSCOM_EV_RXCHAR);
+    REQUIRE(!vsscom_events_wait(&events, &fired));
 }
 
 TEST_CASE("vsscom events: setting the mask releases a wait and drops history")

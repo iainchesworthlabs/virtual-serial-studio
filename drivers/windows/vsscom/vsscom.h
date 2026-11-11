@@ -277,6 +277,9 @@ VOID VssComAppWriteToHub(_In_ PVSSCOM_DEVICE_CONTEXT Context,
 BOOLEAN VssComServiceHubWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context);
 BOOLEAN VssComServiceHubReads(_In_ PVSSCOM_DEVICE_CONTEXT Context);
 BOOLEAN VssComServiceAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context);
+// Ends the waiting writes after an error with abort on error, and takes back
+// the bytes they had put into Tx.
+VOID VssComAbortAppWritesOnError(_In_ PVSSCOM_DEVICE_CONTEXT Context);
 // Completes the application's waiting writes with `Status`.
 VOID VssComAbortAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context,
                           _In_ NTSTATUS Status);

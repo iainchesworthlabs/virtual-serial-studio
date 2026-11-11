@@ -566,7 +566,7 @@ BOOLEAN VssComServiceHubWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context)
                 // The reads end in the pump, which finds the error latched; the
                 // writes that wait for the hub end here.
                 if (abort)
-                    VssComAbortAppWrites(Context, STATUS_CANCELLED);
+                    VssComAbortAppWritesOnError(Context);
                 // Something changed for the reads either way: a byte, or the
                 // abort.
                 moved = TRUE;
@@ -641,6 +641,9 @@ BOOLEAN VssComServiceHubReads(_In_ PVSSCOM_DEVICE_CONTEXT Context)
     }
 }
 
+static VOID VssComFinishAbortedWrite(_In_ PVSSCOM_DEVICE_CONTEXT Context,
+                                     _In_ WDFREQUEST Request);
+
 // The application's writes go into Tx while it has room. If the hub end has
 // gone, what is left of a write is dropped and the write completes short.
 BOOLEAN VssComServiceAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context)
@@ -677,10 +680,7 @@ BOOLEAN VssComServiceAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context)
         // so does one that slipped in before the error was latched.
         if (VssComErrorAbort(Context))
         {
-            VssComLockAcquire(Context->Lock);
-            Context->AppWritesPending--;
-            VssComLockRelease(Context->Lock);
-            VssComFinishPipe(request, STATUS_CANCELLED);
+            VssComFinishAbortedWrite(Context, request);
             moved = TRUE;
             continue;
         }
@@ -740,6 +740,33 @@ BOOLEAN VssComServiceAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context)
         WdfRequestRequeue(request);
         return moved;
     }
+}
+
+// Ends a write that abort on error stopped. The bytes it had put into Tx that
+// the hub has not read yet are taken back, since the program was told the write
+// did not go through; the count it completes with is what the hub did read.
+static VOID VssComFinishAbortedWrite(_In_ PVSSCOM_DEVICE_CONTEXT Context,
+                                     _In_ WDFREQUEST Request)
+{
+    PVSSCOM_PIPE_CONTEXT pipe = VssComPipeContext(Request);
+
+    VssComLockAcquire(Context->Lock);
+    // This write's bytes are the newest in Tx: nothing is queued behind the
+    // write at the head, and the hub reads from the oldest end.
+    pipe->Done -= vsscom_ring_drop_newest(&Context->Tx, pipe->Done);
+    Context->AppWritesPending--;
+    VssComLockRelease(Context->Lock);
+    VssComFinishPipe(Request, STATUS_CANCELLED);
+}
+
+// Ends the writes that wait, and takes back what they had stored.
+VOID VssComAbortAppWritesOnError(_In_ PVSSCOM_DEVICE_CONTEXT Context)
+{
+    WDFREQUEST request;
+
+    while (NT_SUCCESS(WdfIoQueueRetrieveNextRequest(Context->AppWriteQueue,
+                                                    &request)))
+        VssComFinishAbortedWrite(Context, request);
 }
 
 VOID VssComAbortAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context,
