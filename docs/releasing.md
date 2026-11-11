@@ -309,10 +309,12 @@ service.
    (`CPACK_INSTALLED_DIRECTORIES` names it, and an empty `CPACK_INSTALL_CMAKE_PROJECTS`
    stops CPack installing unsigned copies over it). The installer `.exe` is then signed
    and verified.
-5. On the runner the installer is run silently twice, the second time as an upgrade, then
+5. On the runner the installer is run silently twice (the first with `/ADDTOPATH=1`), the
+   second time as an upgrade, then
    `vss_cli selftest` and `vss_gui --version` run from `%ProgramFiles%\Virtual Serial Studio`,
    and a silent uninstall must leave no folder, Apps & features entry, Start menu folder,
-   helper service or driver package.
+   helper service or driver package, and must give the machine PATH back as it was. The
+   check also requires the folder on the PATH exactly once after the upgrade.
 
 NSIS comes from Chocolatey through the `setup-toolchain` action, at the version in
 `.github/toolchain-versions.json`.
@@ -330,9 +332,17 @@ NSIS comes from Chocolatey through the `setup-toolchain` action, at the version 
   because the NSIS program is a 32-bit one.
 - Removes an earlier version before it installs: the registry key and the folder carry no
   version, so any version finds any other.
-- Offers, on a page whose default is "Do not add", to put `bin` on the PATH so that
+- Offers, on a page whose box is not ticked, to put `bin` on the system PATH so that
   `vss_cli` runs from any terminal. `bin` also holds the Qt DLLs, which is why it is not
-  the default. A silent install (`/S`) adds nothing, and `/D=<folder>` installs elsewhere.
+  the default. A silent install (`/S`) adds nothing unless it is given `/ADDTOPATH=1`, and
+  `/D=<folder>` installs elsewhere. CPack's own PATH code is switched off
+  (`CPACK_NSIS_MODIFY_PATH OFF`): it keeps the PATH in an NSIS string of at most 1024
+  characters, refuses a longer PATH with "PATH too long installer unable to modify PATH!"
+  and, on the way out, can cut a long PATH short. `bin\edit-path.ps1` edits the registry
+  value itself instead, so any length works, every other entry stays as written, a folder
+  already there is not added twice, and a PATH that would pass Windows' 32767-character limit
+  is left alone and reported. The uninstaller takes the folder out again (an upgrade leaves
+  it). `tools/test_edit_path.py` tests the script against a scratch registry key.
 - Has a page with a ticked box, **Install the virtual COM port driver and its helper
   service**. A silent install does the same unless it is given `/DRIVER=0`.
 

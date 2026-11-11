@@ -15,10 +15,17 @@
 ; The choice is a page with a box that is ticked, and the switch /DRIVER=0 on the
 ; command line (/DRIVER=1 is the default) for a silent install, which shows no
 ; page. VSS_REGISTRY_KEY is defined by the CMake file.
+;
+; The same file holds the PATH choice: a page with a box that is not ticked, and the
+; switch /ADDTOPATH=1 for a silent install (nothing is added by default). CPack's own
+; PATH code keeps the PATH in an NSIS string, which stops at 1024 characters and
+; refuses a longer PATH, so the CMake file turns it off and bin\edit-path.ps1 does
+; the work on the registry value itself.
 
 !include "nsDialogs.nsh"
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
+!include "WinMessages.nsh"
 
 !insertmacro GetParameters
 !insertmacro GetOptions
@@ -176,5 +183,124 @@ Function un.VssRemoveDriver
   ${EndIf}
 
 done:
+  Pop $0
+FunctionEnd
+
+; ---- The PATH ----------------------------------------------------------------
+
+Var VssPathWanted
+Var VssPathCheckbox
+
+; The command line decides when there is no page: /ADDTOPATH=1 adds the folder.
+Function VssPathSwitch
+  Push $0
+  Push $1
+  ${GetParameters} $0
+  ${GetOptions} $0 "/ADDTOPATH=" $1
+  ${If} $1 == "1"
+    StrCpy $VssPathWanted 1
+  ${Else}
+    StrCpy $VssPathWanted 0
+  ${EndIf}
+  Pop $1
+  Pop $0
+FunctionEnd
+
+Function VssPathPageCreate
+  Call VssPathSwitch
+  !insertmacro MUI_HEADER_TEXT "Command line" "Lets you run vss_cli from any terminal."
+  nsDialogs::Create 1018
+  Pop $0
+  ${If} $0 == error
+    Abort
+  ${EndIf}
+
+  ${NSD_CreateCheckbox} 0 0 100% 12u "Add the Virtual Serial Studio command line tool to the PATH for all users"
+  Pop $VssPathCheckbox
+  ${If} $VssPathWanted == 1
+    ${NSD_Check} $VssPathCheckbox
+  ${EndIf}
+
+  ${NSD_CreateLabel} 12u 18u 94% 40u "This puts the folder of vss_cli.exe at the end of the system PATH, so that vss_cli can be run from any terminal opened afterwards. Nothing else in the PATH is changed. It is off unless you tick it, and the uninstaller takes the folder out again. To add it in a silent install, run the installer with /S /ADDTOPATH=1."
+  Pop $0
+  nsDialogs::Show
+FunctionEnd
+
+Function VssPathPageLeave
+  ${NSD_GetState} $VssPathCheckbox $0
+  ${If} $0 == ${BST_CHECKED}
+    StrCpy $VssPathWanted 1
+  ${Else}
+    StrCpy $VssPathWanted 0
+  ${EndIf}
+FunctionEnd
+
+; Runs bin\edit-path.ps1 with the action (Add or Remove); $0 is its exit code
+; afterwards. Same 64-bit PowerShell route as the driver scripts, see VssRunScript.
+; A macro, because the installer and the uninstaller each need their own copy.
+!macro VssRunEditPath action
+  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$INSTDIR\bin\edit-path.ps1" -Action ${action} -Directory "$INSTDIR\bin" > "$INSTDIR\path-setup.log" 2>&1' $0
+!macroend
+
+; Installs the script (it is always there, for the uninstaller) and, when chosen,
+; adds the folder. A PATH that cannot be extended is reported, not half-changed.
+Function VssInstallPath
+  Push $0
+  ${If} $VssPathWanted == ""
+    Call VssPathSwitch
+  ${EndIf}
+
+  SetOutPath "$INSTDIR\bin"
+  File "${__FILEDIR__}\edit-path.ps1"
+
+  ; The stock remover in CPack's template reads this; the uninstaller below does the
+  ; removal instead and the stock one must not touch the PATH.
+  WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${VSS_REGISTRY_KEY}" "DoNotAddToPath" "1"
+
+  ${If} $VssPathWanted != 1
+    DetailPrint "PATH: not selected, so not changed."
+    Goto done
+  ${EndIf}
+
+  DetailPrint "Adding $INSTDIR\bin to the PATH."
+  !insertmacro VssRunEditPath "Add"
+  ${If} $0 == 0
+    DetailPrint "PATH: added."
+    WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${VSS_REGISTRY_KEY}" "VssPath" "added"
+    SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  ${Else}
+    DetailPrint "PATH: NOT changed (code $0)."
+    WriteRegStr SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${VSS_REGISTRY_KEY}" "VssPath" "failed-$0"
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Virtual Serial Studio is installed, but its folder was NOT added to the PATH (code $0). The PATH was not changed.$\r$\n$\r$\nTo run vss_cli from a terminal, use its full path, $INSTDIR\bin\vss_cli.exe, or add that folder to the PATH yourself.$\r$\n$\r$\nWhat happened is in $INSTDIR\path-setup.log" /SD IDOK
+  ${EndIf}
+
+done:
+  Pop $0
+FunctionEnd
+
+; Takes the folder out of the PATH when Studio is uninstalled. An upgrade runs the old
+; uninstaller in place (see un.VssRemoveDriver) and leaves the PATH as it is.
+Function un.VssRemovePath
+  Push $0
+  ${If} $EXEDIR == $INSTDIR
+    DetailPrint "Upgrade: the PATH stays as it is."
+    Goto done
+  ${EndIf}
+  ${IfNot} ${FileExists} "$INSTDIR\bin\edit-path.ps1"
+    Goto done
+  ${EndIf}
+
+  DetailPrint "Taking $INSTDIR\bin out of the PATH."
+  !insertmacro VssRunEditPath "Remove"
+  ${If} $0 == 0
+    SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  ${Else}
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Virtual Serial Studio is removed, but its folder could not be taken out of the PATH (code $0). The PATH was not changed.$\r$\n$\r$\nWhat happened is in $INSTDIR\path-setup.log" /SD IDOK
+  ${EndIf}
+
+done:
+  ; The script is not in CPack's list of installed files (VssInstallPath puts it
+  ; there), so the uninstaller would leave it, and the folder with it.
+  Delete "$INSTDIR\bin\edit-path.ps1"
   Pop $0
 FunctionEnd

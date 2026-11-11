@@ -22,8 +22,9 @@
 #   - registers an uninstaller and an Apps & features entry
 #   - removes an earlier version first, so an upgrade replaces the files and
 #     leaves nothing behind
-#   - offers to add the folder of vss_cli.exe to the PATH. The page defaults to
-#     "Do not add", and a silent install (/S) adds nothing
+#   - offers, on a page with the box not ticked, to add the folder of vss_cli.exe to
+#     the system PATH (bin\edit-path.ps1, which has no limit on the length of the
+#     PATH). A silent install (/S) adds nothing unless /ADDTOPATH=1 is given
 #   - offers, on a page with the box ticked, to set up the user-mode virtual COM
 #     port driver and the helper service from bin\driver (driver.nsh). /DRIVER=0
 #     skips it in a silent install. If Windows does not trust the signature on the
@@ -81,7 +82,11 @@ set(CPACK_NSIS_PACKAGE_NAME "Virtual Serial Studio")
 set(CPACK_NSIS_DISPLAY_NAME "Virtual Serial Studio")
 set(CPACK_NSIS_INSTALL_ROOT "$PROGRAMFILES64")
 set(CPACK_NSIS_ENABLE_UNINSTALL_BEFORE_INSTALL ON)
-set(CPACK_NSIS_MODIFY_PATH ON)
+# CPack's own PATH code is off: it keeps the PATH in an NSIS string of at most 1024
+# characters, shows "PATH too long installer unable to modify PATH!" for a longer one
+# and can cut a long PATH short when it takes the folder out. driver.nsh has its own
+# page and bin\edit-path.ps1, which edits the registry value whatever its length.
+set(CPACK_NSIS_MODIFY_PATH OFF)
 set(CPACK_NSIS_INSTALLED_ICON_NAME "bin\\\\vss_gui.exe")
 set(CPACK_NSIS_URL_INFO_ABOUT "${PROJECT_HOMEPAGE_URL}")
 set(CPACK_NSIS_HELP_LINK "${PROJECT_HOMEPAGE_URL}")
@@ -107,8 +112,14 @@ set(CPACK_NSIS_DEFINES
   "!define VSS_REGISTRY_KEY '${CPACK_PACKAGE_INSTALL_REGISTRY_KEY}'
 !include '${_vss_driver_nsh}'")
 unset(_vss_driver_nsh)
-set(CPACK_NSIS_PAGE_COMPONENTS "Page custom VssDriverPageCreate VssDriverPageLeave")
-set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "  Call VssInstallDriver")
+set(CPACK_NSIS_PAGE_COMPONENTS
+  "Page custom VssDriverPageCreate VssDriverPageLeave
+  Page custom VssPathPageCreate VssPathPageLeave")
+set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS
+  "  Call VssInstallDriver
+  Call VssInstallPath")
 set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS
-  "  Call un.VssRemoveDriver
-  Delete '$INSTDIR\\\\driver-setup.log'")
+  "  Call un.VssRemovePath
+  Call un.VssRemoveDriver
+  Delete '$INSTDIR\\\\driver-setup.log'
+  Delete '$INSTDIR\\\\path-setup.log'")
