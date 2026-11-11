@@ -62,7 +62,7 @@ public:
     std::uint64_t id() const noexcept;
 
 private:
-    struct impl;
+    class impl;
     std::unique_ptr<impl> impl_;
 };
 

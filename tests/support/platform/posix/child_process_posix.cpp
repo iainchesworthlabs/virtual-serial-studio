@@ -147,8 +147,9 @@ void close_on_exec(int fd)
 
 } // namespace
 
-struct child_process::impl
+class child_process::impl
 {
+public:
     impl() = default;
     impl(const impl&) = delete;
     impl& operator=(const impl&) = delete;
@@ -249,6 +250,9 @@ struct child_process::impl
         }
         return false;
     }
+
+private:
+    friend class child_process;
 
     pid_t pid_ = -1;
     descriptor output_;

@@ -224,8 +224,9 @@ private:
             auto next = reader_.next();
             if (!next)
                 return next.error();
-            if (*next)
-                return decode_server_message(**next);
+            const std::optional<frame> ready = std::move(*next);
+            if (ready)
+                return decode_server_message(*ready);
             if (read_failed_)
                 return make_error_code(protocol_errc::connection_closed);
             start_read();

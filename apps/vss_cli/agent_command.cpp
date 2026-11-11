@@ -14,13 +14,14 @@
 #include <vss/agent/proto/error.hpp>
 #include <vss/core/bytes.hpp>
 
+#include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -48,6 +49,18 @@ struct agent_arguments
     bool valid = true;
 };
 
+/// The whole of `text` as a number of seconds; nothing for anything else.
+std::optional<int> parse_seconds(std::string_view text)
+{
+    int seconds = 0;
+    const auto [stopped, failed] =
+        std::from_chars(text.data(), text.data() + text.size(), seconds);
+    if (failed != std::errc{} || stopped != text.data() + text.size() ||
+        seconds < 0)
+        return std::nullopt;
+    return seconds;
+}
+
 agent_arguments parse(const std::vector<std::string>& arguments)
 {
     agent_arguments parsed;
@@ -59,8 +72,12 @@ agent_arguments parse(const std::vector<std::string>& arguments)
         if (word.starts_with(instance_option))
             parsed.instance = word.substr(instance_option.size());
         else if (word.starts_with(seconds_option))
-            parsed.seconds = std::atoi(
-                std::string(word.substr(seconds_option.size())).c_str());
+        {
+            const auto seconds =
+                parse_seconds(word.substr(seconds_option.size()));
+            parsed.seconds = seconds.value_or(0);
+            parsed.valid = parsed.valid && seconds.has_value();
+        }
         else if (word == "--one-way")
             parsed.one_way = true;
         else if (word == "--hex")

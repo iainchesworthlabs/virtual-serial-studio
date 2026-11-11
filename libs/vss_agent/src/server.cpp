@@ -195,7 +195,10 @@ port_summary summarise(const endpoint_info& info, std::string advertised)
     port_summary out;
     out.id = info.id;
     out.name = info.name;
-    out.path = advertised.empty() ? info.path : std::move(advertised);
+    if (advertised.empty())
+        out.path = info.path;
+    else
+        out.path = std::move(advertised);
     out.kind = info.kind;
     out.state = info.state;
     out.open = info.open;
@@ -230,7 +233,19 @@ public:
     {
     }
 
-    ~impl() { stop(); }
+    ~impl()
+    {
+        try
+        {
+            stop();
+        }
+        catch (...)
+        {
+            // A stop that failed part of the way leaves threads that still
+            // use this object, so there is nothing to go on with.
+            std::terminate();
+        }
+    }
 
     impl(const impl&) = delete;
     impl& operator=(const impl&) = delete;
@@ -428,9 +443,10 @@ private:
                 fail(client, 0, next.error());
                 return;
             }
-            if (!*next)
+            const std::optional<frame> ready = std::move(*next);
+            if (!ready)
                 break;
-            handle_frame(client, **next);
+            handle_frame(client, *ready);
         }
         if (!client->closed && !client->leaving && !client->reading &&
             client->pending < options_.max_pending_requests)

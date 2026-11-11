@@ -149,7 +149,8 @@ public:
             fail("cannot create the child's attribute list");
         ready_ = true;
         if (!::UpdateProcThreadAttribute(
-                list_, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherited.data(),
+                list_, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                static_cast<void*>(inherited.data()),
                 inherited.size() * sizeof(HANDLE), nullptr, nullptr))
         {
             fail("cannot restrict the child's inherited handles");
@@ -218,8 +219,9 @@ void append_argument(std::wstring& line, const std::wstring& argument)
 
 } // namespace
 
-struct child_process::impl
+class child_process::impl
 {
+public:
     impl() = default;
     impl(const impl&) = delete;
     impl& operator=(const impl&) = delete;
@@ -302,6 +304,9 @@ struct child_process::impl
         }
         return false;
     }
+
+private:
+    friend class child_process;
 
     handle process_;
     handle output_;

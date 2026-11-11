@@ -101,6 +101,8 @@ public:
         }
         catch (...)
         {
+            // best effort: a lock file left behind fails no test, and a
+            // destructor has nobody to tell.
         }
     }
 
@@ -365,8 +367,8 @@ public:
             auto next = state_->reader.next();
             if (!next)
                 return std::nullopt;
-            if (*next)
-                return std::move(**next);
+            if (next->has_value())
+                return std::move(*next);
             if (state_->read_failed)
                 return std::nullopt;
             start_read(state_);
@@ -529,6 +531,7 @@ TEST_CASE("agent server: data events carry bytes only when asked")
             return counted.has_value();
         });
     REQUIRE(counted_seen);
+    REQUIRE(counted.has_value());
     REQUIRE_EQ(counted->size, std::uint64_t{5});
     REQUIRE(counted->data.empty());
 
@@ -545,6 +548,7 @@ TEST_CASE("agent server: data events carry bytes only when asked")
             return tapped.has_value();
         });
     REQUIRE(tapped_seen);
+    REQUIRE(tapped.has_value());
     REQUIRE_EQ(tapped->size, std::uint64_t{5});
     REQUIRE_EQ(vss::to_string(vss::bytes_view(tapped->data)),
                std::string("hello"));
@@ -1149,10 +1153,12 @@ TEST_CASE("agent server: stress with many clients and a stop underneath")
     // First, workers that finish while the server runs.
     {
         std::vector<std::unique_ptr<agent::client>> clients;
+        clients.reserve(static_cast<std::size_t>(workers));
         for (int worker = 0; worker < workers; ++worker)
             clients.push_back(env.connect("worker"));
         {
             std::vector<std::jthread> threads;
+            threads.reserve(static_cast<std::size_t>(workers));
             for (int worker = 0; worker < workers; ++worker)
             {
                 threads.emplace_back(
@@ -1172,9 +1178,11 @@ TEST_CASE("agent server: stress with many clients and a stop underneath")
     // Then workers that never finish by themselves, and a stop underneath.
     {
         std::vector<std::unique_ptr<agent::client>> clients;
+        clients.reserve(static_cast<std::size_t>(workers));
         for (int worker = 0; worker < workers; ++worker)
             clients.push_back(env.connect("endless"));
         std::vector<std::jthread> threads;
+        threads.reserve(static_cast<std::size_t>(workers));
         const stop_guard inner_guard(env.server, state);
         for (int worker = 0; worker < workers; ++worker)
         {

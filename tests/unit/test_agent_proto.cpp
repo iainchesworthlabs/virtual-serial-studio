@@ -76,8 +76,9 @@ frame take(frame_reader& reader)
 {
     auto next = reader.next();
     REQUIRE(next);
-    REQUIRE(next->has_value());
-    return std::move(**next);
+    std::optional<frame> ready = std::move(*next);
+    REQUIRE(ready.has_value());
+    return std::move(*ready);
 }
 
 /// True when the reader has no whole frame yet, and no error.
@@ -1053,7 +1054,7 @@ TEST_CASE("agent proto: a reply with a blob is malformed")
 
 TEST_CASE("agent proto: a reply header that is not a reply is malformed")
 {
-    const std::vector<std::string> headers{
+    const char* const headers[] = {
         "",
         "not json",
         "[]",
@@ -1108,7 +1109,7 @@ TEST_CASE("agent proto: a reply header that is not a reply is malformed")
         R"({"id":1,"reply":"error","error":{"category":5,"value":1,)"
         R"("message":""}})",
     };
-    for (const std::string& header : headers)
+    for (const char* header : headers)
         require_malformed_message(header);
 }
 
@@ -1132,7 +1133,7 @@ TEST_CASE("agent proto: a batch header that is not a batch is malformed")
         require_malformed_message(header);
 
     // One field of an event at a time.
-    const std::vector<std::string> events{
+    const char* const events[] = {
         R"({"endpoint":1,"name":"","direction":"rx","size":0,"stored":0,)"
         R"("lines":0,"message":""})",
         R"({"kind":"data","name":"","direction":"rx","size":0,"stored":0,)"
@@ -1158,8 +1159,8 @@ TEST_CASE("agent proto: a batch header that is not a batch is malformed")
         R"({"kind":"data","endpoint":1,"name":"","direction":"rx","size":0,)"
         R"("stored":0,"lines":0,"message":"","error":{"value":1}})",
     };
-    for (const std::string& event : events)
-        require_malformed_message(batch_json({event}));
+    for (const char* event : events)
+        require_malformed_message(batch_json({std::string(event)}));
 }
 
 TEST_CASE("agent proto: a name over max_text_size is malformed")
@@ -1513,7 +1514,10 @@ TEST_CASE("agent proto: a header with invalid UTF-8 or a lone surrogate is "
           std::string(R"(\ud800)"), std::string(R"(\udc00)"),
           std::string(R"(\ud800\ud800)")})
     {
-        require_malformed_request(head + name + tail);
+        std::string header = head;
+        header += name;
+        header += tail;
+        require_malformed_request(header);
     }
     // A pair of surrogate escapes is one character.
     const std::string backslash_u = R"(\u)";

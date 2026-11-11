@@ -88,6 +88,8 @@ public:
         }
         catch (...)
         {
+            // best effort: a file left behind fails no test, and a
+            // destructor has nobody to tell.
         }
     }
 

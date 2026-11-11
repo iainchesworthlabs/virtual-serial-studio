@@ -112,13 +112,14 @@ reading read_stream(vss::bytes_view input, bool in_pieces)
                 check_final(reader, input.subspan(at), out.ended);
                 return out;
             }
-            if (!next->has_value())
+            std::optional<agent::frame> ready = std::move(*next);
+            if (!ready)
             {
                 break;
             }
-            consumed += agent::frame_prefix_size * 2 + (*next)->header.size() +
-                        (*next)->blob.size();
-            out.frames.push_back(std::move(**next));
+            consumed += agent::frame_prefix_size * 2 + ready->header.size() +
+                        ready->blob.size();
+            out.frames.push_back(std::move(*ready));
         }
     } while (at < input.size());
 
@@ -143,10 +144,14 @@ std::optional<agent::frame> carried(const agent::frame& value)
     agent::frame_reader reader;
     reader.feed(*bytes);
     auto next = reader.next();
-    require(next && next->has_value());
+    require(next.has_value());
+    std::optional<agent::frame> ready = std::move(*next);
+    if (!ready || !(*ready == value))
+    {
+        std::abort();
+    }
     require(reader.buffered() == 0);
-    require(**next == value);
-    return std::move(**next);
+    return ready;
 }
 
 bool is_decode_error(const vss::error_code& error,
