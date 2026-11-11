@@ -332,6 +332,10 @@ is only what the hub says it is. Choice: an error is raised whatever the line
 settings are, for example a parity error with parity off; the hub is the wire.
 `SetCommState` sets `SERIAL_ERROR_CHAR` from `fErrorChar`; `SERIAL_BREAK_CHAR`
 has no `DCB` field and needs `IOCTL_SERIAL_SET_HANDFLOW`.
+The error, break and event characters (`IOCTL_SERIAL_SET_CHARS`) and the
+switches in the flow settings go back to a new port's values, all 0, each time
+the program closes the port, with the other settings that reset then, so the
+next program does not inherit them (test D39).
 
 **What is latched.** The error bits, until `IOCTL_SERIAL_GET_COMMSTATUS`
 (`ClearCommError`) returns them in `SERIAL_STATUS.Errors`, which clears them.
@@ -349,6 +353,16 @@ follow the rule every event has: an event in the mask completes a pending
 pending wait with no events; an event outside the mask is not kept. Dropping the
 event does not drop the error: `ClearCommError` still reports it.
 
+An event is not lost to a cancelled wait. When a program cancels its
+`WaitCommEvent` (`CancelIoEx`, or a thread that ends) and an event in the mask is
+raised before the next wait, the event waits in the history, as it does when no
+wait was ever made: it is collected by the next wait, or dropped by
+`SET_WAIT_MASK`. That includes an event that was raised just as the wait was
+cancelled and had been given to the wait: if the framework had already taken the
+request, the driver puts the events back (`VssComFinishWait`) instead of
+reporting them to nobody. Like `serial.sys`, the history is only emptied by a
+wait that collects it or a new mask.
+
 **`EV_RXFLAG`** is raised when `SERIAL_CHARS.EventChar` is among the bytes that
 enter the receive buffer, from the hub or from the loopback. As in the sample
 there is no switch for it other than the mask, and the default event character
@@ -364,6 +378,28 @@ and writes that were waiting end the same way when the error arrives. A pending
 `ClearCommError` reads the error and the port works again. The state is
 recomputed from the setting and the latch each time, so turning the setting on
 with an error latched holds the port at once, and closing the port releases it.
+
+**What an aborted write leaves behind.** The sample's `SerialCompleteIfError`
+completes the request with `STATUS_CANCELLED` and `Information` 0, and the
+sample's cancel and purge paths (`SerialTryToCompleteCurrent`, which sets
+`Information` to 0 for `STATUS_CANCELLED`) do the same for the write that is
+running. The sample has no queue behind the write: it sends from the program's
+buffer, so a cancelled write leaves nothing but what the UART already holds,
+which goes out on the wire. `ntddser.h` says nothing more (`SERIAL_ERROR_ABORT`
+is only the switch). This driver does have a queue, the 64 KB transmit buffer
+that the hub reads, and a write that waits for room has put part of itself in
+it. The rule is: the program was told the write failed, so what the hub has not
+read of it is taken back, and what the hub has read was sent. The request
+completes with `STATUS_CANCELLED` and `Information` equal to the bytes the hub
+read, which is the number actually sent; with the sample's wording, it is the
+UART's contents that went out. Bytes of earlier writes that completed stay in the
+queue, since those writes succeeded. The write's bytes are always the newest in
+the queue (nothing is queued behind the write that waits, and the hub reads the
+oldest first), so taking back is dropping the newest of them
+(`vsscom_ring_drop_newest`). Choice: this applies to abort on error only. A write
+that times out, is cancelled by `CancelIoEx` or is ended by `PurgeComm` keeps
+the behaviour it had, and a timed-out write still reports the bytes it handed to
+the queue.
 
 **Locks.** There is one lock per port (`Lock`: a spin lock in the kernel-mode
 driver, a framework wait lock in the user-mode one, behind `VSSCOM_LOCK`). It
@@ -393,11 +429,12 @@ still in the queue, where the handle's cleanup finds it. The injecting request
 and `ClearCommError` meet only under the lock: an error is either latched before
 the status is read, and reported, or after, and reported next time.
 
-One window is older than this change and is still there: an event that is
-raised between the driver clearing "waiting" under the lock and its retrieve,
-while the framework cancels that same wait, is taken out of the history and
-reported to nobody. For a line error the latch is unaffected, so `ClearCommError`
-still tells the program.
+An event that is raised between the driver clearing "waiting" under the lock and
+its retrieve, while the framework cancels that same wait, is taken out of the
+history; the retrieve then finds nothing. The driver puts those events back
+into the history under the lock, or into a wait that was parked since, so
+the next wait collects them (see Events above). Test D40 checks that in every
+round of the cancel race the event is seen by the cancelled wait or by the next.
 
 **Rejected.** A separate queue for errors, with a sequence number to place them
 among the bytes: more state for the same order the write queue already gives. An

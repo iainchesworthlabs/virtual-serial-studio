@@ -73,6 +73,13 @@ void vsscom_ring_clear(vsscom_ring* ring)
     ring->count = 0;
 }
 
+vsscom_u32 vsscom_ring_drop_newest(vsscom_ring* ring, vsscom_u32 length)
+{
+    const vsscom_u32 drop = length < ring->count ? length : ring->count;
+    ring->count -= drop;
+    return drop;
+}
+
 // -- Timeouts --------------------------------------------------------------
 
 vsscom_bool vsscom_timeouts_valid(const vsscom_timeouts* timeouts)

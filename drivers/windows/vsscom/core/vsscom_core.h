@@ -52,6 +52,11 @@ vsscom_u32 vsscom_ring_read(vsscom_ring* ring, vsscom_u8* bytes,
                           vsscom_u32 length);
 void vsscom_ring_clear(vsscom_ring* ring);
 
+/// Takes back the `length` bytes written last (fewer when the ring holds
+/// fewer, because the reader already took the rest). Returns how many it
+/// dropped. The bytes before them stay.
+vsscom_u32 vsscom_ring_drop_newest(vsscom_ring* ring, vsscom_u32 length);
+
 // -- Timeouts
 // --------------------------------------------------------------
 

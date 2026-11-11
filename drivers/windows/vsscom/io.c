@@ -375,14 +375,35 @@ static VOID VssComFinishWait(_In_ PVSSCOM_DEVICE_CONTEXT Context,
 {
     WDFREQUEST request;
 
-    if (!NT_SUCCESS(WdfIoQueueRetrieveNextRequest(Context->WaitQueue, &request)))
-        return;
+    for (;;)
+    {
+        vsscom_u32 again = 0;
+        BOOLEAN complete;
 
-    VssComLockAcquire(Context->Lock);
-    Context->WaitQueued = FALSE;
-    VssComLockRelease(Context->Lock);
+        if (NT_SUCCESS(WdfIoQueueRetrieveNextRequest(Context->WaitQueue,
+                                                     &request)))
+        {
+            VssComLockAcquire(Context->Lock);
+            Context->WaitQueued = FALSE;
+            VssComLockRelease(Context->Lock);
 
-    VssComCompleteWithData(request, &Events, sizeof(Events));
+            VssComCompleteWithData(request, &Events, sizeof(Events));
+            return;
+        }
+
+        if (Events == 0)
+            return;
+
+        // The wait was cancelled after the events were taken for it. They go
+        // back into the history for the next wait (or complete one that has
+        // been parked since), as events that happen while nobody waits do.
+        VssComLockAcquire(Context->Lock);
+        complete = vsscom_events_raise(&Context->Events, Events, &again);
+        VssComLockRelease(Context->Lock);
+        if (!complete)
+            return;
+        Events = again;
+    }
 }
 
 // Ends the waiting WaitCommEvent request, if there is one, with `Status`.
@@ -563,6 +584,9 @@ VOID VssComResetPort(_In_ PVSSCOM_DEVICE_CONTEXT Context)
     // Every open starts with the settings of a port nobody has configured, as it
     // does on a UART: no DTR or RTS control, no handshake.
     RtlZeroMemory(&Context->HandFlow, sizeof(Context->HandFlow));
+    // The special characters too: a new program must not inherit the previous
+    // one's error, break and event characters.
+    RtlZeroMemory(&Context->Chars, sizeof(Context->Chars));
     Context->TxBusyUntil = 0;
     // With a hub attached its lines stay as they are, as a real device's would.
     Context->ModemLevels = Context->HubOpen ? (Context->HubLines & VSSCOM_LINE_MASK) : 0;
