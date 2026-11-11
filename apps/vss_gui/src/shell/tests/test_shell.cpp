@@ -22,10 +22,12 @@
 #include "shell/port_warnings.hpp"
 #include "shell/setup_group.hpp"
 #include "shell/shell_window.hpp"
+#include "shell/single_instance.hpp"
 #include "shell/studio_tray.hpp"
 #include "shell/undo_service.hpp"
 #include "shell/undo_steps.hpp"
 #include "simple/simple_page.hpp"
+#include "support/account_id.hpp"
 #include "support/running_setup.hpp"
 #include "support/setup_facts.hpp"
 
@@ -1581,6 +1583,33 @@ TEST_CASE("background: without background running, closing still quits")
     REQUIRE(!window.background_enabled());
     REQUIRE(window.tray() == nullptr);
     REQUIRE(!window.resume_banner()->isVisible());
+}
+
+TEST_CASE("background: the one-Studio name follows the account")
+{
+    // The system's own id for the account, not a name from the environment,
+    // which whoever starts Studio can change.
+    REQUIRE(!vss::gui::support::account_id().isEmpty());
+    const QString name = vss::gui::SingleInstance::default_name();
+    REQUIRE(name.startsWith(QStringLiteral("virtual-serial-studio-")));
+
+    const bool had_user = qEnvironmentVariableIsSet("USER");
+    const bool had_username = qEnvironmentVariableIsSet("USERNAME");
+    const QByteArray user = qgetenv("USER");
+    const QByteArray username = qgetenv("USERNAME");
+    qputenv("USER", "somebody-else");
+    qputenv("USERNAME", "somebody-else");
+    const QString renamed = vss::gui::SingleInstance::default_name();
+    qunsetenv("USER");
+    qunsetenv("USERNAME");
+    const QString unnamed = vss::gui::SingleInstance::default_name();
+    if (had_user)
+        qputenv("USER", user);
+    if (had_username)
+        qputenv("USERNAME", username);
+
+    REQUIRE(renamed == name);
+    REQUIRE(unnamed == name);
 }
 
 TEST_CASE("background: the tray icon says what runs")
