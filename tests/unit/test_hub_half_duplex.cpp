@@ -168,6 +168,14 @@ struct line_fixture
                           5000ms);
     }
 
+    /// The link `of`, which must exist.
+    link_info info(link_id of) const
+    {
+        const auto found = hub->find_link(of);
+        REQUIRE(found);
+        return *found;
+    }
+
     link_stats stats(link_id of) const
     {
         const auto info = hub->find_link(of);
@@ -966,7 +974,7 @@ TEST_CASE("half-duplex: the line of a bus is turned on and off in place")
 
     // Turned on, a chunk waits for the wire.
     REQUIRE(fixture.hub->set_link_options(bus, half_duplex()));
-    REQUIRE(fixture.hub->find_link(bus)->options.half_duplex.enabled);
+    REQUIRE(fixture.info(bus).options.half_duplex.enabled);
     fixture.send(0, "poll");
     fixture.clock.advance(40ms - 1ns);
     REQUIRE_EQ(fixture.ports[1].written(), std::string("a"));
@@ -978,7 +986,7 @@ TEST_CASE("half-duplex: the line of a bus is turned on and off in place")
     // next one is delivered at once and is not passed by it later.
     fixture.send(1, "lost");
     REQUIRE(fixture.hub->set_link_options(bus, link_options{}));
-    REQUIRE(!fixture.hub->find_link(bus)->options.half_duplex.enabled);
+    REQUIRE(!fixture.info(bus).options.half_duplex.enabled);
     fixture.send(0, "z");
     REQUIRE(fixture.heard(1, "apollz"));
     REQUIRE(fixture.heard(2, "apollz"));
@@ -1010,7 +1018,7 @@ TEST_CASE("half-duplex: new values make a new line and bad ones are refused")
     const auto refused = fixture.hub->set_link_options(bus, bad);
     REQUIRE(!refused);
     REQUIRE_EQ(refused.error(), make_error_code(errc::invalid_argument));
-    REQUIRE_EQ(fixture.hub->find_link(bus)->options.half_duplex.bit_rate,
+    REQUIRE_EQ(fixture.info(bus).options.half_duplex.bit_rate,
                std::uint32_t{1000});
     REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{1});
 
@@ -1023,7 +1031,7 @@ TEST_CASE("half-duplex: new values make a new line and bad ones are refused")
     link_options faster = half_duplex();
     faster.half_duplex.bit_rate = 2000;
     REQUIRE(fixture.hub->set_link_options(bus, faster));
-    REQUIRE_EQ(fixture.hub->find_link(bus)->options.half_duplex.bit_rate,
+    REQUIRE_EQ(fixture.info(bus).options.half_duplex.bit_rate,
                std::uint32_t{2000});
     REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{0});
     REQUIRE_EQ(fixture.stats(bus).bytes, routed);

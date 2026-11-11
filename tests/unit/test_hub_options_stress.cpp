@@ -34,6 +34,14 @@ namespace
 {
 using namespace std::chrono_literals;
 
+/// The link `id`, which must exist.
+link_info link_of(const vss::hub& hub, link_id id)
+{
+    const auto info = hub.find_link(id);
+    REQUIRE(info);
+    return *info;
+}
+
 const auto unsupported = make_error_code(errc::unsupported);
 
 /// Sends `messages` numbered records from each port, one thread each.
@@ -141,7 +149,7 @@ void flip_options(int messages)
                     link_options owner = options_of(round, 3, false);
                     owner.policy = merge_policy::owner;
                     REQUIRE_EQ(hub->set_link_options(*bus, owner), unsupported);
-                    REQUIRE(hub->find_link(*bus)->options.policy ==
+                    REQUIRE(link_of(*hub, *bus).options.policy ==
                             merge_policy::interleave);
 
                     // The owner moves between the candidates, and to none.
@@ -169,7 +177,7 @@ void flip_options(int messages)
                     REQUIRE(hub->set_link_options(*join, owned));
                     REQUIRE(hub->set_owner(*join, j2.endpoint->id()));
                     REQUIRE(hub->set_link_options(*join, link_options{}));
-                    REQUIRE_EQ(hub->find_link(*join)->owner, endpoint_id{0});
+                    REQUIRE_EQ(link_of(*hub, *join).owner, endpoint_id{0});
 
                     REQUIRE_EQ(hub->links().size(), std::size_t{3});
                     changes.fetch_add(1);
@@ -218,7 +226,7 @@ void flip_options(int messages)
     REQUIRE(hub->set_link_options(*split, calm));
     REQUIRE(hub->set_link_options(*join, calm));
     REQUIRE(hub->set_link_options(*bus, calm));
-    REQUIRE_EQ(hub->find_link(*split)->targets.size(), std::size_t{2});
+    REQUIRE_EQ(link_of(*hub, *split).targets.size(), std::size_t{2});
 
     s.inject_read(record('S', last_number));
     t1.inject_read(record('1', last_number));
@@ -267,8 +275,8 @@ void flip_options(int messages)
     REQUIRE(after);
     REQUIRE_EQ(after->id, *split);
     REQUIRE_EQ(after->sources, std::vector<endpoint_id>{s.endpoint->id()});
-    REQUIRE_EQ(hub->find_link(*join)->sources.size(), std::size_t{2});
-    REQUIRE_EQ(hub->find_link(*bus)->sources.size(), std::size_t{3});
+    REQUIRE_EQ(link_of(*hub, *join).sources.size(), std::size_t{2});
+    REQUIRE_EQ(link_of(*hub, *bus).sources.size(), std::size_t{3});
 }
 } // namespace
 

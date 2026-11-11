@@ -21,6 +21,14 @@ namespace
 {
 using namespace std::chrono_literals;
 
+/// The link `id`, which must exist.
+link_info link_of(const vss::hub& hub, link_id id)
+{
+    const auto info = hub.find_link(id);
+    REQUIRE(info);
+    return *info;
+}
+
 struct options_fixture
 {
     std::shared_ptr<vss::hub> hub = start_hub();
@@ -312,7 +320,7 @@ TEST_CASE("options: a monitor takes modem lines and gives them up again")
     const auto b = add_loopback(*hub, "b");
     const auto link = hub->monitor(a->id(), b->id());
     REQUIRE(link);
-    REQUIRE(!hub->find_link(*link)->options.emulate_modem_lines);
+    REQUIRE(!link_of(*hub, *link).options.emulate_modem_lines);
 
     // A loopback port starts with its inputs high, and the monitor leaves
     // them so.
@@ -322,7 +330,7 @@ TEST_CASE("options: a monitor takes modem lines and gives them up again")
     link_options on;
     on.emulate_modem_lines = true;
     REQUIRE(hub->set_link_options(*link, on));
-    REQUIRE(hub->find_link(*link)->options.emulate_modem_lines);
+    REQUIRE(link_of(*hub, *link).options.emulate_modem_lines);
 
     // The tap is told what the source drives now: nothing.
     REQUIRE(!b->lines().cts());
@@ -339,9 +347,8 @@ TEST_CASE("options: a monitor takes modem lines and gives them up again")
     REQUIRE(!b->lines().dsr());
 
     // It is still the same one-way link, with no route back.
-    REQUIRE(hub->find_link(*link)->mode == link_mode::one_way);
-    REQUIRE_EQ(hub->find_link(*link)->targets,
-               std::vector<endpoint_id>{b->id()});
+    REQUIRE(link_of(*hub, *link).mode == link_mode::one_way);
+    REQUIRE_EQ(link_of(*hub, *link).targets, std::vector<endpoint_id>{b->id()});
 }
 
 TEST_CASE("options: a join takes the owner policy and gives it up")
@@ -654,7 +661,7 @@ TEST_CASE("options: a link that is rewired is pushed the new wires")
     link_options options;
     options.wiring = crossed();
     REQUIRE(hub->set_link_options(*link, options));
-    REQUIRE(hub->find_link(*link)->options.wiring == crossed());
+    REQUIRE(link_of(*hub, *link).options.wiring == crossed());
 
     // DTR now drives CTS and neither DSR nor DCD, as set_link_wiring does.
     REQUIRE(b->lines().cts());
