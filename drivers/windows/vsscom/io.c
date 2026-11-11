@@ -80,6 +80,31 @@ BOOLEAN VssComFetchInput(_In_ WDFREQUEST Request,
     return TRUE;
 }
 
+// -- Line errors -----------------------------------------------------------
+
+vsscom_flow VssComFlowLocked(_In_ PVSSCOM_DEVICE_CONTEXT Context)
+{
+    vsscom_flow flow;
+    flow.control_handshake = Context->HandFlow.ControlHandShake;
+    flow.flow_replace = Context->HandFlow.FlowReplace;
+    flow.xon_limit = (vsscom_u32)Context->HandFlow.XonLimit;
+    flow.xoff_limit = (vsscom_u32)Context->HandFlow.XoffLimit;
+    return flow;
+}
+
+BOOLEAN VssComErrorAbort(_In_ PVSSCOM_DEVICE_CONTEXT Context)
+{
+    BOOLEAN blocked;
+
+    VssComLockAcquire(Context->Lock);
+    {
+        const vsscom_flow flow = VssComFlowLocked(Context);
+        blocked = vsscom_errors_abort(&flow, Context->Errors) != 0;
+    }
+    VssComLockRelease(Context->Lock);
+    return blocked;
+}
+
 // -- Waiting reads ---------------------------------------------------------
 
 static VOID VssComStopReadTimers(_In_ PVSSCOM_DEVICE_CONTEXT Context)
@@ -167,6 +192,14 @@ static VOID VssComServiceOnce(_In_ PVSSCOM_DEVICE_CONTEXT Context,
         Context->AbortHead = FALSE;
         done = FALSE;
         timed_out = FALSE;
+        {
+            // Abort on error ends every read that waits, not only the first,
+            // and holds until ClearCommError: each one that reaches the head
+            // finds the error still latched.
+            const vsscom_flow flow = VssComFlowLocked(Context);
+            if (vsscom_errors_abort(&flow, Context->Errors))
+                abort = TRUE;
+        }
 
         if (!abort)
         {
@@ -534,6 +567,7 @@ VOID VssComResetPort(_In_ PVSSCOM_DEVICE_CONTEXT Context)
     // With a hub attached its lines stay as they are, as a real device's would.
     Context->ModemLevels = Context->HubOpen ? (Context->HubLines & VSSCOM_LINE_MASK) : 0;
     Context->ModemDeltas = 0;
+    Context->Errors = 0;
     release = vsscom_events_set_mask(&Context->Events, 0);
     VssComLockRelease(Context->Lock);
 
@@ -626,6 +660,11 @@ static VOID VssComEvtIoRead(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
         return;
     }
 
+    if (VssComErrorAbort(context))
+    {
+        WdfRequestComplete(Request, STATUS_CANCELLED);
+        return;
+    }
     if (Length == 0)
     {
         WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, 0);
@@ -672,6 +711,7 @@ static VOID VssComEvtIoWrite(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
     ULONG written;
     NTSTATUS status;
     BOOLEAN hub;
+    BOOLEAN flag;
     const ULONG kind = VssComRequestKind(Request);
 
     if (kind == VSSCOM_FILE_HUB)
@@ -690,6 +730,11 @@ static VOID VssComEvtIoWrite(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
         return;
     }
 
+    if (VssComErrorAbort(context))
+    {
+        WdfRequestComplete(Request, STATUS_CANCELLED);
+        return;
+    }
     if (Length == 0)
     {
         WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, 0);
@@ -721,6 +766,9 @@ static VOID VssComEvtIoWrite(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
     VssComLockAcquire(context->Lock);
     written = vsscom_ring_write(&context->Rx, (const vsscom_u8*)buffer,
                                 (vsscom_u32)Length);
+    // Looked at before the request completes: the buffer goes with it.
+    flag = vsscom_bytes_have((const vsscom_u8*)buffer, written,
+                             context->Chars.EventChar) != 0;
     VssComLockRelease(context->Lock);
 
     WdfRequestCompleteWithInformation(Request, STATUS_SUCCESS, written);
@@ -729,7 +777,8 @@ static VOID VssComEvtIoWrite(_In_ WDFQUEUE Queue, _In_ WDFREQUEST Request,
     {
         VssComFlowTransmit(context, written);
         VssComPump(context);
-        VssComRaise(context, VSSCOM_EV_RXCHAR);
+        VssComRaise(context,
+                    VSSCOM_EV_RXCHAR | (flag ? VSSCOM_EV_RXFLAG : 0u));
     }
     VssComRaise(context, VSSCOM_EV_TXEMPTY);
 }
@@ -802,6 +851,14 @@ static VOID VssComEvtIoDeviceControl(_In_ WDFQUEUE Queue,
     if (kind != VSSCOM_FILE_APP)
     {
         WdfRequestComplete(Request, STATUS_INVALID_DEVICE_REQUEST);
+        return;
+    }
+
+    // After an error with abort on error set, only ClearCommError gets through,
+    // as in the serial driver sample (SerialCompleteIfError).
+    if (IoControlCode != IOCTL_SERIAL_GET_COMMSTATUS && VssComErrorAbort(context))
+    {
+        WdfRequestComplete(Request, STATUS_CANCELLED);
         return;
     }
 
@@ -990,6 +1047,9 @@ static VOID VssComEvtIoDeviceControl(_In_ WDFQUEUE Queue,
     {
         SERIAL_STATUS status = {0};
         VssComLockAcquire(context->Lock);
+        // The error bits are read once: this is what clears them, and what
+        // lets reads and writes through again after an abort on error.
+        status.Errors = vsscom_errors_take(&context->Errors);
         status.AmountInInQueue = vsscom_ring_count(&context->Rx);
         status.AmountInOutQueue = vsscom_ring_count(&context->Tx);
         VssComLockRelease(context->Lock);

@@ -51,6 +51,8 @@ public sealed class WowHub : IDisposable
     const uint IOCTL_GET_STATE = 0x80002004;
     const uint IOCTL_WAIT_STATE = 0x80002008;
     const uint IOCTL_SET_LINES = 0x8000200C;
+    // VSSCOM_HUB_LINE_ERROR { Errors, HasByte, Byte } (driver version 4), three 32-bit values.
+    const uint IOCTL_LINE_ERROR = 0x80002014;
     // VSSCOM_HUB_STATE as of VSSCOM_VERSION 3: twelve words, AppProcessId last.
     const int StateWords = 12;
     public const int TimedOut = 258;
@@ -143,6 +145,30 @@ public sealed class WowHub : IDisposable
             int error;
             bool started = DeviceIoControl(handle, IOCTL_SET_LINES, input, 4, IntPtr.Zero, 0, IntPtr.Zero, ov);
             return Finish(ov, signal, started, 5000, out error) >= 0;
+        }
+        finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(input); }
+    }
+
+    /// Raises a line error at the application end (driver version 4). `errors` is one or more
+    /// SERIAL_ERROR_* bits (break 1, framing 2, overrun 4, queue overrun 8, parity 0x10); `hasByte`
+    /// is 1 when `value` is the character the receiver made of it. Returns the Win32 error, 0 for
+    /// success, 258 when it did not finish in `ms`. The request is ordered with the hub's writes:
+    /// it takes effect after the bytes written before it, and waits while the receive buffer is
+    /// too full for the byte it adds.
+    public int LineError(uint errors, uint hasByte, uint value, int ms)
+    {
+        IntPtr signal;
+        IntPtr ov = NewOverlapped(out signal);
+        IntPtr input = Marshal.AllocHGlobal(12);
+        try
+        {
+            Marshal.WriteInt32(input, 0, (int)errors);
+            Marshal.WriteInt32(input, 4, (int)hasByte);
+            Marshal.WriteInt32(input, 8, (int)value);
+            int error;
+            bool started = DeviceIoControl(handle, IOCTL_LINE_ERROR, input, 12, IntPtr.Zero, 0, IntPtr.Zero, ov);
+            int n = Finish(ov, signal, started, ms, out error);
+            return n < 0 ? error : 0;
         }
         finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(input); }
     }

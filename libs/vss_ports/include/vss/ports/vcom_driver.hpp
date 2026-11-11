@@ -108,6 +108,47 @@ result<std::string> set_driver_com_number(transport& port, unsigned com_number);
 /// does not know the request).
 result<std::uint32_t> revoke_driver_port(transport& port);
 
+/// A line error a driver port can raise at the program on its COM end, as a
+/// bad character time on a wire does.
+enum class driver_line_error
+{
+    /// A break: `CE_BREAK`, and `EV_BREAK` for `WaitCommEvent`.
+    break_condition,
+    /// `CE_FRAME` and `EV_ERR`.
+    framing,
+    /// `CE_RXPARITY` and `EV_ERR`.
+    parity,
+    /// A character was lost in the receiver: `CE_OVERRUN` and `EV_ERR`.
+    overrun,
+    /// The receive queue was full: `CE_RXOVER`, and no event.
+    queue_overrun,
+};
+
+/// Raises `error` at the program that has the driver port open.  `port` is the
+/// transport that `create_driver_port` returned.
+///
+/// The program sees what it would see on hardware: `ClearCommError` reports the
+/// error until it is called, `WaitCommEvent` reports `EV_ERR` or `EV_BREAK` when
+/// the program's mask has it, and, when the program set `fAbortOnError`, its
+/// reads and writes end with `ERROR_OPERATION_ABORTED` until it calls
+/// `ClearCommError`.  `byte` is the character the receiver made of the bad
+/// character time; the program reads it in its place in the stream unless its
+/// settings replace it (`fErrorChar` for a parity or framing error).  Without a
+/// byte only such a replacement character enters the stream.
+///
+/// The error keeps its place among the bytes: it takes effect after every byte
+/// this transport has already handed to the driver, and before any written
+/// after the call.  The call does not wait for that; it returns once the driver
+/// has the request.  An error is dropped when no program has the port open,
+/// and when the port is renumbered or closed while the error still waits behind
+/// bytes the program has not read.
+///
+/// `errc::unsupported` where there is no driver, `errc::invalid_argument` for a
+/// transport that is not a driver port, `errc::not_open` when the transport is
+/// closed and `errc::io_error` when the driver refused.
+result<void> raise_driver_line_error(transport& port, driver_line_error error,
+                                     std::optional<std::uint8_t> byte = {});
+
 /// What the driver says about the program that has the application end of a
 /// port open, and the line settings that program has chosen.  The numbers are
 /// those of `SERIAL_LINE_CONTROL`.

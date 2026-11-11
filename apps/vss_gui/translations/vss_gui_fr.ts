@@ -3623,6 +3623,26 @@ Réseaux : %5</translation>
             <translation>Les défauts ne sont disponibles que sur les ports de fixture.</translation>
         </message>
         <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>Le port n'est pas en cours d'exécution.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>Raccrochage et Déconnexion ne sont disponibles que sur les ports de fixture.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>Aucun programme n'a le port ouvert.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>Erreur de ligne déclenchée au niveau du programme sur %1</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />
             <source>Port %1</source>
             <translation>Port %1</translation>
@@ -13396,6 +13416,26 @@ Réseaux : %5</translation>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="531" />
             <source>Faults are only available on fixture ports.</source>
             <translation>Les défauts ne sont disponibles que sur les ports de fixture.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>Le port n'est pas en cours d'exécution.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>Raccrochage et Déconnexion ne sont disponibles que sur les ports de fixture.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>Aucun programme n'a le port ouvert.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>Erreur de ligne déclenchée au niveau du programme sur %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />

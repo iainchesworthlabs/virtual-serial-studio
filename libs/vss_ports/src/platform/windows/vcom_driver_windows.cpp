@@ -19,6 +19,7 @@
 
 #include <boost/asio/error.hpp>
 #include <boost/asio/post.hpp>
+#include <boost/asio/windows/overlapped_ptr.hpp>
 #include <boost/asio/windows/stream_handle.hpp>
 
 #include <windows.h>
@@ -36,6 +37,8 @@
 #include <atomic>
 #include <chrono>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <ctime>
 #include <cwchar>
@@ -770,6 +773,63 @@ public:
             returned != sizeof(process))
             return make_error_code(errc::io_error);
         return static_cast<std::uint32_t>(process);
+    }
+
+    /// Raises a line error at the program: see `raise_driver_line_error`.
+    result<void> raise_line_error(driver_line_error error,
+                                  std::optional<std::uint8_t> byte)
+    {
+        VSSCOM_HUB_LINE_ERROR input{};
+        switch (error)
+        {
+        case driver_line_error::break_condition:
+            input.Errors = VSSCOM_LINE_ERROR_BREAK;
+            break;
+        case driver_line_error::framing:
+            input.Errors = VSSCOM_LINE_ERROR_FRAMING;
+            break;
+        case driver_line_error::parity:
+            input.Errors = VSSCOM_LINE_ERROR_PARITY;
+            break;
+        case driver_line_error::overrun:
+            input.Errors = VSSCOM_LINE_ERROR_OVERRUN;
+            break;
+        case driver_line_error::queue_overrun:
+            input.Errors = VSSCOM_LINE_ERROR_QUEUE_OVERRUN;
+            break;
+        default:
+            return make_error_code(errc::invalid_argument);
+        }
+        input.HasByte = byte.has_value() ? 1u : 0u;
+        input.Byte = byte.value_or(0);
+
+        if (!open_.load())
+            return make_error_code(errc::not_open);
+        // The driver keeps the request until the bytes written before it have
+        // gone in, which can be as long as the program takes to read them, so
+        // nothing waits for it here: it completes on the completion port the
+        // reads and writes use, and ends with them when the handle closes.  The
+        // driver copies the input before the call returns.
+        std::lock_guard lock(mutex_);
+        if (raw_ == INVALID_HANDLE_VALUE)
+            return make_error_code(errc::not_open);
+        boost::asio::windows::overlapped_ptr operation(
+            executor_, [](const boost::system::error_code&, std::size_t) {});
+        const BOOL ok = ::DeviceIoControl(
+            raw_, static_cast<DWORD>(IOCTL_VSSCOM_HUB_LINE_ERROR), &input,
+            sizeof(input), nullptr, 0, nullptr, operation.get());
+        const DWORD code = ::GetLastError();
+        if (!ok && code != ERROR_IO_PENDING)
+        {
+            operation.complete(
+                boost::system::error_code(static_cast<int>(code),
+                                          boost::system::system_category()),
+                0);
+            note_failure("raise a line error", code);
+            return make_error_code(errc::io_error);
+        }
+        operation.release();
+        return {};
     }
 
     /// Changes the COM number: see `set_driver_com_number`.
@@ -1673,6 +1733,19 @@ result<std::uint32_t> platform_revoke_driver_port(transport& port)
     {
         if (static_cast<transport*>(candidate.get()) == &port)
             return candidate->revoke();
+    }
+    return make_error_code(errc::invalid_argument);
+}
+
+result<void> platform_raise_driver_line_error(transport& port,
+                                              driver_line_error error,
+                                              std::optional<std::uint8_t> byte)
+{
+    VSS_PROFILE_ZONE("ports.vcom.platform_line_error");
+    for (const auto& candidate : registry_snapshot())
+    {
+        if (candidate.get() == &port)
+            return candidate->raise_line_error(error, byte);
     }
     return make_error_code(errc::invalid_argument);
 }

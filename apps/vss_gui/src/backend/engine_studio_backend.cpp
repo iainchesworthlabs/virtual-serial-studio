@@ -291,6 +291,9 @@ capabilities EngineStudioBackend::caps() const
     // and its revoke request takes a port back from a program.
     caps.com_numbers = driver_installed();
     caps.release_port = driver_installed();
+    // `vss::raise_driver_line_error` asks the same driver to raise a line
+    // error at the program that has a port open.
+    caps.driver_faults = driver_installed();
     caps.recreate_ports = true;
     // The window's Undo history reverses changes with exact inverse
     // operations (see `shell/undo_steps.cpp`), not by restoring a snapshot.

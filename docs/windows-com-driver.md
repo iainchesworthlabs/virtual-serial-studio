@@ -240,8 +240,9 @@ under "The two ends of a port", and are not repeated here.
 * The hub state names the process that has the COM port open (`AppProcessId`).
   The studio logs each change of `AppOpen` against the endpoint with the time
   and the process, and `vss::driver_peer` and `vss::peer_open` answer from it.
-  This is version 3 of the port interface, and the studio refuses a driver of
-  any other version.
+  This came with version 3 of the port interface.
+* `IOCTL_VSSCOM_HUB_LINE_ERROR` raises a break, a framing, parity or overrun
+  error, or a full receive queue at the program; see [Line errors](#line-errors).
 
 ### Data path
 
@@ -262,12 +263,13 @@ they exchange a byte. The common ones are implemented:
 
 | Area | What the driver does |
 |---|---|
-| Queues | `SET_QUEUE_SIZE`, `PURGE` (aborts and clears the queues), `GET_COMMSTATUS` |
+| Queues | `SET_QUEUE_SIZE`, `PURGE` (aborts and clears the queues), `GET_COMMSTATUS` (the queue counts, and the line errors the hub raised, which it clears) |
 | Configuration | `GET/SET_BAUD_RATE`, `GET/SET_LINE_CONTROL`, `GET/SET_CHARS`, `GET_PROPERTIES`, `CONFIG_SIZE`. The baud rate, data bits, parity and stop bits are kept in the hub state, so the studio sees what the program chose |
 | Timeouts | `GET/SET_TIMEOUTS` with `ReadIntervalTimeout`, `ReadTotalTimeoutMultiplier` and `ReadTotalTimeoutConstant`; the driver owns the timers, or applications block forever. Write timeouts are honoured too |
 | Modem lines | `SET/CLR_DTR`, `SET/CLR_RTS`, `GET_DTRRTS`, `GET_MODEMSTATUS` and `GET/SET_HANDFLOW`. The application's DTR, RTS and break show in the hub state; the hub sets CTS, DSR, DCD and RI with `IOCTL_VSSCOM_HUB_SET_LINES` |
 | Break and flow | `SET_BREAK_ON/OFF`, `SET_XOFF/XON`, `IMMEDIATE_CHAR` |
-| Events | `SET/GET_WAIT_MASK` and `WAIT_ON_MASK`. `EV_RXCHAR`, `EV_TXEMPTY` and the line events (`EV_CTS`, `EV_DSR`, `EV_RLSD`, `EV_RING`) are raised. `EV_BREAK`, `EV_ERR` and `EV_RXFLAG` are never raised: the hub cannot inject framing, parity or overrun errors yet |
+| Events | `SET/GET_WAIT_MASK` and `WAIT_ON_MASK`. `EV_RXCHAR`, `EV_TXEMPTY` and the line events (`EV_CTS`, `EV_DSR`, `EV_RLSD`, `EV_RING`) are raised. `EV_ERR` and `EV_BREAK` are raised by the line errors the hub injects, and `EV_RXFLAG` when the event character arrives (see [Line errors](#line-errors)) |
+| Errors | `ClearCommError` reports and clears the injected errors; `fErrorChar` and the break character replace the bad byte; `fAbortOnError` ends reads and writes until `ClearCommError` |
 | Lifecycle | Pending requests are cancelled by a purge and when the handle is closed |
 
 The timeout rules are the subtle part and the usual reason a home-grown
@@ -277,15 +279,146 @@ immediately with whatever is buffered", while other combinations mean "wait for
 the first byte, then for a gap". The driver implements all of them, in
 `vsscom/core`, with unit tests.
 
+### Line errors
+
+A program learns of a bad line through `ClearCommError`, `EV_ERR` and `EV_BREAK`,
+the error character and `fAbortOnError`. A virtual port has no line to go bad, so
+the hub end says when one does. The rules below are in `vsscom/core`
+(`vsscom_line_error_*`, `vsscom_errors_*`) with unit tests, and both drivers
+carry them out with the same `io.c` and `hub.c`.
+
+**Where the rules come from.** The constants were checked against `ntddser.h`
+and `winbase.h` of SDK and WDK 10.0.28000. The behaviour follows the serial
+driver sample Microsoft publishes (`SerialProcessLSR`, `SerialPutChar` and
+`SerialCompleteIfError` in `Windows-driver-samples/serial/serial`), which is the
+nearest public statement of what the in-box `serial.sys` does. Nothing here was
+compared with a hardware port, and where the sample leaves room the narrower
+reading was taken; those places are marked "choice".
+
+**The request.** `IOCTL_VSSCOM_HUB_LINE_ERROR` on the hub handle, with
+`VSSCOM_HUB_LINE_ERROR { Errors, HasByte, Byte }`: one bad character time.
+`Errors` holds one or more of break, framing, overrun, queue overrun and parity,
+with the values of `SERIAL_ERROR_*`. `HasByte` and `Byte` give the character the
+receiver made of it, if any. `vss::raise_driver_line_error` sends it.
+
+**Order.** The request waits in the queue that holds the hub's `WriteFile`
+requests, and is served in its turn. So an error takes effect after every byte
+the hub wrote before it has entered the receive buffer, and before any byte
+written after it. A read that was already waiting is given those earlier bytes
+first: when bytes and an error reach the head of the queue in the same pass, the
+driver serves the reads before it raises the error. Like a write, the request
+waits while the receive buffer has no room for the bytes the error adds. It
+completes when the error is latched, its bytes are in the buffer and its events
+are out; reads that an abort on error ends are completed just after it. From the studio the order is that of
+the calls on the transport: an error follows the bytes the transport has already
+handed to the driver.
+
+**What enters the stream.** The byte, when the hub gave one, is read by the
+program in its place, unless the program's settings replace it:
+
+| Error | `SERIAL_ERROR_CHAR` clear (`fErrorChar` off) | `SERIAL_ERROR_CHAR` set |
+|---|---|---|
+| Parity, framing | the byte, if any | `ErrorChar` in place of the byte, and also when there is no byte |
+| Overrun | the byte, if any | `ErrorChar` (for the character that was lost), then the byte, if any |
+| Break | the byte, if any; `BreakChar` in its place when `SERIAL_BREAK_CHAR` is set | the same: the break character is its own setting |
+| Queue overrun | nothing | nothing |
+
+A break together with a parity or framing error is treated as a break, as in the
+sample. Choice: a break adds no NUL of its own; a hub that wants the NUL a UART
+delivers with a break sends byte 0. Choice: a queue overrun does not overwrite
+the last buffered byte with `ErrorChar`, which the sample does; the receive
+buffer of this driver never overflows (a hub write waits for room), so the error
+is only what the hub says it is. Choice: an error is raised whatever the line
+settings are, for example a parity error with parity off; the hub is the wire.
+`SetCommState` sets `SERIAL_ERROR_CHAR` from `fErrorChar`; `SERIAL_BREAK_CHAR`
+has no `DCB` field and needs `IOCTL_SERIAL_SET_HANDFLOW`.
+
+**What is latched.** The error bits, until `IOCTL_SERIAL_GET_COMMSTATUS`
+(`ClearCommError`) returns them in `SERIAL_STATUS.Errors`, which clears them.
+Several errors add up into one report. A purge, a new wait mask and a hub that
+closes leave them; the program closing the port (or a revoke) clears them. An
+error raised while no program has the port open is dropped, as on a port whose
+receiver is off, and the request still succeeds.
+
+**Events.** Framing, parity and overrun raise `EV_ERR`; a break raises
+`EV_BREAK`; a queue overrun raises no event (the sample raises `EV_ERR` only for
+the three line-status errors). A byte the error adds raises `EV_RXCHAR`. They
+follow the rule every event has: an event in the mask completes a pending
+`WAIT_ON_MASK`; with none pending it is kept and the next wait returns at once;
+`SET_WAIT_MASK` (including a mask of 0) drops what was kept and completes a
+pending wait with no events; an event outside the mask is not kept. Dropping the
+event does not drop the error: `ClearCommError` still reports it.
+
+**`EV_RXFLAG`** is raised when `SERIAL_CHARS.EventChar` is among the bytes that
+enter the receive buffer, from the hub or from the loopback. As in the sample
+there is no switch for it other than the mask, and the default event character
+is 0. A replacement character does not raise it.
+
+**Abort on error.** While `SERIAL_ERROR_ABORT` (`fAbortOnError`) is set and any
+error is latched, every request on the application handle except
+`IOCTL_SERIAL_GET_COMMSTATUS` completes with `STATUS_CANCELLED`
+(`ERROR_OPERATION_ABORTED`), as `SerialCompleteIfError` does: reads, writes and
+the other control requests, `SetCommMask` and `PurgeComm` among them. The reads
+and writes that were waiting end the same way when the error arrives. A pending
+`WaitCommEvent` is not ended by it; the event completes it if the mask has it.
+`ClearCommError` reads the error and the port works again. The state is
+recomputed from the setting and the latch each time, so turning the setting on
+with an error latched holds the port at once, and closing the port releases it.
+
+**Locks.** There is one lock per port (`Lock`: a spin lock in the kernel-mode
+driver, a framework wait lock in the user-mode one, behind `VSSCOM_LOCK`). It
+guards the latch, the rings, the settings and the event state. It is never held
+while a request is completed or a queue is called, and no other lock is taken
+with it, so there is no order to get wrong. The error request adds no queue and
+no lock: it is parked in the hub write queue, which has no cancel callback, so
+the framework completes it when the hub handle closes, as it does a write.
+
+The framework cancels those requests only after the cleanup callback of the hub
+handle, and that callback runs the pump, with the receive buffer just emptied.
+The first guest run showed what that does: a line error that had been waiting
+for room was raised by a hub that had gone. A closing hub handle is therefore
+marked (`Closed` in its file context, set under the lock), and the pump ends the
+requests of a marked handle with `STATUS_CANCELLED`. The same held for a hub
+write that was waiting, whose bytes went into the loopback buffer; it ends the
+same way now.
+
+A waiting `WAIT_ON_MASK` sits alone in a manual queue. Exactly one party takes
+it out: the driver, with `WdfIoQueueRetrieveNextRequest` (an event, a new mask, a
+close, a revoke), or the framework, which calls `EvtIoCanceledOnQueue` for a
+cancel or a closing handle. A request the driver has retrieved is the driver's to
+complete and the framework no longer cancels it through the queue; a request the
+framework cancelled is no longer in the queue, so the retrieve finds nothing.
+Either way it is completed once, and a request that neither side has taken is
+still in the queue, where the handle's cleanup finds it. The injecting request
+and `ClearCommError` meet only under the lock: an error is either latched before
+the status is read, and reported, or after, and reported next time.
+
+One window is older than this change and is still there: an event that is
+raised between the driver clearing "waiting" under the lock and its retrieve,
+while the framework cancels that same wait, is taken out of the history and
+reported to nobody. For a line error the latch is unaffected, so `ClearCommError`
+still tells the program.
+
+**Rejected.** A separate queue for errors, with a sequence number to place them
+among the bytes: more state for the same order the write queue already gives. An
+error flag carried inside a hub write (a header in the byte stream): it would
+change the meaning of `WriteFile` on the hub handle. Completing the request at
+once and applying the error later: the hub could not tell when it had happened,
+and a closing hub would leave an error behind. A fallback for a version 3
+driver: the project has no installed base to protect.
+
 ### Versions
 
 * Every request is a `CTL_CODE(FILE_DEVICE_VSSCOM, ...)` with `METHOD_BUFFERED`.
   The structures are in `drivers/windows/vsscom/public.h`, which the driver, the
   helper service and `vss_ports` all include.
-* `IOCTL_VSSCOM_GET_VERSION` answers with `VSSCOM_VERSION`, now 3: version 2
-  added the hub end, and version 3 added `AppProcessId`, the revoke request and
-  the effect of the DTR and RTS settings of `SET_HANDFLOW`. The studio opens a
-  port only when the version is exactly the one it was built for.
+* `IOCTL_VSSCOM_GET_VERSION` answers with `VSSCOM_VERSION`, now 4: version 2
+  added the hub end, version 3 added `AppProcessId`, the revoke request and
+  the effect of the DTR and RTS settings of `SET_HANDFLOW`, and version 4 added
+  the line error request with the error bits, events and abort on error that go
+  with it. The studio opens a port only when the version is exactly the one it
+  was built for, so a studio and a driver from different sides of this change do
+  not work together: install the driver that came with the studio.
 * The control interface has a version of its own, `VSSCOM_CTL_VERSION`, now 1.
   `IOCTL_VSSCOM_CTL_GET_OWNER` was added with version 3 of the ports; an older
   driver answers `STATUS_INVALID_DEVICE_REQUEST`.
@@ -379,7 +512,7 @@ The plan began as five phases. What landed, and what did not:
 |---|---|---|
 | 0 | Application interface, detection, configuration, docs | Done |
 | 1 | A driver that creates a port and echoes bytes | Done, with a hub end and two queues in place of shared rings (see [Data path](#data-path)) |
-| 2 | The serial contract: timeouts, purge, wait mask, line control, cancellation | Done, except that no line errors are raised (see [Serial semantics](#serial-semantics)) |
+| 2 | The serial contract: timeouts, purge, wait mask, line control, cancellation | Done. Line errors are raised when the hub injects them (see [Line errors](#line-errors)) |
 | 3 | INF, installer, upgrade and uninstall, version handshake | INFs, the version handshake, `setup-driver.ps1` and `install-helper.ps1` (with `-Uninstall`) exist, and the guest scripts install and remove the packages. There is no MSI |
 | 4 | Signing, the guest test matrix, Driver Verifier | Guest tests and Driver Verifier (standard settings, kernel-mode driver) pass. The user-mode package is test-signed in CI. The kernel-mode package is not signed |
 
@@ -405,7 +538,8 @@ and packaged in CI and run in VMware guests; see
   reports `errc::already_exists` when another device has the number and
   `errc::invalid_argument` outside 1 to 255.
 * `vss::set_driver_com_number()` changes the number of a port it made,
-  `vss::revoke_driver_port()` takes a port back from the program that has it, and
+  `vss::revoke_driver_port()` takes a port back from the program that has it,
+  `vss::raise_driver_line_error()` raises a line error at that program, and
   `vss::driver_peer()` says what program has a port open.
 * `vss::probe_driver_setup()` and `classify_driver_setup()`, described above.
 * Auto-selection order on Windows is **driver, then com0com, then the

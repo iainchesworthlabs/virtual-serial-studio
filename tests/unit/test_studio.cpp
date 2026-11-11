@@ -160,10 +160,20 @@ TEST_CASE("studio: faults are refused for other ports")
         app.create_virtual_port("v", virtual_port_kind::loopback);
     REQUIRE(loopback);
 
-    REQUIRE_EQ(app.inject_fault((*loopback)->id(), fault_kind::parity),
-               make_error_code(errc::unsupported));
-    REQUIRE_EQ(app.inject_fault(endpoint_id{4242}, fault_kind::parity),
-               make_error_code(errc::not_found));
+    // Neither a fixture nor a driver port: no kind of fault applies, and the
+    // port is left running.
+    const fault_kind faults[] = {
+        fault_kind::parity,  fault_kind::framing,
+        fault_kind::overrun, fault_kind::break_condition,
+        fault_kind::hangup,  fault_kind::disconnect,
+    };
+    for (const fault_kind fault : faults)
+    {
+        REQUIRE_EQ(app.inject_fault((*loopback)->id(), fault),
+                   make_error_code(errc::unsupported));
+        REQUIRE_EQ(app.inject_fault(endpoint_id{4242}, fault),
+                   make_error_code(errc::not_found));
+    }
     REQUIRE_EQ((*loopback)->state(), endpoint_state::open);
 
     const auto fixture = app.create_mock_port("device");

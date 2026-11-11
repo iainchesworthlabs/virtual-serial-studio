@@ -222,6 +222,90 @@ vsscom_flow_lines vsscom_flow_update(const vsscom_flow* flow,
                                      vsscom_u32 rx_size, vsscom_bool sending,
                                      vsscom_bool set);
 
+/// True when `wanted` is among the `length` bytes. The driver uses it for
+/// EV_RXFLAG: the event character arrived.
+vsscom_bool vsscom_bytes_have(const vsscom_u8* bytes, vsscom_u32 length,
+                              vsscom_u8 wanted);
+
+// -- Line errors (ClearCommError, EV_ERR, EV_BREAK) --------------------------
+//
+// The hub end raises a line error as a wire would: a character time that
+// arrived bad. The error is latched until the application reads it with
+// IOCTL_SERIAL_GET_COMMSTATUS (ClearCommError), raises EV_ERR or EV_BREAK, and
+// may put a replacement character in the receive stream. The rules follow the
+// serial driver sample that Microsoft publishes (SerialProcessLSR in isr.c).
+
+// The same values as SERIAL_ERROR_* in ntddser.h.
+enum
+{
+    VSSCOM_ERROR_BREAK = 0x01,
+    VSSCOM_ERROR_FRAMING = 0x02,
+    VSSCOM_ERROR_OVERRUN = 0x04,
+    VSSCOM_ERROR_QUEUEOVERRUN = 0x08,
+    VSSCOM_ERROR_PARITY = 0x10,
+    VSSCOM_ERROR_MASK = 0x1F
+};
+
+/// One bad character time. `errors` is one or more VSSCOM_ERROR_* bits. With
+/// `has_byte`, `byte` is the character the receiver made of it, which the
+/// application reads unless its settings replace it.
+typedef struct vsscom_line_error
+{
+    vsscom_u32 errors;
+    vsscom_bool has_byte;
+    vsscom_u8 byte;
+} vsscom_line_error;
+
+/// The three characters of SERIAL_CHARS that the receive path looks at.
+typedef struct vsscom_error_chars
+{
+    vsscom_u8 error_char;
+    vsscom_u8 break_char;
+    vsscom_u8 event_char;
+} vsscom_error_chars;
+
+/// What a line error does: the events it raises and the bytes it adds to the
+/// receive stream, at most two.
+typedef struct vsscom_error_effect
+{
+    vsscom_u32 events;
+    vsscom_u32 count;
+    vsscom_u8 bytes[2];
+} vsscom_error_effect;
+
+/// False when `errors` is empty or has a bit that is not an error.
+vsscom_bool vsscom_line_error_valid(const vsscom_line_error* error);
+
+/// The effect of `error` under the application's settings.
+///
+/// Framing, overrun and parity raise EV_ERR; a break raises EV_BREAK; a queue
+/// overrun raises nothing and is only latched. The stream gets, in this order:
+/// the error character for an overrun when SERIAL_ERROR_CHAR is set (the
+/// overrun lost an earlier character; the one that arrived is still good);
+/// then, for a break, the break character when SERIAL_BREAK_CHAR is set, or,
+/// for a parity or framing error, the error character when SERIAL_ERROR_CHAR
+/// is set, either of which replaces the byte; otherwise the byte itself, if
+/// there is one. Any byte raises EV_RXCHAR, and the byte itself raises
+/// EV_RXFLAG when it is the event character.
+vsscom_error_effect vsscom_line_error_effect(const vsscom_line_error* error,
+                                             const vsscom_flow* flow,
+                                             const vsscom_error_chars* chars);
+
+/// Latches the error in `*pending` and puts the bytes of `effect` in `rx`.
+/// Returns false, and changes nothing, when the ring has no room for them: the
+/// error waits its turn behind the bytes that came before it, as on a wire.
+vsscom_bool vsscom_line_error_apply(vsscom_u32* pending, vsscom_ring* rx,
+                                    const vsscom_line_error* error,
+                                    const vsscom_error_effect* effect);
+
+/// ClearCommError: returns the latched errors and clears them.
+vsscom_u32 vsscom_errors_take(vsscom_u32* pending);
+
+/// True while SERIAL_ERROR_ABORT is set and an error is latched: every request
+/// of the application but IOCTL_SERIAL_GET_COMMSTATUS then ends with
+/// STATUS_CANCELLED, and so do its waiting reads and writes.
+vsscom_bool vsscom_errors_abort(const vsscom_flow* flow, vsscom_u32 pending);
+
 /// How long `bytes` bytes take to leave a UART, in units of 100 ns. The frame
 /// is one start bit, `data_bits` data bits, a parity bit unless `parity` is 0,
 /// and the stop bits (`stop_bits` is 0 for one, 1 for one and a half, 2 for

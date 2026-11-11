@@ -3622,6 +3622,26 @@ Networks: %5</source>
             <translation>障害はフィクスチャのポートでのみ利用できます。</translation>
         </message>
         <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>ポートは実行されていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>ハングアップとデバイスの切断はフィクスチャのポートでのみ利用できます。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>このポートを開いているプログラムはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>%1 のプログラムに回線エラーを発生させました</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />
             <source>Port %1</source>
             <translation>ポート%1</translation>
@@ -13389,6 +13409,26 @@ Networks: %5</source>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="531" />
             <source>Faults are only available on fixture ports.</source>
             <translation>障害はフィクスチャのポートでのみ利用できます。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>ポートは実行されていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>ハングアップとデバイスの切断はフィクスチャのポートでのみ利用できます。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>このポートを開いているプログラムはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>%1 のプログラムに回線エラーを発生させました</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />

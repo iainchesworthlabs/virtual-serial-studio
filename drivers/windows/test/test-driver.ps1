@@ -20,6 +20,9 @@
 #   D23-D25 flow       SetCommState drives DTR and RTS: enable and disable, handshake, toggle
 #   D26-D27 revoke     the hub takes the port back from a program; the program's process id
 #   D28-D31 COM number the helper gives a port the COM number asked for, and refuses what it should
+#   D32-D38 line errors the hub raises a break or a framing, parity or overrun error (driver version 4): what
+#                       ClearCommError reports, EV_ERR and EV_BREAK, the error and break characters, a request
+#                       that waits behind the bytes before it, fAbortOnError, EV_RXFLAG, and cancel and close races
 #
 # D1 to D7 use a port made by hand and run as a loopback: what is written comes
 # back from the next read. D14 to D19 and D21 need something that makes ports on
@@ -275,6 +278,8 @@ public sealed class HubIo : IDisposable
     const uint IOCTL_WAIT_STATE = 0x80002008;
     const uint IOCTL_SET_LINES = 0x8000200C;
     const uint IOCTL_REVOKE = 0x80002010;
+    // Version 4 of the driver: VSSCOM_HUB_LINE_ERROR { Errors, HasByte, Byte }, three 32-bit values.
+    const uint IOCTL_LINE_ERROR = 0x80002014;
     // Version 3 of the driver adds AppProcessId to the state: twelve words.
     const int StateWords = 12;
     public const int TimedOut = 258;
@@ -295,22 +300,30 @@ public sealed class HubIo : IDisposable
     /// failed or did not finish in `ms`, in which case it is cancelled first.
     int Finish(IntPtr ov, IntPtr signal, bool started, int ms, out int error)
     {
+        return FinishOn(handle, ov, signal, started ? 0 : Marshal.GetLastWin32Error(), ms, out error);
+    }
+
+    // `startError` is what the call that started the request left: 0 when it finished at once, 997
+    // when it is pending, otherwise the error it failed with. It is a parameter, and `h` is the
+    // handle the request was started on, so that a request started on one thread can be finished
+    // on another, and after Dispose.
+    static int FinishOn(IntPtr h, IntPtr ov, IntPtr signal, int startError, int ms, out int error)
+    {
         error = 0;
         uint n;
-        if (!started)
+        if (startError != 0)
         {
-            int e = Marshal.GetLastWin32Error();
-            if (e != 997) { error = e; return -1; }
+            if (startError != 997) { error = startError; return -1; }
             if (WaitForSingleObject(signal, (uint)ms) != 0)
             {
-                CancelIoEx(handle, ov);
+                CancelIoEx(h, ov);
                 // The buffers must outlive the cancel, so wait for it to land.
-                if (GetOverlappedResult(handle, ov, out n, true) && n > 0) return (int)n;
+                if (GetOverlappedResult(h, ov, out n, true) && n > 0) return (int)n;
                 error = TimedOut;
                 return -1;
             }
         }
-        if (!GetOverlappedResult(handle, ov, out n, true)) { error = Marshal.GetLastWin32Error(); return -1; }
+        if (!GetOverlappedResult(h, ov, out n, true)) { error = Marshal.GetLastWin32Error(); return -1; }
         return (int)n;
     }
 
@@ -422,6 +435,84 @@ public sealed class HubIo : IDisposable
             return 0;
         }
         finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(output); }
+    }
+
+    /// Raises a line error at the application end (version 4). `errors` is one or more SERIAL_ERROR_*
+    /// bits (break 1, framing 2, overrun 4, queue overrun 8, parity 0x10); `hasByte` is 1 when `value`
+    /// is the character the receiver made of it. Returns the Win32 error, 0 for success, 258 when it
+    /// did not finish in `ms` (it waits behind hub writes that wait, and is cancelled then).
+    public int LineError(uint errors, uint hasByte, uint value, int ms)
+    {
+        IntPtr signal;
+        IntPtr ov = NewOverlapped(out signal);
+        IntPtr input = Marshal.AllocHGlobal(12);
+        try
+        {
+            Marshal.WriteInt32(input, 0, (int)errors);
+            Marshal.WriteInt32(input, 4, (int)hasByte);
+            Marshal.WriteInt32(input, 8, (int)value);
+            int error;
+            bool started = DeviceIoControl(handle, IOCTL_LINE_ERROR, input, 12, IntPtr.Zero, 0, IntPtr.Zero, ov);
+            int n = Finish(ov, signal, started, ms, out error);
+            return n < 0 ? error : 0;
+        }
+        finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(input); }
+    }
+
+    /// LineError on another thread, which starts the request too: two of these, or one and a
+    /// WriteAsync, may reach the driver in either order. BeginLineError keeps the order.
+    public System.Threading.Tasks.Task<int> LineErrorAsync(uint errors, uint hasByte, uint value, int ms)
+    {
+        return System.Threading.Tasks.Task.Factory.StartNew<int>(delegate { return LineError(errors, hasByte, value, ms); });
+    }
+
+    /// Starts the line error request on this thread and finishes it on another: when this returns,
+    /// the driver has the request, so requests started one after the other stay in that order.
+    /// The task gives the same value as LineError. It is not cancelled when the hub handle is
+    /// disposed; the driver ends the request then, with 995.
+    public System.Threading.Tasks.Task<int> BeginLineError(uint errors, uint hasByte, uint value, int ms)
+    {
+        IntPtr h = handle;
+        IntPtr signal;
+        IntPtr ov = NewOverlapped(out signal);
+        IntPtr input = Marshal.AllocHGlobal(12);
+        Marshal.WriteInt32(input, 0, (int)errors);
+        Marshal.WriteInt32(input, 4, (int)hasByte);
+        Marshal.WriteInt32(input, 8, (int)value);
+        bool started = DeviceIoControl(h, IOCTL_LINE_ERROR, input, 12, IntPtr.Zero, 0, IntPtr.Zero, ov);
+        int startError = started ? 0 : Marshal.GetLastWin32Error();
+        return System.Threading.Tasks.Task.Factory.StartNew<int>(delegate
+        {
+            try
+            {
+                int error;
+                int n = FinishOn(h, ov, signal, startError, ms, out error);
+                return n < 0 ? error : 0;
+            }
+            finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(input); }
+        });
+    }
+
+    /// Like BeginLineError, for a write: started on this thread, finished on another. The task gives
+    /// the byte count, or -1 when the write failed or did not finish in `ms`.
+    public System.Threading.Tasks.Task<int> BeginWrite(byte[] data, int ms)
+    {
+        IntPtr h = handle;
+        IntPtr signal;
+        IntPtr ov = NewOverlapped(out signal);
+        IntPtr buffer = Marshal.AllocHGlobal(Math.Max(data.Length, 1));
+        Marshal.Copy(data, 0, buffer, data.Length);
+        bool started = WriteFile(h, buffer, (uint)data.Length, IntPtr.Zero, ov);
+        int startError = started ? 0 : Marshal.GetLastWin32Error();
+        return System.Threading.Tasks.Task.Factory.StartNew<int>(delegate
+        {
+            try
+            {
+                int error;
+                return FinishOn(h, ov, signal, startError, ms, out error);
+            }
+            finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(buffer); }
+        });
     }
 
     /// Writes to the application on another thread.
@@ -661,6 +752,10 @@ $HelperRunning = [bool]([IO.Directory]::GetFiles('\\.\pipe\') -contains "\\.\pip
 # Checks of the COM number, which the helper service gives for either driver: they
 # are skipped when it is not running.
 $NeedsHelper = 'D28', 'D29', 'D30', 'D31'
+# Checks of the line error request (driver version 4). They are skipped when the driver is older: a
+# probe before D32 finds out. Set to $true here so that nothing is skipped before the probe has run.
+$NeedsLineErrors = 'D32', 'D33', 'D34', 'D35', 'D36', 'D37', 'D38'
+$LineErrorsSupported = $true
 # Checks of the helper service alone.
 $HelperOnly = @{
     H14 = 'the kernel-mode driver has no helper service'
@@ -677,6 +772,10 @@ function Add-Test([string] $Id, [string] $Name, [scriptblock] $Body) {
     }
     if ($Id -in $NeedsHelper -and -not $HelperRunning) {
         $script:tests += New-TestRecord $Id $Name 'skip' 'the helper service is not running (install-driver.ps1 -Helper)'
+        return
+    }
+    if ($Id -in $NeedsLineErrors -and -not $LineErrorsSupported) {
+        $script:tests += New-TestRecord $Id $Name 'skip' 'the installed driver is older than version 4 and has no line error request'
         return
     }
     if ($Flavour -eq 'umdf' -and ($Id -in $NeedsDemand -or $Id -eq 'H14') -and -not $HelperRunning) {
@@ -1996,6 +2095,705 @@ Add-Test 'D31' 'the number of a port that is not the asker''s, or is not there, 
     } finally {
         $ctl.Dispose()
         if ($p) { Wait-VssDemandPort $p.Slot 60 -Gone | Out-Null }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# D32 to D38: line errors (driver version 4). The hub raises a break or a framing, parity or
+# overrun error with IOCTL_VSSCOM_HUB_LINE_ERROR; the application sees it through ClearCommError,
+# WaitCommEvent, the error and break characters and fAbortOnError.
+# ---------------------------------------------------------------------------
+
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+/// What a program does about line errors: ClearCommError, the DCB's error character, event
+/// character and abort on error, and the raw requests that set the break character (the DCB has
+/// no field for it). Every call returns the Win32 error, 0 for success.
+public static class VssErr
+{
+    [StructLayout(LayoutKind.Sequential)]
+    struct DCB
+    {
+        public uint DCBlength, BaudRate, Flags;
+        public ushort wReserved, XonLim, XoffLim;
+        public byte ByteSize, Parity, StopBits;
+        public byte XonChar, XoffChar, ErrorChar, EofChar, EvtChar;
+        public ushort wReserved1;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct COMSTAT { public uint Flags, cbInQue, cbOutQue; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct OVERLAPPED { public IntPtr Internal, InternalHigh; public uint Offset, OffsetHigh; public IntPtr Event; }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetCommState(IntPtr h, ref DCB dcb);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool SetCommState(IntPtr h, ref DCB dcb);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool ClearCommError(IntPtr h, out uint errors, out COMSTAT stat);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool SetCommMask(IntPtr h, uint mask);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool ReadFile(IntPtr h, IntPtr buffer, uint length, IntPtr read, IntPtr overlapped);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool DeviceIoControl(IntPtr h, uint code, IntPtr input, uint inSize, IntPtr output, uint outSize, IntPtr returned, IntPtr overlapped);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool GetOverlappedResult(IntPtr h, IntPtr overlapped, out uint transferred, bool wait);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool CancelIoEx(IntPtr h, IntPtr overlapped);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool CloseHandle(IntPtr h);
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode, EntryPoint = "CreateEventW")]
+    static extern IntPtr CreateEventW(IntPtr attributes, bool manual, bool initial, string name);
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern uint WaitForSingleObject(IntPtr h, uint ms);
+
+    // Bits of DCB.Flags: fParity, fErrorChar, fAbortOnError.
+    const uint FlagParity = 0x2;
+    const uint FlagErrorChar = 0x400;
+    const uint FlagAbortOnError = 0x4000;
+
+    // IOCTL_SERIAL_GET_CHARS, SET_CHARS, GET_HANDFLOW and SET_HANDFLOW from ntddser.h.
+    const uint IoctlGetChars = 0x1B0058;
+    const uint IoctlSetChars = 0x1B005C;
+    const uint IoctlGetHandflow = 0x1B0060;
+    const uint IoctlSetHandflow = 0x1B0064;
+    // SERIAL_BREAK_CHAR in SERIAL_HANDFLOW.FlowReplace.
+    const int FlowBreakChar = 0x10;
+
+    public const int TimedOut = 258;
+
+    /// ClearCommError: the CE_* bits it reported (they are cleared by the call) and the bytes in
+    /// the receive queue.
+    public static int ClearError(IntPtr h, out uint errors, out uint inQueue)
+    {
+        COMSTAT stat;
+        uint bits;
+        errors = 0;
+        inQueue = 0;
+        if (!ClearCommError(h, out bits, out stat)) return Marshal.GetLastWin32Error();
+        errors = bits;
+        inQueue = stat.cbInQue;
+        return 0;
+    }
+
+    /// SetCommState with fAbortOnError, and with fErrorChar (and fParity, which goes with it in
+    /// programs that ask for the error character) and ErrorChar, and with EvtChar. Everything else
+    /// in the DCB stays as it is. SetCommState rebuilds the handshake and replace flags and the
+    /// characters, so it also clears a break character set by SetBreakChar: call this first.
+    public static int SetErrorMode(IntPtr h, bool abortOnError, bool errorChar, byte errorCharValue, byte evtChar)
+    {
+        var dcb = new DCB { DCBlength = (uint)Marshal.SizeOf(typeof(DCB)) };
+        if (!GetCommState(h, ref dcb)) return Marshal.GetLastWin32Error();
+        uint flags = dcb.Flags & ~(FlagParity | FlagErrorChar | FlagAbortOnError);
+        if (abortOnError) flags |= FlagAbortOnError;
+        if (errorChar) flags |= FlagErrorChar | FlagParity;
+        dcb.Flags = flags;
+        dcb.ErrorChar = errorCharValue;
+        dcb.EvtChar = evtChar;
+        return SetCommState(h, ref dcb) ? 0 : Marshal.GetLastWin32Error();
+    }
+
+    /// One overlapped ReadFile of one byte with an event of its own. 0 when it read the byte, the
+    /// Win32 error it ended with otherwise (995 after an error with abort on error), 258 when it
+    /// did not end in `ms`: it is cancelled then.
+    public static int ReadError(IntPtr h, int ms)
+    {
+        IntPtr signal = CreateEventW(IntPtr.Zero, true, false, null);
+        IntPtr ov = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(OVERLAPPED)));
+        IntPtr buffer = Marshal.AllocHGlobal(4);
+        try
+        {
+            Marshal.StructureToPtr(new OVERLAPPED { Event = signal }, ov, false);
+            uint n;
+            if (!ReadFile(h, buffer, 1, IntPtr.Zero, ov))
+            {
+                int e = Marshal.GetLastWin32Error();
+                if (e != 997) return e;
+                if (WaitForSingleObject(signal, (uint)ms) != 0)
+                {
+                    CancelIoEx(h, ov);
+                    // The buffer must outlive the cancel, so wait for it to land.
+                    GetOverlappedResult(h, ov, out n, true);
+                    return TimedOut;
+                }
+            }
+            return GetOverlappedResult(h, ov, out n, true) ? 0 : Marshal.GetLastWin32Error();
+        }
+        finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); Marshal.FreeHGlobal(buffer); }
+    }
+
+    /// SetCommMask; the Win32 error, 0 for success.
+    public static int MaskError(IntPtr h, uint mask)
+    {
+        return SetCommMask(h, mask) ? 0 : Marshal.GetLastWin32Error();
+    }
+
+    // One overlapped DeviceIoControl, finished before it returns. The handle is overlapped, so
+    // every call needs an OVERLAPPED with an event, even one that completes at once.
+    static int Control(IntPtr h, uint code, IntPtr input, uint inSize, IntPtr output, uint outSize)
+    {
+        IntPtr signal = CreateEventW(IntPtr.Zero, true, false, null);
+        IntPtr ov = Marshal.AllocHGlobal(Marshal.SizeOf(typeof(OVERLAPPED)));
+        try
+        {
+            Marshal.StructureToPtr(new OVERLAPPED { Event = signal }, ov, false);
+            if (!DeviceIoControl(h, code, input, inSize, output, outSize, IntPtr.Zero, ov))
+            {
+                int e = Marshal.GetLastWin32Error();
+                if (e != 997) return e;
+            }
+            uint n;
+            return GetOverlappedResult(h, ov, out n, true) ? 0 : Marshal.GetLastWin32Error();
+        }
+        finally { CloseHandle(signal); Marshal.FreeHGlobal(ov); }
+    }
+
+    /// Turns SERIAL_BREAK_CHAR on or off in the flow settings and sets BreakChar, with the raw
+    /// requests: GET_HANDFLOW and SET_HANDFLOW (four 32-bit values, ControlHandShake, FlowReplace,
+    /// XonLimit, XoffLimit) and GET_CHARS and SET_CHARS (six bytes, EofChar, ErrorChar, BreakChar,
+    /// EventChar, XonChar, XoffChar). Everything else stays as it is.
+    public static int SetBreakChar(IntPtr h, bool enable, byte value)
+    {
+        IntPtr flow = Marshal.AllocHGlobal(16);
+        IntPtr chars = Marshal.AllocHGlobal(8);
+        try
+        {
+            int e = Control(h, IoctlGetHandflow, IntPtr.Zero, 0, flow, 16);
+            if (e != 0) return e;
+            int replace = Marshal.ReadInt32(flow, 4);
+            replace = enable ? (replace | FlowBreakChar) : (replace & ~FlowBreakChar);
+            Marshal.WriteInt32(flow, 4, replace);
+
+            e = Control(h, IoctlGetChars, IntPtr.Zero, 0, chars, 6);
+            if (e != 0) return e;
+            Marshal.WriteByte(chars, 2, value);
+            e = Control(h, IoctlSetChars, chars, 6, IntPtr.Zero, 0);
+            if (e != 0) return e;
+
+            return Control(h, IoctlSetHandflow, flow, 16, IntPtr.Zero, 0);
+        }
+        finally { Marshal.FreeHGlobal(flow); Marshal.FreeHGlobal(chars); }
+    }
+}
+'@
+
+# SERIAL_ERROR_* bits, which the hub sends, and the CE_* bits that ClearCommError turns them into.
+$LE_BREAK = 0x01; $LE_FRAMING = 0x02; $LE_OVERRUN = 0x04; $LE_QUEUEOVERRUN = 0x08; $LE_PARITY = 0x10
+$CE_RXOVER = 0x1; $CE_OVERRUN = 0x2; $CE_RXPARITY = 0x4; $CE_FRAME = 0x8; $CE_BREAK = 0x10
+$EV_RXFLAG = 0x2; $EV_BREAK = 0x40; $EV_ERR = 0x80
+$PURGE_ALL = 0xF
+$ERROR_INVALID_FUNCTION = 1
+
+# Does the installed driver have the request? An empty error is refused with 87 by a driver that
+# has it and with 1 by one that has not, and changes nothing either way.
+if ($hubPath) {
+    $probe = $null
+    try {
+        $probe = Open-Hub $hubPath
+        $LineErrorsSupported = $probe.LineError(0, 0, 0, 5000) -ne $ERROR_INVALID_FUNCTION
+    } catch {
+        $LineErrorsSupported = $true
+    } finally {
+        if ($probe) { $probe.Dispose() }
+    }
+}
+
+# Raises one line error from the hub. The request is done, and the error latched, when this returns.
+# The events it raises are not necessarily raised yet (the driver completes the request first); see
+# Sync-Events.
+function Send-LineError($Hub, [uint32] $Errors, [uint32] $HasByte = 0, [uint32] $Value = 0) {
+    $e = $Hub.LineError($Errors, $HasByte, $Value, 5000)
+    if ($e -ne 0) { throw ("the line error request (errors 0x{0:X}, byte {1}:{2}) failed with error {3}" -f $Errors, $HasByte, $Value, $e) }
+}
+
+# ClearCommError: the CE_* bits and the bytes waiting in the receive queue.
+function Clear-Errors([IntPtr] $H) {
+    $errors = [uint32]0
+    $queue = [uint32]0
+    $e = [VssErr]::ClearError($H, [ref]$errors, [ref]$queue)
+    if ($e -ne 0) { throw "ClearCommError failed with error $e" }
+    [pscustomobject]@{ Errors = [int]$errors; Queue = [int]$queue }
+}
+
+# Returns once the driver has raised the events of the line errors sent so far. A request to the
+# hub completes before VssComServiceHubWrites raises its events, and a later hub write completes
+# after them, because one thread moves the bytes and takes the hub's requests in order. So a byte
+# is written, and taken out again, which leaves the receive queue as it was.
+function Sync-Events($Hub, [IntPtr] $App) {
+    $e = 0
+    Assert ($Hub.Write([byte[]]@(66), 5000, [ref]$e) -eq 1) "the hub write that waits for the events failed ($e)"
+    Assert ([VssComm]::Purge($App, $PURGE_RXCLEAR)) 'PurgeComm(RXCLEAR) failed'
+}
+
+Add-Test 'D32' 'a line error is latched for ClearCommError and read once' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        # Each kind alone: the SERIAL_ERROR_* bit the hub sends, the CE_* bit that comes back, once.
+        $kinds = @(
+            @('break', $LE_BREAK, $CE_BREAK),
+            @('framing', $LE_FRAMING, $CE_FRAME),
+            @('overrun', $LE_OVERRUN, $CE_OVERRUN),
+            @('queue overrun', $LE_QUEUEOVERRUN, $CE_RXOVER),
+            @('parity', $LE_PARITY, $CE_RXPARITY)
+        )
+        foreach ($kind in $kinds) {
+            Send-LineError $hub $kind[1]
+            $got = Clear-Errors $app
+            Assert ($got.Errors -eq $kind[2]) ("{0}: ClearCommError reported 0x{1:X}, not 0x{2:X}" -f $kind[0], $got.Errors, $kind[2])
+            Assert ($got.Queue -eq 0) ("{0}: the error put {1} bytes in the queue" -f $kind[0], $got.Queue)
+            $got = Clear-Errors $app
+            Assert ($got.Errors -eq 0) ("{0}: a second ClearCommError reported 0x{1:X}" -f $kind[0], $got.Errors)
+        }
+
+        # Errors that arrive one after the other, or in one request, are one report. The same error
+        # twice is one bit.
+        Send-LineError $hub $LE_BREAK
+        Send-LineError $hub $LE_PARITY
+        Send-LineError $hub $LE_PARITY
+        $got = Clear-Errors $app
+        $want = $CE_BREAK -bor $CE_RXPARITY
+        Assert ($got.Errors -eq $want) ("two errors were reported as 0x{0:X}, not 0x{1:X}" -f $got.Errors, $want)
+        Send-LineError $hub ($LE_FRAMING -bor $LE_OVERRUN)
+        $got = Clear-Errors $app
+        $want = $CE_FRAME -bor $CE_OVERRUN
+        Assert ($got.Errors -eq $want) ("one request with two bits was reported as 0x{0:X}, not 0x{1:X}" -f $got.Errors, $want)
+
+        # What the driver refuses: no bit, a bit that is no error, a HasByte that is not 0 or 1, a byte above 255.
+        $bad = @(
+            @(0, 0, 0, 'no error bit'),
+            @(0x20, 0, 0, 'a bit that is no error'),
+            @(0x111, 0, 0, 'a bit above the five errors'),
+            @($LE_PARITY, 2, 0, 'a HasByte of 2'),
+            @($LE_PARITY, 1, 256, 'a Byte of 256')
+        )
+        foreach ($b in $bad) {
+            $e = $hub.LineError($b[0], $b[1], $b[2], 5000)
+            Assert ($e -eq $ERROR_INVALID_PARAMETER) ("{0} gave error {1}, not {2}" -f $b[3], $e, $ERROR_INVALID_PARAMETER)
+        }
+        $got = Clear-Errors $app
+        Assert ($got.Errors -eq 0) ("a refused request latched 0x{0:X}" -f $got.Errors)
+
+        # An error raised while no program has the port open is dropped, and so is its byte.
+        [VssComm]::Close($app); $app = [IntPtr](-1)
+        Send-LineError $hub $LE_PARITY 1 0x78
+        Send-LineError $hub $LE_BREAK
+        $app = Open-Port $port
+        $got = Clear-Errors $app
+        Assert ($got.Errors -eq 0 -and $got.Queue -eq 0) ("errors raised with no program open arrived: 0x{0:X}, {1} bytes" -f $got.Errors, $got.Queue)
+
+        # Closing the port clears an error that nobody read.
+        Send-LineError $hub $LE_FRAMING 1 0x79
+        [VssComm]::Close($app); $app = [IntPtr](-1)
+        $app = Open-Port $port
+        $got = Clear-Errors $app
+        Assert ($got.Errors -eq 0 -and $got.Queue -eq 0) ("a new open found 0x{0:X} and {1} bytes left by the last one" -f $got.Errors, $got.Queue)
+        'five kinds read once; accumulate; five refused with 87; dropped with no program open; cleared when the port closes'
+    } finally {
+        if ($app -ne [IntPtr](-1)) { [VssComm]::Close($app) }
+        $hub.Dispose()
+    }
+}
+
+Add-Test 'D33' 'EV_ERR and EV_BREAK complete a pending WaitCommEvent and are kept when none is pending' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    $notes = @()
+    try {
+        Assert ([VssComm]::SetMask($app, $EV_ERR -bor $EV_BREAK)) 'SetCommMask failed'
+
+        # A parity error completes a pending wait with EV_ERR.
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Assert (-not $io.Completed(200)) 'WaitCommEvent finished with no event'
+            Send-LineError $hub $LE_PARITY
+            Assert ($io.Completed(5000)) 'a parity error did not complete the wait'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq 0 -and $io.Mask() -eq $EV_ERR) ("the wait ended with mask 0x{0:X}, error {1}" -f $io.Mask(), $err)
+        } finally { $io.Dispose() }
+        Assert ((Clear-Errors $app).Errors -eq $CE_RXPARITY) 'ClearCommError did not report the parity error'
+        $notes += 'parity completes a wait'
+
+        # A break with no wait pending is kept, and the next wait returns at once.
+        Send-LineError $hub $LE_BREAK
+        Sync-Events $hub $app
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Assert ($io.Completed(2000)) 'the kept EV_BREAK did not complete the next wait'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq 0 -and $io.Mask() -eq $EV_BREAK) ("the kept event came back as mask 0x{0:X}, error {1}" -f $io.Mask(), $err)
+        } finally { $io.Dispose() }
+        Assert ((Clear-Errors $app).Errors -eq $CE_BREAK) 'ClearCommError did not report the break'
+        $notes += 'a break is kept for the next wait'
+
+        # With EV_BREAK alone in the mask a framing error is no event, and the break is, by itself.
+        Assert ([VssComm]::SetMask($app, $EV_BREAK)) 'SetCommMask failed'
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Send-LineError $hub $LE_FRAMING
+            Sync-Events $hub $app
+            Assert (-not $io.Completed(200)) 'a framing error completed a wait for EV_BREAK'
+            Send-LineError $hub $LE_BREAK
+            Assert ($io.Completed(5000)) 'the break did not complete the wait'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq 0 -and $io.Mask() -eq $EV_BREAK) ("the wait ended with mask 0x{0:X}, error {1}" -f $io.Mask(), $err)
+        } finally { $io.Dispose() }
+        $want = $CE_FRAME -bor $CE_BREAK
+        Assert ((Clear-Errors $app).Errors -eq $want) 'ClearCommError did not report the framing error and the break'
+        $notes += 'the mask picks the events'
+
+        # A queue overrun is only latched: no event, so the wait stays, and it can still be cancelled.
+        Assert ([VssComm]::SetMask($app, $EV_ERR)) 'SetCommMask failed'
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Send-LineError $hub $LE_QUEUEOVERRUN
+            Sync-Events $hub $app
+            Assert (-not $io.Completed(200)) 'a queue overrun completed a wait for EV_ERR'
+            Assert ($io.Cancel()) 'CancelIoEx failed'
+            Assert ($io.Completed(2000)) 'the cancelled wait did not end'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq $ERROR_OPERATION_ABORTED) "the cancelled wait ended with error $err"
+        } finally { $io.Dispose() }
+        Assert ((Clear-Errors $app).Errors -eq $CE_RXOVER) 'ClearCommError did not report the queue overrun'
+        $notes += 'a queue overrun raises no event; a cancelled wait ends with 995'
+
+        # A new wait can start after the cancel, and a new mask releases it with no events.
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Assert (-not $io.Completed(200)) 'a new wait finished with no event'
+            Assert ([VssComm]::SetMask($app, 0)) 'SetCommMask(0) failed'
+            Assert ($io.Completed(2000)) 'SetCommMask(0) did not release the wait'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq 0 -and $io.Mask() -eq 0) ("the released wait ended with mask 0x{0:X}, error {1}" -f $io.Mask(), $err)
+        } finally { $io.Dispose() }
+        $notes += 'SetCommMask(0) releases a wait'
+
+        # SetCommMask drops a kept event, and leaves the latched error alone.
+        Assert ([VssComm]::SetMask($app, $EV_ERR)) 'SetCommMask failed'
+        Send-LineError $hub $LE_PARITY
+        Sync-Events $hub $app
+        Assert ([VssComm]::SetMask($app, $EV_ERR)) 'SetCommMask failed'
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Assert (-not $io.Completed(300)) 'SetCommMask did not drop the kept event'
+            Assert ((Clear-Errors $app).Errors -eq $CE_RXPARITY) 'SetCommMask took the latched error away'
+            Assert ([VssComm]::SetMask($app, 0)) 'SetCommMask(0) failed'
+            Assert ($io.Completed(2000)) 'SetCommMask(0) did not release the wait'
+        } finally { $io.Dispose() }
+        $notes += 'a new mask drops a kept event, not the error'
+        $notes
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+# Sends 'ab', one line error and 'cd' from the hub, then reads what the application gets and
+# what ClearCommError reports.
+function Invoke-ErrorStream($Hub, [IntPtr] $App, [uint32] $Errors, [uint32] $HasByte, [uint32] $Value) {
+    $e = 0
+    Assert ($Hub.Write([Text.Encoding]::ASCII.GetBytes('ab'), 5000, [ref]$e) -eq 2) "the hub write failed ($e)"
+    Send-LineError $Hub $Errors $HasByte $Value
+    Assert ($Hub.Write([Text.Encoding]::ASCII.GetBytes('cd'), 5000, [ref]$e) -eq 2) "the hub write failed ($e)"
+    $r = Read-App $App 16
+    $got = Clear-Errors $App
+    [pscustomobject]@{ Text = [Text.Encoding]::ASCII.GetString($r.Bytes); Errors = $got.Errors; Queue = $got.Queue }
+}
+
+Add-Test 'D34' 'a line error keeps its place among the bytes, and the error and break characters replace the bad byte when asked' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    $notes = @()
+    try {
+        # Nothing asked for: the byte of a parity error is in the stream, in its place.
+        $x = [int][char]'x'
+        $r = Invoke-ErrorStream $hub $app $LE_PARITY 1 $x
+        Assert ($r.Text -ceq 'abxcd') "a parity error with a byte: the application read '$($r.Text)'"
+        Assert ($r.Errors -eq $CE_RXPARITY) ("ClearCommError reported 0x{0:X}" -f $r.Errors)
+        $notes += 'abxcd'
+
+        # A break and a framing error with no byte put nothing in the stream when no character is set.
+        $r = Invoke-ErrorStream $hub $app $LE_BREAK 0 0
+        Assert ($r.Text -ceq 'abcd') "a break with no break character: the application read '$($r.Text)'"
+        Assert ($r.Errors -eq $CE_BREAK) ("ClearCommError reported 0x{0:X}" -f $r.Errors)
+        $r = Invoke-ErrorStream $hub $app $LE_FRAMING 0 0
+        Assert ($r.Text -ceq 'abcd') "a framing error with no error character: the application read '$($r.Text)'"
+        Assert ($r.Errors -eq $CE_FRAME) ("ClearCommError reported 0x{0:X}" -f $r.Errors)
+        $notes += 'no replacement: abcd'
+
+        # fErrorChar: the error character stands for the byte of a parity or framing error, with or
+        # without one, and goes in front of the byte of an overrun.
+        Assert (([VssErr]::SetErrorMode($app, $false, $true, 0x3F, 0)) -eq 0) 'SetCommState with fErrorChar failed'
+        $r = Invoke-ErrorStream $hub $app $LE_PARITY 1 $x
+        Assert ($r.Text -ceq 'ab?cd') "parity with a byte and fErrorChar: the application read '$($r.Text)'"
+        Assert ($r.Errors -eq $CE_RXPARITY) ("ClearCommError reported 0x{0:X}" -f $r.Errors)
+        $r = Invoke-ErrorStream $hub $app $LE_FRAMING 0 0
+        Assert ($r.Text -ceq 'ab?cd') "framing with no byte and fErrorChar: the application read '$($r.Text)'"
+        Assert ($r.Errors -eq $CE_FRAME) ("ClearCommError reported 0x{0:X}" -f $r.Errors)
+        $r = Invoke-ErrorStream $hub $app $LE_OVERRUN 1 $x
+        Assert ($r.Text -ceq 'ab?xcd') "overrun with a byte and fErrorChar: the application read '$($r.Text)'"
+        Assert ($r.Errors -eq $CE_OVERRUN) ("ClearCommError reported 0x{0:X}" -f $r.Errors)
+        # A break is not a parity or framing error: the error character does not stand for it.
+        $r = Invoke-ErrorStream $hub $app $LE_BREAK 0 0
+        Assert ($r.Text -ceq 'abcd') "a break with only fErrorChar: the application read '$($r.Text)'"
+        $notes += 'fErrorChar: ab?cd, ab?cd, ab?xcd, abcd'
+
+        # The break character, which only the raw requests can set (after SetCommState, which resets it).
+        Assert (([VssErr]::SetBreakChar($app, $true, 0x21)) -eq 0) 'setting the break character failed'
+        $r = Invoke-ErrorStream $hub $app $LE_BREAK 0 0
+        Assert ($r.Text -ceq 'ab!cd') "a break with a break character: the application read '$($r.Text)'"
+        Assert ($r.Errors -eq $CE_BREAK) ("ClearCommError reported 0x{0:X}" -f $r.Errors)
+        $r = Invoke-ErrorStream $hub $app $LE_BREAK 1 $x
+        Assert ($r.Text -ceq 'ab!cd') "a break with a byte and a break character: the application read '$($r.Text)'"
+        $notes += 'break character: ab!cd'
+
+        # A new open starts without any of these.
+        [VssComm]::Close($app); $app = [IntPtr](-1)
+        $app = Open-Port $port
+        $r = Invoke-ErrorStream $hub $app $LE_BREAK 0 0
+        Assert ($r.Text -ceq 'abcd') "after a new open a break put '$($r.Text)' in the stream"
+        $notes += 'a new open starts clean'
+        $notes
+    } finally {
+        if ($app -ne [IntPtr](-1)) { [VssComm]::Close($app) }
+        $hub.Dispose()
+    }
+}
+
+Add-Test 'D35' 'a line error waits for room behind the bytes before it, and ends when the hub closes' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        $e = 0
+        $fill = New-Pattern 65536
+        Assert ($hub.Write($fill, 5000, [ref]$e) -eq 65536) "the hub write of a full buffer failed ($e)"
+
+        # No room for the byte: the request waits, and the error is not latched yet.
+        $task = $hub.BeginLineError($LE_PARITY, 1, 0x78, 20000)
+        Assert (-not $task.Wait(300)) 'the line error finished although the receive buffer was full'
+        $got = Clear-Errors $app
+        Assert ($got.Errors -eq 0 -and $got.Queue -eq 65536) ("while it waited ClearCommError reported 0x{0:X} and {1} bytes" -f $got.Errors, $got.Queue)
+
+        # Reading makes room: the request finishes, with the byte behind the bytes that came first.
+        $r = Read-App $app 100
+        Assert ($r.Count -eq 100) "the application read $($r.Count) bytes, not 100"
+        Assert ($task.Wait(5000)) 'the line error did not finish when there was room'
+        Assert ($task.Result -eq 0) "the line error ended with error $($task.Result)"
+        $got = Clear-Errors $app
+        Assert ($got.Errors -eq $CE_RXPARITY) ("after it finished ClearCommError reported 0x{0:X}" -f $got.Errors)
+        Assert ($got.Queue -eq 65437) "the queue held $($got.Queue) bytes, not 65437"
+        $r = Read-App $app 65536
+        Assert ($r.Count -eq 65437) "the application read $($r.Count) bytes, not 65437"
+        Assert ($r.Bytes[0] -eq $fill[100] -and $r.Bytes[65435] -eq $fill[65535] -and $r.Bytes[65436] -eq 0x78) 'the byte of the error is not behind the bytes that came before it'
+
+        # A request that waits ends when the hub handle closes, and latches nothing.
+        Assert ($hub.Write($fill, 5000, [ref]$e) -eq 65536) "the second hub write of a full buffer failed ($e)"
+        $task = $hub.BeginLineError($LE_PARITY, 1, 0x78, 20000)
+        Assert (-not $task.Wait(300)) 'the second line error finished although the receive buffer was full'
+        $hub.Dispose()
+        Assert ($task.Wait(5000)) 'the waiting line error did not end when the hub closed'
+        Assert ($task.Result -eq $ERROR_OPERATION_ABORTED) "the waiting line error ended with error $($task.Result), not $ERROR_OPERATION_ABORTED"
+        $got = Clear-Errors $app
+        Assert ($got.Errors -eq 0) ("the request that was cancelled latched 0x{0:X}" -f $got.Errors)
+        'waited at 65536 bytes, finished behind the bytes when 100 were read; cancelled (995) with nothing latched when the hub closed'
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+Add-Test 'D36' 'abort on error ends the reads and writes until ClearCommError' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    $notes = @()
+    try {
+        Assert (([VssErr]::SetErrorMode($app, $true, $false, 0, 0)) -eq 0) 'SetCommState with fAbortOnError failed'
+        [VssComm]::SetTimeouts($app, 0, 0, 0, 0, 0) | Out-Null
+
+        # A read and a write that wait, then an error.
+        $read = [PendingIo]::BeginRead($app, 10)
+        try {
+            $task = [HubIo]::WriteAsync($app, (New-Pattern 300000))
+            $until = (Get-Date).AddSeconds(5)
+            while ($hub.GetState()[10] -eq 0 -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 20 }
+            Assert (-not $read.Completed(200)) 'the read finished with nothing to read'
+            Assert (-not $task.Wait(300)) 'the write finished before the hub read anything'
+
+            Send-LineError $hub $LE_FRAMING
+            Assert ($read.Completed(5000)) 'the error did not end the waiting read'
+            $err = 0
+            $read.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq $ERROR_OPERATION_ABORTED) "the waiting read ended with error $err, not $ERROR_OPERATION_ABORTED"
+            Assert ($task.Wait(5000)) 'the error did not end the waiting write'
+            Assert ($task.Result -eq -1) "the waiting write returned $($task.Result), not -1"
+        } finally { $read.Dispose() }
+        $notes += 'a waiting read and a waiting write end with 995'
+
+        # Until ClearCommError, every new request but that one fails.
+        $e = [VssErr]::ReadError($app, 5000)
+        Assert ($e -eq $ERROR_OPERATION_ABORTED) "a read after the error gave error $e, not $ERROR_OPERATION_ABORTED"
+        $e = [VssErr]::MaskError($app, $EV_RXCHAR)
+        Assert ($e -eq $ERROR_OPERATION_ABORTED) "SetCommMask after the error gave error $e, not $ERROR_OPERATION_ABORTED"
+        Assert ([VssComm]::Write($app, [Text.Encoding]::ASCII.GetBytes('x')) -eq -1) 'a write after the error was accepted'
+        Assert ((Clear-Errors $app).Errors -eq $CE_FRAME) 'ClearCommError did not report the framing error'
+        $notes += 'new requests fail with 995 until ClearCommError'
+
+        # And then the port works again. The write that was ended left its bytes in Tx.
+        Assert ([VssComm]::Purge($app, $PURGE_ALL)) 'PurgeComm failed after ClearCommError'
+        $left = $hub.Read(65536, 500, [ref]$e)
+        Assert ($null -eq $left -and $e -eq [HubIo]::TimedOut) 'the purge left bytes for the hub'
+        Assert ($hub.Write([Text.Encoding]::ASCII.GetBytes('ok'), 5000, [ref]$e) -eq 2) "the hub write failed ($e)"
+        $r = Read-App $app 2
+        Assert ($r.Count -eq 2 -and [Text.Encoding]::ASCII.GetString($r.Bytes) -ceq 'ok') "the application read '$([Text.Encoding]::ASCII.GetString($r.Bytes))' after the error was cleared"
+        $notes += 'the port works after ClearCommError'
+
+        # The bytes written before the error reach a read that waits, which is not ended. The buffer is
+        # full, so the four bytes and the error queue up behind it, in that order.
+        Assert ([VssComm]::SetTimeouts($app, 0, 0, 0, 0, 0)) 'SetCommTimeouts failed'
+        $fill = New-Pattern 65536
+        Assert ($hub.Write($fill, 5000, [ref]$e) -eq 65536) "the hub write of a full buffer failed ($e)"
+        $abcd = [Text.Encoding]::ASCII.GetBytes('abcd')
+        $bytes = $hub.BeginWrite($abcd, 20000)
+        $error_ = $hub.BeginLineError($LE_FRAMING, 0, 0, 20000)
+        Assert (-not $bytes.Wait(300)) 'the four bytes went in although the buffer was full'
+        Assert (-not $error_.Wait(0)) 'the error did not wait behind the bytes'
+        $read = [PendingIo]::BeginRead($app, 65540)
+        try {
+            Assert ($read.Completed(10000)) 'the read of 65540 bytes did not finish'
+            $err = 0
+            $n = $read.Finish($true, [ref]$err)
+            Assert ($err -eq 0 -and $n -eq 65540) "the read ended with error $err and $n bytes, not 65540"
+            $data = $read.Data($n)
+            for ($i = 0; $i -lt 65536; $i++) { if ($data[$i] -ne $fill[$i]) { throw "byte $i differs" } }
+            Assert ([Text.Encoding]::ASCII.GetString($data, 65536, 4) -ceq 'abcd') 'the four bytes before the error were not in the read'
+        } finally { $read.Dispose() }
+        Assert ($bytes.Wait(5000) -and $bytes.Result -eq 4) 'the hub write of the four bytes did not finish'
+        Assert ($error_.Wait(5000) -and $error_.Result -eq 0) 'the line error did not finish'
+        Assert ((Clear-Errors $app).Errors -eq $CE_FRAME) 'ClearCommError did not report the framing error after the read'
+        $notes += 'a read that waits takes the bytes before the error first'
+
+        # Without fAbortOnError an error ends nothing.
+        Assert (([VssErr]::SetErrorMode($app, $false, $false, 0, 0)) -eq 0) 'SetCommState without fAbortOnError failed'
+        Assert ([VssComm]::SetTimeouts($app, 0, 0, 0, 0, 0)) 'SetCommTimeouts failed'
+        $read = [PendingIo]::BeginRead($app, 10)
+        try {
+            Send-LineError $hub $LE_PARITY
+            Assert (-not $read.Completed(300)) 'a parity error ended a read without fAbortOnError'
+            Assert ([VssErr]::MaskError($app, 0) -eq 0) 'SetCommMask failed after an error without fAbortOnError'
+            Assert ([VssComm]::Write($app, [Text.Encoding]::ASCII.GetBytes('z')) -eq 1) 'a write failed after an error without fAbortOnError'
+            Assert ([Text.Encoding]::ASCII.GetString((Read-Hub $hub 1)) -ceq 'z') 'the hub read another byte'
+            Assert ($read.Cancel()) 'CancelIoEx failed'
+            Assert ($read.Completed(2000)) 'the cancelled read did not end'
+            $err = 0
+            $read.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq $ERROR_OPERATION_ABORTED) "the cancelled read ended with error $err"
+        } finally { $read.Dispose() }
+        Assert ((Clear-Errors $app).Errors -eq $CE_RXPARITY) 'ClearCommError did not report the parity error'
+        $notes += 'without fAbortOnError an error ends nothing'
+        $notes
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+Add-Test 'D37' 'EV_RXFLAG reports the event character' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    try {
+        $e = 0
+        Assert (([VssErr]::SetErrorMode($app, $false, $false, 0, 13)) -eq 0) 'SetCommState with an event character failed'
+        Assert ([VssComm]::SetMask($app, $EV_RXFLAG)) 'SetCommMask failed'
+
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Assert ($hub.Write([Text.Encoding]::ASCII.GetBytes('abc'), 5000, [ref]$e) -eq 3) "the hub write failed ($e)"
+            Assert (-not $io.Completed(300)) 'bytes without the event character completed the wait'
+            Assert ($hub.Write([byte[]]@(100, 13), 5000, [ref]$e) -eq 2) "the hub write failed ($e)"
+            Assert ($io.Completed(5000)) 'the event character did not complete the wait'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq 0 -and $io.Mask() -eq $EV_RXFLAG) ("the wait ended with mask 0x{0:X}, error {1}" -f $io.Mask(), $err)
+        } finally { $io.Dispose() }
+
+        # The character that comes with a line error counts too, and another one does not.
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Send-LineError $hub $LE_PARITY 1 0x78
+            Sync-Events $hub $app
+            Assert (-not $io.Completed(200)) 'a parity error with another byte completed the wait'
+            Send-LineError $hub $LE_PARITY 1 13
+            Assert ($io.Completed(5000)) 'a parity error with the event character did not complete the wait'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            Assert ($err -eq 0 -and $io.Mask() -eq $EV_RXFLAG) ("the wait ended with mask 0x{0:X}, error {1}" -f $io.Mask(), $err)
+        } finally { $io.Dispose() }
+        'EV_RXFLAG when the event character arrives, with a hub write or a line error; not for other bytes'
+    } finally { [VssComm]::Close($app); $hub.Dispose() }
+}
+
+Add-Test 'D38' 'cancelling and closing with a wait pending never loses or doubles a completion' {
+    $hub = Open-Hub $hubPath
+    $app = Open-Port $port
+    $completed = 0
+    $cancelled = 0
+    try {
+        # A wait for EV_BREAK and a break race with the cancel of the wait. The break starts on another
+        # thread, and the cancel comes a little later each round, so that it lands before, during
+        # and after the driver handles the break. Either the wait gets the event or it ends with
+        # 995; the break request always succeeds and the error is always latched.
+        for ($i = 0; $i -lt 200; $i++) {
+            Assert ([VssComm]::SetMask($app, $EV_BREAK)) "round ${i}: SetCommMask failed"
+            $io = [PendingIo]::BeginWait($app)
+            try {
+                $task = $hub.LineErrorAsync($LE_BREAK, 0, 0, 5000)
+                [Threading.Thread]::SpinWait(($i % 40) * 25)
+                $io.Cancel() | Out-Null
+                Assert ($io.Completed(5000)) "round ${i}: the wait did not end"
+                $err = 0
+                $io.Finish($true, [ref]$err) | Out-Null
+                if ($err -eq 0) {
+                    Assert ($io.Mask() -eq $EV_BREAK) ("round ${i}: the wait ended with mask 0x{0:X}" -f $io.Mask())
+                    $completed++
+                } elseif ($err -eq $ERROR_OPERATION_ABORTED) {
+                    $cancelled++
+                } else {
+                    throw "round ${i}: the wait ended with error $err"
+                }
+                Assert ($task.Wait(5000)) "round ${i}: the break request did not finish"
+                Assert ($task.Result -eq 0) "round ${i}: the break request ended with error $($task.Result)"
+            } finally { $io.Dispose() }
+            $got = Clear-Errors $app
+            Assert ($got.Errors -eq $CE_BREAK) ("round ${i}: ClearCommError reported 0x{0:X}" -f $got.Errors)
+        }
+
+        # Closing the handle with a wait pending and an error latched: the wait ends, and the next
+        # open starts with no error and works.
+        [VssComm]::Close($app); $app = [IntPtr](-1)
+        $app = Open-Port $port
+        Send-LineError $hub $LE_PARITY
+        Assert ([VssComm]::SetMask($app, $EV_BREAK)) 'SetCommMask failed'
+        $io = [PendingIo]::BeginWait($app)
+        try {
+            Assert (-not $io.Completed(200)) 'the wait finished with no event'
+            [VssComm]::Close($app); $app = [IntPtr](-1)
+            Assert ($io.Completed(5000)) 'the wait did not end when the handle closed'
+            $err = 0
+            $io.Finish($true, [ref]$err) | Out-Null
+            $closeEnd = "error $err, mask 0x$('{0:X}' -f $io.Mask())"
+        } finally { $io.Dispose() }
+        $app = Open-Port $port
+        $got = Clear-Errors $app
+        Assert ($got.Errors -eq 0) ("a new open found 0x{0:X} left by the last one" -f $got.Errors)
+        $e = 0
+        Assert ($hub.Write([Text.Encoding]::ASCII.GetBytes('z'), 5000, [ref]$e) -eq 1) "the hub write failed ($e)"
+        $r = Read-App $app 1
+        Assert ($r.Count -eq 1 -and [Text.Encoding]::ASCII.GetString($r.Bytes) -ceq 'z') 'the port did not carry a byte after the close'
+        "200 rounds: $completed waits got EV_BREAK, $cancelled were cancelled, every break was latched; the handle closed with a wait pending ($closeEnd), and the port opens clean"
+    } finally {
+        if ($app -ne [IntPtr](-1)) { [VssComm]::Close($app) }
+        $hub.Dispose()
     }
 }
 

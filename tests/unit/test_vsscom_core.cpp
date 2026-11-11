@@ -536,3 +536,331 @@ TEST_CASE("vsscom flow: busy time queues behind earlier bytes")
     REQUIRE(!vsscom_tx_sending(0, 1000, 1000));
     REQUIRE(!vsscom_tx_sending(0, 1000, 0));
 }
+
+// -- Line errors -----------------------------------------------------------
+
+namespace
+{
+
+// SERIAL_ERROR_ABORT, SERIAL_ERROR_CHAR and SERIAL_BREAK_CHAR of ntddser.h.
+constexpr std::uint32_t error_abort = 0x80000000u;
+constexpr std::uint32_t error_char = 0x04u;
+constexpr std::uint32_t break_char = 0x10u;
+
+constexpr std::uint32_t err_break = VSSCOM_ERROR_BREAK;
+constexpr std::uint32_t err_framing = VSSCOM_ERROR_FRAMING;
+constexpr std::uint32_t err_overrun = VSSCOM_ERROR_OVERRUN;
+constexpr std::uint32_t err_queue = VSSCOM_ERROR_QUEUEOVERRUN;
+constexpr std::uint32_t err_parity = VSSCOM_ERROR_PARITY;
+
+// '?' replaces a bad character, '!' marks a break and '\r' is the event
+// character.
+constexpr vsscom_error_chars chars{'?', '!', '\r'};
+
+vsscom_line_error line_error(std::uint32_t errors)
+{
+    vsscom_line_error e{};
+    e.errors = errors;
+    return e;
+}
+
+vsscom_line_error line_error(std::uint32_t errors, char byte)
+{
+    vsscom_line_error e{};
+    e.errors = errors;
+    e.has_byte = 1;
+    e.byte = static_cast<std::uint8_t>(byte);
+    return e;
+}
+
+vsscom_error_effect effect_of(vsscom_line_error e, std::uint32_t replace)
+{
+    const vsscom_flow f = flow(0, replace);
+    return vsscom_line_error_effect(&e, &f, &chars);
+}
+
+std::string stream_of(const vsscom_error_effect& effect)
+{
+    return std::string(reinterpret_cast<const char*>(effect.bytes),
+                       effect.count);
+}
+
+// What the driver does with an error at the head of the hub's writes: work
+// out the effect, apply it, raise its events.
+struct port
+{
+    std::array<std::uint8_t, 8> storage{};
+    vsscom_ring rx{};
+    vsscom_events events{};
+    std::uint32_t pending = 0;
+    vsscom_flow settings{};
+
+    port()
+    {
+        vsscom_ring_init(&rx, storage.data(), 8);
+        vsscom_events_init(&events);
+    }
+
+    // True when the error went in; `fired` and `completed` say what a
+    // pending wait got.
+    bool inject(vsscom_line_error e)
+    {
+        const auto effect = vsscom_line_error_effect(&e, &settings, &chars);
+        if (!vsscom_line_error_apply(&pending, &rx, &e, &effect))
+            return false;
+        completed = vsscom_events_raise(&events, effect.events, &fired) != 0;
+        return true;
+    }
+
+    bool blocked() const
+    {
+        return vsscom_errors_abort(&settings, pending) != 0;
+    }
+
+    std::uint32_t fired = 0;
+    bool completed = false;
+};
+
+} // namespace
+
+TEST_CASE("vsscom errors: only error bits make an error")
+{
+    auto valid_error = [](std::uint32_t errors)
+    {
+        const auto e = line_error(errors);
+        return vsscom_line_error_valid(&e) != 0;
+    };
+    REQUIRE(valid_error(err_break));
+    REQUIRE(valid_error(err_framing | err_parity));
+    REQUIRE(valid_error(VSSCOM_ERROR_MASK));
+    REQUIRE(!valid_error(0));
+    REQUIRE(!valid_error(0x20u));
+    REQUIRE(!valid_error(err_parity | 0x100u));
+}
+
+TEST_CASE("vsscom errors: each kind raises its event")
+{
+    REQUIRE_EQ(effect_of(line_error(err_framing), 0).events, VSSCOM_EV_ERR);
+    REQUIRE_EQ(effect_of(line_error(err_parity), 0).events, VSSCOM_EV_ERR);
+    REQUIRE_EQ(effect_of(line_error(err_overrun), 0).events, VSSCOM_EV_ERR);
+    REQUIRE_EQ(effect_of(line_error(err_break), 0).events, VSSCOM_EV_BREAK);
+    REQUIRE_EQ(effect_of(line_error(err_break | err_framing), 0).events,
+               VSSCOM_EV_BREAK | VSSCOM_EV_ERR);
+    // A queue overrun is not a line-status error: it is only latched.
+    REQUIRE_EQ(effect_of(line_error(err_queue), 0).events, 0u);
+    // Without a byte nothing enters the stream.
+    REQUIRE_EQ(effect_of(line_error(err_parity), error_char | break_char).count,
+               1u);
+    REQUIRE_EQ(effect_of(line_error(err_queue), error_char).count, 0u);
+}
+
+TEST_CASE("vsscom errors: the bad byte is read unless the settings replace it")
+{
+    // No replacement: the application reads what the receiver made of it.
+    auto plain = effect_of(line_error(err_parity, 'x'), 0);
+    REQUIRE_EQ(stream_of(plain), std::string("x"));
+    REQUIRE_EQ(plain.events, VSSCOM_EV_ERR | VSSCOM_EV_RXCHAR);
+
+    // SERIAL_ERROR_CHAR: the error character takes its place.
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_parity, 'x'), error_char)),
+               std::string("?"));
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_framing, 'x'), error_char)),
+               std::string("?"));
+    // And appears even when the hub named no byte.
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_framing), error_char)),
+               std::string("?"));
+
+    // The break character is a different setting.
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_break, '\0'), error_char)),
+               std::string(1, '\0'));
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_break, '\0'), break_char)),
+               std::string("!"));
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_break), break_char)),
+               std::string("!"));
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_parity, 'x'), break_char)),
+               std::string("x"));
+    // A break hides the framing error of the same character time.
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_break | err_framing, 'x'),
+                                   error_char)),
+               std::string("x"));
+
+    // An overrun lost an earlier character: the error character marks the
+    // place and the byte that did arrive follows.
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_overrun, 'x'), 0)),
+               std::string("x"));
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_overrun, 'x'), error_char)),
+               std::string("?x"));
+    REQUIRE_EQ(stream_of(effect_of(line_error(err_overrun | err_parity, 'x'),
+                                   error_char)),
+               std::string("??"));
+}
+
+TEST_CASE("vsscom errors: the event character raises RXFLAG only as itself")
+{
+    REQUIRE_EQ(effect_of(line_error(err_parity, '\r'), 0).events,
+               VSSCOM_EV_ERR | VSSCOM_EV_RXCHAR | VSSCOM_EV_RXFLAG);
+    // Replaced, it never arrived.
+    REQUIRE_EQ(effect_of(line_error(err_parity, '\r'), error_char).events,
+               VSSCOM_EV_ERR | VSSCOM_EV_RXCHAR);
+
+    const std::uint8_t text[] = {'a', 'b', '\r', 'c'};
+    REQUIRE(vsscom_bytes_have(text, 4, '\r'));
+    REQUIRE(!vsscom_bytes_have(text, 2, '\r'));
+    REQUIRE(!vsscom_bytes_have(text, 0, 'a'));
+}
+
+TEST_CASE("vsscom errors: an error with no wait pending is kept in the history")
+{
+    port p;
+    vsscom_events_set_mask(&p.events, VSSCOM_EV_ERR | VSSCOM_EV_BREAK);
+
+    REQUIRE(p.inject(line_error(err_parity)));
+    REQUIRE(!p.completed);
+    REQUIRE(p.inject(line_error(err_break)));
+    REQUIRE(!p.completed);
+    REQUIRE_EQ(p.pending, err_parity | err_break);
+
+    // The next wait returns at once with both.
+    std::uint32_t fired = 0;
+    REQUIRE(vsscom_events_wait(&p.events, &fired));
+    REQUIRE_EQ(fired, VSSCOM_EV_ERR | VSSCOM_EV_BREAK);
+    // The history is spent, the latch is not.
+    REQUIRE(!vsscom_events_wait(&p.events, &fired));
+    REQUIRE_EQ(p.pending, err_parity | err_break);
+}
+
+TEST_CASE("vsscom errors: an error completes a pending wait that asked for it")
+{
+    port p;
+    std::uint32_t fired = 0;
+    vsscom_events_set_mask(&p.events, VSSCOM_EV_BREAK);
+    REQUIRE(!vsscom_events_wait(&p.events, &fired));
+
+    // Not in the mask: the wait stays, the error is still latched.
+    REQUIRE(p.inject(line_error(err_framing)));
+    REQUIRE(!p.completed);
+    REQUIRE(p.events.waiting);
+    REQUIRE_EQ(p.events.history, 0u);
+    REQUIRE_EQ(p.pending, err_framing);
+
+    REQUIRE(p.inject(line_error(err_break)));
+    REQUIRE(p.completed);
+    REQUIRE_EQ(p.fired, VSSCOM_EV_BREAK);
+    REQUIRE(!p.events.waiting);
+}
+
+TEST_CASE("vsscom errors: a new mask drops the event and keeps the error")
+{
+    port p;
+    std::uint32_t fired = 0;
+    vsscom_events_set_mask(&p.events, VSSCOM_EV_ERR);
+    REQUIRE(p.inject(line_error(err_overrun)));
+    REQUIRE_EQ(p.events.history, VSSCOM_EV_ERR);
+
+    // SetCommMask starts the history again, with the same mask or with none.
+    vsscom_events_set_mask(&p.events, VSSCOM_EV_ERR);
+    REQUIRE(!vsscom_events_wait(&p.events, &fired));
+    REQUIRE(vsscom_events_set_mask(&p.events, 0));
+    REQUIRE_EQ(p.pending, err_overrun);
+
+    // With no mask an error raises nothing and is latched all the same.
+    REQUIRE(p.inject(line_error(err_parity)));
+    REQUIRE(!p.completed);
+    REQUIRE_EQ(p.events.history, 0u);
+    REQUIRE_EQ(p.pending, err_overrun | err_parity);
+}
+
+TEST_CASE("vsscom errors: ClearCommError reports every error once")
+{
+    port p;
+    REQUIRE_EQ(vsscom_errors_take(&p.pending), 0u);
+
+    REQUIRE(p.inject(line_error(err_parity)));
+    REQUIRE(p.inject(line_error(err_parity)));
+    REQUIRE(p.inject(line_error(err_queue)));
+    REQUIRE_EQ(vsscom_errors_take(&p.pending), err_parity | err_queue);
+    REQUIRE_EQ(vsscom_errors_take(&p.pending), 0u);
+}
+
+TEST_CASE("vsscom errors: abort on error holds until the error is read")
+{
+    port p;
+    REQUIRE(!p.blocked());
+
+    // Without the setting an error blocks nothing.
+    REQUIRE(p.inject(line_error(err_framing)));
+    REQUIRE(!p.blocked());
+
+    // The setting given while an error is latched takes effect at once.
+    p.settings = flow(error_abort, 0);
+    REQUIRE(p.blocked());
+    REQUIRE_EQ(vsscom_errors_take(&p.pending), err_framing);
+    REQUIRE(!p.blocked());
+
+    // Every kind blocks, the ones that raise no event included.
+    REQUIRE(p.inject(line_error(err_queue)));
+    REQUIRE(p.blocked());
+    vsscom_errors_take(&p.pending);
+    REQUIRE(p.inject(line_error(err_break)));
+    REQUIRE(p.blocked());
+
+    // Taking the setting away releases the port without reading the error.
+    p.settings = flow(0, 0);
+    REQUIRE(!p.blocked());
+    REQUIRE_EQ(p.pending, err_break);
+}
+
+TEST_CASE("vsscom errors: an error keeps its place among the bytes")
+{
+    port p;
+    p.settings = flow(0, error_char);
+
+    REQUIRE_EQ(put(p.rx, "ab"), 2u);
+    REQUIRE(p.inject(line_error(err_parity, 'x')));
+    REQUIRE_EQ(put(p.rx, "cd"), 2u);
+    REQUIRE_EQ(drain(p.rx, 8), std::string("ab?cd"));
+}
+
+TEST_CASE("vsscom errors: an error waits for room behind the bytes before it")
+{
+    port p;
+    p.settings = flow(0, error_char);
+    vsscom_events_set_mask(&p.events, VSSCOM_EV_ERR);
+
+    // Seven of eight bytes: an overrun with a byte needs two.
+    REQUIRE_EQ(put(p.rx, "1234567"), 7u);
+    REQUIRE(!p.inject(line_error(err_overrun, 'x')));
+    REQUIRE_EQ(p.pending, 0u);
+    REQUIRE_EQ(p.events.history, 0u);
+    REQUIRE_EQ(vsscom_ring_count(&p.rx), 7u);
+
+    // The application reads one byte: now it fits, behind what was there.
+    REQUIRE_EQ(drain(p.rx, 1), std::string("1"));
+    REQUIRE(p.inject(line_error(err_overrun, 'x')));
+    REQUIRE_EQ(p.pending, err_overrun);
+    REQUIRE_EQ(drain(p.rx, 8), std::string("234567?x"));
+
+    // An error that adds no byte never waits.
+    REQUIRE_EQ(put(p.rx, "12345678"), 8u);
+    REQUIRE(p.inject(line_error(err_queue)));
+    REQUIRE(p.inject(line_error(err_break)));
+}
+
+TEST_CASE("vsscom errors: a purge empties the buffer and keeps the error")
+{
+    port p;
+    vsscom_events_set_mask(&p.events, VSSCOM_EV_ERR);
+    p.settings = flow(error_abort, 0);
+
+    REQUIRE(p.inject(line_error(err_framing, 'x')));
+    vsscom_ring_clear(&p.rx);
+
+    // The byte is gone; the latch, the event and the hold are not.
+    REQUIRE_EQ(vsscom_ring_count(&p.rx), 0u);
+    REQUIRE(p.blocked());
+    std::uint32_t fired = 0;
+    REQUIRE(vsscom_events_wait(&p.events, &fired));
+    REQUIRE_EQ(fired, VSSCOM_EV_ERR);
+    REQUIRE_EQ(vsscom_errors_take(&p.pending), err_framing);
+    REQUIRE(!p.blocked());
+}

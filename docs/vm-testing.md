@@ -122,12 +122,18 @@ client runs in them under WOW64, which is how a 32-bit program meets the driver 
 
 `-Bundle` and `-DriverBundle` can be given together; the cell runs first and the driver tests after it, in
 the same guest. The evidence comes back to `<Out>\<guest>\driver-out\<kmdf|umdf>`: one JSON file per step
-(`result-wow64.json` holds W1 to W4 and T1 to T7), a log per step, and the JSON the client printed
+(`result-wow64.json` holds W1 to W5 and T1 to T7), a log per step, and the JSON the client printed
 (`exercise-x86.json`, `probe-x86-busy.json` and the others). The script exits with 1 when a test failed.
 A test that ends `unexpected` is a result to read, not a pass: the detail says what the driver did that the
 design did not predict. `skip` carries its reason (T5 is skipped only when the `public.h` shipped in the bundle has
 no revoke request, which the driver now has; T7 is for the user-mode driver). The guest side of a driver run is
 `tools/vm/guest/win-driver.ps1`, which `guest-cell.ps1` copies in with the bundle.
+
+`make-driver-bundle.ps1 -UnitTests <vss_unit_tests.exe>` adds the studio's own client to the bundle, and the
+guest then runs `test-client.ps1` (C1 to C3, `result-client.json`) after the suite and before the
+hung-program tests. The program must be a static release build (`CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`),
+because the guest has no C++ runtime installed. A client case that has not ended after five minutes is
+ended and fails.
 
 Run the tests by hand in a guest that is already prepared with the folders `make-driver-bundle.ps1`
 makes (`kmdf\` and `umdf\`):

@@ -511,6 +511,143 @@ TEST_CASE("line matrix: faults are refused for a port that is not a fixture")
     REQUIRE(backend.injected().empty());
 }
 
+namespace
+{
+
+vss::endpoint_id make_driver_port(vss::gui::FakeStudioBackend& backend,
+                                  const QString& name)
+{
+    const auto created = backend.create_driver_port(name, true, 7);
+    REQUIRE(created.has_value());
+    return *created;
+}
+
+} // namespace
+
+TEST_CASE("line matrix: a driver port with a program takes the line errors")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    capabilities caps;
+    caps.faults = true;
+    caps.driver_faults = true;
+    backend.set_capabilities(caps);
+    const vss::endpoint_id meter =
+        make_driver_port(backend, QStringLiteral("meter"));
+    backend.set_peer_state(meter, peer_state::open);
+
+    LineMatrixPanel panel(backend, meter);
+    REQUIRE_EQ(panel.inject_count(), 6);
+    for (int index = 0; index < 4; ++index)
+    {
+        REQUIRE(panel.inject_button(index)->isEnabled());
+        REQUIRE_EQ(panel.inject_button(index)->toolTip(), QString());
+    }
+    for (int index = 4; index < 6; ++index)
+    {
+        REQUIRE(!panel.inject_button(index)->isEnabled());
+        REQUIRE_EQ(
+            panel.inject_button(index)->toolTip(),
+            QStringLiteral(
+                "Hang-up and Disconnect are only available on fixture ports."));
+        REQUIRE_EQ(panel.inject_button(index)->accessibleDescription(),
+                   panel.inject_button(index)->toolTip());
+    }
+
+    panel.inject_button(3)->click();
+    REQUIRE_EQ(backend.injected().size(), std::size_t{1});
+    REQUIRE(backend.injected().front() == vss::fault_kind::break_condition);
+    REQUIRE_EQ(panel.history_table()->rowCount(), 1);
+    REQUIRE_EQ(panel.history_table()->item(0, 1)->text(),
+               QStringLiteral("Break"));
+    REQUIRE_EQ(panel.history_table()->item(0, 2)->text(),
+               QStringLiteral("Line error raised at the program on meter"));
+
+    // The fault goes to the program, not to the port: it keeps running and
+    // the tiles stay on.
+    const auto after = backend.port(meter);
+    REQUIRE(after.has_value());
+    REQUIRE(after->state == vss::endpoint_state::open);
+    REQUIRE(after->open);
+    for (int index = 0; index < 4; ++index)
+        REQUIRE(panel.inject_button(index)->isEnabled());
+
+    // Hang-up and disconnect are refused by the backend too.
+    REQUIRE(backend.inject_fault(meter, vss::fault_kind::hangup).has_error());
+    REQUIRE(
+        backend.inject_fault(meter, vss::fault_kind::disconnect).has_error());
+    REQUIRE_EQ(backend.injected().size(), std::size_t{1});
+}
+
+TEST_CASE("line matrix: a driver port with no program refuses the line errors")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    capabilities caps;
+    caps.faults = true;
+    caps.driver_faults = true;
+    backend.set_capabilities(caps);
+    const vss::endpoint_id meter =
+        make_driver_port(backend, QStringLiteral("meter"));
+
+    // The peer is unknown until the backend says otherwise, and not open when
+    // it says so: neither has a program on the port.
+    for (const peer_state peer : {peer_state::unknown, peer_state::not_open})
+    {
+        backend.set_peer_state(meter, peer);
+        LineMatrixPanel panel(backend, meter);
+        for (int index = 0; index < 4; ++index)
+        {
+            REQUIRE(!panel.inject_button(index)->isEnabled());
+            REQUIRE_EQ(panel.inject_button(index)->toolTip(),
+                       QStringLiteral("No program has the port open."));
+            REQUIRE_EQ(panel.inject_button(index)->accessibleDescription(),
+                       QStringLiteral("No program has the port open."));
+        }
+        for (int index = 4; index < 6; ++index)
+        {
+            REQUIRE(!panel.inject_button(index)->isEnabled());
+            REQUIRE_EQ(panel.inject_button(index)->toolTip(),
+                       QStringLiteral("Hang-up and Disconnect are only "
+                                      "available on fixture ports."));
+        }
+    }
+    REQUIRE(backend.injected().empty());
+}
+
+TEST_CASE("line matrix: a driver port without driver faults is refused")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    capabilities caps;
+    caps.faults = true;
+    backend.set_capabilities(caps);
+    const vss::endpoint_id meter =
+        make_driver_port(backend, QStringLiteral("meter"));
+    backend.set_peer_state(meter, peer_state::open);
+
+    LineMatrixPanel panel(backend, meter);
+    for (int index = 0; index < panel.inject_count(); ++index)
+    {
+        REQUIRE(!panel.inject_button(index)->isEnabled());
+        REQUIRE_EQ(
+            panel.inject_button(index)->toolTip(),
+            QStringLiteral("Faults are only available on fixture ports."));
+    }
+    REQUIRE(backend.inject_fault(meter, vss::fault_kind::parity).has_error());
+    REQUIRE(backend.injected().empty());
+
+    // Without the faults capability at all the tiles say so, as before.
+    caps.faults = false;
+    backend.set_capabilities(caps);
+    panel.refresh();
+    for (int index = 0; index < panel.inject_count(); ++index)
+    {
+        REQUIRE_EQ(panel.inject_button(index)->toolTip(),
+                   QStringLiteral("Not available in this build"));
+    }
+}
+
 TEST_CASE("line matrix: capability on applies a wiring change")
 {
     using namespace vss::gui;

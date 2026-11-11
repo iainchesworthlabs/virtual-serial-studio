@@ -39,6 +39,11 @@ result<std::string> platform_set_driver_com_number(transport& port,
 /// Takes a driver port back from the program that has it open.
 result<std::uint32_t> platform_revoke_driver_port(transport& port);
 
+/// Raises a line error at the program on a driver port.
+result<void> platform_raise_driver_line_error(transport& port,
+                                              driver_line_error error,
+                                              std::optional<std::uint8_t> byte);
+
 /// What the driver last said about the program on the COM port `com_name`.
 std::optional<driver_peer_info> platform_driver_peer(const std::string& com_name);
 

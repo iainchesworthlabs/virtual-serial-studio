@@ -3623,6 +3623,26 @@ Networks: %5</source>
             <translation>דעפֿעקטן זענען נאָר פֿאַראַנען אויף פֿיקסטור־פּאָרטן.</translation>
         </message>
         <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>דער פּאָרט לויפֿט נישט.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>אויפֿהענגען און אָפּשנידונג זענען נאָר פֿאַראַנען אויף פֿיקסטור־פּאָרטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>קיין פּראָגראַם האַלט דעם פּאָרט נישט אָפֿן.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>ליניע־טעות אויסגעלייזט ביי דעם פּראָגראַם אויף %1</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />
             <source>Port %1</source>
             <translation>פּאָרט %1</translation>
@@ -13396,6 +13416,26 @@ Networks: %5</source>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="531" />
             <source>Faults are only available on fixture ports.</source>
             <translation>דעפֿעקטן זענען נאָר פֿאַראַנען אויף פֿיקסטור־פּאָרטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>דער פּאָרט לויפֿט נישט.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>אויפֿהענגען און אָפּשנידונג זענען נאָר פֿאַראַנען אויף פֿיקסטור־פּאָרטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>קיין פּראָגראַם האַלט דעם פּאָרט נישט אָפֿן.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>ליניע־טעות אויסגעלייזט ביי דעם פּראָגראַם אויף %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />

@@ -757,6 +757,18 @@ vss::result<void> FakeStudioBackend::inject_fault(vss::endpoint_id id,
     port_view* view = find_port(id);
     if (view == nullptr)
         return vss::make_error_code(vss::errc::not_found);
+    if (caps_.driver_faults && view->driver_port &&
+        view->kind != vss::endpoint_kind::mock)
+    {
+        // A line error is raised at the program on the port; the port keeps
+        // running and no error event follows.  Hang-up and disconnect are not
+        // offered on a driver port.
+        if (fault == vss::fault_kind::hangup ||
+            fault == vss::fault_kind::disconnect)
+            return vss::make_error_code(vss::errc::unsupported);
+        injected_.push_back(fault);
+        return {};
+    }
     if (!caps_.faults || view->kind != vss::endpoint_kind::mock)
         return vss::make_error_code(vss::errc::unsupported);
     // The engine stops the endpoint on the next read; the fake does so at once.

@@ -18,6 +18,7 @@
 #   W2 exercise x86   the calls of an old program, against a port whose hub end echoes
 #   W3 exercise 64    the same with the 64-bit build
 #   W4 same results   the two builds agree, step by step
+#   W5 line errors    the client asks for the error character and abort on error; the hub raises parity, break and framing errors
 #   T1 kill           a pending read, a pending event wait and a write stalled on a full queue; kill the program
 #   T2 suspend        the same, with the program suspended: what a second open gets, then the kill
 #   T3 sync read      a synchronous read with no timeout; kill the program
@@ -331,6 +332,120 @@ if ($wctx) {
     $wctx.Hub.Dispose()
     Remove-TestPort $wctx.Port
     $wctx = $null
+}
+
+# ---- W5: line errors ----------------------------------------------------------------------
+# Waits until the word of the hub state (WowHub.Dtr or WowHub.Rts) is `$Want`, or the program has
+# exited, or `$Ms` have passed. The client says where it is by raising DTR and RTS: the hub end
+# cannot see what a program does with its errors, but it sees those lines.
+function Wait-HubWord($Hub, [int] $Index, [uint32] $Want, [int] $Ms, $Process) {
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    $state = $Hub.GetState()
+    while ($state -and $state[$Index] -ne $Want) {
+        if ($watch.ElapsedMilliseconds -ge $Ms -or $Process.HasExited) { return $false }
+        $next = $Hub.WaitState($state[[WowHub]::Generation], 250)
+        if ($next) { $state = $next }
+    }
+    return ($null -ne $state)
+}
+
+# Runs the client in `errors` mode and plays the hub end for it. The hub sends everything in
+# order, and waits only for the two lines the client raises: RTS once it has read the parity error
+# (the break must not arrive before that, or ClearCommError would report both), and DTR once its
+# read is waiting (the framing error must end that read). Returns the client's JSON.
+function Invoke-ErrorsRun([string] $Exe, [string] $Arch, $Port, $Hub) {
+    $state = $Hub.GetState()
+    Assert ($state -and $state[[WowHub]::Dtr] -eq 0 -and $state[[WowHub]::Rts] -eq 0) 'DTR or RTS was still raised from an earlier program'
+    $ready = Join-Path $WorkDir "errors-ready-$Arch.json"
+    Remove-Item $ready -ErrorAction SilentlyContinue
+    $psi = New-Object Diagnostics.ProcessStartInfo
+    $psi.FileName = $Exe
+    $psi.Arguments = "errors --port $($Port.Port) --ready `"$ready`""
+    $psi.UseShellExecute = $false
+    $psi.CreateNoWindow = $true
+    $psi.RedirectStandardOutput = $true
+    $process = [Diagnostics.Process]::Start($psi)
+    $output = $process.StandardOutput.ReadToEndAsync()
+    $problem = $null
+    try {
+        $until = (Get-Date).AddSeconds(30)
+        while (-not (Test-Path $ready) -and -not $process.HasExited -and (Get-Date) -lt $until) { Start-Sleep -Milliseconds 100 }
+        Assert (Test-Path $ready) "the $Arch program did not report ready (exited: $($process.HasExited))"
+        $info = Get-Content -Raw $ready | ConvertFrom-Json
+        Assert ([bool]$info.ready) "the $Arch program could not set up $($Port.Port)"
+
+        $e = 0
+        # 'a', a parity error whose byte is 'x', and 'b'. The program has asked for the error
+        # character, so it reads a?b.
+        Assert ($Hub.Write([Text.Encoding]::ASCII.GetBytes('a'), 5000, [ref]$e) -eq 1) "the hub write failed ($e)"
+        $e = $Hub.LineError(0x10, 1, 0x78, 5000)
+        Assert ($e -eq 0) "the parity error request failed with error $e"
+        Assert ($Hub.Write([Text.Encoding]::ASCII.GetBytes('b'), 5000, [ref]$e) -eq 1) "the hub write failed ($e)"
+
+        Assert (Wait-HubWord $Hub ([WowHub]::Rts) 1 25000 $process) 'the program never raised RTS after reading the parity error'
+        $e = $Hub.LineError(0x01, 0, 0, 5000)
+        Assert ($e -eq 0) "the break request failed with error $e"
+
+        Assert (Wait-HubWord $Hub ([WowHub]::Dtr) 1 25000 $process) 'the program never raised DTR after starting its read'
+        $e = $Hub.LineError(0x02, 0, 0, 5000)
+        Assert ($e -eq 0) "the framing error request failed with error $e"
+        # Behind the error, in the buffer, until the program has called ClearCommError.
+        Assert ($Hub.Write([Text.Encoding]::ASCII.GetBytes('ok'), 5000, [ref]$e) -eq 2) "the hub write failed ($e)"
+    } catch {
+        $problem = $_.Exception.Message
+    }
+    if (-not $process.WaitForExit(30000)) {
+        try { $process.Kill() } catch { }
+        $process.WaitForExit(5000) | Out-Null
+        $problem = (@($problem, "the $Arch program was still running 30 seconds after the last error") -ne $null) -join '; '
+    }
+    $text = $output.Result
+    $json = $null
+    try { $json = $text | ConvertFrom-Json } catch { }
+    Set-Content -Path (Join-Path $OutDir "errors-$Arch.json") -Value $text -Encoding UTF8
+    $bad = @()
+    if ($json) {
+        $bad = @($json.steps | Where-Object { -not $_.ok -and $_.required } | ForEach-Object { "$($_.name) [$($_.error_name)] $($_.detail)" })
+    }
+    if ($problem -or $bad.Count -gt 0 -or $process.ExitCode -ne 0) {
+        $parts = @()
+        if ($problem) { $parts += $problem }
+        if ($bad.Count -gt 0) { $parts += 'failed steps: ' + ($bad -join ' | ') }
+        if ($process.ExitCode -ne 0) { $parts += "exit code $($process.ExitCode)" }
+        throw "$Arch run: $($parts -join '; ')"
+    }
+    $json
+}
+
+Add-Test 'W5' 'a program that asks for the error character and abort on error sees the parity, break and framing errors the hub raises' {
+    $p = New-TestPort
+    $hub = Open-Hub $p.Path
+    try {
+        # An empty error is refused with 87 by a driver that has the request, and with 1 by one that has not.
+        if ($hub.LineError(0, 0, 0, 5000) -eq 1) { throw 'SKIP: the installed driver has no line error request (driver version 4)' }
+        $x86 = Invoke-ErrorsRun $Exe86 'x86' $p $hub
+        $detail = @("x86: $($x86.summary.steps) steps ok, runs as $($x86.arch) under WOW64 $($x86.wow64)")
+        if ($HaveNative) {
+            $native = Invoke-ErrorsRun $ExeNative $nativeName $p $hub
+            $diffs = @()
+            if ($x86.steps.Count -ne $native.steps.Count) { $diffs += "step counts $($x86.steps.Count) and $($native.steps.Count)" }
+            for ($i = 0; $i -lt [Math]::Min($x86.steps.Count, $native.steps.Count); $i++) {
+                $x = $x86.steps[$i]; $y = $native.steps[$i]
+                if ($x.name -ne $y.name -or $x.ok -ne $y.ok -or $x.error -ne $y.error -or $x.detail -ne $y.detail) {
+                    $diffs += "'$($x.name)': x86 [$($x.ok) $($x.error_name)] $($x.detail)  /  $nativeName [$($y.ok) $($y.error_name)] $($y.detail)"
+                }
+            }
+            Assert ($diffs.Count -eq 0) ("the 32-bit and $nativeName runs differ: " + ($diffs -join ' | '))
+            $detail += "${nativeName}: the same $($native.summary.steps) steps"
+        } else {
+            $detail += "the $nativeName build is not there, so only the 32-bit program ran"
+        }
+        $detail += 'parity: EV_ERR, CE_RXPARITY, a?b; break: EV_BREAK, CE_BREAK; framing with abort on error: the read ends with 995, CE_FRAME, then ok'
+        $detail
+    } finally {
+        $hub.Dispose()
+        Remove-TestPort $p
+    }
 }
 
 # ---- T: hung programs ---------------------------------------------------------------------
