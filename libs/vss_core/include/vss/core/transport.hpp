@@ -61,6 +61,14 @@ public:
     virtual void set_control_line(control_line, bool) {}
     virtual control_lines lines() const { return {}; }
 
+    /// True when the RTS in `lines()` is the transmitter switch of whatever
+    /// is on the other side, and the endpoint learns of every change of it
+    /// before it reads the bytes sent after the change.  Only then can a
+    /// half-duplex bus gate the member by its RTS
+    /// (`half_duplex_options::rts_gating`) without muting it by mistake.
+    /// False for every transport that cannot promise both.
+    virtual bool reports_peer_rts() const noexcept { return false; }
+
     /// Re-reads the lines from the device, for transports that poll.
     virtual void refresh_lines() {}
 

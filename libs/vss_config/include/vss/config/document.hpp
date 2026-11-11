@@ -63,6 +63,13 @@ struct link_entry
     std::uint32_t delay_ms = 0;
     /// Up to this much either side of `delay_ms`; at most `delay_ms`.
     std::uint32_t jitter_ms = 0;
+    /// For `bus` only: the half-duplex line (`vss::half_duplex_options`).
+    /// In the file it is the object `half_duplex` with `bit_rate`,
+    /// `turnaround_ms`, `collisions` (`report` or `garble`) and
+    /// `rts_gating`, each optional; the object being there turns the option
+    /// on.  Left out of the file when the option is off, so a bus without
+    /// it is written as before.
+    half_duplex_options half_duplex;
 
     friend bool operator==(const link_entry&, const link_entry&) = default;
 };

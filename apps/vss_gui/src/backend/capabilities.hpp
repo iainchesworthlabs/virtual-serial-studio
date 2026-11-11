@@ -106,6 +106,13 @@ struct capabilities
     /// Connect dialog shows the bus choice disabled with "Not available in
     /// this build", and a setup file with a bus is refused with that reason.
     bool shared_bus = false;
+    /// A shared bus that behaves as a half-duplex line: one port sends at a
+    /// time and Studio reports when two send at once
+    /// (`vss::half_duplex_options`).  The engine backend provides it.  A
+    /// backend without it shows the control disabled with "Not available in
+    /// this build", and the JSON editor refuses a file that uses it with that
+    /// reason.
+    bool half_duplex_bus = false;
     /// List, and watch the traffic of, ports that another program made.  False
     /// in every build today: a Windows driver port belongs to the process that
     /// made it (its hub end takes one handle and the port goes when that

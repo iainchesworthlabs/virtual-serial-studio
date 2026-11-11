@@ -64,6 +64,8 @@ QString kind_name(vss::event_kind kind)
         return QObject::tr("stats");
     case vss::event_kind::log_message:
         return QObject::tr("log");
+    case vss::event_kind::bus_fault:
+        return QObject::tr("bus");
     }
     return {};
 }
@@ -603,7 +605,8 @@ void MonitorPanel::update_drop_rows()
                                     : !link.targets.empty()
                                         ? link.targets.front()
                                         : 0;
-        model_->append_drop(name_of(id), link.stats.dropped - *previous);
+        model_->append_drop(name_of(id), link.stats.dropped - *previous,
+                            link.shape == link_shape::bus);
     }
     previous_drops_ = std::move(current);
 }

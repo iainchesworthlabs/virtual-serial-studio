@@ -78,8 +78,12 @@ struct json_validation
 /// `shared_bus` says whether the backend can make a bus link
 /// (`capabilities::shared_bus`).  Without it a `"mode": "bus"` link is refused
 /// with a message that says so, instead of the engine's generic one.
+/// `half_duplex_bus` says the same for a bus that is a half-duplex line
+/// (`capabilities::half_duplex_bus`): without it a link with a
+/// `"half_duplex"` member is refused, on the line of that member.
 json_validation validate_json_document(const QString& text,
-                                       bool shared_bus = true);
+                                       bool shared_bus = true,
+                                       bool half_duplex_bus = true);
 
 /// The 1-based line of a character offset.  Exposed for tests.
 int line_for_offset(const QString& text, int offset);

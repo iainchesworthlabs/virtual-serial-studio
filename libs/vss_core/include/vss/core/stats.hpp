@@ -36,6 +36,12 @@ struct link_stats
     std::uint64_t bytes = 0;
     std::uint64_t messages = 0;
     std::uint64_t dropped = 0;
+    /// Half-duplex bus only: the chunks that began while the line was not
+    /// free (another member was sending, had only just stopped, or held RTS).
+    std::uint64_t collisions = 0;
+    /// Half-duplex bus only: the bytes delivered inverted because they
+    /// collided, counted once for each receiving member, as `bytes` is.
+    std::uint64_t garbled = 0;
 };
 
 } // namespace vss

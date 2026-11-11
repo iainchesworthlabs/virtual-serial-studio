@@ -91,7 +91,8 @@ void MonitorModel::commit_appended(std::size_t before)
     endInsertRows();
 }
 
-void MonitorModel::append_drop(const QString& port, std::uint64_t bytes)
+void MonitorModel::append_drop(const QString& port, std::uint64_t bytes,
+                               bool bus)
 {
     if (paused_ || bytes == 0)
         return;
@@ -101,6 +102,7 @@ void MonitorModel::append_drop(const QString& port, std::uint64_t bytes)
     row.direction = traffic_direction::drop;
     row.bytes = bytes;
     row.dropped = true;
+    row.bus = bus;
     const std::size_t before = rows_.size();
     rows_.push_back(std::move(row));
     commit_appended(before);
@@ -279,8 +281,12 @@ QVariant MonitorModel::data(const QModelIndex& index, int item_role) const
             return Theme::instance().colour(colour_role::accentSoft);
         return {};
     case Qt::ToolTipRole:
-        return row.dropped ? tr("Not the owner, not forwarded.")
-                           : preview_for(row);
+        if (row.dropped)
+        {
+            return row.bus ? tr("Not carried by the bus.")
+                           : tr("Not the owner, not forwarded.");
+        }
+        return preview_for(row);
     case Qt::AccessibleTextRole:
     {
         const QString dir =
@@ -344,7 +350,10 @@ const traffic_row* MonitorModel::row_at(int row) const
 QString MonitorModel::preview_for(const traffic_row& row) const
 {
     if (row.dropped)
-        return tr("not the owner, not forwarded");
+    {
+        return row.bus ? tr("not carried by the bus")
+                       : tr("not the owner, not forwarded");
+    }
     return hex_ ? hex_preview(row.preview) : ascii_preview(row.preview);
 }
 

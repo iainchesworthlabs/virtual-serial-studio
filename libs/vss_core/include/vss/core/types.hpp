@@ -75,11 +75,43 @@ enum class merge_policy
     owner
 };
 
+/// What a half-duplex bus does with bytes that shared the wire with another
+/// member's (see #half_duplex_options).
+enum class collision_action
+{
+    /// Deliver the bytes as they were sent, count the collision and say so.
+    report,
+    /// Deliver every byte of the chunks that collided inverted, count them
+    /// and say so, as a receiver on a real line reads rubbish.
+    garble
+};
+
+/// Why a chunk sent on a half-duplex bus was not a clean transmission.
+enum class bus_fault
+{
+    none,
+    /// Another member's bytes were on the wire at the same time.
+    overlap,
+    /// Another member had stopped sending less than the turn-around time
+    /// before.
+    too_soon,
+    /// Another member held its RTS high, so its transmitter held the line.
+    line_held,
+    /// The sender's own RTS was low, so its transmitter was off and the
+    /// bytes never reached the wire.
+    transmitter_off,
+    /// The sender is so far ahead of the line rate that the bytes could not
+    /// start within `max_bus_backlog_ms`; they were dropped.
+    overrun
+};
+
 const char* to_string(endpoint_kind value) noexcept;
 const char* to_string(endpoint_state value) noexcept;
 const char* to_string(link_mode value) noexcept;
 const char* to_string(merge_policy value) noexcept;
 const char* to_string(data_direction value) noexcept;
+const char* to_string(collision_action value) noexcept;
+const char* to_string(bus_fault value) noexcept;
 
 } // namespace vss
 

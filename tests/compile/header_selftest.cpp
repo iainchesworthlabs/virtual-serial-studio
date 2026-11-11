@@ -6,6 +6,7 @@
 // Includes every public header on its own to prove each one is
 // self-contained.
 
+#include <vss/core/bus_line.hpp>
 #include <vss/core/bytes.hpp>
 #include <vss/core/control_lines.hpp>
 #include <vss/core/endpoint.hpp>

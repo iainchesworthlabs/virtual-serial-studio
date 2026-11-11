@@ -21,6 +21,7 @@
 #include <boost/asio/strand.hpp>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -35,6 +36,8 @@
 
 namespace vss {
 
+class bus_line;
+class bus_wire;
 class delay_line;
 
 struct hub_options
@@ -43,6 +46,11 @@ struct hub_options
     unsigned io_threads = 0;
     /// Events kept in the traffic ring buffer.
     std::size_t traffic_capacity = 8192;
+    /// Where a half-duplex bus reads the time.  Empty (the default) is the
+    /// steady clock.  A test gives its own and moves it by hand, so that
+    /// what overlaps and what does not is written in the test and does not
+    /// depend on how fast the machine ran it.  Called from any thread.
+    std::function<time_point()> clock;
 };
 
 /// The topology engine.
@@ -129,6 +137,11 @@ public:
     /// every route between members.  The link counts a delivery to each
     /// receiving member, as a split does.  Removing a member takes it out of
     /// the bus; the bus itself goes when fewer than two members remain.
+    ///
+    /// `options.half_duplex` makes the bus a half-duplex line: one member
+    /// sends at a time, at a line rate, and a chunk that runs into another
+    /// member's is counted and published (see #half_duplex_options).  Values
+    /// outside its limits are `errc::invalid_argument`.
     result<link_id> bus(const std::vector<endpoint_id>& members,
                         link_options options = {});
 
@@ -252,6 +265,10 @@ private:
         std::atomic<std::uint64_t> bytes{0};
         std::atomic<std::uint64_t> messages{0};
         std::atomic<std::uint64_t> dropped{0};
+        /// The line and the wire of a half-duplex bus; null for every other
+        /// link, which is how the router tells them apart.
+        std::shared_ptr<bus_line> line;
+        std::shared_ptr<bus_wire> wire;
     };
 
     struct subscription
@@ -279,6 +296,8 @@ private:
     link_info describe(const link_record& record) const;
     void dispatch(const endpoint_event& event);
     void endpoint_closed();
+    /// The time by the hub's clock (`hub_options::clock`).
+    time_point now() const;
 
     hub_options options_;
     boost::asio::io_context io_;

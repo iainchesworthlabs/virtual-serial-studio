@@ -171,6 +171,68 @@ error_code latency_from_json(const json::object& object, link_entry& link)
     return milliseconds_member(object, "jitter_ms", link.jitter_ms);
 }
 
+/// Writes the half-duplex line of a bus, and nothing when it is off.
+void half_duplex_to_json(const link_entry& link, json::object& object)
+{
+    if (!link.half_duplex.enabled)
+        return;
+    json::object line;
+    line["bit_rate"] = link.half_duplex.bit_rate;
+    line["turnaround_ms"] = link.half_duplex.turnaround_ms;
+    line["collisions"] = to_string(link.half_duplex.on_collision);
+    line["rts_gating"] = link.half_duplex.rts_gating;
+    object["half_duplex"] = std::move(line);
+}
+
+/// Reads the `half_duplex` object of a link.  Its presence turns the option
+/// on; each member is optional.  Which links may have one, and the limits of
+/// the numbers, are checked in validate().
+error_code half_duplex_from_json(const json::object& object, link_entry& link)
+{
+    const auto* item = object.if_contains("half_duplex");
+    if (!item)
+        return {};
+    if (!item->is_object())
+        return make_error_code(errc::config_error);
+    const json::object& line = item->as_object();
+
+    half_duplex_options options;
+    options.enabled = true;
+    const auto number = [&line](std::string_view key, std::uint32_t& out)
+    {
+        const auto* value = line.if_contains(key);
+        if (!value)
+            return true;
+        if (!value->is_int64() || value->as_int64() < 0 ||
+            value->as_int64() > static_cast<std::int64_t>(max_bus_bit_rate))
+            return false;
+        out = static_cast<std::uint32_t>(value->as_int64());
+        return true;
+    };
+    if (!number("bit_rate", options.bit_rate) ||
+        !number("turnaround_ms", options.turnaround_ms))
+        return make_error_code(errc::config_error);
+
+    if (const auto* collisions = line.if_contains("collisions"))
+    {
+        if (!collisions->is_string())
+            return make_error_code(errc::config_error);
+        if (collisions->as_string() == "garble")
+            options.on_collision = collision_action::garble;
+        else if (collisions->as_string() != "report")
+            return make_error_code(errc::config_error);
+    }
+    if (const auto* gating = line.if_contains("rts_gating"))
+    {
+        if (!gating->is_bool())
+            return make_error_code(errc::config_error);
+        options.rts_gating = gating->as_bool();
+    }
+
+    link.half_duplex = options;
+    return {};
+}
+
 bool contains_kind(std::string_view value)
 {
     for (const char* kind : port_kinds)
@@ -334,6 +396,10 @@ error_code validate(const document& value)
         if (link.delay_ms > max_link_delay_ms ||
             link.jitter_ms > link.delay_ms)
             return make_error_code(errc::config_error);
+        // Only a bus is one wire that its members take turns on.
+        if (link.half_duplex.enabled &&
+            (link.mode != "bus" || !valid_half_duplex(link.half_duplex)))
+            return make_error_code(errc::config_error);
 
         if (link.mode == "bus")
         {
@@ -448,6 +514,7 @@ result<std::string> to_json(const document& value, bool pretty)
             object["emulate_modem_lines"] = false;
             object["policy"] = to_string(link.policy);
             latency_to_json(link, object);
+            half_duplex_to_json(link, object);
             links.push_back(std::move(object));
             continue;
         }
@@ -585,6 +652,10 @@ result<document> from_json(std::string_view text)
             if (const error_code latency_error =
                     latency_from_json(entry, link))
                 return latency_error;
+
+            if (const error_code line_error =
+                    half_duplex_from_json(entry, link))
+                return line_error;
 
             out.links.push_back(std::move(link));
         }

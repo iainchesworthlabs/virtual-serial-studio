@@ -1972,6 +1972,11 @@
             <source>Traffic</source>
             <translation>Datenverkehr</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="51" />
+            <source>Bus</source>
+            <translation>Bus</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -3787,6 +3792,16 @@ Netzwerke: %5</translation>
             <location filename="../src/panes/monitor_model.cpp" line="311" />
             <source>not the owner, not forwarded</source>
             <translation>nicht der Besitzer, nicht weitergeleitet</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="286" />
+            <source>Not carried by the bus.</source>
+            <translation>Vom Bus nicht übertragen.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="354" />
+            <source>not carried by the bus</source>
+            <translation>vom Bus nicht übertragen</translation>
         </message>
     </context>
     <context>
@@ -5689,6 +5704,11 @@ Netzwerke: %5</translation>
             <location filename="../src/backend/driver_error.cpp" line="161" />
             <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
             <translation>Windows wollte den Port nicht erstellen, und Studio konnte nicht feststellen, welcher Teil schuld ist. Es wurde nichts geändert. Öffnen Sie Werkzeuge, Einrichtungsprüfung, um zu sehen, was fehlt, und kopieren Sie dann die Details, wenn Sie um Hilfe bitten.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="68" />
+            <source>bus</source>
+            <translation>Bus</translation>
         </message>
     </context>
     <context>
@@ -9986,6 +10006,76 @@ Netzwerke: %5</translation>
             <location filename="../src/advanced/json_validation.cpp" line="1222" />
             <source>The setup format rejected this document</source>
             <translation>Das Konfigurationsformat hat dieses Dokument abgelehnt</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="322" />
+            <source>Half-duplex buses are not available in this build</source>
+            <translation>Halbduplex-Busse sind in diesem Build nicht verfügbar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="325" />
+            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
+            <translation>Dieser Build kann einen Bus nicht als Halbduplex-Leitung betreiben. Entfernen Sie "half_duplex" aus der Verknüpfung.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="334" />
+            <source>Only a bus can be a half-duplex line</source>
+            <translation>Nur ein Bus kann eine Halbduplex-Leitung sein</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="336" />
+            <source>Remove "half_duplex", or make the link a bus.</source>
+            <translation>Entfernen Sie "half_duplex" oder machen Sie die Verknüpfung zu einem Bus.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="345" />
+            <source>"half_duplex" must be an object</source>
+            <translation>"half_duplex" muss ein Objekt sein</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="347" />
+            <source>Use bit_rate, turnaround_ms, collisions and rts_gating inside it, each one optional.</source>
+            <translation>Verwenden Sie darin bit_rate, turnaround_ms, collisions und rts_gating, jeweils optional.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="371" />
+            <source>The line rate must be between %1 and %2 bit/s</source>
+            <translation>Die Leitungsrate muss zwischen %1 und %2 Bit/s liegen</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="375" />
+            <source>Set "bit_rate" to a whole number in that range.</source>
+            <translation>Setzen Sie "bit_rate" auf eine ganze Zahl in diesem Bereich.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="384" />
+            <source>The turn-around must be between 0 and %1 ms</source>
+            <translation>Die Umschaltzeit muss zwischen 0 und %1 ms liegen</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="387" />
+            <source>Set "turnaround_ms" to a whole number in that range.</source>
+            <translation>Setzen Sie "turnaround_ms" auf eine ganze Zahl in diesem Bereich.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="401" />
+            <source>"collisions" must be report or garble</source>
+            <translation>"collisions" muss report oder garble sein</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="403" />
+            <source>Use report or garble.</source>
+            <translation>Verwenden Sie report oder garble.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="412" />
+            <source>"rts_gating" must be true or false</source>
+            <translation>"rts_gating" muss true oder false sein</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="414" />
+            <source>Use true or false.</source>
+            <translation>Verwenden Sie true oder false.</translation>
         </message>
     </context>
     <context>
@@ -18615,6 +18705,79 @@ Netzwerke: %5</translation>
             <location filename="../src/topology/add_sheet.cpp" line="490" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Virtual Serial Studio einrichten</translation>
+        </message>
+    </context>
+    <context>
+        <name>HalfDuplexFields</name>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="52" />
+            <source>Half-duplex line</source>
+            <translation>Halbduplex-Leitung</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="50" />
+            <source>One port sends at a time, as on a two-wire RS-485 line. Studio reports when two send at once.</source>
+            <translation>Immer nur ein Port sendet, wie auf einer zweiadrigen RS-485-Leitung. Studio meldet, wenn zwei gleichzeitig senden.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="73" />
+            <source>Line rate</source>
+            <translation>Leitungsrate</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> Bit/s</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
+            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
+            <translation>Ein Byte braucht zehn Bit. Die anderen hören eine Nachricht, sobald ihr letztes Byte die Leitung verlassen hat.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="83" />
+            <source>Turn-around</source>
+            <translation>Umschaltzeit</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="84" />
+            <source>The line stays taken this long after a port stops sending. An answer that starts inside it is reported.</source>
+            <translation>So lange bleibt die Leitung belegt, nachdem ein Port aufgehört hat zu senden. Eine Antwort, die innerhalb dieser Zeit beginnt, wird gemeldet.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="95" />
+            <source>If two send at once</source>
+            <translation>Wenn zwei gleichzeitig senden</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="90" />
+            <source>Report it</source>
+            <translation>Melden</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="92" />
+            <source>Report it and garble the bytes</source>
+            <translation>Melden und die Bytes verfälschen</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="100" />
+            <source>Send only while RTS is high</source>
+            <translation>Nur senden, solange RTS high ist</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="98" />
+            <source>For ports whose RTS Studio can follow. In this build that is a loopback port. Every other port always sends.</source>
+            <translation>Für Ports, deren RTS Studio nachverfolgen kann. In diesem Build ist das ein Loopback-Port. Jeder andere Port sendet immer.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
+            <source>Not available in this build</source>
+            <translation>In diesem Build nicht verfügbar</translation>
         </message>
     </context>
 </TS>

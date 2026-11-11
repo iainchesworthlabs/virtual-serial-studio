@@ -8,11 +8,14 @@
 
 #include "backend/fake_studio_backend.hpp"
 #include "dialogs/connect_ports.hpp"
+#include "widgets/half_duplex_fields.hpp"
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QSpinBox>
 
 #include <vector>
 
@@ -485,4 +488,164 @@ TEST_CASE("connect: a bus refused by the engine says why and stays open")
 
     REQUIRE(dialog.submit());
     REQUIRE_EQ(only_link(backend).shape, vss::gui::link_shape::bus);
+}
+
+namespace
+{
+
+/// A backend that makes a bus and, when asked, a half-duplex bus.
+void allow_half_duplex(vss::gui::FakeStudioBackend& backend, bool allowed)
+{
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    caps.half_duplex_bus = allowed;
+    backend.set_capabilities(caps);
+}
+
+} // namespace
+
+TEST_CASE("connect: the bus page has the half-duplex controls at Advanced")
+{
+    vss::gui::FakeStudioBackend backend;
+    allow_half_duplex(backend, true);
+    make_ports(backend);
+    vss::gui::ConnectPortsDialog dialog(backend, 0, true);
+    show(dialog);
+    REQUIRE(dialog.set_mode(vss::gui::ConnectPortsDialog::mode::bus));
+
+    const auto find = [&dialog](const char* name) -> QWidget*
+    { return dialog.findChild<QWidget*>(QString::fromLatin1(name)); };
+    auto* enable = qobject_cast<QCheckBox*>(find("busHalfDuplex"));
+    auto* rate = qobject_cast<QSpinBox*>(find("busBitRate"));
+    auto* turnaround = qobject_cast<QSpinBox*>(find("busTurnaround"));
+    auto* collisions = qobject_cast<QComboBox*>(find("busCollisions"));
+    auto* gating = qobject_cast<QCheckBox*>(find("busRtsGating"));
+    REQUIRE(enable != nullptr);
+    REQUIRE(rate != nullptr);
+    REQUIRE(turnaround != nullptr);
+    REQUIRE(collisions != nullptr);
+    REQUIRE(gating != nullptr);
+    REQUIRE(enable->isVisibleTo(&dialog));
+    REQUIRE_EQ(enable->text(), QStringLiteral("Half-duplex line"));
+    REQUIRE_EQ(rate->minimum(), static_cast<int>(vss::min_bus_bit_rate));
+    REQUIRE_EQ(rate->maximum(), static_cast<int>(vss::max_bus_bit_rate));
+    REQUIRE_EQ(rate->value(), 9600);
+    REQUIRE_EQ(rate->suffix(), QStringLiteral(" bit/s"));
+    REQUIRE_EQ(turnaround->minimum(), 0);
+    REQUIRE_EQ(turnaround->maximum(), static_cast<int>(vss::max_link_delay_ms));
+    REQUIRE_EQ(turnaround->suffix(), QStringLiteral(" ms"));
+    REQUIRE_EQ(collisions->count(), 2);
+    REQUIRE_EQ(collisions->itemText(0), QStringLiteral("Report it"));
+    REQUIRE_EQ(collisions->itemText(1),
+               QStringLiteral("Report it and garble the bytes"));
+    REQUIRE_EQ(gating->text(), QStringLiteral("Send only while RTS is high"));
+    for (QWidget* widget :
+         {static_cast<QWidget*>(enable), static_cast<QWidget*>(rate),
+          static_cast<QWidget*>(turnaround), static_cast<QWidget*>(collisions),
+          static_cast<QWidget*>(gating)})
+    {
+        REQUIRE(!widget->accessibleName().isEmpty());
+        REQUIRE(widget->focusPolicy() != Qt::NoFocus);
+    }
+
+    // The rows are disabled, not hidden, until the choice is on.
+    REQUIRE(enable->isEnabled());
+    REQUIRE(!enable->isChecked());
+    for (QWidget* widget :
+         {static_cast<QWidget*>(rate), static_cast<QWidget*>(turnaround),
+          static_cast<QWidget*>(collisions), static_cast<QWidget*>(gating)})
+    {
+        REQUIRE(widget->isVisibleTo(&dialog));
+        REQUIRE(!widget->isEnabled());
+    }
+    enable->setChecked(true);
+    for (QWidget* widget :
+         {static_cast<QWidget*>(rate), static_cast<QWidget*>(turnaround),
+          static_cast<QWidget*>(collisions), static_cast<QWidget*>(gating)})
+        REQUIRE(widget->isEnabled());
+    enable->setChecked(false);
+    REQUIRE(!rate->isEnabled());
+}
+
+TEST_CASE("connect: the half-duplex controls are an Advanced choice")
+{
+    vss::gui::FakeStudioBackend backend;
+    allow_half_duplex(backend, true);
+    make_ports(backend);
+    vss::gui::ConnectPortsDialog dialog(backend);
+    show(dialog);
+    REQUIRE(dialog.set_mode(vss::gui::ConnectPortsDialog::mode::bus));
+    REQUIRE(dialog.half_duplex_fields() != nullptr);
+    REQUIRE(!dialog.half_duplex_fields()->isVisibleTo(&dialog));
+    dialog.set_advanced(true);
+    REQUIRE(dialog.half_duplex_fields()->isVisibleTo(&dialog));
+}
+
+TEST_CASE("connect: the half-duplex choice is off where the build has none")
+{
+    vss::gui::FakeStudioBackend backend;
+    allow_half_duplex(backend, false);
+    make_ports(backend);
+    vss::gui::ConnectPortsDialog dialog(backend, 0, true);
+    show(dialog);
+    REQUIRE(dialog.set_mode(vss::gui::ConnectPortsDialog::mode::bus));
+
+    auto* enable =
+        dialog.findChild<QCheckBox*>(QStringLiteral("busHalfDuplex"));
+    REQUIRE(enable != nullptr);
+    REQUIRE(!enable->isEnabled());
+    REQUIRE(!enable->isChecked());
+    REQUIRE_EQ(enable->toolTip(),
+               QStringLiteral("Not available in this build"));
+    REQUIRE(!dialog.half_duplex_fields()->rows_enabled());
+    REQUIRE(!dialog.findChild<QSpinBox*>(QStringLiteral("busBitRate"))
+                 ->isEnabled());
+}
+
+TEST_CASE("connect: a half-duplex bus is made with the chosen line")
+{
+    vss::gui::FakeStudioBackend backend;
+    allow_half_duplex(backend, true);
+    const fixture_ports ports = make_ports(backend);
+    vss::gui::ConnectPortsDialog dialog(backend, 0, true);
+    show(dialog);
+    REQUIRE(dialog.set_mode(vss::gui::ConnectPortsDialog::mode::bus));
+    dialog.set_member_ids({ports.alpha, ports.beta, ports.delta});
+
+    dialog.findChild<QCheckBox*>(QStringLiteral("busHalfDuplex"))
+        ->setChecked(true);
+    dialog.findChild<QSpinBox*>(QStringLiteral("busBitRate"))->setValue(19200);
+    dialog.findChild<QSpinBox*>(QStringLiteral("busTurnaround"))->setValue(4);
+    dialog.findChild<QComboBox*>(QStringLiteral("busCollisions"))
+        ->setCurrentIndex(1);
+    dialog.findChild<QCheckBox*>(QStringLiteral("busRtsGating"))
+        ->setChecked(true);
+
+    REQUIRE(dialog.submit());
+    const vss::gui::link_view link = only_link(backend);
+    REQUIRE_EQ(link.shape, vss::gui::link_shape::bus);
+    REQUIRE(link.options.half_duplex.enabled);
+    REQUIRE_EQ(link.options.half_duplex.bit_rate, 19200u);
+    REQUIRE_EQ(link.options.half_duplex.turnaround_ms, 4u);
+    REQUIRE(link.options.half_duplex.on_collision ==
+            vss::collision_action::garble);
+    REQUIRE(link.options.half_duplex.rts_gating);
+}
+
+TEST_CASE("connect: a bus without the half-duplex choice has default options")
+{
+    vss::gui::FakeStudioBackend backend;
+    allow_half_duplex(backend, true);
+    const fixture_ports ports = make_ports(backend);
+    vss::gui::ConnectPortsDialog dialog(backend, 0, true);
+    show(dialog);
+    REQUIRE(dialog.set_mode(vss::gui::ConnectPortsDialog::mode::bus));
+    dialog.set_member_ids({ports.alpha, ports.beta});
+
+    // Values typed into the rows count for nothing while the choice is off.
+    dialog.findChild<QSpinBox*>(QStringLiteral("busBitRate"))->setValue(19200);
+    REQUIRE(dialog.submit());
+    const vss::gui::link_view link = only_link(backend);
+    REQUIRE_EQ(link.shape, vss::gui::link_shape::bus);
+    REQUIRE(link.options.half_duplex == vss::half_duplex_options{});
 }

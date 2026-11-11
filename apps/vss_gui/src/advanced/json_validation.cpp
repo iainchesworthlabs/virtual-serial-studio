@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 
 namespace vss::gui
 {
@@ -296,6 +297,124 @@ QString with_line(int line, const QString& text)
         .arg(text);
 }
 
+/// What is wrong with the `half_duplex` member of one link: the path of the
+/// member to mark, within the link, and the words.  `available` is
+/// `capabilities::half_duplex_bus`.  The limits are the engine's own
+/// constants.
+struct half_duplex_issue
+{
+    QString member;
+    QString summary;
+    QString detail;
+};
+
+std::optional<half_duplex_issue> half_duplex_issue_of(const QJsonObject& link,
+                                                      const QString& mode,
+                                                      bool available)
+{
+    const QString key = QStringLiteral("half_duplex");
+    if (!link.contains(key))
+        return std::nullopt;
+    if (!available)
+    {
+        return half_duplex_issue{
+            key,
+            QCoreApplication::translate(
+                "TopologyJson",
+                "Half-duplex buses are not available in this build"),
+            QCoreApplication::translate(
+                "TopologyJson",
+                "This build cannot run a bus as a half-duplex line. Remove "
+                "\"half_duplex\" from the link.")};
+    }
+    if (mode != QLatin1String("bus"))
+    {
+        return half_duplex_issue{
+            key,
+            QCoreApplication::translate("TopologyJson",
+                                        "Only a bus can be a half-duplex line"),
+            QCoreApplication::translate(
+                "TopologyJson",
+                "Remove \"half_duplex\", or make the link a bus.")};
+    }
+    const QJsonValue value = link.value(key);
+    if (!value.isObject())
+    {
+        return half_duplex_issue{
+            key,
+            QCoreApplication::translate("TopologyJson",
+                                        "\"half_duplex\" must be an object"),
+            QCoreApplication::translate(
+                "TopologyJson",
+                "Use bit_rate, turnaround_ms, collisions and rts_gating "
+                "inside it, each one optional.")};
+    }
+
+    const QJsonObject line = value.toObject();
+    const auto whole_number =
+        [&line](const QString& member, qint64 minimum, qint64 maximum)
+    {
+        if (!line.contains(member))
+            return true;
+        const QJsonValue entry = line.value(member);
+        const double number = entry.toDouble(-1);
+        return entry.isDouble() && number >= static_cast<double>(minimum) &&
+               number <= static_cast<double>(maximum) &&
+               number == static_cast<double>(static_cast<qint64>(number));
+    };
+    const QString base = key + QLatin1Char('/');
+    if (!whole_number(QStringLiteral("bit_rate"), vss::min_bus_bit_rate,
+                      vss::max_bus_bit_rate))
+    {
+        return half_duplex_issue{
+            base + QStringLiteral("bit_rate"),
+            QCoreApplication::translate(
+                "TopologyJson", "The line rate must be between %1 and %2 bit/s")
+                .arg(vss::min_bus_bit_rate)
+                .arg(vss::max_bus_bit_rate),
+            QCoreApplication::translate(
+                "TopologyJson",
+                "Set \"bit_rate\" to a whole number in that range.")};
+    }
+    if (!whole_number(QStringLiteral("turnaround_ms"), 0,
+                      vss::max_link_delay_ms))
+    {
+        return half_duplex_issue{
+            base + QStringLiteral("turnaround_ms"),
+            QCoreApplication::translate(
+                "TopologyJson", "The turn-around must be between 0 and %1 ms")
+                .arg(vss::max_link_delay_ms),
+            QCoreApplication::translate(
+                "TopologyJson",
+                "Set \"turnaround_ms\" to a whole number in that range.")};
+    }
+    const QString collisions = QStringLiteral("collisions");
+    if (line.contains(collisions))
+    {
+        const QJsonValue entry = line.value(collisions);
+        if (!entry.isString() || (entry.toString() != QLatin1String("report") &&
+                                  entry.toString() != QLatin1String("garble")))
+        {
+            return half_duplex_issue{
+                base + collisions,
+                QCoreApplication::translate(
+                    "TopologyJson", "\"collisions\" must be report or garble"),
+                QCoreApplication::translate("TopologyJson",
+                                            "Use report or garble.")};
+        }
+    }
+    const QString gating = QStringLiteral("rts_gating");
+    if (line.contains(gating) && !line.value(gating).isBool())
+    {
+        return half_duplex_issue{
+            base + gating,
+            QCoreApplication::translate("TopologyJson",
+                                        "\"rts_gating\" must be true or false"),
+            QCoreApplication::translate("TopologyJson", "Use true or false.")};
+    }
+    return std::nullopt;
+}
+
 bool engine_rejects_port(const QJsonObject& port)
 {
     QJsonObject document;
@@ -376,6 +495,12 @@ int engine_problem_line(const QJsonObject& root, const path_index& index)
             out = static_cast<qint64>(number);
             return true;
         };
+        if (const auto issue =
+                half_duplex_issue_of(link,
+                                     link.value(QStringLiteral("mode"))
+                                         .toString(QStringLiteral("duplex")),
+                                     true))
+            return index.line(base + issue->member);
         qint64 delay = 0;
         qint64 jitter = 0;
         if (!milliseconds(QStringLiteral("delay_ms"), delay))
@@ -436,7 +561,8 @@ QString json_validation::status_text() const
     return QCoreApplication::translate("TopologyJson", "Not valid");
 }
 
-json_validation validate_json_document(const QString& text, bool shared_bus)
+json_validation validate_json_document(const QString& text, bool shared_bus,
+                                       bool half_duplex_bus)
 {
     VSS_PROFILE_ZONE("gui.advanced.json_validate");
     // The checks run in stages and stop at the first problem.  Each stage
@@ -908,6 +1034,35 @@ json_validation validate_json_document(const QString& text, bool shared_bus)
             }
             out.problem = problem;
             return out;
+        }
+
+        // A half-duplex line is the option of a bus only, and a build without
+        // it refuses the member.  A bus in a build without shared buses is
+        // refused as a bus, below.
+        if (mode != QLatin1String("bus") || shared_bus)
+        {
+            if (const auto issue =
+                    half_duplex_issue_of(link, mode, half_duplex_bus))
+            {
+                out.checks = {{QCoreApplication::translate(
+                                   "TopologyJson", "Valid JSON, version 1"),
+                               check_state::passed},
+                              {QCoreApplication::translate(
+                                   "TopologyJson", "Ports, all names unique"),
+                               check_state::passed},
+                              {QCoreApplication::translate("TopologyJson",
+                                                           "Links, no loops"),
+                               check_state::failed}};
+                const int issue_line = lines.line(
+                    QStringLiteral("links/%1/").arg(index) + issue->member);
+                out.problem =
+                    json_problem{with_line(issue_line, issue->summary),
+                                 issue->detail,
+                                 {},
+                                 {},
+                                 issue_line};
+                return out;
+            }
         }
 
         // A bus link lists its "members" instead of sources and targets, and

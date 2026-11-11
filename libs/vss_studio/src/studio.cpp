@@ -1493,6 +1493,7 @@ result<void> studio::apply(const config::document& value,
         options.policy = link.policy;
         options.delay_ms = link.delay_ms;
         options.jitter_ms = link.jitter_ms;
+        options.half_duplex = link.half_duplex;
 
         result<link_id> added = make_error_code(errc::config_error);
         if (link.mode == "bus")
@@ -1592,6 +1593,7 @@ config::document studio::snapshot() const
         entry.policy = link.options.policy;
         entry.delay_ms = link.options.delay_ms;
         entry.jitter_ms = link.options.jitter_ms;
+        entry.half_duplex = link.options.half_duplex;
         document.links.push_back(std::move(entry));
     }
 

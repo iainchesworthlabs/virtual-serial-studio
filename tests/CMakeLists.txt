@@ -5,6 +5,7 @@
 
 set(VSS_UNIT_TEST_SOURCES
   framework/main.cpp
+  unit/test_bus_line.cpp
   unit/test_bytes.cpp
   unit/test_control_lines.cpp
   unit/test_document.cpp
@@ -15,6 +16,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_error_and_log.cpp
   unit/test_hub_bus.cpp
   unit/test_hub_events.cpp
+  unit/test_hub_half_duplex.cpp
   unit/test_hub_latency.cpp
   unit/test_hub_owner.cpp
   unit/test_hub_targets.cpp

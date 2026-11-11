@@ -99,8 +99,8 @@ public:
              const vss::link_options& options) override;
     vss::result<vss::link_id> monitor(vss::endpoint_id from,
                                       vss::endpoint_id to) override;
-    vss::result<vss::link_id>
-    bus(const std::vector<vss::endpoint_id>& members) override;
+    vss::result<vss::link_id> bus(const std::vector<vss::endpoint_id>& members,
+                                  const vss::link_options& options) override;
     vss::result<void> disconnect(vss::link_id id) override;
     vss::result<void> add_target(vss::link_id link,
                                  vss::endpoint_id target) override;
