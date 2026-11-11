@@ -12,6 +12,8 @@
 #   libs/vss_config      JSON configuration documents
 #   libs/vss_studio      the application service used by the CLI and the GUI
 #   libs/vss_testkit     reusable fakes for downstream tests
+#   libs/vss_agent_proto the wire protocol of the per-user agent
+#   libs/vss_agent       the agent's local transport, server and client
 #   apps/                command line tool and Qt 6 GUI
 #   tests/               unit, system and integration suites
 #   perf/                throughput and latency floors
@@ -120,6 +122,7 @@ endif()
 
 if(VSS_BUILD_TOOLS)
   add_subdirectory(apps/vss_cli)
+  add_subdirectory(apps/vss_agent)
 endif()
 
 if(VSS_BUILD_GUI)

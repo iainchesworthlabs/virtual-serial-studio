@@ -1,0 +1,1 @@
+ÿ{"id":2,"reply":"list","revision":9,"ports":[{"id":1,"name":"left","path":"COM21","kind":"virtual","state":"open","open":true,"bytes_rx":10,"bytes_tx":20}],"links":[{"id":1,"mode":"duplex","sources":[1],"targets":[2],"bytes":30}]}

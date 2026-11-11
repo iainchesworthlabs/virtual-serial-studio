@@ -97,6 +97,8 @@ vss_cli run lab.json --seconds=60
 vss_cli capture lab.json --out=run.cap --port=master --seconds=60
 vss_cli bench --from=serial://COM3 --to=serial://COM5 --bytes=10MB
 vss_cli selftest
+vss_agent &                         # keep ports after the command that made them (a first slice)
+vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
 ```
 
 Run `vss_cli --help` for the full list.
@@ -227,7 +229,10 @@ libs/vss_ports       serial transport, PTY, loopback, com0com, enumeration
 libs/vss_config      JSON topology documents
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
+libs/vss_agent_proto the wire protocol of the per-user agent
+libs/vss_agent       the agent's local transport, server and client
 apps/vss_cli         headless command line
+apps/vss_agent       keeps ports running without the window (a first slice)
 apps/vss_gui         Qt 6 desktop application
 tests/               in-tree framework, unit and system suites
 perf/                performance suite and floors
