@@ -143,7 +143,9 @@ std::optional<json::object> parse_header(const std::string& header)
     json::value parsed = json::parse(header, failed, {}, options);
     if (failed || !parsed.is_object())
         return std::nullopt;
-    return std::move(parsed.as_object());
+    // The object is a part of `parsed`, so it is moved out, not elided.
+    return std::optional<json::object>{std::in_place,
+                                       std::move(parsed.as_object())};
 }
 
 bool to_u64(const json::value& item, std::uint64_t& out) noexcept
