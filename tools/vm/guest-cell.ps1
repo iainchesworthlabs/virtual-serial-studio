@@ -21,7 +21,7 @@
     With -DriverBundle, a Windows guest also runs the driver tests after the cell (or instead of
     it, when -Bundle is left out): tools/vm/guest/win-driver.ps1 signs, installs and uninstalls
     each driver in the guest and runs test-wow64.ps1, the 32-bit client and the hung-program
-    tests, against it. The evidence comes back to <Out>\<guest id>\driver-out. The driver is x64
+    tests, against it, and test-client.ps1 when the bundle carries vss_unit_tests.exe. The evidence comes back to <Out>\<guest id>\driver-out. The driver is x64
     and ARM64 only, so these guests are 64-bit and the 32-bit program runs under WOW64.
 
 .PARAMETER Guest
@@ -213,7 +213,7 @@ if ($DriverBundle) {
         $failed = 0
         foreach ($step in (Get-Content -LiteralPath $summaryFile -Raw | ConvertFrom-Json)) {
             $file = Join-Path $driverEvidence $step.result
-            if ($step.step -in 'wow64', 'suite', 'install', 'uninstall' -and (Test-Path -LiteralPath $file)) {
+            if ($step.step -in 'wow64', 'suite', 'client', 'install', 'uninstall' -and (Test-Path -LiteralPath $file)) {
                 $data = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
                 foreach ($item in $data.tests) {
                     '{0,-6} {1,-10} {2,-14} {3,-4} {4}' -f $step.flavour, $item.status, $step.step, $item.id, $item.detail

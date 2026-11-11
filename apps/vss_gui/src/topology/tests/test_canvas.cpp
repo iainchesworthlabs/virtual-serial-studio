@@ -460,8 +460,8 @@ TEST_CASE("canvas: link Settings keep the jitter within the delay")
 {
     canvas_fixture fixture;
     const auto link = fixture.backend.links().front();
-    vss::gui::LinkSettingsDialog dialog(link,
-                                        QStringLiteral("rx-sim and tx-sim"));
+    vss::gui::LinkSettingsDialog dialog(
+        link, QStringLiteral("rx-sim and tx-sim"), false);
     REQUIRE(dialog.modem_lines_shown());
     REQUIRE(!dialog.policy_shown());
     dialog.set_delay(10);

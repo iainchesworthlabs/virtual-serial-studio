@@ -48,6 +48,9 @@ public:
     void cancel() override;
 
     bool supports_control_lines() const noexcept override { return true; }
+    /// The lines of a loopback port are set through its endpoint, so the hub
+    /// knows of a change before any byte that follows it.
+    bool reports_peer_rts() const noexcept override { return true; }
     void set_control_line(control_line line, bool state) override;
     control_lines lines() const override;
 

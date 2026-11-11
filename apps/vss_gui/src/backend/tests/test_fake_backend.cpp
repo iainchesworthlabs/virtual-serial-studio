@@ -17,6 +17,7 @@
 #include <QString>
 
 #include <algorithm>
+#include <string>
 #include <vector>
 
 TEST_CASE("fake backend: creates ports and suffixes duplicate names")
@@ -140,7 +141,7 @@ TEST_CASE("fake backend: the owner of a duplex link is a target")
     vss::gui::capabilities caps = backend.caps();
     caps.shared_bus = true;
     backend.set_capabilities(caps);
-    const auto bus = backend.bus({*d, *e});
+    const auto bus = backend.bus({*d, *e}, {});
     REQUIRE(bus.has_value());
     REQUIRE(backend.set_owner(*bus, *d).error() ==
             vss::make_error_code(vss::errc::unsupported));
@@ -223,7 +224,7 @@ TEST_CASE("fake backend: add_target and remove_target edit a duplex link")
     vss::gui::capabilities caps = backend.caps();
     caps.shared_bus = true;
     backend.set_capabilities(caps);
-    const auto bus = backend.bus({*b, *c});
+    const auto bus = backend.bus({*b, *c}, {});
     REQUIRE(bus.has_value());
     REQUIRE(backend.add_target(*bus, *a).error() == unsupported);
     REQUIRE(backend.remove_target(*bus, *b).error() == unsupported);
@@ -315,7 +316,7 @@ TEST_CASE("fake backend: add_source and remove_source edit a one-way link")
     vss::gui::capabilities caps = backend.caps();
     caps.shared_bus = true;
     backend.set_capabilities(caps);
-    const auto bus = backend.bus({d, e});
+    const auto bus = backend.bus({d, e}, {});
     REQUIRE(bus.has_value());
     REQUIRE(backend.add_source(*bus, a).error() == unsupported);
     REQUIRE(backend.remove_source(*bus, d).error() == unsupported);
@@ -345,9 +346,9 @@ TEST_CASE("fake backend: add_member and remove_member edit a bus")
     const auto invalid = vss::make_error_code(vss::errc::invalid_argument);
     const auto exists = vss::make_error_code(vss::errc::already_exists);
 
-    const auto bus = backend.bus({a, b});
+    const auto bus = backend.bus({a, b}, {});
     REQUIRE(bus.has_value());
-    const auto other = backend.bus({d, e});
+    const auto other = backend.bus({d, e}, {});
     REQUIRE(other.has_value());
 
     // A member is added at the end, and the bus is the same bus.
@@ -408,7 +409,7 @@ TEST_CASE("fake backend: a bus takes no more than the most members")
     }
     const std::vector<vss::endpoint_id> first(
         ids.begin(), ids.begin() + (vss::max_bus_members - 1));
-    const auto bus = backend.bus(first);
+    const auto bus = backend.bus(first, {});
     REQUIRE(bus.has_value());
     REQUIRE(
         backend.add_member(*bus, ids[vss::max_bus_members - 1]).has_value());
@@ -493,7 +494,7 @@ TEST_CASE("fake backend: a bus takes delay and jitter and nothing else")
         QStringLiteral("b"), vss::virtual_port_kind::loopback, true);
     REQUIRE(a.has_value());
     REQUIRE(b.has_value());
-    const auto bus = backend.bus({*a, *b});
+    const auto bus = backend.bus({*a, *b}, {});
     REQUIRE(bus.has_value());
 
     // Modem lines are forced off, as on creation.
@@ -591,4 +592,138 @@ TEST_CASE("fake backend: errors are returned and capabilities are visible")
     backend.set_peer_state(*port, vss::gui::peer_state::not_open);
     REQUIRE_EQ(vss_test::require_value(backend.port(*port)).peer,
                vss::gui::peer_state::not_open);
+}
+
+namespace
+{
+
+/// A backend with a shared bus and the given half-duplex capability, and
+/// three loopback ports.
+struct bus_fixture
+{
+    explicit bus_fixture(bool half_duplex)
+    {
+        vss::gui::capabilities caps = backend.caps();
+        caps.shared_bus = true;
+        caps.half_duplex_bus = half_duplex;
+        backend.set_capabilities(caps);
+        for (const char* name : {"a", "b", "c"})
+        {
+            const auto made = backend.create_virtual_port(
+                QString::fromLatin1(name), vss::virtual_port_kind::loopback,
+                true);
+            REQUIRE(made.has_value());
+            members.push_back(*made);
+        }
+    }
+
+    vss::gui::FakeStudioBackend backend;
+    std::vector<vss::endpoint_id> members;
+};
+
+vss::link_options line_options()
+{
+    vss::link_options options;
+    options.delay_ms = 20;
+    options.jitter_ms = 5;
+    options.half_duplex.enabled = true;
+    options.half_duplex.bit_rate = 19200;
+    options.half_duplex.turnaround_ms = 3;
+    options.half_duplex.on_collision = vss::collision_action::garble;
+    options.half_duplex.rts_gating = true;
+    return options;
+}
+
+} // namespace
+
+TEST_CASE("fake backend: a half-duplex bus keeps its line, delay and jitter")
+{
+    bus_fixture fixture(true);
+    const auto made = fixture.backend.bus(fixture.members, line_options());
+    REQUIRE(made.has_value());
+
+    const auto links = fixture.backend.links();
+    REQUIRE_EQ(links.size(), std::size_t{1});
+    REQUIRE_EQ(links[0].shape, vss::gui::link_shape::bus);
+    REQUIRE(links[0].options.half_duplex == line_options().half_duplex);
+    REQUIRE_EQ(links[0].options.delay_ms, 20u);
+    REQUIRE_EQ(links[0].options.jitter_ms, 5u);
+    REQUIRE(!links[0].options.emulate_modem_lines);
+
+    // A plain bus has no half-duplex line.
+    bus_fixture plain(true);
+    REQUIRE(plain.backend.bus(plain.members, vss::link_options{}).has_value());
+    REQUIRE(!plain.backend.links()[0].options.half_duplex.enabled);
+}
+
+TEST_CASE("fake backend: a half-duplex bus needs the capability")
+{
+    bus_fixture fixture(false);
+    const auto refused = fixture.backend.bus(fixture.members, line_options());
+    REQUIRE(!refused.has_value());
+    REQUIRE_EQ(refused.error(), vss::make_error_code(vss::errc::unsupported));
+    REQUIRE(fixture.backend.links().empty());
+
+    // A bus without the line is still made.
+    REQUIRE(
+        fixture.backend.bus(fixture.members, vss::link_options{}).has_value());
+}
+
+TEST_CASE("fake backend: a bus refuses values outside the limits")
+{
+    bus_fixture fixture(true);
+    const auto refused = [&fixture](const vss::link_options& options)
+    {
+        const auto made = fixture.backend.bus(fixture.members, options);
+        return !made.has_value() &&
+               made.error() ==
+                   vss::make_error_code(vss::errc::invalid_argument);
+    };
+
+    vss::link_options slow = line_options();
+    slow.half_duplex.bit_rate = vss::min_bus_bit_rate - 1;
+    REQUIRE(refused(slow));
+    vss::link_options fast = line_options();
+    fast.half_duplex.bit_rate = vss::max_bus_bit_rate + 1;
+    REQUIRE(refused(fast));
+    vss::link_options turn = line_options();
+    turn.half_duplex.turnaround_ms = vss::max_link_delay_ms + 1;
+    REQUIRE(refused(turn));
+    vss::link_options jitter = line_options();
+    jitter.jitter_ms = jitter.delay_ms + 1;
+    REQUIRE(refused(jitter));
+    REQUIRE(fixture.backend.links().empty());
+}
+
+TEST_CASE("fake backend: snapshot and apply keep a bus line and its delay")
+{
+    bus_fixture fixture(true);
+    REQUIRE(fixture.backend.bus(fixture.members, line_options()).has_value());
+
+    const vss::config::document document = fixture.backend.snapshot();
+    REQUIRE_EQ(document.links.size(), std::size_t{1});
+    REQUIRE_EQ(document.links[0].mode, std::string("bus"));
+    REQUIRE(document.links[0].half_duplex == line_options().half_duplex);
+    REQUIRE_EQ(document.links[0].delay_ms, 20u);
+    REQUIRE_EQ(document.links[0].jitter_ms, 5u);
+
+    vss::gui::FakeStudioBackend copy;
+    vss::gui::capabilities caps = copy.caps();
+    caps.shared_bus = true;
+    caps.half_duplex_bus = true;
+    copy.set_capabilities(caps);
+    REQUIRE(copy.apply(document, true).has_value());
+    REQUIRE_EQ(copy.links().size(), std::size_t{1});
+    REQUIRE(copy.links()[0].options.half_duplex == line_options().half_duplex);
+    REQUIRE_EQ(copy.links()[0].options.delay_ms, 20u);
+    REQUIRE_EQ(copy.links()[0].options.jitter_ms, 5u);
+
+    // Without the capability the document is refused and nothing changes.
+    vss::gui::FakeStudioBackend limited;
+    caps.half_duplex_bus = false;
+    limited.set_capabilities(caps);
+    const auto refused = limited.apply(document, true);
+    REQUIRE(!refused.has_value());
+    REQUIRE_EQ(refused.error(), vss::make_error_code(vss::errc::unsupported));
+    REQUIRE(limited.links().empty());
 }

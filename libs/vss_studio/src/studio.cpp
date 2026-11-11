@@ -123,6 +123,33 @@ config::port_entry record_to_entry(const std::string& name,
     return entry;
 }
 
+/// Raises `fault` at the program that has a driver port open.  A driver port
+/// has no modem lines to drop and no device to unplug here, so hang-up and
+/// disconnect are not offered.
+result<void> raise_on_driver_port(transport& driver, fault_kind fault)
+{
+    driver_line_error error{};
+    switch (fault)
+    {
+    case fault_kind::parity:
+        error = driver_line_error::parity;
+        break;
+    case fault_kind::framing:
+        error = driver_line_error::framing;
+        break;
+    case fault_kind::overrun:
+        error = driver_line_error::overrun;
+        break;
+    case fault_kind::break_condition:
+        error = driver_line_error::break_condition;
+        break;
+    case fault_kind::hangup:
+    case fault_kind::disconnect:
+        return make_error_code(errc::unsupported);
+    }
+    return raise_driver_line_error(driver, error);
+}
+
 } // namespace
 
 studio::studio(const studio_options& options)
@@ -526,13 +553,17 @@ result<void> studio::inject_fault(endpoint_id id, fault_kind fault)
 {
     VSS_PROFILE_ZONE("studio.inject_fault");
     std::shared_ptr<serial_transport> fixture;
+    std::shared_ptr<transport> driver;
     {
         std::lock_guard lock(record_mutex_);
         const auto it = records_.find(id);
         if (it == records_.end())
             return make_error_code(errc::not_found);
         fixture = it->second.fixture.lock();
+        driver = it->second.driver.lock();
     }
+    if (!fixture && driver)
+        return raise_on_driver_port(*driver, fault);
     if (!fixture || fixture->mock() == nullptr)
         return make_error_code(errc::unsupported);
 
@@ -1535,6 +1566,7 @@ result<void> studio::apply(const config::document& value,
         options.policy = link.policy;
         options.delay_ms = link.delay_ms;
         options.jitter_ms = link.jitter_ms;
+        options.half_duplex = link.half_duplex;
 
         result<link_id> added = make_error_code(errc::config_error);
         if (link.mode == "bus")
@@ -1634,6 +1666,7 @@ config::document studio::snapshot() const
         entry.policy = link.options.policy;
         entry.delay_ms = link.options.delay_ms;
         entry.jitter_ms = link.options.jitter_ms;
+        entry.half_duplex = link.options.half_duplex;
         document.links.push_back(std::move(entry));
     }
 

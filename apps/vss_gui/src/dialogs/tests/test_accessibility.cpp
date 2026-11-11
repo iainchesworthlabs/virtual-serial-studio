@@ -17,6 +17,7 @@
 
 #include <QAbstractButton>
 #include <QApplication>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QKeyEvent>
@@ -157,6 +158,37 @@ TEST_CASE("dialogs: every focusable control has a name and buttons are 24px")
         QApplication::processEvents();
         check_accessible(dialog);
         check_button_targets(dialog);
+        dialog.close();
+    }
+    {
+        // The bus page with the half-duplex line on, so its rows are enabled.
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::capabilities caps = backend.caps();
+        caps.shared_bus = true;
+        caps.half_duplex_bus = true;
+        backend.set_capabilities(caps);
+        for (const char* name : {"alpha", "beta", "gamma"})
+        {
+            static_cast<void>(backend.create_virtual_port(
+                QString::fromLatin1(name), vss::virtual_port_kind::pty, true));
+        }
+        vss::gui::ConnectPortsDialog dialog(backend, 0, true);
+        dialog.show();
+        REQUIRE(dialog.set_mode(vss::gui::ConnectPortsDialog::mode::bus));
+        dialog.findChild<QCheckBox*>(QStringLiteral("busHalfDuplex"))
+            ->setChecked(true);
+        QApplication::processEvents();
+        check_accessible(dialog);
+        check_button_targets(dialog);
+        for (const char* name : {"busHalfDuplex", "busBitRate", "busTurnaround",
+                                 "busCollisions", "busRtsGating"})
+        {
+            const auto* widget =
+                dialog.findChild<QWidget*>(QString::fromLatin1(name));
+            REQUIRE(widget != nullptr);
+            REQUIRE(widget->isEnabled());
+            REQUIRE(widget->sizeHint().height() >= 24);
+        }
         dialog.close();
     }
     {

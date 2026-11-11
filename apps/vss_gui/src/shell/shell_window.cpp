@@ -3653,7 +3653,7 @@ bool ShellWindow::run_selftest()
         }
         if (members.size() == 3)
         {
-            const auto bus = backend_.bus(members);
+            const auto bus = backend_.bus(members, {});
             backend_.refresh();
             QApplication::processEvents();
             const auto links = backend_.links();

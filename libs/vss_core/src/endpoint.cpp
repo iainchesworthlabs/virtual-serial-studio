@@ -536,6 +536,14 @@ control_lines endpoint::lines() const
     return lines_;
 }
 
+std::optional<bool> endpoint::peer_rts() const
+{
+    const auto current = active_transport();
+    if (!current || !current->reports_peer_rts())
+        return std::nullopt;
+    return lines().rts();
+}
+
 void endpoint::refresh_lines()
 {
     VSS_PROFILE_ZONE("endpoint.refresh_lines");

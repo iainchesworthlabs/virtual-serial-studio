@@ -31,7 +31,11 @@ enum class event_kind
     lines,
     error,
     stats,
-    log_message
+    log_message,
+    /// A chunk sent on a half-duplex bus was not a clean transmission.  The
+    /// event is the sender's; `fault` says what happened, `link` names the
+    /// bus and `message` says it in words.
+    bus_fault
 };
 
 struct endpoint_event
@@ -45,6 +49,9 @@ struct endpoint_event
     boost::system::error_code error;
     std::string message;
     time_point when{};
+    /// For `bus_fault`: what happened, and on which bus.
+    bus_fault fault = bus_fault::none;
+    link_id link = 0;
 };
 
 using event_sink = std::function<void(const endpoint_event&)>;

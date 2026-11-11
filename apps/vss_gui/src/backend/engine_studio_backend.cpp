@@ -199,6 +199,9 @@ bool same_link_shape(const link_view& left, const link_view& right)
            left.options.policy == right.options.policy &&
            left.options.emulate_modem_lines ==
                right.options.emulate_modem_lines &&
+           left.options.delay_ms == right.options.delay_ms &&
+           left.options.jitter_ms == right.options.jitter_ms &&
+           left.options.half_duplex == right.options.half_duplex &&
            left.sources == right.sources && left.targets == right.targets &&
            left.owner == right.owner;
 }
@@ -208,7 +211,9 @@ bool same_link(const link_view& left, const link_view& right)
     return same_link_shape(left, right) &&
            left.stats.bytes == right.stats.bytes &&
            left.stats.messages == right.stats.messages &&
-           left.stats.dropped == right.stats.dropped;
+           left.stats.dropped == right.stats.dropped &&
+           left.stats.collisions == right.stats.collisions &&
+           left.stats.garbled == right.stats.garbled;
 }
 
 QString platform_name()
@@ -286,6 +291,9 @@ capabilities EngineStudioBackend::caps() const
     // and its revoke request takes a port back from a program.
     caps.com_numbers = driver_installed();
     caps.release_port = driver_installed();
+    // `vss::raise_driver_line_error` asks the same driver to raise a line
+    // error at the program that has a port open.
+    caps.driver_faults = driver_installed();
     caps.recreate_ports = true;
     // The window's Undo history reverses changes with exact inverse
     // operations (see `shell/undo_steps.cpp`), not by restoring a snapshot.
@@ -294,6 +302,8 @@ capabilities EngineStudioBackend::caps() const
     caps.line_matrix = true;
     // `vss::hub::bus` is a shared multi-drop link, in the JSON as "bus".
     caps.shared_bus = true;
+    // `vss::link_options::half_duplex` makes that bus a half-duplex line.
+    caps.half_duplex_bus = true;
     // The JSON editor places a schema error on its line with a path index of
     // the text, and asks `vss::config::from_json` which field it refused.
     caps.json_positions = true;
@@ -773,9 +783,10 @@ vss::result<vss::link_id> EngineStudioBackend::monitor(vss::endpoint_id from,
 }
 
 vss::result<vss::link_id>
-EngineStudioBackend::bus(const std::vector<vss::endpoint_id>& members)
+EngineStudioBackend::bus(const std::vector<vss::endpoint_id>& members,
+                         const vss::link_options& options)
 {
-    const auto linked = studio_.engine().bus(members);
+    const auto linked = studio_.engine().bus(members, options);
     if (!linked)
         return linked.error();
     rebuild();

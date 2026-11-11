@@ -13,12 +13,14 @@
 #include "advanced/json_editor.hpp"
 #include "advanced/json_validation.hpp"
 #include "advanced/line_matrix_panel.hpp"
+#include "advanced/link_settings_dialog.hpp"
 #include "advanced/owner_bar.hpp"
 #include "advanced/wiring_dialog.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "shell/shell_window.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
+#include "widgets/half_duplex_fields.hpp"
 
 #include <QAbstractButton>
 #include <QAction>
@@ -35,6 +37,7 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSettings>
+#include <QSpinBox>
 #include <QTableWidget>
 #include <QToolButton>
 
@@ -506,6 +509,143 @@ TEST_CASE("line matrix: faults are refused for a port that is not a fixture")
     REQUIRE(
         backend.inject_fault(terminal, vss::fault_kind::parity).has_error());
     REQUIRE(backend.injected().empty());
+}
+
+namespace
+{
+
+vss::endpoint_id make_driver_port(vss::gui::FakeStudioBackend& backend,
+                                  const QString& name)
+{
+    const auto created = backend.create_driver_port(name, true, 7);
+    REQUIRE(created.has_value());
+    return *created;
+}
+
+} // namespace
+
+TEST_CASE("line matrix: a driver port with a program takes the line errors")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    capabilities caps;
+    caps.faults = true;
+    caps.driver_faults = true;
+    backend.set_capabilities(caps);
+    const vss::endpoint_id meter =
+        make_driver_port(backend, QStringLiteral("meter"));
+    backend.set_peer_state(meter, peer_state::open);
+
+    LineMatrixPanel panel(backend, meter);
+    REQUIRE_EQ(panel.inject_count(), 6);
+    for (int index = 0; index < 4; ++index)
+    {
+        REQUIRE(panel.inject_button(index)->isEnabled());
+        REQUIRE_EQ(panel.inject_button(index)->toolTip(), QString());
+    }
+    for (int index = 4; index < 6; ++index)
+    {
+        REQUIRE(!panel.inject_button(index)->isEnabled());
+        REQUIRE_EQ(
+            panel.inject_button(index)->toolTip(),
+            QStringLiteral(
+                "Hang-up and Disconnect are only available on fixture ports."));
+        REQUIRE_EQ(panel.inject_button(index)->accessibleDescription(),
+                   panel.inject_button(index)->toolTip());
+    }
+
+    panel.inject_button(3)->click();
+    REQUIRE_EQ(backend.injected().size(), std::size_t{1});
+    REQUIRE(backend.injected().front() == vss::fault_kind::break_condition);
+    REQUIRE_EQ(panel.history_table()->rowCount(), 1);
+    REQUIRE_EQ(panel.history_table()->item(0, 1)->text(),
+               QStringLiteral("Break"));
+    REQUIRE_EQ(panel.history_table()->item(0, 2)->text(),
+               QStringLiteral("Line error raised at the program on meter"));
+
+    // The fault goes to the program, not to the port: it keeps running and
+    // the tiles stay on.
+    const auto after = backend.port(meter);
+    REQUIRE(after.has_value());
+    REQUIRE(after->state == vss::endpoint_state::open);
+    REQUIRE(after->open);
+    for (int index = 0; index < 4; ++index)
+        REQUIRE(panel.inject_button(index)->isEnabled());
+
+    // Hang-up and disconnect are refused by the backend too.
+    REQUIRE(backend.inject_fault(meter, vss::fault_kind::hangup).has_error());
+    REQUIRE(
+        backend.inject_fault(meter, vss::fault_kind::disconnect).has_error());
+    REQUIRE_EQ(backend.injected().size(), std::size_t{1});
+}
+
+TEST_CASE("line matrix: a driver port with no program refuses the line errors")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    capabilities caps;
+    caps.faults = true;
+    caps.driver_faults = true;
+    backend.set_capabilities(caps);
+    const vss::endpoint_id meter =
+        make_driver_port(backend, QStringLiteral("meter"));
+
+    // The peer is unknown until the backend says otherwise, and not open when
+    // it says so: neither has a program on the port.
+    for (const peer_state peer : {peer_state::unknown, peer_state::not_open})
+    {
+        backend.set_peer_state(meter, peer);
+        LineMatrixPanel panel(backend, meter);
+        for (int index = 0; index < 4; ++index)
+        {
+            REQUIRE(!panel.inject_button(index)->isEnabled());
+            REQUIRE_EQ(panel.inject_button(index)->toolTip(),
+                       QStringLiteral("No program has the port open."));
+            REQUIRE_EQ(panel.inject_button(index)->accessibleDescription(),
+                       QStringLiteral("No program has the port open."));
+        }
+        for (int index = 4; index < 6; ++index)
+        {
+            REQUIRE(!panel.inject_button(index)->isEnabled());
+            REQUIRE_EQ(panel.inject_button(index)->toolTip(),
+                       QStringLiteral("Hang-up and Disconnect are only "
+                                      "available on fixture ports."));
+        }
+    }
+    REQUIRE(backend.injected().empty());
+}
+
+TEST_CASE("line matrix: a driver port without driver faults is refused")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    capabilities caps;
+    caps.faults = true;
+    backend.set_capabilities(caps);
+    const vss::endpoint_id meter =
+        make_driver_port(backend, QStringLiteral("meter"));
+    backend.set_peer_state(meter, peer_state::open);
+
+    LineMatrixPanel panel(backend, meter);
+    for (int index = 0; index < panel.inject_count(); ++index)
+    {
+        REQUIRE(!panel.inject_button(index)->isEnabled());
+        REQUIRE_EQ(
+            panel.inject_button(index)->toolTip(),
+            QStringLiteral("Faults are only available on fixture ports."));
+    }
+    REQUIRE(backend.inject_fault(meter, vss::fault_kind::parity).has_error());
+    REQUIRE(backend.injected().empty());
+
+    // Without the faults capability at all the tiles say so, as before.
+    caps.faults = false;
+    backend.set_capabilities(caps);
+    panel.refresh();
+    for (int index = 0; index < panel.inject_count(); ++index)
+    {
+        REQUIRE_EQ(panel.inject_button(index)->toolTip(),
+                   QStringLiteral("Not available in this build"));
+    }
 }
 
 TEST_CASE("line matrix: capability on applies a wiring change")
@@ -1235,4 +1375,228 @@ TEST_CASE("json: a link's delay and jitter are accepted and placed when wrong")
     REQUIRE(!too_jittery.valid());
     REQUIRE(too_jittery.problem.has_value());
     REQUIRE_EQ(too_jittery.problem->line, 10);
+}
+
+namespace
+{
+
+/// A document whose one link is followed by `extra`, written on lines of its
+/// own so the tests can name the line of each member.
+QString half_duplex_document(const QString& mode, const QString& extra)
+{
+    const QString ends = mode == QStringLiteral("bus")
+                             ? QStringLiteral("\"members\":[\"a\",\"b\"]")
+                             : QStringLiteral("\"sources\":[\"a\"],"
+                                              "\"targets\":[\"b\"]");
+    return QStringLiteral("{\n\"version\":1,\n\"name\":\"lab\",\n\"ports\":[\n"
+                          "{\"name\":\"a\",\"kind\":\"virtual\"},\n"
+                          "{\"name\":\"b\",\"kind\":\"virtual\"}],\n"
+                          "\"links\":[\n"
+                          "{\"mode\":\"") +
+           mode + QStringLiteral("\",\n") + ends +
+           (extra.isEmpty() ? QString() : QStringLiteral(",\n") + extra) +
+           QStringLiteral("}]}");
+}
+
+} // namespace
+
+TEST_CASE("json: a half-duplex bus is accepted and round trips")
+{
+    using namespace vss::gui;
+    const json_validation good = validate_json_document(half_duplex_document(
+        QStringLiteral("bus"),
+        QStringLiteral("\"delay_ms\":5,\n\"half_duplex\":{\"bit_rate\":19200,"
+                       "\"turnaround_ms\":2,\"collisions\":\"garble\","
+                       "\"rts_gating\":true}")));
+    REQUIRE(good.valid());
+    REQUIRE(good.formatted.contains(QStringLiteral("\"bit_rate\": 19200")));
+    REQUIRE(
+        good.formatted.contains(QStringLiteral("\"collisions\": \"garble\"")));
+
+    // Every member is optional; the object being there turns the option on.
+    REQUIRE(validate_json_document(
+                half_duplex_document(QStringLiteral("bus"),
+                                     QStringLiteral("\"half_duplex\":{}")))
+                .valid());
+}
+
+TEST_CASE("json: a half-duplex bus is refused plainly where the build has none")
+{
+    using namespace vss::gui;
+    const QString text = half_duplex_document(
+        QStringLiteral("bus"), QStringLiteral("\"half_duplex\":{}"));
+    const json_validation refused = validate_json_document(text, true, false);
+    REQUIRE(!refused.valid());
+    const json_problem problem = vss_test::require_value(refused.problem);
+    REQUIRE(problem.summary.contains(
+        QStringLiteral("Half-duplex buses are not available in this build")));
+    REQUIRE_EQ(problem.detail,
+               QStringLiteral("This build cannot run a bus as a half-duplex "
+                              "line. Remove \"half_duplex\" from the link."));
+    REQUIRE_EQ(problem.line, 10);
+    REQUIRE(problem.summary.startsWith(QStringLiteral("Line 10:")));
+
+    // The same file is fine with the capability, and a file without the
+    // member validates as before whatever the capability.
+    REQUIRE(validate_json_document(text, true, true).valid());
+    const QString plain = half_duplex_document(QStringLiteral("bus"), {});
+    REQUIRE(validate_json_document(plain, true, false).valid());
+    REQUIRE(validate_json_document(plain, true, true).valid());
+    REQUIRE(validate_json_document(valid_document(), true, false).valid());
+
+    // A build without buses still says that first.
+    const json_validation no_bus = validate_json_document(text, false, false);
+    REQUIRE(
+        vss_test::require_value(no_bus.problem)
+            .summary.contains(QStringLiteral("Bus links are not available")));
+}
+
+TEST_CASE("json: a half-duplex line is checked and each error is placed")
+{
+    using namespace vss::gui;
+    const auto problem_of = [](const QString& mode, const QString& extra)
+    {
+        const json_validation checked =
+            validate_json_document(half_duplex_document(mode, extra));
+        REQUIRE(!checked.valid());
+        return vss_test::require_value(checked.problem);
+    };
+
+    // Only a bus can be a half-duplex line.
+    const json_problem duplex = problem_of(
+        QStringLiteral("duplex"), QStringLiteral("\"half_duplex\":{}"));
+    REQUIRE(duplex.summary.contains(
+        QStringLiteral("Only a bus can be a half-duplex line")));
+    REQUIRE_EQ(duplex.detail,
+               QStringLiteral("Remove \"half_duplex\", or make the link a "
+                              "bus."));
+    REQUIRE_EQ(duplex.line, 10);
+
+    const json_problem not_object = problem_of(
+        QStringLiteral("bus"), QStringLiteral("\"half_duplex\":true"));
+    REQUIRE(not_object.summary.contains(
+        QStringLiteral("\"half_duplex\" must be an object")));
+    REQUIRE_EQ(not_object.line, 10);
+
+    // The line of the member, not of the object that holds it.
+    const auto inside = [&problem_of](const QString& members)
+    {
+        return problem_of(QStringLiteral("bus"),
+                          QStringLiteral("\"half_duplex\":{\n") + members +
+                              QStringLiteral("\n}"));
+    };
+    const json_problem slow = inside(QStringLiteral("\"bit_rate\":10"));
+    REQUIRE(slow.summary.contains(
+        QStringLiteral("The line rate must be between 50 and 4000000 bit/s")));
+    REQUIRE_EQ(slow.line, 11);
+    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":4000001")).line, 11);
+    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":9600.5")).line, 11);
+    REQUIRE_EQ(inside(QStringLiteral("\"bit_rate\":\"fast\"")).line, 11);
+
+    const json_problem turn =
+        inside(QStringLiteral("\"bit_rate\":9600,\n\"turnaround_ms\":60001"));
+    REQUIRE(turn.summary.contains(
+        QStringLiteral("The turn-around must be between 0 and 60000 ms")));
+    REQUIRE_EQ(turn.line, 12);
+    REQUIRE_EQ(inside(QStringLiteral("\"turnaround_ms\":-1")).line, 11);
+
+    const json_problem action =
+        inside(QStringLiteral("\"collisions\":\"stop\""));
+    REQUIRE(action.summary.contains(
+        QStringLiteral("\"collisions\" must be report or garble")));
+    REQUIRE(action.detail.contains(QStringLiteral("Use report or garble")));
+    REQUIRE_EQ(action.line, 11);
+    REQUIRE_EQ(inside(QStringLiteral("\"collisions\":3")).line, 11);
+
+    const json_problem gating =
+        inside(QStringLiteral("\"rts_gating\":\"yes\""));
+    REQUIRE(gating.summary.contains(
+        QStringLiteral("\"rts_gating\" must be true or false")));
+    REQUIRE_EQ(gating.line, 11);
+}
+
+TEST_CASE("event log: a bus fault shows its sentence")
+{
+    using namespace vss::gui;
+    EventLogPanel log;
+    gui_event fault;
+    fault.kind = vss::event_kind::bus_fault;
+    fault.name = QStringLiteral("p1");
+    fault.message = QStringLiteral("sent 8 bytes while p0 was sending");
+    log.append({fault});
+    REQUIRE_EQ(log.row_count(), 1);
+
+    auto* table = log.findChild<QTableWidget*>();
+    REQUIRE(table != nullptr);
+    REQUIRE_EQ(table->item(0, 1)->text(), QStringLiteral("p1"));
+    REQUIRE_EQ(table->item(0, 2)->text(), QStringLiteral("Bus"));
+    REQUIRE_EQ(table->item(0, 3)->text(), fault.message);
+}
+
+TEST_CASE("link settings: a bus shows the half-duplex line and returns it")
+{
+    using namespace vss::gui;
+    link_view bus;
+    bus.shape = link_shape::bus;
+    bus.mode = vss::link_mode::bus;
+    bus.sources = {1, 2, 3};
+    bus.options.delay_ms = 9;
+    bus.options.half_duplex.enabled = true;
+    bus.options.half_duplex.bit_rate = 2400;
+    bus.options.half_duplex.turnaround_ms = 6;
+    bus.options.half_duplex.on_collision = vss::collision_action::garble;
+    bus.options.half_duplex.rts_gating = true;
+
+    LinkSettingsDialog dialog(bus, QStringLiteral("a, b and c"), true);
+    dialog.show();
+    QApplication::processEvents();
+    REQUIRE(dialog.half_duplex_shown());
+    HalfDuplexFields* fields = dialog.half_duplex_fields();
+    REQUIRE(fields != nullptr);
+    REQUIRE(fields->isVisibleTo(&dialog));
+    REQUIRE(fields->enable_box()->isChecked());
+    REQUIRE_EQ(fields->bit_rate_spin()->value(), 2400);
+    REQUIRE(fields->rows_enabled());
+    REQUIRE(dialog.options().half_duplex == bus.options.half_duplex);
+    REQUIRE_EQ(dialog.options().delay_ms, 9u);
+
+    fields->bit_rate_spin()->setValue(115200);
+    fields->collisions_combo()->setCurrentIndex(0);
+    REQUIRE(dialog.apply_button()->isEnabled());
+    REQUIRE_EQ(dialog.options().half_duplex.bit_rate, 115200u);
+    REQUIRE(dialog.options().half_duplex.on_collision ==
+            vss::collision_action::report);
+
+    // Unchecking the choice turns the line off whatever the rows hold.
+    fields->enable_box()->setChecked(false);
+    REQUIRE(!dialog.options().half_duplex.enabled);
+    REQUIRE(!fields->rows_enabled());
+}
+
+TEST_CASE("link settings: a bus without the capability, and other links")
+{
+    using namespace vss::gui;
+    link_view bus;
+    bus.shape = link_shape::bus;
+    bus.mode = vss::link_mode::bus;
+    bus.sources = {1, 2};
+    LinkSettingsDialog limited(bus, QStringLiteral("a and b"), false);
+    limited.show();
+    QApplication::processEvents();
+    REQUIRE(limited.half_duplex_shown());
+    REQUIRE(!limited.half_duplex_fields()->enable_box()->isEnabled());
+    REQUIRE_EQ(limited.half_duplex_fields()->enable_box()->toolTip(),
+               QStringLiteral("Not available in this build"));
+    REQUIRE(!limited.options().half_duplex.enabled);
+
+    link_view pair;
+    pair.shape = link_shape::two_way;
+    pair.sources = {1};
+    pair.targets = {2};
+    LinkSettingsDialog plain(pair, QStringLiteral("a and b"), true);
+    plain.show();
+    QApplication::processEvents();
+    REQUIRE(!plain.half_duplex_shown());
+    REQUIRE(!plain.half_duplex_fields()->isVisibleTo(&plain));
+    REQUIRE(plain.options().half_duplex == vss::half_duplex_options{});
 }

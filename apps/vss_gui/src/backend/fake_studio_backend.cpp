@@ -520,12 +520,18 @@ vss::result<vss::link_id> FakeStudioBackend::monitor(vss::endpoint_id from,
 }
 
 vss::result<vss::link_id>
-FakeStudioBackend::bus(const std::vector<vss::endpoint_id>& members)
+FakeStudioBackend::bus(const std::vector<vss::endpoint_id>& members,
+                       const vss::link_options& requested)
 {
     if (const auto error = take_error())
         return *error;
     if (!caps_.shared_bus)
         return vss::make_error_code(vss::errc::unsupported);
+    if (requested.half_duplex.enabled && !caps_.half_duplex_bus)
+        return vss::make_error_code(vss::errc::unsupported);
+    if (!vss::valid_half_duplex(requested.half_duplex) ||
+        !vss::valid_latency(requested))
+        return vss::make_error_code(vss::errc::invalid_argument);
     if (members.size() < 2 || members.size() > vss::max_bus_members)
         return vss::make_error_code(vss::errc::invalid_argument);
     for (std::size_t index = 0; index < members.size(); ++index)
@@ -545,7 +551,12 @@ FakeStudioBackend::bus(const std::vector<vss::endpoint_id>& members)
         }
     }
 
+    // Like the engine, a bus takes the delay, the jitter and the half-duplex
+    // line from the caller; the rest is fixed.
     vss::link_options options;
+    options.delay_ms = requested.delay_ms;
+    options.jitter_ms = requested.jitter_ms;
+    options.half_duplex = requested.half_duplex;
     options.emulate_modem_lines = false;
     return add_link(link_shape::bus, vss::link_mode::bus, members, {}, options);
 }
@@ -732,13 +743,17 @@ FakeStudioBackend::set_link_options(vss::link_id id,
     if (const auto error = take_error())
         return *error;
     // The same rules as the engine, in the same order.
-    if (!vss::valid_latency(options))
+    if (!vss::valid_latency(options) ||
+        !vss::valid_half_duplex(options.half_duplex))
         return vss::make_error_code(vss::errc::invalid_argument);
     link_view* view = find_link(id);
     if (view == nullptr)
         return vss::make_error_code(vss::errc::not_found);
     const bool bus = view->mode == vss::link_mode::bus;
     if (bus && options.policy != vss::merge_policy::interleave)
+        return vss::make_error_code(vss::errc::unsupported);
+    // Only a bus has a half-duplex line, and only where the backend has it.
+    if (options.half_duplex.enabled && (!bus || !caps_.half_duplex_bus))
         return vss::make_error_code(vss::errc::unsupported);
 
     vss::link_options next = options;
@@ -885,6 +900,18 @@ vss::result<void> FakeStudioBackend::inject_fault(vss::endpoint_id id,
     port_view* view = find_port(id);
     if (view == nullptr)
         return vss::make_error_code(vss::errc::not_found);
+    if (caps_.driver_faults && view->driver_port &&
+        view->kind != vss::endpoint_kind::mock)
+    {
+        // A line error is raised at the program on the port; the port keeps
+        // running and no error event follows.  Hang-up and disconnect are not
+        // offered on a driver port.
+        if (fault == vss::fault_kind::hangup ||
+            fault == vss::fault_kind::disconnect)
+            return vss::make_error_code(vss::errc::unsupported);
+        injected_.push_back(fault);
+        return {};
+    }
     if (!caps_.faults || view->kind != vss::endpoint_kind::mock)
         return vss::make_error_code(vss::errc::unsupported);
     // The engine stops the endpoint on the next read; the fake does so at once.
@@ -1031,6 +1058,10 @@ vss::config::document FakeStudioBackend::snapshot() const
         }
         entry.emulate_modem_lines = view.options.emulate_modem_lines;
         entry.policy = view.options.policy;
+        entry.delay_ms = view.options.delay_ms;
+        entry.jitter_ms = view.options.jitter_ms;
+        if (view.shape == link_shape::bus)
+            entry.half_duplex = view.options.half_duplex;
         document.links.push_back(std::move(entry));
     }
     return document;
@@ -1114,6 +1145,8 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         view.id = next_link++;
         view.options.emulate_modem_lines = entry.emulate_modem_lines;
         view.options.policy = entry.policy;
+        view.options.delay_ms = entry.delay_ms;
+        view.options.jitter_ms = entry.jitter_ms;
         // Map the document's mode name to a shape.  Any other mode is
         // one-way.  A bus needs a backend that supports shared buses.
         if (entry.mode == "duplex")
@@ -1128,7 +1161,10 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         {
             if (!caps_.shared_bus)
                 return vss::make_error_code(vss::errc::unsupported);
+            if (entry.half_duplex.enabled && !caps_.half_duplex_bus)
+                return vss::make_error_code(vss::errc::unsupported);
             view.shape = link_shape::bus;
+            view.options.half_duplex = entry.half_duplex;
         }
         else
             view.shape = link_shape::one_way;

@@ -1110,6 +1110,14 @@ TEST_CASE("support: event log keeps events, not payloads")
     error.error = QStringLiteral("device stopped");
     log.append(error);
     REQUIRE(log.text().contains(QStringLiteral("device stopped")));
+
+    vss::gui::gui_event fault;
+    fault.kind = vss::event_kind::bus_fault;
+    fault.name = QStringLiteral("p1");
+    fault.message = QStringLiteral("sent 8 bytes while p0 was sending");
+    log.append(fault);
+    REQUIRE(log.text().contains(
+        QStringLiteral("p1 bus: sent 8 bytes while p0 was sending")));
 }
 
 TEST_CASE("support: help contents offers the support surfaces")

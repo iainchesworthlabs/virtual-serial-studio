@@ -1972,6 +1972,11 @@
             <source>Traffic</source>
             <translation>Tráfico</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="51" />
+            <source>Bus</source>
+            <translation>Bus</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -3618,6 +3623,26 @@ Redes: %5</translation>
             <translation>Los fallos solo están disponibles en los puertos de dispositivos simulados.</translation>
         </message>
         <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>El puerto no está en ejecución.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>Colgado y Desconexión solo están disponibles en los puertos de dispositivos simulados.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>Ningún programa tiene el puerto abierto.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>Error de línea provocado en el programa en %1</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />
             <source>Port %1</source>
             <translation>Puerto %1</translation>
@@ -3795,6 +3820,16 @@ Redes: %5</translation>
             <location filename="../src/panes/monitor_model.cpp" line="311" />
             <source>not the owner, not forwarded</source>
             <translation>no es el propietario, no se reenvía</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="286" />
+            <source>Not carried by the bus.</source>
+            <translation>No transportado por el bus.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="354" />
+            <source>not carried by the bus</source>
+            <translation>no transportado por el bus</translation>
         </message>
     </context>
     <context>
@@ -5697,6 +5732,11 @@ Redes: %5</translation>
             <location filename="../src/backend/driver_error.cpp" line="161" />
             <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
             <translation>Windows no quiso crear el puerto y Studio no pudo saber qué parte falla. No se cambió nada. Abra Herramientas, Comprobación de configuración para ver qué falta y copie los detalles si pide ayuda.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="68" />
+            <source>bus</source>
+            <translation>bus</translation>
         </message>
     </context>
     <context>
@@ -9995,6 +10035,76 @@ Redes: %5</translation>
             <source>The setup format rejected this document</source>
             <translation>El formato de configuración rechazó este documento</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="322" />
+            <source>Half-duplex buses are not available in this build</source>
+            <translation>Los buses semidúplex no están disponibles en esta compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="325" />
+            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
+            <translation>Esta compilación no puede ejecutar un bus como línea semidúplex. Quite "half_duplex" del enlace.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="334" />
+            <source>Only a bus can be a half-duplex line</source>
+            <translation>Solo un bus puede ser una línea semidúplex</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="336" />
+            <source>Remove "half_duplex", or make the link a bus.</source>
+            <translation>Quite "half_duplex" o convierta el enlace en un bus.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="345" />
+            <source>"half_duplex" must be an object</source>
+            <translation>"half_duplex" debe ser un objeto</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="347" />
+            <source>Use bit_rate, turnaround_ms, collisions and rts_gating inside it, each one optional.</source>
+            <translation>Use dentro bit_rate, turnaround_ms, collisions y rts_gating, todos opcionales.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="371" />
+            <source>The line rate must be between %1 and %2 bit/s</source>
+            <translation>La velocidad de línea debe estar entre %1 y %2 bit/s</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="375" />
+            <source>Set "bit_rate" to a whole number in that range.</source>
+            <translation>Ponga en "bit_rate" un número entero dentro de ese intervalo.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="384" />
+            <source>The turn-around must be between 0 and %1 ms</source>
+            <translation>El tiempo de inversión debe estar entre 0 y %1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="387" />
+            <source>Set "turnaround_ms" to a whole number in that range.</source>
+            <translation>Ponga en "turnaround_ms" un número entero dentro de ese intervalo.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="401" />
+            <source>"collisions" must be report or garble</source>
+            <translation>"collisions" debe ser report o garble</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="403" />
+            <source>Use report or garble.</source>
+            <translation>Use report o garble.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="412" />
+            <source>"rts_gating" must be true or false</source>
+            <translation>"rts_gating" debe ser true o false</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="414" />
+            <source>Use true or false.</source>
+            <translation>Use true o false.</translation>
+        </message>
     </context>
     <context>
         <name>TopologyJsonEditor</name>
@@ -13314,6 +13424,26 @@ Redes: %5</translation>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="531" />
             <source>Faults are only available on fixture ports.</source>
             <translation>Los fallos solo están disponibles en los puertos de dispositivos simulados.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>El puerto no está en ejecución.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>Colgado y Desconexión solo están disponibles en los puertos de dispositivos simulados.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>Ningún programa tiene el puerto abierto.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>Error de línea provocado en el programa en %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />
@@ -18623,6 +18753,79 @@ Redes: %5</translation>
             <location filename="../src/topology/add_sheet.cpp" line="490" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
+        </message>
+    </context>
+    <context>
+        <name>HalfDuplexFields</name>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="52" />
+            <source>Half-duplex line</source>
+            <translation>Línea semidúplex</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="50" />
+            <source>One port sends at a time, as on a two-wire RS-485 line. Studio reports when two send at once.</source>
+            <translation>Un puerto envía a la vez, como en una línea RS-485 de dos hilos. Studio avisa cuando dos envían a la vez.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="73" />
+            <source>Line rate</source>
+            <translation>Velocidad de línea</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> bit/s</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
+            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
+            <translation>Un byte ocupa diez bits. Los demás oyen un mensaje cuando su último byte ha salido de la línea.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="83" />
+            <source>Turn-around</source>
+            <translation>Tiempo de inversión</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="84" />
+            <source>The line stays taken this long after a port stops sending. An answer that starts inside it is reported.</source>
+            <translation>La línea sigue ocupada este tiempo después de que un puerto deja de enviar. Una respuesta que empieza dentro de ese tiempo se notifica.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="95" />
+            <source>If two send at once</source>
+            <translation>Si dos envían a la vez</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="90" />
+            <source>Report it</source>
+            <translation>Notificarlo</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="92" />
+            <source>Report it and garble the bytes</source>
+            <translation>Notificarlo y alterar los bytes</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="100" />
+            <source>Send only while RTS is high</source>
+            <translation>Enviar solo mientras RTS esté activo</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="98" />
+            <source>For ports whose RTS Studio can follow. In this build that is a loopback port. Every other port always sends.</source>
+            <translation>Para puertos cuyo RTS puede seguir Studio. En esta compilación es un puerto de bucle de retorno. Cualquier otro puerto envía siempre.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
+            <source>Not available in this build</source>
+            <translation>No disponible en esta compilación</translation>
         </message>
     </context>
 </TS>

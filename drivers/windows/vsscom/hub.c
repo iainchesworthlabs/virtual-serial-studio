@@ -150,6 +150,7 @@ VOID VssComEvtFileCleanup(_In_ WDFFILEOBJECT FileObject)
     else
     {
         VssComLockAcquire(context->Lock);
+        file->Closed = TRUE;
         context->HubOpen = FALSE;
         context->HubLines = 0;
         vsscom_ring_clear(&context->Rx);
@@ -410,6 +411,48 @@ VOID VssComHubIoControl(_In_ PVSSCOM_DEVICE_CONTEXT Context,
         return;
     }
 
+    case IOCTL_VSSCOM_HUB_LINE_ERROR:
+    {
+        VSSCOM_HUB_LINE_ERROR input = {0};
+        PVSSCOM_PIPE_CONTEXT pipe = NULL;
+        WDF_OBJECT_ATTRIBUTES attributes;
+        vsscom_line_error error;
+        NTSTATUS status;
+
+        if (!VssComFetchInput(Request, &input, sizeof(input)) ||
+            input.HasByte > 1 || input.Byte > 0xFF)
+        {
+            WdfRequestComplete(Request, STATUS_INVALID_PARAMETER);
+            return;
+        }
+        error.errors = input.Errors;
+        error.has_byte = input.HasByte != 0;
+        error.byte = (vsscom_u8)input.Byte;
+        if (!vsscom_line_error_valid(&error))
+        {
+            WdfRequestComplete(Request, STATUS_INVALID_PARAMETER);
+            return;
+        }
+
+        // The error waits in the queue of the hub's writes, so it keeps its
+        // place among the bytes, and is cancelled with them when the hub goes.
+        WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&attributes, VSSCOM_PIPE_CONTEXT);
+        status = WdfObjectAllocateContext(Request, &attributes, (PVOID*)&pipe);
+        if (NT_SUCCESS(status))
+        {
+            pipe->IsLineError = TRUE;
+            pipe->LineError = error;
+            status = WdfRequestForwardToIoQueue(Request, Context->HubWriteQueue);
+        }
+        if (!NT_SUCCESS(status))
+        {
+            WdfRequestComplete(Request, status);
+            return;
+        }
+        VssComPump(Context);
+        return;
+    }
+
     default:
         WdfRequestComplete(Request, STATUS_INVALID_DEVICE_REQUEST);
         return;
@@ -417,6 +460,53 @@ VOID VssComHubIoControl(_In_ PVSSCOM_DEVICE_CONTEXT Context,
 }
 
 // -- Moving bytes ----------------------------------------------------------
+
+// What became of a line error that reached the head of the hub's writes.
+typedef enum _VSSCOM_ERROR_OUTCOME
+{
+    VssComErrorWaits,   // no room yet for the bytes it adds
+    VssComErrorDropped, // no program has the port open
+    VssComErrorRaised
+} VSSCOM_ERROR_OUTCOME;
+
+// Raises the line error of `Pipe` at the application end: latches it, puts its
+// bytes in Rx and says which events it raises and whether it starts an abort on
+// error. Completes nothing.
+static VSSCOM_ERROR_OUTCOME VssComApplyLineError(
+    _In_ PVSSCOM_DEVICE_CONTEXT Context, _In_ PVSSCOM_PIPE_CONTEXT Pipe,
+    _Out_ PULONG Events, _Out_ PBOOLEAN Abort)
+{
+    VSSCOM_ERROR_OUTCOME outcome = VssComErrorDropped;
+
+    *Events = 0;
+    *Abort = FALSE;
+
+    VssComLockAcquire(Context->Lock);
+    if (Context->AppOpen)
+    {
+        const vsscom_flow flow = VssComFlowLocked(Context);
+        vsscom_error_chars chars;
+        vsscom_error_effect effect;
+
+        chars.error_char = Context->Chars.ErrorChar;
+        chars.break_char = Context->Chars.BreakChar;
+        chars.event_char = Context->Chars.EventChar;
+        effect = vsscom_line_error_effect(&Pipe->LineError, &flow, &chars);
+        if (vsscom_line_error_apply(&Context->Errors, &Context->Rx,
+                                    &Pipe->LineError, &effect))
+        {
+            outcome = VssComErrorRaised;
+            *Events = effect.events;
+            *Abort = vsscom_errors_abort(&flow, Context->Errors) != 0;
+        }
+        else
+        {
+            outcome = VssComErrorWaits;
+        }
+    }
+    VssComLockRelease(Context->Lock);
+    return outcome;
+}
 
 // Hub writes go into Rx while it has room. The request at the head keeps its
 // place, so writes stay in order.
@@ -429,22 +519,77 @@ BOOLEAN VssComServiceHubWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context)
         WDFREQUEST request;
         PVSSCOM_PIPE_CONTEXT pipe;
         ULONG stored;
+        BOOLEAN flag;
 
         if (!NT_SUCCESS(WdfIoQueueRetrieveNextRequest(Context->HubWriteQueue,
                                                       &request)))
             return moved;
 
         pipe = VssComPipeContext(request);
+
+        // A request of a hub handle that is closing ends here; see Closed.
+        {
+            WDFFILEOBJECT file = WdfRequestGetFileObject(request);
+            if (file != NULL && VssComFileContext(file)->Closed)
+            {
+                VssComFinishPipe(request, STATUS_CANCELLED);
+                continue;
+            }
+        }
+
+        if (pipe->IsLineError)
+        {
+            VSSCOM_ERROR_OUTCOME outcome;
+            ULONG events;
+            BOOLEAN abort;
+
+            // Bytes went into Rx in this call. A read that waits takes them
+            // first (the pump serves the reads next and comes back), so an
+            // abort on error does not end a read over bytes that came before
+            // the error.
+            if (moved)
+            {
+                WdfRequestRequeue(request);
+                return moved;
+            }
+
+            outcome = VssComApplyLineError(Context, pipe, &events, &abort);
+            if (outcome == VssComErrorWaits)
+            {
+                WdfRequestRequeue(request);
+                return moved;
+            }
+            if (outcome == VssComErrorRaised)
+            {
+                if (events != 0)
+                    VssComRaise(Context, events);
+                // The reads end in the pump, which finds the error latched; the
+                // writes that wait for the hub end here.
+                if (abort)
+                    VssComAbortAppWrites(Context, STATUS_CANCELLED);
+                // Something changed for the reads either way: a byte, or the
+                // abort.
+                moved = TRUE;
+            }
+            // Completed last, so that the hub knows the error is latched and
+            // its events are out when the request returns.
+            WdfRequestComplete(request, STATUS_SUCCESS);
+            continue;
+        }
+
         VssComLockAcquire(Context->Lock);
         stored = vsscom_ring_write(&Context->Rx, pipe->Buffer + pipe->Done,
                                    pipe->Length - pipe->Done);
+        flag = vsscom_bytes_have(pipe->Buffer + pipe->Done, stored,
+                                 Context->Chars.EventChar) != 0;
         pipe->Done += stored;
         VssComLockRelease(Context->Lock);
 
         if (stored != 0)
         {
             moved = TRUE;
-            VssComRaise(Context, VSSCOM_EV_RXCHAR);
+            VssComRaise(Context,
+                        VSSCOM_EV_RXCHAR | (flag ? VSSCOM_EV_RXFLAG : 0u));
         }
         if (pipe->Done == pipe->Length)
         {
@@ -524,6 +669,18 @@ BOOLEAN VssComServiceAppWrites(_In_ PVSSCOM_DEVICE_CONTEXT Context)
             Context->AppWritesPending--;
             VssComLockRelease(Context->Lock);
             VssComFinishPipe(request, STATUS_DEVICE_REMOVED);
+            moved = TRUE;
+            continue;
+        }
+
+        // After an error with abort on error set, the writes that wait end, and
+        // so does one that slipped in before the error was latched.
+        if (VssComErrorAbort(Context))
+        {
+            VssComLockAcquire(Context->Lock);
+            Context->AppWritesPending--;
+            VssComLockRelease(Context->Lock);
+            VssComFinishPipe(request, STATUS_CANCELLED);
             moved = TRUE;
             continue;
         }

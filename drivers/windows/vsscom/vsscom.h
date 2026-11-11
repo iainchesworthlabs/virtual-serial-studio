@@ -64,6 +64,11 @@ typedef struct _VSSCOM_FILE_CONTEXT
     // fail, and closing it changes nothing: the port may belong to another program
     // by then. Written under the device lock, read without it.
     volatile BOOLEAN Revoked;
+    // The hub handle is closing. The framework cancels the requests it left in the
+    // queues only after the cleanup callback, and that callback runs the pump, so
+    // the pump must not serve them: a write or a line error of a hub that has gone
+    // would reach the application. Written under the device lock, read without it.
+    volatile BOOLEAN Closed;
 } VSSCOM_FILE_CONTEXT, *PVSSCOM_FILE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(VSSCOM_FILE_CONTEXT, VssComFileContext)
@@ -79,6 +84,10 @@ typedef struct _VSSCOM_PIPE_CONTEXT
     // the head of the queue, and 0 again if it has no timeout.
     ULONGLONG Deadline;
     BOOLEAN DeadlineSet;
+    // A line error that waits its turn among the hub's writes
+    // (IOCTL_VSSCOM_HUB_LINE_ERROR): no buffer, and LineError says what to raise.
+    BOOLEAN IsLineError;
+    vsscom_line_error LineError;
 } VSSCOM_PIPE_CONTEXT, *PVSSCOM_PIPE_CONTEXT;
 
 WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(VSSCOM_PIPE_CONTEXT, VssComPipeContext)
@@ -161,6 +170,9 @@ typedef struct _VSSCOM_DEVICE_CONTEXT
     BOOLEAN ServiceBusy;  // one thread is serving the read queue
     BOOLEAN ServiceAgain; // something changed while it was
     BOOLEAN AbortHead;    // PurgeComm asked for the waiting read to end
+    // The line errors the hub raised that ClearCommError has not read yet
+    // (VSSCOM_ERROR_* bits). Cleared when the application closes the port.
+    vsscom_u32 Errors;
     // When the bytes the application wrote will all have left, in interrupt time
     // (100 ns units); 0 for none. Only RTS toggle looks at it.
     ULONGLONG TxBusyUntil;
@@ -234,6 +246,11 @@ VOID VssComApplyFlow(_In_ PVSSCOM_DEVICE_CONTEXT Context, _In_ BOOLEAN Set);
 VOID VssComFlowTransmit(_In_ PVSSCOM_DEVICE_CONTEXT Context, _In_ ULONG Bytes);
 // The flow timer: the hold of a toggling RTS may be over.
 VOID VssComEvtFlowTimer(_In_ WDFTIMER Timer);
+// The flow control settings as the core takes them. Call with the lock held.
+vsscom_flow VssComFlowLocked(_In_ PVSSCOM_DEVICE_CONTEXT Context);
+// True while the application asked for abort on error and an error is latched:
+// its requests then end with STATUS_CANCELLED. Call with the lock free.
+BOOLEAN VssComErrorAbort(_In_ PVSSCOM_DEVICE_CONTEXT Context);
 // Takes the application handle back (IOCTL_VSSCOM_HUB_REVOKE). Returns the process
 // that had it, or 0.
 ULONG VssComRevokeApplication(_In_ PVSSCOM_DEVICE_CONTEXT Context);

@@ -44,7 +44,8 @@ driver builds in CI from the same sources; its guest results are in the section
 | `SET_HANDFLOW` drives DTR and RTS: enable, disable, handshake on the receive buffer, RTS toggle | tests D23 to D25 pass for both drivers in the Windows 10 22H2 guest; the rules are also unit-tested on the host. Not yet run in the Windows 11 guest or on ARM64 |
 | Revoke: the hub takes the port back from a program, and the hub state names the process | tests D26 and D27 pass for both drivers in the Windows 10 22H2 guest; not yet run in the Windows 11 guest or on ARM64 |
 | COM numbers: choose one when the port is made, change it later, refuse one that is taken (the helper service, for either driver) | tests D28 to D31 and the client test C2 pass for both drivers in the Windows 10 22H2 guest (with the helper installed); not yet run in the Windows 11 guest or on ARM64 |
-| Driver Verifier (standard settings) on `vsscom.sys` | the whole suite passes with it on in the Windows 11 guest |
+| Line errors: the hub raises parity, framing, overrun, break and queue overrun; `ClearCommError`, `EV_ERR`, `EV_BREAK`, `EV_RXFLAG`, the error and break characters, abort on error | tests D32 to D38, W5 and the client test C3 pass for both drivers in the Windows 10 22H2 and Windows 11 guests, with the packages test-signed in the guest; the rules are also unit-tested on the host. Not run on ARM64. In D38 the wait that races a cancel got the event in 0 to 4 of 200 rounds on the kernel-mode driver, so that side of the race is barely exercised there |
+| Driver Verifier (standard settings) on `vsscom.sys` | the whole suite, D32 to D38 included, passes with it on in the Windows 11 guest |
 | The studio opening a port (`create_driver_port`) | runs in a guest with `test-client.ps1` (test C1) |
 | A 32-bit program (WOW64) and a hung or killed program | the client and `test-wow64.ps1` (W1 to W4, T1 to T7) are written and the client builds in CI; the guest results are in the pull request that added them, and are not yet in this table |
 | Signing | not done: the package is unsigned |
@@ -250,8 +251,23 @@ program: its waiting reads, writes and `WaitCommEvent` end with
 way, `AppOpen` clears, the port resets as a close would reset it, and another
 program can open it at once. The old handle stays in the process, and closing it
 later changes nothing. Only the user who owns the port has a hub handle, so only
-that user can revoke (`access.c`). Both are version 3 of the interface
-(`VSSCOM_VERSION`); the studio refuses a driver of version 2.
+that user can revoke (`access.c`). Both came with version 3 of the interface
+(`VSSCOM_VERSION`).
+
+`IOCTL_VSSCOM_HUB_LINE_ERROR`, on the hub handle, raises a line error at the
+program: a break, a framing, parity or overrun error, or a full receive queue,
+with or without the byte the receiver made of it. The request takes its turn
+among the hub's writes, so the error keeps its place among the bytes, and it
+completes when the error has taken effect. The program then sees what a UART
+driver shows it: `ClearCommError` reports the error once, `WaitCommEvent`
+returns `EV_ERR` or `EV_BREAK`, `fErrorChar` puts the error character in place of
+the bad byte, and `fAbortOnError` ends its reads and writes with
+`ERROR_OPERATION_ABORTED` until it calls `ClearCommError`. `EV_RXFLAG` is raised
+when the event character arrives. The rules, and what was and was not checked
+against `serial.sys`, are in
+[docs/windows-com-driver.md](../../docs/windows-com-driver.md#line-errors). This is
+version 4 of the interface; the studio opens a port only of the version it was
+built for.
 
 
 ## Ports on demand
@@ -369,12 +385,14 @@ WOW64 in the usual 64-bit Windows 10 and Windows 11 guests, which is what a 32-b
 program on a 64-bit machine does. The serial requests carry no pointers, so WOW64
 passes them straight through; `test-wow64.ps1` is the proof that it does.
 
-The client has four modes: `probe` (opens `COM1` to `COM16`, with and without the
+The client has five modes: `probe` (opens `COM1` to `COM16`, with and without the
 `\.\` prefix), `open` (one open, to see what a second program gets), `exercise`
 (`SetupComm`, `SetCommState` with the DTR and RTS control modes, `SetCommTimeouts`
 in the usual combinations, `GetCommProperties`, `GetCommConfig`,
 `EscapeCommFunction`, overlapped `WaitCommEvent`, `ReadFile` and `WriteFile`,
-`PurgeComm`, the modem status) and `hold` (leaves requests pending and stays alive).
+`PurgeComm`, the modem status), `hold` (leaves requests pending and stays alive)
+and `errors` (asks for the error character, waits for `EV_ERR` and `EV_BREAK`, reads
+`ClearCommError`, then sets abort on error and waits in a read).
 Each prints one JSON document. Build it with
 `cmake -S drivers/windows/test/client32 -B build/client32-x86 -A Win32` and
 `cmake --build build/client32-x86 --config Release`; CI builds it in the driver job
@@ -389,6 +407,7 @@ which sends back what the program writes and shows DTR as DSR and DCD and RTS as
 | W1 | the 32-bit probe of `COM1` to `COM16`, with the target free and while another program holds it, and the 64-bit probe for comparison |
 | W2, W3 | the whole exercise with the 32-bit build, and with the native build |
 | W4 | the two builds' answers agree, step by step |
+| W5 | the hub raises a parity error, a break and a framing error at the `errors` mode of both builds: the event, the `ClearCommError` bits, the error character in the data, and a read that abort on error ends |
 | T1 | a pending read, a pending event wait and a write stalled on the full 64 KB queue; the program is killed. `AppOpen` must clear in under a second and the port reopen |
 | T2 | the same with the program suspended, which is the hang: records what a second open returns (access denied is expected), then kills it |
 | T3 | a synchronous read with no timeout; the program is killed |

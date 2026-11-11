@@ -12,6 +12,7 @@
  *   vss_com_client open     --port COM5 [--out file]
  *   vss_com_client exercise --port COM5 [--out file]
  *   vss_com_client hold     --port COM5 --ready file [--log file] [--scenario overlapped|syncread]
+ *   vss_com_client errors   --port COM5 --ready file [--out file]
  *
  * probe     opens COM1 to COM16 with and without the \\.\ prefix, one after the other, as a
  *           program does at start-up to fill its port list.
@@ -22,6 +23,13 @@
  * hold      leaves requests pending on the port and stays alive, for the hung-program tests:
  *           it writes the --ready file when the requests are in, then waits to be killed,
  *           suspended or left alone. The ready file holds the process id and the handle value.
+ * errors    what a program does about line errors, against a port whose hub end raises them
+ *           (drivers/windows/test/test-wow64.ps1, test W5): it asks for the error character and
+ *           waits for EV_ERR and EV_BREAK, reads ClearCommError and the bytes around the errors,
+ *           then sets abort on error and checks that a waiting read ends. It writes the --ready
+ *           file when it is set up. The hub end cannot see what the program does, so the program
+ *           tells it where it is by raising RTS (the first error has been read) and DTR (the read
+ *           that the third error must end is waiting).
  */
 
 #include <windows.h>
@@ -1042,6 +1050,351 @@ static int run_hold(const char *port, const char *ready_path, const char *scenar
 }
 
 /* ------------------------------------------------------------------------------------ */
+/* errors                                                                                 */
+/* ------------------------------------------------------------------------------------ */
+
+enum
+{
+    errors_wait_ms = 20000 /* how long a step waits for the hub, which sends the errors, before it gives up */
+};
+
+/* WaitCommEvent with a guard time. Returns 1 when it ended in `guard_ms`; `mask` is the events. */
+static int wait_event(HANDLE h, DWORD guard_ms, DWORD *mask, DWORD *error, long *ms)
+{
+    OVERLAPPED ov;
+    init_overlapped(&ov);
+    *mask = 0;
+    ULONGLONG start = GetTickCount64();
+    BOOL started = WaitCommEvent(h, mask, &ov);
+    DWORD count = 0;
+    int finished = finish_overlapped(h, &ov, started, guard_ms, &count, error);
+    *ms = since(start);
+    free_overlapped(&ov);
+    return finished;
+}
+
+/* ClearCommError: the error bits, which the call clears. */
+static int clear_errors(HANDLE h, DWORD *errors, DWORD *error)
+{
+    COMSTAT stat;
+    memset(&stat, 0, sizeof stat);
+    *errors = 0;
+    BOOL ok = ClearCommError(h, errors, &stat);
+    *error = ok ? 0 : GetLastError();
+    return ok ? 1 : 0;
+}
+
+/*
+ * Reads until `want` bytes have come, `limit_ms` has passed or a read fails. The timeouts must
+ * be MAXDWORD/MAXDWORD/constant, so that a read returns with the first byte there is. Returns
+ * the byte count.
+ */
+static DWORD read_exact(HANDLE h, unsigned char *buffer, DWORD want, long limit_ms, DWORD *error)
+{
+    DWORD got = 0;
+    ULONGLONG start = GetTickCount64();
+    *error = 0;
+    while (got < want && since(start) < limit_ms)
+    {
+        DWORD count = 0;
+        long ms = 0;
+        if (!timed_read(h, buffer + got, want - got, 3000, &count, error, &ms) || *error != 0)
+        {
+            break;
+        }
+        got += count;
+    }
+    return got;
+}
+
+/* The error character, the mask and the timeouts, set and read back. Returns 1 when the port is ready. */
+static int errors_setup(report *r, HANDLE h)
+{
+    DCB dcb;
+    memset(&dcb, 0, sizeof dcb);
+    dcb.DCBlength = sizeof dcb;
+    if (!GetCommState(h, &dcb))
+    {
+        add_step(r, "SetCommState with fErrorChar", 0, GetLastError(), 1, -1, "GetCommState before the change failed");
+        return 0;
+    }
+    dcb.BaudRate = 9600;
+    dcb.ByteSize = 8;
+    dcb.Parity = NOPARITY;
+    dcb.StopBits = ONESTOPBIT;
+    dcb.fBinary = TRUE;
+    /* Programs that ask for the error character turn parity checking on with it. */
+    dcb.fParity = TRUE;
+    dcb.fErrorChar = TRUE;
+    dcb.ErrorChar = '?';
+    dcb.fAbortOnError = FALSE;
+    dcb.fDtrControl = DTR_CONTROL_DISABLE;
+    dcb.fRtsControl = RTS_CONTROL_DISABLE;
+    if (!SetCommState(h, &dcb))
+    {
+        add_step(r, "SetCommState with fErrorChar", 0, GetLastError(), 1, -1, "SetCommState failed");
+        return 0;
+    }
+    DCB back;
+    memset(&back, 0, sizeof back);
+    back.DCBlength = sizeof back;
+    if (!GetCommState(h, &back))
+    {
+        add_step(r, "SetCommState with fErrorChar", 0, GetLastError(), 1, -1, "GetCommState after the change failed");
+        return 0;
+    }
+    int same = back.fErrorChar && back.ErrorChar == '?' && !back.fAbortOnError;
+    add_step(r, "SetCommState with fErrorChar", same, 0, 1, -1,
+             "error character ?; read back fErrorChar %u, ErrorChar 0x%02x, fAbortOnError %u",
+             (unsigned)back.fErrorChar, (unsigned)(unsigned char)back.ErrorChar, (unsigned)back.fAbortOnError);
+    if (!same)
+    {
+        return 0;
+    }
+
+    if (!SetCommMask(h, EV_ERR | EV_BREAK))
+    {
+        add_step(r, "SetCommMask EV_ERR and EV_BREAK", 0, GetLastError(), 1, -1, "SetCommMask failed");
+        return 0;
+    }
+    DWORD mask = 0;
+    GetCommMask(h, &mask);
+    add_step(r, "SetCommMask EV_ERR and EV_BREAK", mask == (EV_ERR | EV_BREAK), 0, 1, -1, "mask read back 0x%04lx",
+             (unsigned long)mask);
+    if (mask != (EV_ERR | EV_BREAK))
+    {
+        return 0;
+    }
+
+    /* A read returns with the first byte there is, and waits a second for one. */
+    DWORD error = 0;
+    if (!set_timeouts(h, MAXDWORD, MAXDWORD, 1000, 0, 0, &error))
+    {
+        add_step(r, "SetCommTimeouts", 0, error, 1, -1, "SetCommTimeouts failed");
+        return 0;
+    }
+    return 1;
+}
+
+/* The first error is a parity error between 'a' and 'b'; the error character stands for its byte. */
+static int errors_parity(report *r, HANDLE h)
+{
+    DWORD mask = 0;
+    DWORD error = 0;
+    long ms = 0;
+    int finished = wait_event(h, errors_wait_ms, &mask, &error, &ms);
+    int ok = finished && error == 0 && mask == EV_ERR;
+    add_step(r, "WaitCommEvent ends with EV_ERR for a parity error", ok, error, 1, ms,
+             "%s; event mask 0x%04lx, EV_ERR 0x%04lx expected",
+             finished ? "the wait ended" : "the wait was still pending", (unsigned long)mask, (unsigned long)EV_ERR);
+    if (!ok)
+    {
+        return 0;
+    }
+
+    DWORD errors = 0;
+    ok = clear_errors(h, &errors, &error) && errors == CE_RXPARITY;
+    add_step(r, "ClearCommError reports the parity error", ok, error, 1, -1, "errors 0x%lx, CE_RXPARITY 0x%lx expected",
+             (unsigned long)errors, (unsigned long)CE_RXPARITY);
+    if (!ok)
+    {
+        return 0;
+    }
+
+    unsigned char text[8];
+    memset(text, 0, sizeof text);
+    DWORD got = read_exact(h, text, 3, errors_wait_ms, &error);
+    ok = got == 3 && memcmp(text, "a?b", 3) == 0;
+    add_step(r, "ReadFile reads the bytes around the parity error", ok, error, 1, -1,
+             "read %lu bytes, \"%.3s\"; \"a?b\" expected, the error character in place of the bad byte",
+             (unsigned long)got, (const char *)text);
+    return ok;
+}
+
+/* The second error is a break. RTS tells the hub that the first one has been read. */
+static int errors_break(report *r, HANDLE h)
+{
+    if (!EscapeCommFunction(h, SETRTS))
+    {
+        add_step(r, "EscapeCommFunction SETRTS", 0, GetLastError(), 1, -1, "SETRTS failed");
+        return 0;
+    }
+    DWORD mask = 0;
+    DWORD error = 0;
+    long ms = 0;
+    int finished = wait_event(h, errors_wait_ms, &mask, &error, &ms);
+    int ok = finished && error == 0 && mask == EV_BREAK;
+    add_step(r, "WaitCommEvent ends with EV_BREAK for a break", ok, error, 1, ms,
+             "%s; event mask 0x%04lx, EV_BREAK 0x%04lx expected",
+             finished ? "the wait ended" : "the wait was still pending", (unsigned long)mask, (unsigned long)EV_BREAK);
+    if (!ok)
+    {
+        return 0;
+    }
+
+    DWORD errors = 0;
+    ok = clear_errors(h, &errors, &error) && errors == CE_BREAK;
+    add_step(r, "ClearCommError reports the break", ok, error, 1, -1, "errors 0x%lx, CE_BREAK 0x%lx expected",
+             (unsigned long)errors, (unsigned long)CE_BREAK);
+    return ok;
+}
+
+/*
+ * The third error is a framing error, and with abort on error set it ends the read that waits.
+ * DTR tells the hub that the read is waiting. The hub then sends the error and the bytes "ok", which
+ * wait in the buffer until ClearCommError has been called.
+ */
+static int errors_abort(report *r, HANDLE h)
+{
+    DCB dcb;
+    memset(&dcb, 0, sizeof dcb);
+    dcb.DCBlength = sizeof dcb;
+    if (!GetCommState(h, &dcb))
+    {
+        add_step(r, "SetCommState with fAbortOnError", 0, GetLastError(), 1, -1,
+                 "GetCommState before the change failed");
+        return 0;
+    }
+    dcb.fAbortOnError = TRUE;
+    /* Without the error character the framing error adds nothing to the stream: the next read is "ok". */
+    dcb.fErrorChar = FALSE;
+    if (!SetCommState(h, &dcb))
+    {
+        add_step(r, "SetCommState with fAbortOnError", 0, GetLastError(), 1, -1, "SetCommState failed");
+        return 0;
+    }
+    DCB back;
+    memset(&back, 0, sizeof back);
+    back.DCBlength = sizeof back;
+    if (!GetCommState(h, &back) || !back.fAbortOnError)
+    {
+        add_step(r, "SetCommState with fAbortOnError", 0, GetLastError(), 1, -1, "fAbortOnError did not read back");
+        return 0;
+    }
+    add_step(r, "SetCommState with fAbortOnError", 1, 0, 1, -1, "fAbortOnError read back set, fErrorChar clear");
+
+    /* No timeouts: the read waits for all four bytes, which never come. */
+    DWORD error = 0;
+    if (!set_timeouts(h, 0, 0, 0, 0, 0, &error))
+    {
+        add_step(r, "SetCommTimeouts", 0, error, 1, -1, "SetCommTimeouts failed");
+        return 0;
+    }
+
+    OVERLAPPED ov;
+    init_overlapped(&ov);
+    unsigned char buffer[4];
+    memset(buffer, 0, sizeof buffer);
+    ULONGLONG start = GetTickCount64();
+    BOOL started = ReadFile(h, buffer, sizeof buffer, NULL, &ov);
+    DWORD start_error = started ? 0 : GetLastError();
+    if (!started && start_error != ERROR_IO_PENDING)
+    {
+        add_step(r, "ReadFile of four bytes ends with ERROR_OPERATION_ABORTED", 0, start_error, 1, -1,
+                 "the read did not start");
+        free_overlapped(&ov);
+        return 0;
+    }
+    if (!EscapeCommFunction(h, SETDTR))
+    {
+        DWORD dtr_error = GetLastError();
+        add_step(r, "EscapeCommFunction SETDTR", 0, dtr_error, 1, -1, "SETDTR failed");
+        CancelIoEx(h, &ov);
+        GetOverlappedResult(h, &ov, &start_error, TRUE);
+        free_overlapped(&ov);
+        return 0;
+    }
+    DWORD count = 0;
+    if (!started)
+    {
+        /* finish_overlapped asks for the error of the call that started the read. */
+        SetLastError(start_error);
+    }
+    int finished = finish_overlapped(h, &ov, started, errors_wait_ms, &count, &error);
+    long ms = since(start);
+    free_overlapped(&ov);
+    int ok = finished && error == ERROR_OPERATION_ABORTED;
+    add_step(r, "ReadFile of four bytes ends with ERROR_OPERATION_ABORTED", ok, error, 1, ms,
+             "%s; the read returned %lu bytes", finished ? "the read ended" : "the read was still waiting",
+             (unsigned long)count);
+    if (!ok)
+    {
+        return 0;
+    }
+
+    DWORD errors = 0;
+    ok = clear_errors(h, &errors, &error) && errors == CE_FRAME;
+    add_step(r, "ClearCommError reports the framing error", ok, error, 1, -1, "errors 0x%lx, CE_FRAME 0x%lx expected",
+             (unsigned long)errors, (unsigned long)CE_FRAME);
+    if (!ok)
+    {
+        return 0;
+    }
+
+    /* What was refused until now works, and the bytes that waited are there. */
+    if (!set_timeouts(h, MAXDWORD, MAXDWORD, 1000, 0, 0, &error))
+    {
+        add_step(r, "SetCommTimeouts", 0, error, 1, -1, "SetCommTimeouts failed after ClearCommError");
+        return 0;
+    }
+    unsigned char text[8];
+    memset(text, 0, sizeof text);
+    DWORD got = read_exact(h, text, 2, errors_wait_ms, &error);
+    ok = got == 2 && memcmp(text, "ok", 2) == 0;
+    add_step(r, "ReadFile after ClearCommError reads the bytes that waited", ok, error, 1, -1,
+             "read %lu bytes, \"%.2s\"; \"ok\" expected", (unsigned long)got, (const char *)text);
+    return ok;
+}
+
+static void put_errors_ready(const char *path, int ready)
+{
+    char content[256];
+    (void)_snprintf_s(content, sizeof content, _TRUNCATE,
+                      "{\"ready\":%s,\"pid\":%lu,\"arch\":\"" VSS_CLIENT_ARCH "\"}\n", ready ? "true" : "false",
+                      (unsigned long)GetCurrentProcessId());
+    write_ready(path, content);
+}
+
+static int run_errors(const char *port, const char *ready_path, text_buffer *json)
+{
+    report r;
+    memset(&r, 0, sizeof r);
+    char path[64];
+    device_path(port, path, sizeof path);
+    DWORD error = 0;
+
+    HANDLE h = open_path(path, FILE_FLAG_OVERLAPPED, &error);
+    add_step(&r, "CreateFile overlapped", h != INVALID_HANDLE_VALUE, error, 1, -1, "path %s", path);
+    if (h == INVALID_HANDLE_VALUE)
+    {
+        put_errors_ready(ready_path, 0);
+    }
+    else
+    {
+        /* The ready file comes after the settings: the hub raises its errors by them. */
+        int ready = errors_setup(&r, h);
+        put_errors_ready(ready_path, ready);
+        if (ready && errors_parity(&r, h) && errors_break(&r, h))
+        {
+            (void)errors_abort(&r, h);
+        }
+        BOOL ok = CloseHandle(h);
+        add_step(&r, "CloseHandle", ok, ok ? 0 : GetLastError(), 1, -1, "closed");
+    }
+
+    text_put(json, "{");
+    put_identity(json, "errors");
+    text_put(json, ",\"port\":");
+    text_string(json, port);
+    text_fmt(json, ",\"summary\":{\"steps\":%d,\"failed\":%d,\"required_failed\":%d},\n  \"steps\":[\n    ", r.count,
+             r.failed, r.required_failed);
+    text_put(json, r.steps.data ? r.steps.data : "");
+    text_put(json, "\n  ]}\n");
+    free(r.steps.data);
+    return r.required_failed == 0 ? 0 : 1;
+}
+
+/* ------------------------------------------------------------------------------------ */
 /* The command line.                                                                      */
 /* ------------------------------------------------------------------------------------ */
 
@@ -1062,7 +1415,8 @@ static void usage(void)
     fputs("usage: vss_com_client probe [--first N] [--last N] [--out file]\n"
           "       vss_com_client open --port COMn [--out file]\n"
           "       vss_com_client exercise --port COMn [--out file]\n"
-          "       vss_com_client hold --port COMn --ready file [--log file] [--scenario overlapped|syncread]\n",
+          "       vss_com_client hold --port COMn --ready file [--log file] [--scenario overlapped|syncread]\n"
+          "       vss_com_client errors --port COMn --ready file [--out file]\n",
           stderr);
 }
 
@@ -1128,6 +1482,16 @@ int main(int argc, char **argv)
         }
         g_log_path = option(argc, argv, "--log", NULL);
         return run_hold(port, ready, option(argc, argv, "--scenario", "overlapped"));
+    }
+    else if (strcmp(mode, "errors") == 0 && port != NULL)
+    {
+        const char *ready = option(argc, argv, "--ready", NULL);
+        if (ready == NULL)
+        {
+            usage();
+            return 2;
+        }
+        code = run_errors(port, ready, &json);
     }
     else
     {

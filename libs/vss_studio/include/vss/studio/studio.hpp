@@ -34,8 +34,15 @@ namespace vss
 
 class reconnector;
 
-/// A fault a mock fixture can raise.  Each one is reported as an error on the
-/// fixture's next read, which stops the endpoint and emits an error event.
+/// A fault `studio::inject_fault` can raise.
+///
+/// On a mock fixture every one is reported as an error on the fixture's next
+/// read, which stops the endpoint and emits an error event.
+///
+/// On a Windows driver port `parity`, `framing`, `overrun` and
+/// `break_condition` are raised at the program that has the port open (see
+/// `raise_driver_line_error`); the port keeps running and the studio sees no
+/// error event.  `hangup` and `disconnect` are not available on a driver port.
 enum class fault_kind
 {
     parity,
@@ -123,11 +130,24 @@ public:
                      const serial_settings& settings = {},
                      const std::string& target = "scripted");
 
-    /// Makes a mock fixture report `fault` on its next read.  The call is
-    /// queued on the endpoint's strand, so it is safe from any thread and
-    /// returns before the fault is delivered.  `errc::not_found` for an
-    /// unknown endpoint and `errc::unsupported` for a port that is not a
-    /// fixture.
+    /// Raises `fault` on a port.
+    ///
+    /// On a mock fixture the fixture reports `fault` on its next read.  The
+    /// call is queued on the endpoint's strand, so it is safe from any thread
+    /// and returns before the fault is delivered.
+    ///
+    /// On a driver port (a virtual port of the Windows driver) `parity`,
+    /// `framing`, `overrun` and `break_condition` are raised at the program
+    /// that has the port open, and the result is that of
+    /// `raise_driver_line_error`: it returns before the driver has applied the
+    /// error, and the driver drops the error when no program has the port
+    /// open.  Unlike a fixture fault it does not stop the endpoint and reports
+    /// no error event.  `hangup` and `disconnect` return `errc::unsupported`
+    /// for a driver port; they would have to be mapped to modem lines or to a
+    /// revoke, and that has not been decided.
+    ///
+    /// `errc::not_found` for an unknown endpoint and `errc::unsupported` for
+    /// any other port.
     result<void> inject_fault(endpoint_id id, fault_kind fault);
 
     /// Makes a mock fixture speak: `data` arrives on the fixture as if the
@@ -274,8 +294,8 @@ public:
     /// other and none hears itself.  Modem lines are not carried.  See
     /// #hub::bus for the rules, including how a bus meets other links.
     ///
-    /// `options` may carry a `delay_ms` and `jitter_ms`; the other fields are
-    /// fixed for a bus.
+    /// `options` may carry a `delay_ms` and `jitter_ms`, and a `half_duplex`
+    /// line; the other fields are fixed for a bus.
     result<link_id> bus(const std::vector<std::string>& members,
                         link_options options = {});
     result<void> disconnect(link_id id);

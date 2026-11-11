@@ -10,6 +10,7 @@
 #include "theme/theme.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
+#include "widgets/half_duplex_fields.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -25,7 +26,9 @@ namespace vss::gui
 {
 
 LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
-                                       const QString& name, QWidget* parent)
+                                       const QString& name,
+                                       bool half_duplex_available,
+                                       QWidget* parent)
     : QDialog(parent), link_(link)
 {
     const QString title = tr("Settings for %1").arg(name);
@@ -89,6 +92,12 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
     modem_lines_->setVisible(link.shape == link_shape::two_way);
     layout->addWidget(modem_lines_);
 
+    half_duplex_ = new HalfDuplexFields(this);
+    half_duplex_->set_available(half_duplex_available);
+    half_duplex_->set_options(link.options.half_duplex);
+    half_duplex_->setVisible(bus);
+    layout->addWidget(half_duplex_);
+
     error_ = new QLabel(this);
     error_->setWordWrap(true);
     error_->setFont(Theme::instance().font(text_style::caption));
@@ -110,6 +119,8 @@ LinkSettingsDialog::LinkSettingsDialog(const link_view& link,
 
     connect(delay_, &QSpinBox::valueChanged, this, [this] { update_state(); });
     connect(jitter_, &QSpinBox::valueChanged, this, [this] { update_state(); });
+    connect(half_duplex_, &HalfDuplexFields::changed, this,
+            [this] { update_state(); });
     update_state();
     delay_->setFocus(Qt::OtherFocusReason);
 }
@@ -124,6 +135,8 @@ vss::link_options LinkSettingsDialog::options() const
             static_cast<vss::merge_policy>(policy_->currentData().toInt());
     if (modem_lines_shown())
         out.emulate_modem_lines = modem_lines_->isChecked();
+    if (half_duplex_shown())
+        out.half_duplex = half_duplex_->options();
     return out;
 }
 
@@ -147,10 +160,17 @@ bool LinkSettingsDialog::modem_lines_shown() const
     return link_.shape == link_shape::two_way;
 }
 
+bool LinkSettingsDialog::half_duplex_shown() const
+{
+    return link_.shape == link_shape::bus;
+}
+
 void LinkSettingsDialog::update_state()
 {
     VSS_PROFILE_ZONE("gui.advanced.link_settings.update_state");
-    const bool valid = vss::valid_latency(options());
+    const vss::link_options now = options();
+    const bool valid =
+        vss::valid_latency(now) && vss::valid_half_duplex(now.half_duplex);
     error_->setText(valid ? QString()
                           : tr("The jitter can be no more than the delay."));
     apply_->setEnabled(valid);

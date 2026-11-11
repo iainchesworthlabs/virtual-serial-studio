@@ -351,9 +351,10 @@ QWidget* LineMatrixPanel::build_fault_column()
         inject->setAccessibleName(
             QCoreApplication::translate("LineMatrix", "Inject %1")
                 .arg(tile_title));
-        // refresh() enables the button only for a running fixture on a
-        // backend that can inject; otherwise it stays disabled with the
-        // reason rather than pretending to inject.
+        // refresh() enables the button only for a running fixture, or a
+        // driver port with a program on it, on a backend that can inject;
+        // otherwise it stays disabled with the reason rather than pretending
+        // to inject.
         degrade(inject);
         connect(inject, &QPushButton::clicked, this,
                 [this, index] { inject_fault(index); });
@@ -550,14 +551,48 @@ void LineMatrixPanel::refresh()
                         .arg(port->name),
                     tr("Create this fixture in code"));
 
-    // Faults can be injected only into a running fixture (a mock port) on a
-    // backend that supports faults; each other case gets its own reason.
+    // Faults can be injected into a running fixture (a mock port) on a backend
+    // that supports faults.  A port of the Windows driver takes the four line
+    // errors, raised at the program that has it open, where the backend can do
+    // so.  Each other case gets its own reason.
     const bool is_fixture = port->kind == vss::endpoint_kind::mock;
+    const bool is_driver_port =
+        !is_fixture && port->driver_port && caps.driver_faults;
     const bool running = port->state == vss::endpoint_state::open;
     const bool can_inject = caps.faults && is_fixture && running;
-    for (QPushButton* button : inject_)
+    const auto& tiles = fault_tiles();
+    for (qsizetype index = 0; index < inject_.size(); ++index)
     {
-        if (can_inject)
+        QPushButton* button = inject_.at(index);
+        if (is_driver_port)
+        {
+            const vss::fault_kind kind =
+                static_cast<std::size_t>(index) < tiles.size()
+                    ? tiles[static_cast<std::size_t>(index)].kind
+                    : vss::fault_kind::disconnect;
+            const bool is_line_error = kind != vss::fault_kind::hangup &&
+                                       kind != vss::fault_kind::disconnect;
+            if (!running)
+            {
+                degrade(button, tr("The port is not running."));
+            }
+            else if (!is_line_error)
+            {
+                degrade(button, tr("Hang-up and Disconnect are only "
+                                   "available on fixture ports."));
+            }
+            else if (port->peer != peer_state::open)
+            {
+                degrade(button, tr("No program has the port open."));
+            }
+            else
+            {
+                button->setEnabled(true);
+                button->setToolTip({});
+                button->setAccessibleDescription({});
+            }
+        }
+        else if (can_inject)
         {
             button->setEnabled(true);
             button->setToolTip({});
@@ -738,11 +773,27 @@ void LineMatrixPanel::inject_fault(std::size_t index)
         QCoreApplication::translate("LineMatrix", tiles[index].title);
     const QString port = port_name(endpoint_);
 
+    // A fault on a fixture stops it and reports an error event; one on a
+    // driver port is raised at the program that has it open.
+    const auto view = backend_.port(endpoint_);
+    const bool at_program = view && view->kind != vss::endpoint_kind::mock &&
+                            view->driver_port;
+
     const auto injected = backend_.inject_fault(endpoint_, tiles[index].kind);
-    const QString outcome =
-        injected ? tr("Error event reported on %1").arg(port)
-                 : tr("Could not inject the fault: %1")
-                       .arg(error_text(injected.error()));
+    QString outcome;
+    if (!injected)
+    {
+        outcome = tr("Could not inject the fault: %1")
+                      .arg(error_text(injected.error()));
+    }
+    else if (at_program)
+    {
+        outcome = tr("Line error raised at the program on %1").arg(port);
+    }
+    else
+    {
+        outcome = tr("Error event reported on %1").arg(port);
+    }
 
     const int row = history_->rowCount();
     history_->insertRow(row);

@@ -18,6 +18,8 @@ add_library(vss_gui_widgets STATIC
   port_menu.hpp
   gallery.cpp
   gallery.hpp
+  half_duplex_fields.cpp
+  half_duplex_fields.hpp
   pick_row.cpp
   pick_row.hpp
   surfaces.cpp

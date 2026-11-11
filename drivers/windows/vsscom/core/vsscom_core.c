@@ -319,6 +319,105 @@ vsscom_flow_lines vsscom_flow_update(const vsscom_flow* flow,
     return next;
 }
 
+// -- Line errors -------------------------------------------------------------
+
+// SERIAL_ERROR_ABORT of ControlHandShake, and SERIAL_ERROR_CHAR and
+// SERIAL_BREAK_CHAR of FlowReplace, from ntddser.h.
+static const vsscom_u32 control_error_abort = 0x80000000u;
+static const vsscom_u32 flow_error_char = 0x04u;
+static const vsscom_u32 flow_break_char = 0x10u;
+
+vsscom_bool vsscom_bytes_have(const vsscom_u8* bytes, vsscom_u32 length,
+                              vsscom_u8 wanted)
+{
+    vsscom_u32 index;
+    for (index = 0; index < length; ++index)
+    {
+        if (bytes[index] == wanted)
+            return 1;
+    }
+    return 0;
+}
+
+vsscom_bool vsscom_line_error_valid(const vsscom_line_error* error)
+{
+    return error->errors != 0 &&
+           (error->errors & ~(vsscom_u32)VSSCOM_ERROR_MASK) == 0;
+}
+
+vsscom_error_effect vsscom_line_error_effect(const vsscom_line_error* error,
+                                             const vsscom_flow* flow,
+                                             const vsscom_error_chars* chars)
+{
+    const vsscom_bool error_char = (flow->flow_replace & flow_error_char) != 0;
+    const vsscom_bool break_char = (flow->flow_replace & flow_break_char) != 0;
+    const vsscom_u32 line = (vsscom_u32)VSSCOM_ERROR_FRAMING |
+                            (vsscom_u32)VSSCOM_ERROR_PARITY;
+    vsscom_bool keep_byte = error->has_byte;
+    vsscom_error_effect effect;
+
+    effect.events = 0;
+    effect.count = 0;
+    effect.bytes[0] = 0;
+    effect.bytes[1] = 0;
+
+    if ((error->errors & (line | (vsscom_u32)VSSCOM_ERROR_OVERRUN)) != 0)
+        effect.events |= VSSCOM_EV_ERR;
+    if ((error->errors & (vsscom_u32)VSSCOM_ERROR_BREAK) != 0)
+        effect.events |= VSSCOM_EV_BREAK;
+
+    if ((error->errors & (vsscom_u32)VSSCOM_ERROR_OVERRUN) != 0 && error_char)
+        effect.bytes[effect.count++] = chars->error_char;
+
+    // A break hides a parity or framing error of the same character time.
+    if ((error->errors & (vsscom_u32)VSSCOM_ERROR_BREAK) != 0)
+    {
+        if (break_char)
+        {
+            effect.bytes[effect.count++] = chars->break_char;
+            keep_byte = 0;
+        }
+    }
+    else if ((error->errors & line) != 0 && error_char)
+    {
+        effect.bytes[effect.count++] = chars->error_char;
+        keep_byte = 0;
+    }
+
+    if (keep_byte)
+    {
+        effect.bytes[effect.count++] = error->byte;
+        if (error->byte == chars->event_char)
+            effect.events |= VSSCOM_EV_RXFLAG;
+    }
+    if (effect.count != 0)
+        effect.events |= VSSCOM_EV_RXCHAR;
+    return effect;
+}
+
+vsscom_bool vsscom_line_error_apply(vsscom_u32* pending, vsscom_ring* rx,
+                                    const vsscom_line_error* error,
+                                    const vsscom_error_effect* effect)
+{
+    if (vsscom_ring_space(rx) < effect->count)
+        return 0;
+    (void)vsscom_ring_write(rx, effect->bytes, effect->count);
+    *pending |= error->errors & (vsscom_u32)VSSCOM_ERROR_MASK;
+    return 1;
+}
+
+vsscom_u32 vsscom_errors_take(vsscom_u32* pending)
+{
+    const vsscom_u32 errors = *pending;
+    *pending = 0;
+    return errors;
+}
+
+vsscom_bool vsscom_errors_abort(const vsscom_flow* flow, vsscom_u32 pending)
+{
+    return pending != 0 && (flow->control_handshake & control_error_abort) != 0;
+}
+
 vsscom_u64 vsscom_tx_time(vsscom_u32 baud, vsscom_u32 data_bits,
                           vsscom_u32 parity, vsscom_u32 stop_bits,
                           vsscom_u32 bytes)

@@ -4,8 +4,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include "bus_wire.hpp"
 #include "delay_line.hpp"
 
+#include <vss/core/bus_line.hpp>
 #include <vss/core/hub.hpp>
 #include <vss/core/profile.hpp>
 
@@ -13,7 +15,10 @@
 #include <boost/asio/post.hpp>
 
 #include <algorithm>
+#include <optional>
+#include <string>
 #include <unordered_set>
+#include <utility>
 
 namespace vss {
 namespace {
@@ -49,6 +54,34 @@ bool arbitrates(merge_policy policy, link_mode mode,
 /// and link ids count up from one, so they never reach this bit.
 constexpr endpoint_id bus_node_tag = endpoint_id{1} << 63;
 
+/// What a half-duplex bus says about a chunk that was not a clean
+/// transmission.  `other` is the member that was in the way, or empty.
+std::string describe_fault(bus_fault fault, std::size_t bytes,
+                           const std::string& other, bool garble)
+{
+    std::string sent =
+        "sent " + std::to_string(bytes) + (bytes == 1 ? " byte" : " bytes");
+    switch (fault)
+    {
+    case bus_fault::overlap:
+        return sent + " while " + other + " was sending" +
+               (garble ? ": both were garbled" : "");
+    case bus_fault::too_soon:
+        return sent + " inside the turn-around time after " + other +
+               (garble ? ": garbled" : "");
+    case bus_fault::line_held:
+        return sent + " while " + other + " held RTS high" +
+               (garble ? ": garbled" : "");
+    case bus_fault::transmitter_off:
+        return sent + " with RTS low: the bus did not carry them";
+    case bus_fault::overrun:
+        return sent + " too far ahead of the line rate: dropped";
+    case bus_fault::none:
+        break;
+    }
+    return sent;
+}
+
 unsigned default_thread_count()
 {
     const unsigned hardware = std::thread::hardware_concurrency();
@@ -58,9 +91,9 @@ unsigned default_thread_count()
 } // namespace
 
 hub::hub(hub_options options)
-    : options_(options)
+    : options_(std::move(options))
     , event_strand_(boost::asio::make_strand(io_))
-    , traffic_(options.traffic_capacity)
+    , traffic_(options_.traffic_capacity)
 {
 }
 
@@ -130,6 +163,11 @@ void hub::stop()
 
     for (const auto& entry : endpoints)
         entry->shutdown([this] { endpoint_closed(); });
+}
+
+time_point hub::now() const
+{
+    return options_.clock ? options_.clock() : clock_type::now();
 }
 
 void hub::endpoint_closed()
@@ -212,6 +250,11 @@ result<void> hub::remove_endpoint(endpoint_id id)
                                                  record.sources.end(), id),
                                      record.sources.end());
                 bus_of_.erase(id);
+                if (record.line)
+                {
+                    record.line->remove(id);
+                    record.wire->forget(id);
+                }
                 if (record.sources.size() >= 2)
                 {
                     ++link;
@@ -347,7 +390,7 @@ result<link_id> hub::bus(const std::vector<endpoint_id>& members,
         return make_error_code(errc::invalid_argument);
     if (options.policy != merge_policy::interleave)
         return make_error_code(errc::unsupported);
-    if (!valid_latency(options))
+    if (!valid_latency(options) || !valid_half_duplex(options.half_duplex))
         return make_error_code(errc::invalid_argument);
 
     const std::unordered_set<endpoint_id> unique(members.begin(),
@@ -375,6 +418,14 @@ result<link_id> hub::bus(const std::vector<endpoint_id>& members,
     record->mode = link_mode::bus;
     record->options = options;
     record->sources = members;
+    if (options.half_duplex.enabled)
+    {
+        record->line = std::make_shared<bus_line>(options.half_duplex);
+        record->wire = std::make_shared<bus_wire>(
+            io_.get_executor(), options_.clock, record->line->garbled());
+        for (endpoint_id id : members)
+            record->line->set_rts(id, endpoints_.at(id)->peer_rts());
+    }
 
     links_.emplace(record->id, record);
     VSS_PROFILE_PLOT("hub.links", links_.size());
@@ -403,6 +454,9 @@ result<link_id> hub::add_link(link_mode mode,
         return make_error_code(errc::invalid_argument);
     if (!valid_latency(options))
         return make_error_code(errc::invalid_argument);
+    // Only a bus is one wire that its members take turns on.
+    if (options.half_duplex.enabled)
+        return make_error_code(errc::unsupported);
 
     std::unique_lock lock(mutex_);
 
@@ -887,7 +941,8 @@ result<void> hub::add_member(link_id id, endpoint_id member)
     auto& record = *found->second;
     if (record.mode != link_mode::bus)
         return make_error_code(errc::unsupported);
-    if (endpoints_.find(member) == endpoints_.end())
+    const auto added = endpoints_.find(member);
+    if (added == endpoints_.end())
         return make_error_code(errc::not_found);
     // A member of this bus or of another: an endpoint is on one bus at most.
     if (bus_of_.find(member) != bus_of_.end())
@@ -925,10 +980,16 @@ result<void> hub::add_member(link_id id, endpoint_id member)
             routes.reserve(routes.size() + 1);
         }
         record.sources.reserve(record.sources.size() + 1);
+        // A half-duplex line is told whether the new member's transmitter
+        // is on, as it is for the members the bus was made with.
+        if (record.line)
+            record.line->set_rts(member, added->second->peer_rts());
         bus_of_.emplace(member, id);
     }
     catch (...)
     {
+        if (record.line)
+            record.line->remove(member);
         if (own_routes.empty())
             routes_.erase(member);
         throw;
@@ -964,6 +1025,13 @@ result<void> hub::remove_member(link_id id, endpoint_id member)
             std::remove(record.sources.begin(), record.sources.end(), member),
             record.sources.end());
         bus_of_.erase(member);
+        // What it still has on a half-duplex wire goes with it, and stops
+        // counting against the others.
+        if (record.line)
+        {
+            record.line->remove(member);
+            record.wire->forget(member);
+        }
 
         take_routes(member, id, 0, held);
         for (const endpoint_id other : record.sources)
@@ -1022,6 +1090,11 @@ link_info hub::describe(const link_record& record) const
     info.stats.bytes = record.bytes.load();
     info.stats.messages = record.messages.load();
     info.stats.dropped = record.dropped.load();
+    if (record.line)
+    {
+        info.stats.collisions = record.line->collisions();
+        info.stats.garbled = record.line->garbled()->load();
+    }
     return info;
 }
 
@@ -1106,7 +1179,7 @@ result<void> hub::set_link_wiring(link_id id, const modem_wiring& wiring)
 result<void> hub::set_link_options(link_id id, const link_options& options)
 {
     VSS_PROFILE_ZONE("hub.set_link_options");
-    if (!valid_latency(options))
+    if (!valid_latency(options) || !valid_half_duplex(options.half_duplex))
         return make_error_code(errc::invalid_argument);
 
     struct line_driver
@@ -1133,6 +1206,7 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
     };
 
     std::vector<std::shared_ptr<delay_line>> held;
+    std::shared_ptr<bus_wire> old_wire;
     std::shared_ptr<link_record> gated;
     std::vector<std::pair<endpoint_id, control_lines>> senders;
     std::vector<released_input> released;
@@ -1144,6 +1218,9 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
         const std::shared_ptr<link_record> record = found->second;
         const bool bus = record->mode == link_mode::bus;
         if (bus && options.policy != merge_policy::interleave)
+            return make_error_code(errc::unsupported);
+        // Only a bus is one wire that its members take turns on.
+        if (!bus && options.half_duplex.enabled)
             return make_error_code(errc::unsupported);
 
         // A bus has no modem lines to switch or wire.
@@ -1161,6 +1238,11 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
             (!previous.emulate_modem_lines || next.wiring != previous.wiring);
         const bool lines_off =
             !next.emulate_modem_lines && previous.emulate_modem_lines;
+        // The half-duplex line of a bus is made again when anything about it
+        // changes while it is, or becomes, on.
+        const bool rewire =
+            bus && next.half_duplex != previous.half_duplex &&
+            (next.half_duplex.enabled || previous.half_duplex.enabled);
 
         struct slot
         {
@@ -1186,6 +1268,20 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
             held.reserve(mine.size());
             for (const auto& entry : mine)
                 fresh.push_back(make_delay(entry.route->to, next));
+        }
+        std::shared_ptr<bus_line> line;
+        std::shared_ptr<bus_wire> wire;
+        if (rewire && next.half_duplex.enabled)
+        {
+            line = std::make_shared<bus_line>(next.half_duplex);
+            wire = std::make_shared<bus_wire>(io_.get_executor(),
+                                              options_.clock, line->garbled());
+            for (const endpoint_id member : record->sources)
+            {
+                const auto end = endpoints_.find(member);
+                if (end != endpoints_.end())
+                    line->set_rts(member, end->second->peer_rts());
+            }
         }
         if (lines_on)
         {
@@ -1239,14 +1335,20 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
                     held.push_back(std::move(route.delay));
                 route.delay = std::move(fresh[at]);
             }
-            // Chunks routed from now until the old lines are closed are
-            // discarded, so none takes the new route and passes a chunk that
-            // an old line is still writing.
-            if (!held.empty())
-            {
-                record->retiming.fetch_add(1, std::memory_order_acq_rel);
-                gated = record;
-            }
+        }
+        if (rewire)
+        {
+            old_wire = std::move(record->wire);
+            record->line = std::move(line);
+            record->wire = std::move(wire);
+        }
+        // Chunks routed from now until the old lines and the old wire are
+        // closed are discarded, so none takes the new route and passes a
+        // chunk that an old one is still writing.
+        if (!held.empty() || old_wire)
+        {
+            record->retiming.fetch_add(1, std::memory_order_acq_rel);
+            gated = record;
         }
         for (const auto& entry : mine)
             entry.route->arbitrated =
@@ -1260,10 +1362,13 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
         VSS_PROFILE_MESSAGE("hub.link_options_changed");
     }
 
-    // After this nothing the old lines held can reach an endpoint, and the
-    // link takes chunks again.
+    // After this nothing the old wire or the old lines held can reach an
+    // endpoint, and the link takes chunks again.  The wire goes first: it
+    // hands its chunks to the lines.
     {
         const gate_lifter lifter{gated};
+        if (old_wire)
+            old_wire->close();
         for (const auto& line : held)
             line->close();
     }
@@ -1298,6 +1403,13 @@ void hub::route_data(endpoint_id from, bytes_view data)
     };
 
     std::vector<delivery> deliveries;
+
+    // For a sender on a half-duplex bus: what the line said of the chunk,
+    // and where the wire takes it.  An endpoint is on one bus at most.
+    std::shared_ptr<bus_wire> wire;
+    std::vector<bus_wire::delivery> on_wire;
+    bus_verdict verdict;
+    std::optional<endpoint_event> fault;
     {
         std::shared_lock lock(mutex_);
         auto it = routes_.find(from);
@@ -1331,6 +1443,48 @@ void hub::route_data(endpoint_id from, bytes_view data)
                 }
             }
 
+            if (record.line)
+            {
+                // One verdict for the chunk, however many members hear it.
+                if (!wire)
+                {
+                    wire = record.wire;
+                    verdict = record.line->transmit(from, data.size(), now());
+                    if (verdict.fault != bus_fault::none)
+                    {
+                        const auto name_of = [this](endpoint_id id)
+                        {
+                            const auto found = endpoints_.find(id);
+                            return found == endpoints_.end()
+                                       ? std::string()
+                                       : found->second->name();
+                        };
+                        fault.emplace();
+                        fault->kind = event_kind::bus_fault;
+                        fault->endpoint = from;
+                        fault->name = name_of(from);
+                        fault->fault = verdict.fault;
+                        fault->link = record.id;
+                        fault->message = describe_fault(
+                            verdict.fault, data.size(), name_of(verdict.other),
+                            record.options.half_duplex.on_collision ==
+                                collision_action::garble);
+                    }
+                }
+                if (!verdict.carried)
+                {
+                    record.dropped.fetch_add(data.size());
+                    continue;
+                }
+                record.bytes.fetch_add(data.size());
+                record.messages.fetch_add(1);
+
+                auto target = endpoints_.find(route.to);
+                if (target != endpoints_.end())
+                    on_wire.push_back({target->second, route.delay});
+                continue;
+            }
+
             record.bytes.fetch_add(data.size());
             record.messages.fetch_add(1);
 
@@ -1347,6 +1501,15 @@ void hub::route_data(endpoint_id from, bytes_view data)
         else
             entry.target->write(data);
     }
+
+    if (wire && !on_wire.empty())
+        wire->push(from, verdict.ends, data, std::move(verdict.transmission),
+                   std::move(on_wire));
+    if (fault)
+    {
+        fault->when = clock_type::now();
+        publish(std::move(*fault));
+    }
 }
 
 void hub::route_lines(endpoint_id from, control_lines lines)
@@ -1361,6 +1524,23 @@ void hub::route_lines(endpoint_id from, control_lines lines)
     std::vector<update> updates;
     {
         std::shared_lock lock(mutex_);
+
+        // A half-duplex bus carries no lines either, but its line is told
+        // whether this member's transmitter is on.
+        if (const auto bus = bus_of_.find(from); bus != bus_of_.end())
+        {
+            const auto record = links_.find(bus->second);
+            const auto sender = endpoints_.find(from);
+            if (record != links_.end() && record->second->line &&
+                sender != endpoints_.end())
+            {
+                record->second->line->set_rts(
+                    from, sender->second->peer_rts().has_value()
+                              ? std::optional<bool>(lines.rts())
+                              : std::nullopt);
+            }
+        }
+
         auto it = routes_.find(from);
         if (it == routes_.end())
             return;

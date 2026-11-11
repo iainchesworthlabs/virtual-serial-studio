@@ -67,6 +67,30 @@ const char* to_string(data_direction value) noexcept
     return "unknown";
 }
 
+const char* to_string(collision_action value) noexcept
+{
+    switch (value)
+    {
+    case collision_action::report: return "report";
+    case collision_action::garble: return "garble";
+    }
+    return "unknown";
+}
+
+const char* to_string(bus_fault value) noexcept
+{
+    switch (value)
+    {
+    case bus_fault::none: return "none";
+    case bus_fault::overlap: return "overlap";
+    case bus_fault::too_soon: return "too-soon";
+    case bus_fault::line_held: return "line-held";
+    case bus_fault::transmitter_off: return "transmitter-off";
+    case bus_fault::overrun: return "overrun";
+    }
+    return "unknown";
+}
+
 const char* to_string(event_kind value) noexcept
 {
     switch (value)
@@ -78,6 +102,7 @@ const char* to_string(event_kind value) noexcept
     case event_kind::error: return "error";
     case event_kind::stats: return "stats";
     case event_kind::log_message: return "log";
+    case event_kind::bus_fault: return "bus-fault";
     }
     return "unknown";
 }

@@ -99,7 +99,8 @@ Several PRs and an engine-side library.
 
 **Chosen (2026-11-06): A now, built so B can replace it.** The model above is the same in both, so B later changes no
 screen and no string: only which process runs the engine. `StudioBackend` is already the one seam B needs. B is the
-"Background agent" row in `08-engine-gaps.md`.
+"Background agent" row in `08-engine-gaps.md`. Its design, the decisions it needs and a first slice (`vss_agent`,
+`vss_cli agent`, loopback ports only) are in `docs/agent.md`; Studio does not use the agent yet.
 
 ## Where it lives
 

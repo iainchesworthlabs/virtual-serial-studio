@@ -21,6 +21,7 @@
 #include <boost/asio/strand.hpp>
 
 #include <atomic>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -35,6 +36,8 @@
 
 namespace vss {
 
+class bus_line;
+class bus_wire;
 class delay_line;
 
 struct hub_options
@@ -43,6 +46,11 @@ struct hub_options
     unsigned io_threads = 0;
     /// Events kept in the traffic ring buffer.
     std::size_t traffic_capacity = 8192;
+    /// Where a half-duplex bus reads the time.  Empty (the default) is the
+    /// steady clock.  A test gives its own and moves it by hand, so that
+    /// what overlaps and what does not is written in the test and does not
+    /// depend on how fast the machine ran it.  Called from any thread.
+    std::function<time_point()> clock;
 };
 
 /// The topology engine.
@@ -129,6 +137,11 @@ public:
     /// every route between members.  The link counts a delivery to each
     /// receiving member, as a split does.  Removing a member takes it out of
     /// the bus; the bus itself goes when fewer than two members remain.
+    ///
+    /// `options.half_duplex` makes the bus a half-duplex line: one member
+    /// sends at a time, at a line rate, and a chunk that runs into another
+    /// member's is counted and published (see #half_duplex_options).  Values
+    /// outside its limits are `errc::invalid_argument`.
     result<link_id> bus(const std::vector<endpoint_id>& members,
                         link_options options = {});
 
@@ -247,6 +260,9 @@ public:
     ///   arrive twice or go round.
     ///
     /// A bus carries no modem lines and no owner, so nothing else changes.
+    /// On a half-duplex bus the new member takes its turn on the line like
+    /// the others, and the line is told at once whether its transmitter is
+    /// on (its RTS, where its transport reports it).
     result<void> add_member(link_id id, endpoint_id member);
 
     /// Takes one member out of a bus and leaves the others on it, with the
@@ -256,7 +272,9 @@ public:
     /// removed member or does not; nothing reaches it, and nothing it sends
     /// reaches the bus, after the call returns except such a chunk.  Bytes the
     /// bus's delay still holds for the removed routes are discarded.  The
-    /// bus's counters keep what the routes carried.
+    /// bus's counters keep what the routes carried.  On a half-duplex bus
+    /// what the member still has on the wire is discarded too and stops
+    /// counting against the others, as when the endpoint is removed.
     ///
     /// It fails, and changes nothing, with `errc::not_found` for an unknown
     /// link and for an endpoint that is not a member of it,
@@ -267,18 +285,19 @@ public:
     /// the bus under two members.)
     result<void> remove_member(link_id id, endpoint_id member);
 
-    /// Changes the delay, jitter, merge policy, `emulate_modem_lines` and
-    /// wiring of a link that exists, in place: the link keeps its id, its
-    /// sources, its targets and its counters, and the other links are not
-    /// touched.  It works on every kind of link, a #monitor and a #bus
-    /// included.
+    /// Changes the delay, jitter, merge policy, `emulate_modem_lines`,
+    /// wiring and half-duplex line of a link that exists, in place: the link
+    /// keeps its id, its sources, its targets and its counters, and the other
+    /// links are not touched.  It works on every kind of link, a #monitor and
+    /// a #bus included.
     ///
     /// It fails, and changes nothing, with
-    /// - `errc::invalid_argument` for a delay over #max_link_delay_ms or a
-    ///   jitter over the delay, as on creation (checked first),
+    /// - `errc::invalid_argument` for a delay over #max_link_delay_ms, a
+    ///   jitter over the delay or half-duplex values outside their limits, as
+    ///   on creation (checked first),
     /// - `errc::not_found` for an unknown link,
     /// - `errc::unsupported` for a #bus and any policy but `interleave`, as
-    ///   #bus is.
+    ///   #bus is, and for `half_duplex.enabled` on a link that is not a bus.
     ///
     /// A #bus stores `emulate_modem_lines = false` whatever is passed, as
     /// #bus does, and keeps the wiring it has: a bus has no modem lines, so
@@ -303,11 +322,18 @@ public:
     ///   DISCARDED, as when a target is removed.  When neither changes the
     ///   lines are the same objects and keep their bytes, so a change of
     ///   policy or wiring loses nothing.
+    /// - **Half-duplex line** (a #bus only).  When any of its values changes
+    ///   while it is on, or it is turned on or off, the bus gets a new line
+    ///   and a new wire (none when it is now off).  What the old wire still
+    ///   carries is DISCARDED, the new line starts free, and
+    ///   `link_stats::collisions` and `garbled` start again from zero: they
+    ///   belong to the line, not to the bus.  When none of its values changes
+    ///   the line is the same object and nothing on it is lost.
     /// - **Order.**  A chunk routed before the call may be discarded (a
-    ///   delayed link) or delivered; a chunk routed while the call runs may
-    ///   be discarded; chunks routed after it returns are delivered in order,
-    ///   and never ahead of one that came before them.  Bytes can be lost at
-    ///   a change but are not reordered or repeated.
+    ///   delayed link or a half-duplex bus) or delivered; a chunk routed while
+    ///   the call runs may be discarded; chunks routed after it returns are
+    ///   delivered in order, and never ahead of one that came before them.
+    ///   Bytes can be lost at a change but are not reordered or repeated.
     /// - **Modem lines.**  Turned on, or rewired while on, the link pushes the
     ///   current outputs of every sender along it, as #set_link_wiring does,
     ///   so the receivers' inputs follow at once.  Turned off, each endpoint
@@ -397,6 +423,10 @@ private:
         /// replaced.  A chunk routed in that time is discarded, so none can
         /// take the new route and pass one that is still in an old line.
         std::atomic<unsigned> retiming{0};
+        /// The line and the wire of a half-duplex bus; null for every other
+        /// link, which is how the router tells them apart.
+        std::shared_ptr<bus_line> line;
+        std::shared_ptr<bus_wire> wire;
     };
 
     struct subscription
@@ -433,6 +463,8 @@ private:
     link_info describe(const link_record& record) const;
     void dispatch(const endpoint_event& event);
     void endpoint_closed();
+    /// The time by the hub's clock (`hub_options::clock`).
+    time_point now() const;
 
     hub_options options_;
     boost::asio::io_context io_;

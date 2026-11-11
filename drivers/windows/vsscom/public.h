@@ -54,9 +54,62 @@ enum
         CTL_CODE(FILE_DEVICE_VSSCOM, 0x804, METHOD_BUFFERED, FILE_ANY_ACCESS)
 };
 
+// Raises a line error at the application end, as a bad character time on a wire
+// does: a break, a framing, parity or overrun error, or a full receive queue.
+// Input: VSSCOM_HUB_LINE_ERROR. No output.
+//
+// The request takes its turn among the hub's writes. It takes effect when every
+// byte the hub wrote before it is in the receive buffer and the application's
+// waiting read has had them, and before any byte written after it, and it
+// completes then. Like a write, it waits while the receive buffer has no room for
+// the bytes it adds, and ends with STATUS_CANCELLED when the hub handle closes
+// first.
+//
+// The error is latched until the application calls ClearCommError, raises EV_ERR
+// (framing, parity, overrun) or EV_BREAK (break) for SetCommMask and
+// WaitCommEvent, and, when the application set fAbortOnError, ends its reads and
+// writes until it calls ClearCommError. An error that arrives while no program
+// has the port open is dropped, as it is on a port nobody listens to; the
+// request still succeeds. STATUS_INVALID_PARAMETER for an Errors value that is
+// empty or has other bits, a HasByte that is not 0 or 1, and a Byte above 255.
+enum
+{
+    IOCTL_VSSCOM_HUB_LINE_ERROR =
+        CTL_CODE(FILE_DEVICE_VSSCOM, 0x805, METHOD_BUFFERED, FILE_ANY_ACCESS)
+};
+
+// The bits of VSSCOM_HUB_LINE_ERROR.Errors, the same values as SERIAL_ERROR_* in
+// ntddser.h. (ClearCommError reports them to a Win32 program as CE_BREAK,
+// CE_FRAME, CE_OVERRUN, CE_RXOVER and CE_RXPARITY, which have other values.)
+enum
+{
+    VSSCOM_LINE_ERROR_BREAK = 0x01,
+    VSSCOM_LINE_ERROR_FRAMING = 0x02,
+    VSSCOM_LINE_ERROR_OVERRUN = 0x04,
+    VSSCOM_LINE_ERROR_QUEUE_OVERRUN = 0x08,
+    VSSCOM_LINE_ERROR_PARITY = 0x10,
+    VSSCOM_LINE_ERROR_MASK = 0x1F
+};
+
+// One bad character time. With HasByte, Byte is the character the receiver made
+// of it. The application reads that byte in its place in the stream, unless its
+// settings replace it: the error character (DCB.fErrorChar) for a parity or
+// framing error, the break character (SERIAL_BREAK_CHAR) for a break. Without
+// HasByte only a replacement character enters the stream. An overrun with the
+// error character set adds the error character in front of the byte, for the
+// character that was lost.
+typedef struct _VSSCOM_HUB_LINE_ERROR
+{
+    ULONG Errors;  // one or more VSSCOM_LINE_ERROR_* bits
+    ULONG HasByte; // 1 when Byte holds a character
+    ULONG Byte;    // 0 to 255
+} VSSCOM_HUB_LINE_ERROR, *PVSSCOM_HUB_LINE_ERROR;
+
 // 2 added the hub end. 3 added AppProcessId to the hub state, the revoke request
-// and the effect of the DTR and RTS settings of SET_HANDFLOW.
-#define VSSCOM_VERSION 3
+// and the effect of the DTR and RTS settings of SET_HANDFLOW. 4 added the line
+// error request, the error bits of IOCTL_SERIAL_GET_COMMSTATUS, EV_ERR, EV_BREAK
+// and EV_RXFLAG, and the abort-on-error setting.
+#define VSSCOM_VERSION 4
 
 typedef struct _VSSCOM_VERSION_INFO
 {

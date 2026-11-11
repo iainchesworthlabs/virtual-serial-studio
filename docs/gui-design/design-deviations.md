@@ -396,6 +396,22 @@ reported on <port>" because the call has succeeded when the fault is queued and
 the engine emits the error event on the fixture's next read. A failure from the
 call shows its message in that row instead.
 
+A port of the Windows driver takes four of the tiles, where
+`capabilities::driver_faults` is set (a driver is installed). Parity error,
+Framing error, Overrun and Break are raised at the program that has the port
+open through `vss::raise_driver_line_error`, and the tiles are enabled only
+while the port is running and its peer is open. The port keeps running, and the
+studio sees no error event: the program is the one that sees the error. Hang-up
+and Disconnect stay off with "Hang-up and Disconnect are only available on
+fixture ports.", because on a driver port they would have to be mapped to modem
+lines or a revoke and that has not been decided. When the port is not running
+the tiles say "The port is not running.", and when no program has the port open
+(or Studio cannot tell) the four say "No program has the port open.", since the
+driver drops an error that nobody is there to receive. The history row reads
+"Line error raised at the program on <port>". These three strings and that
+outcome are not in the specs. A fixture is unchanged, and a port that is
+neither says "Faults are only available on fixture ports."
+
 ### Per-link wiring
 
 `StudioBackend` has `link_wiring()` and `set_link_wiring()` with

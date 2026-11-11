@@ -1,0 +1,1 @@
+{"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"},{"name":"c","kind":"virtual"}],"links":[{"mode":"bus","members":["a","b"],"half_duplex":true}]}

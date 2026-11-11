@@ -1972,6 +1972,11 @@
             <source>Traffic</source>
             <translation>תעבורה</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/event_log.cpp" line="51" />
+            <source>Bus</source>
+            <translation>אפיק</translation>
+        </message>
     </context>
     <context>
         <name>EventLogPanel</name>
@@ -3618,6 +3623,26 @@ Networks: %5</source>
             <translation>תקלות זמינות רק ביציאות התקן דמה.</translation>
         </message>
         <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>היציאה אינה פועלת.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>ניתוק והתנתקות זמינים רק ביציאות התקן דמה.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>אף תוכנה אינה מחזיקה את היציאה פתוחה.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>שגיאת קו הועלתה בתוכנה ב-%1</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />
             <source>Port %1</source>
             <translation>יציאה %1</translation>
@@ -3795,6 +3820,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_model.cpp" line="311" />
             <source>not the owner, not forwarded</source>
             <translation>אינה הבעלים, לא הועבר</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="286" />
+            <source>Not carried by the bus.</source>
+            <translation>לא הועבר באפיק.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_model.cpp" line="354" />
+            <source>not carried by the bus</source>
+            <translation>לא הועבר באפיק</translation>
         </message>
     </context>
     <context>
@@ -5697,6 +5732,11 @@ Networks: %5</source>
             <location filename="../src/backend/driver_error.cpp" line="161" />
             <source>Windows would not make the port, and Studio could not tell which part is at fault. Nothing was changed. Open Tools, Setup check to see what is missing, then copy the details if you ask for help.</source>
             <translation>Windows סירב ליצור את היציאה, ו-Studio לא הצליח לקבוע איזה חלק אשם. דבר לא שונה. פתחו כלים, בדיקת הגדרות כדי לראות מה חסר, והעתיקו את הפרטים אם אתם מבקשים עזרה.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="68" />
+            <source>bus</source>
+            <translation>אפיק</translation>
         </message>
     </context>
     <context>
@@ -9995,6 +10035,76 @@ Networks: %5</source>
             <source>The setup format rejected this document</source>
             <translation>פורמט התצורה דחה מסמך זה</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="322" />
+            <source>Half-duplex buses are not available in this build</source>
+            <translation>אפיקי חצי דופלקס אינם זמינים בגרסה זו</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="325" />
+            <source>This build cannot run a bus as a half-duplex line. Remove "half_duplex" from the link.</source>
+            <translation>גרסה זו אינה יכולה להפעיל אפיק כקו חצי דופלקס. יש להסיר את "half_duplex" מהקישור.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="334" />
+            <source>Only a bus can be a half-duplex line</source>
+            <translation>רק אפיק יכול להיות קו חצי דופלקס</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="336" />
+            <source>Remove "half_duplex", or make the link a bus.</source>
+            <translation>יש להסיר את "half_duplex", או להפוך את הקישור לאפיק.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="345" />
+            <source>"half_duplex" must be an object</source>
+            <translation>"half_duplex" חייב להיות אובייקט</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="347" />
+            <source>Use bit_rate, turnaround_ms, collisions and rts_gating inside it, each one optional.</source>
+            <translation>יש להשתמש בו ב-bit_rate, ב-turnaround_ms, ב-collisions וב-rts_gating, וכל אחד מהם אופציונלי.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="371" />
+            <source>The line rate must be between %1 and %2 bit/s</source>
+            <translation>קצב הקו חייב להיות בין %1 ל-%2 ביט/שנ׳</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="375" />
+            <source>Set "bit_rate" to a whole number in that range.</source>
+            <translation>יש להגדיר את "bit_rate" למספר שלם בטווח זה.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="384" />
+            <source>The turn-around must be between 0 and %1 ms</source>
+            <translation>זמן החלפת הכיוון חייב להיות בין 0 ל-%1 ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="387" />
+            <source>Set "turnaround_ms" to a whole number in that range.</source>
+            <translation>יש להגדיר את "turnaround_ms" למספר שלם בטווח זה.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="401" />
+            <source>"collisions" must be report or garble</source>
+            <translation>"collisions" חייב להיות report או garble</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="403" />
+            <source>Use report or garble.</source>
+            <translation>יש להשתמש ב-report או ב-garble.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="412" />
+            <source>"rts_gating" must be true or false</source>
+            <translation>"rts_gating" חייב להיות true או false</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/json_validation.cpp" line="414" />
+            <source>Use true or false.</source>
+            <translation>יש להשתמש ב-true או ב-false.</translation>
+        </message>
     </context>
     <context>
         <name>TopologyJsonEditor</name>
@@ -13314,6 +13424,26 @@ Networks: %5</source>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="531" />
             <source>Faults are only available on fixture ports.</source>
             <translation>תקלות זמינות רק ביציאות התקן דמה.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="577" />
+            <source>The port is not running.</source>
+            <translation>היציאה אינה פועלת.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Hang-up and Disconnect are only available on fixture ports.</source>
+            <translation>ניתוק והתנתקות זמינים רק ביציאות התקן דמה.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
+            <source>No program has the port open.</source>
+            <translation>אף תוכנה אינה מחזיקה את היציאה פתוחה.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="791" />
+            <source>Line error raised at the program on %1</source>
+            <translation>שגיאת קו הועלתה בתוכנה ב-%1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="589" />
@@ -18623,6 +18753,79 @@ Networks: %5</source>
             <location filename="../src/topology/add_sheet.cpp" line="490" />
             <source>Set up Virtual Serial Studio</source>
             <translation>הגדרת Virtual Serial Studio</translation>
+        </message>
+    </context>
+    <context>
+        <name>HalfDuplexFields</name>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="52" />
+            <source>Half-duplex line</source>
+            <translation>קו חצי דופלקס</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="50" />
+            <source>One port sends at a time, as on a two-wire RS-485 line. Studio reports when two send at once.</source>
+            <translation>יציאה אחת שולחת בכל פעם, כמו בקו RS-485 דו־חוטי. Studio מדווח כששתיים שולחות בו זמנית.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="73" />
+            <source>Line rate</source>
+            <translation>קצב הקו</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="71" />
+            <source> bit/s</source>
+            <translation> ביט/שנ׳</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="74" />
+            <source>A byte takes ten bits. The others hear a message when its last byte has left the line.</source>
+            <translation>בייט אחד אורך עשרה ביטים. האחרים שומעים הודעה כשהבייט האחרון שלה עזב את הקו.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="81" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="83" />
+            <source>Turn-around</source>
+            <translation>זמן החלפת כיוון</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="84" />
+            <source>The line stays taken this long after a port stops sending. An answer that starts inside it is reported.</source>
+            <translation>הקו נשאר תפוס פרק זמן זה אחרי שיציאה מפסיקה לשלוח. תשובה שמתחילה בתוכו מדווחת.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="95" />
+            <source>If two send at once</source>
+            <translation>אם שתיים שולחות בו זמנית</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="90" />
+            <source>Report it</source>
+            <translation>לדווח על כך</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="92" />
+            <source>Report it and garble the bytes</source>
+            <translation>לדווח על כך ולשבש את הבייטים</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="100" />
+            <source>Send only while RTS is high</source>
+            <translation>לשלוח רק כש־RTS גבוה</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="98" />
+            <source>For ports whose RTS Studio can follow. In this build that is a loopback port. Every other port always sends.</source>
+            <translation>ליציאות ש־Studio יכול לעקוב אחרי ה־RTS שלהן. בגרסה זו זו יציאת לולאה חוזרת. כל יציאה אחרת שולחת תמיד.</translation>
+        </message>
+        <message>
+            <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
+            <source>Not available in this build</source>
+            <translation>לא זמין בגרסה זו</translation>
         </message>
     </context>
 </TS>
