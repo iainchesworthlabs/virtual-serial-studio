@@ -48,6 +48,9 @@ struct traffic_row
     /// wall clock when the batch reached the GUI.
     vss::time_point when{};
     bool dropped = false;
+    /// A dropped row of a bus: a bus has no owner, so its bytes were not
+    /// carried (RTS low, or too far ahead of the line rate).
+    bool bus = false;
 };
 
 /// The rows a capture export writes, with the wall clock at their offset zero.
@@ -82,7 +85,9 @@ public:
     explicit MonitorModel(QObject* parent = nullptr);
 
     void append_events(const event_batch& events);
-    void append_drop(const QString& port, std::uint64_t bytes);
+    /// `bus` says the link is a shared bus, whose drops are not owner drops.
+    void append_drop(const QString& port, std::uint64_t bytes,
+                     bool bus = false);
     void clear();
     void set_paused(bool paused);
     bool paused() const noexcept { return paused_; }

@@ -194,6 +194,55 @@ TEST_CASE("canvas edit: new link options remake the link")
     REQUIRE(backend.links().front().sources == before.sources);
 }
 
+TEST_CASE("canvas edit: remaking a bus keeps its delay and half-duplex line")
+{
+    FakeStudioBackend backend;
+    capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    caps.half_duplex_bus = true;
+    backend.set_capabilities(caps);
+    std::vector<vss::endpoint_id> members;
+    for (const char* name : {"a", "b", "c"})
+    {
+        const auto made = backend.create_virtual_port(
+            QString::fromLatin1(name), vss::virtual_port_kind::loopback, true);
+        REQUIRE(made.has_value());
+        members.push_back(*made);
+    }
+    vss::link_options options;
+    options.delay_ms = 12;
+    options.jitter_ms = 4;
+    options.half_duplex.enabled = true;
+    options.half_duplex.bit_rate = 4800;
+    options.half_duplex.turnaround_ms = 7;
+    options.half_duplex.on_collision = vss::collision_action::garble;
+    REQUIRE(backend.bus(members, options).has_value());
+    const auto before = backend.links().front();
+
+    // The same options make the same bus again.
+    const auto same = remake_link(backend, before.id, before.options);
+    REQUIRE(same.has_value());
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 12u);
+    REQUIRE_EQ(backend.links().front().options.jitter_ms, 4u);
+    REQUIRE(backend.links().front().options.half_duplex == options.half_duplex);
+
+    // A changed rate is applied and the delay stays.
+    vss::link_options changed = backend.links().front().options;
+    changed.half_duplex.bit_rate = 9600;
+    REQUIRE(remake_link(backend, backend.links().front().id, changed));
+    REQUIRE_EQ(backend.links().front().options.half_duplex.bit_rate, 9600u);
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 12u);
+
+    // The recipe of a bus carries the options too.
+    const link_recipe recipe =
+        recipe_of(backend.ports(), backend.links().front());
+    REQUIRE(backend.disconnect(backend.links().front().id));
+    REQUIRE(make_link(backend, recipe).has_value());
+    REQUIRE(backend.links().front().options.half_duplex == changed.half_duplex);
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 12u);
+}
+
 TEST_CASE("canvas edit: a wire makes the link it names")
 {
     FakeStudioBackend backend;

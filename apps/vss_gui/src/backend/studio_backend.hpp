@@ -195,10 +195,13 @@ public:
     virtual vss::result<vss::link_id> monitor(vss::endpoint_id from,
                                               vss::endpoint_id to) = 0;
     /// Puts the ports on one shared multi-drop bus (capability:
-    /// shared_bus).  The default is `unsupported`: a build without the
-    /// capability never fakes a bus out of other links.
+    /// shared_bus).  `options` carries the delay and jitter and, with the
+    /// capability half_duplex_bus, the half-duplex line.  The default is
+    /// `unsupported`: a build without the capability never fakes a bus out of
+    /// other links.
     virtual vss::result<vss::link_id>
-    bus(const std::vector<vss::endpoint_id>& /*members*/)
+    bus(const std::vector<vss::endpoint_id>& /*members*/,
+        const vss::link_options& /*options*/)
     {
         return vss::make_error_code(vss::errc::unsupported);
     }

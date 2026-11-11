@@ -1,0 +1,1 @@
+{"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"},{"name":"c","kind":"virtual"}],"links":[{"mode":"bus","members":["a","b","c"],"delay_ms":5,"half_duplex":{"bit_rate":9600,"turnaround_ms":2,"collisions":"garble","rts_gating":true}}]}

@@ -27,6 +27,7 @@ class QVBoxLayout;
 namespace vss::gui
 {
 
+class HalfDuplexFields;
 class InlineError;
 class NoteBanner;
 class PickCard;
@@ -97,6 +98,8 @@ public:
     QVector<vss::endpoint_id> member_ids() const;
     void set_member_ids(const QVector<vss::endpoint_id>& ids);
     QCheckBox* owner_check() const { return owner_check_; }
+    /// The half-duplex line of the bus page; shown at the Advanced level.
+    HalfDuplexFields* half_duplex_fields() const { return half_duplex_; }
     QPushButton* primary_button() const { return primary_; }
 
 Q_SIGNALS:
@@ -164,6 +167,7 @@ private:
     InlineError* error_ = nullptr;
     ResultSentence* result_ = nullptr;
     QCheckBox* owner_check_ = nullptr;
+    HalfDuplexFields* half_duplex_ = nullptr;
     QPushButton* advanced_button_ = nullptr;
     QPushButton* primary_ = nullptr;
 

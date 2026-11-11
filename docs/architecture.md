@@ -259,8 +259,8 @@ them; the rules below are what keep it sound.
 * **Only `interleave`.** `merge_policy::owner` names one publisher per link, which
   on a bus would silence the replies a polled protocol needs, so it is refused
   (`unsupported`) and so is `set_owner`. Bytes from different members are mixed
-  in the order the hub sees them, and nothing arbitrates a collision; chunks
-  from one member keep their order.
+  in the order the hub sees them, and nothing arbitrates a collision unless the
+  bus is a half-duplex line (below); chunks from one member keep their order.
 * **Counting.** The link counts each delivery, as a split does, so a chunk of
   `n` bytes from one member of a bus of five adds `4n` bytes and four messages
   to the link. The traffic ring shows it once as received on the sender and
@@ -272,6 +272,130 @@ them; the rules below are what keep it sound.
 Any endpoint kind may be a member: a driver port, a pseudo terminal, a loopback
 port, a real serial port, and TCP, UDP and RFC 2217 ports, so a port on another
 computer can sit on the same bus.
+
+### The half-duplex line
+
+A bus made as above gives the hearing of a two-wire RS-485 pair and none of its
+discipline. `link_options::half_duplex` (off by default, `unsupported` on any
+link but a bus) adds the discipline: one member sends at a time, and the bus says
+so when two do not. A bus without the option takes none of the paths below, and
+its routing, its counters, its events and its saved file are what they were.
+
+**What "the line is busy" means.** The bus has a line rate, `bit_rate`, in bits
+per second (50 to 4,000,000; a byte is ten bits, as 8N1). A chunk of `n` bytes
+that the hub reads from a member at time `t` occupies the wire from `t` until
+`t + 10n / bit_rate`. A second chunk from the same member waits for the first, as
+bytes leave a UART one after another. The other members hear a chunk when its
+last byte has left the wire, and not when the hub read it.
+
+That last rule is not a choice. A port made by Studio hands over a whole frame in
+an instant, and a device answers within microseconds of hearing it. If the poll
+were delivered at once while the model still held the wire for its eight
+milliseconds, every fast answer would be reported as a collision that no real
+line would have had. Holding the bytes for their time on the wire is what keeps
+the report true.
+
+The alternatives were weighed and left:
+
+* *A fixed hold for each chunk* has no meaning a user can check against their
+  equipment, and a chunk is not a frame, so the hold would change with how a
+  program happens to split its writes.
+* *Busy while a member's RTS is high* works only for members with an RTS the
+  hub can follow, and most have none (see below).
+* *No duration, overlap by arrival order* cannot tell an answer that came after
+  the poll from one that came during it.
+
+**What overlap does.** A chunk whose time on the wire meets another member's has
+collided with it (`bus_fault::overlap`). It is always counted
+(`link_stats::collisions`) and always published. What the receivers get is
+`on_collision`: `report` delivers the bytes as they were sent, and `garble`
+delivers every byte of each chunk that collided inverted (`~byte`), counted in
+`link_stats::garbled` once for each receiving member, as `bytes` is. Inverting is
+deterministic, changes every byte, and a capture shows what the bytes were. Both
+chunks are spoilt, the one that was on the wire and the one that ran into it:
+because a chunk is held until its end, the first is still in hand when the second
+arrives. The whole chunk is spoilt, not the part that overlapped; Studio does not
+know where a frame ends. Nothing is dropped by a collision.
+
+**Turn-around.** `turnaround_ms` is how long the line stays taken after a
+member's last byte, while its transmitter lets go. A chunk from *another* member
+that starts inside it has come too soon (`bus_fault::too_soon`): it is counted
+and published like an overlap, and with `garble` it alone is delivered inverted,
+because the bytes before it had already left the wire whole. The turn-around
+delays nothing. `delay_ms` and `jitter_ms` are still the only delay: they are
+applied to each route after the chunk has left the wire, so a member hears a
+chunk `10n / bit_rate + delay_ms` after it was sent. One thing holds the bytes for
+the time of a slow wire (the link delay), one for the time of the bits (the line
+rate), and the turn-around only judges.
+
+**RTS.** With `rts_gating`, a member sends only while its RTS is high, and holds
+the line for as long as it is: bytes it sends with RTS low never reach the wire
+(`bus_fault::transmitter_off`, counted in `dropped` and published), and a chunk
+from another member while it holds RTS high has collided with it
+(`bus_fault::line_held`). This is only true to a real line when the hub knows the
+RTS at the moment it reads the bytes, so it applies to a member only when its
+transport says so (`transport::reports_peer_rts`). A member whose transport does
+not is taken to switch its transmitter by itself, as an adapter with automatic
+direction control does: it always sends and never holds the line. That is every
+port a program opens today:
+
+| Member | The hub's RTS for it | Gated |
+|---|---|---|
+| Loopback port | Set through Studio (`endpoint::set_line`), in step with the bytes | Yes |
+| Windows driver port | The program's, but read only when asked; a change is not seen in step with the bytes | No |
+| Pseudo terminal | None: a pty has no modem lines, the model holds RTS high | No |
+| Real serial port | Studio's own output to the device, not the device's transmitter | No |
+| `rfc2217-listen://` | The client's, but a change that arrives with bytes is seen after them, and several together as one | No |
+| TCP, UDP, RFC 2217 client, mock | None | No |
+
+A program that raises RTS, writes and drops RTS does all three within
+microseconds on a virtual port. A hub that samples RTS beside the bytes would see
+it low for most well-behaved programs and mute them, which is the opposite of the
+truth. Gating a driver port needs the driver to hand the hub the RTS in line with
+the bytes, and until it does the member is not gated. For the same reason RTS
+dropped before the last byte has left the wire, which cuts a frame short on real
+hardware, is not modelled.
+
+**Too far ahead.** A program can write faster than the line for ever. A chunk
+that could not start within a minute of being read (`max_bus_backlog_ms`) is
+dropped, counted in `dropped` and published (`bus_fault::overrun`).
+
+**Where the state is.** Each half-duplex bus has a `bus_line` (the model: who
+holds the wire until when, and each member's RTS) and a `bus_wire` (the chunks on
+the wire, one timer on a strand of its own). `route_data` asks the line for a
+verdict once for each chunk, under the hub's shared lock and the line's own
+mutex, which guards a few comparisons and is held for nothing else: no write, no
+event and no other lock is taken under it. The hub mutex is released before the
+chunk is pushed to the wire, and the wire writes to the members from its own
+strand, outside its mutex. A link that is not a half-duplex bus pays one test of
+a null pointer for each route. The line is per bus, so two buses, or a bus and
+any other link, never wait for each other. One wire for the whole bus, and not a
+queue for each route, is what makes every member hear the chunks in the order
+they left the wire.
+
+**Time.** `bus_line` has no clock: every call is given the time, so the model is
+tested with times written in the test. The hub reads the time from
+`hub_options::clock` (the steady clock when empty), so a test of the hub moves
+the time by hand. A timer cannot wait for such a clock, so a wire on one looks at
+it every millisecond while it holds something; a wire on the steady clock waits
+for the exact time. What still depends on the wall clock is when a chunk is
+delivered: never before its time on the wire is over, and as late after it as the
+machine is busy.
+
+**Reporting.** A chunk that was not a clean transmission publishes one
+`event_kind::bus_fault` for its sender, with `fault`, the `link` and a sentence
+in `message`, through the dispatcher strand like every other event. It is posted
+after the hub lock is released. `link_stats` gains `collisions` and `garbled`.
+
+**Removal.** A member that is removed stops holding the line at once, what it
+still had on the wire is discarded with its routes (as a link's delay line is),
+and what the others had on the wire is no longer delivered to it. The members of
+a bus are fixed when it is made, so none joins a transmission half way.
+
+**The saved file.** A half-duplex bus that came back as a plain bus after save
+and open would silently change what a test rig does, so the option is saved: one
+optional object, `half_duplex`, on a bus link, left out when the option is off.
+The line wiring stays out of the file as before.
 
 ## Control lines
 

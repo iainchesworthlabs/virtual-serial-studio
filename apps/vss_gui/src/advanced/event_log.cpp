@@ -47,6 +47,8 @@ QString kind_text(vss::event_kind kind)
         return QCoreApplication::translate("EventLog", "Message");
     case vss::event_kind::data:
         return QCoreApplication::translate("EventLog", "Traffic");
+    case vss::event_kind::bus_fault:
+        return QCoreApplication::translate("EventLog", "Bus");
     }
     return QCoreApplication::translate("EventLog", "Message");
 }

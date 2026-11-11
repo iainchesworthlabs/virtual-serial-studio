@@ -13,6 +13,7 @@
 #include <vss/agent/proto/message.hpp>
 #include <vss/agent/server.hpp>
 
+#include <vss/core/bus_line.hpp>
 #include <vss/core/bytes.hpp>
 #include <vss/core/control_lines.hpp>
 #include <vss/core/endpoint.hpp>

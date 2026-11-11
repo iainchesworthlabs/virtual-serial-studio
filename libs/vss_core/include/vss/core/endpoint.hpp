@@ -130,6 +130,10 @@ public:
                                    std::chrono::milliseconds timeout);
 
     control_lines lines() const;
+    /// The RTS of whatever is on the other side, when the transport follows
+    /// it in step with the bytes (#transport::reports_peer_rts); empty when
+    /// it does not.
+    std::optional<bool> peer_rts() const;
     void refresh_lines();
     error_code set_line(control_line line, bool state);
 

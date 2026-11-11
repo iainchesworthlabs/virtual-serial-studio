@@ -29,6 +29,7 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QMenu>
+#include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSettings>
 #include <QSpinBox>
@@ -337,6 +338,17 @@ TEST_CASE("monitor: ascii, hex, filtering, pause and drop rows")
                 .data()
                 .toString()
                 .contains(QStringLiteral("not the owner")));
+
+    // A bus has no owner: its drops say the bus did not carry the bytes.
+    model.append_drop(QStringLiteral("rs485"), 7, true);
+    const QModelIndex bus_row = model.index(model.rowCount() - 1, 4);
+    REQUIRE_EQ(bus_row.data().toString(),
+               QStringLiteral("not carried by the bus"));
+    REQUIRE_EQ(bus_row.data(Qt::ToolTipRole).toString(),
+               QStringLiteral("Not carried by the bus."));
+    REQUIRE_EQ(
+        model.index(model.rowCount() - 2, 4).data(Qt::ToolTipRole).toString(),
+        QStringLiteral("Not the owner, not forwarded."));
 }
 
 namespace
@@ -433,6 +445,32 @@ TEST_CASE("monitor panel: Export capture is named and follows the rows")
                     QByteArrayLiteral("x"))});
     QApplication::processEvents();
     REQUIRE(button->isEnabled());
+}
+
+TEST_CASE("monitor: a bus fault is logged with the engine's sentence")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::MonitorPanel panel(backend);
+    panel.resize(900, 240);
+    panel.set_advanced(true);
+    panel.show();
+    QApplication::processEvents();
+
+    vss::gui::gui_event fault;
+    fault.kind = vss::event_kind::bus_fault;
+    fault.endpoint = 2;
+    fault.name = QStringLiteral("p1");
+    fault.message = QStringLiteral("sent 8 bytes while p0 was sending");
+    panel.handle_events({fault});
+    QApplication::processEvents();
+
+    QString logged;
+    for (QPlainTextEdit* edit : panel.findChildren<QPlainTextEdit*>())
+        logged += edit->toPlainText();
+    REQUIRE(logged.contains(QStringLiteral("p1")));
+    REQUIRE(logged.contains(QStringLiteral("bus")));
+    REQUIRE(
+        logged.contains(QStringLiteral("sent 8 bytes while p0 was sending")));
 }
 
 TEST_CASE("send: hex validation, CRLF and the fake backend")

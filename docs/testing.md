@@ -33,6 +33,13 @@ of every selected case.
   of quietly reducing what is tested. Those jobs create the pair with
   `tools/pty_loopback.py` (it prints the two device paths), so the physical
   backend runs there.
+* **Half-duplex bus** - `test_bus_line.cpp` tests the model of the line with
+  the times written in each case (the model has no clock), and
+  `test_hub_half_duplex.cpp` runs it in a hub whose clock (`hub_options::clock`)
+  the test moves by hand, so a chunk leaves the wire when the test says. Neither
+  sleeps or depends on how fast the machine is; the two cases that use the steady
+  clock check only that nothing arrives early. One case sends from several
+  threads while a member is removed, for the sanitizer legs.
 * **Polled bus** - one system case runs the whole bus scenario on every
   operating system, with no hardware: a master replayed from a recording, two
   devices answering from scripts (one labelled as a real serial device), and a

@@ -442,7 +442,8 @@ void TopologyJsonEditor::set_text(const QString& text)
 void TopologyJsonEditor::revalidate()
 {
     VSS_PROFILE_ZONE("gui.advanced.json_editor.revalidate");
-    validation_ = validate_json_document(text(), backend_.caps().shared_bus);
+    validation_ = validate_json_document(text(), backend_.caps().shared_bus,
+                                         backend_.caps().half_duplex_bus);
     apply_error_summary_.clear();
     apply_error_detail_.clear();
     update_ui();

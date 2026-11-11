@@ -4,6 +4,8 @@
 #
 
 add_library(vss_core
+  src/bus_line.cpp
+  src/bus_wire.cpp
   src/bytes.cpp
   src/control_lines.cpp
   src/delay_line.cpp
