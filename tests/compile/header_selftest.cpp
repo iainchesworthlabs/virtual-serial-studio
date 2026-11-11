@@ -41,7 +41,8 @@ try
     // Touch a few symbols so the translation unit is not optimised away.
     const auto size = vss::parse_byte_size("64KB");
     const auto label = vss::to_label(vss::serial_settings{});
-    std::printf("headers ok: %s %s\n", size ? "size" : "no-size", label.c_str());
+    std::printf("headers ok: %s %s\n", size ? "size" : "no-size",
+                label.c_str());
     return size && *size == std::uint64_t{64} * 1024 ? 0 : 1;
 }
 catch (const std::exception& error)

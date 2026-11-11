@@ -22,10 +22,12 @@
 #include "shell/port_warnings.hpp"
 #include "shell/setup_group.hpp"
 #include "shell/shell_window.hpp"
+#include "shell/single_instance.hpp"
 #include "shell/studio_tray.hpp"
 #include "shell/undo_service.hpp"
 #include "shell/undo_steps.hpp"
 #include "simple/simple_page.hpp"
+#include "support/account_id.hpp"
 #include "support/running_setup.hpp"
 #include "support/setup_facts.hpp"
 
@@ -1472,6 +1474,61 @@ TEST_CASE("background: the ports that ran before a restart start again")
     // The saved setup it came from and its unsaved mark come back too.
     REQUIRE(window.windowTitle().startsWith(QStringLiteral("lab.json*")));
     REQUIRE(!window.resume_banner()->isVisible());
+    REQUIRE(window.needed_in_background());
+    clear_settings();
+}
+
+TEST_CASE("background: a hidden start with nothing to run has no reason to "
+          "stay")
+{
+    clear_settings();
+    QTemporaryDir directory;
+
+    // No running setup at all.
+    {
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::ShellWindow window(backend);
+        window.enable_background(running_file(directory), false);
+        QApplication::processEvents();
+        REQUIRE(!window.needed_in_background());
+    }
+
+    // The ports were stopped with a Quit, so nothing starts.
+    write_running(running_file(directory), true);
+    {
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::ShellWindow window(backend);
+        window.enable_background(running_file(directory), false);
+        QApplication::processEvents();
+        REQUIRE(backend.ports().empty());
+        REQUIRE(!window.needed_in_background());
+    }
+    clear_settings();
+}
+
+TEST_CASE("background: a hidden start stays when the ports could not start")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_running(running_file(directory), false);
+
+    vss::gui::FakeStudioBackend backend;
+    backend.fail_next(vss::make_error_code(vss::errc::already_exists));
+    vss::gui::ShellWindow window(backend);
+    // Not shown: this is what `vss_gui --background` does at sign-in.
+    window.enable_background(running_file(directory), false);
+    QApplication::processEvents();
+    REQUIRE(backend.ports().empty());
+    // Quitting now would take the notification with it, and nobody would
+    // see the banner that offers the ports again.
+    REQUIRE(window.needed_in_background());
+
+    // Start again from the banner works, and then the ports are the reason.
+    REQUIRE(window.resume_banner()->action_button() != nullptr);
+    window.resume_banner()->action_button()->click();
+    QApplication::processEvents();
+    REQUIRE(backend.ports().size() == 2);
+    REQUIRE(window.needed_in_background());
     clear_settings();
 }
 
@@ -1581,6 +1638,33 @@ TEST_CASE("background: without background running, closing still quits")
     REQUIRE(!window.background_enabled());
     REQUIRE(window.tray() == nullptr);
     REQUIRE(!window.resume_banner()->isVisible());
+}
+
+TEST_CASE("background: the one-Studio name follows the account")
+{
+    // The system's own id for the account, not a name from the environment,
+    // which whoever starts Studio can change.
+    REQUIRE(!vss::gui::support::account_id().isEmpty());
+    const QString name = vss::gui::SingleInstance::default_name();
+    REQUIRE(name.startsWith(QStringLiteral("virtual-serial-studio-")));
+
+    const bool had_user = qEnvironmentVariableIsSet("USER");
+    const bool had_username = qEnvironmentVariableIsSet("USERNAME");
+    const QByteArray user = qgetenv("USER");
+    const QByteArray username = qgetenv("USERNAME");
+    qputenv("USER", "somebody-else");
+    qputenv("USERNAME", "somebody-else");
+    const QString renamed = vss::gui::SingleInstance::default_name();
+    qunsetenv("USER");
+    qunsetenv("USERNAME");
+    const QString unnamed = vss::gui::SingleInstance::default_name();
+    if (had_user)
+        qputenv("USER", user);
+    if (had_username)
+        qputenv("USERNAME", username);
+
+    REQUIRE(renamed == name);
+    REQUIRE(unnamed == name);
 }
 
 TEST_CASE("background: the tray icon says what runs")

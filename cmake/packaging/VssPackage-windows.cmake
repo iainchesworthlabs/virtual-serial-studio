@@ -30,6 +30,10 @@
 #     skips it in a silent install. If Windows does not trust the signature on the
 #     driver files the driver is skipped and the installer says why; it adds no
 #     certificate and does not touch test signing. The uninstaller removes them
+#   - closes vss_gui.exe and vss_cli.exe when they run from the install folder,
+#     before an upgrade replaces them and before an uninstall deletes them
+#     (bin\stop-studio.ps1). A real uninstall also removes each user's start at
+#     sign-in entry and notes in each running setup that the ports were stopped
 #
 # The user-mode driver is the one that ships. The kernel-mode driver needs a
 # Microsoft signature to load without test signing, and nothing signs it yet; the
@@ -104,6 +108,7 @@ endif()
 
 # The driver and the helper service: a page to choose them, the set-up after the
 # files are copied, and their removal before the uninstaller deletes the files.
+# Before any file is copied or deleted, a Studio that runs from the folder is closed.
 # CPack copies these values into CPackConfig.cmake without escaping them, so they
 # use NSIS's single quotes and doubled backslashes. !include wants a Windows path.
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_LIST_DIR}/windows/driver.nsh" _vss_driver_nsh)
@@ -115,11 +120,16 @@ unset(_vss_driver_nsh)
 set(CPACK_NSIS_PAGE_COMPONENTS
   "Page custom VssDriverPageCreate VssDriverPageLeave
   Page custom VssPathPageCreate VssPathPageLeave")
+set(CPACK_NSIS_EXTRA_PREINSTALL_COMMANDS
+  "  Call VssStopStudio")
 set(CPACK_NSIS_EXTRA_INSTALL_COMMANDS
-  "  Call VssInstallDriver
+  "  Call VssInstallStopStudio
+  Call VssInstallDriver
   Call VssInstallPath")
 set(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS
-  "  Call un.VssRemovePath
+  "  Call un.VssStopStudio
+  Call un.VssForgetUsers
+  Call un.VssRemovePath
   Call un.VssRemoveDriver
   Delete '$INSTDIR\\\\driver-setup.log'
   Delete '$INSTDIR\\\\path-setup.log'")

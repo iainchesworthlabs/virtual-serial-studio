@@ -3359,6 +3359,11 @@ void ShellWindow::enable_background(const QString& running_path, bool use_tray)
     update_tray();
 }
 
+bool ShellWindow::needed_in_background() const
+{
+    return restore_failed_ || !backend_.ports().empty();
+}
+
 void ShellWindow::bring_to_front()
 {
     if (isMinimized())
@@ -3428,6 +3433,8 @@ void ShellWindow::start_running_setup(bool automatic)
             tray_->notify(tr("Could not start the ports from last time"),
                           tr("Open Studio to see why and start them again."),
                           true);
+        if (automatic)
+            restore_failed_ = true;
         // Offer it again from the banner, as after a Quit.
         support::running_state state = setup->state;
         state.stopped = true;
@@ -3435,6 +3442,7 @@ void ShellWindow::start_running_setup(bool automatic)
         update_resume_banner();
         return;
     }
+    restore_failed_ = false;
     document_path_ = setup->state.document_path;
     title_override_.clear();
     last_signature_ = document_signature();
