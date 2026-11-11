@@ -112,10 +112,10 @@ constexpr std::array endpoint_states{
 constexpr std::array link_modes{link_mode::duplex, link_mode::one_way,
                                 link_mode::bus};
 constexpr std::array directions{data_direction::rx, data_direction::tx};
-constexpr std::array event_kinds{event_kind::started,    event_kind::stopped,
-                                 event_kind::data,       event_kind::lines,
-                                 event_kind::error,      event_kind::stats,
-                                 event_kind::log_message};
+constexpr std::array event_kinds{
+    event_kind::started,     event_kind::stopped,  event_kind::data,
+    event_kind::lines,       event_kind::error,    event_kind::stats,
+    event_kind::log_message, event_kind::bus_fault};
 
 /// The enumerator whose engine name (`to_string`) is `text`.
 template <class Enum, std::size_t Count>

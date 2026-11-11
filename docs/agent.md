@@ -284,6 +284,9 @@ agent:  {"event": "batch", "revision": 12, "dropped": 0, "events": [ ... ]} + bl
 
 ### Bulk traffic **[slice]** for the live tap
 
+An event keeps the engine's kind by name. A `bus-fault` event of a half-duplex bus is carried with its message;
+**[paper]**: its `fault` and `link` fields, which the slice drops (the slice cannot make a half-duplex bus).
+
 A client that subscribes with `data` gets the bytes of data events too: a **tap**. Without it the events say how many
 bytes moved and carry none. A tap is bounded by the same queue and so can lose data under load, and says how much.
 **[paper]**: a filter by port; `traffic(limit)` as pages of the hub's ring; and capture to a file running **inside**

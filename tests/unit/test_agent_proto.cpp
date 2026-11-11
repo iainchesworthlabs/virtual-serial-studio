@@ -352,6 +352,10 @@ event_batch sample_batch()
     logged.message = "d\xc3\xa9j\xc3\xa0 vu";
     batch.events.push_back(logged);
 
+    event_record collided = make_event(event_kind::bus_fault, 2);
+    collided.message = "collided with another member";
+    batch.events.push_back(collided);
+
     batch.events.push_back(make_event(event_kind::stats, 3));
     batch.events.push_back(make_event(event_kind::stopped, 1));
     return batch;
