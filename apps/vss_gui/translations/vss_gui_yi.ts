@@ -3629,8 +3629,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>אויפֿהענגען און אָפּשנידונג זענען נאָר פֿאַראַנען אויף פֿיקסטור־פּאָרטן.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR און DCD אַראָפּגעלאָזט אויף %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>דער פּאָרט צוריקגענומען פֿון דעם פּראָגראַם אויף %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
@@ -13424,8 +13429,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>אויפֿהענגען און אָפּשנידונג זענען נאָר פֿאַראַנען אויף פֿיקסטור־פּאָרטן.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR און DCD אַראָפּגעלאָזט אויף %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>דער פּאָרט צוריקגענומען פֿון דעם פּראָגראַם אויף %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />

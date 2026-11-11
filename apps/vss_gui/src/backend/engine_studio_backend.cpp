@@ -292,7 +292,8 @@ capabilities EngineStudioBackend::caps() const
     caps.com_numbers = driver_installed();
     caps.release_port = driver_installed();
     // `vss::raise_driver_line_error` asks the same driver to raise a line
-    // error at the program that has a port open.
+    // error at the program that has a port open; a hang-up uses the port's
+    // lines and a disconnect the revoke request.
     caps.driver_faults = driver_installed();
     caps.recreate_ports = true;
     // The window's Undo history reverses changes with exact inverse
@@ -378,7 +379,16 @@ EngineStudioBackend::set_link_wiring(vss::link_id id, const line_wiring& wiring)
 vss::result<void> EngineStudioBackend::inject_fault(vss::endpoint_id id,
                                                     vss::fault_kind fault)
 {
-    return studio_.inject_fault(id, fault);
+    const auto injected = studio_.inject_fault(id, fault);
+    if (!injected || !studio_.driver_ports().contains(id))
+        return injected;
+    // On a driver port a hang-up moves lines and a disconnect takes the port
+    // from its program; the window shows both without waiting for a poll.
+    if (fault == vss::fault_kind::hangup)
+        Q_EMIT lines_changed(id);
+    else if (fault == vss::fault_kind::disconnect)
+        rebuild();
+    return injected;
 }
 
 vss::result<void> EngineStudioBackend::set_echo(vss::endpoint_id id, bool on)

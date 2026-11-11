@@ -760,13 +760,24 @@ vss::result<void> FakeStudioBackend::inject_fault(vss::endpoint_id id,
     if (caps_.driver_faults && view->driver_port &&
         view->kind != vss::endpoint_kind::mock)
     {
-        // A line error is raised at the program on the port; the port keeps
-        // running and no error event follows.  Hang-up and disconnect are not
-        // offered on a driver port.
-        if (fault == vss::fault_kind::hangup ||
-            fault == vss::fault_kind::disconnect)
-            return vss::make_error_code(vss::errc::unsupported);
+        // A fault is raised at the program on the port; the port keeps
+        // running and no error event follows.  A hang-up drops the carrier
+        // and the ready line, and a disconnect takes the port from the
+        // program.
         injected_.push_back(fault);
+        if (fault == vss::fault_kind::hangup)
+        {
+            view->lines.set(vss::control_line::dcd, false);
+            view->lines.set(vss::control_line::dsr, false);
+            Q_EMIT lines_changed(id);
+            refresh();
+        }
+        else if (fault == vss::fault_kind::disconnect)
+        {
+            holders_.remove(id);
+            view->peer = peer_state::not_open;
+            refresh();
+        }
         return {};
     }
     if (!caps_.faults || view->kind != vss::endpoint_kind::mock)

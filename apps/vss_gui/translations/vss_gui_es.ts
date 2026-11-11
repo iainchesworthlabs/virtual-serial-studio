@@ -3629,8 +3629,13 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>Colgado y Desconexión solo están disponibles en los puertos de dispositivos simulados.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR y DCD desactivadas en %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>Puerto recuperado del programa en %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
@@ -13424,8 +13429,13 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>Colgado y Desconexión solo están disponibles en los puertos de dispositivos simulados.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR y DCD desactivadas en %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>Puerto recuperado del programa en %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />

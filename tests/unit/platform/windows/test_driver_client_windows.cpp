@@ -12,6 +12,7 @@
 
 #include <vss/ports/loopback_transport.hpp>
 #include <vss/ports/vcom_driver.hpp>
+#include <vss/studio/studio.hpp>
 
 #include "test_framework.hpp"
 
@@ -445,6 +446,89 @@ TEST_CASE("driver client: against the real driver, a line error reaches the prog
         throw;
     }
     stop();
+}
+
+// The studio's hang-up and disconnect on a driver port, as a program on the
+// port sees them. test-client.ps1 runs it as C4.
+TEST_CASE("driver client: against the real driver, a hang-up and a disconnect reach the program")
+{
+    char enabled[8]{};
+    const DWORD length = ::GetEnvironmentVariableA("VSS_TEST_DRIVER", enabled,
+                                                   sizeof(enabled));
+    if (length != 1 || enabled[0] != '1')
+        VSS_SKIP("needs the driver: set VSS_TEST_DRIVER=1 in a guest that has it");
+
+    studio app;
+    const auto made =
+        app.create_virtual_port("guest faults", virtual_port_kind::windows_driver);
+    REQUIRE(made.has_value());
+    const std::shared_ptr<endpoint> port = *made;
+    const endpoint_id id = port->id();
+    const auto names = app.driver_ports();
+    REQUIRE(names.contains(id));
+    const std::string name = names.at(id);
+
+    // With no program on the port both succeed and change nothing.
+    REQUIRE(app.inject_fault(id, fault_kind::hangup));
+    REQUIRE(app.inject_fault(id, fault_kind::disconnect));
+    REQUIRE_EQ(port->state(), endpoint_state::open);
+
+    const HANDLE program = open_com(name);
+    REQUIRE(program != INVALID_HANDLE_VALUE);
+    HANDLE next = INVALID_HANDLE_VALUE;
+    {
+        // The waits below have no timeout of their own.
+        const io_deadline deadline(program, 60s);
+
+        // The carrier and the ready line are up, as with a modem on line.
+        REQUIRE(!port->set_line(control_line::dcd, true));
+        REQUIRE(!port->set_line(control_line::dsr, true));
+        REQUIRE(!port->set_line(control_line::cts, true));
+        DWORD status = 0;
+        REQUIRE(::GetCommModemStatus(program, &status) != FALSE);
+        REQUIRE_EQ(status & (MS_RLSD_ON | MS_DSR_ON | MS_CTS_ON),
+                   DWORD{MS_RLSD_ON | MS_DSR_ON | MS_CTS_ON});
+        // Setting the mask drops the events of the lines going up.
+        REQUIRE(::SetCommMask(program, EV_RLSD | EV_DSR | EV_CTS) != FALSE);
+
+        // A hang-up drops the carrier and the ready line and nothing else.
+        REQUIRE(app.inject_fault(id, fault_kind::hangup));
+        REQUIRE(::GetCommModemStatus(program, &status) != FALSE);
+        REQUIRE_EQ(status & (MS_RLSD_ON | MS_DSR_ON | MS_CTS_ON),
+                   DWORD{MS_CTS_ON});
+        // The two lines drop one after the other, so the program is told in
+        // one event or in two.
+        DWORD seen = 0;
+        for (int round = 0;
+             round < 2 && seen != DWORD{EV_RLSD | EV_DSR}; ++round)
+        {
+            DWORD events = 0;
+            REQUIRE(::WaitCommEvent(program, &events, nullptr) != FALSE);
+            seen |= events;
+        }
+        REQUIRE_EQ(seen, DWORD{EV_RLSD | EV_DSR});
+        REQUIRE(!port->lines().dcd());
+        REQUIRE(!port->lines().dsr());
+        REQUIRE_EQ(port->state(), endpoint_state::open);
+
+        // A disconnect: the program's handle stops working, as that of an
+        // unplugged device does, and the port stays for the next program.
+        REQUIRE(app.inject_fault(id, fault_kind::disconnect));
+        REQUIRE(::GetCommModemStatus(program, &status) == FALSE);
+        char byte = 0;
+        DWORD done = 0;
+        REQUIRE(::WriteFile(program, &byte, 1, &done, nullptr) == FALSE);
+        REQUIRE_EQ(port->state(), endpoint_state::open);
+
+        next = open_com(name);
+        REQUIRE(next != INVALID_HANDLE_VALUE);
+        REQUIRE(::GetCommModemStatus(next, &status) != FALSE);
+    }
+    ::CloseHandle(next);
+    ::CloseHandle(program);
+
+    REQUIRE(app.remove_port(id));
+    REQUIRE(wait_gone(name));
 }
 
 TEST_CASE("driver client: without the driver it says so and takes nothing")

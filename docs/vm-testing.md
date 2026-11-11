@@ -130,7 +130,7 @@ no revoke request, which the driver now has; T7 is for the user-mode driver). Th
 `tools/vm/guest/win-driver.ps1`, which `guest-cell.ps1` copies in with the bundle.
 
 `make-driver-bundle.ps1 -UnitTests <vss_unit_tests.exe>` adds the studio's own client to the bundle, and the
-guest then runs `test-client.ps1` (C1 to C3, `result-client.json`) after the suite and before the
+guest then runs `test-client.ps1` (C1 to C4, `result-client.json`) after the suite and before the
 hung-program tests. The program must be a static release build (`CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded`),
 because the guest has no C++ runtime installed. A client case that has not ended after five minutes is
 ended and fails.

@@ -49,7 +49,7 @@
 .PARAMETER UnitTests
     Optional. A vss_unit_tests.exe that needs no runtime installed (a release build with the
     static C runtime). With it the guest run also runs test-client.ps1, the studio's own client
-    against the driver (tests C1 to C3).
+    against the driver (tests C1 to C4).
 
 .EXAMPLE
     ./drivers/windows/build.ps1 -Driver all

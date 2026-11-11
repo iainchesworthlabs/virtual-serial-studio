@@ -123,14 +123,26 @@ config::port_entry record_to_entry(const std::string& name,
     return entry;
 }
 
-/// Raises `fault` at the program that has a driver port open.  A driver port
-/// has no modem lines to drop and no device to unplug here, so hang-up and
-/// disconnect are not offered.
+/// Raises `fault` at the program that has a driver port open.  A disconnect
+/// takes the port back from the program, which is what an unplugged device
+/// looks like to it.  A hang-up is not handled here: it drops lines of the
+/// endpoint, which the studio owns.
 result<void> raise_on_driver_port(transport& driver, fault_kind fault)
 {
     driver_line_error error{};
     switch (fault)
     {
+    case fault_kind::disconnect:
+    {
+        // The answer names the process that had the port, or 0 when none did;
+        // like a line error, a disconnect with no program changes nothing.
+        const auto taken = revoke_driver_port(driver);
+        if (!taken)
+            return taken.error();
+        return {};
+    }
+    case fault_kind::hangup:
+        return make_error_code(errc::unsupported);
     case fault_kind::parity:
         error = driver_line_error::parity;
         break;
@@ -143,9 +155,6 @@ result<void> raise_on_driver_port(transport& driver, fault_kind fault)
     case fault_kind::break_condition:
         error = driver_line_error::break_condition;
         break;
-    case fault_kind::hangup:
-    case fault_kind::disconnect:
-        return make_error_code(errc::unsupported);
     }
     return raise_driver_line_error(driver, error);
 }
@@ -563,7 +572,22 @@ result<void> studio::inject_fault(endpoint_id id, fault_kind fault)
         driver = it->second.driver.lock();
     }
     if (!fixture && driver)
-        return raise_on_driver_port(*driver, fault);
+    {
+        if (fault != fault_kind::hangup)
+            return raise_on_driver_port(*driver, fault);
+        // A modem that hangs up drops its carrier and its ready line.  They
+        // go through the endpoint, so the studio's own view of the lines and
+        // the ports linked to this one follow.
+        const auto port = hub_->find_endpoint(id);
+        if (!port)
+            return make_error_code(errc::not_found);
+        for (const control_line line : {control_line::dcd, control_line::dsr})
+        {
+            if (const auto failed = port->set_line(line, false))
+                return failed;
+        }
+        return {};
+    }
     if (!fixture || fixture->mock() == nullptr)
         return make_error_code(errc::unsupported);
 

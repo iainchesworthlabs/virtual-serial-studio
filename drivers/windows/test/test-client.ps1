@@ -73,6 +73,16 @@ try {
     $status = if ($code -eq 0 -and $ran) { 'pass' } else { 'fail' }
     $tests += New-TestRecord 'C3' 'the studio client raises line errors that a program sees with ClearCommError and WaitCommEvent' $status "$detail ($($watch.Elapsed.TotalSeconds.ToString('0.0')) s)"
 
+    # C4: the studio's hang-up and disconnect on a driver port, as a program sees them.
+    $watch = [Diagnostics.Stopwatch]::StartNew()
+    $run = Invoke-Case 'a hang-up and a disconnect reach the program'
+    $output = $run.Output
+    $code = $run.Code
+    $detail = ($output -split "\r?\n" | Select-Object -Last 6) -join '; '
+    $ran = $output -match '1 tests?, 1 passed, 0 failed, 0 skipped'
+    $status = if ($code -eq 0 -and $ran) { 'pass' } else { 'fail' }
+    $tests += New-TestRecord 'C4' 'the studio drops DCD and DSR for a hang-up and takes the port back for a disconnect' $status "$detail ($($watch.Elapsed.TotalSeconds.ToString('0.0')) s)"
+
     # C2: COM numbers and the program on the port, through the helper service. Without
     # the helper service it is skipped.
     $helperRunning = [bool]([IO.Directory]::GetFiles('\\.\pipe\') -contains "\\.\pipe\$HelperPipeName")
