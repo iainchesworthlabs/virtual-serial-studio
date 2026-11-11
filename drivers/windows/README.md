@@ -47,7 +47,7 @@ driver builds in CI from the same sources; its guest results are in the section
 | Line errors: the hub raises parity, framing, overrun, break and queue overrun; `ClearCommError`, `EV_ERR`, `EV_BREAK`, `EV_RXFLAG`, the error and break characters, abort on error | tests D32 to D38, W5 and the client test C3 pass for both drivers in the Windows 10 22H2 and Windows 11 guests, with the packages test-signed in the guest; the rules are also unit-tested on the host. Not run on ARM64. In D38 the wait that races a cancel got the event in 0 to 4 of 200 rounds on the kernel-mode driver, so that side of the race is barely exercised there |
 | Driver Verifier (standard settings) on `vsscom.sys` | the whole suite, D32 to D38 included, passes with it on in the Windows 11 guest |
 | The studio opening a port (`create_driver_port`) | runs in a guest with `test-client.ps1` (test C1) |
-| A 32-bit program (WOW64) and a hung or killed program | the client and `test-wow64.ps1` (W1 to W4, T1 to T7) are written and the client builds in CI; the guest results are in the pull request that added them, and are not yet in this table |
+| A 32-bit program (WOW64) and a hung or killed program | the client and `test-wow64.ps1` (W1 to W5, T1 to T7) pass on both drivers in the Windows 10 and Windows 11 guests (T7 on the user-mode driver only) |
 | Signing | not done: the package is unsigned |
 
 ## Build
@@ -413,7 +413,7 @@ which sends back what the program writes and shows DTR as DSR and DCD and RTS as
 | T3 | a synchronous read with no timeout; the program is killed |
 | T4 | the handle in the suspended program is closed from outside (`DuplicateHandle` with `DUPLICATE_CLOSE_SOURCE`, then `CancelIoEx`): does the port come free without killing the program |
 | T5 | the driver's revoke request on the suspended program. Skipped until the driver has `IOCTL_VSSCOM_HUB_REVOKE` (hub end, no input, no output) in `vsscom/public.h`; ship `public.h` next to the script, or pass `-RevokeCode` |
-| T6 | the port is removed while a handle is held and made again: the slot and COM name that come back are recorded |
+| T6 | the port is removed while a handle is held and made again: the slot and COM name that come back are recorded. The kernel-mode device object stays until the handle closes, so the new port must take another slot; the user-mode device goes with the maker's handle, so the new port takes the freed slot |
 | T7 | the helper service is restarted with a program attached (user-mode driver only) |
 
 A test ends `pass`, `fail`, `skip` or `unexpected`. `unexpected` is for a result the

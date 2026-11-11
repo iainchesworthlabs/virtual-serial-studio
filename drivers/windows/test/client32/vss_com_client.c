@@ -631,31 +631,53 @@ static void step_event_wait(report *r, HANDLE h)
     }
     set_timeouts(h, MAXDWORD, MAXDWORD, 2000, 0, 0, &error);
 
+    /* The write below may end the wait with EV_TXEMPTY before the echo arrives with EV_RXCHAR, as it
+       does on a real port, so the step collects events until it has seen EV_RXCHAR or 2 s are up. */
     OVERLAPPED ov;
-    init_overlapped(&ov);
     DWORD event_mask = 0;
-    BOOL started = WaitCommEvent(h, &event_mask, &ov);
-    DWORD pending_error = started ? 0 : GetLastError();
-    if (!started && pending_error != ERROR_IO_PENDING)
-    {
-        add_step(r, "WaitCommEvent overlapped", 0, pending_error, 1, -1, "WaitCommEvent did not start");
-        free_overlapped(&ov);
-        return;
-    }
-    DWORD written = 0;
-    long wms = 0;
-    unsigned char byte = 0x55;
-    timed_write(h, &byte, 1, 2000, &written, &error, &wms);
-    ULONGLONG start = GetTickCount64();
+    DWORD seen_mask = 0;
     DWORD count = 0;
     DWORD wait_error = 0;
-    int finished = finish_overlapped(h, &ov, started, 2000, &count, &wait_error);
-    long ms = since(start);
-    int ok = finished && wait_error == 0 && (event_mask & EV_RXCHAR) != 0;
+    int finished = 1;
+    BOOL started = FALSE;
+    int waits = 0;
+    DWORD pending_error = 0;
+    long ms = 0;
+    ULONGLONG start = GetTickCount64();
+    for (; waits < 4 && finished && wait_error == 0 && (seen_mask & EV_RXCHAR) == 0; ++waits)
+    {
+        init_overlapped(&ov);
+        event_mask = 0;
+        started = WaitCommEvent(h, &event_mask, &ov);
+        pending_error = started ? 0 : GetLastError();
+        if (!started && pending_error != ERROR_IO_PENDING)
+        {
+            add_step(r, "WaitCommEvent overlapped", 0, pending_error, 1, -1, "WaitCommEvent did not start");
+            free_overlapped(&ov);
+            return;
+        }
+        if (waits == 0)
+        {
+            DWORD written = 0;
+            long wms = 0;
+            unsigned char byte = 0x55;
+            timed_write(h, &byte, 1, 2000, &written, &wait_error, &wms);
+            wait_error = 0;
+        }
+        if (!started)
+        {
+            /* finish_overlapped asks for the error of the call that started the wait. */
+            SetLastError(pending_error);
+        }
+        finished = finish_overlapped(h, &ov, started, 2000, &count, &wait_error);
+        seen_mask |= event_mask;
+        free_overlapped(&ov);
+    }
+    ms = since(start);
+    int ok = finished && wait_error == 0 && (seen_mask & EV_RXCHAR) != 0;
     add_step(r, "WaitCommEvent overlapped", ok, wait_error, 1, ms,
              "%s, then completed with event mask 0x%04lx after a one-byte write; EV_RXCHAR expected",
-             started ? "completed at once" : "pending", (unsigned long)event_mask);
-    free_overlapped(&ov);
+             started ? "completed at once" : "pending", (unsigned long)seen_mask);
     {
         unsigned char scratch[16];
         DWORD n = 0;
@@ -679,6 +701,10 @@ static void step_event_wait(report *r, HANDLE h)
     Sleep(100);
     SetCommMask(h, 0);
     start = GetTickCount64();
+    if (!started)
+    {
+        SetLastError(pending_error);
+    }
     finished = finish_overlapped(h, &ov, started, 2000, &count, &wait_error);
     ms = since(start);
     add_step(r, "SetCommMask(0) ends a pending WaitCommEvent", finished && wait_error == 0 && event_mask == 0,
@@ -799,10 +825,13 @@ static int run_exercise(const char *port, text_buffer *json)
         add_step(&r, "SetupComm", ok, ok ? 0 : GetLastError(), 1, -1, "asked for 4096 bytes each way");
 
         step_properties(&r, h);
-        step_config(&r, h);
 
         step_state(&r, h, "SetCommState 9600 8N1, DTR and RTS enabled", 9600, 8, NOPARITY, ONESTOPBIT,
                    DTR_CONTROL_ENABLE, RTS_CONTROL_ENABLE);
+        /* After a SetCommState, so that the baud it reports is the one just set. A port keeps its
+           settings from one open to the next, so before the first call it is whatever the program
+           before this one left. */
+        step_config(&r, h);
         step_state(&r, h, "SetCommState 19200 8N1, DTR and RTS disabled", 19200, 8, NOPARITY, ONESTOPBIT,
                    DTR_CONTROL_DISABLE, RTS_CONTROL_DISABLE);
         step_state(&r, h, "SetCommState 4800 7E2, RTS handshake", 4800, 7, EVENPARITY, TWOSTOPBITS,

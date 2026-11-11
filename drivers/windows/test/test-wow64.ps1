@@ -98,7 +98,9 @@ function Add-Test([string] $Id, [string] $Name, [scriptblock] $Body) {
         else { $script:tests += New-TestRecord $Id $Name 'fail' $message }
     }
 }
-function Assert([bool] $Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
+# $Condition is not typed: Windows PowerShell 5.1 refuses to bind an object (a parsed JSON
+# result) to a [bool] parameter.
+function Assert($Condition, [string] $Message) { if (-not $Condition) { throw $Message } }
 
 function Open-Hub([string] $Path) {
     $e = 0
@@ -147,8 +149,17 @@ function New-TestPort([switch] $NeedsDemand) {
 function Remove-TestPort($Port) {
     if ($Port.Ctl) {
         $Port.Ctl.Dispose()
-        if ($null -ne $Port.Slot) { Wait-VssDemandPort $Port.Slot 60 -Gone | Out-Null }
+        if ($null -ne $Port.Slot) { Wait-VssPortFree $Port | Out-Null }
     }
+}
+
+# Waits until a port from New-TestPort has gone and its slot can be used again. The interface goes
+# when the maker lets go, but the slot stays taken until the device object is deleted, which is
+# after the last handle on it has closed and is when the COM name leaves SERIALCOMM.
+function Wait-VssPortFree($Port) {
+    $gone = Wait-VssDemandPort $Port.Slot 60 -Gone
+    $commGone = Wait-VssSerialCommGone $Port.Port 60
+    [bool]($gone -and $commGone)
 }
 
 function Stop-Clients {
@@ -585,7 +596,15 @@ Add-Test 'T6' 'a port removed under a held handle: which slot and COM name come 
 
         $b = New-TestPort -NeedsDemand
         $detail += "made again while the old handle is held: slot $($b.Slot), $($b.Port)"
-        if ($b.Slot -eq $a.Slot -or $b.Port -eq $a.Port) { $notes += "the new port took the old slot or COM name ($($b.Slot), $($b.Port))" }
+        # The kernel-mode device object stays until the last handle closes, and holds its slot and COM
+        # name. The user-mode device is removed with the maker's handle, so its slot and name are
+        # free at once, and the program's handle only fails.
+        $reused = $b.Slot -eq $a.Slot -or $b.Port -eq $a.Port
+        if ($Flavour -eq 'umdf') {
+            if (-not $reused) { $notes += "the new port did not take the freed slot and COM name ($($b.Slot), $($b.Port))" }
+        } elseif ($reused) {
+            $notes += "the new port took the old slot or COM name ($($b.Slot), $($b.Port))"
+        }
         $b.Ctl.Dispose()
         Wait-VssDemandPort $b.Slot 60 -Gone | Out-Null
 
@@ -664,7 +683,14 @@ Add-Test 'T7' 'restarting the helper service with a program attached' {
         if (-not $exited) { $problems += 'the program was still there 10 s after the kill' }
         $hub.Dispose()
         $hub = $null
-        $freed = Wait-VssDemandPort $a.Slot 60 -Gone
+        # A new port may have taken the old slot while the program was attached; it holds that
+        # slot until it is ended, so end it first.
+        if ($b -and $b.Ctl) {
+            $b.Ctl.Dispose()
+            $b.Ctl = $null
+            Wait-VssPortFree $b | Out-Null
+        }
+        $freed = Wait-VssPortFree $a
         $detail += "the old slot is free after the kill: $freed"
         if (-not $freed) { $problems += 'the old slot never became free' }
         if ($problems.Count -gt 0) { throw "$($problems -join '; ') [$($detail -join '; ')]" }
