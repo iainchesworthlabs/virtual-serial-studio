@@ -38,6 +38,9 @@ void delay_line::push(bytes_view data)
     bool was_empty = false;
     {
         std::lock_guard lock(mutex_);
+        // A chunk the hub was routing when the route was removed.
+        if (closed_)
+            return;
         std::int64_t latency = delay_ms_;
         if (jitter_ms_ != 0)
         {
@@ -91,6 +94,9 @@ void delay_line::arm()
 void delay_line::fire()
 {
     VSS_PROFILE_ZONE("link.delay_fire");
+    // Only this strand and close() take it, so it is free unless the route
+    // is being removed.
+    std::lock_guard delivering(deliver_mutex_);
     std::vector<byte_buffer> ready;
     {
         std::lock_guard lock(mutex_);
@@ -106,6 +112,14 @@ void delay_line::fire()
         target_->write(std::move(chunk));
 
     arm();
+}
+
+void delay_line::close()
+{
+    std::lock_guard delivering(deliver_mutex_);
+    std::lock_guard lock(mutex_);
+    closed_ = true;
+    queue_.clear();
 }
 
 } // namespace vss

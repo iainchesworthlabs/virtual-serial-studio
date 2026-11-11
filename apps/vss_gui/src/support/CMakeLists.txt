@@ -7,6 +7,7 @@
 add_library(vss_gui_support STATIC
   about_dialog.cpp
   about_dialog.hpp
+  account_id.hpp
   build_info.cpp
   build_info.hpp
   bundle.cpp
@@ -55,7 +56,8 @@ add_library(vss_gui_support STATIC
   zip_writer.cpp
   zip_writer.hpp)
 
-# The sign-in entry, one file per platform.
+# The sign-in entry, the account id and the rest that differs, one file per
+# platform.
 icl_platform_sources(vss_gui_support
   DIR ${CMAKE_CURRENT_SOURCE_DIR}/platform)
 
@@ -69,7 +71,7 @@ target_link_libraries(vss_gui_support PUBLIC
   Qt6::Widgets)
 
 if(WIN32)
-  target_link_libraries(vss_gui_support PRIVATE shell32)
+  target_link_libraries(vss_gui_support PRIVATE advapi32 shell32)
 endif()
 
 target_compile_features(vss_gui_support PUBLIC cxx_std_23)

@@ -3078,8 +3078,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、これらには届きません。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、すべてに届きます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -4253,6 +4253,16 @@ Networks: %5</source>
             <translation>リンクを結合</translation>
         </message>
         <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="251" />
+            <source>Split</source>
+            <translation>分割</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="254" />
+            <source>Split link</source>
+            <translation>リンクを分割</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/owner_bar.cpp" line="63" />
             <location filename="../src/advanced/owner_bar.cpp" line="74" />
             <source>If both write at once</source>
@@ -4299,6 +4309,11 @@ Networks: %5</source>
             <location filename="../src/advanced/owner_bar.cpp" line="161" />
             <source>Port %1</source>
             <translation>ポート%1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="209" />
+            <source>%1 to %2</source>
+            <translation>%1から%2へ</translation>
         </message>
         <message>
             <location filename="../src/advanced/owner_bar.cpp" line="180" />
@@ -8767,8 +8782,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>書き込めるポートを制御するには、所有者ポリシーを持つ結合の宛先を選択してください。</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>書き込めるポートを制御するには、所有者ポリシーを持つ結合の宛先、または分割のデバイスを選択してください。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -16465,8 +16480,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>書き込めるポートを制御するには、所有者ポリシーを持つ結合の宛先を選択してください。</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>書き込めるポートを制御するには、所有者ポリシーを持つ結合の宛先、または分割のデバイスを選択してください。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -17671,8 +17686,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、これらには届きません。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; はどれも &lt;b&gt;%2&lt;/b&gt; に送信できますが、同時に送信できるのは1つだけです。どれにするかは次のページで選びます。デバイスからの返信は、すべてに届きます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17844,12 +17859,147 @@ Networks: %5</source>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="325" />
+            <source>Give my program a serial port</source>
+            <translation>プログラムにシリアルポートを提供</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="329" />
+            <source>Connect two programs to each other</source>
+            <translation>2つのプログラムを互いに接続</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="332" />
+            <source>Use my device through a new port</source>
+            <translation>デバイスを新しいポート経由で使う</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="336" />
+            <source>Share my device with several programs</source>
+            <translation>デバイスを複数のプログラムで共有</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="339" />
+            <source>Try my device from this window</source>
+            <translation>このウィンドウからデバイスを試す</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="343" />
+            <source>Let other computers use my device</source>
+            <translation>他のコンピューターからデバイスを使えるようにする</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="346" />
+            <source>Put several on one line</source>
+            <translation>複数を1本の回線にまとめる</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="349" />
+            <source>Send several into one</source>
+            <translation>複数から1つへ送る</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="353" />
+            <source>Let programs take turns sending to a device</source>
+            <translation>プログラムが交代でデバイスに送信する</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="358" />
+            <source>Made in Advanced mode</source>
+            <translation>高度モードで作成</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="367" />
+            <source>For a program that needs a COM port when there is no device, or before the device arrives.</source>
+            <translation>デバイスがないとき、またはデバイスが届く前に、COMポートが必要なプログラム向けです。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="373" />
+            <source>Like a null-modem cable between two programs on this PC. What one sends, the other receives.</source>
+            <translation>このPC上の2つのプログラムの間をつなぐヌルモデムケーブルのようなものです。一方が送信したものを、もう一方が受信します。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="377" />
+            <source>Your program opens a new port instead of the device. Then you can watch, share or test without changing the program.</source>
+            <translation>プログラムはデバイスの代わりに新しいポートを開きます。プログラムを変更せずに、監視、共有、テストができます。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="383" />
+            <source>A device can normally be open in one program at a time. Here each program gets its own port, and all of them talk to the device.</source>
+            <translation>通常、デバイスは一度に1つのプログラムでしか開けません。ここでは各プログラムが専用のポートを持ち、すべてがデバイスと通信します。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="390" />
+            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
+            <translation>デバイスに入力し、その応答をここで読めます。別のプログラムは不要です。動作の最初の確認に便利です。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="396" />
+            <source>Other computers connect to this PC over the network and talk to the device.</source>
+            <translation>他のコンピューターがネットワーク経由でこのPCに接続し、デバイスと通信します。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="400" />
+            <source>Like an RS-485 line. Everyone hears what the others send, and nobody hears themself.</source>
+            <translation>RS-485回線のように、全員が他の送信内容を受け取り、自分の送信内容は受け取りません。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="406" />
+            <source>Everything the senders write arrives at one receiver, in the order it arrives. Nothing goes back.</source>
+            <translation>送信側が書き込んだものはすべて、届いた順に1つの受信側に届きます。戻ってくるものはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="411" />
+            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
+            <translation>複数のプログラムが1つのデバイスに送信しますが、同時に送信できるのは1つだけなので、バイトが混ざることはありません。どれにするかはあなたが選びます。デバイスからの応答はすべてのプログラムに届きます。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="419" />
+            <source>Made in Advanced mode. You can use it here, and change it in Advanced mode.</source>
+            <translation>高度モードで作成。ここで使うことも、高度モードで変更することもできます。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="453" />
+            <source>Program port</source>
+            <translation>プログラムのポート</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="457" />
+            <source>Program port %1</source>
+            <translation>プログラムのポート %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="460" />
+            <source>%1 port %2</source>
+            <translation>%1 のポート %2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="465" />
+            <source>%1 linked to %2</source>
+            <translation>%1 を %2 にリンク</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="469" />
+            <source>%1 through %2</source>
+            <translation>%1（%2 経由）</translation>
+        </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="405" />
             <source>%1 shared with %n programs</source>
             <translation>
                 <numerusform>%1 を %n 個のプログラムで共有</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="478" />
+            <source>Trying %1</source>
+            <translation>%1 を試しています</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="482" />
+            <source>%1 on the network</source>
+            <translation>ネットワーク上の %1</translation>
         </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="414" />
@@ -17883,6 +18033,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>%n 個のプログラムが交代で %1 に送信</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="508" />
+            <source>%1 and %2 more</source>
+            <translation>%1 ほか %2 件</translation>
         </message>
     </context>
     <context>

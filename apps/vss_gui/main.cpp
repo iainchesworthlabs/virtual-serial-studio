@@ -362,8 +362,11 @@ try
                          &window, &vss::gui::ShellWindow::bring_to_front);
         if (hidden_start)
         {
-            // Start at sign-in with nothing to run has nothing to do.
-            if (backend.ports().empty())
+            // Start at sign-in with nothing to run has nothing to do.  Ports
+            // that could not start are a reason to stay: the notification
+            // that says so goes with the process, and the banner that offers
+            // them again is in the window.
+            if (!window.needed_in_background())
                 return 0;
             if (!use_tray)
                 window.showMinimized();

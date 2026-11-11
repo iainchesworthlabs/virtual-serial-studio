@@ -51,23 +51,21 @@ QString next_program_name(const std::vector<port_view>& ports);
 
 /// Adds one more program port to an existing share.
 ///
-/// The engine cannot add a target to a link that exists, so this creates the
-/// port, then replaces the link with one from the device to the old ports
-/// plus the new one.  The old program ports keep their names and paths, so
-/// programs that have them open are not disturbed; only the few bytes in
-/// flight during the swap can be lost.  When any step fails the old link is
-/// restored and the new port is removed, so the setup is as it was.
+/// This creates the port and adds it as one more target of the share's link.
+/// The link keeps its id, its options, its owner and its counters, and the
+/// other programs lose no bytes.  When the port cannot be added to the link it
+/// is removed again, so the setup is as it was.
 vss::result<share_added> add_program_port(StudioBackend& backend,
                                           const share_ref& share,
                                           const QString& name, bool capture);
 
 /// Removes one program port from a share and keeps the others shared.
 ///
-/// Removing an endpoint makes the engine drop every link it is on, so a plain
-/// remove would leave the other programs with ports that no longer carry the
-/// device's data.  This removes the port, then links the device to the
-/// remaining ports again.  Returns the new link, or 0 when no program port
-/// is left.  When the port cannot be removed nothing has changed.
+/// The port is taken off the link first and then removed, so the link, its id
+/// and the other programs are not disturbed and no bytes are lost.  Returns
+/// the share's link, or 0 when the port was the only program and the link
+/// went with it.  When the port cannot be taken off the link, or cannot be
+/// removed, the setup is as it was.
 vss::result<vss::link_id> remove_program_port(StudioBackend& backend,
                                               const share_ref& share,
                                               vss::endpoint_id program);

@@ -3078,8 +3078,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容不会到达它们。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容会到达它们全部。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -4253,6 +4253,16 @@ Networks: %5</source>
             <translation>合并链接</translation>
         </message>
         <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="251" />
+            <source>Split</source>
+            <translation>拆分</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="254" />
+            <source>Split link</source>
+            <translation>拆分链接</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/owner_bar.cpp" line="63" />
             <location filename="../src/advanced/owner_bar.cpp" line="74" />
             <source>If both write at once</source>
@@ -4299,6 +4309,11 @@ Networks: %5</source>
             <location filename="../src/advanced/owner_bar.cpp" line="161" />
             <source>Port %1</source>
             <translation>串口 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="209" />
+            <source>%1 to %2</source>
+            <translation>%1 到 %2</translation>
         </message>
         <message>
             <location filename="../src/advanced/owner_bar.cpp" line="180" />
@@ -8767,8 +8782,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>请选择采用所有者策略的合并目标，以控制谁可以写入。</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>请选择采用所有者策略的合并目标或拆分设备，以控制谁可以写入。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -16465,8 +16480,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>请选择采用所有者策略的合并目标，以控制谁可以写入。</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>请选择采用所有者策略的合并目标或拆分设备，以控制谁可以写入。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -17671,8 +17686,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容不会到达它们。</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; 都可以向 &lt;b&gt;%2&lt;/b&gt; 发送，但一次只能有一个。你在下一页选择是哪一个。设备回传的内容会到达它们全部。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17844,12 +17859,147 @@ Networks: %5</source>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="325" />
+            <source>Give my program a serial port</source>
+            <translation>为我的程序提供串口</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="329" />
+            <source>Connect two programs to each other</source>
+            <translation>让两个程序互相连接</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="332" />
+            <source>Use my device through a new port</source>
+            <translation>通过新串口使用我的设备</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="336" />
+            <source>Share my device with several programs</source>
+            <translation>与多个程序共享我的设备</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="339" />
+            <source>Try my device from this window</source>
+            <translation>在此窗口中试用我的设备</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="343" />
+            <source>Let other computers use my device</source>
+            <translation>让其他计算机使用我的设备</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="346" />
+            <source>Put several on one line</source>
+            <translation>把多个放在同一条线上</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="349" />
+            <source>Send several into one</source>
+            <translation>把多个发送到一个</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="353" />
+            <source>Let programs take turns sending to a device</source>
+            <translation>让程序轮流向设备发送</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="358" />
+            <source>Made in Advanced mode</source>
+            <translation>在高级模式中创建</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="367" />
+            <source>For a program that needs a COM port when there is no device, or before the device arrives.</source>
+            <translation>适用于需要 COM 串口的程序：没有设备时，或设备到货之前。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="373" />
+            <source>Like a null-modem cable between two programs on this PC. What one sends, the other receives.</source>
+            <translation>就像这台电脑上两个程序之间的空调制解调器线缆。一个发送的内容，另一个会收到。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="377" />
+            <source>Your program opens a new port instead of the device. Then you can watch, share or test without changing the program.</source>
+            <translation>你的程序打开一个新串口，而不是设备。这样你可以在不修改程序的情况下查看、共享或测试。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="383" />
+            <source>A device can normally be open in one program at a time. Here each program gets its own port, and all of them talk to the device.</source>
+            <translation>设备通常一次只能在一个程序中打开。在这里，每个程序有自己的串口，并且都与设备通信。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="390" />
+            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
+            <translation>在这里向设备输入内容并读取它的回复，不需要另一个程序。适合首次检查设备是否正常工作。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="396" />
+            <source>Other computers connect to this PC over the network and talk to the device.</source>
+            <translation>其他计算机通过网络连接到这台电脑，并与设备通信。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="400" />
+            <source>Like an RS-485 line. Everyone hears what the others send, and nobody hears themself.</source>
+            <translation>就像 RS-485 线路。每个成员都能听到其他成员发送的内容，而听不到自己的。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="406" />
+            <source>Everything the senders write arrives at one receiver, in the order it arrives. Nothing goes back.</source>
+            <translation>发送方写入的所有内容都会按到达顺序到达一个接收方。不会有内容返回。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="411" />
+            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
+            <translation>多个程序向一个设备发送，但一次只有一个，所以它们的字节不会混在一起。由你选择哪一个。所有程序都会收到设备的回复。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="419" />
+            <source>Made in Advanced mode. You can use it here, and change it in Advanced mode.</source>
+            <translation>在高级模式中创建。你可以在这里使用它，也可以在高级模式中修改它。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="453" />
+            <source>Program port</source>
+            <translation>程序串口</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="457" />
+            <source>Program port %1</source>
+            <translation>程序串口 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="460" />
+            <source>%1 port %2</source>
+            <translation>%1 的串口 %2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="465" />
+            <source>%1 linked to %2</source>
+            <translation>%1 链接到 %2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="469" />
+            <source>%1 through %2</source>
+            <translation>%1 通过 %2</translation>
+        </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="405" />
             <source>%1 shared with %n programs</source>
             <translation>
                 <numerusform>%1 与 %n 个程序共享</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="478" />
+            <source>Trying %1</source>
+            <translation>正在试用 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="482" />
+            <source>%1 on the network</source>
+            <translation>网络上的 %1</translation>
         </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="414" />
@@ -17883,6 +18033,11 @@ Networks: %5</source>
             <translation>
                 <numerusform>%n 个程序轮流向 %1 发送</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="508" />
+            <source>%1 and %2 more</source>
+            <translation>%1 及另外 %2 个</translation>
         </message>
     </context>
     <context>

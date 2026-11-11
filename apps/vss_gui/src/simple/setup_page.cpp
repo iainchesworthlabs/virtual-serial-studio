@@ -383,7 +383,7 @@ void SetupPage::rebuild_top()
                 tr("What your program sends on %1 shows here. What you type "
                    "goes to your program.")
                     .arg(target));
-        else if (setup_.programs.isEmpty() || setup_.kind == job::turns)
+        else if (setup_.programs.isEmpty())
             type_sentence_->setText(
                 tr("What you type goes to %1. Its replies show here.")
                     .arg(target));

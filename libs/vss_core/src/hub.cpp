@@ -28,6 +28,16 @@ bool contains(const std::vector<endpoint_id>& values, endpoint_id value)
     return std::find(values.begin(), values.end(), value) != values.end();
 }
 
+/// Whether `id` may own a link under `merge_policy::owner`: it is one of the
+/// endpoints whose routes meet at one endpoint.  A one-way link merges its
+/// sources into its target; a duplex link merges its targets' replies into
+/// its one source.
+bool may_own(link_mode mode, const std::vector<endpoint_id>& sources,
+             const std::vector<endpoint_id>& targets, endpoint_id id)
+{
+    return contains(mode == link_mode::duplex ? targets : sources, id);
+}
+
 /// Marks a node of the cycle graph as a bus rather than an endpoint.  Endpoint
 /// and link ids count up from one, so they never reach this bit.
 constexpr endpoint_id bus_node_tag = endpoint_id{1} << 63;
@@ -558,7 +568,8 @@ bool hub::bus_would_create_cycle(const std::vector<endpoint_id>& members) const
     return false;
 }
 
-void hub::add_route(const link_record& link, endpoint_id from, endpoint_id to)
+hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
+                                 endpoint_id to)
 {
     std::shared_ptr<delay_line> delay;
     if (link.options.has_latency())
@@ -570,7 +581,213 @@ void hub::add_route(const link_record& link, endpoint_id from, endpoint_id to)
                 io_.get_executor(), target->second, link.options.delay_ms,
                 link.options.jitter_ms);
     }
-    routes_[from].push_back(route_entry{link.id, to, std::move(delay)});
+    // The owner policy arbitrates the routes that meet at one endpoint: all
+    // of a one-way link's, and on a duplex link the ones from its targets.
+    // What the single source of a duplex link sends is never arbitrated.
+    const bool arbitrated =
+        link.options.policy == merge_policy::owner &&
+        may_own(link.mode, link.sources, link.targets, from);
+    return route_entry{link.id, to, std::move(delay), arbitrated};
+}
+
+void hub::add_route(const link_record& link, endpoint_id from, endpoint_id to)
+{
+    routes_[from].push_back(make_route(link, from, to));
+}
+
+result<void> hub::add_target(link_id id, endpoint_id target)
+{
+    VSS_PROFILE_ZONE("hub.add_target");
+    std::shared_ptr<endpoint> source_end;
+    std::shared_ptr<endpoint> target_end;
+    modem_wiring wiring;
+    {
+        std::unique_lock lock(mutex_);
+        const auto found = links_.find(id);
+        if (found == links_.end())
+            return make_error_code(errc::not_found);
+        auto& record = *found->second;
+        if (record.mode != link_mode::duplex)
+            return make_error_code(errc::unsupported);
+        const auto added = endpoints_.find(target);
+        if (added == endpoints_.end())
+            return make_error_code(errc::not_found);
+
+        // A duplex link has one source: connect() and split() make no other.
+        const endpoint_id source = record.sources.front();
+        if (target == source)
+            return make_error_code(errc::invalid_argument);
+        if (contains(record.targets, target))
+            return make_error_code(errc::already_exists);
+        if (would_create_cycle(source, target) ||
+            would_create_cycle(target, source))
+            return make_error_code(errc::cycle_detected);
+
+        // Everything that can fail happens before the first change, so a
+        // refusal (or an allocation that fails) leaves no half of a route.
+        // The target joins the list first: its reply route is arbitrated by
+        // the owner policy only once it is one of the targets.
+        record.targets.reserve(record.targets.size() + 1);
+        auto& forward_routes = routes_[source];
+        forward_routes.reserve(forward_routes.size() + 1);
+        auto& reply_routes = routes_[target];
+        reply_routes.reserve(reply_routes.size() + 1);
+        record.targets.push_back(target);
+        route_entry forward;
+        route_entry reply;
+        try
+        {
+            forward = make_route(record, source, target);
+            reply = make_route(record, target, source);
+        }
+        catch (...)
+        {
+            record.targets.pop_back();
+            throw;
+        }
+        // Room was reserved above, so neither of these can fail.  (A rehash
+        // of the map moves no element, so both references are still good.)
+        forward_routes.push_back(std::move(forward));
+        reply_routes.push_back(std::move(reply));
+        VSS_PROFILE_MESSAGE("hub.target_added");
+
+        if (record.options.emulate_modem_lines)
+        {
+            const auto origin = endpoints_.find(source);
+            if (origin != endpoints_.end())
+                source_end = origin->second;
+            target_end = added->second;
+            wiring = record.options.wiring;
+        }
+    }
+
+    // The new target must see what the source drives now, not at the
+    // source's next change.
+    if (source_end && target_end)
+        target_end->set_peer_inputs(wiring.apply(source_end->lines()));
+    return {};
+}
+
+result<void> hub::remove_target(link_id id, endpoint_id target)
+{
+    VSS_PROFILE_ZONE("hub.remove_target");
+
+    struct line_driver
+    {
+        std::shared_ptr<endpoint> from;
+        modem_wiring wiring;
+    };
+
+    std::vector<std::shared_ptr<delay_line>> held;
+    std::shared_ptr<endpoint> source_end;
+    std::shared_ptr<endpoint> target_end;
+    // What still drives the removed target's inputs, and the source's.
+    std::vector<line_driver> target_drivers;
+    std::vector<line_driver> source_drivers;
+    {
+        std::unique_lock lock(mutex_);
+        const auto found = links_.find(id);
+        if (found == links_.end())
+            return make_error_code(errc::not_found);
+        auto& record = *found->second;
+        if (record.mode != link_mode::duplex)
+            return make_error_code(errc::unsupported);
+        const endpoint_id source = record.sources.front();
+        if (target == source)
+            return make_error_code(errc::invalid_argument);
+        if (!contains(record.targets, target))
+            return make_error_code(errc::not_found);
+        if (record.targets.size() == 1)
+            return make_error_code(errc::invalid_argument);
+
+        record.targets.erase(
+            std::remove(record.targets.begin(), record.targets.end(), target),
+            record.targets.end());
+
+        const auto take = [&](endpoint_id from, endpoint_id to)
+        {
+            const auto it = routes_.find(from);
+            if (it == routes_.end())
+                return;
+            auto& routes = it->second;
+            const auto leaves = [&](const route_entry& route)
+            { return route.link == id && route.to == to; };
+            // The delay lines are taken before the entries are removed:
+            // what remove_if leaves behind it has been moved from.
+            for (auto& route : routes)
+            {
+                if (leaves(route) && route.delay)
+                    held.push_back(std::move(route.delay));
+            }
+            routes.erase(std::remove_if(routes.begin(), routes.end(), leaves),
+                         routes.end());
+            if (routes.empty())
+                routes_.erase(it);
+        };
+        take(source, target);
+        take(target, source);
+
+        // An owner that is no longer on the link would silence it for good.
+        endpoint_id owner = target;
+        record.owner.compare_exchange_strong(owner, 0);
+        VSS_PROFILE_MESSAGE("hub.target_removed");
+
+        if (record.options.emulate_modem_lines)
+        {
+            const auto end_of = [&](endpoint_id which)
+            {
+                const auto it = endpoints_.find(which);
+                return it == endpoints_.end() ? nullptr : it->second;
+            };
+            source_end = end_of(source);
+            target_end = end_of(target);
+            for (const endpoint_id other : record.targets)
+            {
+                if (auto from = end_of(other))
+                    source_drivers.push_back(
+                        {std::move(from), record.options.wiring});
+            }
+            for (const auto& [from, routes] : routes_)
+            {
+                for (const auto& route : routes)
+                {
+                    if (route.to != target)
+                        continue;
+                    const auto link = links_.find(route.link);
+                    if (link == links_.end() ||
+                        !link->second->options.emulate_modem_lines)
+                        continue;
+                    if (auto driver = end_of(from))
+                        target_drivers.push_back(
+                            {std::move(driver), link->second->options.wiring});
+                }
+            }
+        }
+    }
+
+    // After this nothing the removed routes still held can reach an
+    // endpoint, so a target that is added again starts from an empty line.
+    for (const auto& line : held)
+        line->close();
+
+    if (target_end)
+    {
+        // The cable is out: the inputs it drove drop, unless another link
+        // drives them, and then they show that link's sender.
+        if (target_drivers.empty())
+            target_end->set_peer_inputs(control_lines{});
+        for (const auto& driver : target_drivers)
+            target_end->set_peer_inputs(
+                driver.wiring.apply(driver.from->lines()));
+    }
+    if (source_end)
+    {
+        // The source may have been showing the removed target's lines.
+        for (const auto& driver : source_drivers)
+            source_end->set_peer_inputs(
+                driver.wiring.apply(driver.from->lines()));
+    }
+    return {};
 }
 
 void hub::erase_routes(link_id link)
@@ -655,7 +872,7 @@ result<void> hub::set_owner(link_id id, endpoint_id owner)
     auto& record = *it->second;
     if (record.mode == link_mode::bus)
         return make_error_code(errc::unsupported);
-    if (!contains(record.sources, owner))
+    if (!may_own(record.mode, record.sources, record.targets, owner))
         return make_error_code(errc::invalid_argument);
     record.owner.store(owner);
     return {};
@@ -738,12 +955,16 @@ void hub::route_data(endpoint_id from, bytes_view data)
                 continue;
             auto& record = *link_it->second;
 
-            if (record.options.policy == merge_policy::owner)
+            if (route.arbitrated)
             {
-                endpoint_id expected = 0;
-                if (record.owner.load() == 0)
-                    record.owner.compare_exchange_strong(expected, from);
-                if (record.owner.load() != from)
+                // A link with no owner goes to the first publisher on one
+                // of its arbitrated routes.  A failed exchange leaves the
+                // winner in `owner`.
+                endpoint_id owner = record.owner.load();
+                if (owner == 0 &&
+                    record.owner.compare_exchange_strong(owner, from))
+                    owner = from;
+                if (owner != from)
                 {
                     record.dropped.fetch_add(data.size());
                     continue;

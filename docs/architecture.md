@@ -110,9 +110,104 @@ Adding a link is refused when it would close a cycle in the graph, because a
 cycle in the routing table is an infinite loop. Cycles through *hardware* (the
 two ends of a cable) cannot be detected and are documented as a user error.
 
-`merge_policy::owner` links keep an atomic owner; a publisher that does not own
-the link has its bytes counted as dropped instead of forwarded. `interleave`
-links forward everything.
+### The owner policy
+
+`interleave` links forward everything. A `merge_policy::owner` link keeps an
+atomic owner and arbitrates the routes that *meet at one endpoint*, and no
+others. Those are the routes where bytes from several publishers would mix:
+
+| Link | Arbitrated routes | Never arbitrated | The owner is |
+|---|---|---|---|
+| `join([a, b], c)` | a→c, b→c | (none) | one of the sources |
+| `redirect(a, b)` | a→b | (none) | the source, so nothing is ever dropped |
+| `split(a, [b, c])` | b→a, c→a | a→b, a→c | one of the targets |
+| `connect(a, b)` | b→a | a→b | the target, so nothing is ever dropped |
+| `bus(...)` | refused: a bus takes `interleave` only | | |
+
+On an arbitrated route a publisher that does not own the link has its bytes
+counted in `link_stats.dropped` and not forwarded. On the other routes of the
+link the policy does nothing: the single source of a split reaches every target
+whoever owns the link, its bytes are never counted as dropped, and it never
+becomes the owner. So a split with the owner policy is "several programs take
+turns sending to one device, and all of them hear its replies".
+
+While a link has no owner (it was just made, or `release_owner` was called) the
+first publisher on an arbitrated route takes it with a compare-exchange.
+`set_owner` accepts only an endpoint that publishes on an arbitrated route (the
+fourth column) and fails with `invalid_argument` for any other, and with
+`unsupported` for a bus. Whether a route is arbitrated is decided when the
+route is made and stored in it, so the router does not work it out per chunk.
+
+Before this rule the policy was checked on every route of a link. On a split
+that dropped every reply of the targets once the source owned the link, and let
+a target that sent first take the link and shut the source out of it.
+
+### Changing the targets of a link
+
+`hub::add_target(link, endpoint)` and `hub::remove_target(link, endpoint)` add
+or remove one target of a duplex link (`connect` or `split`) that exists. The
+link keeps its id, options, owner and counters, and its other routes are not
+touched. The rules, for each kind of link:
+
+| Link | `add_target` | `remove_target` |
+|---|---|---|
+| `connect`, `split` | adds source→target and target→source | removes both |
+| `join`, `redirect`, `monitor` | `unsupported` | `unsupported` |
+| `bus` | `unsupported` | `unsupported` |
+
+A one-way link is refused because the saved topology has no shape for one
+source feeding several targets one way (`redirect` and `monitor` are one to
+one, `join` is many to one), and what varies in a join is its sources, which is
+a different operation. A bus is refused because a member is not a target: it
+is both ends of `n - 1` routes, it is recorded as the one bus the endpoint is
+on, and the cycle check treats the whole bus as one node. Removing an endpoint
+already takes a member out of a bus; adding one is future work.
+
+The other refusals: `not_found` for an unknown link or endpoint and for
+removing an endpoint that is not a target of the link; `invalid_argument` for
+the link's own source (a self-link) and for removing the last target (a link
+has at least one target, so `disconnect` it); `already_exists` for a target
+that is already on the link; `cycle_detected` when either new route would close
+a loop through other links or through a bus. Every check is made before the
+first change and the space for both routes is reserved before either is
+stored, so a refused `add_target` leaves no half of a link behind.
+
+What a change does to traffic and state:
+
+* **Bytes on the way.** `route_data` collects its deliveries under the shared
+  lock, as shared pointers to the target endpoints and delay lines, and writes
+  after releasing it. The two calls change the table under the exclusive lock.
+  So a chunk that is being routed when a target is removed either reaches that
+  target or does not, and the endpoint it is written to is alive because the
+  delivery holds it. A surviving route's entry is never rewritten (its delay
+  line is the same object), and one publisher's chunks are routed one at a time
+  on its strand, so a surviving target sees them in order and once.
+* **Delayed bytes.** The hub closes the delay lines of the two removed routes
+  before `remove_target` returns. Closing discards what the line holds, makes
+  it refuse a chunk still on its way in, and waits for a write to the target
+  that is under way. The line's timer and strand go when the last reference
+  does; its handlers hold it weakly, so nothing runs on a freed line. A target
+  that is added again gets a new, empty line, and cannot be overtaken by the
+  old one.
+* **Counters.** They belong to the link, not to a route. `bytes` and
+  `messages` count deliveries handed to a route when they were routed and
+  `dropped` counts bytes the owner policy refused, and all three keep what a
+  removed route added. Bytes discarded from a delay line were counted in
+  `bytes` when they went in, as they are when a delayed link is removed.
+* **The owner.** Removing the target that owns the link releases it, so the
+  next target to send takes it. A new target owns nothing until it is given
+  the link or sends first on a link with no owner.
+* **Control lines.** On a link with `emulate_modem_lines` a new target is given
+  the source's output lines at once, through the link's wiring. The source's
+  inputs follow the new target from that target's next line change, as on a
+  link that was just made. A removed target loses the inputs the link drove,
+  as when a cable is pulled; if another link still drives that endpoint its
+  inputs show that link's sender instead. The source's inputs are then set
+  from the targets that remain, in list order, so they never show a port that
+  is no longer on the link.
+* **The saved topology.** `link_info`, `studio::snapshot()` and the JSON follow
+  the target list. A duplex link with one target is saved as `duplex` and with
+  several as `split`, as before, so the file format is unchanged.
 
 ### Link delay
 

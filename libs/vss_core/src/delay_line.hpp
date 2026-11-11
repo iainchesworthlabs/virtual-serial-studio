@@ -44,6 +44,14 @@ public:
     /// Safe to call from any thread; calls from one thread keep their order.
     void push(bytes_view data);
 
+    /// Discards what is waiting and refuses what comes later.  When it
+    /// returns, the line has written its last byte to the target: a write
+    /// that was under way has finished, and none will start.  The hub calls
+    /// it for a route it removes while the link stays, so a route made
+    /// again for the same target cannot be overtaken by the old one.  Safe
+    /// from any thread except inside the target's own write.
+    void close();
+
 private:
     struct item
     {
@@ -60,7 +68,12 @@ private:
     const std::uint32_t delay_ms_;
     const std::uint32_t jitter_ms_;
 
+    /// Held while chunks that are due are written to the target, and by
+    /// #close, so that a close waits for a write under way.  Always taken
+    /// before `mutex_`.
+    std::mutex deliver_mutex_;
     std::mutex mutex_;
+    bool closed_ = false;
     std::deque<item> queue_;
     time_point last_due_{};
     std::mt19937 random_;

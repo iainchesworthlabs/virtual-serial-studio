@@ -100,6 +100,136 @@ TEST_CASE("fake backend: links, owner, lines and send")
     REQUIRE(vss_test::require_value(backend.port(*a)).lines.dtr());
 }
 
+TEST_CASE("fake backend: the owner of a duplex link is a target")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto a = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    const auto b = backend.create_virtual_port(
+        QStringLiteral("b"), vss::virtual_port_kind::loopback, true);
+    const auto c = backend.create_virtual_port(
+        QStringLiteral("c"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    REQUIRE(c.has_value());
+
+    // Duplex: the routes that meet at one endpoint come from the targets.
+    const auto split = backend.split(*a, {*b, *c}, vss::link_options{});
+    REQUIRE(split.has_value());
+    REQUIRE(backend.set_owner(*split, *b).has_value());
+    REQUIRE_EQ(backend.links().front().owner, *b);
+    REQUIRE(backend.set_owner(*split, *a).error() ==
+            vss::make_error_code(vss::errc::invalid_argument));
+    REQUIRE_EQ(backend.links().front().owner, *b);
+    REQUIRE(backend.set_owner(*split, 999).error() ==
+            vss::make_error_code(vss::errc::invalid_argument));
+
+    // One-way: the owner is one of the sources.
+    const auto joined = backend.join({*b, *c}, *a, vss::link_options{});
+    REQUIRE(joined.has_value());
+    REQUIRE(backend.set_owner(*joined, *c).has_value());
+    REQUIRE(backend.set_owner(*joined, *a).error() ==
+            vss::make_error_code(vss::errc::invalid_argument));
+
+    // A bus has no owner.
+    const auto d = backend.create_virtual_port(
+        QStringLiteral("d"), vss::virtual_port_kind::loopback, true);
+    const auto e = backend.create_virtual_port(
+        QStringLiteral("e"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(d.has_value());
+    REQUIRE(e.has_value());
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    const auto bus = backend.bus({*d, *e});
+    REQUIRE(bus.has_value());
+    REQUIRE(backend.set_owner(*bus, *d).error() ==
+            vss::make_error_code(vss::errc::unsupported));
+}
+
+TEST_CASE("fake backend: add_target and remove_target edit a duplex link")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto a = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    const auto b = backend.create_virtual_port(
+        QStringLiteral("b"), vss::virtual_port_kind::loopback, true);
+    const auto c = backend.create_virtual_port(
+        QStringLiteral("c"), vss::virtual_port_kind::loopback, true);
+    const auto d = backend.create_virtual_port(
+        QStringLiteral("d"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    REQUIRE(c.has_value());
+    REQUIRE(d.has_value());
+    const auto not_found = vss::make_error_code(vss::errc::not_found);
+    const auto unsupported = vss::make_error_code(vss::errc::unsupported);
+    const auto invalid = vss::make_error_code(vss::errc::invalid_argument);
+    const auto exists = vss::make_error_code(vss::errc::already_exists);
+
+    const auto pair = backend.connect_ports(*a, *b, vss::link_options{});
+    REQUIRE(pair.has_value());
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::two_way);
+
+    // Adding a second target makes the pair a split and keeps the link.
+    REQUIRE(backend.add_target(*pair, *c).has_value());
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, *pair);
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::split);
+    REQUIRE_EQ(backend.links().front().sources.size(), 1);
+    REQUIRE_EQ(backend.links().front().targets.size(), 2);
+
+    // Every error code, and nothing changed by any of them.
+    REQUIRE(backend.add_target(999, *d).error() == not_found);
+    REQUIRE(backend.add_target(*pair, 999).error() == not_found);
+    REQUIRE(backend.add_target(*pair, *a).error() == invalid);
+    REQUIRE(backend.add_target(*pair, *c).error() == exists);
+    REQUIRE(backend.remove_target(999, *c).error() == not_found);
+    REQUIRE(backend.remove_target(*pair, 999).error() == not_found);
+    REQUIRE(backend.remove_target(*pair, *d).error() == not_found);
+    REQUIRE(backend.remove_target(*pair, *a).error() == invalid);
+    REQUIRE_EQ(backend.links().front().targets.size(), 2);
+
+    // The injected error comes first.
+    backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    REQUIRE(backend.add_target(*pair, *d).error() ==
+            vss::make_error_code(vss::errc::io_error));
+    backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    REQUIRE(backend.remove_target(*pair, *c).error() ==
+            vss::make_error_code(vss::errc::io_error));
+    REQUIRE_EQ(backend.links().front().targets.size(), 2);
+
+    // Removing the owner releases it; removing another target keeps it.
+    REQUIRE(backend.set_owner(*pair, *c).has_value());
+    REQUIRE(backend.add_target(*pair, *d).has_value());
+    REQUIRE(backend.remove_target(*pair, *d).has_value());
+    REQUIRE_EQ(backend.links().front().owner, *c);
+    REQUIRE(backend.remove_target(*pair, *c).has_value());
+    REQUIRE_EQ(backend.links().front().owner, vss::endpoint_id{0});
+    REQUIRE_EQ(backend.links().front().id, *pair);
+
+    // The last target stays.
+    REQUIRE_EQ(backend.links().front().targets.size(), 1);
+    REQUIRE(backend.remove_target(*pair, *b).error() == invalid);
+    REQUIRE_EQ(backend.links().front().targets.size(), 1);
+
+    // One-way links and buses are not edited in place.
+    const auto joined = backend.join({*b, *c}, *d, vss::link_options{});
+    REQUIRE(joined.has_value());
+    REQUIRE(backend.add_target(*joined, *a).error() == unsupported);
+    REQUIRE(backend.remove_target(*joined, *d).error() == unsupported);
+    const auto redirected = backend.redirect(*a, *d, vss::link_options{});
+    REQUIRE(redirected.has_value());
+    REQUIRE(backend.add_target(*redirected, *c).error() == unsupported);
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    const auto bus = backend.bus({*b, *c});
+    REQUIRE(bus.has_value());
+    REQUIRE(backend.add_target(*bus, *a).error() == unsupported);
+    REQUIRE(backend.remove_target(*bus, *b).error() == unsupported);
+}
+
 TEST_CASE("fake backend: snapshot and apply round trip")
 {
     vss::gui::FakeStudioBackend backend;

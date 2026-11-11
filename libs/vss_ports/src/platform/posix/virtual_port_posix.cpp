@@ -28,6 +28,13 @@ namespace vss::detail
 namespace
 {
 
+/// Marks a descriptor so that a program started with `exec` does not get it.
+bool close_on_exec(int descriptor) noexcept
+{
+    const int flags = ::fcntl(descriptor, F_GETFD);
+    return flags >= 0 && ::fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC) == 0;
+}
+
 /// The baud rate a `speed_t` stands for, or 0 for one this table lacks.  Only
 /// the rates Linux and macOS both name are here; a faster rate is reported as
 /// unknown rather than guessed.  (macOS uses the rate itself as the speed, so
@@ -256,6 +263,16 @@ platform_create_pty(const transport::executor_type& executor,
     if (master < 0)
         return make_error_code(errc::io_error);
 
+    // A program this process starts (the serial group step, a tool whose
+    // output is read) must not inherit the port: it would hold it open for as
+    // long as it runs, also after Studio has closed it.  macOS refuses
+    // O_CLOEXEC in posix_openpt, so the flag is set afterwards on both systems.
+    if (!close_on_exec(master))
+    {
+        ::close(master);
+        return make_error_code(errc::io_error);
+    }
+
     if (::grantpt(master) != 0 || ::unlockpt(master) != 0)
     {
         ::close(master);
@@ -273,7 +290,7 @@ platform_create_pty(const transport::executor_type& executor,
     // application has connected yet, and put it in raw mode so the line
     // discipline does not translate or echo anything.
     const int slave =
-        ::open(slave_path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK);
+        ::open(slave_path.c_str(), O_RDWR | O_NOCTTY | O_NONBLOCK | O_CLOEXEC);
     if (slave >= 0)
     {
         struct termios settings{};

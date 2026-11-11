@@ -1289,6 +1289,24 @@ result<void> studio::disconnect(link_id id)
     return hub_->disconnect(id);
 }
 
+result<void> studio::add_target(link_id id, std::string_view target)
+{
+    VSS_PROFILE_ZONE("studio.add_target");
+    const auto port = hub_->find_endpoint(target);
+    if (!port)
+        return make_error_code(errc::not_found);
+    return hub_->add_target(id, port->id());
+}
+
+result<void> studio::remove_target(link_id id, std::string_view target)
+{
+    VSS_PROFILE_ZONE("studio.remove_target");
+    const auto port = hub_->find_endpoint(target);
+    if (!port)
+        return make_error_code(errc::not_found);
+    return hub_->remove_target(id, port->id());
+}
+
 result<studio::share_result> studio::share_serial(const std::string& uri,
                                                   int listeners)
 {

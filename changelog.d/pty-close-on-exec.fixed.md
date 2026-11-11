@@ -1,0 +1,1 @@
+**A program that Studio starts on Linux or macOS no longer inherits the pseudo terminals.** The descriptors of a virtual port were passed to every program Studio or `vss_cli` started (the serial group step, a tool whose output is read), which held the port open for as long as it ran, also after Studio had closed it. They are now closed in a started program.

@@ -87,18 +87,21 @@ TEST_CASE("share edit: an attached device is a share with one program")
     REQUIRE_EQ(found->programs.size(), 1);
 }
 
-TEST_CASE("share edit: adding a program keeps the old ports and one link")
+TEST_CASE("share edit: adding a program keeps the old ports and the link")
 {
     shared_device fixture(2);
     const auto share = fixture.find(fixture.share.source);
     REQUIRE(share.has_value());
     const auto name = next_program_name(fixture.backend.ports());
     REQUIRE_EQ(name, QStringLiteral("program-1"));
+    const vss::link_id before = fixture.backend.links().front().id;
 
     const auto added = add_program_port(fixture.backend, *share, name, true);
     REQUIRE(added.has_value());
+    REQUIRE_EQ(added->link, before);
     REQUIRE_EQ(fixture.backend.ports().size(), std::size_t{4});
     REQUIRE_EQ(fixture.backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(fixture.backend.links().front().id, before);
     const auto link = fixture.backend.link(added->link);
     REQUIRE(link.has_value());
     REQUIRE_EQ(link->targets.size(), 3);
@@ -116,22 +119,37 @@ TEST_CASE("share edit: a failed add leaves the share as it was")
     shared_device fixture(2);
     const auto share = fixture.find(fixture.share.source);
     REQUIRE(share.has_value());
+    const vss::link_id before = fixture.backend.links().front().id;
+    const auto unchanged = [&]
+    {
+        REQUIRE_EQ(fixture.backend.ports().size(), std::size_t{3});
+        REQUIRE_EQ(fixture.backend.links().size(), std::size_t{1});
+        REQUIRE_EQ(fixture.backend.links().front().id, before);
+        REQUIRE_EQ(fixture.backend.links().front().targets.size(), 2);
+    };
 
     // The port cannot be created.
     fixture.backend.fail_next(vss::make_error_code(vss::errc::io_error));
     REQUIRE(
         !add_program_port(fixture.backend, *share, QStringLiteral("p"), true)
              .has_value());
-    REQUIRE_EQ(fixture.backend.ports().size(), std::size_t{3});
-    REQUIRE_EQ(fixture.backend.links().size(), std::size_t{1});
-    REQUIRE_EQ(fixture.backend.links().front().targets.size(), 2);
+    unchanged();
+
+    // The port is created but cannot be added to the link: it is removed
+    // again.  The second fallible call is the add.
+    fixture.backend.fail_after(1, vss::make_error_code(vss::errc::io_error));
+    const auto failed =
+        add_program_port(fixture.backend, *share, QStringLiteral("p"), true);
+    REQUIRE(!failed.has_value());
+    REQUIRE(failed.error() == vss::make_error_code(vss::errc::io_error));
+    unchanged();
 
     // A stale share description is refused before anything is created.
     share_ref stale = *share;
     stale.link = 9999;
     REQUIRE(!add_program_port(fixture.backend, stale, QStringLiteral("p"), true)
                  .has_value());
-    REQUIRE_EQ(fixture.backend.ports().size(), std::size_t{3});
+    unchanged();
 }
 
 TEST_CASE("share edit: removing one program keeps the others shared")
@@ -140,14 +158,16 @@ TEST_CASE("share edit: removing one program keeps the others shared")
     const auto share = fixture.find(fixture.share.source);
     REQUIRE(share.has_value());
     const vss::endpoint_id gone = fixture.share.listeners.at(1);
+    const vss::link_id before = fixture.backend.links().front().id;
 
     const auto link = remove_program_port(fixture.backend, *share, gone);
     REQUIRE(link.has_value());
-    REQUIRE(*link != 0);
+    REQUIRE_EQ(*link, before);
     REQUIRE(!fixture.backend.port(gone).has_value());
     REQUIRE_EQ(fixture.backend.ports().size(), std::size_t{3});
     REQUIRE_EQ(fixture.backend.links().size(), std::size_t{1});
     const auto remaining = fixture.backend.links().front();
+    REQUIRE_EQ(remaining.id, before);
     REQUIRE_EQ(remaining.targets.size(), 2);
     REQUIRE(remaining.targets.contains(fixture.share.listeners.at(0)));
     REQUIRE(remaining.targets.contains(fixture.share.listeners.at(2)));
@@ -158,6 +178,42 @@ TEST_CASE("share edit: removing one program keeps the others shared")
     REQUIRE(again.has_value());
     REQUIRE(!remove_program_port(fixture.backend, *again, fixture.share.source)
                  .has_value());
+}
+
+TEST_CASE("share edit: a failed remove leaves the share as it was")
+{
+    shared_device fixture(3);
+    const auto share = fixture.find(fixture.share.source);
+    REQUIRE(share.has_value());
+    const vss::endpoint_id program = fixture.share.listeners.at(1);
+    const vss::link_id before = fixture.backend.links().front().id;
+    const auto unchanged = [&]
+    {
+        REQUIRE_EQ(fixture.backend.ports().size(), std::size_t{4});
+        REQUIRE_EQ(fixture.backend.links().size(), std::size_t{1});
+        REQUIRE_EQ(fixture.backend.links().front().id, before);
+        REQUIRE_EQ(fixture.backend.links().front().targets.size(), 3);
+        REQUIRE(fixture.backend.links().front().targets.contains(program));
+        REQUIRE(fixture.backend.port(program).has_value());
+    };
+
+    // The port cannot be taken off the link.
+    fixture.backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    REQUIRE(!remove_program_port(fixture.backend, *share, program).has_value());
+    unchanged();
+
+    // It is taken off the link but cannot be removed: it goes back on.
+    fixture.backend.fail_after(1, vss::make_error_code(vss::errc::io_error));
+    const auto failed = remove_program_port(fixture.backend, *share, program);
+    REQUIRE(!failed.has_value());
+    REQUIRE(failed.error() == vss::make_error_code(vss::errc::io_error));
+    unchanged();
+
+    // A stale description is refused.
+    share_ref stale = *share;
+    stale.link = 9999;
+    REQUIRE(!remove_program_port(fixture.backend, stale, program).has_value());
+    unchanged();
 }
 
 TEST_CASE("share edit: removing the last program leaves the bare device")

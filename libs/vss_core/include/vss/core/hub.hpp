@@ -147,10 +147,65 @@ public:
 
     result<void> disconnect(link_id id);
 
+    /// Adds one more target to a duplex link that exists (a #connect or a
+    /// #split), without touching its other routes: the link keeps its id,
+    /// its options, its owner and its counters, and bytes on the way to the
+    /// other targets are not disturbed.  A #connect with a second target is
+    /// a split from then on.
+    ///
+    /// The call adds the routes source→target and target→source, both or
+    /// neither.  It fails, and changes nothing, with
+    /// - `errc::not_found` for an unknown link or endpoint,
+    /// - `errc::unsupported` for a one-way link (#join, #redirect, #monitor:
+    ///   the saved topology has no shape for one source feeding several
+    ///   targets one way, and what varies in a join is its sources) and for
+    ///   a #bus (membership is a different operation: every member is both
+    ///   ends of `n - 1` routes and one node of the cycle graph),
+    /// - `errc::invalid_argument` when the endpoint is the link's source,
+    /// - `errc::already_exists` when it is a target of the link already,
+    /// - `errc::cycle_detected` when either new route would close a loop,
+    ///   through other links or through a bus.
+    ///
+    /// With `emulate_modem_lines` the new target sees the source's output
+    /// lines at once.  The source's inputs follow the new target from that
+    /// target's next line change, as they do on a link just made.
+    result<void> add_target(link_id id, endpoint_id target);
+
+    /// Takes one target out of a duplex link and leaves the others linked.
+    /// The endpoint itself stays in the hub.
+    ///
+    /// A chunk the hub is routing when the call is made either reaches the
+    /// target or does not; nothing reaches it from this link after the call
+    /// returns except such a chunk.  Bytes the link's delay still holds for
+    /// the two removed routes are discarded.  The link's counters keep what
+    /// the removed routes carried.  If the target owned the link the owner
+    /// is released.  With `emulate_modem_lines` the target's input lines
+    /// drop, as when a cable is pulled, unless another link still drives
+    /// them, and the source's inputs are set from the targets that remain.
+    ///
+    /// It fails, and changes nothing, with `errc::not_found` for an unknown
+    /// link and for an endpoint that is not a target of it,
+    /// `errc::unsupported` for a one-way link or a bus,
+    /// `errc::invalid_argument` for the link's source, and
+    /// `errc::invalid_argument` for the last target: a link has at least
+    /// one, so remove the link with #disconnect instead.
+    result<void> remove_target(link_id id, endpoint_id target);
+
     std::vector<link_info> links() const;
     std::optional<link_info> find_link(link_id id) const;
 
     /// Assigns the single publisher allowed by #merge_policy::owner.
+    ///
+    /// The policy arbitrates the routes of a link that meet at one
+    /// endpoint, and only those.  On a one-way link (#join, #redirect) they
+    /// are the routes from its sources, so the owner is one of the sources.
+    /// On a duplex link (#connect, #split) they are the routes from its
+    /// targets back to its source, so the owner is one of the targets; what
+    /// the source sends fans out to every target whoever owns the link, is
+    /// never dropped by the policy and never takes ownership.  While a link
+    /// has no owner, the first publisher on an arbitrated route takes it.
+    /// `errc::invalid_argument` for an endpoint that cannot own the link and
+    /// `errc::unsupported` for a bus.
     result<void> set_owner(link_id id, endpoint_id owner);
     result<void> release_owner(link_id id);
 
@@ -195,6 +250,8 @@ private:
         endpoint_id to = 0;
         /// Holds the bytes for the link's delay; null for a link without one.
         std::shared_ptr<delay_line> delay;
+        /// The link's owner policy decides whether this route forwards.
+        bool arbitrated = false;
     };
 
     struct link_record
@@ -232,6 +289,8 @@ private:
     endpoint_id cycle_node(endpoint_id id) const;
     bool reaches(endpoint_id start,
                  const std::unordered_set<endpoint_id>& goals) const;
+    route_entry make_route(const link_record& link, endpoint_id from,
+                           endpoint_id to);
     void add_route(const link_record& link, endpoint_id from, endpoint_id to);
     void erase_routes(link_id link);
     link_info describe(const link_record& record) const;

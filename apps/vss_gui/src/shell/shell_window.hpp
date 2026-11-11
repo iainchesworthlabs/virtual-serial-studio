@@ -89,6 +89,12 @@ public:
     void enable_background(const QString& running_path, bool use_tray);
     bool background_enabled() const noexcept { return background_; }
 
+    /// Whether a Studio that was started hidden (`--background`) has a reason
+    /// to stay: ports run, or the ports from last time could not start.  In
+    /// the second case the notification that says so, and the Start again
+    /// banner behind it, are only there while Studio is.
+    bool needed_in_background() const;
+
     /// Shows the window again and puts it in front: the notification-area
     /// icon, and a second Studio that was started while this one runs.
     void bring_to_front();
@@ -292,6 +298,7 @@ private:
     bool background_ = false;
     bool quitting_ = false;
     bool was_lost_ = false;
+    bool restore_failed_ = false;
     QString running_path_;
     QByteArray running_written_;
     QTimer* running_save_ = nullptr;

@@ -85,7 +85,19 @@ public:
         share_failure_ = {index, error};
     }
     /// The next fallible call returns this error and consumes it.
-    void fail_next(vss::error_code error) { next_error_ = error; }
+    void fail_next(vss::error_code error)
+    {
+        next_error_ = error;
+        calls_before_error_ = 0;
+    }
+    /// The fallible call after `calls` more fallible calls returns this
+    /// error and consumes it, so a test can fail the second step of an
+    /// operation that makes several backend calls.
+    void fail_after(int calls, vss::error_code error)
+    {
+        next_error_ = error;
+        calls_before_error_ = calls;
+    }
 
     /// How the next benchmark ends, for tests.  `lost` bytes never arrive and
     /// the run takes about `duration` in ten steps, so a test can cancel it.
@@ -181,6 +193,10 @@ public:
     vss::result<vss::link_id> bus(const std::vector<vss::endpoint_id>& members,
                                   const vss::link_options& options) override;
     vss::result<void> disconnect(vss::link_id id) override;
+    vss::result<void> add_target(vss::link_id link,
+                                 vss::endpoint_id target) override;
+    vss::result<void> remove_target(vss::link_id link,
+                                    vss::endpoint_id target) override;
     vss::result<void> set_owner(vss::link_id id,
                                 vss::endpoint_id owner) override;
     vss::result<void> release_owner(vss::link_id id) override;
@@ -246,6 +262,7 @@ private:
     std::vector<vss::fault_kind> injected_;
     QHash<vss::link_id, line_wiring> wiring_;
     std::optional<vss::error_code> next_error_;
+    int calls_before_error_ = 0;
     vss::endpoint_id next_port_ = 1;
     vss::link_id next_link_ = 1;
     int refresh_interval_ms_ = 250;

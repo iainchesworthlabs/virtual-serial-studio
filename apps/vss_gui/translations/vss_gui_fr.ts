@@ -3078,8 +3078,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; peuvent tous envoyer vers &lt;b&gt;%2&lt;/b&gt;, mais un seul à la fois. Vous choisissez lequel sur la page suivante. Ce que le périphérique renvoie ne leur parvient pas.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; peuvent tous envoyer vers &lt;b&gt;%2&lt;/b&gt;, mais un seul à la fois. Vous choisissez lequel sur la page suivante. Ce que le périphérique renvoie leur parvient à tous.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -4254,6 +4254,16 @@ Réseaux : %5</translation>
             <translation>Lien de fusion</translation>
         </message>
         <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="251" />
+            <source>Split</source>
+            <translation>Répartir</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="254" />
+            <source>Split link</source>
+            <translation>Lien de répartition</translation>
+        </message>
+        <message>
             <location filename="../src/advanced/owner_bar.cpp" line="63" />
             <location filename="../src/advanced/owner_bar.cpp" line="74" />
             <source>If both write at once</source>
@@ -4300,6 +4310,11 @@ Réseaux : %5</translation>
             <location filename="../src/advanced/owner_bar.cpp" line="161" />
             <source>Port %1</source>
             <translation>Port %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/owner_bar.cpp" line="209" />
+            <source>%1 to %2</source>
+            <translation>%1 vers %2</translation>
         </message>
         <message>
             <location filename="../src/advanced/owner_bar.cpp" line="180" />
@@ -8773,8 +8788,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>Sélectionnez la cible d'une fusion avec la règle de propriétaire pour contrôler qui écrit.</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>Sélectionnez la cible d'une fusion ou l'appareil d'une répartition avec la règle de propriétaire pour contrôler qui écrit.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -16476,8 +16491,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2402" />
-            <source>Select the target of a join with the owner policy to control who writes.</source>
-            <translation>Sélectionnez la cible d'une fusion avec la règle de propriétaire pour contrôler qui écrit.</translation>
+            <source>Select the target of a join or the device of a split with the owner policy to control who writes.</source>
+            <translation>Sélectionnez la cible d'une fusion ou l'appareil d'une répartition avec la règle de propriétaire pour contrôler qui écrit.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="2483" />
@@ -17682,8 +17697,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1261" />
-            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back does not reach them.</source>
-            <translation>&lt;b&gt;%1&lt;/b&gt; peuvent tous envoyer vers &lt;b&gt;%2&lt;/b&gt;, mais un seul à la fois. Vous choisissez lequel sur la page suivante. Ce que le périphérique renvoie ne leur parvient pas.</translation>
+            <source>&lt;b&gt;%1&lt;/b&gt; can all send to &lt;b&gt;%2&lt;/b&gt;, but only one at a time. You choose which on the next page. What the device sends back reaches all of them.</source>
+            <translation>&lt;b&gt;%1&lt;/b&gt; peuvent tous envoyer vers &lt;b&gt;%2&lt;/b&gt;, mais un seul à la fois. Vous choisissez lequel sur la page suivante. Ce que le périphérique renvoie leur parvient à tous.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1299" />
@@ -17856,6 +17871,131 @@ Réseaux : %5</translation>
     </context>
     <context>
         <name>vss::gui::simple::SetupKinds</name>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="325" />
+            <source>Give my program a serial port</source>
+            <translation>Donner un port série à mon programme</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="329" />
+            <source>Connect two programs to each other</source>
+            <translation>Connecter deux programmes entre eux</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="332" />
+            <source>Use my device through a new port</source>
+            <translation>Utiliser mon appareil via un nouveau port</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="336" />
+            <source>Share my device with several programs</source>
+            <translation>Partager mon appareil avec plusieurs programmes</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="339" />
+            <source>Try my device from this window</source>
+            <translation>Essayer mon appareil depuis cette fenêtre</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="343" />
+            <source>Let other computers use my device</source>
+            <translation>Laisser d'autres ordinateurs utiliser mon appareil</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="346" />
+            <source>Put several on one line</source>
+            <translation>Mettre plusieurs sur une même ligne</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="349" />
+            <source>Send several into one</source>
+            <translation>En envoyer plusieurs vers un seul</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="353" />
+            <source>Let programs take turns sending to a device</source>
+            <translation>Faire envoyer des programmes à tour de rôle vers un appareil</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="358" />
+            <source>Made in Advanced mode</source>
+            <translation>Créé en mode Avancé</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="367" />
+            <source>For a program that needs a COM port when there is no device, or before the device arrives.</source>
+            <translation>Pour un programme qui a besoin d'un port COM quand il n'y a pas d'appareil, ou avant l'arrivée de l'appareil.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="373" />
+            <source>Like a null-modem cable between two programs on this PC. What one sends, the other receives.</source>
+            <translation>Comme un câble null-modem entre deux programmes de ce PC. Ce que l'un envoie, l'autre le reçoit.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="377" />
+            <source>Your program opens a new port instead of the device. Then you can watch, share or test without changing the program.</source>
+            <translation>Votre programme ouvre un nouveau port à la place de l'appareil. Vous pouvez alors observer, partager ou tester sans modifier le programme.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="383" />
+            <source>A device can normally be open in one program at a time. Here each program gets its own port, and all of them talk to the device.</source>
+            <translation>Un appareil ne peut normalement être ouvert que dans un seul programme à la fois. Ici, chaque programme obtient son propre port, et tous communiquent avec l'appareil.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="390" />
+            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
+            <translation>Écrivez à l'appareil et lisez ici ses réponses, sans autre programme. Pratique pour vérifier d'abord que cela fonctionne.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="396" />
+            <source>Other computers connect to this PC over the network and talk to the device.</source>
+            <translation>D'autres ordinateurs se connectent à ce PC via le réseau et communiquent avec l'appareil.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="400" />
+            <source>Like an RS-485 line. Everyone hears what the others send, and nobody hears themself.</source>
+            <translation>Comme une ligne RS-485. Chacun entend ce que les autres envoient, et personne ne s'entend lui-même.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="406" />
+            <source>Everything the senders write arrives at one receiver, in the order it arrives. Nothing goes back.</source>
+            <translation>Tout ce qu'écrivent les émetteurs arrive à un seul récepteur, dans l'ordre d'arrivée. Rien ne revient.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="411" />
+            <source>Several programs send to one device, but only one at a time, so their bytes never mix. You choose which. All of them get the device's replies.</source>
+            <translation>Plusieurs programmes envoient vers un appareil, mais un seul à la fois, de sorte que leurs octets ne se mélangent jamais. Vous choisissez lequel. Tous reçoivent les réponses de l'appareil.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="419" />
+            <source>Made in Advanced mode. You can use it here, and change it in Advanced mode.</source>
+            <translation>Créé en mode Avancé. Vous pouvez l'utiliser ici et le modifier en mode Avancé.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="453" />
+            <source>Program port</source>
+            <translation>Port de programme</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="457" />
+            <source>Program port %1</source>
+            <translation>Port de programme %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="460" />
+            <source>%1 port %2</source>
+            <translation>Port %2 de %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="465" />
+            <source>%1 linked to %2</source>
+            <translation>%1 lié à %2</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="469" />
+            <source>%1 through %2</source>
+            <translation>%1 via %2</translation>
+        </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="405" />
             <source>%1 shared with %n programs</source>
@@ -17863,6 +18003,16 @@ Réseaux : %5</translation>
                 <numerusform>%1 partagé avec %n programme</numerusform>
                 <numerusform>%1 partagé avec %n programmes</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="478" />
+            <source>Trying %1</source>
+            <translation>Essai de %1</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="482" />
+            <source>%1 on the network</source>
+            <translation>%1 sur le réseau</translation>
         </message>
         <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="414" />
@@ -17901,6 +18051,11 @@ Réseaux : %5</translation>
                 <numerusform>%n programme envoie à tour de rôle vers %1</numerusform>
                 <numerusform>%n programmes envoient à tour de rôle vers %1</numerusform>
             </translation>
+        </message>
+        <message>
+            <location filename="../src/simple/setup_kinds.cpp" line="508" />
+            <source>%1 and %2 more</source>
+            <translation>%1 et %2 autres</translation>
         </message>
     </context>
     <context>
