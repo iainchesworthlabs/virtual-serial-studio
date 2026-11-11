@@ -1,1 +1,1 @@
-Fixed the Windows driver guest tests for the 32-bit client and for a port removed or a helper restarted while a program holds it, so that they pass on both drivers.
+**The Windows driver guest tests for the 32-bit client, a removed port and a restarted helper now pass on both drivers.** They failed because of faults in the tests and the test client, not in the drivers: a PowerShell 5.1 type error, a baud rate read before any was set, a stale error code in the event wait, and ports whose slot was not yet free.
