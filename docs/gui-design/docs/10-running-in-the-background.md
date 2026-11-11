@@ -81,7 +81,7 @@ the facts and the ports are always written together in one atomic write. The top
 | No way to start at sign-in (macOS today: a login item needs a signed helper in the bundle) | The switch and the menu item are disabled with "Not available in this build", and the first-close notification leaves that sentence out. |
 | The sign-in entry cannot be written | The switch goes back, and "Could not change start at sign-in" says nothing was changed. |
 | The running setup cannot be read (damaged, newer format) | Studio starts empty, moves the file to `running-setup.bad.json`, and says "The ports from last time could not be read, so Studio started without them." in the status bar. It never half-applies it. |
-| The running setup cannot start (COM number taken, driver missing) | Nothing of it starts (the setup is applied with rollback, like File, Open). The status bar says "Could not start the ports from last time: <reason>", a hidden Studio notifies, and the Start again banner offers it. |
+| The running setup cannot start (COM number taken, driver missing) | Nothing of it starts (the setup is applied with rollback, like File, Open). The status bar says "Could not start the ports from last time: <reason>", a hidden Studio notifies, and the Start again banner offers it. A Studio started with `--background` stays in the notification area (minimised where there is none) although no port runs, so that the notification and the banner are there to be seen. |
 
 ## Where the engine runs: two ways to get there
 

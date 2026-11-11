@@ -90,6 +90,24 @@ function Invoke-Bounded([string] $File, [string[]] $Arguments, [string] $What) {
   return $process.ExitCode
 }
 
+# Starts a program from the install folder that runs until it is stopped, as a Studio in the notification area
+# does. Windows cannot replace or delete a program that runs, so the upgrade and the uninstall must close it.
+function Start-Held([string] $before) {
+  $process = Start-Process -FilePath (Join-Path $folder 'bin\vss_cli.exe') -ArgumentList @('virtual', '--kind=loopback') -PassThru -WindowStyle Hidden
+  Start-Sleep -Seconds 3
+  if ($process.HasExited) { throw "vss_cli virtual ended by itself with exit code $($process.ExitCode), so there was no running program to close before the $before." }
+  Write-Host "vss_cli (process $($process.Id)) runs from the install folder before the $before."
+  return $process
+}
+
+function Assert-Closed($process, [string] $after) {
+  if (-not $process.WaitForExit(30000)) {
+    & taskkill.exe /F /PID $process.Id | Out-Null
+    throw "The $after left a program running from the install folder."
+  }
+  Write-Host "The $after closed the program that ran from the install folder."
+}
+
 function Assert-Studio([string] $when) {
   foreach ($file in 'bin\vss_gui.exe', 'bin\vss_cli.exe', 'bin\driver\setup-driver.ps1', 'bin\driver\driver\vsscom_um.cat', 'bin\driver\helper\vsscom_helper.exe', 'Uninstall.exe') {
     if (-not (Test-Path -LiteralPath (Join-Path $folder $file))) { throw "$file is missing after the $when." }
@@ -117,9 +135,11 @@ try {
     if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw '/DRIVER=0 installed the helper service.' }
     if ((Get-DriverPackages).Count -ne 0) { throw '/DRIVER=0 installed the driver.' }
 
+    $held = Start-Held 'upgrade'
     $code = Invoke-Bounded $path @('/S') 'Upgrade, with the driver'
     Show-State 'State after the upgrade'
     if ($code -ne 0) { throw "The installer exited with $code (upgrade)." }
+    Assert-Closed $held 'upgrade'
     Assert-Studio 'upgrade'
     $state = (Get-ItemProperty -LiteralPath $key).VssDriver
     $log = Join-Path $folder 'driver-setup.log'
@@ -154,9 +174,28 @@ try {
   }
   else {
     Show-State 'State before the uninstall'
+
+    # What a Studio that ran leaves with its user: the start at sign-in entry, a running setup that says ports
+    # run, and the program itself. The uninstall must remove the first, note in the second that the ports were
+    # stopped, and close the third. An entry or a file that is there already is somebody's own and is not replaced.
+    $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
+    $runName = 'Virtual Serial Studio'
+    if ($null -eq (Get-ItemProperty -LiteralPath $runKey -Name $runName -ErrorAction SilentlyContinue)) {
+      New-ItemProperty -LiteralPath $runKey -Name $runName -Value ('"{0}" --background' -f (Join-Path $folder 'bin\vss_gui.exe')) | Out-Null
+    }
+    $data = Join-Path $env:APPDATA 'Virtual Serial Studio\Virtual Serial Studio'
+    $running = Join-Path $data 'running-setup.json'
+    $madeRunning = -not (Test-Path -LiteralPath $running)
+    if ($madeRunning) {
+      New-Item -ItemType Directory -Force -Path $data | Out-Null
+      Set-Content -LiteralPath $running -NoNewline -Encoding ascii -Value '{"dirty":false,"documentPath":"","setup":{"links":[],"ports":[{"kind":"virtual","name":"check","virtual_kind":"loopback"}]},"stopped":false,"version":1}'
+    }
+    $held = Start-Held 'uninstall'
+
     # The uninstaller copies itself to a temporary folder and returns at once, so wait for the folder to go.
     $code = Invoke-Bounded (Join-Path $folder 'Uninstall.exe') @('/S') 'Uninstall'
     if ($code -ne 0) { throw "The uninstaller exited with $code." }
+    Assert-Closed $held 'uninstall'
     $deadline = (Get-Date).AddSeconds($Seconds)
     while ((Test-Path -LiteralPath $folder) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 2 }
     if (Test-Path -LiteralPath $folder) {
@@ -167,6 +206,13 @@ try {
     if (Get-Service -Name vsscom_helper -ErrorAction SilentlyContinue) { throw 'The helper service is still there.' }
     if ((Get-DriverPackages).Count -ne 0) { throw 'The driver package is still in the driver store.' }
     if (Test-Path -LiteralPath $startMenu) { throw 'The Start menu folder is still there.' }
+    if ($null -ne (Get-ItemProperty -LiteralPath $runKey -Name $runName -ErrorAction SilentlyContinue)) { throw 'The start at sign-in entry is still there.' }
+    if ($madeRunning) {
+      $text = Get-Content -LiteralPath $running -Raw
+      Remove-Item -LiteralPath $running -Force
+      if ($text -notmatch '"stopped"\s*:\s*true') { throw "The running setup does not say that the ports were stopped: $text" }
+      if ($text -notmatch '"name":"check"') { throw "The uninstall changed more of the running setup than the stopped mark: $text" }
+    }
     $pathNow = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     if ($pathNow -like '*Virtual Serial Studio*') { throw 'The folder is still on the machine PATH.' }
     $before = if ($env:RUNNER_TEMP) { Join-Path $env:RUNNER_TEMP 'vss-path-before.txt' } else { '' }

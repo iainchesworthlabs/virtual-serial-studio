@@ -16,8 +16,8 @@
 #include <vss/core/profiling.hpp>
 #include <vss/ports/listen_transport.hpp>
 #include <vss/studio/benchmark.hpp>
-#include <vss/studio/format_check.hpp>
 #include <vss/studio/capture.hpp>
+#include <vss/studio/format_check.hpp>
 #include <vss/studio/replay.hpp>
 #include <vss/studio/responder.hpp>
 #include <vss/studio/studio.hpp>
@@ -39,7 +39,8 @@
 #include <thread>
 #include <vector>
 
-namespace {
+namespace
+{
 
 using namespace std::chrono_literals;
 using vss::endpoint_id;
@@ -58,7 +59,8 @@ struct arguments
         return std::find(flags.begin(), flags.end(), flag) != flags.end();
     }
 
-    std::string get(const std::string& key, const std::string& fallback = {}) const
+    std::string get(const std::string& key,
+                    const std::string& fallback = {}) const
     {
         const auto it = options.find(key);
         return it == options.end() ? fallback : it->second;
@@ -130,7 +132,8 @@ void print_usage()
         "  vss_cli loopback [--seconds=N]\n"
         "      A virtual port, a redirect and a monitor: no hardware needed.\n"
         "\n"
-        "  vss_cli virtual [--kind=auto|loopback|pty|windows-driver] [--com=N]\n"
+        "  vss_cli virtual [--kind=auto|loopback|pty|windows-driver] "
+        "[--com=N]\n"
         "                  [--seconds=N]\n"
         "      Create one virtual port and print the path to open from an "
         "app.\n"
@@ -159,10 +162,13 @@ void print_usage()
         "      connection drops, after 1 s and then twice as long up to 30 s.\n"
         "\n"
         "  vss_cli capture [<topology.json>] [--uri=<uri>...] --out=<file>\n"
-        "                  [--format=cap|csv|jsonl] [--port=<name>[,<name>...]]\n"
+        "                  [--format=cap|csv|jsonl] "
+        "[--port=<name>[,<name>...]]\n"
         "                  [--seconds=N]\n"
-        "      Record every byte that crosses the ports, each with its time in\n"
-        "      milliseconds from the start and the port it belongs to.  cap is\n"
+        "      Record every byte that crosses the ports, each with its time "
+        "in\n"
+        "      milliseconds from the start and the port it belongs to.  cap "
+        "is\n"
         "      the `[ms] R|W 0x..|0x..` text format, one line per chunk, and\n"
         "      has no port names; csv and jsonl carry the port, the direction\n"
         "      and the absolute start time.  R is bytes the port received and\n"
@@ -171,14 +177,19 @@ void print_usage()
         "      The format comes from the file name when --format is left out.\n"
         "      Runs until Ctrl-C or SIGTERM, or for N seconds.\n"
         "\n"
-        "  vss_cli play <file> [<topology.json>] (--uri=<uri> | --port=<name>)\n"
-        "               [--speed=X] [--loop] [--direction=R|W] [--from=<name>]\n"
+        "  vss_cli play <file> [<topology.json>] (--uri=<uri> | "
+        "--port=<name>)\n"
+        "               [--speed=X] [--loop] [--direction=R|W] "
+        "[--from=<name>]\n"
         "               [--seconds=N]\n"
         "      Write the records of a .cap or .jsonl capture into one port at\n"
-        "      the times they were recorded, so a recorded master or device can\n"
-        "      drive a bus without the original program.  --uri opens the port\n"
+        "      the times they were recorded, so a recorded master or device "
+        "can\n"
+        "      drive a bus without the original program.  --uri opens the "
+        "port\n"
         "      a program would open; --port names a port of the topology.  R\n"
-        "      (the default) sends the bytes the recorded port received, W the\n"
+        "      (the default) sends the bytes the recorded port received, W "
+        "the\n"
         "      bytes written to it.  --from keeps the records of one recorded\n"
         "      port.  A loop lasts as long as the capture did.\n"
         "\n"
@@ -187,9 +198,12 @@ void print_usage()
         "      Make one port act as a device, or as a master that polls.  The\n"
         "      script is a JSON file of its own: rules (\"when these bytes\n"
         "      arrive, exactly or under a mask, send those bytes after N ms,\n"
-        "      give or take some jitter\") and an optional timed poll list.  It\n"
-        "      is not part of the topology file.  The port is the one a program\n"
-        "      would open, as for play.  Runs until Ctrl-C or SIGTERM, or for N\n"
+        "      give or take some jitter\") and an optional timed poll list.  "
+        "It\n"
+        "      is not part of the topology file.  The port is the one a "
+        "program\n"
+        "      would open, as for play.  Runs until Ctrl-C or SIGTERM, or for "
+        "N\n"
         "      seconds.\n"
         "\n"
         // Measurement and self-check commands need no topology file.
@@ -222,9 +236,9 @@ void print_usage()
 /// `link 3: members run at different speeds: modem 9600 8N1, terminal 19200
 /// 8N1`.  Studio carries the bytes across anyway, so this is the only place
 /// the difference shows.
-std::string describe_format_mismatch(
-    const vss::format_mismatch& mismatch,
-    const std::vector<vss::endpoint_info>& endpoints)
+std::string
+describe_format_mismatch(const vss::format_mismatch& mismatch,
+                         const std::vector<vss::endpoint_info>& endpoints)
 {
     std::string text = "link " + std::to_string(mismatch.link) +
                        ": members run at different baud rates or framing:";
@@ -267,14 +281,14 @@ void print_topology(studio& app)
     std::printf("ports: %zu\n", endpoints.size());
     for (const auto& info : endpoints)
     {
-        std::printf("  [%llu] %-14s %-10s %-24s %-8s %s  rx=%s tx=%s total=%s\n",
-                    static_cast<unsigned long long>(info.id), info.name.c_str(),
-                    vss::to_string(info.kind), info.path.c_str(),
-                    vss::to_string(info.state),
-                    vss::to_string(info.lines).c_str(),
-                    vss::format_byte_size(info.stats.bytes_rx).c_str(),
-                    vss::format_byte_size(info.stats.bytes_tx).c_str(),
-                    vss::format_byte_size(info.stats.total_bytes()).c_str());
+        std::printf(
+            "  [%llu] %-14s %-10s %-24s %-8s %s  rx=%s tx=%s total=%s\n",
+            static_cast<unsigned long long>(info.id), info.name.c_str(),
+            vss::to_string(info.kind), info.path.c_str(),
+            vss::to_string(info.state), vss::to_string(info.lines).c_str(),
+            vss::format_byte_size(info.stats.bytes_rx).c_str(),
+            vss::format_byte_size(info.stats.bytes_tx).c_str(),
+            vss::format_byte_size(info.stats.total_bytes()).c_str());
         // What the program on the port set, and who is connected to a listener.
         if (info.peer_format)
             std::printf("        program set %s\n",
@@ -282,11 +296,11 @@ void print_topology(studio& app)
         if (info.clients)
             std::printf("        %zu connected\n", *info.clients);
         if (info.stats.last_activity != vss::time_point{})
-            std::printf("        last data %.1f s ago\n",
-                        std::chrono::duration<double>(
-                            std::chrono::steady_clock::now() -
-                            info.stats.last_activity)
-                            .count());
+            std::printf(
+                "        last data %.1f s ago\n",
+                std::chrono::duration<double>(std::chrono::steady_clock::now() -
+                                              info.stats.last_activity)
+                    .count());
     }
 
     const auto links = app.link_infos();
@@ -327,7 +341,8 @@ void run_for(studio& app, int seconds, bool verbose)
 
     std::set<std::string> announced;
     const auto started = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - started < std::chrono::seconds(seconds))
+    while (std::chrono::steady_clock::now() - started <
+           std::chrono::seconds(seconds))
     {
         std::this_thread::sleep_for(500ms);
         announce_format_mismatches(app, announced);
@@ -418,7 +433,8 @@ int command_devices(const arguments& args)
                     device.com0com ? "  (com0com)" : "");
     }
 
-    std::printf("com0com: %s\n", installation.found ? "installed" : "not found");
+    std::printf("com0com: %s\n",
+                installation.found ? "installed" : "not found");
     for (const auto& pair : installation.pairs)
         std::printf("  pair %d: %s <-> %s\n", pair.index, pair.a.c_str(),
                     pair.b.c_str());
@@ -441,7 +457,8 @@ int command_share(const arguments& args)
     const auto shared = app.share_serial(uri, listeners);
     if (!shared)
     {
-        std::fprintf(stderr, "share failed: %s\n", shared.error().message().c_str());
+        std::fprintf(stderr, "share failed: %s\n",
+                     shared.error().message().c_str());
         return 1;
     }
 
@@ -463,7 +480,8 @@ int command_join(const arguments& args)
     std::string target = args.get("--target");
     if (target.empty() || args.positional.size() < 3)
     {
-        std::fprintf(stderr, "join needs at least one URI and --target=<uri>\n");
+        std::fprintf(stderr,
+                     "join needs at least one URI and --target=<uri>\n");
         return 2;
     }
 
@@ -473,7 +491,8 @@ int command_join(const arguments& args)
     const auto link = app.join_ports(sources, target);
     if (!link)
     {
-        std::fprintf(stderr, "join failed: %s\n", link.error().message().c_str());
+        std::fprintf(stderr, "join failed: %s\n",
+                     link.error().message().c_str());
         return 1;
     }
 
@@ -625,7 +644,8 @@ int command_bridge(const arguments& args)
     const auto link = app.bridge(args.positional[1], args.positional[2]);
     if (!link)
     {
-        std::fprintf(stderr, "bridge failed: %s\n", link.error().message().c_str());
+        std::fprintf(stderr, "bridge failed: %s\n",
+                     link.error().message().c_str());
         return 1;
     }
 
@@ -662,8 +682,10 @@ int command_loopback(const arguments& args)
         return 1;
     }
 
-    std::printf("virtual port : %s\n", app.advertised_path((*source)->id()).c_str());
-    std::printf("monitor port : %s\n", app.advertised_path((*monitor)->id()).c_str());
+    std::printf("virtual port : %s\n",
+                app.advertised_path((*source)->id()).c_str());
+    std::printf("monitor port : %s\n",
+                app.advertised_path((*monitor)->id()).c_str());
 
     (*source)->write(vss::as_bytes("hello from Virtual Serial Studio\n"));
     std::this_thread::sleep_for(200ms);
@@ -673,9 +695,10 @@ int command_loopback(const arguments& args)
     {
         if (record.direction == vss::data_direction::rx && record.data)
         {
-            std::printf("  %s <- %zu bytes: %s", record.name.c_str(),
-                        record.data->size(),
-                        vss::to_printable(vss::bytes_view(*record.data)).c_str());
+            std::printf(
+                "  %s <- %zu bytes: %s", record.name.c_str(),
+                record.data->size(),
+                vss::to_printable(vss::bytes_view(*record.data)).c_str());
         }
     }
 
@@ -694,9 +717,9 @@ int com_option(const arguments& args)
         return 0;
 
     const std::string& text = found->second;
-    if (text.empty() || text.size() > 3
-        || !std::all_of(text.begin(), text.end(),
-                        [](char c) { return c >= '0' && c <= '9'; }))
+    if (text.empty() || text.size() > 3 ||
+        !std::all_of(text.begin(), text.end(),
+                     [](char c) { return c >= '0' && c <= '9'; }))
         return -1;
     const int number = std::stoi(text);
     return number >= 1 && number <= 255 ? number : -1;
@@ -709,9 +732,9 @@ std::string com_failure(const boost::system::error_code& error, int number)
     if (number != 0)
     {
         if (error == vss::make_error_code(vss::errc::already_exists))
-            return "COM" + std::to_string(number)
-                   + " is already used by another device (a real port, com0com"
-                     " or another virtual port); choose another number";
+            return "COM" + std::to_string(number) +
+                   " is already used by another device (a real port, com0com"
+                   " or another virtual port); choose another number";
         if (error == vss::make_error_code(vss::errc::unsupported))
             return "COM numbers need the Virtual Serial Studio driver and its "
                    "helper service (vsscom_helper), and one of them is missing"
@@ -757,8 +780,8 @@ int command_virtual(const arguments& args)
                      "--com wants a COM number from 1 to 255, as in --com=7\n");
         return 2;
     }
-    if (com != 0 && !automatic
-        && requested != vss::virtual_port_kind::windows_driver)
+    if (com != 0 && !automatic &&
+        requested != vss::virtual_port_kind::windows_driver)
     {
         std::fprintf(stderr,
                      "--com is for the Windows driver; --kind=%s has no COM "
@@ -768,11 +791,12 @@ int command_virtual(const arguments& args)
     }
 
     studio app;
-    const auto created = automatic
-        ? app.create_virtual_port("virtual", vss::virtual_port_kind::pty, {},
-                                  static_cast<unsigned>(com))
-        : app.create_virtual_port("virtual", requested, {},
-                                  static_cast<unsigned>(com));
+    const auto created =
+        automatic
+            ? app.create_virtual_port("virtual", vss::virtual_port_kind::pty,
+                                      {}, static_cast<unsigned>(com))
+            : app.create_virtual_port("virtual", requested, {},
+                                      static_cast<unsigned>(com));
     if (!created)
     {
         std::fprintf(stderr, "cannot create the virtual port: %s\n",
@@ -917,9 +941,9 @@ int command_run(const arguments& args)
     studio app;
     if (const auto applied = app.apply(*document); !applied)
     {
-        std::fprintf(stderr, "cannot apply the topology: %s\n",
-                     com_failure(applied.error(), first_com_number(*document))
-                         .c_str());
+        std::fprintf(
+            stderr, "cannot apply the topology: %s\n",
+            com_failure(applied.error(), first_com_number(*document)).c_str());
         return 1;
     }
 
@@ -993,7 +1017,8 @@ int command_capture(const arguments& args)
         const auto format = vss::parse_capture_format(args.get("--format"));
         if (!format)
         {
-            std::fprintf(stderr, "unknown --format=%s (use cap, csv or jsonl)\n",
+            std::fprintf(stderr,
+                         "unknown --format=%s (use cap, csv or jsonl)\n",
                          args.get("--format").c_str());
             return 2;
         }
@@ -1136,7 +1161,8 @@ int command_play(const arguments& args)
         return 1;
     }
     if (capture->skipped_lines > 0)
-        std::fprintf(stderr, "%zu line(s) of %s could not be read and were skipped\n",
+        std::fprintf(stderr,
+                     "%zu line(s) of %s could not be read and were skipped\n",
                      capture->skipped_lines, file.c_str());
 
     // Open the topology (positional[2]) and any --uri, then pick the single
@@ -1172,9 +1198,8 @@ int command_play(const arguments& args)
     const auto started = std::chrono::steady_clock::now();
     while (!g_stop_requested.load() && !(*player)->finished())
     {
-        if (seconds > 0 &&
-            std::chrono::steady_clock::now() - started >=
-                std::chrono::seconds(seconds))
+        if (seconds > 0 && std::chrono::steady_clock::now() - started >=
+                               std::chrono::seconds(seconds))
             break;
         std::this_thread::sleep_for(20ms);
     }
@@ -1189,8 +1214,9 @@ int command_play(const arguments& args)
                 static_cast<unsigned long long>((*player)->bytes_sent()));
     if ((*player)->write_errors() > 0)
     {
-        std::fprintf(stderr, "%llu write(s) failed\n",
-                     static_cast<unsigned long long>((*player)->write_errors()));
+        std::fprintf(
+            stderr, "%llu write(s) failed\n",
+            static_cast<unsigned long long>((*player)->write_errors()));
         return 1;
     }
     return 0;
@@ -1239,9 +1265,8 @@ int command_respond(const arguments& args)
     const auto started = std::chrono::steady_clock::now();
     while (!g_stop_requested.load())
     {
-        if (seconds > 0 &&
-            std::chrono::steady_clock::now() - started >=
-                std::chrono::seconds(seconds))
+        if (seconds > 0 && std::chrono::steady_clock::now() - started >=
+                               std::chrono::seconds(seconds))
             break;
         // A script that only polls, for a limited number of cycles, is done
         // when its last step has gone.
@@ -1317,7 +1342,8 @@ int command_bench(const arguments& args)
     std::printf("sent      : %s in %s byte chunks\n",
                 vss::format_byte_size(ran->sent).c_str(),
                 vss::format_byte_size(*chunk).c_str());
-    std::printf("received  : %s\n", vss::format_byte_size(ran->received).c_str());
+    std::printf("received  : %s\n",
+                vss::format_byte_size(ran->received).c_str());
     std::printf("elapsed   : %lld ms\n",
                 static_cast<long long>(ran->elapsed.count()));
     std::printf("throughput: %s\n",
@@ -1367,7 +1393,7 @@ int command_selftest()
 /// Options that take a value, so `--out file` means the same as `--out=file`.
 bool takes_value(const std::string& name)
 {
-    static const char* const names[] = {"--out",       "--format", "--port",
+    static const char* const names[] = {"--out",       "--format",  "--port",
                                         "--uri",       "--seconds", "--speed",
                                         "--direction", "--from"};
     return std::find(std::begin(names), std::end(names), name) !=

@@ -141,7 +141,7 @@ jobs in four groups:
 | | **Let other computers use my device** | The device bridged to a network port (default 4001). |
 | Several programs or devices at once | **Put several on one line** | A [shared bus](#connecting-ports), like an RS-485 line. |
 | | **Send several into one** | A join: everything the senders write reaches one receiver. |
-| | **Let programs take turns sending to a device** | A join into the device with an owner, so one program sends at a time. |
+| | **Let programs take turns sending to a device** | A split from the device to the programs with an owner, so one program sends at a time and all of them get the device's replies. |
 | Look and check | **See the data on a port** | Nothing new: it opens **Data going through** on a setup you already have, which only looks. |
 | | **Check this PC is ready** | Opens the setup check. |
 
@@ -436,6 +436,9 @@ changes.
 
 A join has **Choose one owner at a time** under **More options** (Advanced):
 only the owner's bytes reach the target and the others' are counted as dropped.
+On a two-way link or a split the owner is one of the targets: only its bytes
+reach the source and the others' are counted as dropped, while what the source
+sends reaches every target.
 The owner bar under the diagram says who the owner is, with **Give to** and
 **Release owner**. A shared bus carries no modem lines and has no owner, and a
 port can be on only one bus (at most 64 members). Where the engine has no bus
@@ -469,9 +472,9 @@ remain.
 3. **Share device** builds the ports and the split link, and ends on a summary
    of what each program should open. If any step fails, the wizard removes what
    it created. **Add another program** on the summary adds one more port
-   (to 32). The engine cannot add a target to a link that exists, so Studio makes
-   the port and replaces the link with one that includes it. The other programs
-   keep their ports; only the few bytes in flight at that moment can be lost.
+   (to 32). Studio makes the port and adds it to the link that exists. The link
+   keeps its identity and the other programs keep their ports; no bytes are lost
+   for them.
 
 Everything the device receives is copied to all of the ports. Whatever a
 program writes goes back to the device. To add a port to a share later, select
@@ -812,8 +815,11 @@ Inspector is an Advanced pane.
   fixture](#mock-fixture-advanced)) for the selected port, or for the first
   fixture when nothing is selected. It sets which signals the port drives on the
   port at the other end of its two-way link.
-- **Topology → Owner** goes to the owner bar under the diagram for a join that
-  uses an owner policy. The owner can be released or given to another port.
+- **Topology → Owner** goes to the owner bar under the diagram for a join or a
+  split that uses an owner policy. The owner can be released or given to another
+  port: on a join one of the sources, on a split one of the targets (never the
+  device the targets share). A link with one target has no choice to make, so it
+  has no bar.
 - **Tools → Benchmark** sends data from one port and counts what arrives on
   another, so you can measure a cable or a driver pair. Choose the two ports,
   the amount (1, 10 or 100 MB) and the chunk size, then **Run**. The bar shows

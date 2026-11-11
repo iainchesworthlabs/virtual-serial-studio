@@ -109,39 +109,20 @@ vss::result<share_added> add_program_port(StudioBackend& backend,
                                           const QString& name, bool capture)
 {
     VSS_PROFILE_ZONE("gui.backend.share.add_program");
-    const auto link = backend.link(share.link);
-    if (!link)
+    if (!backend.link(share.link))
         return vss::make_error_code(vss::errc::not_found);
 
     const auto created = backend.create_auto_port(name, capture);
     if (!created)
         return created.error();
 
-    std::vector<vss::endpoint_id> old_targets;
-    for (const vss::endpoint_id id : share.programs)
-        old_targets.push_back(id);
-    std::vector<vss::endpoint_id> new_targets = old_targets;
-    new_targets.push_back(*created);
-
-    const auto disconnected = backend.disconnect(share.link);
-    if (!disconnected)
+    const auto added = backend.add_target(share.link, *created);
+    if (!added)
     {
         static_cast<void>(backend.remove_port(*created));
-        return disconnected.error();
+        return added.error();
     }
-
-    const auto replaced =
-        backend.split(share.device, new_targets, link->options);
-    if (!replaced)
-    {
-        // Put the old link back.  If that fails too the ports are still
-        // there and unlinked, which the topology shows.
-        static_cast<void>(
-            backend.split(share.device, old_targets, link->options));
-        static_cast<void>(backend.remove_port(*created));
-        return replaced.error();
-    }
-    return share_added{*replaced, *created};
+    return share_added{share.link, *created};
 }
 
 vss::result<vss::link_id> remove_program_port(StudioBackend& backend,
@@ -151,29 +132,31 @@ vss::result<vss::link_id> remove_program_port(StudioBackend& backend,
     VSS_PROFILE_ZONE("gui.backend.share.remove_program");
     if (!share.programs.contains(program))
         return vss::make_error_code(vss::errc::invalid_argument);
-    const auto link = backend.link(share.link);
-    if (!link)
+    if (!backend.link(share.link))
         return vss::make_error_code(vss::errc::not_found);
 
-    std::vector<vss::endpoint_id> remaining;
-    for (const vss::endpoint_id id : share.programs)
+    if (share.programs.size() == 1)
     {
-        if (id != program)
-            remaining.push_back(id);
+        const auto removed = backend.remove_port(program);
+        if (!removed)
+            return removed.error();
+        return vss::link_id{0};
     }
+
+    // Take the port off the link first, so the link and the other programs
+    // are not disturbed when the port goes.
+    const auto detached = backend.remove_target(share.link, program);
+    if (!detached)
+        return detached.error();
 
     const auto removed = backend.remove_port(program);
     if (!removed)
+    {
+        // Put the port back on the link so the setup is as it was.
+        static_cast<void>(backend.add_target(share.link, program));
         return removed.error();
-    if (remaining.empty())
-        return vss::link_id{0};
-
-    // The engine dropped the link with the port.  Share again with what is
-    // left; the remaining ports keep their names and paths.
-    const auto replaced = backend.split(share.device, remaining, link->options);
-    if (!replaced)
-        return replaced.error();
-    return *replaced;
+    }
+    return share.link;
 }
 
 } // namespace vss::gui

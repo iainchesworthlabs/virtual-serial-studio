@@ -24,6 +24,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <chrono>
 #include <string>
 #include <vector>
@@ -81,6 +82,53 @@ TEST_CASE("virtual ports: a pty is a real device")
     created->port->refresh_lines();
     created->port->close();
     REQUIRE(!created->port->is_open());
+}
+
+namespace
+{
+
+/// The descriptors this process has open, up to a limit well above what a
+/// test run uses.
+std::vector<int> open_descriptors()
+{
+    std::vector<int> out;
+    for (int descriptor = 0; descriptor < 4096; ++descriptor)
+    {
+        if (::fcntl(descriptor, F_GETFD) >= 0)
+            out.push_back(descriptor);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("virtual ports: a program Studio starts does not inherit a pty")
+{
+    boost::asio::io_context io;
+    // The first port of an io_context also makes the reactor's own
+    // descriptors.  Make them now, so that only the port's are new below.
+    const auto first =
+        create_virtual_port(io.get_executor(), virtual_port_kind::pty, "first");
+    REQUIRE(first);
+
+    const auto before = open_descriptors();
+    const auto created =
+        create_virtual_port(io.get_executor(), virtual_port_kind::pty, "kept");
+    REQUIRE(created);
+
+    // The master and the slave Studio holds open are both new, and both are
+    // closed in a program started with exec.
+    int added = 0;
+    for (const int descriptor : open_descriptors())
+    {
+        if (std::find(before.begin(), before.end(), descriptor) != before.end())
+            continue;
+        ++added;
+        const int flags = ::fcntl(descriptor, F_GETFD);
+        REQUIRE(flags >= 0);
+        REQUIRE((flags & FD_CLOEXEC) != 0);
+    }
+    REQUIRE_EQ(added, 2);
 }
 
 TEST_CASE("virtual ports: a pty carries data in both directions")

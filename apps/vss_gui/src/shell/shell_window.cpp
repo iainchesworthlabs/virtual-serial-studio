@@ -2279,8 +2279,8 @@ void ShellWindow::remove_port(vss::endpoint_id id)
     const auto ports = backend_.ports();
     const auto links = backend_.links();
     const setup_group group = find_setup(ports, links, id);
-    // One program of a share: the engine drops the link when any port on it
-    // goes, so the others are shared again after this one is removed.
+    // One program of a share: the port is taken off the link first, so the
+    // link and the other programs carry on while this one is removed.
     const auto share = find_share(ports, links, id);
     const bool program_of_share =
         share && share->programs.contains(id) && share->programs.size() > 1;
@@ -2664,8 +2664,8 @@ void ShellWindow::show_owner_controls()
     if (owner_bar_ == nullptr || !owner_bar_->has_link())
     {
         status_->showMessage(
-            tr("Select the target of a join with the owner policy "
-               "to control who writes."),
+            tr("Select the target of a join or the device of a split with "
+               "the owner policy to control who writes."),
             6000);
         return;
     }
@@ -2704,7 +2704,7 @@ void ShellWindow::update_owner_bar()
     {
         for (const auto& link : backend_.links())
         {
-            if (link.targets.contains(selection_.port()))
+            if (OwnerBar::meets_at(link, selection_.port()))
                 consider(link);
         }
     }
@@ -3359,6 +3359,11 @@ void ShellWindow::enable_background(const QString& running_path, bool use_tray)
     update_tray();
 }
 
+bool ShellWindow::needed_in_background() const
+{
+    return restore_failed_ || !backend_.ports().empty();
+}
+
 void ShellWindow::bring_to_front()
 {
     if (isMinimized())
@@ -3428,6 +3433,8 @@ void ShellWindow::start_running_setup(bool automatic)
             tray_->notify(tr("Could not start the ports from last time"),
                           tr("Open Studio to see why and start them again."),
                           true);
+        if (automatic)
+            restore_failed_ = true;
         // Offer it again from the banner, as after a Quit.
         support::running_state state = setup->state;
         state.stopped = true;
@@ -3435,6 +3442,7 @@ void ShellWindow::start_running_setup(bool automatic)
         update_resume_banner();
         return;
     }
+    restore_failed_ = false;
     document_path_ = setup->state.document_path;
     title_override_.clear();
     last_signature_ = document_signature();

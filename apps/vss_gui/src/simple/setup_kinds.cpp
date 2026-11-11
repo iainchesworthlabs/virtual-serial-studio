@@ -20,6 +20,8 @@ namespace vss::gui::simple
 namespace
 {
 
+/// The literals are marked with QT_TRANSLATE_NOOP at each call, so that lupdate
+/// finds them; this looks the marked text up in the same context.
 QString tr_simple(const char* text)
 {
     return QCoreApplication::translate("vss::gui::simple::SetupKinds", text);
@@ -83,10 +85,31 @@ bool all_programs_or_devices(const std::vector<port_view>& ports,
                { return is_program(ports, id) || is_device(ports, id); });
 }
 
-/// A link between two ports: a pair of programs, a program and a test device,
-/// or a bridge between a device and a network port.
+/// One device shared with several programs, or attached to a single one; with
+/// the owner policy, programs taking turns sending to the device while all of
+/// them get its replies.
+void describe_split(setup_view& view, const link_view& link,
+                    const std::vector<port_view>& ports, bool duplex)
+{
+    if (!duplex || link.sources.size() != 1 ||
+        !is_device(ports, link.sources.front()) ||
+        !all_programs(ports, link.targets))
+        return;
+    view.device = link.sources.front();
+    view.programs = link.targets;
+    if (link.options.policy == vss::merge_policy::owner)
+    {
+        view.kind = job::turns;
+        view.owner = link.owner;
+        return;
+    }
+    view.kind = link.targets.size() == 1 ? job::attach : job::share;
+}
+
+/// A link between two ports: a pair of programs, a device and a program, a
+/// program and a test device, or a bridge between a device and a network port.
 void describe_two_way(setup_view& view, const link_view& link,
-                      const std::vector<port_view>& ports)
+                      const std::vector<port_view>& ports, bool duplex)
 {
     if (link.sources.size() != 1 || link.targets.size() != 1)
         return;
@@ -96,6 +119,13 @@ void describe_two_way(setup_view& view, const link_view& link,
     {
         view.kind = job::pair;
         view.programs = {a, b};
+        return;
+    }
+    // The real engine reports a duplex link with one target as a two-way link,
+    // so a device and a single program are read as a split of one.
+    if (duplex && is_device(ports, a) && is_program(ports, b))
+    {
+        describe_split(view, link, ports, duplex);
         return;
     }
     const auto mock_side =
@@ -131,23 +161,9 @@ void describe_two_way(setup_view& view, const link_view& link,
     }
 }
 
-/// One device shared with several programs, or attached to a single one.
-void describe_split(setup_view& view, const link_view& link,
-                    const std::vector<port_view>& ports, bool duplex)
-{
-    if (!duplex || link.sources.size() != 1 ||
-        !is_device(ports, link.sources.front()) ||
-        !all_programs(ports, link.targets))
-        return;
-    if (link.options.policy != vss::merge_policy::interleave)
-        return;
-    view.device = link.sources.front();
-    view.programs = link.targets;
-    view.kind = link.targets.size() == 1 ? job::attach : job::share;
-}
-
-/// Several ports sending to one: programs taking turns with a device, or a
-/// group combined into one receiver.
+/// Several ports sending to one, combined into one receiver.  A join with the
+/// owner policy is not something Simple mode builds (its replies do not come
+/// back), so it is left as made in Advanced mode.
 void describe_join(setup_view& view, const link_view& link,
                    const std::vector<port_view>& ports)
 {
@@ -156,17 +172,7 @@ void describe_join(setup_view& view, const link_view& link,
         !all_programs_or_devices(ports, link.targets))
         return;
     if (link.options.policy == vss::merge_policy::owner)
-    {
-        // Programs that take turns sending to a device.
-        if (!all_programs(ports, link.sources) ||
-            !is_device(ports, link.targets.front()))
-            return;
-        view.kind = job::turns;
-        view.device = link.targets.front();
-        view.programs = link.sources;
-        view.owner = link.owner;
         return;
-    }
     view.kind = job::combine;
     view.members = link.sources;
     view.receiver = link.targets.front();
@@ -202,7 +208,7 @@ void describe_one_link(setup_view& view, const link_view& link,
     switch (link.shape)
     {
     case link_shape::two_way:
-        describe_two_way(view, link, ports);
+        describe_two_way(view, link, ports, duplex);
         return;
     case link_shape::split:
         describe_split(view, link, ports, duplex);
@@ -316,27 +322,41 @@ QString job_title(job kind)
     switch (kind)
     {
     case job::port:
-        return tr_simple("Give my program a serial port");
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "Give my program a serial port"));
     case job::pair:
-        return tr_simple("Connect two programs to each other");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Connect two programs to each other"));
     case job::attach:
-        return tr_simple("Use my device through a new port");
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "Use my device through a new port"));
     case job::share:
-        return tr_simple("Share my device with several programs");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Share my device with several programs"));
     case job::talk:
-        return tr_simple("Try my device from this window");
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "Try my device from this window"));
     case job::network:
-        return tr_simple("Let other computers use my device");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Let other computers use my device"));
     case job::bus:
-        return tr_simple("Put several on one line");
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "Put several on one line"));
     case job::combine:
-        return tr_simple("Send several into one");
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "Send several into one"));
     case job::turns:
-        return tr_simple("Let programs take turns sending to a device");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Let programs take turns sending to a device"));
     case job::custom:
         break;
     }
-    return tr_simple("Made in Advanced mode");
+    return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                       "Made in Advanced mode"));
 }
 
 QString job_description(job kind)
@@ -344,43 +364,62 @@ QString job_description(job kind)
     switch (kind)
     {
     case job::port:
-        return tr_simple("For a program that needs a COM port when there is "
-                         "no device, or before the device arrives.");
+        return tr_simple(QT_TRANSLATE_NOOP(
+            "vss::gui::simple::SetupKinds",
+            "For a program that needs a COM port when there is "
+            "no device, or before the device arrives."));
     case job::pair:
-        return tr_simple("Like a null-modem cable between two programs on "
-                         "this PC. What one sends, the other receives.");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Like a null-modem cable between two programs on "
+                              "this PC. What one sends, the other receives."));
     case job::attach:
-        return tr_simple("Your program opens a new port instead of the "
-                         "device. Then you can watch, share or test without "
-                         "changing the program.");
+        return tr_simple(QT_TRANSLATE_NOOP(
+            "vss::gui::simple::SetupKinds",
+            "Your program opens a new port instead of the "
+            "device. Then you can watch, share or test without "
+            "changing the program."));
     case job::share:
-        return tr_simple("A device can normally be open in one program at a "
-                         "time. Here each program gets its own port, and all "
-                         "of them talk to the device.");
+        return tr_simple(QT_TRANSLATE_NOOP(
+            "vss::gui::simple::SetupKinds",
+            "A device can normally be open in one program at a "
+            "time. Here each program gets its own port, and all "
+            "of them talk to the device."));
     case job::talk:
-        return tr_simple("Type to the device and read its replies here, "
-                         "without another program. Good for a first check "
-                         "that it works.");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Type to the device and read its replies here, "
+                              "without another program. Good for a first check "
+                              "that it works."));
     case job::network:
-        return tr_simple("Other computers connect to this PC over the "
-                         "network and talk to the device.");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Other computers connect to this PC over the "
+                              "network and talk to the device."));
     case job::bus:
-        return tr_simple("Like an RS-485 line. Everyone hears what the others "
-                         "send, and nobody hears themself.");
+        return tr_simple(QT_TRANSLATE_NOOP(
+            "vss::gui::simple::SetupKinds",
+            "Like an RS-485 line. Everyone hears what the others "
+            "send, and nobody hears themself."));
     case job::combine:
-        return tr_simple("Everything the senders write arrives at one "
-                         "receiver, in the order it arrives. Nothing goes "
-                         "back.");
+        return tr_simple(
+            QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                              "Everything the senders write arrives at one "
+                              "receiver, in the order it arrives. Nothing goes "
+                              "back."));
     case job::turns:
-        return tr_simple("Several programs send to one device, but only one "
-                         "at a time, so their bytes never mix. You choose "
-                         "which. The device's replies do not go back to the "
-                         "programs.");
+        return tr_simple(QT_TRANSLATE_NOOP(
+            "vss::gui::simple::SetupKinds",
+            "Several programs send to one device, but only one "
+            "at a time, so their bytes never mix. You choose "
+            "which. All of them get the device's replies."));
     case job::custom:
         break;
     }
-    return tr_simple("Made in Advanced mode. You can use it here, and change "
-                     "it in Advanced mode.");
+    return tr_simple(QT_TRANSLATE_NOOP(
+        "vss::gui::simple::SetupKinds",
+        "Made in Advanced mode. You can use it here, and change "
+        "it in Advanced mode."));
 }
 
 QStringList program_names(const setup_view& setup,
@@ -411,17 +450,24 @@ QString setup_title(const setup_view& setup,
         const port_view* port =
             setup.programs.isEmpty() ? nullptr : find(ports, setup.programs[0]);
         if (port == nullptr)
-            return tr_simple("Program port");
+            return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                               "Program port"));
         const QString label = program_label(*port);
         return label.isEmpty()
-                   ? tr_simple("Program port %1").arg(port_shown_name(*port))
-                   : tr_simple("%1 port %2").arg(label, port_shown_name(*port));
+                   ? tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                                 "Program port %1"))
+                         .arg(port_shown_name(*port))
+                   : tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                                 "%1 port %2"))
+                         .arg(label, port_shown_name(*port));
     }
     case job::pair:
-        return tr_simple("%1 linked to %2")
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "%1 linked to %2"))
             .arg(name(setup.programs.value(0)), name(setup.programs.value(1)));
     case job::attach:
-        return tr_simple("%1 through %2")
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "%1 through %2"))
             .arg(name(setup.device), name(setup.programs.value(0)));
     case job::share:
         return QCoreApplication::translate("vss::gui::simple::SetupKinds",
@@ -429,9 +475,13 @@ QString setup_title(const setup_view& setup,
                                            nullptr, program_count)
             .arg(name(setup.device));
     case job::talk:
-        return tr_simple("Trying %1").arg(name(setup.device));
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "Trying %1"))
+            .arg(name(setup.device));
     case job::network:
-        return tr_simple("%1 on the network").arg(name(setup.device));
+        return tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                           "%1 on the network"))
+            .arg(name(setup.device));
     case job::bus:
         return QCoreApplication::translate(
             "vss::gui::simple::SetupKinds", "%n on one line", nullptr,
@@ -455,7 +505,8 @@ QString setup_title(const setup_view& setup,
             names << name(id);
         return names.size() <= 3
                    ? names.join(QStringLiteral(", "))
-                   : tr_simple("%1 and %2 more")
+                   : tr_simple(QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
+                                                 "%1 and %2 more"))
                          .arg(names.mid(0, 2).join(QStringLiteral(", ")))
                          .arg(names.size() - 2);
     }

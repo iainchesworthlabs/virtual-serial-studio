@@ -304,3 +304,113 @@ done:
   Delete "$INSTDIR\bin\edit-path.ps1"
   Pop $0
 FunctionEnd
+
+; ---- Running programs, and what a removed Studio leaves with each user ---------
+;
+; Windows cannot replace or delete a program that runs, so an upgrade over a running
+; Studio kept the old vss_gui.exe and an uninstall left the folder behind. Both now
+; close vss_gui.exe and vss_cli.exe first, but only the ones that run from this
+; install folder (bin\stop-studio.ps1; a Studio from the zip is not touched). Studio
+; keeps what runs in the user's running-setup.json, so the ports come back the next
+; time it starts.
+;
+; A real uninstall also takes away each user's "Start when I sign in" entry and
+; records in each running-setup.json that the ports were stopped, so that a Studio
+; installed again offers them and does not start them by itself. An upgrade leaves
+; both, as it leaves the driver and the PATH.
+
+; Runs stop-studio.ps1 with an action; $0 is its exit code afterwards. Same 64-bit
+; PowerShell route as the driver scripts, see VssRunScript. A macro, because the
+; installer and the uninstaller each need their own copy.
+!macro VssRunStopStudio script action log
+  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "${script}" -Action ${action} -Directory "$INSTDIR\bin" > "${log}" 2>&1' $0
+!macroend
+
+; Before the files are copied. An uninstaller that knows how has closed Studio
+; already (the installer ran it before this); this is for a folder that holds
+; programs without one, and it asks nobody, because the old version is gone by now
+; and stopping here would leave half an install.
+Function VssStopStudio
+  Push $0
+  ${IfNot} ${FileExists} "$INSTDIR\bin\*.exe"
+    Goto done
+  ${EndIf}
+  InitPluginsDir
+  File "/oname=$PLUGINSDIR\stop-studio.ps1" "${__FILEDIR__}\stop-studio.ps1"
+  !insertmacro VssRunStopStudio "$PLUGINSDIR\stop-studio.ps1" "Stop" "$PLUGINSDIR\stop-studio.log"
+  ${If} $0 != 0
+    MessageBox MB_OK|MB_ICONSTOP "Virtual Serial Studio is running from $INSTDIR\bin and could not be closed (code $0), so its files cannot be replaced.$\r$\n$\r$\nClose it (Stop the ports and quit, in its notification-area menu), then run this installer again." /SD IDOK
+    Abort "Virtual Serial Studio is still running, so the files were not replaced."
+  ${EndIf}
+
+done:
+  Pop $0
+FunctionEnd
+
+; Puts the script in the install folder, for the uninstaller.
+Function VssInstallStopStudio
+  SetOutPath "$INSTDIR\bin"
+  File "${__FILEDIR__}\stop-studio.ps1"
+FunctionEnd
+
+; First in the uninstall, before anything is taken away. A person who uninstalls is
+; asked before a running Studio is closed; an upgrade and a silent uninstall ask
+; nobody.
+Function un.VssStopStudio
+  Push $0
+  ${IfNot} ${FileExists} "$INSTDIR\bin\stop-studio.ps1"
+    Goto done
+  ${EndIf}
+
+  !insertmacro VssRunStopStudio "$INSTDIR\bin\stop-studio.ps1" "Check" "$INSTDIR\stop-studio.log"
+  ${If} $0 != 1
+    Delete "$INSTDIR\stop-studio.log"
+    Goto done
+  ${EndIf}
+
+  ${If} $EXEDIR != $INSTDIR
+    MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "Virtual Serial Studio is running. Uninstalling closes it, and that stops its ports." /SD IDOK IDOK close
+    Delete "$INSTDIR\stop-studio.log"
+    Abort "Virtual Serial Studio is still running, so nothing was removed."
+  ${EndIf}
+
+close:
+  DetailPrint "Closing Virtual Serial Studio."
+  !insertmacro VssRunStopStudio "$INSTDIR\bin\stop-studio.ps1" "Stop" "$INSTDIR\stop-studio.log"
+  ${If} $0 == 0
+    Delete "$INSTDIR\stop-studio.log"
+  ${Else}
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Virtual Serial Studio is still running and could not be closed (code $0). The files it uses stay until it is closed.$\r$\n$\r$\nWhat happened is in $INSTDIR\stop-studio.log" /SD IDOK
+  ${EndIf}
+
+done:
+  Pop $0
+FunctionEnd
+
+; A real uninstall only: the sign-in entry of each user, and the note in each
+; running setup that the ports were stopped. See stop-studio.ps1 for what it will
+; not do in a folder that belongs to somebody else.
+Function un.VssForgetUsers
+  Push $0
+  ${If} $EXEDIR == $INSTDIR
+    DetailPrint "Upgrade: start at sign-in and each user's running setup stay as they are."
+    Goto done
+  ${EndIf}
+  ${IfNot} ${FileExists} "$INSTDIR\bin\stop-studio.ps1"
+    Goto done
+  ${EndIf}
+
+  DetailPrint "Removing start at sign-in, and noting that the ports were stopped."
+  !insertmacro VssRunStopStudio "$INSTDIR\bin\stop-studio.ps1" "Forget" "$INSTDIR\forget-users.log"
+  ${If} $0 == 0
+    Delete "$INSTDIR\forget-users.log"
+  ${Else}
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Virtual Serial Studio is removed, but start at sign-in could not be cleared for every user (code $0). An entry that is left starts nothing, because the program is gone.$\r$\n$\r$\nWhat happened is in $INSTDIR\forget-users.log" /SD IDOK
+  ${EndIf}
+
+done:
+  ; Not in CPack's list of installed files (VssInstallStopStudio puts it there), so
+  ; the uninstaller would leave it, and the folder with it.
+  Delete "$INSTDIR\bin\stop-studio.ps1"
+  Pop $0
+FunctionEnd
