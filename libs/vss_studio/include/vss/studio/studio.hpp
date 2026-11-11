@@ -42,7 +42,8 @@ class reconnector;
 /// On a Windows driver port `parity`, `framing`, `overrun` and
 /// `break_condition` are raised at the program that has the port open (see
 /// `raise_driver_line_error`); the port keeps running and the studio sees no
-/// error event.  `hangup` and `disconnect` are not available on a driver port.
+/// error event.  `hangup` drops DCD and DSR at that program and `disconnect`
+/// takes the port back from it (see `studio::inject_fault`).
 enum class fault_kind
 {
     parity,
@@ -142,9 +143,12 @@ public:
     /// `raise_driver_line_error`: it returns before the driver has applied the
     /// error, and the driver drops the error when no program has the port
     /// open.  Unlike a fixture fault it does not stop the endpoint and reports
-    /// no error event.  `hangup` and `disconnect` return `errc::unsupported`
-    /// for a driver port; they would have to be mapped to modem lines or to a
-    /// revoke, and that has not been decided.
+    /// no error event.  `hangup` drops DCD and DSR at the program, as
+    /// `endpoint::set_line` does, and they stay low until something raises
+    /// them again; lines that were low already do not change.  `disconnect`
+    /// takes the port back from the program as `revoke_port` does: its handle
+    /// stops working, as that of an unplugged device does, and the port can be
+    /// opened again at once.  Neither stops the endpoint.
     ///
     /// `errc::not_found` for an unknown endpoint and `errc::unsupported` for
     /// any other port.

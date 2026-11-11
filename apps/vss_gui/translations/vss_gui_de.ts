@@ -3629,8 +3629,13 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>Auflegen und Trennung sind nur an Testgerät-Ports verfügbar.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR und DCD auf %1 abgesenkt</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>Port dem Programm auf %1 entzogen</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
@@ -13424,8 +13429,13 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>Auflegen und Trennung sind nur an Testgerät-Ports verfügbar.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR und DCD auf %1 abgesenkt</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>Port dem Programm auf %1 entzogen</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />

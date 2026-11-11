@@ -524,7 +524,7 @@ vss::endpoint_id make_driver_port(vss::gui::FakeStudioBackend& backend,
 
 } // namespace
 
-TEST_CASE("line matrix: a driver port with a program takes the line errors")
+TEST_CASE("line matrix: a driver port with a program takes every fault")
 {
     using namespace vss::gui;
     FakeStudioBackend backend;
@@ -538,20 +538,12 @@ TEST_CASE("line matrix: a driver port with a program takes the line errors")
 
     LineMatrixPanel panel(backend, meter);
     REQUIRE_EQ(panel.inject_count(), 6);
-    for (int index = 0; index < 4; ++index)
+    for (int index = 0; index < 6; ++index)
     {
         REQUIRE(panel.inject_button(index)->isEnabled());
         REQUIRE_EQ(panel.inject_button(index)->toolTip(), QString());
-    }
-    for (int index = 4; index < 6; ++index)
-    {
-        REQUIRE(!panel.inject_button(index)->isEnabled());
-        REQUIRE_EQ(
-            panel.inject_button(index)->toolTip(),
-            QStringLiteral(
-                "Hang-up and Disconnect are only available on fixture ports."));
         REQUIRE_EQ(panel.inject_button(index)->accessibleDescription(),
-                   panel.inject_button(index)->toolTip());
+                   QString());
     }
 
     panel.inject_button(3)->click();
@@ -569,17 +561,54 @@ TEST_CASE("line matrix: a driver port with a program takes the line errors")
     REQUIRE(after.has_value());
     REQUIRE(after->state == vss::endpoint_state::open);
     REQUIRE(after->open);
-    for (int index = 0; index < 4; ++index)
+    for (int index = 0; index < 6; ++index)
         REQUIRE(panel.inject_button(index)->isEnabled());
 
-    // Hang-up and disconnect are refused by the backend too.
-    REQUIRE(backend.inject_fault(meter, vss::fault_kind::hangup).has_error());
+    // A hang-up drops the carrier and the ready line at the program; the port
+    // and the program stay.
     REQUIRE(
-        backend.inject_fault(meter, vss::fault_kind::disconnect).has_error());
-    REQUIRE_EQ(backend.injected().size(), std::size_t{1});
+        backend.set_line(meter, vss::control_line::dcd, true).has_value());
+    REQUIRE(
+        backend.set_line(meter, vss::control_line::dsr, true).has_value());
+    panel.inject_button(4)->click();
+    REQUIRE_EQ(backend.injected().size(), std::size_t{2});
+    REQUIRE(backend.injected().back() == vss::fault_kind::hangup);
+    REQUIRE_EQ(panel.history_table()->item(1, 1)->text(),
+               QStringLiteral("Hang-up"));
+    REQUIRE_EQ(panel.history_table()->item(1, 2)->text(),
+               QStringLiteral("DSR and DCD dropped on meter"));
+    const auto hung_up = backend.port(meter);
+    REQUIRE(hung_up.has_value());
+    REQUIRE(!hung_up->lines.dcd());
+    REQUIRE(!hung_up->lines.dsr());
+    REQUIRE(hung_up->state == vss::endpoint_state::open);
+    REQUIRE(hung_up->peer == peer_state::open);
+    for (int index = 0; index < 6; ++index)
+        REQUIRE(panel.inject_button(index)->isEnabled());
+
+    // A disconnect takes the port from the program: the port keeps running
+    // with nobody on it, so the tiles go off with that reason.
+    panel.inject_button(5)->click();
+    REQUIRE_EQ(backend.injected().size(), std::size_t{3});
+    REQUIRE(backend.injected().back() == vss::fault_kind::disconnect);
+    REQUIRE_EQ(panel.history_table()->item(2, 1)->text(),
+               QStringLiteral("Disconnect"));
+    REQUIRE_EQ(panel.history_table()->item(2, 2)->text(),
+               QStringLiteral("Port taken back from the program on meter"));
+    const auto unplugged = backend.port(meter);
+    REQUIRE(unplugged.has_value());
+    REQUIRE(unplugged->state == vss::endpoint_state::open);
+    REQUIRE(unplugged->peer == peer_state::not_open);
+    panel.refresh();
+    for (int index = 0; index < 6; ++index)
+    {
+        REQUIRE(!panel.inject_button(index)->isEnabled());
+        REQUIRE_EQ(panel.inject_button(index)->toolTip(),
+                   QStringLiteral("No program has the port open."));
+    }
 }
 
-TEST_CASE("line matrix: a driver port with no program refuses the line errors")
+TEST_CASE("line matrix: a driver port with no program refuses every fault")
 {
     using namespace vss::gui;
     FakeStudioBackend backend;
@@ -596,20 +625,13 @@ TEST_CASE("line matrix: a driver port with no program refuses the line errors")
     {
         backend.set_peer_state(meter, peer);
         LineMatrixPanel panel(backend, meter);
-        for (int index = 0; index < 4; ++index)
+        for (int index = 0; index < 6; ++index)
         {
             REQUIRE(!panel.inject_button(index)->isEnabled());
             REQUIRE_EQ(panel.inject_button(index)->toolTip(),
                        QStringLiteral("No program has the port open."));
             REQUIRE_EQ(panel.inject_button(index)->accessibleDescription(),
                        QStringLiteral("No program has the port open."));
-        }
-        for (int index = 4; index < 6; ++index)
-        {
-            REQUIRE(!panel.inject_button(index)->isEnabled());
-            REQUIRE_EQ(panel.inject_button(index)->toolTip(),
-                       QStringLiteral("Hang-up and Disconnect are only "
-                                      "available on fixture ports."));
         }
     }
     REQUIRE(backend.injected().empty());

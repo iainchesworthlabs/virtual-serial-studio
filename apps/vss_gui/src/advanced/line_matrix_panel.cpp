@@ -552,34 +552,22 @@ void LineMatrixPanel::refresh()
                     tr("Create this fixture in code"));
 
     // Faults can be injected into a running fixture (a mock port) on a backend
-    // that supports faults.  A port of the Windows driver takes the four line
-    // errors, raised at the program that has it open, where the backend can do
-    // so.  Each other case gets its own reason.
+    // that supports faults.  A port of the Windows driver takes all six,
+    // raised at the program that has it open, where the backend can do so.
+    // Each other case gets its own reason.
     const bool is_fixture = port->kind == vss::endpoint_kind::mock;
     const bool is_driver_port =
         !is_fixture && port->driver_port && caps.driver_faults;
     const bool running = port->state == vss::endpoint_state::open;
     const bool can_inject = caps.faults && is_fixture && running;
-    const auto& tiles = fault_tiles();
     for (qsizetype index = 0; index < inject_.size(); ++index)
     {
         QPushButton* button = inject_.at(index);
         if (is_driver_port)
         {
-            const vss::fault_kind kind =
-                static_cast<std::size_t>(index) < tiles.size()
-                    ? tiles[static_cast<std::size_t>(index)].kind
-                    : vss::fault_kind::disconnect;
-            const bool is_line_error = kind != vss::fault_kind::hangup &&
-                                       kind != vss::fault_kind::disconnect;
             if (!running)
             {
                 degrade(button, tr("The port is not running."));
-            }
-            else if (!is_line_error)
-            {
-                degrade(button, tr("Hang-up and Disconnect are only "
-                                   "available on fixture ports."));
             }
             else if (port->peer != peer_state::open)
             {
@@ -785,6 +773,14 @@ void LineMatrixPanel::inject_fault(std::size_t index)
     {
         outcome = tr("Could not inject the fault: %1")
                       .arg(error_text(injected.error()));
+    }
+    else if (at_program && tiles[index].kind == vss::fault_kind::hangup)
+    {
+        outcome = tr("DSR and DCD dropped on %1").arg(port);
+    }
+    else if (at_program && tiles[index].kind == vss::fault_kind::disconnect)
+    {
+        outcome = tr("Port taken back from the program on %1").arg(port);
     }
     else if (at_program)
     {

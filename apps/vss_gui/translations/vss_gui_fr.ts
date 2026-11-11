@@ -3629,8 +3629,13 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>Raccrochage et Déconnexion ne sont disponibles que sur les ports de fixture.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR et DCD abaissés sur %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>Port repris au programme sur %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
@@ -13424,8 +13429,13 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>Raccrochage et Déconnexion ne sont disponibles que sur les ports de fixture.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>DSR et DCD abaissés sur %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>Port repris au programme sur %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />

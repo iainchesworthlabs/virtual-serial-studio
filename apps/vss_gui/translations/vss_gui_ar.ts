@@ -3633,8 +3633,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>إنهاء الاتصال وفصل الجهاز متاحان لمنافذ أجهزة المحاكاة فقط.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>تم إسقاط DSR و DCD على %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>تم استرداد المنفذ من البرنامج على %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
@@ -13452,8 +13457,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
-            <source>Hang-up and Disconnect are only available on fixture ports.</source>
-            <translation>إنهاء الاتصال وفصل الجهاز متاحان لمنافذ أجهزة المحاكاة فقط.</translation>
+            <source>DSR and DCD dropped on %1</source>
+            <translation>تم إسقاط DSR و DCD على %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/line_matrix_panel.cpp" line="581" />
+            <source>Port taken back from the program on %1</source>
+            <translation>تم استرداد المنفذ من البرنامج على %1</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="586" />
