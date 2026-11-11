@@ -131,6 +131,7 @@ struct line_fixture
     std::vector<endpoint_id> ids() const
     {
         std::vector<endpoint_id> out;
+        out.reserve(ports.size());
         for (const auto& port : ports)
             out.push_back(port.endpoint->id());
         return out;

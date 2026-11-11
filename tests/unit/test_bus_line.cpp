@@ -321,7 +321,7 @@ TEST_CASE("bus line: a member too far ahead of the line is dropped")
     bus_line line(options);
 
     // Four chunks start within a minute of being read: 0, 20, 40 and 60 s.
-    for (int chunk = 0; chunk < 4; ++chunk)
+    for (std::int64_t chunk = 0; chunk < 4; ++chunk)
     {
         const auto verdict = line.transmit(a, 100, at(0));
         REQUIRE(verdict.fault == bus_fault::none);

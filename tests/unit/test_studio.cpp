@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <optional>
 #include <string>
 #include <thread>
 
@@ -1072,10 +1073,9 @@ TEST_CASE("studio: a half-duplex bus is applied and saved again")
     // goes by; it is low until someone raises it.
     const auto master = app.engine().find_endpoint("master");
     REQUIRE(master != nullptr);
-    REQUIRE(master->peer_rts().has_value());
-    REQUIRE(!master->peer_rts().value());
+    REQUIRE(master->peer_rts() == std::optional<bool>(false));
     REQUIRE(!master->set_line(control_line::rts, true));
-    REQUIRE(master->peer_rts().value());
+    REQUIRE(master->peer_rts() == std::optional<bool>(true));
 }
 
 TEST_CASE("studio: a bus made through the facade takes a half-duplex line")

@@ -18,6 +18,7 @@
 #include <optional>
 #include <string>
 #include <unordered_set>
+#include <utility>
 
 namespace vss {
 namespace {
@@ -36,7 +37,7 @@ constexpr endpoint_id bus_node_tag = endpoint_id{1} << 63;
 std::string describe_fault(bus_fault fault, std::size_t bytes,
                            const std::string& other, bool garble)
 {
-    const std::string sent =
+    std::string sent =
         "sent " + std::to_string(bytes) + (bytes == 1 ? " byte" : " bytes");
     switch (fault)
     {
@@ -68,9 +69,9 @@ unsigned default_thread_count()
 } // namespace
 
 hub::hub(hub_options options)
-    : options_(options)
+    : options_(std::move(options))
     , event_strand_(boost::asio::make_strand(io_))
-    , traffic_(options.traffic_capacity)
+    , traffic_(options_.traffic_capacity)
 {
 }
 
