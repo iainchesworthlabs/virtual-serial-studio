@@ -16,6 +16,7 @@
 #include "simple/setup_kinds.hpp"
 #include "simple/setup_page.hpp"
 #include "simple/simple_page.hpp"
+#include "theme/theme.hpp"
 #include "widgets/notes.hpp"
 
 #include <vss/core/link.hpp>
@@ -1261,6 +1262,32 @@ TEST_CASE("simple: the page lists setups and opens the one just made")
     REQUIRE(page.form()->submit());
     QApplication::processEvents();
     REQUIRE_EQ(page.setups().size(), std::size_t{2});
+}
+
+TEST_CASE("simple: setup rows have padding around their text")
+{
+    Theme::instance().apply();
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, share_plan(2)).has_value());
+    SimplePage page(backend);
+    page.resize(1100, 760);
+    page.show();
+    settle();
+    QListWidget* list = page.list();
+    REQUIRE(list->count() > 0);
+    for (const double scale : {1.0, 2.0})
+    {
+        vss_test::scale_text(&page, scale);
+        settle();
+        const QString text = list->item(0)->text();
+        const int lines = static_cast<int>(text.count(QLatin1Char('\n'))) + 1;
+        const int pad = 2 * Theme::instance().space(0);
+        const int bare = lines * list->fontMetrics().lineSpacing();
+        REQUIRE(list->sizeHintForRow(0) >= bare + pad);
+        REQUIRE(list->sizeHintForRow(0) >= 24);
+    }
 }
 
 TEST_CASE("simple: pictures for a person to review")
