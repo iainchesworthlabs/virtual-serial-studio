@@ -13127,6 +13127,14 @@ Networks: %5</source>
             <translation>RX %1، TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>إجمالي حركة البيانات</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>إجمالي البايتات المستلمة والمرسلة. يعرض شريط الحالة المعدل الحالي.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>لم يفتح أي برنامج %1 بعد. يجب أن يفتح البرنامج %1 تحديدًا؛ لن يستقبل منفذ آخر أي شيء.</translation>

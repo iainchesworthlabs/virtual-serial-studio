@@ -16,6 +16,7 @@
 #include "panes/ports_panel.hpp"
 #include "panes/selection_service.hpp"
 #include "panes/send_panel.hpp"
+#include "widgets/notes.hpp"
 #include "widgets/port_menu.hpp"
 
 #include <QAction>
@@ -608,6 +609,21 @@ TEST_CASE("monitor panel: exact empty state and no row widgets")
     REQUIRE(!panel.findChildren<QComboBox*>().isEmpty());
 }
 
+namespace
+{
+
+QPushButton* find_text_button(QWidget& parent, const QString& text)
+{
+    for (QPushButton* button : parent.findChildren<QPushButton*>())
+    {
+        if (button->text() == text)
+            return button;
+    }
+    return nullptr;
+}
+
+} // namespace
+
 TEST_CASE("inspector: waiting sentence and control line chips")
 {
     vss::gui::FakeStudioBackend backend;
@@ -627,7 +643,8 @@ TEST_CASE("inspector: waiting sentence and control line chips")
     }
     REQUIRE(waiting);
 
-    // The waiting note names the exact port and offers to copy it.
+    // The waiting note names the exact port. The path has one copy button,
+    // and the old "Copy name" button is gone.
     bool names_port = false;
     for (QLabel* label : panel.findChildren<QLabel*>())
     {
@@ -635,15 +652,23 @@ TEST_CASE("inspector: waiting sentence and control line chips")
             names_port = true;
     }
     REQUIRE(names_port);
-    auto* copy_name =
-        panel.findChild<QPushButton*>(QStringLiteral("inspectorCopyName"));
-    REQUIRE(copy_name != nullptr);
-    REQUIRE(!copy_name->isHidden());
-    REQUIRE(
-        copy_name->accessibleName().startsWith(QStringLiteral("Copy name")));
-    copy_name->click();
-    REQUIRE_EQ(QGuiApplication::clipboard()->text(),
+    REQUIRE(panel.findChild<QPushButton*>(
+                QStringLiteral("inspectorCopyName")) == nullptr);
+    REQUIRE(find_text_button(panel, QStringLiteral("Copy name")) == nullptr);
+    auto* copy_path = panel.findChild<vss::gui::CopyButton*>();
+    REQUIRE(copy_path != nullptr);
+    REQUIRE(!copy_path->accessibleName().isEmpty());
+    REQUIRE_EQ(copy_path->copy_text(),
                vss_test::require_value(backend.port(*id)).path);
+
+    // The traffic row says that it shows totals.
+    bool total = false;
+    for (QLabel* label : panel.findChildren<QLabel*>())
+    {
+        if (label->text() == QStringLiteral("Total traffic"))
+            total = true;
+    }
+    REQUIRE(total);
 
     bool has_dtr = false;
     for (QLabel* label : panel.findChildren<QLabel*>())

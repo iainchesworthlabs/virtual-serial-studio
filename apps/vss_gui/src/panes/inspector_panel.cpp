@@ -17,10 +17,8 @@
 
 #include <vss/core/serial_settings.hpp>
 
-#include <QClipboard>
 #include <QFrame>
 #include <QGridLayout>
-#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPushButton>
@@ -172,15 +170,15 @@ void InspectorPanel::build()
     // Details form: captions in column 0, values in column 1, which stretches.
     auto* form = new QGridLayout();
     form->setHorizontalSpacing(8);
-    form->setVerticalSpacing(4);
+    form->setVerticalSpacing(6);
     form->setColumnStretch(1, 1);
 
     int row = 0;
-    form->addWidget(caption(tr("State"), content_), row, 0, Qt::AlignTop);
+    form->addWidget(caption(tr("State"), content_), row, 0, Qt::AlignVCenter);
     state_ = new StatusChip(content_);
-    form->addWidget(state_, row++, 1, Qt::AlignLeft);
+    form->addWidget(state_, row++, 1, Qt::AlignLeft | Qt::AlignVCenter);
 
-    form->addWidget(caption(tr("Path"), content_), row, 0, Qt::AlignTop);
+    form->addWidget(caption(tr("Path"), content_), row, 0, Qt::AlignVCenter);
     // The path can be selected with the mouse or copied with its own button.
     auto* path_row = new QWidget(content_);
     auto* path_layout = new QHBoxLayout(path_row);
@@ -192,14 +190,21 @@ void InspectorPanel::build()
     path_->setWordWrap(true);
     copy_ = new CopyButton(path_row);
     copy_->set_copy_text({}, tr("path"));
+    connect(copy_, &CopyButton::copied, this,
+            [this]
+            {
+                if (port_)
+                    ToastManager::instance().show(
+                        this, tr("%1 copied.").arg(port_->path));
+            });
     path_layout->addWidget(path_, 1);
-    path_layout->addWidget(copy_, 0, Qt::AlignTop);
+    path_layout->addWidget(copy_, 0, Qt::AlignVCenter);
     form->addWidget(path_row, row++, 1);
 
     // The COM number row exists for every port but is only shown for driver
     // ports that have one (see update_content).
     com_caption_ = caption(tr("COM number"), content_);
-    form->addWidget(com_caption_, row, 0, Qt::AlignTop);
+    form->addWidget(com_caption_, row, 0, Qt::AlignVCenter);
     com_row_ = new QWidget(content_);
     auto* com_layout = new QHBoxLayout(com_row_);
     com_layout->setContentsMargins(0, 0, 0, 0);
@@ -222,7 +227,8 @@ void InspectorPanel::build()
     com_layout->addStretch(1);
     form->addWidget(com_row_, row++, 1);
 
-    form->addWidget(caption(tr("Traffic"), content_), row, 0);
+    form->addWidget(caption(tr("Total traffic"), content_), row, 0,
+                    Qt::AlignVCenter);
     traffic_ = new QLabel(content_);
     traffic_->setFont(Theme::instance().font(text_style::data));
     form->addWidget(traffic_, row++, 1);
@@ -240,14 +246,23 @@ void InspectorPanel::build()
     serial_layout->addWidget(serial_label_, 1);
     form->addWidget(serial_row_, row++, 0, 1, 2);
 
+    // Every row is as tall as the small button, so the in-row action of the
+    // COM number row does not stretch it. The height is set on the widgets,
+    // not the grid rows, so a hidden row takes no space.
+    for (int index = 0; index < form->count(); ++index)
+    {
+        if (QWidget* item = form->itemAt(index)->widget();
+            item != nullptr && item != serial_row_)
+            item->setMinimumHeight(28);
+    }
     layout->addLayout(form);
 
-    // Help block: a note about the port's state, a button to copy its name for
-    // the other program, and a link to troubleshooting.
+    // Help block: a note about the port's state and a link to troubleshooting.
+    // The path is copied with the button beside it in the form above.
     auto* help = new QWidget(content_);
     auto* help_layout = new QVBoxLayout(help);
     help_layout->setContentsMargins(0, 0, 0, 0);
-    help_layout->setSpacing(2);
+    help_layout->setSpacing(6);
     help_text_ = new QLabel(help);
     help_text_->setFont(Theme::instance().font(text_style::body));
     help_text_->setWordWrap(true);
@@ -257,22 +272,7 @@ void InspectorPanel::build()
     help_link_->setFont(Theme::instance().font(text_style::body));
     connect(help_link_, &QLabel::linkActivated, this,
             [this](const QString&) { Q_EMIT troubleshoot_requested(); });
-    help_copy_ = new QPushButton(tr("Copy name"), help);
-    help_copy_->setObjectName(QStringLiteral("inspectorCopyName"));
-    help_copy_->setProperty("size", QStringLiteral("small"));
-    help_copy_->setCursor(Qt::PointingHandCursor);
-    polish(help_copy_);
-    connect(help_copy_, &QPushButton::clicked, this,
-            [this]
-            {
-                if (!port_)
-                    return;
-                QGuiApplication::clipboard()->setText(port_->path);
-                ToastManager::instance().show(
-                    this, tr("%1 copied.").arg(port_->path));
-            });
     help_layout->addWidget(help_text_);
-    help_layout->addWidget(help_copy_, 0, Qt::AlignLeft);
     help_layout->addWidget(help_link_);
     layout->addWidget(help);
 
@@ -442,6 +442,8 @@ void InspectorPanel::update_content()
     traffic_->setText(tr("RX %1, TX %2")
                           .arg(format_bytes(port.stats.bytes_rx),
                                format_bytes(port.stats.bytes_tx)));
+    traffic_->setToolTip(tr("Bytes received and sent in total. The status "
+                            "bar shows the current rate."));
     serial_row_->setVisible(advanced_ &&
                             port.kind == vss::endpoint_kind::physical);
     serial_label_->setText(serial_description());
@@ -457,9 +459,6 @@ void InspectorPanel::update_content()
         note = note.isEmpty() ? status : note + QStringLiteral(" ") + status;
     help_text_->setVisible(!note.isEmpty());
     help_text_->setText(note);
-    help_copy_->setVisible(waiting);
-    help_copy_->setAccessibleName(tr("Copy name, %1").arg(port.path));
-    help_copy_->setToolTip(tr("Copy name"));
     help_link_->setText(
         tr("<a href=\"troubleshoot\">Why is nothing arriving?</a>"));
 

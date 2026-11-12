@@ -1188,4 +1188,4 @@ lines applied. The numbers are the rows of the design review.
 - **Waiting for program.** The Inspector, the Port ready dialog and the
   troubleshoot row say that the program has to open exactly this port, because a
   program that was set up with another COM name opens nothing of ours. The
-  Inspector adds a "Copy name" button to the waiting note.
+  Inspector copies the path with the button beside it, not a second button.

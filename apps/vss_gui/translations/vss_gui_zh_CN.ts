@@ -13092,6 +13092,14 @@ Networks: %5</source>
             <translation>RX %1，TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>总流量</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>接收和发送的总字节数。状态栏显示当前速率。</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>还没有程序打开 %1。程序必须正好打开 %1；其他端口不会收到任何内容。</translation>

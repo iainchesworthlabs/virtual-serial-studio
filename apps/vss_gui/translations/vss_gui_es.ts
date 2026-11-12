@@ -13099,6 +13099,14 @@ Redes: %5</translation>
             <translation>RX %1, TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>Tráfico total</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>Bytes recibidos y enviados en total. La barra de estado muestra la velocidad actual.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>Ningún programa ha abierto %1 todavía. El programa debe abrir exactamente %1; otro puerto no recibirá nada.</translation>
