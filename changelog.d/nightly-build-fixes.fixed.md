@@ -1,0 +1,1 @@
+**The build is clean again on GCC and AppleClang.** The list of reserved COM numbers is read without a sign-conversion warning, which GCC treats as an error, and the agent server tests no longer need `std::jthread`, which Apple's standard library does not provide.
