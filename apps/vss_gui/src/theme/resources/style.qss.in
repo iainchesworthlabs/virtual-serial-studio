@@ -116,6 +116,7 @@ QTableView, QTreeView, QListView { background: %panel%; alternate-background-col
 QTableView::item, QTreeView::item, QListView::item { border: 0; padding: 0 6px; }
 QTableView::item:hover, QTreeView::item:hover, QListView::item:hover { background: %hover%; }
 QTableView::item:selected, QTreeView::item:selected, QListView::item:selected { background: %accentSoft%; color: %ink%; }
+QListWidget#simpleSetupList::item { padding: %space.0% %space.1%; }
 QHeaderView { background: %panel%; border: 0; }
 QHeaderView::section { background: %panel%; color: %ink3%; border: 0; border-bottom: 1px solid %line%; padding: 0 12px; min-height: 28px; font-weight: 600; }
 QTableCornerButton::section { background: %panel%; border: 0; }
