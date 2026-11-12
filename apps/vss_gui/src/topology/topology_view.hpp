@@ -37,6 +37,7 @@ class QGraphicsRectItem;
 class QLabel;
 class QMenu;
 class QRubberBand;
+class QToolButton;
 
 namespace vss::gui::topology
 {
@@ -183,6 +184,14 @@ public:
     void tidy_layout();
     void zoom_in();
     void zoom_out();
+    /// Back to 100 percent about the centre of the view.
+    void reset_zoom();
+    /// Zooms by `factor` about a view point (the wheel and pinch use the
+    /// pointer; the buttons and keys use the centre), inside the limits.
+    void zoom_at(qreal factor, const QPoint& view_point);
+    /// The zoom limits.
+    static qreal min_zoom() noexcept;
+    static qreal max_zoom() noexcept;
 
     /// The "That link would create a loop" pattern: highlights the cycle and
     /// shows the danger note with its "Show the loop" action.  Returns false
@@ -255,6 +264,7 @@ private:
     void apply_positions(bool refresh_scene_rect = true);
     void update_scene_rect();
     void update_overlays();
+    void update_zoom_controls();
     void update_accessibility();
     void refresh_focus_visuals();
 
@@ -271,8 +281,6 @@ private:
     void open_context_menu(const QPoint& viewport_position);
     void open_focused_menu();
     void centre_on_links(const QVector<vss::link_id>& ids);
-    void scale_by(qreal factor, QGraphicsView::ViewportAnchor anchor,
-                  bool user_action);
     qsizetype focus_index_of_port(vss::endpoint_id id) const;
     qsizetype focus_index_of_link(vss::link_id id) const;
 
@@ -320,6 +328,10 @@ private:
     QLabel* empty_ = nullptr;
     QLabel* hint_ = nullptr;
     NoteBanner* loop_note_ = nullptr;
+    QWidget* zoom_bar_ = nullptr;
+    QToolButton* zoom_out_button_ = nullptr;
+    QToolButton* zoom_reset_button_ = nullptr;
+    QToolButton* zoom_in_button_ = nullptr;
 
     QString summary_;
     capabilities caps_;
