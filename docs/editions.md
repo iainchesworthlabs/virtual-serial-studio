@@ -4,6 +4,18 @@ This page records the decisions reached so far about selling Virtual Serial
 Studio, and the ones still open. It is a proposal for the owner and for a
 solicitor to review. Nothing here is built, and nothing here is legal advice.
 
+## Who each edition is for
+
+* **Community: the hobbyist and the reverse engineer.** Hooks up their hardware
+  to a serial port, watches and records what is on the wire, shares a real
+  device between programs, and works out an unknown protocol. This is free and
+  stays complete for that job: capture, monitor, timestamps, hex and text views,
+  and the Simple and Advanced modes.
+* **Pro and Enterprise: the test lab.** Uses Studio as automated test equipment:
+  scripted rigs that drive devices and programs, controlled response timing,
+  fault injection, repeatable runs and reports, driven from the lab's own test
+  harness and language.
+
 ## Summary
 
 | | Community | Pro | Enterprise |
@@ -82,7 +94,7 @@ follow, behind a signature check.
 |---|---|---|
 | Generators | Produce bytes or traffic patterns onto a port | Very good |
 | Fixture types | Simulate a device that answers like a real instrument or modem | Good |
-| Behaviour modifiers | Change traffic on a link: corrupt, delay, filter, rewrite | Workable, but inline plugins add latency and need a timeout and a rule for failure |
+| Behaviour modifiers | Change traffic on a link: corrupt, delay, filter, rewrite | Workable, but inline plugins add latency and need a timeout and a rule for failure. In the first version |
 | Automation and test harness adapters | Let other tools drive Studio | Pro, see below |
 
 A plugin declares its extension points, parameters and permissions in a
@@ -111,18 +123,44 @@ owner approves.
 
 ### Automation and test harness plugins (Pro)
 
+All of this is in the first version.
+
 | Plugin | Purpose |
 |---|---|
-| pytest plugin and Python library | Create ports, link them, inject faults, send and expect bytes, read the event log |
+| Python library and pytest plugin | Create ports, link them, inject faults, send and expect bytes, read the event log |
+| Bindings for other languages | C and C++ (a stable C ABI), C# and .NET, Java, Node.js; the C ABI is what the others wrap, so a lab can bind its own language |
 | Robot Framework library | The same, as keywords |
 | TestStand and LabVIEW wrappers | For lab test rigs |
-| Remote control endpoint | Run Studio from a CI machine; off until the user enables it |
-| JUnit XML report output | For CI systems |
+| Remote control endpoint | Run Studio from a CI machine or a rig controller; off until the user enables it |
+| Reports | JUnit XML and a plain log of a run, for CI systems |
 
 The control endpoint listens on a local socket or loopback with an access
 token by default. The adapters check the licence file. The agent protocol
 itself stays documented and free, so third parties can write their own; Pro is
 the maintained, supported, compatibility-tested set.
+
+### Controlling responses and timing (Pro)
+
+A test lab needs to decide how a simulated device answers and when. These are
+behaviour modifiers and fixtures that a harness can set and change during a run:
+
+* a response delay or jitter, fixed or drawn from a distribution, so a test can
+  slow a device down to a real instrument's speed, or past a timeout;
+* scripted replies: when this pattern arrives, answer with this, after this
+  long, a given number of times, or in this order;
+* faults on cue: drop, corrupt, truncate or duplicate a reply, raise a line
+  error, drop a control line at a chosen moment;
+* a deterministic mode with a seeded random source, so a run can be repeated
+  exactly;
+* timestamps on everything the harness sees, in one clock.
+
+Delay, jitter and the modem-line and fault tiles already exist in Studio for
+manual use. For a harness they must be settable from the API, and they must be
+fast enough that the plugin is not the bottleneck. Timing that must be exact,
+such as RS-485 turnaround, stays in the engine, so an inline plugin never sits
+in a microsecond path. Where a response must be quicker than a round trip to
+another process allows, the rule is declared to the engine, which carries it
+out itself.
 
 ## Studio features to add
 
@@ -157,14 +195,17 @@ It follows the design tokens of the application.
 1. Which feature belongs to which edition.
 2. Whether the engine stays Boost-licensed, since a competitor can build a
    closed product on it.
-3. Whether behaviour modifiers are in the first plugin version, or follow
-   generators and fixture types once inline latency is measured.
-4. Which languages get a plugin example first (C++ and Python are proposed).
+3. Which bindings ship in the first version and which are community-built
+   (Python and a C ABI are settled; C#, Java, Node.js, LabVIEW and TestStand are
+   proposed).
+4. How response timing is declared to the engine, so that the fast cases run
+   without a round trip to a plugin.
 5. Whether a plugin fixture type appears in the Advanced toolbox beside the
    built-in ones.
 6. Whether an expired Annual licence keeps working with the Pro versions
    released during its term.
-7. Whether the remote control endpoint is in the first version.
+7. The access model of the remote control endpoint (token, local only, or a
+   certificate).
 8. A contributor agreement before the first outside contribution.
 9. The result of the licence audit of Qt and the other third-party code.
 10. Hosting for the website.
