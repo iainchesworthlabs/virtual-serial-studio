@@ -52,6 +52,30 @@ namespace
 
 using steady = std::chrono::steady_clock;
 
+/// A thread that is joined when it goes out of scope.  `std::jthread` is not
+/// in the libc++ of every supported Apple toolchain.
+class joining_thread
+{
+public:
+    template <class Function>
+    explicit joining_thread(Function&& function)
+        : thread_(std::forward<Function>(function))
+    {
+    }
+
+    joining_thread(joining_thread&&) noexcept = default;
+    joining_thread& operator=(joining_thread&&) = delete;
+
+    ~joining_thread()
+    {
+        if (thread_.joinable())
+            thread_.join();
+    }
+
+private:
+    std::thread thread_;
+};
+
 /// Long enough for a sanitizer build on a loaded machine.  A test that passes
 /// takes milliseconds.
 constexpr std::chrono::milliseconds long_wait{20000};
@@ -856,7 +880,7 @@ TEST_CASE("agent server: a client that disappears costs nothing")
     std::atomic<int> written{0};
     std::atomic<bool> failed{false};
     {
-        std::jthread traffic(
+        joining_thread traffic(
             [&]
             {
                 for (int count = 0; count < total; ++count)
@@ -1146,7 +1170,7 @@ TEST_CASE("agent server: stress with many clients and a stop underneath")
 
     auto watcher = env.connect("watcher");
     REQUIRE(watcher->subscribe(true, 10));
-    std::vector<std::jthread> observers;
+    std::vector<joining_thread> observers;
     const stop_guard outer_guard(env.server, state);
     observers.emplace_back([&] { stress_subscriber(*watcher, state); });
 
@@ -1157,7 +1181,7 @@ TEST_CASE("agent server: stress with many clients and a stop underneath")
         for (int worker = 0; worker < workers; ++worker)
             clients.push_back(env.connect("worker"));
         {
-            std::vector<std::jthread> threads;
+            std::vector<joining_thread> threads;
             threads.reserve(static_cast<std::size_t>(workers));
             for (int worker = 0; worker < workers; ++worker)
             {
@@ -1181,7 +1205,7 @@ TEST_CASE("agent server: stress with many clients and a stop underneath")
         clients.reserve(static_cast<std::size_t>(workers));
         for (int worker = 0; worker < workers; ++worker)
             clients.push_back(env.connect("endless"));
-        std::vector<std::jthread> threads;
+        std::vector<joining_thread> threads;
         threads.reserve(static_cast<std::size_t>(workers));
         const stop_guard inner_guard(env.server, state);
         for (int worker = 0; worker < workers; ++worker)

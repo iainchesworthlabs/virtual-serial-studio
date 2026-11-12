@@ -39,6 +39,7 @@
     "simple: change a setup": 1000,
     "simple: close one program of a shared device": 1300,
     "simple: connect two programs to each other": 1000,
+    "simple: connect two programs when Windows keeps some COM numbers": 550,
     "simple: give my program a serial port": 500,
     "simple: let other computers use my device": 900,
     "simple: let programs take turns sending to a device": 1200,
