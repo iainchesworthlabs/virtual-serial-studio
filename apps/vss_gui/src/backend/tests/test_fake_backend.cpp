@@ -230,6 +230,314 @@ TEST_CASE("fake backend: add_target and remove_target edit a duplex link")
     REQUIRE(backend.remove_target(*bus, *b).error() == unsupported);
 }
 
+TEST_CASE("fake backend: add_source and remove_source edit a one-way link")
+{
+    vss::gui::FakeStudioBackend backend;
+    std::vector<vss::endpoint_id> ids;
+    for (const char* name : {"a", "b", "c", "d", "e"})
+    {
+        const auto port = backend.create_virtual_port(
+            QString::fromLatin1(name), vss::virtual_port_kind::loopback, true);
+        REQUIRE(port.has_value());
+        ids.push_back(*port);
+    }
+    const vss::endpoint_id a = ids[0];
+    const vss::endpoint_id b = ids[1];
+    const vss::endpoint_id c = ids[2];
+    const vss::endpoint_id d = ids[3];
+    const vss::endpoint_id e = ids[4];
+    const auto not_found = vss::make_error_code(vss::errc::not_found);
+    const auto unsupported = vss::make_error_code(vss::errc::unsupported);
+    const auto invalid = vss::make_error_code(vss::errc::invalid_argument);
+    const auto exists = vss::make_error_code(vss::errc::already_exists);
+
+    const auto joined = backend.join({a, b}, c, vss::link_options{});
+    REQUIRE(joined.has_value());
+
+    // A source is added at the end, and the link is the same link.
+    REQUIRE(backend.add_source(*joined, d).has_value());
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, *joined);
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::join);
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+    REQUIRE_EQ(backend.links().front().sources.back(), d);
+    REQUIRE_EQ(backend.links().front().targets.size(), 1);
+
+    // Every error code, and nothing changed by any of them.
+    REQUIRE(backend.add_source(999, e).error() == not_found);
+    REQUIRE(backend.add_source(*joined, 999).error() == not_found);
+    REQUIRE(backend.add_source(*joined, c).error() == invalid);
+    REQUIRE(backend.add_source(*joined, a).error() == exists);
+    REQUIRE(backend.remove_source(999, a).error() == not_found);
+    REQUIRE(backend.remove_source(*joined, 999).error() == not_found);
+    REQUIRE(backend.remove_source(*joined, e).error() == not_found);
+    // The target is not a source of the link.
+    REQUIRE(backend.remove_source(*joined, c).error() == not_found);
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+
+    // The injected error comes first.
+    backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    REQUIRE(backend.add_source(*joined, e).error() ==
+            vss::make_error_code(vss::errc::io_error));
+    backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    REQUIRE(backend.remove_source(*joined, d).error() ==
+            vss::make_error_code(vss::errc::io_error));
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+
+    // Removing the owner releases it; removing another source keeps it.
+    REQUIRE(backend.set_owner(*joined, d).has_value());
+    REQUIRE(backend.remove_source(*joined, a).has_value());
+    REQUIRE_EQ(backend.links().front().owner, d);
+    REQUIRE(backend.remove_source(*joined, d).has_value());
+    REQUIRE_EQ(backend.links().front().owner, vss::endpoint_id{0});
+    REQUIRE_EQ(backend.links().front().id, *joined);
+
+    // The last source stays, and the shape follows the count, as the
+    // engine's does.
+    REQUIRE_EQ(backend.links().front().sources.size(), 1);
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::one_way);
+    REQUIRE(backend.remove_source(*joined, b).error() == invalid);
+    REQUIRE_EQ(backend.links().front().sources.size(), 1);
+
+    // A monitor takes a source, and is a monitor again with one.
+    const auto watched = backend.monitor(a, d);
+    REQUIRE(watched.has_value());
+    REQUIRE(backend.add_source(*watched, e).has_value());
+    REQUIRE_EQ(backend.links().back().shape, vss::gui::link_shape::join);
+    REQUIRE(!backend.links().back().options.emulate_modem_lines);
+    REQUIRE(backend.remove_source(*watched, a).has_value());
+    REQUIRE_EQ(backend.links().back().shape, vss::gui::link_shape::monitor);
+
+    // Duplex links and buses are not edited this way.
+    const auto split = backend.split(a, {b, c}, vss::link_options{});
+    REQUIRE(split.has_value());
+    REQUIRE(backend.add_source(*split, d).error() == unsupported);
+    REQUIRE(backend.remove_source(*split, a).error() == unsupported);
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    const auto bus = backend.bus({d, e}, {});
+    REQUIRE(bus.has_value());
+    REQUIRE(backend.add_source(*bus, a).error() == unsupported);
+    REQUIRE(backend.remove_source(*bus, d).error() == unsupported);
+}
+
+TEST_CASE("fake backend: add_member and remove_member edit a bus")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    std::vector<vss::endpoint_id> ids;
+    for (const char* name : {"a", "b", "c", "d", "e"})
+    {
+        const auto port = backend.create_virtual_port(
+            QString::fromLatin1(name), vss::virtual_port_kind::loopback, true);
+        REQUIRE(port.has_value());
+        ids.push_back(*port);
+    }
+    const vss::endpoint_id a = ids[0];
+    const vss::endpoint_id b = ids[1];
+    const vss::endpoint_id c = ids[2];
+    const vss::endpoint_id d = ids[3];
+    const vss::endpoint_id e = ids[4];
+    const auto not_found = vss::make_error_code(vss::errc::not_found);
+    const auto unsupported = vss::make_error_code(vss::errc::unsupported);
+    const auto invalid = vss::make_error_code(vss::errc::invalid_argument);
+    const auto exists = vss::make_error_code(vss::errc::already_exists);
+
+    const auto bus = backend.bus({a, b}, {});
+    REQUIRE(bus.has_value());
+    const auto other = backend.bus({d, e}, {});
+    REQUIRE(other.has_value());
+
+    // A member is added at the end, and the bus is the same bus.
+    REQUIRE(backend.add_member(*bus, c).has_value());
+    REQUIRE_EQ(backend.links().size(), std::size_t{2});
+    REQUIRE_EQ(backend.links().front().id, *bus);
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::bus);
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+    REQUIRE_EQ(backend.links().front().sources.back(), c);
+    REQUIRE_EQ(backend.links().front().targets.size(), 0);
+
+    // Every error code, and nothing changed by any of them.
+    REQUIRE(backend.add_member(999, c).error() == not_found);
+    REQUIRE(backend.add_member(*bus, 999).error() == not_found);
+    REQUIRE(backend.add_member(*bus, a).error() == exists);
+    REQUIRE(backend.add_member(*bus, d).error() == exists);
+    REQUIRE(backend.remove_member(999, a).error() == not_found);
+    REQUIRE(backend.remove_member(*bus, 999).error() == not_found);
+    REQUIRE(backend.remove_member(*bus, d).error() == not_found);
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+
+    // The injected error comes first.
+    backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    REQUIRE(backend.remove_member(*bus, c).error() ==
+            vss::make_error_code(vss::errc::io_error));
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+
+    // A removed member is free for another bus, and the bus keeps two.
+    REQUIRE(backend.remove_member(*bus, a).has_value());
+    REQUIRE(backend.add_member(*other, a).has_value());
+    REQUIRE_EQ(backend.links().front().sources.size(), 2);
+    REQUIRE(backend.remove_member(*bus, b).error() == invalid);
+    REQUIRE(backend.remove_member(*bus, c).error() == invalid);
+    REQUIRE_EQ(backend.links().front().sources.size(), 2);
+    REQUIRE_EQ(backend.links().front().id, *bus);
+
+    // Other links are not edited this way.
+    const auto joined = backend.join({a, b}, c, vss::link_options{});
+    REQUIRE(joined.has_value());
+    REQUIRE(backend.add_member(*joined, d).error() == unsupported);
+    REQUIRE(backend.remove_member(*joined, a).error() == unsupported);
+}
+
+TEST_CASE("fake backend: a bus takes no more than the most members")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    std::vector<vss::endpoint_id> ids;
+    for (std::size_t index = 0; index <= vss::max_bus_members; ++index)
+    {
+        const auto port =
+            backend.create_virtual_port(QStringLiteral("p%1").arg(index),
+                                        vss::virtual_port_kind::loopback, true);
+        REQUIRE(port.has_value());
+        ids.push_back(*port);
+    }
+    const std::vector<vss::endpoint_id> first(
+        ids.begin(), ids.begin() + (vss::max_bus_members - 1));
+    const auto bus = backend.bus(first, {});
+    REQUIRE(bus.has_value());
+    REQUIRE(
+        backend.add_member(*bus, ids[vss::max_bus_members - 1]).has_value());
+    REQUIRE(backend.add_member(*bus, ids[vss::max_bus_members]).error() ==
+            vss::make_error_code(vss::errc::invalid_argument));
+}
+
+TEST_CASE("fake backend: set_link_options changes a link in place")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto a = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    const auto b = backend.create_virtual_port(
+        QStringLiteral("b"), vss::virtual_port_kind::loopback, true);
+    const auto c = backend.create_virtual_port(
+        QStringLiteral("c"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    REQUIRE(c.has_value());
+    const auto not_found = vss::make_error_code(vss::errc::not_found);
+    const auto invalid = vss::make_error_code(vss::errc::invalid_argument);
+
+    const auto split = backend.split(*a, {*b, *c}, vss::link_options{});
+    REQUIRE(split.has_value());
+
+    vss::link_options options;
+    options.delay_ms = 30;
+    options.jitter_ms = 10;
+    options.policy = vss::merge_policy::owner;
+    options.emulate_modem_lines = false;
+    REQUIRE(backend.set_link_options(*split, options).has_value());
+
+    // The same link: its id, shape and ports are as they were.
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    const auto link = backend.links().front();
+    REQUIRE_EQ(link.id, *split);
+    REQUIRE_EQ(link.shape, vss::gui::link_shape::split);
+    REQUIRE_EQ(link.sources.size(), 1);
+    REQUIRE_EQ(link.targets.size(), 2);
+    REQUIRE_EQ(link.options.delay_ms, 30u);
+    REQUIRE_EQ(link.options.jitter_ms, 10u);
+    REQUIRE(link.options.policy == vss::merge_policy::owner);
+    REQUIRE(!link.options.emulate_modem_lines);
+
+    // The owner stays while the policy is owner and goes when it is not.
+    REQUIRE(backend.set_owner(*split, *b).has_value());
+    options.delay_ms = 5;
+    options.jitter_ms = 2;
+    REQUIRE(backend.set_link_options(*split, options).has_value());
+    REQUIRE_EQ(backend.links().front().owner, *b);
+    options.policy = vss::merge_policy::interleave;
+    REQUIRE(backend.set_link_options(*split, options).has_value());
+    REQUIRE_EQ(backend.links().front().owner, vss::endpoint_id{0});
+
+    // The latency is checked as the engine does, and a refusal changes
+    // nothing.
+    options.delay_ms = vss::max_link_delay_ms + 1;
+    REQUIRE(backend.set_link_options(*split, options).error() == invalid);
+    options.delay_ms = 10;
+    options.jitter_ms = 11;
+    REQUIRE(backend.set_link_options(*split, options).error() == invalid);
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 5u);
+    REQUIRE(backend.set_link_options(999, vss::link_options{}).error() ==
+            not_found);
+
+    // The injected error comes first.
+    backend.fail_next(vss::make_error_code(vss::errc::io_error));
+    REQUIRE(backend.set_link_options(*split, vss::link_options{}).error() ==
+            vss::make_error_code(vss::errc::io_error));
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 5u);
+}
+
+TEST_CASE("fake backend: a bus takes delay and jitter and nothing else")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    const auto a = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    const auto b = backend.create_virtual_port(
+        QStringLiteral("b"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    const auto bus = backend.bus({*a, *b}, {});
+    REQUIRE(bus.has_value());
+
+    // Modem lines are forced off, as on creation.
+    vss::link_options options;
+    options.emulate_modem_lines = true;
+    options.delay_ms = 40;
+    REQUIRE(backend.set_link_options(*bus, options).has_value());
+    REQUIRE(!backend.links().front().options.emulate_modem_lines);
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 40u);
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::bus);
+
+    // Any policy but interleave is refused and nothing changes.
+    options.policy = vss::merge_policy::owner;
+    options.delay_ms = 50;
+    REQUIRE(backend.set_link_options(*bus, options).error() ==
+            vss::make_error_code(vss::errc::unsupported));
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 40u);
+}
+
+TEST_CASE("fake backend: a monitor given modem lines is a one-way link")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto a = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    const auto b = backend.create_virtual_port(
+        QStringLiteral("b"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    const auto monitor = backend.monitor(*a, *b);
+    REQUIRE(monitor.has_value());
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::monitor);
+
+    vss::link_options options;
+    options.emulate_modem_lines = true;
+    REQUIRE(backend.set_link_options(*monitor, options).has_value());
+    REQUIRE_EQ(backend.links().front().id, *monitor);
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::one_way);
+
+    options.emulate_modem_lines = false;
+    REQUIRE(backend.set_link_options(*monitor, options).has_value());
+    REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::monitor);
+}
+
 TEST_CASE("fake backend: snapshot and apply round trip")
 {
     vss::gui::FakeStudioBackend backend;

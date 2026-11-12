@@ -3747,6 +3747,14 @@ Réseaux : %5</translation>
         </message>
     </context>
     <context>
+        <name>LinkSettingsDialog</name>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="45" />
+            <source>Applying changes the link where it is and keeps its ports. Bytes it still holds for its delay are discarded when the delay changes.</source>
+            <translation>L’application modifie le lien sur place et conserve ses ports. Les octets qu’il retient encore pour son délai sont abandonnés quand le délai change.</translation>
+        </message>
+    </context>
+    <context>
         <name>MonitorModel</name>
         <message>
             <location filename="../src/panes/monitor_model.cpp" line="219" />

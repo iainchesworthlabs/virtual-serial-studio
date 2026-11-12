@@ -3747,6 +3747,14 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>LinkSettingsDialog</name>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="45" />
+            <source>Applying changes the link where it is and keeps its ports. Bytes it still holds for its delay are discarded when the delay changes.</source>
+            <translation>החלה משנה את הקישור במקומו ושומרת על היציאות שלו. בתים שהקישור עדיין מחזיק בגלל ההשהיה נזרקים כשההשהיה משתנה.</translation>
+        </message>
+    </context>
+    <context>
         <name>MonitorModel</name>
         <message>
             <location filename="../src/panes/monitor_model.cpp" line="219" />

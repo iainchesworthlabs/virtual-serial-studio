@@ -79,11 +79,13 @@ job_plan plan_from(const setup_view& setup,
 /// marked `existing` stay open, new ends are made, the link is changed and
 /// the ports that are no longer in the plan are removed.  An attached device,
 /// a share and programs taking turns on the same device change their link in
-/// place (programs are added to it and taken off it), so it keeps its id,
-/// options and owner and the other programs lose no bytes.  Every other setup
-/// has no in-place edit in the engine, so its link is replaced.  A failure
-/// removes what this call made and puts the previous link back, or leaves it
-/// as it was.
+/// place (programs are added to it and taken off it), as do the senders of a
+/// combine into the same receiver (its sources) and the members of a bus (add
+/// the new ones, then take off the old), so the link keeps its id, options and
+/// owner and the other ports lose no bytes.  A pair, a lone port with its echo
+/// and the network bridge have no in-place edit, so their link is replaced.  A
+/// failure removes what this call made and puts the previous link back, or
+/// leaves it as it was.
 /// Returns a port of the setup, to select it.  When a COM number the plan asked
 /// for belongs to another device (`errc::already_exists`), `clashed_com`, if
 /// given, is set to that number so the form can name it; otherwise it is 0.

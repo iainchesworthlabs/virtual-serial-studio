@@ -743,26 +743,14 @@ vss::result<QVector<QStringList>> restore_removal(StudioBackend& backend,
     return moved;
 }
 
-vss::result<vss::link_id> remake_link(StudioBackend& backend, vss::link_id id,
+vss::result<void> change_link_options(StudioBackend& backend, vss::link_id id,
                                       const vss::link_options& options)
 {
-    VSS_PROFILE_ZONE("gui.backend.canvas.remake_link");
-    const auto link = backend.link(id);
-    if (!link)
-        return vss::make_error_code(vss::errc::not_found);
-    const link_recipe before = recipe_of(backend.ports(), *link);
-    link_recipe after = before;
-    after.options = options;
-
-    if (auto done = backend.disconnect(id); !done)
-        return done.error();
-    auto made = make_link(backend, after);
-    if (!made)
-    {
-        static_cast<void>(make_link(backend, before));
-        return made.error();
-    }
-    return made;
+    VSS_PROFILE_ZONE("gui.backend.canvas.change_link_options");
+    if (auto done = backend.set_link_options(id, options); !done)
+        return done;
+    backend.refresh();
+    return {};
 }
 
 } // namespace vss::gui

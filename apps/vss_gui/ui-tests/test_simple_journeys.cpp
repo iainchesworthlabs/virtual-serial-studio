@@ -26,6 +26,18 @@ using namespace vss::gui::ui;
 using vss::gui::simple::job;
 namespace st = vss::gui::ui::steps;
 
+/// The first visible "Close <port>" button of a setup page, or null.
+QPushButton* first_close_button(QWidget* page)
+{
+    for (auto* candidate : page->findChildren<QPushButton*>())
+    {
+        if (candidate->isVisibleTo(page) &&
+            candidate->accessibleName().startsWith(QStringLiteral("Close ")))
+            return candidate;
+    }
+    return nullptr;
+}
+
 } // namespace
 
 TEST_CASE("simple: give my program a serial port")
@@ -212,9 +224,24 @@ TEST_CASE("simple: put several on one line")
     click(button(form, QStringLiteral("Add a program")));
     REQUIRE_EQ(st::program_fields(form).size(), 3);
     s.step(QStringLiteral("click Create"));
-    st::create(s);
+    auto* page = st::create(s);
     st::require_counts(s, {3, 1});
     st::verify_in_advanced(s);
+    const vss::link_id link_id = s.fake().links().front().id;
+    s.step(QStringLiteral("add a fourth program from the setup page"));
+    click(button(page, QStringLiteral("Add a program")));
+    s.settle();
+    st::require_counts(s, {4, 1});
+    REQUIRE_EQ(s.fake().links().front().id, link_id);
+    REQUIRE_EQ(s.fake().links().front().sources.size(), qsizetype{4});
+    s.step(QStringLiteral("close the first program port"));
+    auto* close = first_close_button(st::setup_page(s));
+    REQUIRE(close != nullptr);
+    click(close);
+    s.settle();
+    st::require_counts(s, {3, 1});
+    REQUIRE_EQ(s.fake().links().front().id, link_id);
+    REQUIRE_EQ(s.fake().links().front().sources.size(), qsizetype{3});
     s.step(QStringLiteral("remove the setup"));
     st::remove_shown_setup(s);
     s.finish();
@@ -226,9 +253,27 @@ TEST_CASE("simple: send several into one")
     s.step(QStringLiteral("choose 'Send several into one'"));
     st::open_job(s, job::combine);
     s.step(QStringLiteral("click Create"));
-    st::create(s);
+    auto* page = st::create(s);
     st::require_counts(s, {3, 1});
     st::verify_in_advanced(s);
+    const vss::link_id link_id = s.fake().links().front().id;
+    const auto receiver = s.fake().links().front().targets.front();
+    s.step(QStringLiteral("add a sender from the setup page"));
+    click(button(page, QStringLiteral("Add a program")));
+    s.settle();
+    st::require_counts(s, {4, 1});
+    REQUIRE_EQ(s.fake().links().front().id, link_id);
+    REQUIRE_EQ(s.fake().links().front().sources.size(), qsizetype{3});
+    REQUIRE_EQ(s.fake().links().front().targets.front(), receiver);
+    s.step(QStringLiteral("close the first sender"));
+    auto* close = first_close_button(st::setup_page(s));
+    REQUIRE(close != nullptr);
+    click(close);
+    s.settle();
+    st::require_counts(s, {3, 1});
+    REQUIRE_EQ(s.fake().links().front().id, link_id);
+    REQUIRE_EQ(s.fake().links().front().sources.size(), qsizetype{2});
+    REQUIRE_EQ(s.fake().links().front().targets.front(), receiver);
     s.step(QStringLiteral("remove the setup"));
     st::remove_shown_setup(s);
     s.finish();

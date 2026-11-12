@@ -832,6 +832,57 @@ vss::result<void> EngineStudioBackend::remove_target(vss::link_id link,
     return {};
 }
 
+vss::result<void> EngineStudioBackend::add_source(vss::link_id link,
+                                                  vss::endpoint_id source)
+{
+    const auto done = studio_.engine().add_source(link, source);
+    if (!done)
+        return done.error();
+    rebuild();
+    return {};
+}
+
+vss::result<void> EngineStudioBackend::remove_source(vss::link_id link,
+                                                     vss::endpoint_id source)
+{
+    const auto done = studio_.engine().remove_source(link, source);
+    if (!done)
+        return done.error();
+    rebuild();
+    return {};
+}
+
+vss::result<void> EngineStudioBackend::add_member(vss::link_id link,
+                                                  vss::endpoint_id member)
+{
+    const auto done = studio_.engine().add_member(link, member);
+    if (!done)
+        return done.error();
+    rebuild();
+    return {};
+}
+
+vss::result<void> EngineStudioBackend::remove_member(vss::link_id link,
+                                                     vss::endpoint_id member)
+{
+    const auto done = studio_.engine().remove_member(link, member);
+    if (!done)
+        return done.error();
+    rebuild();
+    return {};
+}
+
+vss::result<void>
+EngineStudioBackend::set_link_options(vss::link_id link,
+                                      const vss::link_options& options)
+{
+    const auto done = studio_.engine().set_link_options(link, options);
+    if (!done)
+        return done.error();
+    rebuild();
+    return {};
+}
+
 vss::result<void> EngineStudioBackend::set_owner(vss::link_id id,
                                                  vss::endpoint_id owner)
 {

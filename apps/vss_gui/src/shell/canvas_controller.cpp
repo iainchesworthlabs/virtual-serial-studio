@@ -511,23 +511,42 @@ bool CanvasController::change_link(vss::link_id id,
     if (!before)
         return false;
     const link_recipe old_recipe = recipe_of(backend_.ports(), *before);
-    link_recipe new_recipe = old_recipe;
-    new_recipe.options = options;
-    const auto made = batch([&] { return remake_link(backend_, id, options); });
-    if (!made)
+    const auto changed =
+        batch([&] { return change_link_options(backend_, id, options); });
+    if (!changed)
     {
-        Q_EMIT message(
-            tr("Could not change the link: %1").arg(error_text(made.error())));
+        Q_EMIT message(tr("Could not change the link: %1")
+                           .arg(error_text(changed.error())));
         return false;
     }
+    // The link keeps its id, so the recipe of what it is now is its state
+    // after the change: a monitor given modem lines is a one-way link.
+    const auto after = backend_.link(id);
+    if (!after)
+        return true;
+    const link_recipe new_recipe = recipe_of(backend_.ports(), *after);
+
+    // A step finds the link by its ports, as the other steps do, because
+    // another step may have made it again since.  Going back to a policy of
+    // owner gives the link its owner back, which leaving the policy released.
     const auto swap = [this](const link_recipe& from, const link_recipe& to)
     {
         return batch(
             [&]
             {
                 const auto found = find_link(backend_, from);
-                return found &&
-                       remake_link(backend_, found->id, to.options).has_value();
+                if (!found ||
+                    !change_link_options(backend_, found->id, to.options))
+                    return false;
+                if (!to.owner.isEmpty() &&
+                    to.options.policy == vss::merge_policy::owner)
+                {
+                    const auto owner = ids_of({to.owner});
+                    if (!owner.isEmpty())
+                        static_cast<void>(
+                            backend_.set_owner(found->id, owner.first()));
+                }
+                return true;
             });
     };
     undo_.push({tr("Link settings"), [swap, old_recipe, new_recipe]

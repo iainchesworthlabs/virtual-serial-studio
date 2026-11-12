@@ -191,6 +191,160 @@ public:
     /// one, so remove the link with #disconnect instead.
     result<void> remove_target(link_id id, endpoint_id target);
 
+    /// Adds one more source to a one-way link that exists (a #join, a
+    /// #redirect or a #monitor), without touching its other routes: the link
+    /// keeps its id, its options, its owner and its counters, and bytes on the
+    /// way from the other sources are not disturbed.  A #redirect with a
+    /// second source is a join from then on, and so is a #monitor (the saved
+    /// topology has one shape for a one-way link with several sources, a
+    /// join, which carries the link's `emulate_modem_lines` as it is).
+    ///
+    /// The call adds one route from the new source to each target of the
+    /// link, all or none.  It fails, and changes nothing, with
+    /// - `errc::not_found` for an unknown link or endpoint,
+    /// - `errc::unsupported` for a duplex link (a #connect or a #split has
+    ///   exactly one source, and what varies in it is its targets) and for a
+    ///   #bus (membership is a different operation: see #add_member),
+    /// - `errc::invalid_argument` when the endpoint is a target of the link,
+    /// - `errc::already_exists` when it is a source of the link already,
+    /// - `errc::cycle_detected` when a new route would close a loop, through
+    ///   other links or through a bus.
+    ///
+    /// Under `merge_policy::owner` the new source's route is arbitrated like
+    /// the others': it is dropped and counted until the source owns the link,
+    /// which it does only if the link has no owner and it sends first or it is
+    /// given the link with #set_owner.  The owner does not change.
+    ///
+    /// With `emulate_modem_lines` the target's input lines are not changed:
+    /// they follow the new source from its next line change, as they follow
+    /// any source of a join.
+    result<void> add_source(link_id id, endpoint_id source);
+
+    /// Takes one source out of a one-way link and leaves the others linked.
+    /// The endpoint itself stays in the hub.
+    ///
+    /// A chunk the hub is routing when the call is made either reaches the
+    /// target or does not; nothing reaches it from the removed source through
+    /// this link after the call returns except such a chunk.  Bytes the link's
+    /// delay still holds for the removed route are discarded.  The link's
+    /// counters keep what the route carried.  If the source owned the link the
+    /// owner is released.  With `emulate_modem_lines` the target's input lines
+    /// are set from the sources that remain, in list order (so with several
+    /// the last of them shows), and never show a port that is no longer on the
+    /// link.
+    ///
+    /// It fails, and changes nothing, with `errc::not_found` for an unknown
+    /// link and for an endpoint that is not a source of it (a target of the
+    /// link included), `errc::unsupported` for a duplex link or a bus, and
+    /// `errc::invalid_argument` for the last source: a link has at least one,
+    /// so remove the link with #disconnect instead.
+    result<void> remove_source(link_id id, endpoint_id source);
+
+    /// Adds one endpoint to a bus that exists, without touching the routes
+    /// between its other members: the bus keeps its id, its options and its
+    /// counters, and bytes on the way between the others are not disturbed.
+    ///
+    /// The call adds the `2 * n` routes between the new member and each of the
+    /// `n` members the bus has, all or none, and puts the endpoint at the end
+    /// of the member list.  It fails, and changes nothing, with
+    /// - `errc::not_found` for an unknown link or endpoint,
+    /// - `errc::unsupported` for a link that is not a bus (use #add_source or
+    ///   #add_target),
+    /// - `errc::already_exists` when the endpoint is a member of this bus or
+    ///   of any other (an endpoint is on one bus at most),
+    /// - `errc::invalid_argument` when the bus would have more than
+    ///   #max_bus_members members,
+    /// - `errc::cycle_detected` when the endpoint becoming part of the bus
+    ///   would close a loop: a route runs from it to the bus, or from the bus
+    ///   to it, directly or through other links or buses, and the bytes would
+    ///   arrive twice or go round.
+    ///
+    /// A bus carries no modem lines and no owner, so nothing else changes.
+    /// On a half-duplex bus the new member takes its turn on the line like
+    /// the others, and the line is told at once whether its transmitter is
+    /// on (its RTS, where its transport reports it).
+    result<void> add_member(link_id id, endpoint_id member);
+
+    /// Takes one member out of a bus and leaves the others on it, with the
+    /// routes between them untouched.  The endpoint itself stays in the hub.
+    ///
+    /// A chunk the hub is routing when the call is made either reaches the
+    /// removed member or does not; nothing reaches it, and nothing it sends
+    /// reaches the bus, after the call returns except such a chunk.  Bytes the
+    /// bus's delay still holds for the removed routes are discarded.  The
+    /// bus's counters keep what the routes carried.  On a half-duplex bus
+    /// what the member still has on the wire is discarded too and stops
+    /// counting against the others, as when the endpoint is removed.
+    ///
+    /// It fails, and changes nothing, with `errc::not_found` for an unknown
+    /// link and for an endpoint that is not a member of it,
+    /// `errc::unsupported` for a link that is not a bus and
+    /// `errc::invalid_argument` for a bus of two members: a bus has at least
+    /// two, so remove it with #disconnect instead.  (Removing an endpoint from
+    /// the hub is different: it takes the endpoint out of its bus and removes
+    /// the bus under two members.)
+    result<void> remove_member(link_id id, endpoint_id member);
+
+    /// Changes the delay, jitter, merge policy, `emulate_modem_lines`,
+    /// wiring and half-duplex line of a link that exists, in place: the link
+    /// keeps its id, its sources, its targets and its counters, and the other
+    /// links are not touched.  It works on every kind of link, a #monitor and
+    /// a #bus included.
+    ///
+    /// It fails, and changes nothing, with
+    /// - `errc::invalid_argument` for a delay over #max_link_delay_ms, a
+    ///   jitter over the delay or half-duplex values outside their limits, as
+    ///   on creation (checked first),
+    /// - `errc::not_found` for an unknown link,
+    /// - `errc::unsupported` for a #bus and any policy but `interleave`, as
+    ///   #bus is, and for `half_duplex.enabled` on a link that is not a bus.
+    ///
+    /// A #bus stores `emulate_modem_lines = false` whatever is passed, as
+    /// #bus does, and keeps the wiring it has: a bus has no modem lines, so
+    /// the wiring of one has no meaning and is ignored here, whereas
+    /// #set_link_wiring, which is asked for nothing else, refuses it.  Its
+    /// delay and jitter change like any other link's.  A #monitor is a
+    /// one-way link with `emulate_modem_lines` false; every option may change.
+    /// Turning the lines on makes it a redirect in the saved topology
+    /// (`studio::snapshot()` tells the two apart by that flag), and every
+    /// combination of options is a valid saved link, so none is refused for
+    /// that reason.  The wiring is not saved at all.
+    ///
+    /// - **Merge policy.**  Whether each route of the link is arbitrated is
+    ///   worked out again for the new policy.  Into `owner`, the link is owned
+    ///   by nobody until a publisher on an arbitrated route sends first or
+    ///   #set_owner names one (an owner named while the link interleaved is
+    ///   kept).  Out of `owner` the owner is cleared, so the link does not
+    ///   name an owner it no longer has.
+    /// - **Delay and jitter.**  When either changes, every route of the link
+    ///   gets a new delay line (none when both are now zero) and the old ones
+    ///   are closed before the call returns: the bytes they still hold are
+    ///   DISCARDED, as when a target is removed.  When neither changes the
+    ///   lines are the same objects and keep their bytes, so a change of
+    ///   policy or wiring loses nothing.
+    /// - **Half-duplex line** (a #bus only).  When any of its values changes
+    ///   while it is on, or it is turned on or off, the bus gets a new line
+    ///   and a new wire (none when it is now off).  What the old wire still
+    ///   carries is DISCARDED, the new line starts free, and
+    ///   `link_stats::collisions` and `garbled` start again from zero: they
+    ///   belong to the line, not to the bus.  When none of its values changes
+    ///   the line is the same object and nothing on it is lost.
+    /// - **Order.**  A chunk routed before the call may be discarded (a
+    ///   delayed link or a half-duplex bus) or delivered; a chunk routed while
+    ///   the call runs may be discarded; chunks routed after it returns are
+    ///   delivered in order, and never ahead of one that came before them.
+    ///   Bytes can be lost at a change but are not reordered or repeated.
+    /// - **Modem lines.**  Turned on, or rewired while on, the link pushes the
+    ///   current outputs of every sender along it, as #set_link_wiring does,
+    ///   so the receivers' inputs follow at once.  Turned off, each endpoint
+    ///   the link drove loses the inputs it drove, as when a cable is pulled,
+    ///   unless another link still drives it, and then it shows that link's
+    ///   sender, as after #remove_target.
+    ///
+    /// The options are validated and every delay line is made before the
+    /// first stored change, so a failed call changes nothing.
+    result<void> set_link_options(link_id id, const link_options& options);
+
     std::vector<link_info> links() const;
     std::optional<link_info> find_link(link_id id) const;
 
@@ -265,6 +419,10 @@ private:
         std::atomic<std::uint64_t> bytes{0};
         std::atomic<std::uint64_t> messages{0};
         std::atomic<std::uint64_t> dropped{0};
+        /// Above zero while #set_link_options closes the delay lines it has
+        /// replaced.  A chunk routed in that time is discarded, so none can
+        /// take the new route and pass one that is still in an old line.
+        std::atomic<unsigned> retiming{0};
         /// The line and the wire of a half-duplex bus; null for every other
         /// link, which is how the router tells them apart.
         std::shared_ptr<bus_line> line;
@@ -291,7 +449,16 @@ private:
                  const std::unordered_set<endpoint_id>& goals) const;
     route_entry make_route(const link_record& link, endpoint_id from,
                            endpoint_id to);
+    /// The delay line for a route to `to` under `options`; null when they
+    /// have no delay.  The caller holds the lock.
+    std::shared_ptr<delay_line> make_delay(endpoint_id to,
+                                           const link_options& options);
     void add_route(const link_record& link, endpoint_id from, endpoint_id to);
+    /// Removes the routes of `link` that leave `from` for `to` (for any
+    /// endpoint when `to` is 0) and hands their delay lines to `held`, to be
+    /// closed once the lock is released.  The caller holds the lock.
+    void take_routes(endpoint_id from, link_id link, endpoint_id to,
+                     std::vector<std::shared_ptr<delay_line>>& held);
     void erase_routes(link_id link);
     link_info describe(const link_record& record) const;
     void dispatch(const endpoint_event& event);

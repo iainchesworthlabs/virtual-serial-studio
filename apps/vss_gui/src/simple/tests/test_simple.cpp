@@ -18,6 +18,7 @@
 #include "simple/simple_page.hpp"
 #include "widgets/notes.hpp"
 
+#include <vss/core/link.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <QApplication>
@@ -672,6 +673,271 @@ TEST_CASE("simple: another kind or another policy makes the link again")
     REQUIRE(backend.links().front().id != share_link);
     REQUIRE_EQ(found[0].programs.size(), qsizetype{2});
     REQUIRE_EQ(found[0].owner, found[0].programs[0]);
+}
+
+namespace
+{
+
+job_plan combine_plan(int senders)
+{
+    job_plan plan;
+    plan.kind = job::combine;
+    for (int index = 0; index < senders; ++index)
+        plan.first.push_back(end_plan{});
+    end_plan receiver;
+    receiver.what = end_plan::kind::device;
+    receiver.device_path = QStringLiteral("COM4");
+    plan.second = {receiver};
+    return plan;
+}
+
+job_plan bus_plan(int members)
+{
+    job_plan plan;
+    plan.kind = job::bus;
+    for (int index = 0; index < members; ++index)
+        plan.first.push_back(end_plan{});
+    return plan;
+}
+
+/// Takes the end that holds `id` out of the plan's first list.
+void drop_first(job_plan& plan, vss::endpoint_id id)
+{
+    plan.first.erase(std::remove_if(plan.first.begin(), plan.first.end(),
+                                    [id](const end_plan& end)
+                                    { return end.existing == id; }),
+                     plan.first.end());
+}
+
+} // namespace
+
+TEST_CASE("simple: changing a combine keeps the link and the other senders")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, combine_plan(2)).has_value());
+    auto found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::combine);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    const vss::link_id link_id = backend.links().front().id;
+    const vss::endpoint_id receiver = found[0].receiver;
+    const vss::endpoint_id first = found[0].members[0];
+    const vss::endpoint_id second = found[0].members[1];
+
+    // Add a sender: the same link, the senders that were there and the
+    // receiver stay.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.first.push_back(end_plan{});
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::combine);
+    REQUIRE_EQ(found[0].members.size(), qsizetype{3});
+    REQUIRE(found[0].members.contains(first));
+    REQUIRE(found[0].members.contains(second));
+    REQUIRE_EQ(found[0].receiver, receiver);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(found[0].link, link_id);
+
+    // Close the first: it goes, the others stay, and the link is the link.
+    plan = plan_from(found[0], backend.ports());
+    drop_first(plan, first);
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE(!backend.port(first).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE_EQ(found[0].members.size(), qsizetype{2});
+    REQUIRE(found[0].members.contains(second));
+    REQUIRE_EQ(found[0].receiver, receiver);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE(backend.port(receiver).has_value());
+}
+
+TEST_CASE("simple: a combine with another receiver is made again")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, combine_plan(2)).has_value());
+    auto found = setups(backend);
+    const vss::link_id link_id = backend.links().front().id;
+
+    // A different receiver is a different link, so there is no in-place edit.
+    job_plan plan = plan_from(found[0], backend.ports());
+    end_plan other;
+    other.what = end_plan::kind::device;
+    other.device_path = QStringLiteral("COM3");
+    plan.second = {other};
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::combine);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE(backend.links().front().id != link_id);
+}
+
+TEST_CASE("simple: a failed change of a combine leaves the setup as it was")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(build_setup(backend, combine_plan(3)).has_value());
+    const auto found = setups(backend);
+    const vss::link_id link_id = backend.links().front().id;
+    const std::size_t ports = backend.ports().size();
+    const auto senders = backend.links().front().sources;
+    REQUIRE_EQ(senders.size(), qsizetype{3});
+
+    // A sender is added and another taken off; the second step fails, and the
+    // port that was made goes again.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.first.push_back(end_plan{});
+    drop_first(plan, senders[0]);
+    backend.fail_after(2, vss::make_error_code(vss::errc::io_error));
+    REQUIRE(!build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE_EQ(backend.ports().size(), ports);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE(backend.links().front().sources == senders);
+
+    // Two senders are taken off and the second step fails: the first comes
+    // back, at the end of the list.
+    plan = plan_from(found[0], backend.ports());
+    drop_first(plan, senders[0]);
+    drop_first(plan, senders[1]);
+    backend.fail_after(1, vss::make_error_code(vss::errc::io_error));
+    REQUIRE(!build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE_EQ(backend.ports().size(), ports);
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(backend.links().front().sources.size(), qsizetype{3});
+    for (const auto id : senders)
+        REQUIRE(backend.links().front().sources.contains(id));
+}
+
+TEST_CASE("simple: changing a bus keeps the bus and the other members")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    REQUIRE(build_setup(backend, bus_plan(3)).has_value());
+    auto found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::bus);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    const vss::link_id link_id = backend.links().front().id;
+    const vss::endpoint_id first = found[0].members[0];
+    const vss::endpoint_id second = found[0].members[1];
+    const vss::endpoint_id third = found[0].members[2];
+
+    // Add a member: the same bus, the members that were there stay.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.first.push_back(end_plan{});
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::bus);
+    REQUIRE_EQ(found[0].members.size(), qsizetype{4});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE(backend.links().front().sources.mid(0, 3) ==
+            (QVector<vss::endpoint_id>{first, second, third}));
+    REQUIRE_EQ(found[0].link, link_id);
+
+    // Close a member: it goes, the others stay, and the bus is the bus.
+    plan = plan_from(found[0], backend.ports());
+    drop_first(plan, second);
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE(!backend.port(second).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE_EQ(found[0].members.size(), qsizetype{3});
+    REQUIRE(found[0].members.contains(first));
+    REQUIRE(found[0].members.contains(third));
+    REQUIRE_EQ(backend.links().front().id, link_id);
+}
+
+TEST_CASE("simple: a bus whose members all change is still the same bus")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    REQUIRE(build_setup(backend, bus_plan(2)).has_value());
+    auto found = setups(backend);
+    const vss::link_id link_id = backend.links().front().id;
+
+    // Both members are replaced: the new ones join before the old ones leave,
+    // so the bus never has fewer than two.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.first = {end_plan{}, end_plan{}};
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::bus);
+    REQUIRE_EQ(found[0].members.size(), qsizetype{2});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+}
+
+TEST_CASE("simple: a failed change of a bus leaves the setup as it was")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    REQUIRE(build_setup(backend, bus_plan(3)).has_value());
+    const auto found = setups(backend);
+    const vss::link_id link_id = backend.links().front().id;
+    const std::size_t ports = backend.ports().size();
+    const auto members = backend.links().front().sources;
+
+    // A member is added and another taken off; the second step fails.
+    job_plan plan = plan_from(found[0], backend.ports());
+    plan.first.push_back(end_plan{});
+    drop_first(plan, members[0]);
+    backend.fail_after(2, vss::make_error_code(vss::errc::io_error));
+    REQUIRE(!build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE_EQ(backend.ports().size(), ports);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE(backend.links().front().sources == members);
+
+    // Swapping two for two, the first removal fails: the new members that
+    // joined are taken off again.
+    plan = plan_from(found[0], backend.ports());
+    drop_first(plan, members[0]);
+    drop_first(plan, members[1]);
+    plan.first.push_back(end_plan{});
+    plan.first.push_back(end_plan{});
+    backend.fail_after(4, vss::make_error_code(vss::errc::io_error));
+    REQUIRE(!build_setup(backend, plan, &found[0]).has_value());
+    REQUIRE_EQ(backend.ports().size(), ports);
+    REQUIRE_EQ(backend.links().front().id, link_id);
+    REQUIRE(backend.links().front().sources == members);
+}
+
+TEST_CASE("simple: a bus that would pass the most members is made again")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    const int most = static_cast<int>(vss::max_bus_members);
+    REQUIRE(build_setup(backend, bus_plan(most)).has_value());
+    auto found = setups(backend);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    const vss::link_id link_id = backend.links().front().id;
+
+    // Replacing one member keeps the bus at the most, which a bus edited in
+    // place could not do (the new member would join first), so the bus is made
+    // again.
+    job_plan plan = plan_from(found[0], backend.ports());
+    drop_first(plan, found[0].members[0]);
+    plan.first.push_back(end_plan{});
+    REQUIRE(build_setup(backend, plan, &found[0]).has_value());
+    found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE_EQ(found[0].members.size(), qsizetype{most});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE(backend.links().front().id != link_id);
 }
 
 TEST_CASE("simple: echo answers a lone program port")

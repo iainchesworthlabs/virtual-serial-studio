@@ -168,6 +168,14 @@ struct line_fixture
                           5000ms);
     }
 
+    /// The link `of`, which must exist.
+    link_info info(link_id of) const
+    {
+        const auto found = hub->find_link(of);
+        REQUIRE(found);
+        return *found;
+    }
+
     link_stats stats(link_id of) const
     {
         const auto info = hub->find_link(of);
@@ -879,4 +887,169 @@ TEST_CASE("half-duplex: senders in a storm lose no byte and count every one")
     REQUIRE_EQ(info->stats.dropped, std::uint64_t{0});
     if (spoilt != 0)
         REQUIRE(info->stats.collisions != 0);
+}
+
+TEST_CASE("half-duplex: a member added to the bus takes its turn on the line")
+{
+    line_fixture fixture(3);
+    const link_id bus = fixture.make_bus(half_duplex());
+    fixture.ports.push_back(add_mock(*fixture.hub, "late"));
+    REQUIRE(fixture.hub->add_member(bus, fixture.id(3)));
+
+    // It hears a chunk when the chunk has left the wire, like the others.
+    fixture.send(0, "poll");
+    REQUIRE_EQ(fixture.stats(bus).bytes, std::uint64_t{12});
+    fixture.clock.advance(40ms - 1ns);
+    REQUIRE_EQ(fixture.ports[3].written(), std::string());
+    fixture.clock.advance(1ns);
+    REQUIRE(fixture.heard(3, "poll"));
+
+    // What it sends while another member is sending has collided.
+    fixture.send(1, "aa");
+    fixture.send(3, "bb");
+    REQUIRE(fixture.faults(1));
+    REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{1});
+    fixture.clock.advance(1s);
+    REQUIRE(fixture.heard(0, "aabb"));
+    REQUIRE(fixture.heard(3, "pollaa"));
+}
+
+TEST_CASE("half-duplex: a member added in mid-chunk does not hear that chunk")
+{
+    line_fixture fixture(3);
+    const link_id bus = fixture.make_bus(half_duplex());
+
+    fixture.send(0, "early"); // 50 ms on the wire
+    fixture.clock.advance(10ms);
+    fixture.ports.push_back(add_mock(*fixture.hub, "late"));
+    REQUIRE(fixture.hub->add_member(bus, fixture.id(3)));
+    fixture.clock.advance(40ms);
+    REQUIRE(fixture.heard(1, "early"));
+    REQUIRE(fixture.heard(2, "early"));
+
+    // The next chunk reaches it, and no part of the one before.
+    fixture.send(1, "x");
+    fixture.clock.advance(10ms);
+    REQUIRE(fixture.heard(3, "x"));
+    REQUIRE_EQ(fixture.events.count(event_kind::bus_fault), std::size_t{0});
+}
+
+TEST_CASE("half-duplex: a member taken off in mid-chunk lets go of the line")
+{
+    line_fixture fixture(3);
+    const link_id bus =
+        fixture.make_bus(half_duplex(50, collision_action::garble));
+
+    fixture.send(0, "unplugged"); // 90 ms on the wire
+    fixture.clock.advance(10ms);
+    REQUIRE(fixture.hub->remove_member(bus, fixture.id(0)));
+
+    // The others send at once and cleanly: the line is free, turn-around and
+    // all.  What the member had on the wire is never heard.
+    fixture.send(1, "next");
+    fixture.clock.advance(200ms);
+    REQUIRE(fixture.heard(2, "next"));
+    REQUIRE_EQ(fixture.ports[1].written(), std::string());
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+    REQUIRE_EQ(fixture.events.count(event_kind::bus_fault), std::size_t{0});
+
+    // The endpoint is still in the hub, and off the bus.
+    REQUIRE(fixture.hub->find_endpoint(fixture.id(0)));
+    const auto info = fixture.hub->find_link(bus);
+    REQUIRE(info);
+    REQUIRE_EQ(info->sources.size(), std::size_t{2});
+    REQUIRE_EQ(info->stats.collisions, std::uint64_t{0});
+    REQUIRE_EQ(info->stats.garbled, std::uint64_t{0});
+}
+
+TEST_CASE("half-duplex: the line of a bus is turned on and off in place")
+{
+    line_fixture fixture(3);
+    const link_id bus = fixture.make_bus(link_options{});
+
+    // A plain bus delivers at once.
+    fixture.send(0, "a");
+    REQUIRE(fixture.heard(1, "a"));
+    REQUIRE(fixture.heard(2, "a"));
+
+    // Turned on, a chunk waits for the wire.
+    REQUIRE(fixture.hub->set_link_options(bus, half_duplex()));
+    REQUIRE(fixture.info(bus).options.half_duplex.enabled);
+    fixture.send(0, "poll");
+    fixture.clock.advance(40ms - 1ns);
+    REQUIRE_EQ(fixture.ports[1].written(), std::string("a"));
+    fixture.clock.advance(1ns);
+    REQUIRE(fixture.heard(1, "apoll"));
+    REQUIRE(fixture.heard(2, "apoll"));
+
+    // Turned off with a chunk on the wire: that chunk is discarded, and the
+    // next one is delivered at once and is not passed by it later.
+    fixture.send(1, "lost");
+    REQUIRE(fixture.hub->set_link_options(bus, link_options{}));
+    REQUIRE(!fixture.info(bus).options.half_duplex.enabled);
+    fixture.send(0, "z");
+    REQUIRE(fixture.heard(1, "apollz"));
+    REQUIRE(fixture.heard(2, "apollz"));
+    fixture.clock.advance(1s);
+    REQUIRE_EQ(fixture.ports[0].written(), std::string());
+    REQUIRE_EQ(fixture.ports[2].written(), std::string("apollz"));
+
+    // The bus is the one that was made, with every byte it routed counted.
+    const auto info = fixture.hub->find_link(bus);
+    REQUIRE(info);
+    REQUIRE_EQ(info->id, bus);
+    REQUIRE_EQ(info->stats.bytes, std::uint64_t{20});
+}
+
+TEST_CASE("half-duplex: new values make a new line and bad ones are refused")
+{
+    line_fixture fixture(3);
+    const link_id bus = fixture.make_bus(half_duplex());
+
+    fixture.send(0, "aa");
+    fixture.send(1, "bb");
+    REQUIRE(fixture.faults(1));
+    REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{1});
+    const std::uint64_t routed = fixture.stats(bus).bytes;
+
+    // Values outside the limits change nothing.
+    link_options bad = half_duplex();
+    bad.half_duplex.bit_rate = min_bus_bit_rate - 1;
+    const auto refused = fixture.hub->set_link_options(bus, bad);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), make_error_code(errc::invalid_argument));
+    REQUIRE_EQ(fixture.info(bus).options.half_duplex.bit_rate,
+               std::uint32_t{1000});
+    REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{1});
+
+    // The same values keep the line and what it counted.
+    REQUIRE(fixture.hub->set_link_options(bus, half_duplex()));
+    REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{1});
+
+    // A new rate is a new line: it starts free and counts from zero, and
+    // what the old wire carried is never heard.
+    link_options faster = half_duplex();
+    faster.half_duplex.bit_rate = 2000;
+    REQUIRE(fixture.hub->set_link_options(bus, faster));
+    REQUIRE_EQ(fixture.info(bus).options.half_duplex.bit_rate,
+               std::uint32_t{2000});
+    REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{0});
+    REQUIRE_EQ(fixture.stats(bus).bytes, routed);
+    fixture.send(2, "ok"); // 10 ms at the new rate
+    fixture.clock.advance(10ms);
+    REQUIRE(fixture.heard(0, "ok"));
+    REQUIRE(fixture.heard(1, "ok"));
+    REQUIRE_EQ(fixture.events.count(event_kind::bus_fault), std::size_t{1});
+    fixture.clock.advance(1s);
+    REQUIRE_EQ(fixture.ports[2].written(), std::string());
+
+    // Only a bus has a line to turn on.
+    const auto left = add_mock(*fixture.hub, "left");
+    const auto right = add_mock(*fixture.hub, "right");
+    const auto pair =
+        fixture.hub->connect(left.endpoint->id(), right.endpoint->id());
+    REQUIRE(pair);
+    const auto other = fixture.hub->set_link_options(*pair, half_duplex());
+    REQUIRE(!other);
+    REQUIRE_EQ(other.error(), make_error_code(errc::unsupported));
 }

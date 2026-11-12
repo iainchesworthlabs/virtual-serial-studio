@@ -25,10 +25,10 @@ namespace vss::gui
 class HalfDuplexFields;
 
 /// "Settings for <link>": delay, jitter, what happens when two write at once,
-/// and the modem-line crossing.  The engine cannot change these on a link
-/// that exists, so the caller remakes the link with `options()`
-/// (`backend/canvas_edit`).  A bus offers delay and jitter and, where the
-/// backend has `capabilities::half_duplex_bus`, the half-duplex line.
+/// and the modem-line crossing.  The caller changes the link in place with
+/// `options()` (`change_link_options` in `backend/canvas_edit`).  A bus offers
+/// delay and jitter and, where the backend has
+/// `capabilities::half_duplex_bus`, the half-duplex line.
 class LinkSettingsDialog final : public QDialog
 {
     Q_OBJECT

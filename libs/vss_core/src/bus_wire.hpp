@@ -64,6 +64,12 @@ public:
     /// Drops what `member` still has on the wire and stops delivering to it.
     void forget(endpoint_id member);
 
+    /// Discards what is on the wire and takes nothing more.  When it returns
+    /// no delivery is under way and none will follow, so the hub can put
+    /// another wire in this one's place without a chunk of this one arriving
+    /// after a chunk of the next.
+    void close();
+
 private:
     struct item
     {
@@ -82,7 +88,12 @@ private:
     const clock_function clock_;
     const std::shared_ptr<std::atomic<std::uint64_t>> garbled_;
 
+    /// Held while chunks are handed to their receivers, and by #close, so
+    /// that a close waits for a delivery under way.  Always taken before
+    /// `mutex_`.
+    std::mutex deliver_mutex_;
     std::mutex mutex_;
+    bool closed_ = false;
     /// By the time each leaves the wire; chunks due together keep the order
     /// they were pushed in.
     std::multimap<time_point, item> queue_;

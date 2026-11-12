@@ -52,6 +52,8 @@ void bus_wire::push(endpoint_id sender, time_point due, bytes_view data,
     bool first = false;
     {
         std::lock_guard lock(mutex_);
+        if (closed_)
+            return;
         const auto placed = queue_.emplace(
             due, item{sender, byte_buffer(data.begin(), data.end()),
                       std::move(transmission), std::move(receivers)});
@@ -87,6 +89,14 @@ void bus_wire::forget(endpoint_id member)
     }
 }
 
+void bus_wire::close()
+{
+    std::lock_guard delivering(deliver_mutex_);
+    std::lock_guard lock(mutex_);
+    closed_ = true;
+    queue_.clear();
+}
+
 void bus_wire::arm()
 {
     time_point due;
@@ -120,6 +130,9 @@ void bus_wire::arm()
 void bus_wire::fire()
 {
     VSS_PROFILE_ZONE("link.wire_fire");
+    // Only this strand and close() take it, so it is free unless the hub is
+    // replacing the wire.
+    std::lock_guard delivering(deliver_mutex_);
     std::vector<item> ready;
     {
         std::lock_guard lock(mutex_);

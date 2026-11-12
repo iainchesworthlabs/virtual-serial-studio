@@ -20,7 +20,12 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_events.cpp
   unit/test_hub_half_duplex.cpp
   unit/test_hub_latency.cpp
+  unit/test_hub_members.cpp
+  unit/test_hub_options.cpp
+  unit/test_hub_options_stress.cpp
   unit/test_hub_owner.cpp
+  unit/test_hub_sources.cpp
+  unit/test_hub_sources_stress.cpp
   unit/test_hub_targets.cpp
   unit/test_hub_targets_stress.cpp
   unit/test_hub_topology.cpp
@@ -42,6 +47,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio.cpp
   unit/test_studio_reopen.cpp
   unit/test_studio_links.cpp
+  unit/test_studio_options.cpp
+  unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
   unit/test_virtual_ports.cpp

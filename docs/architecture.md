@@ -142,72 +142,190 @@ Before this rule the policy was checked on every route of a link. On a split
 that dropped every reply of the targets once the source owned the link, and let
 a target that sent first take the link and shut the source out of it.
 
-### Changing the targets of a link
+### Changing a link in place
 
-`hub::add_target(link, endpoint)` and `hub::remove_target(link, endpoint)` add
-or remove one target of a duplex link (`connect` or `split`) that exists. The
-link keeps its id, options, owner and counters, and its other routes are not
-touched. The rules, for each kind of link:
+Three pairs of calls change a link that exists without making it again. The link
+keeps its id, options, owner and counters, and its other routes are not touched:
 
-| Link | `add_target` | `remove_target` |
-|---|---|---|
-| `connect`, `split` | adds source→target and target→source | removes both |
-| `join`, `redirect`, `monitor` | `unsupported` | `unsupported` |
-| `bus` | `unsupported` | `unsupported` |
+* `hub::add_target(link, endpoint)` and `hub::remove_target(link, endpoint)` add or
+  remove one target of a duplex link (`connect` or `split`).
+* `hub::add_source(link, endpoint)` and `hub::remove_source(link, endpoint)` add or
+  remove one source of a one-way link (`join`, `redirect` or `monitor`).
+* `hub::add_member(link, endpoint)` and `hub::remove_member(link, endpoint)` add or
+  remove one member of a bus.
 
-A one-way link is refused because the saved topology has no shape for one
-source feeding several targets one way (`redirect` and `monitor` are one to
-one, `join` is many to one), and what varies in a join is its sources, which is
-a different operation. A bus is refused because a member is not a target: it
-is both ends of `n - 1` routes, it is recorded as the one bus the endpoint is
-on, and the cycle check treats the whole bus as one node. Removing an endpoint
-already takes a member out of a bus; adding one is future work.
+The rules, for each kind of link:
 
-The other refusals: `not_found` for an unknown link or endpoint and for
-removing an endpoint that is not a target of the link; `invalid_argument` for
-the link's own source (a self-link) and for removing the last target (a link
-has at least one target, so `disconnect` it); `already_exists` for a target
-that is already on the link; `cycle_detected` when either new route would close
-a loop through other links or through a bus. Every check is made before the
-first change and the space for both routes is reserved before either is
-stored, so a refused `add_target` leaves no half of a link behind.
+| Link | `add_target` / `remove_target` | `add_source` / `remove_source` | `add_member` / `remove_member` |
+|---|---|---|---|
+| `connect`, `split` | adds source→target and target→source, or removes both | `unsupported` | `unsupported` |
+| `join`, `redirect`, `monitor` | `unsupported` | adds source→target, or removes it | `unsupported` |
+| `bus` | `unsupported` | `unsupported` | adds the `2 * n` routes between the member and the `n` others, or removes them |
+
+A call is refused on a link of the wrong kind because each kind varies in one
+list only. A duplex link has one source by construction (`connect` and `split`
+make no other), so what varies is its targets. The saved topology has no shape
+for one source feeding several targets one way (`redirect` and `monitor` are one
+to one, `join` is many to one), so what varies on a one-way link is its sources.
+A bus has no sources or targets: a member is both ends of `n - 1` routes, it is
+recorded as the one bus the endpoint is on, and the cycle check treats the whole
+bus as one node, so it has its own pair of calls.
+
+A `monitor` takes a source. The saved topology writes a one-way link with
+several sources as a `join` whether or not it carries modem lines (a tap on a
+bus is such a join), so a monitor with two sources is a valid `join` with
+`emulate_modem_lines` false, and with one source again it is saved as a
+`monitor` (or as a `redirect` if it carries lines). A `redirect` is a `join` from
+the second source on and a `redirect` again at the first. The file format and the
+JSON schema are unchanged.
+
+The refusals, and nothing is changed by any of them:
+
+* `not_found` for an unknown link or endpoint, and for removing an endpoint that
+  is not a target, source or member of the link (the target of a one-way link is
+  not one of its sources).
+* `unsupported` for a link of the wrong kind, as the table shows.
+* `invalid_argument` for adding the link's own source as a target (a self-link)
+  or its target as a source, for removing the last target or the last source (a
+  link has at least one of each, so `disconnect` it), for adding a member to a
+  bus of 64 (`max_bus_members`), and for removing a member of a bus of two (a bus
+  has at least two, so `disconnect` it; removing an *endpoint* from the hub is
+  different, and takes the bus down under two members).
+* `already_exists` for an endpoint that is a target or source of the link
+  already, and for a member of this bus or of another (an endpoint is on one bus
+  at most).
+* `cycle_detected` when a new route would close a loop through other links or
+  through a bus. For a bus member the rule is that the endpoint becomes part of
+  the bus node, which closes a loop exactly when a route leaves the endpoint and
+  reaches the bus, or leaves the bus and reaches the endpoint, directly or
+  through other links or buses. Either would deliver the same bytes twice or
+  send them round. The check is `reaches(endpoint, {bus})` or
+  `reaches(bus, {endpoint})` on the table as it is before the change; the graph
+  has no cycle now, so no other cycle can pass through the merged node. Two
+  routes that reach the same listen-only tap, one from the endpoint and one from
+  the members, are not a path between them and are not a loop.
+
+Every check is made before the first change, and the space for every route is
+reserved, and every delay line made, before any route is stored, so a refused or
+failed call leaves no half of a link behind.
 
 What a change does to traffic and state:
 
 * **Bytes on the way.** `route_data` collects its deliveries under the shared
   lock, as shared pointers to the target endpoints and delay lines, and writes
-  after releasing it. The two calls change the table under the exclusive lock.
-  So a chunk that is being routed when a target is removed either reaches that
-  target or does not, and the endpoint it is written to is alive because the
-  delivery holds it. A surviving route's entry is never rewritten (its delay
-  line is the same object), and one publisher's chunks are routed one at a time
-  on its strand, so a surviving target sees them in order and once.
-* **Delayed bytes.** The hub closes the delay lines of the two removed routes
-  before `remove_target` returns. Closing discards what the line holds, makes
-  it refuse a chunk still on its way in, and waits for a write to the target
-  that is under way. The line's timer and strand go when the last reference
-  does; its handlers hold it weakly, so nothing runs on a freed line. A target
-  that is added again gets a new, empty line, and cannot be overtaken by the
-  old one.
-* **Counters.** They belong to the link, not to a route. `bytes` and
-  `messages` count deliveries handed to a route when they were routed and
-  `dropped` counts bytes the owner policy refused, and all three keep what a
-  removed route added. Bytes discarded from a delay line were counted in
-  `bytes` when they went in, as they are when a delayed link is removed.
-* **The owner.** Removing the target that owns the link releases it, so the
-  next target to send takes it. A new target owns nothing until it is given
-  the link or sends first on a link with no owner.
+  after releasing it. The six calls change the table under the exclusive lock.
+  So a chunk that is being routed when an end is removed either reaches it or
+  does not, and the endpoint it is written to is alive because the delivery
+  holds it. A chunk routed when an end is added sees either all of the new routes
+  or none: for a member, the `2 * n` routes are stored, `sources` is extended and
+  `bus_of_` is updated under one exclusive lock, so no reader sees a member that
+  can hear and not speak, or the reverse. A surviving route's entry is never
+  rewritten (its delay line is the same object), and one publisher's chunks are
+  routed one at a time on its strand, so a surviving end sees them in order and
+  once.
+* **Delayed bytes.** The hub closes the delay lines of the removed routes before
+  the call returns, after releasing the lock. Closing discards what the line
+  holds, makes it refuse a chunk still on its way in, and waits for a write to
+  the target that is under way. The line's timer and strand go when the last
+  reference does; its handlers hold it weakly, so nothing runs on a freed line.
+  An end that is added again gets new, empty lines, and cannot be overtaken by
+  the old ones. A new route has the link's delay and jitter.
+* **Counters.** They belong to the link, not to a route. `bytes` and `messages`
+  count deliveries handed to a route when they were routed and `dropped` counts
+  bytes the owner policy refused, and all three keep what a removed route added.
+  Bytes discarded from a delay line were counted in `bytes` when they went in,
+  as they are when a delayed link is removed.
+* **The owner.** Removing the target (of a duplex link) or the source (of a
+  one-way link) that owns the link releases it, so the next one to send takes it.
+  A new end owns nothing until it is given the link or sends first on a link with
+  no owner. Whether a route is arbitrated is decided when the route is made, from
+  its sender being one of the link's owner candidates (the targets of a duplex
+  link, the sources of a one-way link), so a new end is put in the list *before*
+  its routes are made. A new source's route is arbitrated: its bytes are dropped
+  and counted until it owns the link. A new target's reply route is, and its
+  forward route is not. A bus has no owner.
 * **Control lines.** On a link with `emulate_modem_lines` a new target is given
   the source's output lines at once, through the link's wiring. The source's
-  inputs follow the new target from that target's next line change, as on a
-  link that was just made. A removed target loses the inputs the link drove,
-  as when a cable is pulled; if another link still drives that endpoint its
-  inputs show that link's sender instead. The source's inputs are then set
-  from the targets that remain, in list order, so they never show a port that
-  is no longer on the link.
+  inputs follow the new target from that target's next line change, as on a link
+  that was just made. A new *source* changes no input of the target: the target
+  follows it from its next line change, as it follows any source of a join. A
+  removed target loses the inputs the link drove, as when a cable is pulled; if
+  another link still drives that endpoint its inputs show that link's sender
+  instead. The source's inputs are then set from the targets that remain, in list
+  order, so they never show a port that is no longer on the link. After a removed
+  *source*, the target's inputs are set from the sources that remain, in list
+  order (with several, the last of them shows), so they never show a port that is
+  gone. A bus carries no lines.
 * **The saved topology.** `link_info`, `studio::snapshot()` and the JSON follow
-  the target list. A duplex link with one target is saved as `duplex` and with
-  several as `split`, as before, so the file format is unchanged.
+  the lists. A duplex link with one target is saved as `duplex` and with several
+  as `split`; a one-way link with several sources is saved as `join`, and with one
+  as `redirect` (`monitor` without modem lines); a bus lists its members in order.
+  The file format is unchanged, and a snapshot after any sequence of the calls is
+  valid and reads back as the same links.
+
+### Changing the options of a link
+
+`hub::set_link_options(link, options)` changes the delay, jitter, merge policy,
+`emulate_modem_lines`, wiring and half-duplex line of a link that exists, in place. The link keeps
+its id, its sources, its targets and its counters, and the other links are not
+touched. Before it, the GUI made the link again with a new id for any of these.
+
+| Option | What a change does |
+|---|---|
+| `delay_ms`, `jitter_ms` | Every route gets a new delay line (none when both are now zero) and the old lines are closed, so the bytes they still hold are **discarded**, as when a target is removed. If neither changed, the lines are the same objects and keep their bytes. |
+| `policy` | Each route's `arbitrated` flag is worked out again. Into `owner` the link has no owner until a publisher on an arbitrated route sends first or `set_owner` names one. Out of `owner` the stored owner is cleared. `owner` to `owner` leaves the owner as it is. |
+| `emulate_modem_lines` on, or `wiring` while on | The current outputs of every sender are pushed along the link through the new wiring, as `set_link_wiring` does, so the receivers' inputs follow at once. |
+| `emulate_modem_lines` off | Each endpoint the link drove loses the inputs it drove, as when a cable is pulled, unless another link still drives it, and then it shows that link's sender, as after `remove_target`. |
+| `half_duplex` (a bus only) | When any of its values changes while it is on, or it is turned on or off, the bus gets a new `bus_line` and a new `bus_wire` (none when it is now off) and the old wire is closed, so what it still carries is **discarded**. The new line starts free, each member's RTS is read again, and `link_stats::collisions` and `garbled` start again from zero, because they belong to the line. If none of its values changed, the line and the wire are the same objects. |
+
+The rules for each kind of link:
+
+| Link | Rule |
+|---|---|
+| `connect`, `split`, `join`, `redirect` | Every option may change. |
+| `monitor` | Every option may change. A `monitor` is a one-way link with `emulate_modem_lines` false, and the saved topology tells it from a `redirect` by that flag, so turning the lines on saves it as a `redirect` and off again as a `monitor`. The file takes a delay and a policy on every link, so no combination is refused for being unsaveable, and the options read back from the saved file are the ones set. The wiring is the one option the file does not store. |
+| `bus` | Delay, jitter and the half-duplex line may change. `emulate_modem_lines` is stored as false whatever is passed, as on creation. Any policy but `interleave` is `unsupported`. The wiring is ignored and the bus keeps the wiring it has: it has no lines, so it means nothing, and only `set_link_wiring`, which is asked for nothing else, refuses it with `unsupported`. |
+
+The refusals, and nothing is changed by any of them: `invalid_argument` for a
+delay over one minute, a jitter over the delay or half-duplex values outside
+their limits (checked first, as on creation), `not_found` for an unknown link,
+`unsupported` for a bus and the owner policy and for `half_duplex.enabled` on a
+link that is not a bus. The new delay lines, and the new line and wire of a
+half-duplex bus, are made before the first stored change, so a failed call
+leaves the link as it was. While the old wire is closed the link's `retiming`
+count is up, as it is while old delay lines are closed, so no chunk takes the
+new wire and passes one the old wire is still delivering.
+
+What a change does to traffic:
+
+* **Which fields are read.** `route_data` reads, under the shared lock, the
+  route's `link`, `to`, `delay` and `arbitrated`, and the link's `owner`,
+  counters and `retiming` count. `route_lines` reads the route's `link` and `to`
+  and the link's `emulate_modem_lines` and `wiring`. `set_link_options` writes
+  every one of them under the exclusive lock, so no reader sees a link half
+  changed: it sees the options, the lines and the flags from before, or all of
+  them from after.
+* **Bytes on the way.** A chunk routed before the call, on a delayed link, is
+  either delivered or discarded (the old line is closed after the lock is
+  released, and a chunk that reaches a closed line is dropped). On an undelayed
+  link it is delivered. A chunk routed after the call returns is delivered, in
+  order, through the new lines. Because one publisher's chunks are routed one at a
+  time on its strand, and the old lines are closed before the call returns, bytes
+  can be lost at a change but are never reordered or repeated.
+* **The gate.** Closing a line waits for a write under way, which happens after
+  the lock is released. A chunk routed in between would take the new route and could
+  pass a chunk that an old line is still writing (a delayed link made undelayed).
+  So when lines are replaced the link's `retiming` count is raised under the
+  exclusive lock and lowered once the old lines are closed. `route_data` skips a
+  link while the count is above zero, so a chunk routed in that short time is
+  discarded and counts nothing. The count rather than a flag lets two overlapping
+  calls on one link keep the gate shut until both have closed their lines.
+* **Counters and owner.** The counters belong to the link and keep counting. A
+  discarded chunk was counted in `bytes` when it went into its line. The owner is
+  kept unless the policy leaves `owner`.
+* **A line change being routed** when the lines are switched off may still reach
+  its receiver just after the call, as with `remove_target` and
+  `set_link_wiring`; the next change corrects it.
 
 ### Link delay
 
@@ -219,7 +337,8 @@ has passed, drawn uniformly within the jitter either side of `delay_ms`. Due
 times never go backwards, so jitter cannot reorder the bytes of a route. The
 delay is at most one minute (`max_link_delay_ms`) and the jitter at most the
 delay, or the call fails with `invalid_argument`. `monitor` takes no options and
-has no delay. Removing a route drops whatever its line still holds.
+has no delay. Removing a route drops whatever its line still holds, and so does
+changing the delay of the link (see *Changing the options of a link*).
 
 ### The shared bus
 
@@ -265,9 +384,12 @@ them; the rules below are what keep it sound.
   `n` bytes from one member of a bus of five adds `4n` bytes and four messages
   to the link. The traffic ring shows it once as received on the sender and
   once as sent on each receiver.
-* **Removal.** Removing the link frees its members. Removing a member takes it
-  out of the bus and leaves the others on it; the bus goes when fewer than two
-  remain.
+* **Removal and membership.** Removing the link frees its members. Removing an
+  endpoint from the hub takes it out of the bus and leaves the others on it; the
+  bus goes when fewer than two remain. `add_member` and `remove_member` change
+  the membership of a bus that stays (see *Changing a link in place*); the
+  second refuses to go below two members, because that is what `disconnect` is
+  for.
 
 Any endpoint kind may be a member: a driver port, a pseudo terminal, a loopback
 port, a real serial port, and TCP, UDP and RFC 2217 ports, so a port on another
@@ -389,8 +511,13 @@ after the hub lock is released. `link_stats` gains `collisions` and `garbled`.
 
 **Removal.** A member that is removed stops holding the line at once, what it
 still had on the wire is discarded with its routes (as a link's delay line is),
-and what the others had on the wire is no longer delivered to it. The members of
-a bus are fixed when it is made, so none joins a transmission half way.
+and what the others had on the wire is no longer delivered to it. `remove_member`
+does the same for a member that stays in the hub.
+
+**Joining.** `add_member` puts an endpoint on a half-duplex bus under the
+exclusive lock: the line is told its RTS and its routes are added in one step. It
+hears the chunks routed after that, so a chunk already on the wire when it joined
+does not reach it, and it never hears part of one.
 
 **The saved file.** A half-duplex bus that came back as a plain bus after save
 and open would silently change what a test rig does, so the option is saved: one

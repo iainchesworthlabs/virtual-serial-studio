@@ -179,7 +179,7 @@ TEST_CASE("canvas edit: a removal is made again by name")
     REQUIRE(named(backend, name).has_value());
 }
 
-TEST_CASE("canvas edit: new link options remake the link")
+TEST_CASE("canvas edit: new link options change the link in place")
 {
     FakeStudioBackend backend;
     REQUIRE(build_bundle(backend, default_request(canvas_item::pair, {})));
@@ -187,14 +187,30 @@ TEST_CASE("canvas edit: new link options remake the link")
     vss::link_options options = before.options;
     options.delay_ms = 20;
     options.jitter_ms = 5;
-    const auto after = remake_link(backend, before.id, options);
-    REQUIRE(after.has_value());
+    REQUIRE(change_link_options(backend, before.id, options).has_value());
     REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    // The same link, not one made again.
+    REQUIRE_EQ(backend.links().front().id, before.id);
     REQUIRE_EQ(backend.links().front().options.delay_ms, 20u);
+    REQUIRE_EQ(backend.links().front().options.jitter_ms, 5u);
     REQUIRE(backend.links().front().sources == before.sources);
+    REQUIRE(backend.links().front().targets == before.targets);
 }
 
-TEST_CASE("canvas edit: remaking a bus keeps its delay and half-duplex line")
+TEST_CASE("canvas edit: refused link options change nothing")
+{
+    FakeStudioBackend backend;
+    REQUIRE(build_bundle(backend, default_request(canvas_item::pair, {})));
+    const auto before = backend.links().front();
+    vss::link_options options = before.options;
+    options.delay_ms = 5;
+    options.jitter_ms = 6;
+    REQUIRE(!change_link_options(backend, before.id, options).has_value());
+    REQUIRE_EQ(backend.links().front().options.delay_ms, 0u);
+    REQUIRE(!change_link_options(backend, before.id + 100, {}).has_value());
+}
+
+TEST_CASE("canvas edit: a bus keeps its delay when its line changes")
 {
     FakeStudioBackend backend;
     capabilities caps = backend.caps();
@@ -219,10 +235,10 @@ TEST_CASE("canvas edit: remaking a bus keeps its delay and half-duplex line")
     REQUIRE(backend.bus(members, options).has_value());
     const auto before = backend.links().front();
 
-    // The same options make the same bus again.
-    const auto same = remake_link(backend, before.id, before.options);
-    REQUIRE(same.has_value());
+    // The same options leave the same bus.
+    REQUIRE(change_link_options(backend, before.id, before.options));
     REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, before.id);
     REQUIRE_EQ(backend.links().front().options.delay_ms, 12u);
     REQUIRE_EQ(backend.links().front().options.jitter_ms, 4u);
     REQUIRE(backend.links().front().options.half_duplex == options.half_duplex);
@@ -230,7 +246,8 @@ TEST_CASE("canvas edit: remaking a bus keeps its delay and half-duplex line")
     // A changed rate is applied and the delay stays.
     vss::link_options changed = backend.links().front().options;
     changed.half_duplex.bit_rate = 9600;
-    REQUIRE(remake_link(backend, backend.links().front().id, changed));
+    REQUIRE(change_link_options(backend, before.id, changed));
+    REQUIRE_EQ(backend.links().front().id, before.id);
     REQUIRE_EQ(backend.links().front().options.half_duplex.bit_rate, 9600u);
     REQUIRE_EQ(backend.links().front().options.delay_ms, 12u);
 

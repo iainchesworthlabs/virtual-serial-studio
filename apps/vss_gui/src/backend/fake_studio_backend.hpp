@@ -197,6 +197,17 @@ public:
                                  vss::endpoint_id target) override;
     vss::result<void> remove_target(vss::link_id link,
                                     vss::endpoint_id target) override;
+    vss::result<void> add_source(vss::link_id link,
+                                 vss::endpoint_id source) override;
+    vss::result<void> remove_source(vss::link_id link,
+                                    vss::endpoint_id source) override;
+    vss::result<void> add_member(vss::link_id link,
+                                 vss::endpoint_id member) override;
+    vss::result<void> remove_member(vss::link_id link,
+                                    vss::endpoint_id member) override;
+    vss::result<void>
+    set_link_options(vss::link_id link,
+                     const vss::link_options& options) override;
     vss::result<void> set_owner(vss::link_id id,
                                 vss::endpoint_id owner) override;
     vss::result<void> release_owner(vss::link_id id) override;

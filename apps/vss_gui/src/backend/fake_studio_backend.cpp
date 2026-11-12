@@ -35,6 +35,18 @@ QString path_for(vss::virtual_port_kind kind, const QString& name,
     return QStringLiteral("fake:%1").arg(name);
 }
 
+/// The shape the engine reports for a one-way link: several sources are a
+/// join whether or not it carries modem lines, and one source is a one-way
+/// link or, without modem lines, a monitor.
+void set_one_way_shape(link_view& view)
+{
+    if (view.sources.size() > 1)
+        view.shape = link_shape::join;
+    else
+        view.shape = view.options.emulate_modem_lines ? link_shape::one_way
+                                                      : link_shape::monitor;
+}
+
 vss::endpoint_kind kind_for_uri(const QString& uri)
 {
     const QString scheme = uri.section(QStringLiteral("://"), 0, 0);
@@ -631,6 +643,137 @@ vss::result<void> FakeStudioBackend::remove_target(vss::link_id link,
     view->targets.remove(at);
     if (view->owner == target)
         view->owner = 0;
+    refresh();
+    return {};
+}
+
+vss::result<void> FakeStudioBackend::add_source(vss::link_id link,
+                                                vss::endpoint_id source)
+{
+    if (const auto error = take_error())
+        return *error;
+    link_view* view = find_link(link);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->mode != vss::link_mode::one_way)
+        return vss::make_error_code(vss::errc::unsupported);
+    if (find_port(source) == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->targets.contains(source))
+        return vss::make_error_code(vss::errc::invalid_argument);
+    if (view->sources.contains(source))
+        return vss::make_error_code(vss::errc::already_exists);
+    view->sources.push_back(source);
+    set_one_way_shape(*view);
+    refresh();
+    return {};
+}
+
+vss::result<void> FakeStudioBackend::remove_source(vss::link_id link,
+                                                   vss::endpoint_id source)
+{
+    if (const auto error = take_error())
+        return *error;
+    link_view* view = find_link(link);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->mode != vss::link_mode::one_way)
+        return vss::make_error_code(vss::errc::unsupported);
+    const qsizetype at = view->sources.indexOf(source);
+    if (at < 0)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->sources.size() == 1)
+        return vss::make_error_code(vss::errc::invalid_argument);
+    view->sources.remove(at);
+    if (view->owner == source)
+        view->owner = 0;
+    set_one_way_shape(*view);
+    refresh();
+    return {};
+}
+
+vss::result<void> FakeStudioBackend::add_member(vss::link_id link,
+                                                vss::endpoint_id member)
+{
+    if (const auto error = take_error())
+        return *error;
+    link_view* view = find_link(link);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->mode != vss::link_mode::bus)
+        return vss::make_error_code(vss::errc::unsupported);
+    if (find_port(member) == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    for (const link_view& other : links_)
+    {
+        if (other.shape == link_shape::bus && other.sources.contains(member))
+            return vss::make_error_code(vss::errc::already_exists);
+    }
+    if (static_cast<std::size_t>(view->sources.size()) >= vss::max_bus_members)
+        return vss::make_error_code(vss::errc::invalid_argument);
+    view->sources.push_back(member);
+    refresh();
+    return {};
+}
+
+vss::result<void> FakeStudioBackend::remove_member(vss::link_id link,
+                                                   vss::endpoint_id member)
+{
+    if (const auto error = take_error())
+        return *error;
+    link_view* view = find_link(link);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->mode != vss::link_mode::bus)
+        return vss::make_error_code(vss::errc::unsupported);
+    const qsizetype at = view->sources.indexOf(member);
+    if (at < 0)
+        return vss::make_error_code(vss::errc::not_found);
+    if (view->sources.size() <= 2)
+        return vss::make_error_code(vss::errc::invalid_argument);
+    view->sources.remove(at);
+    refresh();
+    return {};
+}
+
+vss::result<void>
+FakeStudioBackend::set_link_options(vss::link_id id,
+                                    const vss::link_options& options)
+{
+    if (const auto error = take_error())
+        return *error;
+    // The same rules as the engine, in the same order.
+    if (!vss::valid_latency(options) ||
+        !vss::valid_half_duplex(options.half_duplex))
+        return vss::make_error_code(vss::errc::invalid_argument);
+    link_view* view = find_link(id);
+    if (view == nullptr)
+        return vss::make_error_code(vss::errc::not_found);
+    const bool bus = view->mode == vss::link_mode::bus;
+    if (bus && options.policy != vss::merge_policy::interleave)
+        return vss::make_error_code(vss::errc::unsupported);
+    // Only a bus has a half-duplex line, and only where the backend has it.
+    if (options.half_duplex.enabled && (!bus || !caps_.half_duplex_bus))
+        return vss::make_error_code(vss::errc::unsupported);
+
+    vss::link_options next = options;
+    if (bus)
+    {
+        // A bus has no modem lines to switch or wire.
+        next.emulate_modem_lines = false;
+        next.wiring = view->options.wiring;
+    }
+    // A link that interleaves has no owner to name.
+    if (view->options.policy == vss::merge_policy::owner &&
+        next.policy != vss::merge_policy::owner)
+        view->owner = 0;
+    view->options = next;
+    // A one-way link with one source is a monitor while it carries no lines.
+    if (view->mode == vss::link_mode::one_way && view->sources.size() == 1)
+    {
+        view->shape = next.emulate_modem_lines ? link_shape::one_way
+                                               : link_shape::monitor;
+    }
     refresh();
     return {};
 }
