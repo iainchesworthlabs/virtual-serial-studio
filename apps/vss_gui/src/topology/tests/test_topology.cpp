@@ -36,6 +36,7 @@
 #include <QScrollBar>
 #include <QSettings>
 #include <QStatusBar>
+#include <QToolButton>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -1639,5 +1640,147 @@ TEST_CASE("topology canvas: the link style redraws the links at once")
 
     view.set_link_style(vss::gui::link_style::curved);
     REQUIRE(view.link_stroke(fixture.link) == curved);
+    view.close();
+}
+
+TEST_CASE("topology: zoom is limited to 25 to 400 percent")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(800, 600);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    REQUIRE_NEAR(topo::TopologyView::min_zoom(), 0.25, 0.0001);
+    REQUIRE_NEAR(topo::TopologyView::max_zoom(), 4.0, 0.0001);
+
+    for (int index = 0; index < 30; ++index)
+        view.zoom_in();
+    REQUIRE_NEAR(view.zoom(), 4.0, 0.001);
+    auto* in_button = view.findChild<QToolButton*>(
+        QStringLiteral("topologyZoomIn"));
+    REQUIRE(in_button != nullptr);
+    REQUIRE(!in_button->isEnabled());
+
+    for (int index = 0; index < 40; ++index)
+        view.zoom_out();
+    REQUIRE_NEAR(view.zoom(), 0.25, 0.001);
+    auto* out_button = view.findChild<QToolButton*>(
+        QStringLiteral("topologyZoomOut"));
+    REQUIRE(out_button != nullptr);
+    REQUIRE(!out_button->isEnabled());
+    REQUIRE(in_button->isEnabled());
+    view.close();
+}
+
+TEST_CASE("topology: zoom keeps the point under the anchor still")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(800, 600);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+    view.fit_content();
+
+    const QPoint anchor(300, 200);
+    const QPointF before = view.mapToScene(anchor);
+    view.zoom_at(1.5, anchor);
+    REQUIRE(view.zoom() > 0.0);
+    const QPointF after = view.mapToScene(anchor);
+    REQUIRE_NEAR(after.x(), before.x(), 2.0);
+    REQUIRE_NEAR(after.y(), before.y(), 2.0);
+    REQUIRE(!view.is_auto_fit());
+
+    // The buttons and keys zoom about the centre of the view.
+    view.fit_content();
+    const QPoint centre = view.viewport()->rect().center();
+    const QPointF centre_before = view.mapToScene(centre);
+    view.zoom_in();
+    QApplication::processEvents();
+    const QPointF centre_after = view.mapToScene(centre);
+    REQUIRE_NEAR(centre_after.x(), centre_before.x(), 2.0);
+    REQUIRE_NEAR(centre_after.y(), centre_before.y(), 2.0);
+    view.close();
+}
+
+TEST_CASE("topology: the zoom buttons zoom, show the percentage and reset")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(800, 600);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+    view.fit_content();
+
+    auto* in_button =
+        view.findChild<QToolButton*>(QStringLiteral("topologyZoomIn"));
+    auto* out_button =
+        view.findChild<QToolButton*>(QStringLiteral("topologyZoomOut"));
+    auto* reset_button =
+        view.findChild<QToolButton*>(QStringLiteral("topologyZoomReset"));
+    REQUIRE(in_button != nullptr);
+    REQUIRE(out_button != nullptr);
+    REQUIRE(reset_button != nullptr);
+    REQUIRE(!in_button->accessibleName().isEmpty());
+    REQUIRE(!out_button->accessibleName().isEmpty());
+    REQUIRE(!reset_button->accessibleName().isEmpty());
+    REQUIRE(!in_button->toolTip().isEmpty());
+    REQUIRE(in_button->focusPolicy() != Qt::NoFocus);
+    REQUIRE(in_button->height() >= 24);
+    REQUIRE(in_button->width() >= 24);
+    REQUIRE(out_button->width() >= 24);
+    REQUIRE(reset_button->width() >= 24);
+
+    const qreal fitted = view.zoom();
+    in_button->click();
+    REQUIRE(view.zoom() > fitted);
+    out_button->click();
+    out_button->click();
+    REQUIRE(view.zoom() < fitted);
+
+    reset_button->click();
+    REQUIRE_NEAR(view.zoom(), 1.0, 0.001);
+    REQUIRE(reset_button->text() == QStringLiteral("100%"));
+
+    // The bar stays inside the canvas, in its bottom-right corner.
+    const QWidget* bar =
+        view.findChild<QWidget*>(QStringLiteral("topologyZoomBar"));
+    REQUIRE(bar != nullptr);
+    REQUIRE(bar->isVisible());
+    REQUIRE(bar->geometry().right() <= view.viewport()->width());
+    REQUIRE(bar->geometry().bottom() <= view.viewport()->height());
+    REQUIRE(bar->geometry().left() > view.viewport()->width() / 2);
+
+    // Ctrl+1 resets from the keyboard; Ctrl+0 still fits.
+    view.zoom_in();
+    QKeyEvent ctrl_one(QEvent::KeyPress, Qt::Key_1, Qt::ControlModifier);
+    QApplication::sendEvent(&view, &ctrl_one);
+    REQUIRE_NEAR(view.zoom(), 1.0, 0.001);
+    view.close();
+}
+
+TEST_CASE("topology: hit-testing and dragging stay correct when zoomed")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(800, 600);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    for (const qreal factor : {0.5, 3.0})
+    {
+        view.reset_zoom();
+        view.zoom_at(factor, view.viewport()->rect().center());
+        QApplication::processEvents();
+        const QRectF node = view.node_rect(fixture.terminal);
+        const QPoint at = view.mapFromScene(node.center());
+        REQUIRE(view.itemAt(at) != nullptr);
+        REQUIRE_NEAR(view.mapToScene(at).x(), node.center().x(), 1.0);
+        REQUIRE_NEAR(view.mapToScene(at).y(), node.center().y(), 1.0);
+    }
     view.close();
 }
