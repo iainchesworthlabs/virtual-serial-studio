@@ -51,7 +51,7 @@ public:
     /// The Advanced table, for tests.
     QTableView* table() const noexcept { return table_; }
     /// Smallest a table column can be dragged to (a 24 px target and more).
-    static constexpr int minimum_column_width = 48;
+    static constexpr int kMinimumColumnWidth = 48;
     /// Writes the column widths now rather than after the usual short delay.
     void save_column_widths() const;
 

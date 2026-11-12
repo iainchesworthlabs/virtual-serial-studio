@@ -131,7 +131,7 @@ void PortsPanel::build()
     header->setHighlightSections(false);
     header->setSectionsMovable(false);
     header->setSectionResizeMode(QHeaderView::Interactive);
-    header->setMinimumSectionSize(minimum_column_width);
+    header->setMinimumSectionSize(kMinimumColumnWidth);
     header->setStretchLastSection(true);
     header->setAccessibleName(tr("Ports table columns"));
     set_default_column_widths();
@@ -211,7 +211,7 @@ void PortsPanel::restore_column_widths()
     {
         bool ok = false;
         const int width = saved.at(column).toInt(&ok);
-        if (ok && width >= minimum_column_width && width <= 2000)
+        if (ok && width >= kMinimumColumnWidth && width <= 2000)
             table_->setColumnWidth(column, width);
     }
     applying_widths_ = false;
@@ -229,7 +229,7 @@ void PortsPanel::resize_column_by_key(int column, int delta)
 {
     QHeaderView* header = table_->horizontalHeader();
     const int width =
-        std::max(minimum_column_width, header->sectionSize(column) + delta);
+        std::max(kMinimumColumnWidth, header->sectionSize(column) + delta);
     header->resizeSection(column, width);
     Q_EMIT status_message(
         tr("%1 column is %2 px wide.")
@@ -241,7 +241,7 @@ void PortsPanel::fit_column_by_key(int column)
 {
     QHeaderView* header = table_->horizontalHeader();
     // The view's own fit is protected, so ask the delegate for each cell.
-    int width = std::max(minimum_column_width, header->sectionSizeHint(column));
+    int width = std::max(kMinimumColumnWidth, header->sectionSizeHint(column));
     const QStyleOptionViewItem option;
     for (int row = 0; row < model_->rowCount(); ++row)
         width = std::max(

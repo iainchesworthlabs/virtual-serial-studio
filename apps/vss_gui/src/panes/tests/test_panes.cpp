@@ -573,7 +573,7 @@ TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
         REQUIRE(header->stretchLastSection());
         REQUIRE(!header->sectionsMovable());
         REQUIRE_EQ(header->minimumSectionSize(),
-                   vss::gui::PortsPanel::minimum_column_width);
+                   vss::gui::PortsPanel::kMinimumColumnWidth);
         int total = 0;
         for (int column = 0; column < header->count(); ++column)
             total += header->sectionSize(column);
@@ -602,14 +602,14 @@ TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
         for (int i = 0; i < 20; ++i)
             QApplication::sendEvent(table, &narrow);
         REQUIRE_EQ(header->sectionSize(2),
-                   vss::gui::PortsPanel::minimum_column_width);
+                   vss::gui::PortsPanel::kMinimumColumnWidth);
         header->resizeSection(2, 200);
         QKeyEvent fit(QEvent::KeyPress, Qt::Key_0,
                       Qt::ControlModifier | Qt::AltModifier);
         QApplication::sendEvent(table, &fit);
         REQUIRE(header->sectionSize(2) < 200);
         REQUIRE(header->sectionSize(2) >=
-                vss::gui::PortsPanel::minimum_column_width);
+                vss::gui::PortsPanel::kMinimumColumnWidth);
 
         panel.save_column_widths();
     }
