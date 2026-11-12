@@ -48,6 +48,13 @@ public:
     QLabel* other_program_note() const noexcept { return others_; }
     void select_port(vss::endpoint_id id);
 
+    /// The Advanced table, for tests.
+    QTableView* table() const noexcept { return table_; }
+    /// Smallest a table column can be dragged to (a 24 px target and more).
+    static constexpr int minimum_column_width = 48;
+    /// Writes the column widths now rather than after the usual short delay.
+    void save_column_widths() const;
+
     /// How a port's menu reads its Send, Monitor and fixture actions; see
     /// `add_port_menu_actions`.
     void set_menu_state_provider(
@@ -71,6 +78,10 @@ public:
 
 private:
     void build();
+    void set_default_column_widths();
+    void restore_column_widths();
+    void resize_column_by_key(int column, int delta);
+    void fit_column_by_key(int column);
     void refresh_others();
     void on_current_changed(const QModelIndex& current);
     void sync_views(vss::endpoint_id id);
@@ -87,6 +98,8 @@ private:
     QLineEdit* filter_ = nullptr;
     QLabel* others_ = nullptr;
     QTimer* others_timer_ = nullptr;
+    QTimer* column_save_timer_ = nullptr;
+    bool applying_widths_ = false;
     QStringList known_paths_;
     PortDelegate* simple_delegate_ = nullptr;
     PortDelegate* table_delegate_ = nullptr;
