@@ -1,0 +1,1 @@
+**An upgrade replaces the Windows driver.** The driver packages now carry a newer version and date, so installing this release over an earlier one moves the existing COM ports to the new driver instead of leaving them on the old build, which Studio refuses to open now that the driver interface is version 4.
