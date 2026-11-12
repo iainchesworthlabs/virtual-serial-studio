@@ -33,6 +33,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <random>
@@ -57,9 +58,8 @@ using steady = std::chrono::steady_clock;
 class joining_thread
 {
 public:
-    template <class Function>
-    explicit joining_thread(Function&& function)
-        : thread_(std::forward<Function>(function))
+    explicit joining_thread(std::function<void()> function)
+        : thread_(std::move(function))
     {
     }
 
