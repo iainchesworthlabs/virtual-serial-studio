@@ -132,7 +132,8 @@ com_numbers_in_bitmap(const std::vector<unsigned char>& bitmap)
         for (unsigned bit = 0; bit < 8; ++bit)
         {
             const unsigned number = static_cast<unsigned>(byte) * 8 + bit + 1;
-            if (number <= 255 && ((bitmap[byte] >> bit) & 1u) != 0)
+            const unsigned mask = static_cast<unsigned>(bitmap[byte]) >> bit;
+            if (number <= 255 && (mask & 1u) != 0)
                 numbers.push_back(number);
         }
     }
