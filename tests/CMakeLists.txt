@@ -24,6 +24,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_options.cpp
   unit/test_hub_options_stress.cpp
   unit/test_hub_owner.cpp
+  unit/test_hub_read_stage.cpp
   unit/test_hub_sources.cpp
   unit/test_hub_sources_stress.cpp
   unit/test_hub_targets.cpp
