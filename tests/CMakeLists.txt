@@ -147,6 +147,39 @@ endif()
 
 add_subdirectory(fuzz)
 
+# The timing benchmark measures the engine's timers and a round trip to the
+# agent. It is built with the tests and is not registered with CTest, because
+# a time must never decide whether a change passes. Run it by hand:
+#   vss_timing_bench --verbose
+if(TARGET vss_agent)
+  set(VSS_TIMING_BENCH_SOURCES framework/main.cpp bench/test_timing_bench.cpp)
+  if(WIN32)
+    list(APPEND VSS_TIMING_BENCH_SOURCES
+      support/platform/windows/child_process_windows.cpp
+      bench/platform/windows/precise_wait_windows.cpp)
+  else()
+    list(APPEND VSS_TIMING_BENCH_SOURCES
+      support/platform/posix/child_process_posix.cpp
+      bench/platform/posix/precise_wait_posix.cpp)
+  endif()
+  add_executable(vss_timing_bench ${VSS_TIMING_BENCH_SOURCES})
+  target_include_directories(vss_timing_bench PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/bench
+    ${CMAKE_CURRENT_SOURCE_DIR}/framework
+    ${CMAKE_CURRENT_SOURCE_DIR}/support)
+  target_link_libraries(vss_timing_bench PRIVATE vss_studio vss_testkit
+    vss_agent_core)
+  if(WIN32)
+    # timeBeginPeriod and timeEndPeriod, for the timer_period_scope.
+    target_link_libraries(vss_timing_bench PRIVATE winmm)
+  endif()
+  add_dependencies(vss_timing_bench vss_agent)
+  target_compile_definitions(vss_timing_bench PRIVATE
+    VSS_AGENT_PROGRAM="$<TARGET_FILE:vss_agent>")
+  vss_set_warnings(vss_timing_bench)
+endif()
+
 # A packaging smoke test: the public headers compile on their own.
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
