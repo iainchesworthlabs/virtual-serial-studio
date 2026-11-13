@@ -587,6 +587,7 @@ validates the resulting access token. No sign-in page exists in Studio and none 
 | `faults.inject`, `timing.set` | `control.faults` | |
 | `topology.apply`, `topology.snapshot` | `control.apply`, `monitor` | Document only; no file paths from the sender; size capped; a named port or link a client does not own is refused for scoped tokens |
 | `expect.bytes` | `monitor.data` | |
+| `triggers.subscribe`, `triggers.read`, `expect.trigger` | `monitor`; the decoded context of a trigger needs `monitor.data` as well | "Triggers" below. Port filter applies |
 | `runs.begin`, `runs.end`, `report.junit` | `control.ports` | |
 | `record.start`, `record.stop`, `record.fetch` | `record` | Section 10 |
 | `session.close`, `ping` | none | |
@@ -598,6 +599,79 @@ scope when there is a need.
 
 **Local-only administration** (the administration endpoint of section 3): `endpoint.stop`, `listeners.*`,
 `tls.rotate`, `tls.pairing_bundle`, `tokens.create/list/revoke`, `policy.*`, `audit.*`, `sessions.list/kick`.
+
+### Triggers
+
+A protocol-decoding plugin (Pro) watches a port and raises a **trigger** when it sees something a test wants to know
+about. A harness receives triggers through this API so that a test can wait for one, assert on one, or fail when one
+it did not expect arrives. Nothing here is built: it needs the plugin framework to raise triggers and the agent to
+carry them, and it lands with slice 4.
+
+**What a trigger is.**
+
+```
+{"seq": 4812, "kind": "checksum_mismatch", "port": "p_3", "plugin": "modbus-rtu",
+ "time": {"mono_ns": 81234567890, "wall": "2026-11-13T09:30:00.123456Z"},
+ "span": {"direction": "rx", "offset": 20480, "length": 8},
+ "message": "CRC 0x1A2B, expected 0x3C4D",
+ "context": {"unit": 17, "function": 3}}            + blob: the bytes of the span
+```
+
+| Field | Who sets it | Rule |
+|---|---|---|
+| `seq` | The agent | One counter for the whole Studio, starting at 1 for each agent, with no gaps at the source. It is what makes loss visible |
+| `kind` | The plugin | One of a closed core list: `framing_error`, `checksum_mismatch`, `unknown_message`, `timeout`, `bus_contention`. A plugin's own kinds are `x.<plugin>.<name>`. A client ignores a kind it does not know |
+| `port` | The agent | The port the plugin is attached to. A plugin cannot raise a trigger for a port it does not watch |
+| `plugin` | The agent | The id of the plugin's manifest, taken from the connection it arrived on. A plugin cannot name another |
+| `time` | The engine | The single clock that stamps traffic and events, read when the trigger is received. A plugin does not supply times |
+| `span` | The plugin | Which bytes it is about, as a direction, an offset in that direction's stream and a length, so a harness can line a trigger up with the traffic it recorded |
+| `message` | The plugin | Text for a person, cleaned and cut as all text from outside is |
+| `context` | The plugin | Decoded fields: a flat object of numbers, booleans and short text, 4 KiB at most. With the bytes of the span it is the part that needs `monitor.data` |
+
+**Scope.** `monitor` is enough to learn that a trigger was raised: its `seq`, kind, port, plugin, time, span and
+message. The decoded `context` and the bytes of the span are traffic by another route, so they are sent only to a
+session that also holds `monitor.data`, and only for ports its token may see. A session without it gets the same
+trigger with those two parts left out and `"redacted": true`. There is no new scope: a monitor that may not read
+bytes can still fail a test on a checksum error.
+
+**Three ways to receive them.**
+
+| Operation | For | Guarantee |
+|---|---|---|
+| `expect.trigger {kinds, ports, timeout_ms, after_seq}` | A test step: "after I send this, a `timeout` trigger arrives on `p_3` within two seconds" | Waited for inside the gateway, like `expect.bytes`. With `after_seq` (the `seq` a previous reply or `status` gave) there is no window between arming and the stimulus: a trigger raised in between is found. Returns the first match, or `timeout` |
+| `triggers.subscribe {kinds, ports}` | A harness that fails a test on any unexpected trigger | A stream of batches, in `seq` order. May lose triggers under load and always says so (below) |
+| `triggers.read {after_seq, limit}` | Catching up after a loss, and a report at the end of a run | Reads the agent's ring of recent triggers: complete for as far back as the ring reaches, and says where the ring begins when asked for something older |
+
+**Ordering.** Triggers are delivered in `seq` order on every path, and `seq` order is the order in which the engine
+received them. Two triggers of one port are therefore in the order the plugin raised them. Between ports, and
+against traffic and events, the `time` is what orders them; `seq` does not order a trigger against a byte.
+
+**Loss, and how it is reported.** Triggers have a queue of their own for each subscriber (4096 triggers), separate
+from the traffic tap, so a flood of traffic cannot push a trigger out. When the queue is full the oldest is dropped,
+as for events. Every batch carries the `seq` of its first trigger and `"lost": {"count": n, "from": a, "to": b}` when
+the batch does not follow on from the one before, so a gap is never silent and a harness can fetch exactly the
+missing range with `triggers.read`. `runs.end` and `report.junit` give the number of triggers of each kind raised
+during the run, counted at the source, so a report can show that a harness saw fewer than there were. The default
+for a harness adapter is to treat an unrecovered gap as a failed test.
+
+**Back-pressure.** Nothing a client does slows a plugin or the hub.
+
+- A plugin raises a trigger without waiting for anyone: the agent copies it into the ring and the subscribers'
+  queues under a short lock, as the event sink does.
+- A subscriber that has not read its last batch is sent no new one; its queue fills and then drops, and counts. A
+  client that lets 4 MiB of replies and batches pile up is closed (section 10).
+- A plugin that raises more than 1000 triggers a second for one port has the excess replaced by one
+  `x.core.trigger_storm` trigger a second that says how many were held back, so a decoder that goes wrong cannot
+  fill the ring, the queues or a JUnit report. The storm trigger has a `seq` like any other.
+- The ring holds the last 65 536 triggers of the agent. It is memory, not a file; a run that needs every trigger
+  for longer than that uses a recording (section 10), which stores triggers beside the bytes.
+
+**What can go wrong (section 2).** A trigger comes from a plugin, and a plugin is not trusted to tell the truth
+(T8). A forged or missing trigger changes the result of a test (A1), so: the agent, not the plugin, sets `seq`,
+`port`, `plugin` and `time`; the manifest must declare that the plugin raises triggers, and the plugin page shows
+it; the plugin's id is in every trigger and in the report, so a result says which decoder it rests on; and an
+official decoder is signed (editions.md). A harness cannot raise a trigger through this API at all. Subscriptions
+are audited (who, which kinds and ports); single triggers are not, because they are test data and may hold bytes.
 
 ## 10. Remote monitoring and denial of service
 
@@ -736,7 +810,7 @@ After the owner's review. Each slice is reviewable alone, green alone and tested
 | 1 | `libs/vss_control_proto` (messages, limits, errors, the policy types) and `vss_gate` with the **local endpoint with peer credentials** (L1) and the administration endpoint, the agent client, the audit log, `authorise` with the operation registry and three operations (`status`, `ports.list`, `endpoint.stop`); `vss_cli control status` and `stop`; the tests of section 15 for these. `vss_gate` is started by hand, as `vss_agent` is, until the agent starts on demand (agent.md PR 6). The preface belongs to slice 4 (L2) and `secret_string` to slice 2, where each is first used | agent.md PR 1 |
 | 2 | **Tokens and scopes**: the store, generation, hashing, verification, constant-time compare, rate limiting, revocation, expiry; scopes and ceilings; `vss_cli control token`; token-leak canary tests; the full operation table | slice 1 |
 | 3 | **Read-only monitor**: `events.subscribe`, `traffic.subscribe` with `monitor.data`, the per-session read-only agent connection, the status chip and sessions list in the GUI (a design change in the GUI, to be reviewed on its own), live view | slice 2; agent.md PR 5 and decision 10 for `read_only` |
-| 4 | L2 and the control scopes (`control.*`), `expect.bytes`, runs and the JUnit report | slice 3 |
+| 4 | L2 and the control scopes (`control.*`), `expect.bytes`, runs and the JUnit report; the trigger operations of section 9, once the plugin framework and the agent carry triggers | slice 3 |
 | 5 | L3: TLS, certificates, pinning, pairing bundle, rotation | decision 1 (TLS library) |
 | 6 | Recording and fetch | agent.md PR 5 |
 | 7 | The level 3 authenticator interface, the policy table, and the first OIDC plugin | slice 4, plugin framework |
