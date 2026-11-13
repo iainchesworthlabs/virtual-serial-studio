@@ -1,0 +1,1 @@
+**The topology canvas no longer drifts when the window is resized.** After the view has been zoomed or scrolled, the point at its centre now stays at the centre through repeated enlarging and shrinking, so the diagram is no longer pushed off to one side.

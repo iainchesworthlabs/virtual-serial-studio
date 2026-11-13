@@ -9,6 +9,7 @@
 #include "backend/driver_error.hpp"
 #include "theme/theme.hpp"
 #include "widgets/chips.hpp"
+#include "widgets/common.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
 #include "widgets/notes.hpp"
@@ -33,6 +34,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <memory>
 
 namespace vss::gui
 {
@@ -621,6 +623,8 @@ QString AddPortDialog::validation_error() const
 void AddPortDialog::create_virtual_ports()
 {
     VSS_PROFILE_ZONE("gui.flows.add_port.create_virtual");
+    if (busy())
+        return;
     validate_count();
     name_row_->clear_error();
     if (!validation_error().isEmpty())
@@ -637,78 +641,121 @@ void AddPortDialog::create_virtual_ports()
                                     ? static_cast<unsigned>(com_->value())
                                     : 0U;
     com_row_->clear_error();
-    const QVector<QString> names = planned_names();
-    QVector<vss::endpoint_id> created;
-    for (const QString& target : names)
+
+    struct outcome
     {
-        vss::result<vss::endpoint_id> added =
-            com_number != 0
-                ? backend_.create_driver_port(target, true, com_number)
-            : kind == 1 ? backend_.create_virtual_port(
-                            target, vss::virtual_port_kind::pty, true)
-            : kind == 2 ? backend_.create_virtual_port(
+        QVector<vss::endpoint_id> created;
+        std::optional<vss::error_code> failure;
+    };
+    auto state = std::make_shared<outcome>();
+    run_in_background(
+        [this, state, names = planned_names(), kind, com_number]
+        {
+            for (const QString& target : names)
+            {
+                vss::result<vss::endpoint_id> added =
+                    com_number != 0
+                        ? backend_.create_driver_port(target, true, com_number)
+                    : kind == 1 ? backend_.create_virtual_port(
+                                      target, vss::virtual_port_kind::pty, true)
+                    : kind == 2
+                        ? backend_.create_virtual_port(
                               target, vss::virtual_port_kind::loopback, true)
                         : backend_.create_auto_port(target, true);
-        if (!added)
+                if (!added)
+                {
+                    for (const vss::endpoint_id id : state->created)
+                        static_cast<void>(backend_.remove_port(id));
+                    // A missing driver, a stopped helper, an old helper and a
+                    // refused user all come back as the same few codes. Ask
+                    // what is wrong, so the message names it and offers the
+                    // set-up.
+                    state->failure =
+                        kind == 2 ? added.error()
+                                  : driver_aware_error(backend_, added.error());
+                    return;
+                }
+                state->created.push_back(*added);
+            }
+        },
+        [this, state, kind, com_number]
         {
-            for (const vss::endpoint_id id : created)
-                static_cast<void>(backend_.remove_port(id));
-            // A missing driver, a stopped helper, an old helper and a refused
-            // user all come back as the same few codes. Ask what is wrong, so
-            // the message names it and offers the set-up.
-            const vss::error_code failure =
-                kind == 2 ? added.error()
-                          : driver_aware_error(backend_, added.error());
-            const bool setup_problem = driver_problem_of(failure).has_value();
-            if (com_number != 0 && !setup_problem)
+            backend_.refresh();
+            if (state->failure)
             {
-                // The refusal is about the number, so it is said beside the
-                // number and the form stays as it was.
-                com_row_->set_error(
-                    com_number_refusal(failure, com_number, false));
-                com_->setFocus(Qt::OtherFocusReason);
-                Q_EMIT error_shown(tr("Could not create the port"));
+                const vss::error_code failure = *state->failure;
+                const bool setup_problem =
+                    driver_problem_of(failure).has_value();
+                if (com_number != 0 && !setup_problem)
+                {
+                    // The refusal is about the number, so it is said beside
+                    // the number and the form stays as it was.
+                    com_row_->set_error(
+                        com_number_refusal(failure, com_number, false));
+                    com_->setFocus(Qt::OtherFocusReason);
+                    Q_EMIT error_shown(tr("Could not create the port"));
+                    return;
+                }
+                flow_error error;
+                error.title = tr("Could not create the port");
+                error.body = error_body(
+                    failure,
+                    tr("Studio could not create the port. Nothing was "
+                       "changed."),
+                    tr(" Try a different name or kind, then try again."));
+                error.details = error_details(failure);
+                apply_driver_problem(error, failure);
+                show_error(error);
                 return;
             }
-            flow_error error;
-            error.title = created.size() + 1 == 1
-                              ? tr("Could not create the port")
-                              : tr("Could not create the ports");
-            error.body = error_body(
-                failure,
-                tr("Studio could not create the port. Nothing was changed."),
-                tr(" Try a different name or kind, then try again."));
-            error.details = error_details(failure);
-            apply_driver_problem(error, failure);
-            show_error(error);
-            return;
-        }
-        created.push_back(*added);
-    }
 
-    created_ports_ = created;
-    created_kind_ = kind == 1   ? QStringLiteral("pty")
-                    : kind == 2 ? QStringLiteral("loopback")
-                                : QStringLiteral("auto");
-    backend_.refresh();
-    accept();
+            created_ports_ = state->created;
+            created_kind_ = kind == 1   ? QStringLiteral("pty")
+                            : kind == 2 ? QStringLiteral("loopback")
+                                        : QStringLiteral("auto");
+            accept();
+        },
+        tr("Creating"), setting_up_text());
 }
 
 void AddPortDialog::create_pair()
 {
     VSS_PROFILE_ZONE("gui.flows.add_port.create_pair");
+    if (busy())
+        return;
     flow_error error;
-    auto outcome = pair_panel_->create_pair(&error);
-    if (!outcome)
+    const auto request = pair_panel_->prepare_pair(&error);
+    if (!request)
     {
         if (!error.title.isEmpty())
             show_error(error);
         return;
     }
-    pair_outcome_ = std::move(outcome);
-    created_ports_ = {pair_outcome_->first, pair_outcome_->second};
-    created_kind_ = QStringLiteral("pair");
-    accept();
+
+    struct outcome
+    {
+        flow_error error;
+        std::optional<pair_outcome> pair;
+    };
+    auto state = std::make_shared<outcome>();
+    run_in_background(
+        [this, state, request = *request]
+        { state->pair = pair_panel_->run_pair(request, &state->error); },
+        [this, state]
+        {
+            backend_.refresh();
+            if (!state->pair)
+            {
+                if (!state->error.title.isEmpty())
+                    show_error(state->error);
+                return;
+            }
+            pair_outcome_ = std::move(state->pair);
+            created_ports_ = {pair_outcome_->first, pair_outcome_->second};
+            created_kind_ = QStringLiteral("pair");
+            accept();
+        },
+        tr("Creating"), setting_up_text());
 }
 
 void AddPortDialog::show_error(const flow_error& error)

@@ -22,12 +22,14 @@
 
 #include <QMetaObject>
 #include <QString>
+#include <QThread>
 #include <QTimer>
 
 #include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <mutex>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 
@@ -435,11 +437,79 @@ EngineStudioBackend::create_port_with_com_number(
         paths.push_back(device.path);
     for (const auto& info : studio_.endpoint_infos())
         paths.push_back(info.path);
-    std::vector<unsigned> in_use = com_numbers_in_use(paths);
+    const std::vector<unsigned> listed = com_numbers_in_use(paths);
+    std::vector<unsigned> in_use = listed;
     // The names Windows keeps for ports that are not listed come first, so the
     // refusals below are the exception rather than the rule.
-    if (const auto kept = studio_.reserved_com_numbers())
-        in_use.insert(in_use.end(), kept->begin(), kept->end());
+    std::vector<unsigned> kept;
+    if (const auto reserved = studio_.reserved_com_numbers())
+        kept = *reserved;
+    in_use.insert(in_use.end(), kept.begin(), kept.end());
+
+    // A number this computer has had before is made in a fraction of a second;
+    // a number it has never had takes Windows about 30 seconds to install.  So
+    // a port gets a number it had before: first one this window freed a moment
+    // ago, waiting for Windows to finish removing it (about 45 seconds), so
+    // deleting COM17 and making a port again gives COM17; then the lowest kept number the driver
+    // accepts.  Another device's number is refused in about a tenth of a
+    // second.  This runs off the GUI thread.
+    using clock = std::chrono::steady_clock;
+    constexpr auto kRemovalWait = std::chrono::seconds(90);
+    std::map<unsigned, clock::time_point> recent;
+    {
+        const std::lock_guard lock(removed_mutex_);
+        const auto now = clock::now();
+        for (auto it = removed_numbers_.begin(); it != removed_numbers_.end();)
+        {
+            if (now - it->second > kRemovalWait)
+                it = removed_numbers_.erase(it);
+            else
+                ++it;
+        }
+        recent = removed_numbers_;
+    }
+    for (const auto& [number, since] : recent)
+    {
+        // Windows still lists the port it is removing, so the list cannot
+        // rule the number out; the driver's answer can.
+        for (;;)
+        {
+            auto again =
+                studio_.create_virtual_port(port_name, kind, options, number);
+            if (again)
+            {
+                const std::lock_guard lock(removed_mutex_);
+                removed_numbers_.erase(number);
+                return again;
+            }
+            if (again.error() != vss::errc::already_exists)
+            {
+                if (again.error() == vss::errc::unsupported)
+                    return studio_.create_virtual_port(port_name, kind,
+                                                       options);
+                return again;
+            }
+            if (clock::now() - since > kRemovalWait)
+                break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+    }
+
+    constexpr std::size_t kReuseTries = 16;
+    for (const unsigned number :
+         reusable_com_candidates(listed, kept, kReuseTries))
+    {
+        auto reused =
+            studio_.create_virtual_port(port_name, kind, options, number);
+        if (reused)
+            return reused;
+        if (reused.error() != vss::errc::already_exists)
+        {
+            if (reused.error() == vss::errc::unsupported)
+                return studio_.create_virtual_port(port_name, kind, options);
+            return reused;
+        }
+    }
 
     const unsigned start = first_com_candidate(in_use);
     unsigned candidate = start;
@@ -500,9 +570,17 @@ EngineStudioBackend::attach_serial(const QString& name, const QString& uri,
 
 vss::result<void> EngineStudioBackend::remove_port(vss::endpoint_id id)
 {
+    unsigned freed = 0;
+    if (const auto view = port(id); view && view->driver_port)
+        freed = view->com_number;
     const auto removed = studio_.remove_port(id);
     if (!removed)
         return removed.error();
+    if (freed != 0)
+    {
+        const std::lock_guard lock(removed_mutex_);
+        removed_numbers_[freed] = std::chrono::steady_clock::now();
+    }
     rebuild();
     return {};
 }
@@ -715,8 +793,21 @@ setup_facts EngineStudioBackend::facts() const
     return facts;
 }
 
+std::vector<port_view> EngineStudioBackend::ports() const
+{
+    const std::lock_guard lock(snapshot_mutex_);
+    return ports_;
+}
+
+std::vector<link_view> EngineStudioBackend::links() const
+{
+    const std::lock_guard lock(snapshot_mutex_);
+    return links_;
+}
+
 std::optional<port_view> EngineStudioBackend::port(vss::endpoint_id id) const
 {
+    const std::lock_guard lock(snapshot_mutex_);
     const auto it =
         std::find_if(ports_.begin(), ports_.end(),
                      [id](const port_view& view) { return view.id == id; });
@@ -727,6 +818,7 @@ std::optional<port_view> EngineStudioBackend::port(vss::endpoint_id id) const
 
 std::optional<link_view> EngineStudioBackend::link(vss::link_id id) const
 {
+    const std::lock_guard lock(snapshot_mutex_);
     const auto it =
         std::find_if(links_.begin(), links_.end(),
                      [id](const link_view& view) { return view.id == id; });
@@ -1083,37 +1175,56 @@ void EngineStudioBackend::rebuild()
     for (const auto& info : links)
         next_links.push_back(make_link(info));
 
-    const bool ports_differ = next_ports.size() != ports_.size() ||
-                              !std::equal(next_ports.begin(), next_ports.end(),
-                                          ports_.begin(), same_port_shape);
-    const bool links_differ = next_links.size() != links_.size() ||
-                              !std::equal(next_links.begin(), next_links.end(),
-                                          links_.begin(), same_link_shape);
-    // Counters move with every byte; they are a signal of their own so a
-    // window does not rebuild itself for a number.
-    const bool stats_differ = !ports_differ && !links_differ &&
-                              (!std::equal(next_ports.begin(), next_ports.end(),
-                                           ports_.begin(), same_port) ||
-                               !std::equal(next_links.begin(), next_links.end(),
-                                           links_.begin(), same_link));
+    bool ports_differ = false;
+    bool links_differ = false;
+    bool stats_differ = false;
+    {
+        const std::lock_guard lock(snapshot_mutex_);
+        ports_differ = next_ports.size() != ports_.size() ||
+                       !std::equal(next_ports.begin(), next_ports.end(),
+                                   ports_.begin(), same_port_shape);
+        links_differ = next_links.size() != links_.size() ||
+                       !std::equal(next_links.begin(), next_links.end(),
+                                   links_.begin(), same_link_shape);
+        // Counters move with every byte; they are a signal of their own so a
+        // window does not rebuild itself for a number.
+        stats_differ = !ports_differ && !links_differ &&
+                       (!std::equal(next_ports.begin(), next_ports.end(),
+                                    ports_.begin(), same_port) ||
+                        !std::equal(next_links.begin(), next_links.end(),
+                                    links_.begin(), same_link));
 
-    ports_ = std::move(next_ports);
-    links_ = std::move(next_links);
+        ports_ = std::move(next_ports);
+        links_ = std::move(next_links);
+    }
 
-    if (ports_differ)
+    const auto emit_changes = [this, ports_differ, links_differ, stats_differ]
     {
-        VSS_PROFILE_ZONE("gui.backend.emit_ports_changed");
-        Q_EMIT ports_changed();
+        if (ports_differ)
+        {
+            VSS_PROFILE_ZONE("gui.backend.emit_ports_changed");
+            Q_EMIT ports_changed();
+        }
+        if (links_differ)
+        {
+            VSS_PROFILE_ZONE("gui.backend.emit_links_changed");
+            Q_EMIT links_changed();
+        }
+        if (stats_differ)
+        {
+            VSS_PROFILE_ZONE("gui.backend.emit_stats_changed");
+            Q_EMIT stats_changed();
+        }
+    };
+    if (QThread::currentThread() == thread())
+    {
+        emit_changes();
     }
-    if (links_differ)
+    else if (ports_differ || links_differ || stats_differ)
     {
-        VSS_PROFILE_ZONE("gui.backend.emit_links_changed");
-        Q_EMIT links_changed();
-    }
-    if (stats_differ)
-    {
-        VSS_PROFILE_ZONE("gui.backend.emit_stats_changed");
-        Q_EMIT stats_changed();
+        // A job on a worker thread has already swapped the snapshots, which
+        // it reads back as it goes; the signals belong to the GUI thread.
+        QMetaObject::invokeMethod(this, emit_changes, Qt::QueuedConnection);
     }
 }
 

@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>Umgebung kopiert.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>Build-Informationen</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>Build-Informationen kopieren</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Diagnoseinformationen kopieren</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>Build-Informationen kopiert.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Diagnoseinformationen kopiert.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>Kopieren Sie dies in einen Fehlerbericht. Es beantwortet die Frage „Worauf läuft das?“</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>Version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Git-Tag</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Git-Revision</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>Kurze Revision</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>Arbeitsverzeichnis</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>Branch</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>Build-Nummer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>Erstellt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>Build-Typ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>Compiler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>Qt beim Erstellen</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>Betriebssystem</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>Architektur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>Kernel</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>Qt zur Laufzeit</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>Plattform-Plug-in</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>Anzeige</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>Sprache</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>Profiling</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>Wird mit Studio als gemeinsam genutzte Bibliotheken ausgeliefert.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>Enthalten, weil dieser Build die Profiling-Unterstützung enthält.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>SIL Open Font License, Version 1.1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>Renderer</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1485,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>Umgebung kopiert.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Diagnoseinformationen kopieren</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Diagnoseinformationen kopiert.</translation>
         </message>
     </context>
     <context>
@@ -5929,6 +6084,45 @@ Netzwerke: %5</translation>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>Das Grafiksystem konnte nicht gestartet werden (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>kein Grund angegeben</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>Das einzige gefundene Grafikgerät ist ein Software-Renderer (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>Hardware (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>Software (CPU), weil: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>Das Grafikgerät funktioniert nicht mehr.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>es wurde kein Grafikgerät erstellt</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6250,8 +6444,40 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>Hilft herauszufinden, warum Studio langsam ist. Es zeichnet nur Zeiten auf und sendet nichts, bis Sie den Tracy-Profiler mit der Adresse oben verbinden. Beim nächsten Start von Studio ist es wieder aus.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>Hilft herauszufinden, warum Studio langsam ist. Es zeichnet nur Zeiten auf und sendet nichts irgendwohin: Studio lauscht nur auf diesem Computer, und eine Zeitleiste erscheint nur, wenn Sie den Tracy-Profiler hier starten und mit der Adresse oben verbinden. Studio merkt sich diesen Schalter und zeichnet beim nächsten Start wieder auf. Anderen Computern die Verbindung zu erlauben, erfordert einen Neustart.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>Darstellung</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>Automatisch</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>Hardware zeichnet die Zeichenfläche auf der Grafikkarte, das bleibt auch mit vielen Ports flüssig. Software zeichnet sie auf dem Prozessor. Automatisch verwendet die Grafikkarte, wenn eine nutzbare vorhanden ist.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>Aktuell gezeichnet mit: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>Starten Sie Studio neu, um diese Auswahl zu verwenden.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER oder --render ist gesetzt und überschreibt diese Auswahl.</translation>
         </message>
     </context>
     <context>
@@ -8915,6 +9141,25 @@ Netzwerke: %5</translation>
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio ist eingerichtet. Neue Ports können von anderen Programmen geöffnet werden.</translation>
         </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>Die Zeichenfläche wird auf dem Prozessor gezeichnet: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Diagnoseinformationen kopieren</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>build umgebung fehlerbericht</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Diagnoseinformationen kopiert.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11554,6 +11799,10 @@ Netzwerke: %5</translation>
             <source> Try a different name or kind, then try again.</source>
             <translation> Versuchen Sie es mit einem anderen Namen oder einer anderen Art noch einmal.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>Wird erstellt</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +12110,10 @@ Netzwerke: %5</translation>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>Anderes wählen</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>Wird verbunden</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +13215,14 @@ Netzwerke: %5</translation>
             <source>Scroll</source>
             <translation>Scrollen</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Fortschritt</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13097,6 +13358,14 @@ Netzwerke: %5</translation>
             <location filename="../src/panes/inspector_panel.cpp" line="417" />
             <source>RX %1, TX %2</source>
             <translation>RX %1, TX %2</translation>
+        </message>
+        <message>
+            <source>Total traffic</source>
+            <translation>Gesamter Datenverkehr</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>Insgesamt empfangene und gesendete Bytes. Die Statusleiste zeigt die aktuelle Rate.</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
@@ -14027,6 +14296,10 @@ Netzwerke: %5</translation>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>Paar erstellen</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Wird erstellt</translation>
         </message>
     </context>
     <context>
@@ -16638,6 +16911,29 @@ Netzwerke: %5</translation>
             <source>Layout reset.</source>
             <translation>Layout zurückgesetzt.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Fortschritt</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Diagnoseinformationen kopieren</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>build umgebung fehlerbericht</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Diagnoseinformationen kopiert.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17073,6 +17369,14 @@ Netzwerke: %5</translation>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 gespeichert.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Wird angewendet</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
         </message>
     </context>
     <context>
@@ -17835,6 +18139,26 @@ Netzwerke: %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio konnte nicht lesen, welche COM-Nummern Windows belegt hält, und wählt deshalb beim Erstellen des Ports eine freie Nummer und zeigt sie an, sobald der Port bereit ist.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Wird angewendet</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Wird erstellt</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Die Änderung wird angewendet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>Fortschritt der Einrichtung</translation>
         </message>
     </context>
     <context>
@@ -18836,6 +19160,29 @@ Netzwerke: %5</translation>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>In diesem Build nicht verfügbar</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>Zoomleiste</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>Verkleinern</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>Zoom auf 100 % zurücksetzen</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>Vergrößern</translation>
         </message>
     </context>
 </TS>

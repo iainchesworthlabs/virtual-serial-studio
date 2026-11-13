@@ -56,6 +56,7 @@
 #include <QSet>
 #include <QTabBar>
 #include <QTabWidget>
+#include <QToolButton>
 #include <QWidget>
 
 #include <cstdio>
@@ -65,6 +66,14 @@ namespace vss::gui
 {
 namespace
 {
+
+/// A tool button that shows only its icon does not draw its text, so the text
+/// cannot be clipped.
+bool shows_icon_only(const QAbstractButton* button)
+{
+    const auto* tool = qobject_cast<const QToolButton*>(button);
+    return tool != nullptr && tool->toolButtonStyle() == Qt::ToolButtonIconOnly;
+}
 
 QString widget_name(QWidget* widget)
 {
@@ -253,6 +262,7 @@ private:
             if (auto* button = qobject_cast<QAbstractButton*>(widget);
                 can_measure_fonts && button != nullptr &&
                 !button->text().isEmpty() &&
+                !shows_icon_only(button) &&
                 button->fontMetrics().horizontalAdvance(button->text()) >
                     button->contentsRect().width() - 4)
             {

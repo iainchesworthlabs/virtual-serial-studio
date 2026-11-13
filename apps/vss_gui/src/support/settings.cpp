@@ -25,6 +25,8 @@ constexpr const char* kRefreshMs = "ui/refreshMs";
 constexpr const char* kDefaultBaud = "ui/defaultBaud";
 constexpr const char* kAskOnDiscard = "ui/askOnDiscard";
 constexpr const char* kCloseAction = "ui/closeAction";
+constexpr const char* kProfileOnStart = "ui/profileOnStart";
+constexpr const char* kRenderMode = "ui/renderMode";
 
 } // namespace
 
@@ -58,6 +60,11 @@ ui_settings load_ui_settings()
     settings.keep_running_on_close =
         store.value(QLatin1String(kCloseAction), QStringLiteral("background"))
             .toString() != QLatin1String("quit");
+    settings.profile_on_start =
+        store.value(QLatin1String(kProfileOnStart), false).toBool();
+    settings.render_mode = rendering::mode_from_key(
+        store.value(QLatin1String(kRenderMode), QStringLiteral("auto"))
+            .toString());
     return settings;
 }
 
@@ -77,6 +84,9 @@ void save_ui_settings(const ui_settings& settings)
     store.setValue(QLatin1String(kCloseAction),
                    settings.keep_running_on_close ? QStringLiteral("background")
                                                   : QStringLiteral("quit"));
+    store.setValue(QLatin1String(kProfileOnStart), settings.profile_on_start);
+    store.setValue(QLatin1String(kRenderMode),
+                   rendering::mode_key(settings.render_mode));
 }
 
 QString theme_key(theme_mode mode)
