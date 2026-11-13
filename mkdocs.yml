@@ -1,5 +1,5 @@
 site_name: Virtual Serial Studio
-site_description: A playground for real, virtual and networked serial ports
+site_description: A tool for real, virtual and networked serial ports
 repo_url: https://github.com/iainchesworthlabs/virtual-serial-studio
 docs_dir: docs
 strict: true
