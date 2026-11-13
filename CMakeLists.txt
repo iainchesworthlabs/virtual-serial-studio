@@ -153,6 +153,14 @@ if(VSS_INSTALL)
   install(FILES LICENSES/BSL-1.0.txt LICENSES/GPL-3.0-or-later.txt
     DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio/LICENSES
     COMPONENT runtime)
+  # The fonts are inside the program (Qt resources); their licences ship beside
+  # the others.
+  install(FILES
+    apps/vss_gui/assets/fonts/IBMPlexMono-OFL.txt
+    apps/vss_gui/assets/fonts/NotoSansArabic-OFL.txt
+    apps/vss_gui/assets/fonts/NotoSansHebrew-OFL.txt
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio/LICENSES
+    COMPONENT runtime)
 
   set(VSS_INSTALL_TARGETS "")
   foreach(_vss_target vss_core vss_ports vss_config vss_studio)

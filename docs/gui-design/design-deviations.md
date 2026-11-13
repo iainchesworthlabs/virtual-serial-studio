@@ -59,7 +59,8 @@ dependency the bundle already approved.
 ### Offscreen gallery and the system font
 
 The offscreen platform on Windows has no native font database, and the
-project forbids bundling a font. `vss_gui_theme_tests` points
+bundled fonts cover only the fixed font and Hebrew and Arabic fallbacks, not the
+UI font. `vss_gui_theme_tests` points
 `QT_QPA_FONTDIR` at `C:/Windows/Fonts` so the review PNGs show real text
 instead of missing-glyph boxes. This is test-only; the product continues to
 use the system UI font through `QFontDatabase`, and the test adds no font to
@@ -1160,7 +1161,7 @@ lines applied. The numbers are the rows of the design review.
 
 ### Tokens and strings
 
-- **Windows fixed font.** The design says never set a font family. Qt reports Courier New as the fixed font on Windows, a thin typewriter face. `Theme` picks Consolas, which ships with the OS, when the font database has it, and otherwise keeps the system fixed font. No font is bundled. Segoe UI Variable was tried for text and rejected: Qt 6.12 draws it semi-bold.
+- **Bundled fonts.** The design says never bundle a font and never set a font family. The owner approved bundling three OFL faces from `apps/vss_gui/assets/fonts`, registered by `Theme` before it resolves the base fonts: IBM Plex Mono for the fixed font on every platform (Qt reports Courier New on Windows, a thin typewriter face, and the system fixed font differs on each platform, which breaks hex columns), and Noto Sans Hebrew (regular, semi-bold) and Noto Sans Arabic (regular, bold; subset to the Arabic blocks plus Latin digits and punctuation) as per-glyph fallbacks after the system UI font, for Linux without font packages and the Yiddish digraphs. The UI font stays the system font. No CJK font is bundled.
 - **Menu colours (75).** The product stylesheet sets `color: %ink%` on menus.
   Without it menu text was dark on dark after a theme switch on Windows.
 - **Launcher cards (87).** The border colour `line2` is 1.76 to 1 against the
