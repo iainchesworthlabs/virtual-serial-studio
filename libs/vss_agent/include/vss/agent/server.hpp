@@ -51,7 +51,11 @@ struct server_counters
     std::uint64_t handshake_timeouts = 0;
     std::uint64_t slow_clients_closed = 0;
     std::uint64_t dropped_events = 0;
+    /// Requests a connection that only looks was refused.
+    std::uint64_t read_only_refused = 0;
     std::uint64_t clients = 0;
+    /// Those of the clients that said `read_only` in their `hello`.
+    std::uint64_t read_only_clients = 0;
 
     friend bool operator==(const server_counters&,
                            const server_counters&) = default;
