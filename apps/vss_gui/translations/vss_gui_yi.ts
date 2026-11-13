@@ -13050,8 +13050,8 @@ Networks: %5</source>
             <translation>פּראָגרעס</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
         </message>
     </context>
     <context>
@@ -16738,8 +16738,8 @@ Networks: %5</source>
             <translation>פּראָגרעס</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
         </message>
     </context>
     <context>
@@ -17182,8 +17182,8 @@ Networks: %5</source>
             <translation>אָנווענדט</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
         </message>
     </context>
     <context>
@@ -17956,12 +17956,12 @@ Networks: %5</source>
             <translation>שאַפֿט</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>װענדט אָן די ענדערונג. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>װענדט אָן די ענדערונג. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
         </message>
         <message>
             <source>Setting up progress</source>

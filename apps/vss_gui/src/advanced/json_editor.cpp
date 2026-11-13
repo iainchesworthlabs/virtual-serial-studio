@@ -499,7 +499,7 @@ bool TopologyJsonEditor::apply()
     apply_->setEnabled(false);
     Q_EMIT message(
         tr("Setting up. Windows installs each new port, which can take up to "
-           "20 seconds."));
+           "a minute."));
 
     auto failure = std::make_shared<vss::error_code>();
     work_.start(

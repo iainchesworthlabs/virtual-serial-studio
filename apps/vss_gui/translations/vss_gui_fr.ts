@@ -13050,8 +13050,8 @@ Réseaux : %5</translation>
             <translation>Progression</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à une minute.</translation>
         </message>
     </context>
     <context>
@@ -16738,8 +16738,8 @@ Réseaux : %5</translation>
             <translation>Progression</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à une minute.</translation>
         </message>
     </context>
     <context>
@@ -17182,8 +17182,8 @@ Réseaux : %5</translation>
             <translation>Application</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à une minute.</translation>
         </message>
     </context>
     <context>
@@ -17956,12 +17956,12 @@ Réseaux : %5</translation>
             <translation>Création</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Application de la modification. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Application de la modification. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à une minute.</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à une minute.</translation>
         </message>
         <message>
             <source>Setting up progress</source>

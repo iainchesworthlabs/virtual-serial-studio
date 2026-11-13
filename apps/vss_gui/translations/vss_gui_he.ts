@@ -13050,8 +13050,8 @@ Networks: %5</source>
             <translation>התקדמות</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
         </message>
     </context>
     <context>
@@ -16738,8 +16738,8 @@ Networks: %5</source>
             <translation>התקדמות</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
         </message>
     </context>
     <context>
@@ -17182,8 +17182,8 @@ Networks: %5</source>
             <translation>מחיל</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
         </message>
     </context>
     <context>
@@ -17956,12 +17956,12 @@ Networks: %5</source>
             <translation>יוצר</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>מחיל את השינוי. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מחיל את השינוי. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
         </message>
         <message>
             <source>Setting up progress</source>

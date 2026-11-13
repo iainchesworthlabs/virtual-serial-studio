@@ -13043,8 +13043,8 @@ Networks: %5</source>
             <translation>進行状況</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
     </context>
     <context>
@@ -16727,8 +16727,8 @@ Networks: %5</source>
             <translation>進行状況</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
     </context>
     <context>
@@ -17171,8 +17171,8 @@ Networks: %5</source>
             <translation>適用中</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
     </context>
     <context>
@@ -17944,12 +17944,12 @@ Networks: %5</source>
             <translation>作成中</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>変更を適用しています。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>変更を適用しています。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
         <message>
             <source>Setting up progress</source>

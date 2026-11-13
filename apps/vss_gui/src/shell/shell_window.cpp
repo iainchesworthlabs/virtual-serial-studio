@@ -1881,7 +1881,7 @@ void ShellWindow::apply_in_background(
     apply_bar_->setVisible(true);
     status_->showMessage(
         tr("Setting up. Windows installs each new port, which can take up to "
-           "20 seconds."));
+           "a minute."));
 
     apply_work_.start(
         [this, state]
