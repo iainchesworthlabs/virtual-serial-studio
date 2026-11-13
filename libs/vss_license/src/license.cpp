@@ -605,8 +605,8 @@ read_revocations(std::string_view file_text,
     return list;
 }
 
-const revocation_list& newer(const revocation_list& current,
-                             const revocation_list& candidate)
+revocation_list newer(const revocation_list& current,
+                      const revocation_list& candidate)
 {
     return candidate.sequence > current.sequence ? candidate : current;
 }

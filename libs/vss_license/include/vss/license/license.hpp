@@ -132,8 +132,8 @@ read_revocations(std::string_view file_text,
                  std::span<const signed_file::trusted_key> keys);
 
 /// The newer of the two lists; `current` when `candidate` is not newer.
-const revocation_list& newer(const revocation_list& current,
-                             const revocation_list& candidate);
+revocation_list newer(const revocation_list& current,
+                      const revocation_list& candidate);
 
 enum class state
 {
