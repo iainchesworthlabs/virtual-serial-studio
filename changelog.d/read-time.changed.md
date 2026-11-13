@@ -1,0 +1,1 @@
+**The time recorded for received bytes is now the moment they were read, before they are forwarded.** It was taken after forwarding, so it was later by however long forwarding took, usually well under a millisecond. A half-duplex bus judges a chunk by the same time, so the time in a bus fault matches the time of the bytes that caused it.
