@@ -913,6 +913,25 @@ Differences from sections 9, 10 and 12 as first written, and why:
 - **Engine errors by name**, which slice 1 left on paper, are in: an error event carries `engine.<name>`, and what
   the operating system said becomes `engine.io_error`, without its number or its text.
 
+### What the control operations built
+
+The first part of slice 4, on the local endpoint: `ports.create`, `ports.remove` and `links.connect` under
+`control.ports`, and `ports.send` under `control.data`. Loopback TCP, `expect.bytes`, runs and the report are
+separate changes.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Arranging ports and speaking on them are two rights | A session with `control.ports` and no `control.data` makes a port and is refused a send; one with `control.data` alone sends and is refused a port; a monitor, with or without `monitor.data`, is refused all four and the agent is never asked. The same for a token, and a ceiling takes the scope away again | "Own ports only": a caller may change any port of the agent, not only the ones it made |
+| What the engine refuses crosses by name only | A port that is not there, a kind the agent does not make and a link to nothing come back as `engine.not_found` and `engine.unsupported` with the gateway's own message; the client library turns the name back into the engine's code. Each costs an error and not the session | |
+| An id that is not one is not passed on | Five texts that are no port id get `invalid_argument` for each operation, without the agent being asked, and are not written to the audit log as they came | |
+| A send is bounded | 64 KiB is taken and one byte more is answered `limit_exceeded`; nothing to send is `invalid_argument`. The session stays in both cases | A rate for bytes sent: only the request rate of the session limits it (200 a second) |
+| Every change is recorded, and the bytes are not | One record for each of the four operations, with who, which port, and the outcome, also when it was refused by the engine or was no request at all; the bytes of a send are searched for in everything the gateway keeps and are not there, only their number | |
+| Without an agent nothing is half done | A change says `unavailable` and the session stays; when the agent is back the same session makes a port | |
+
+Not built here, and why: `links.disconnect`, `ports.rename`, `ports.settings` and `lines.set` have no request in
+the agent yet; `idempotency_key` waits for the first operation whose repeat would do harm (a second `ports.create`
+makes a second port, which a caller can see and remove).
+
 ## 14. Decisions for the owner
 
 All twelve were accepted as recommended.
