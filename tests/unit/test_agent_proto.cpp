@@ -207,6 +207,8 @@ std::vector<request> sample_requests()
     out.push_back(make_request(
         2, hello_request{std::numeric_limits<std::uint32_t>::max(), ""}));
     out.push_back(make_request(3, list_request{}));
+    out.push_back(
+        make_request(13, hello_request{protocol_version, "vss_gate", true}));
     out.push_back(make_request(4, create_port_request{"left", "virtual"}));
     out.push_back(make_request(5, create_port_request{"", ""}));
     out.push_back(make_request(6, remove_port_request{7}));
@@ -283,6 +285,9 @@ std::vector<reply> sample_replies()
         make_reply(3, hello_reply{std::numeric_limits<std::uint32_t>::max(), "",
                                   max_u64, std::vector<std::string>{}}));
     out.push_back(make_reply(4, list_reply{}));
+    out.push_back(make_reply(
+        13, hello_reply{protocol_version, "0.1.0", 1,
+                        std::vector<std::string>{"loopback"}, true}));
     out.push_back(make_reply(5, sample_list()));
     out.push_back(make_reply(6, create_port_reply{max_u64}));
     out.push_back(make_reply(7, connect_reply{max_u64}));
@@ -327,7 +332,9 @@ event_batch sample_batch()
     batch.events.push_back(received);
 
     // Traffic whose bytes the client did not ask for.
+    received.when_ns = max_u64;
     event_record counted = make_event(event_kind::data, 1);
+    counted.when_ns = 1;
     counted.direction = data_direction::tx;
     counted.size = 100000;
     batch.events.push_back(counted);
@@ -1786,4 +1793,54 @@ TEST_CASE("agent proto: peek_request_id is 0 when there is no id")
     REQUIRE_EQ(peek_request_id(frame{}), std::uint64_t{0});
     REQUIRE_EQ(peek_request_id(hand_frame(std::string(100000, '['))),
                std::uint64_t{0});
+}
+
+TEST_CASE("agent proto: read_only and when may be left out and must be of "
+          "their type")
+{
+    // Left out: a connection that may change things, and a time not known.
+    const auto plain = decode_request(
+        frame{R"({"id":1,"op":"hello","protocol":1,"client":"c"})", {}});
+    REQUIRE(plain);
+    REQUIRE(!std::get<hello_request>(plain->body).read_only);
+    const auto asked = decode_request(frame{
+        R"({"id":1,"op":"hello","protocol":1,"client":"c","read_only":true})",
+        {}});
+    REQUIRE(asked);
+    REQUIRE(std::get<hello_request>(asked->body).read_only);
+
+    // A flag that is not a flag is not read as "no".
+    for (const char* const bad : {R"(1)", R"("true")", R"(null)", R"([])"})
+    {
+        const std::string hello =
+            std::string(
+                R"({"id":1,"op":"hello","protocol":1,"client":"c","read_only":)") +
+            bad + "}";
+        REQUIRE(!decode_request(frame{hello, {}}));
+        const std::string welcome =
+            std::string(R"({"id":1,"reply":"hello","protocol":1,)"
+                        R"("agent_version":"v","process_id":1,)"
+                        R"("port_kinds":[],"read_only":)") +
+            bad + "}";
+        REQUIRE(!decode_server_message(frame{welcome, {}}));
+    }
+
+    const std::string event_start =
+        R"({"event":"batch","revision":0,"dropped":0,"events":[{"kind":"data",)"
+        R"("endpoint":1,"name":"","direction":"rx","size":0,"stored":0,)"
+        R"("lines":0,"message":"")";
+    const auto untimed = decode_server_message(frame{event_start + "}]}", {}});
+    REQUIRE(untimed);
+    REQUIRE_EQ(std::get<event_batch>(*untimed).events.at(0).when_ns,
+               std::uint64_t{0});
+    const auto timed =
+        decode_server_message(frame{event_start + R"(,"when":77}]})", {}});
+    REQUIRE(timed);
+    REQUIRE_EQ(std::get<event_batch>(*timed).events.at(0).when_ns,
+               std::uint64_t{77});
+    for (const char* const bad : {R"(-1)", R"("77")", R"(1.5)", R"(null)"})
+    {
+        REQUIRE(!decode_server_message(
+            frame{event_start + R"(,"when":)" + bad + "}]}", {}}));
+    }
 }

@@ -12,6 +12,7 @@
 
 #include <boost/asio/io_context.hpp>
 
+#include <deque>
 #include <functional>
 #include <utility>
 #include <variant>
@@ -24,6 +25,8 @@ namespace
 using steady = std::chrono::steady_clock;
 
 constexpr std::size_t read_buffer_size = std::size_t{64} * 1024;
+/// Batches kept while the caller is busy with requests.  Older ones go.
+constexpr std::size_t max_kept_batches = 256;
 
 /// What a write in flight reports to.  Shared with its handler, so a call
 /// that gave up waiting leaves nothing for the handler to dangle on.
@@ -87,7 +90,12 @@ public:
                                     agent::protocol_errc::connection_closed)
                               : message.error();
             }
-            reply& answer = *message;
+            if (auto* batch = std::get_if<event_batch>(&*message))
+            {
+                keep(std::move(*batch));
+                continue;
+            }
+            reply& answer = std::get<reply>(*message);
             const auto* refused = std::get_if<error_reply>(&answer.body);
             // Id 0 is an error about the connection itself.
             if (answer.id != asked.id && !(answer.id == 0 && refused))
@@ -101,6 +109,48 @@ public:
         }
     }
 
+    result<event_batch> next_events(std::chrono::milliseconds limit)
+    {
+        const auto deadline = steady::now() + limit;
+        for (;;)
+        {
+            if (!events_.empty())
+            {
+                event_batch batch = std::move(events_.front());
+                events_.pop_front();
+                return batch;
+            }
+            if (broken_)
+                return agent::make_error_code(
+                    agent::protocol_errc::connection_closed);
+            auto message = receive(deadline);
+            if (!message)
+            {
+                // Nothing came in time: not a fault of the connection.
+                if (message.error() != errc::timeout)
+                    drop();
+                return message.error();
+            }
+            if (auto* batch = std::get_if<event_batch>(&*message))
+            {
+                keep(std::move(*batch));
+                continue;
+            }
+            // No request is waiting, so an error with no id is the gateway
+            // saying why it ends the session.  Anything else is the late
+            // answer to a request that was given up on.
+            const reply& answer = std::get<reply>(*message);
+            const auto* refused = std::get_if<error_reply>(&answer.body);
+            if (answer.id == 0 && refused != nullptr)
+            {
+                last_message = refused->error.message;
+                const error_code why = from_api_error(refused->error);
+                drop();
+                return why;
+            }
+        }
+    }
+
     /// Wipes the token the options came with.  Called once the hello is
     /// answered: after that the client has no use for it and keeps none.
     void forget_token() { options_.token = secret_string(); }
@@ -109,6 +159,13 @@ public:
     std::string last_message;
 
 private:
+    void keep(event_batch batch)
+    {
+        if (events_.size() >= max_kept_batches)
+            events_.pop_front();
+        events_.push_back(std::move(batch));
+    }
+
     void drop()
     {
         broken_ = true;
@@ -124,7 +181,13 @@ private:
         {
             const auto now = steady::now();
             if (now >= deadline)
-                return false;
+            {
+                // What has already happened is still taken, so a caller with
+                // no time to wait gets what has arrived.
+                io_.restart();
+                io_.poll();
+                return finished();
+            }
             io_.restart();
             io_.run_one_for(deadline - now);
         }
@@ -185,7 +248,7 @@ private:
 
     /// The next message from the gateway.  `errc::timeout` leaves the read in
     /// flight, so a later call goes on where this one stopped.
-    result<reply> receive(steady::time_point deadline)
+    result<server_message> receive(steady::time_point deadline)
     {
         for (;;)
         {
@@ -194,7 +257,7 @@ private:
                 return next.error();
             const std::optional<frame> ready = std::move(*next);
             if (ready)
-                return decode_reply(*ready);
+                return decode_server_message(*ready);
             if (read_failed_)
                 return agent::make_error_code(
                     agent::protocol_errc::connection_closed);
@@ -213,6 +276,7 @@ private:
     boost::asio::io_context io_;
     std::unique_ptr<agent::local_stream> stream_;
     agent::frame_reader reader_;
+    std::deque<event_batch> events_;
     std::uint64_t next_id_ = 1;
     bool reading_ = false;
     bool read_failed_ = false;
@@ -321,6 +385,73 @@ result<void> client::revoke_token(const std::string& id)
     if (!std::holds_alternative<done_reply>(*answer))
         return make_error_code(api_errc::invalid_argument);
     return {};
+}
+
+namespace
+{
+
+/// The answer to a subscription, or the error it was refused with.
+result<subscribed_reply> subscribed(result<reply_body> answer)
+{
+    if (!answer)
+        return answer.error();
+    const auto* started = std::get_if<subscribed_reply>(&*answer);
+    if (started == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return *started;
+}
+
+result<void> done(const result<reply_body>& answer)
+{
+    if (!answer)
+        return answer.error();
+    if (!std::holds_alternative<done_reply>(*answer))
+        return make_error_code(api_errc::invalid_argument);
+    return {};
+}
+
+} // namespace
+
+result<subscribed_reply> client::subscribe_events(const stream_options& options)
+{
+    return subscribed(impl_->call(events_subscribe_request{options}));
+}
+
+result<subscribed_reply>
+client::subscribe_traffic(const stream_options& options)
+{
+    return subscribed(impl_->call(traffic_subscribe_request{options}));
+}
+
+result<void> client::unsubscribe_events()
+{
+    return done(impl_->call(events_unsubscribe_request{}));
+}
+
+result<void> client::unsubscribe_traffic()
+{
+    return done(impl_->call(traffic_unsubscribe_request{}));
+}
+
+result<event_batch> client::next_events(std::chrono::milliseconds limit)
+{
+    return impl_->next_events(limit);
+}
+
+result<sessions_reply> client::list_sessions()
+{
+    auto answer = impl_->call(sessions_list_request{});
+    if (!answer)
+        return answer.error();
+    auto* listed = std::get_if<sessions_reply>(&*answer);
+    if (listed == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(*listed);
+}
+
+result<void> client::kick_session(std::uint64_t number)
+{
+    return done(impl_->call(sessions_kick_request{number}));
 }
 
 const std::string& client::last_error_message() const noexcept
