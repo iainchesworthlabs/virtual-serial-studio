@@ -4,21 +4,19 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 -->
 <section class="band pane" aria-labelledby="page-title">
 <div class="head">
-<p class="eyebrow">Features</p>
-<h1 id="page-title">Everything here is in the free Community edition</h1>
-<p class="lead">One window with two levels. Simple is a page of jobs for the person who needs a port now. Advanced is a diagram, with the panes an integrator or a diagnostician needs. Both show the same studio, and switching never changes what you have built.</p>
+<h1 id="page-title">Features</h1>
+<p class="lead">Everything on this page is in the Community edition. The window has two levels. Simple is a list of your setups and a page of jobs. Advanced is a diagram with the panes an integrator or a diagnostician needs. Both show the same studio, and switching does not change what you have built.</p>
 </div>
 <div class="note warn wide">
-<p><strong>About the pictures.</strong> Each dashed frame below marks where a picture of the application will go. The pictures are made by the application itself, drawing its own window off screen in the light and the dark theme, so they always match the build you download. They are not on this page yet.</p>
+<p><strong>About the pictures.</strong> Each dashed frame below marks where a picture of the application will go. The pictures will be made by the application drawing its own window off screen, in the light and the dark theme. They are not on this page yet.</p>
 </div>
 </section>
 
 <section class="band pane" aria-labelledby="f-simple">
 <div class="feature">
 <div class="words">
-<p class="eyebrow">Simple mode</p>
-<h2 id="f-simple">A port where there is none</h2>
-<p>Simple mode opens with your setups and a page of jobs. A job is a short form with sensible defaults, and the result is a port with a name you can type into your program.</p>
+<h2 id="f-simple">Simple mode and virtual ports</h2>
+<p>Simple mode opens with your setups and a page of jobs. A job is a short form with defaults. The result is a port with a name to use in your program.</p>
 <ul>
 <li>A virtual port, or a linked pair so that two programs talk to each other.</li>
 <li>On Windows, a COM port from Studio's own driver, with the COM number you choose. Old programs that only offer COM1 to COM4 can have one of those.</li>
@@ -40,9 +38,8 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <section class="band pane" aria-labelledby="f-share">
 <div class="feature flip">
 <div class="words">
-<p class="eyebrow">Share and merge</p>
-<h2 id="f-share">One device, several programs</h2>
-<p>The operating system lets one program open a serial port. Studio opens the device and gives each program its own port, so the maker's tool, your logger and your own script can run side by side.</p>
+<h2 id="f-share">Sharing a device</h2>
+<p>The operating system lets one program open a serial port. Studio opens the device and gives each program its own port, so several programs can use the device at once.</p>
 <ul>
 <li>Split one device to several listeners, or join several publishers into one device.</li>
 <li>Choose the owner: the one program allowed to write. Bytes from the others are counted and dropped, and the Monitor shows it.</li>
@@ -64,9 +61,8 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <section class="band pane" aria-labelledby="f-watch">
 <div class="feature">
 <div class="words">
-<p class="eyebrow">Monitor and capture</p>
-<h2 id="f-watch">Watch the wire without disturbing it</h2>
-<p>A watcher is a read-only copy of a port. It never transmits and never drives a control line, so the device and its program cannot tell that it is there.</p>
+<h2 id="f-watch">Monitor and capture</h2>
+<p>A watcher is a read-only copy of a port. It never transmits and never drives a control line.</p>
 <ul>
 <li>A row for each transfer: time, port, direction, byte count and a preview as text or hex.</li>
 <li>Pause, follow, filter by port and direction, and search the payload.</li>
@@ -88,9 +84,8 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <section class="band pane" aria-labelledby="f-diagram">
 <div class="feature flip">
 <div class="words">
-<p class="eyebrow">Advanced mode</p>
-<h2 id="f-diagram">Build the rig on a diagram</h2>
-<p>Advanced mode is a canvas with a toolbox. Drag ports on, draw the links, and read the state of every port and link where it sits.</p>
+<h2 id="f-diagram">Advanced mode</h2>
+<p>Advanced mode is a canvas with a toolbox. Drag ports onto it and draw the links. The diagram shows the state of every port and link.</p>
 <ul>
 <li>Ports, Inspector, Send and Monitor panes that you can arrange, and a command palette that finds any action.</li>
 <li>Undo and redo for the edits you make on the diagram.</li>
@@ -112,8 +107,7 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <section class="band pane" aria-labelledby="f-network">
 <div class="feature">
 <div class="words">
-<p class="eyebrow">Network</p>
-<h2 id="f-network">Put a device on the network</h2>
+<h2 id="f-network">Network endpoints</h2>
 <p>A network endpoint is a port like any other, so it can be shared, watched and linked in the same way.</p>
 <ul>
 <li>TCP, RFC 2217 and UDP, as a server that listens or a client that connects.</li>
@@ -137,16 +131,15 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <section class="band pane" aria-labelledby="f-faults">
 <div class="feature flip">
 <div class="words">
-<p class="eyebrow">Test without hardware</p>
-<h2 id="f-faults">Make the device misbehave</h2>
-<p>Most serial bugs are in what happens when the other end is slow, silent or wrong. Studio lets you produce those conditions by hand.</p>
+<h2 id="f-faults">Testing without hardware</h2>
+<p>Studio can stand in for a device, slow a link down and inject line faults, set by hand in the window.</p>
 <ul>
 <li>A mock fixture stands in for a device: it echoes, or generates text, a fixed pattern, a counter or random bytes at the rate you set.</li>
 <li>Delay and jitter on a link.</li>
 <li>DTR, RTS, CTS, DSR, DCD and RI: see them, drive them, and choose how a link wires them.</li>
-<li>Inject a parity error, a framing error, an overrun, a break, a hang-up or a disconnect, and see how your program copes.</li>
+<li>Inject a parity error, a framing error, an overrun, a break, a hang-up or a disconnect on a fixture.</li>
 </ul>
-<p>Setting these from a test harness during a run, with exact repeatability, is what the <a href="plugins.html">Pro plugins</a> add.</p>
+<p>The <a href="plugins.html">Pro plugins</a> will let a test harness set these during a run.</p>
 </div>
 <figure class="shot">
 <div class="frame" role="img" aria-label="Placeholder for a picture of faults and control lines">
@@ -162,9 +155,8 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <section class="band pane" aria-labelledby="f-cli">
 <div class="feature">
 <div class="words">
-<p class="eyebrow">Save, replay, script</p>
-<h2 id="f-cli">Run it without the window</h2>
-<p>A setup is a JSON file that you can save, open, share and start from a template. Export as command turns it into a line for <code>vss_cli</code>, which does the same work on a machine with no display.</p>
+<h2 id="f-cli">Setups and the command line</h2>
+<p>A setup is a JSON file that you can save, open and start from a template. Export as command gives the equivalent <code>vss_cli</code> command, which runs on a machine with no display.</p>
 <ul>
 <li><code>capture</code> records every byte to a file until you stop it.</li>
 <li><code>play</code> writes a capture back into a port at the recorded pace, faster, slower or in a loop.</li>
@@ -185,13 +177,12 @@ vss_cli bridge serial://COM3 tcp-listen://0.0.0.0:4001</code></pre>
 <section class="band pane" aria-labelledby="f-help">
 <div class="feature flip">
 <div class="words">
-<p class="eyebrow">When it does not work</p>
-<h2 id="f-help">It tells you why</h2>
-<p>Serial ports fail quietly. Studio is built to say what is wrong in plain words.</p>
+<h2 id="f-help">Diagnostics</h2>
+<p>Three tools report what is wrong when nothing arrives.</p>
 <ul>
 <li>Setup check lists what this machine needs and what is missing, with a fix for each.</li>
-<li>&ldquo;Why is nothing arriving?&rdquo; walks the path from one port to the other and names the break.</li>
-<li>A diagnostic bundle is a ZIP with the setup, the event log, the environment and the port counters. The contents of your traffic stay out unless you tick them. You save it and you send it. Nothing is sent for you.</li>
+<li>&ldquo;Why is nothing arriving?&rdquo; checks each step between the device and your program and suggests what to try.</li>
+<li>A diagnostic bundle is a ZIP with the setup, the event log, the environment and the port counters. Traffic contents are left out unless you tick them. Nothing is sent anywhere; you choose where to save the file.</li>
 </ul>
 </div>
 <figure class="shot">
@@ -200,25 +191,25 @@ vss_cli bridge serial://COM3 tcp-listen://0.0.0.0:4001</code></pre>
 <span>The &ldquo;Why is nothing arriving?&rdquo; dialog: one group of checks, each with a tile in the colour of its state and a sentence.</span>
 <code>shot: troubleshoot</code>
 </div>
-<figcaption>The troubleshooter names the break in the path.</figcaption>
+<figcaption>The &ldquo;Why is nothing arriving?&rdquo; dialog.</figcaption>
 </figure>
 </div>
 </section>
 
 <section class="band plain" aria-labelledby="f-also">
 <div class="head">
-<h2 id="f-also">Also in every edition</h2>
+<h2 id="f-also">In every edition</h2>
 </div>
 <dl class="rows">
 <div><dt>Three systems</dt><dd>Windows 10 and 11, Linux (packages for Debian, Ubuntu, Fedora and RHEL, and an archive) and macOS on Apple silicon. Built and tested on all three every night.</dd></div>
 <div><dt>Light and dark</dt><dd>Both themes meet WCAG 2.2 AA contrast. Follow the system or choose one. Text size, high contrast and reduced motion follow your system.</dd></div>
 <div><dt>Keyboard and screen readers</dt><dd>Every control is reachable by keyboard and has an accessible name and role. State is never shown by colour alone.</dd></div>
 <div><dt>Nine languages</dt><dd>The window follows the language of the system, including right-to-left languages.</dd></div>
-<div><dt>Known limits</dt><dd>The user guide has a section called &ldquo;What this build cannot do&rdquo;. Read it before you rely on a feature for work that matters.</dd></div>
+<div><dt>Known limits</dt><dd>The user guide has a section called &ldquo;What this build cannot do&rdquo;.</dd></div>
 </dl>
 <div class="actions">
 <a class="btn primary" href="downloads.html">Download</a>
-<a class="btn" href="docs/user-guide/">Read the user guide</a>
-<a class="btn ghost" href="editions.html">Compare the editions</a>
+<a class="btn" href="docs/user-guide/">User guide</a>
+<a class="btn ghost" href="editions.html">Editions</a>
 </div>
 </section>

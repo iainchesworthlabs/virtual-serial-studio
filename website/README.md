@@ -63,6 +63,9 @@ both themes and at a phone's width.
 
 - British English, plain words, short sentences. Say what the program does today. Anything that is planned says so,
   with an "In development" chip.
+- No marketing language. A heading names the thing ("Features", "Sharing a device"). A sentence states a fact. No
+  slogans, no "not this, but that", no invented quotations, no exaggeration and no closing flourish. The readers are
+  engineers. Prefer the wording of `docs/index.md` and the user guide.
 - Do not state a price, an email address or a date that the owner has not decided.
 - The licence and privacy pages are drafts for a solicitor. Keep the DRAFT mark until the owner says it can go.
 - Pictures of the application are not committed. Each `figure.shot` on the features page is a placeholder with a
