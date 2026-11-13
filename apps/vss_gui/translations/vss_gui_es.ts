@@ -6250,8 +6250,8 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>Sirve para averiguar por qué Studio va lento. Solo registra tiempos y no envía nada hasta que conectes el perfilador Tracy a la dirección anterior. Se desactiva de nuevo cada vez que se inicia Studio.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>Sirve para averiguar por qué Studio va lento. Solo registra tiempos y no envía nada a ninguna parte: Studio escucha solo en este equipo, y la línea de tiempo aparece únicamente cuando inicias aquí el perfilador Tracy y lo conectas a la dirección anterior. Studio recuerda este interruptor y vuelve a registrar la próxima vez que se inicie. Permitir que se conecten otros equipos requiere reiniciar.</translation>
         </message>
     </context>
     <context>

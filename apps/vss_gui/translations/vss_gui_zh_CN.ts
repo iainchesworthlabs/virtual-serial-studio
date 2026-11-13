@@ -6247,8 +6247,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>用于查明 Studio 变慢的原因。它只记录耗时，在你将 Tracy 分析器连接到上方地址之前不会发送任何内容。每次启动 Studio 时它都会重新关闭。</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>用于查明 Studio 变慢的原因。它只记录耗时，不会向任何地方发送内容：Studio 只在这台计算机上监听，只有当你在这里启动 Tracy 分析器并将其连接到上方地址时才会出现时间线。Studio 会记住此开关，并在下次启动时再次记录。允许其他计算机连接需要重启。</translation>
         </message>
     </context>
     <context>

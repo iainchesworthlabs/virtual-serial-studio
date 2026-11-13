@@ -197,7 +197,7 @@ Unit, system, performance, fuzz and GUI journey tests all run under CTest. [docs
 
 ## Profiling
 
-Every layer is instrumented for [Tracy](https://github.com/wolfpld/tracy): the engine and transports, the studio service, the CLI, the GUI (events, painting, panes), the tests and `vss_perf`. In a Debug build profiling starts by itself and listens on this computer only. In a Release build with `VSS_TRACY=ON` (the `*-tracy*` presets) the instrumentation is compiled in but dormant, and nothing runs, listens or costs anything measurable until you ask:
+Every layer is instrumented for [Tracy](https://github.com/wolfpld/tracy): the engine and transports, the studio service, the CLI, the GUI (events, painting, panes), the tests and `vss_perf`. In a Debug build profiling starts by itself and listens on this computer only. In a Release build the instrumentation is compiled in too whenever the vcpkg toolchain supplies Tracy (`VSS_TRACY` defaults to on there; `-DVSS_TRACY=OFF` leaves it out), but dormant, and nothing runs, listens or costs anything measurable until you ask:
 
 ```bash
 vss_gui --profile            # or Settings, Performance, Profiling; or VSS_PROFILE=1

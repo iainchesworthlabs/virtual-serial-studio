@@ -36,6 +36,9 @@ struct ui_settings
     /// background (`ui/closeAction` is `background`), or stops them and
     /// quits (`quit`).
     bool keep_running_on_close = true;
+    /// Record a performance trace from the start (`ui/profileOnStart`).
+    /// Recording listens on this computer only; see `docs/profiling.md`.
+    bool profile_on_start = false;
 };
 
 inline constexpr int kRefreshMinMs = 50;
