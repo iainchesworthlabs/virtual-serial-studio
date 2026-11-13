@@ -37,6 +37,7 @@
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDir>
+#include <QPointer>
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QLabel>
@@ -62,6 +63,17 @@ void clear_settings()
 {
     QSettings settings;
     settings.clear();
+}
+
+/// Clicks a dialog's primary button and waits for the worker thread that
+/// makes the ports to report, so the test sees the finished result.
+template <class Dialog>
+void click_primary(Dialog& dialog)
+{
+    const QPointer<Dialog> guard(&dialog);
+    dialog.primary_button()->click();
+    REQUIRE(vss_test::wait_until(
+        [&guard] { return guard.isNull() || !guard->busy(); }));
 }
 
 void settle()
@@ -212,14 +224,14 @@ TEST_CASE("flows: add port validates, suffixes and keeps every input")
     dialog.count_spin()->setValue(33);
     REQUIRE_EQ(dialog.count_spin()->accessibleDescription(),
                QStringLiteral("Choose a number from 1 to 32."));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE(dialog.result() != QDialog::Accepted);
     REQUIRE_EQ(dialog.name_edit()->text(), QStringLiteral("port-1"));
     REQUIRE_EQ(dialog.count_spin()->value(), 33);
     REQUIRE_EQ(backend.ports().size(), 1);
 
     dialog.count_spin()->setValue(0);
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE(dialog.result() != QDialog::Accepted);
     REQUIRE_EQ(dialog.count_spin()->value(), 0);
 
@@ -234,7 +246,7 @@ TEST_CASE("flows: add port validates, suffixes and keeps every input")
     dialog.name_edit()->setText(QStringLiteral("serial"));
     REQUIRE(dialog.result_sentence()->accessibleName().contains(
         QStringLiteral("serial-1 and serial-2")));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(dialog.created_ports().size(), 2);
     REQUIRE_EQ(dialog.created_kind_token(), QStringLiteral("auto"));
@@ -367,7 +379,7 @@ TEST_CASE("flows: enter triggers the primary action")
 
     QKeyEvent enter(QEvent::KeyPress, Qt::Key_Return, Qt::NoModifier);
     QApplication::sendEvent(dialog.name_edit(), &enter);
-    settle();
+    REQUIRE(vss_test::wait_until([&dialog] { return !dialog.busy(); }));
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(backend.ports().size(), 1);
 }
@@ -530,21 +542,21 @@ TEST_CASE("flows: pair creates two ports and a null-modem link")
         QStringLiteral("COM8 sends arrives at COM10")));
 
     dialog.panel()->pair_name_edit()->clear();
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE(dialog.result() != QDialog::Accepted);
     REQUIRE(backend.ports().empty());
 
     dialog.panel()->pair_name_edit()->setText(QStringLiteral("pair-1"));
     dialog.panel()->first_port_edit()->setText(
         dialog.panel()->suggested_second());
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE(dialog.result() != QDialog::Accepted);
     REQUIRE(dialog.panel()->first_port_edit()->accessibleDescription().contains(
         QStringLiteral("is already used. Try COM8.")));
     REQUIRE(backend.ports().empty());
 
     dialog.panel()->first_port_edit()->setText(QStringLiteral("COM8"));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE(dialog.outcome().has_value());
     REQUIRE_EQ(backend.ports().size(), 2);
@@ -586,7 +598,7 @@ TEST_CASE("flows: pair needs no free pairs with the Studio driver")
             ->findChild<QLabel*>(QStringLiteral("pairHint"))
             ->text()
             .startsWith(QStringLiteral("The Studio driver makes both ports")));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(backend.ports().size(), 2);
     REQUIRE_EQ(backend.links().size(), 1);
@@ -631,7 +643,7 @@ TEST_CASE("flows: pair degrades without a driver or free pairs")
     REQUIRE(linux_dialog.panel()->first_port_edit()->isReadOnly());
     REQUIRE_EQ(linux_dialog.panel()->first_port_edit()->placeholderText(),
                QStringLiteral("Chosen when you create the pair"));
-    linux_dialog.primary_button()->click();
+    click_primary(linux_dialog);
     REQUIRE_EQ(linux_dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(linux_backend.ports().size(), 2);
     REQUIRE_EQ(linux_backend.links().size(), 1);
@@ -653,7 +665,7 @@ TEST_CASE("flows: pair failure rolls back and uses ErrorDialog")
                      [&title](const QString& value) { title = value; });
     modal_probe probe;
     close_next_modal(&probe);
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(title, QStringLiteral("Could not create the pair"));
     REQUIRE(probe.error_dialog);
     REQUIRE(probe.buttons.contains(QStringLiteral("Copy details")));
@@ -725,7 +737,7 @@ TEST_CASE("flows: add port names the missing piece and offers the set-up")
                          [&requested] { requested = true; });
         modal_probe probe;
         close_next_modal(&probe);
-        dialog.primary_button()->click();
+        click_primary(dialog);
         REQUIRE_EQ(title, QStringLiteral("Could not create the port"));
         REQUIRE(probe.error_dialog);
         REQUIRE(probe.buttons.contains(
@@ -738,9 +750,91 @@ TEST_CASE("flows: add port names the missing piece and offers the set-up")
         // Pressing the action closes the error and asks the window to open it.
         backend.fail_next(vss::make_error_code(vss::errc::permission_denied));
         press_in_next_modal(QStringLiteral("Set up Virtual Serial Studio"));
-        dialog.primary_button()->click();
+        click_primary(dialog);
         REQUIRE(requested);
     }
+}
+
+TEST_CASE("flows: add port stays responsive while the ports are made")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_create_delay(std::chrono::milliseconds(300));
+    vss::gui::AddPortDialog dialog(backend, false,
+                                   vss::gui::AddPortDialog::mode::virtual_port,
+                                   vss::gui::platform_kind::linux);
+    dialog.name_edit()->setText(QStringLiteral("slow"));
+    dialog.show();
+    settle();
+
+    const auto started = std::chrono::steady_clock::now();
+    dialog.primary_button()->click();
+    // The click returns at once and the window says it is working.
+    REQUIRE(std::chrono::steady_clock::now() - started <
+            std::chrono::milliseconds(250));
+    REQUIRE(dialog.busy());
+    REQUIRE_EQ(dialog.primary_button()->text(), QStringLiteral("Creating"));
+    REQUIRE_EQ(dialog.primary_button()->accessibleName(),
+               QStringLiteral("Creating"));
+    REQUIRE(!dialog.primary_button()->isEnabled());
+    REQUIRE(!dialog.cancel_button()->isEnabled());
+    auto* status =
+        dialog.findChild<QLabel*>(QStringLiteral("addPortBusyText"));
+    REQUIRE(status != nullptr);
+    REQUIRE(status->isVisibleTo(&dialog));
+    REQUIRE(!status->accessibleName().isEmpty());
+
+    // Escape and a second click do nothing while the ports are being made.
+    dialog.reject();
+    REQUIRE(dialog.isVisible());
+    dialog.primary_button()->click();
+
+    REQUIRE(vss_test::wait_until([&dialog] { return !dialog.busy(); }));
+    REQUIRE_EQ(dialog.result(), QDialog::Accepted);
+    REQUIRE_EQ(backend.ports().size(), std::size_t{1});
+}
+
+TEST_CASE("flows: add port comes back usable after a failure")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_create_delay(std::chrono::milliseconds(50));
+    vss::gui::AddPortDialog dialog(backend, false,
+                                   vss::gui::AddPortDialog::mode::virtual_port,
+                                   vss::gui::platform_kind::linux);
+    dialog.show();
+    settle();
+    backend.fail_next(vss::make_error_code(vss::errc::timeout));
+    modal_probe probe;
+    close_next_modal(&probe);
+    click_primary(dialog);
+    REQUIRE(probe.error_dialog);
+    REQUIRE(dialog.result() != QDialog::Accepted);
+    REQUIRE(dialog.primary_button()->isEnabled());
+    REQUIRE(dialog.cancel_button()->isEnabled());
+    REQUIRE_EQ(dialog.primary_button()->text(), QStringLiteral("Create port"));
+    REQUIRE(backend.ports().empty());
+}
+
+TEST_CASE("flows: pair stays open and says it is working while it is made")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    use_two_free_pairs(backend);
+    backend.set_create_delay(std::chrono::milliseconds(200));
+    vss::gui::PairDialog dialog(backend, false,
+                                vss::gui::platform_kind::linux);
+    dialog.show();
+    settle();
+    dialog.primary_button()->click();
+    REQUIRE(dialog.busy());
+    REQUIRE_EQ(dialog.primary_button()->text(), QStringLiteral("Creating"));
+    REQUIRE(!dialog.primary_button()->isEnabled());
+    dialog.reject();
+    REQUIRE(dialog.isVisible());
+    REQUIRE(vss_test::wait_until([&dialog] { return !dialog.busy(); }));
+    REQUIRE_EQ(dialog.result(), QDialog::Accepted);
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
 }
 
 TEST_CASE("flows: add port with a working set-up keeps the engine's message")
@@ -756,7 +850,7 @@ TEST_CASE("flows: add port with a working set-up keeps the engine's message")
     backend.fail_next(vss::make_error_code(vss::errc::device_busy));
     modal_probe probe;
     close_next_modal(&probe);
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE(probe.error_dialog);
     // Nothing to set up, so no set-up button.
     REQUIRE(!probe.buttons.contains(
@@ -782,7 +876,7 @@ TEST_CASE("flows: a pair that cannot be made names the missing piece too")
     QObject::connect(&dialog, &vss::gui::PairDialog::driver_setup_requested,
                      [&requested] { requested = true; });
     press_in_next_modal(QStringLiteral("Set up Virtual Serial Studio"));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE(requested);
     REQUIRE(backend.ports().empty());
 }
@@ -1258,7 +1352,7 @@ TEST_CASE("flows: add port makes the port with the number asked for")
     QString title;
     QObject::connect(&dialog, &vss::gui::AddPortDialog::error_shown,
                      [&title](const QString& value) { title = value; });
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE(dialog.result() != QDialog::Accepted);
     REQUIRE_EQ(title, QStringLiteral("Could not create the port"));
     REQUIRE(backend.ports().empty());
@@ -1268,7 +1362,7 @@ TEST_CASE("flows: add port makes the port with the number asked for")
 
     dialog.com_number_spin()->setValue(7);
     REQUIRE(dialog.com_number_spin()->accessibleDescription().isEmpty());
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(backend.ports().size(), std::size_t{1});
     const auto made = backend.ports().front();
@@ -1290,7 +1384,7 @@ TEST_CASE("flows: add port with Automatic leaves the number to Windows")
                                    vss::gui::platform_kind::windows);
     dialog.show();
     settle();
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(backend.ports().size(), std::size_t{1});
     // The ordinary path was taken, not a driver port.
@@ -1678,7 +1772,7 @@ TEST_CASE("flows: add port uses the real engine adapter for a loopback")
                                    vss::gui::platform_kind::linux);
     dialog.name_edit()->setText(QStringLiteral("flow-smoke"));
     dialog.kind_combo()->setCurrentIndex(2);
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(dialog.created_ports().size(), 1);
     const auto created = backend.port(dialog.created_ports().first());

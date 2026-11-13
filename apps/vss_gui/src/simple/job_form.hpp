@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "backend/background_work.hpp"
 #include "backend/studio_backend.hpp"
 #include "simple/job_plan.hpp"
 #include "simple/setup_kinds.hpp"
@@ -24,7 +25,9 @@ class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
+class QProgressBar;
 class QPushButton;
+class QScrollArea;
 class QSpinBox;
 class QVBoxLayout;
 
@@ -107,8 +110,13 @@ public:
     void set_echo(bool on);
     void set_extras(bool type_here, bool show_data);
 
-    /// Builds or changes the setup.  True on success.
+    /// Starts building or changing the setup, which can take seconds (Windows
+    /// installs each new port), on a worker thread; the form shows that it is
+    /// working and `done` follows on success.  False when nothing was started:
+    /// the form has a blocker or a build is already running.
     bool submit();
+    /// True from `submit()` until the build has finished and been reported.
+    bool busy() const noexcept { return work_.busy(); }
 
 Q_SIGNALS:
     void cancelled();
@@ -137,6 +145,10 @@ private:
     void update_result();
     void update_changes();
     void validate();
+    void set_busy(bool busy);
+    /// Reports a finished build on the GUI thread.
+    void finish_submit(const vss::result<vss::endpoint_id>& built,
+                       unsigned clashed);
 
     std::optional<list_spec> spec(bool second) const;
     std::vector<end_plan>& list(bool second);
@@ -172,7 +184,14 @@ private:
     /// Numbers Windows refused while this form was open.
     std::vector<unsigned> refused_;
 
+    BackgroundWork work_;
     QPushButton* create_ = nullptr;
+    QPushButton* cancel_ = nullptr;
+    QPushButton* back_ = nullptr;
+    QScrollArea* scroll_ = nullptr;
+    QWidget* busy_row_ = nullptr;
+    QLabel* busy_label_ = nullptr;
+    QProgressBar* busy_bar_ = nullptr;
     QLabel* blocker_label_ = nullptr;
     WireDiagram* diagram_ = nullptr;
     QWidget* ends_ = nullptr;

@@ -7,6 +7,7 @@
 #include "test_framework.hpp"
 
 #include "qt_input.hpp"
+#include "qt_wait.hpp"
 
 #include "backend/engine_studio_backend.hpp"
 #include "backend/fake_studio_backend.hpp"
@@ -25,11 +26,13 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QListWidget>
+#include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollArea>
 
 #include <algorithm>
+#include <chrono>
 #include <stdexcept>
 
 namespace
@@ -47,6 +50,21 @@ void with_devices(FakeStudioBackend& backend)
     com4.path = QStringLiteral("COM4");
     com4.description = QStringLiteral("Prolific USB-to-Serial");
     backend.set_devices({com3, com4});
+}
+
+/// Submits a job form and waits for its worker thread.  True when the setup
+/// was made, which is when the form says `done`.
+bool submit_and_wait(JobForm* form)
+{
+    const QPointer<JobForm> guard(form);
+    bool made = false;
+    QObject::connect(form, &JobForm::done,
+                     [&made](vss::endpoint_id, const setup_prefs&)
+                     { made = true; });
+    if (!form->submit())
+        return false;
+    REQUIRE(vss_test::wait_until([&guard] { return guard.isNull() || !guard->busy(); }));
+    return made;
 }
 
 capabilities windows_caps()
@@ -977,7 +995,7 @@ TEST_CASE("simple: the share form needs a device and creates the setup")
     QObject::connect(&form, &JobForm::done,
                      [&made](vss::endpoint_id port, const setup_prefs&)
                      { made = port; });
-    REQUIRE(form.submit());
+    REQUIRE(submit_and_wait(&form));
     REQUIRE(made != 0);
     const auto found = setups(backend);
     REQUIRE_EQ(found.size(), std::size_t{1});
@@ -1058,7 +1076,7 @@ TEST_CASE("simple: numbers Windows keeps are neither offered nor chosen")
     REQUIRE(rows[1].contains(QStringLiteral("COM9")));
     REQUIRE(!rows[1].contains(QStringLiteral("COM7")));
 
-    REQUIRE(form.submit());
+    REQUIRE(submit_and_wait(&form));
     const auto made = backend.ports();
     REQUIRE_EQ(made.size(), std::size_t{2});
     REQUIRE(std::any_of(made.begin(), made.end(), [](const port_view& port)
@@ -1083,7 +1101,7 @@ TEST_CASE(
                 .contains(QStringLiteral("could not read which COM numbers "
                                          "Windows keeps")));
     // Studio picks the numbers, so the setup is still made.
-    REQUIRE(form.submit());
+    REQUIRE(submit_and_wait(&form));
     REQUIRE_EQ(backend.ports().size(), std::size_t{2});
 }
 
@@ -1098,7 +1116,7 @@ TEST_CASE("simple: a refused number is named and replaced")
     JobForm form(backend, job::pair);
     REQUIRE_EQ(form.plan().first.front().com_number, 3u);
     REQUIRE_EQ(form.plan().second.front().com_number, 4u);
-    REQUIRE(!form.submit());
+    REQUIRE(!submit_and_wait(&form));
     REQUIRE(backend.ports().empty());
 
     const QString failure = failure_text(form);
@@ -1117,7 +1135,7 @@ TEST_CASE("simple: a refused number is named and replaced")
     REQUIRE_EQ(rows.size(), std::size_t{2});
     for (const auto& items : rows)
         REQUIRE(!items.contains(QStringLiteral("COM3")));
-    REQUIRE(form.submit());
+    REQUIRE(submit_and_wait(&form));
     REQUIRE_EQ(backend.ports().size(), std::size_t{2});
 }
 
@@ -1127,11 +1145,78 @@ TEST_CASE("simple: a failure that is not a number reads as a sentence")
     backend.set_capabilities(windows_caps());
     JobForm form(backend, job::pair);
     backend.fail_next(vss::make_error_code(vss::errc::timeout));
-    REQUIRE(!form.submit());
+    REQUIRE(!submit_and_wait(&form));
     const QString failure = failure_text(form);
     REQUIRE(failure.startsWith(QStringLiteral("Could not set it up. Studio "
                                               "reported: ")));
     REQUIRE(failure.endsWith(QStringLiteral("Nothing was changed.")));
+}
+
+TEST_CASE("simple: the form stays responsive and says it is working")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    backend.set_create_delay(std::chrono::milliseconds(300));
+    JobForm form(backend, job::pair);
+    form.show();
+    settle();
+    const QString idle_text = form.create_button()->text();
+    int done_count = 0;
+    QObject::connect(&form, &JobForm::done,
+                     [&done_count](vss::endpoint_id, const setup_prefs&)
+                     { ++done_count; });
+
+    const auto started = std::chrono::steady_clock::now();
+    REQUIRE(form.submit());
+    // Returning at once is the point: the GUI thread is not held.
+    REQUIRE(std::chrono::steady_clock::now() - started <
+            std::chrono::milliseconds(250));
+    REQUIRE(form.busy());
+    REQUIRE(!form.create_button()->isEnabled());
+    REQUIRE(form.create_button()->text() != idle_text);
+    REQUIRE(form.create_button()->accessibleName() ==
+            form.create_button()->text());
+    auto* status = form.findChild<QLabel*>(QStringLiteral("jobFormBusyText"));
+    REQUIRE(status != nullptr);
+    REQUIRE(status->isVisibleTo(&form));
+    REQUIRE(!status->accessibleName().isEmpty());
+
+    // A second click or Enter while it runs starts nothing.
+    REQUIRE(!form.submit());
+
+    REQUIRE(vss_test::wait_until([&form] { return !form.busy(); }));
+    REQUIRE_EQ(done_count, 1);
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+    REQUIRE(!status->isVisibleTo(&form));
+    REQUIRE(form.create_button()->isEnabled());
+    REQUIRE_EQ(form.create_button()->text(), idle_text);
+}
+
+TEST_CASE("simple: a failed build re-enables the form and says why")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    backend.set_create_delay(std::chrono::milliseconds(50));
+    JobForm form(backend, job::pair);
+    backend.fail_next(vss::make_error_code(vss::errc::timeout));
+    REQUIRE(!submit_and_wait(&form));
+    REQUIRE(form.create_button()->isEnabled());
+    REQUIRE(!failure_text(form).isEmpty());
+    REQUIRE(backend.ports().empty());
+}
+
+TEST_CASE("simple: closing the form while it works waits for the worker")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    backend.set_create_delay(std::chrono::milliseconds(100));
+    {
+        JobForm form(backend, job::pair);
+        REQUIRE(form.submit());
+    }
+    // The worker finished before the form went, so nothing used a dead form.
+    settle();
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
 }
 
 TEST_CASE("simple: building reports the COM number that clashed")
@@ -1248,7 +1333,7 @@ TEST_CASE("simple: the page lists setups and opens the one just made")
     REQUIRE_EQ(page.list()->count(), 1); // the empty line
     page.open_job(job::talk);
     REQUIRE(page.form() != nullptr);
-    REQUIRE(page.form()->submit());
+    REQUIRE(submit_and_wait(page.form()));
     QApplication::processEvents();
     REQUIRE_EQ(page.setups().size(), std::size_t{1});
     REQUIRE(page.setup_page() != nullptr);
@@ -1258,7 +1343,7 @@ TEST_CASE("simple: the page lists setups and opens the one just made")
 
     // Add a program through the page: talk has none, so make a share.
     page.open_job(job::share);
-    REQUIRE(page.form()->submit());
+    REQUIRE(submit_and_wait(page.form()));
     QApplication::processEvents();
     REQUIRE_EQ(page.setups().size(), std::size_t{2});
 }
@@ -1284,7 +1369,7 @@ TEST_CASE("simple: pictures for a person to review")
     page.form()->set_extras(true, true);
     settle();
     page.grab().save(folder + QStringLiteral("/2-share-form.png"));
-    REQUIRE(page.form()->submit());
+    REQUIRE(submit_and_wait(page.form()));
     settle();
     const auto found = setups(backend);
     backend.set_peer_state(found[0].programs[0], peer_state::open);

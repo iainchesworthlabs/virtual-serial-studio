@@ -84,6 +84,12 @@ public:
     {
         share_failure_ = {index, error};
     }
+    /// Making a virtual port takes this long, like Windows installing a
+    /// device.  Set it before the work starts: a worker thread reads it.
+    void set_create_delay(std::chrono::milliseconds delay)
+    {
+        create_delay_ = delay;
+    }
     /// The next fallible call returns this error and consumes it.
     void fail_next(vss::error_code error)
     {
@@ -272,6 +278,7 @@ private:
     std::vector<vss::endpoint_id> echoing_;
     std::vector<vss::fault_kind> injected_;
     QHash<vss::link_id, line_wiring> wiring_;
+    std::chrono::milliseconds create_delay_{0};
     std::optional<vss::error_code> next_error_;
     int calls_before_error_ = 0;
     vss::endpoint_id next_port_ = 1;

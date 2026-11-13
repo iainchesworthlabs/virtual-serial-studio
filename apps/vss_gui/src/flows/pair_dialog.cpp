@@ -6,13 +6,18 @@
 
 #include "flows/pair_dialog.hpp"
 
+#include "widgets/common.hpp"
 #include "widgets/dialogs.hpp"
 
 #include <vss/core/profile.hpp>
 
+#include <QLabel>
 #include <QLineEdit>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QVBoxLayout>
+
+#include <memory>
 
 namespace vss::gui
 {
@@ -22,19 +27,40 @@ PairDialog::PairDialog(StudioBackend& backend, bool advanced,
     : FlowDialog(tr("Connect two programs"),
                  tr("Create a linked pair of ports. Whatever one program "
                     "sends, the other receives."),
-                 parent)
+                 parent),
+      backend_(backend)
 {
     panel_ = new PairPanel(backend, advanced, platform, this);
     body_layout()->addWidget(panel_);
 
+    // Shown while the engine makes the ports.
+    busy_row_ = new QWidget(body());
+    busy_row_->setObjectName(QStringLiteral("pairBusy"));
+    auto* busy_layout = new QVBoxLayout(busy_row_);
+    busy_layout->setContentsMargins(0, 0, 0, 0);
+    busy_layout->setSpacing(6);
+    auto* busy_bar = new QProgressBar(busy_row_);
+    busy_bar->setRange(0, 0);
+    busy_bar->setTextVisible(false);
+    busy_bar->setAccessibleName(tr("Creating progress"));
+    busy_layout->addWidget(busy_bar);
+    busy_label_ = new QLabel(busy_row_);
+    busy_label_->setObjectName(QStringLiteral("pairBusyText"));
+    busy_label_->setWordWrap(true);
+    busy_layout->addWidget(busy_label_);
+    busy_row_->setVisible(false);
+    body_layout()->addWidget(busy_row_);
+
     auto* cancel = add_footer_button(tr("Cancel"));
+    cancel_ = cancel;
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     auto* create =
         add_footer_button(tr("Create pair"), QStringLiteral("primary"));
     connect(create, &QPushButton::clicked, this, &PairDialog::create_pair);
 
     connect(panel_, &PairPanel::state_changed, this,
-            [this] { set_primary_enabled(panel_->can_create()); });
+            [this]
+            { set_primary_enabled(!busy() && panel_->can_create()); });
     connect(panel_, &PairPanel::advanced_requested, this,
             &PairDialog::advanced_requested);
     connect(panel_, &PairPanel::setup_check_requested, this,
@@ -45,37 +71,94 @@ PairDialog::PairDialog(StudioBackend& backend, bool advanced,
     focus_first(panel_->pair_name_edit());
 }
 
+void PairDialog::done(int result)
+{
+    // The worker reports to this dialog, so it stays until the answer is in.
+    if (work_.busy())
+        return;
+    FlowDialog::done(result);
+}
+
+void PairDialog::set_busy(bool busy)
+{
+    if (busy)
+    {
+        set_primary_text(tr("Creating"));
+        busy_label_->setText(
+            tr("Setting up. Windows installs each new port, which can take up "
+               "to 20 seconds."));
+        busy_label_->setAccessibleName(busy_label_->text());
+    }
+    else
+    {
+        set_primary_text(tr("Create pair"));
+    }
+    set_primary_enabled(!busy && panel_->can_create());
+    cancel_->setEnabled(!busy);
+    panel_->setEnabled(!busy);
+    busy_row_->setVisible(busy);
+    if (busy)
+        announce_name_change(busy_label_);
+}
+
 void PairDialog::create_pair()
 {
     VSS_PROFILE_ZONE("gui.flows.pair.create");
+    if (work_.busy())
+        return;
     flow_error error;
-    auto created = panel_->create_pair(&error);
-    if (!created)
+    const auto request = panel_->prepare_pair(&error);
+    if (!request)
     {
         if (!error.title.isEmpty())
-        {
-            Q_EMIT error_shown(error.title);
-            ErrorDialog dialog(error.title, error.body, error.details, this);
-            bool set_up = false;
-            if (error.offer_setup)
-            {
-                dialog.add_action(
-                    tr("Set up Virtual Serial Studio"),
-                    [&dialog, &set_up]
-                    {
-                        set_up = true;
-                        dialog.accept();
-                    },
-                    QStringLiteral("primary"));
-            }
-            dialog.exec();
-            if (set_up)
-                Q_EMIT driver_setup_requested();
-        }
+            show_error(error);
         return;
     }
-    outcome_ = std::move(created);
-    accept();
+
+    struct outcome
+    {
+        flow_error error;
+        std::optional<pair_outcome> pair;
+    };
+    auto state = std::make_shared<outcome>();
+    set_busy(true);
+    work_.start(
+        [this, state, request = *request]
+        { state->pair = panel_->run_pair(request, &state->error); },
+        [this, state]
+        {
+            set_busy(false);
+            backend_.refresh();
+            if (!state->pair)
+            {
+                if (!state->error.title.isEmpty())
+                    show_error(state->error);
+                return;
+            }
+            outcome_ = std::move(state->pair);
+            accept();
+        });
+}
+
+void PairDialog::show_error(const flow_error& error)
+{
+    Q_EMIT error_shown(error.title);
+    ErrorDialog dialog(error.title, error.body, error.details, this);
+    bool set_up = false;
+    if (error.offer_setup)
+    {
+        dialog.add_action(
+            tr("Set up Virtual Serial Studio"),
+            [&dialog, &set_up]
+            {
+                set_up = true;
+                dialog.accept();
+            },
+            QStringLiteral("primary"));
+    }
+    dialog.exec();
+    if (set_up)
+        Q_EMIT driver_setup_requested();
 }
 
 } // namespace vss::gui

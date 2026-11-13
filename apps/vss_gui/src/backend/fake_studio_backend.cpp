@@ -6,7 +6,9 @@
 
 #include "backend/fake_studio_backend.hpp"
 
+#include <QMetaObject>
 #include <QStringList>
+#include <QThread>
 
 #include <algorithm>
 #include <cstddef>
@@ -186,6 +188,8 @@ vss::result<vss::endpoint_id>
 FakeStudioBackend::create_virtual_port(const QString& name,
                                        vss::virtual_port_kind kind, bool)
 {
+    if (create_delay_.count() > 0)
+        std::this_thread::sleep_for(create_delay_);
     if (const auto error = take_error())
         return *error;
 
@@ -1377,6 +1381,14 @@ vss::result<void> FakeStudioBackend::create_com0com_pair()
 
 void FakeStudioBackend::refresh()
 {
+    // A job on a worker thread makes ports too; the signals are the GUI
+    // thread's, like the engine adapter's.
+    if (QThread::currentThread() != thread())
+    {
+        QMetaObject::invokeMethod(this, [this] { refresh(); },
+                                  Qt::QueuedConnection);
+        return;
+    }
     Q_EMIT ports_changed();
     Q_EMIT links_changed();
 }

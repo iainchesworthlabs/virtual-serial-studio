@@ -22,6 +22,7 @@
 
 #include <QMetaObject>
 #include <QString>
+#include <QThread>
 #include <QTimer>
 
 #include <algorithm>
@@ -715,8 +716,21 @@ setup_facts EngineStudioBackend::facts() const
     return facts;
 }
 
+std::vector<port_view> EngineStudioBackend::ports() const
+{
+    const std::lock_guard lock(snapshot_mutex_);
+    return ports_;
+}
+
+std::vector<link_view> EngineStudioBackend::links() const
+{
+    const std::lock_guard lock(snapshot_mutex_);
+    return links_;
+}
+
 std::optional<port_view> EngineStudioBackend::port(vss::endpoint_id id) const
 {
+    const std::lock_guard lock(snapshot_mutex_);
     const auto it =
         std::find_if(ports_.begin(), ports_.end(),
                      [id](const port_view& view) { return view.id == id; });
@@ -727,6 +741,7 @@ std::optional<port_view> EngineStudioBackend::port(vss::endpoint_id id) const
 
 std::optional<link_view> EngineStudioBackend::link(vss::link_id id) const
 {
+    const std::lock_guard lock(snapshot_mutex_);
     const auto it =
         std::find_if(links_.begin(), links_.end(),
                      [id](const link_view& view) { return view.id == id; });
@@ -1083,37 +1098,56 @@ void EngineStudioBackend::rebuild()
     for (const auto& info : links)
         next_links.push_back(make_link(info));
 
-    const bool ports_differ = next_ports.size() != ports_.size() ||
-                              !std::equal(next_ports.begin(), next_ports.end(),
-                                          ports_.begin(), same_port_shape);
-    const bool links_differ = next_links.size() != links_.size() ||
-                              !std::equal(next_links.begin(), next_links.end(),
-                                          links_.begin(), same_link_shape);
-    // Counters move with every byte; they are a signal of their own so a
-    // window does not rebuild itself for a number.
-    const bool stats_differ = !ports_differ && !links_differ &&
-                              (!std::equal(next_ports.begin(), next_ports.end(),
-                                           ports_.begin(), same_port) ||
-                               !std::equal(next_links.begin(), next_links.end(),
-                                           links_.begin(), same_link));
+    bool ports_differ = false;
+    bool links_differ = false;
+    bool stats_differ = false;
+    {
+        const std::lock_guard lock(snapshot_mutex_);
+        ports_differ = next_ports.size() != ports_.size() ||
+                       !std::equal(next_ports.begin(), next_ports.end(),
+                                   ports_.begin(), same_port_shape);
+        links_differ = next_links.size() != links_.size() ||
+                       !std::equal(next_links.begin(), next_links.end(),
+                                   links_.begin(), same_link_shape);
+        // Counters move with every byte; they are a signal of their own so a
+        // window does not rebuild itself for a number.
+        stats_differ = !ports_differ && !links_differ &&
+                       (!std::equal(next_ports.begin(), next_ports.end(),
+                                    ports_.begin(), same_port) ||
+                        !std::equal(next_links.begin(), next_links.end(),
+                                    links_.begin(), same_link));
 
-    ports_ = std::move(next_ports);
-    links_ = std::move(next_links);
+        ports_ = std::move(next_ports);
+        links_ = std::move(next_links);
+    }
 
-    if (ports_differ)
+    const auto emit_changes = [this, ports_differ, links_differ, stats_differ]
     {
-        VSS_PROFILE_ZONE("gui.backend.emit_ports_changed");
-        Q_EMIT ports_changed();
+        if (ports_differ)
+        {
+            VSS_PROFILE_ZONE("gui.backend.emit_ports_changed");
+            Q_EMIT ports_changed();
+        }
+        if (links_differ)
+        {
+            VSS_PROFILE_ZONE("gui.backend.emit_links_changed");
+            Q_EMIT links_changed();
+        }
+        if (stats_differ)
+        {
+            VSS_PROFILE_ZONE("gui.backend.emit_stats_changed");
+            Q_EMIT stats_changed();
+        }
+    };
+    if (QThread::currentThread() == thread())
+    {
+        emit_changes();
     }
-    if (links_differ)
+    else if (ports_differ || links_differ || stats_differ)
     {
-        VSS_PROFILE_ZONE("gui.backend.emit_links_changed");
-        Q_EMIT links_changed();
-    }
-    if (stats_differ)
-    {
-        VSS_PROFILE_ZONE("gui.backend.emit_stats_changed");
-        Q_EMIT stats_changed();
+        // A job on a worker thread has already swapped the snapshots, which
+        // it reads back as it goes; the signals belong to the GUI thread.
+        QMetaObject::invokeMethod(this, emit_changes, Qt::QueuedConnection);
     }
 }
 
