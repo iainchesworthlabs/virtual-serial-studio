@@ -277,6 +277,7 @@ private:
     void begin_drag();
     void place_nodes();
     void keep_content_in_view();
+    void remember_centre();
     void mark_manual_view();
     void open_context_menu(const QPoint& viewport_position);
     void open_focused_menu();
@@ -349,6 +350,8 @@ private:
     bool dragging_ = false;
     bool fitting_ = false;
     bool internal_scroll_ = false;
+    bool resizing_ = false;    /// The scene point at the centre of the view, as the user last left it.
+    QPointF view_centre_;
 
     QVector<vss::link_id> loop_links_;
     QVector<vss::endpoint_id> loop_nodes_;

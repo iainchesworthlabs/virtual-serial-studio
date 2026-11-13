@@ -1545,6 +1545,75 @@ TEST_CASE("topology canvas: a resize re-fits until the user takes over")
     view.close();
 }
 
+TEST_CASE("topology canvas: a manual view keeps its centre across resizes")
+{
+    pair_with_fixtures fixture;
+    topo::TopologyView view;
+    view.resize(900, 600);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    // Zoomed out a little, so the content is smaller than the window and the
+    // user is in charge of the view.
+    view.zoom_out();
+    REQUIRE(!view.is_auto_fit());
+    const qreal zoom = view.zoom();
+    const auto view_centre = [&view]
+    {
+        return view.mapToScene(view.viewport()->rect().center());
+    };
+    const QPointF centre = view_centre();
+
+    const QSize sizes[] = {{1400, 900}, {700, 500}, {1100, 800}, {900, 600},
+                           {1600, 1000}, {900, 600}};
+    for (const QSize& size : sizes)
+    {
+        view.resize(size);
+        QApplication::processEvents();
+        REQUIRE_NEAR(view.zoom(), zoom, 1e-9);
+        REQUIRE(!view.is_auto_fit());
+
+        // The same scene point stays at the centre: no drift.
+        const QPointF now = view_centre();
+        REQUIRE_NEAR(now.x(), centre.x(), 1.5 / zoom);
+        REQUIRE_NEAR(now.y(), centre.y(), 1.5 / zoom);
+
+        // The content stays in view whenever the window can hold it.
+        const QRectF visible =
+            view.mapToScene(view.viewport()->rect()).boundingRect();
+        const QRectF content = view.scene()->itemsBoundingRect();
+        if (content.width() * zoom < view.viewport()->width() &&
+            content.height() * zoom < view.viewport()->height())
+        {
+            REQUIRE(visible.contains(content));
+        }
+    }
+
+    // Zoomed in and scrolled by the user: the point they scrolled to stays at
+    // the centre through the same resizes.
+    view.resize(900, 600);
+    QApplication::processEvents();
+    for (int step = 0; step < 6; ++step)
+        view.zoom_in();
+    view.horizontalScrollBar()->triggerAction(
+        QAbstractSlider::SliderPageStepAdd);
+    QApplication::processEvents();
+    const qreal big = view.zoom();
+    const QPointF panned = view_centre();
+    REQUIRE(panned != centre);
+    for (const QSize& size : sizes)
+    {
+        view.resize(size);
+        QApplication::processEvents();
+        REQUIRE_NEAR(view.zoom(), big, 1e-9);
+        const QPointF now = view_centre();
+        REQUIRE_NEAR(now.x(), panned.x(), 1.5 / big);
+        REQUIRE_NEAR(now.y(), panned.y(), 1.5 / big);
+    }
+    view.close();
+}
+
 TEST_CASE("topology canvas: zoom in, zoom out, Fit and Tidy through the shell")
 {
     clear_settings();

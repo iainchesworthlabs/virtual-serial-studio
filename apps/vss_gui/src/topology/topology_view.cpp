@@ -213,10 +213,15 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
     viewport()->installEventFilter(this);
     // A scroll bar action comes from the user (a drag, a click, a key); the
     // view's own moves do not trigger it.  Either one ends automatic fitting.
-    connect(horizontalScrollBar(), &QAbstractSlider::actionTriggered, this,
-            [this](int) { mark_manual_view(); });
-    connect(verticalScrollBar(), &QAbstractSlider::actionTriggered, this,
-            [this](int) { mark_manual_view(); });
+    // Wherever the scroll bars end up, outside a resize, is where the user
+    // left the view: remember its centre for the next resize.
+    for (QScrollBar* bar : {horizontalScrollBar(), verticalScrollBar()})
+    {
+        connect(bar, &QAbstractSlider::actionTriggered, this,
+                [this](int) { mark_manual_view(); });
+        connect(bar, &QAbstractSlider::valueChanged, this,
+                [this](int) { remember_centre(); });
+    }
     connect(&Theme::instance(), &Theme::theme_changed, this,
             [this]
             {
@@ -1043,6 +1048,16 @@ bool TopologyView::focusNextPrevChild(bool next)
 
 bool TopologyView::event(QEvent* event)
 {
+    if (event->type() == QEvent::Resize)
+    {
+        // Everything the scroll bars do while the window changes size is
+        // Qt's layout, not the user: it never replaces the remembered centre.
+        resizing_ = true;
+        const bool handled = QGraphicsView::event(event);
+        resizing_ = false;
+        return handled;
+    }
+
     // The window's Remove shortcut (Delete) removes one port at a time and
     // knows nothing of the canvas selection or its Undo step. On the editing
     // canvas, claim Delete first so the canvas deletes what is selected.
@@ -1579,6 +1594,9 @@ void TopologyView::dropEvent(QDropEvent* event)
 void TopologyView::resizeEvent(QResizeEvent* event)
 {
     VSS_PROFILE_ZONE("gui.topology.resize");
+    // Qt lays the new viewport over the old scroll bars before this runs, so
+    // the centre cannot be read back here; `view_centre_` holds the scene
+    // point the user was looking at.
     QGraphicsView::resizeEvent(event);
 
     const bool compact_now = viewport()->width() < kCompactWidth;
@@ -1602,14 +1620,38 @@ void TopologyView::resizeEvent(QResizeEvent* event)
         keep_content_in_view();
 }
 
+void TopologyView::remember_centre()
+{
+    if (resizing_)
+        return;
+    view_centre_ = mapToScene(viewport()->rect().center());
+}
+
 void TopologyView::keep_content_in_view()
 {
     internal_scroll_ = true;
+    // Qt has already laid the new viewport over the old scene rect, which can
+    // have moved the centre.  Cover the area that will be visible around the
+    // remembered centre, then put the centre back, so repeated resizes never
+    // drift.
+    const qreal scale_factor = std::max(transform().m11(), 1e-6);
+    // The whole widget, not the viewport: the viewport grows when a scroll bar
+    // goes away, and a scene smaller than the viewport is re-centred by Qt.
+    const QSizeF size((width() + 2) / scale_factor,
+                      (height() + 2) / scale_factor);
+    const QRectF wanted(
+        view_centre_ - QPointF(size.width(), size.height()) / 2.0, size);
     update_scene_rect();
+    setSceneRect(sceneRect().united(wanted));
+    centerOn(view_centre_);
+
     const QRectF visible = mapToScene(viewport()->rect()).boundingRect();
     const QRectF content = scene_->itemsBoundingRect();
     if (!content.isNull() && !visible.intersects(content))
+    {
         centerOn(content.center());
+        view_centre_ = content.center();
+    }
     internal_scroll_ = false;
 }
 
@@ -1964,6 +2006,7 @@ void TopologyView::fit_content()
     internal_scroll_ = false;
     fitting_ = false;
     auto_fit_ = true;
+    remember_centre();
     update_zoom_controls();
 }
 
@@ -2004,6 +2047,7 @@ void TopologyView::zoom_at(qreal factor, const QPoint& view_point)
     centerOn(wanted.center());
     internal_scroll_ = false;
     setTransformationAnchor(previous);
+    remember_centre();
     update_zoom_controls();
 }
 
@@ -2080,6 +2124,7 @@ void TopologyView::centre_on_links(const QVector<vss::link_id>& ids)
     centerOn(bounds.center());
     fitting_ = false;
     auto_fit_ = false;
+    remember_centre();
     update_zoom_controls();
 }
 
