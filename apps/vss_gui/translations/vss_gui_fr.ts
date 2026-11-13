@@ -321,6 +321,16 @@
             <source>BSD 2-Clause License, or Creative Commons Zero, version 1.0.</source>
             <translation>Licence BSD à 2 clauses, ou Creative Commons Zero, version 1.0.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
+            <translation>Version %1. Logiciel libre sous licence GNU General Public License, version 3 ou ultérieure. Édition : %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>Créer une archive de support</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -9165,6 +9175,31 @@ Réseaux : %5</translation>
             <source>Diagnostic information copied.</source>
             <translation>Informations de diagnostic copiées.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>Licence...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>licence édition pro community modules importer renouveler</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>Support...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>support aide contact archive adresse problèmes</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>Archive de support</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10741,6 +10776,16 @@ Réseaux : %5</translation>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="369" />
             <source>%1 copied.</source>
             <translation>%1 copié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>Créer une archive de support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Still stuck? A support bundle gathers the setup, the log and the environment for whoever helps you. The bytes your ports sent and received are never included.</source>
+            <translation>Toujours bloqué ? Une archive de support rassemble la configuration, le journal et l&apos;environnement pour la personne qui vous aide. Les octets envoyés et reçus par vos ports ne sont jamais inclus.</translation>
         </message>
     </context>
     <context>
@@ -16939,6 +16984,31 @@ Réseaux : %5</translation>
             <source>Diagnostic information copied.</source>
             <translation>Informations de diagnostic copiées.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>Licence...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>licence édition pro community modules importer renouveler</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>Support...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>support aide contact archive adresse problèmes</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>Archive de support</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -19188,6 +19258,974 @@ Réseaux : %5</translation>
             <location filename="../src/topology/topology_view.cpp" line="181" />
             <source>Zoom in</source>
             <translation>Zoom avant</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceChip</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro trial</source>
+            <translation>Pro d&apos;essai</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, 1 day left</source>
+            <translation>%1, 1 jour restant</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, ends today</source>
+            <translation>%1, se termine aujourd&apos;hui</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, licence ended</source>
+            <translation>%1, licence terminée</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Edition: %1. Open the licence page.</source>
+            <translation>Édition : %1. Ouvrez la page de licence.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, %n days left</source>
+            <translation>
+                <numerusform>%1, %n jour restant</numerusform>
+                <numerusform>%1, %n jours restants</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceDialog</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1 copié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Available</source>
+            <translation>Disponible</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>Fermer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>Non disponible dans cette version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not started</source>
+            <translation>Non démarré</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not valid</source>
+            <translation>Non valide</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove</source>
+            <translation>Supprimer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro (trial)</source>
+            <translation>Pro (essai)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1 to %2</source>
+            <translation>Du %1 au %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>1 seat</source>
+            <translation>1 poste</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%n seats</source>
+            <translation>
+                <numerusform>%n poste</numerusform>
+                <numerusform>%n postes</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Seats</source>
+            <translation>Postes</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Site licence</source>
+            <translation>Licence de site</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
+            <translation>Un poste est votre ordinateur, plus un autre ordinateur que vous utilisez pour le surveiller.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A licence is renewed by installing a new licence file. Write to %1 and quote your licence number, %2. Studio does not open a web page or send anything itself.</source>
+            <translation>Une licence se renouvelle en installant un nouveau fichier de licence. Écrivez à %1 en indiquant votre numéro de licence, %2. Studio n&apos;ouvre aucune page web et n&apos;envoie rien lui-même.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Check the date</source>
+            <translation>Vérifier la date</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Computers</source>
+            <translation>Ordinateurs</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>Copier l&apos;adresse</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>Copier le numéro de licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>Édition</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended</source>
+            <translation>Terminée</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Official plugins keep working until %2, then switch off.</source>
+            <translation>Terminée le %1. Les modules officiels continuent de fonctionner jusqu&apos;au %2, puis s&apos;arrêtent.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Studio is running as the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>Terminée le %1. Studio fonctionne en édition Community. Vos ports, configurations et fichiers sont inchangés.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ends soon</source>
+            <translation>Se termine bientôt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Feature</source>
+            <translation>Fonctionnalité</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>Comment renouveler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import licence...</source>
+            <translation>Importer une licence...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Includes</source>
+            <translation>Comprend</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Installed by an administrator</source>
+            <translation>Installée par un administrateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>Licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>Numéro de licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licensed to</source>
+            <translation>Licence accordée à</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Microsoft-signed driver</source>
+            <translation>Pilote signé par Microsoft</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Needs a Pro licence.</source>
+            <translation>Nécessite une licence Pro.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>No licence is installed. This is the Community edition: free software, complete for capturing, monitoring and sharing serial ports.</source>
+            <translation>Aucune licence n&apos;est installée. C&apos;est l&apos;édition Community : un logiciel libre, complet pour capturer, surveiller et partager des ports série.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available</source>
+            <translation>Non disponible</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins</source>
+            <translation>Modules officiels</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins are off. Nothing you made is lost: every port, setup and file still opens and saves.</source>
+            <translation>Les modules officiels sont désactivés. Rien de ce que vous avez créé n&apos;est perdu : chaque port, configuration et fichier s&apos;ouvre et s&apos;enregistre toujours.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Other licences on this computer (%1)</source>
+            <translation>Autres licences sur cet ordinateur (%1)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove licence</source>
+            <translation>Supprimer la licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove this licence?</source>
+            <translation>Supprimer cette licence ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Renew your licence</source>
+            <translation>Renouveler votre licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Shows which edition this is and what your licence includes. Studio checks a licence on this computer and never contacts a server.</source>
+            <translation>Affiche l&apos;édition en cours et ce que comprend votre licence. Studio vérifie une licence sur cet ordinateur et ne contacte jamais de serveur.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Starts on %1.</source>
+            <translation>Commence le %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>État</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio returns to the Community edition. Your ports, setups and files are unchanged. Keep the licence file so you can import it again.</source>
+            <translation>Studio revient à l&apos;édition Community. Vos ports, configurations et fichiers sont inchangés. Conservez le fichier de licence pour pouvoir l&apos;importer de nouveau.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio uses the licence that gives you the most.</source>
+            <translation>Studio utilise la licence qui vous offre le plus.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Support</source>
+            <translation>Support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Term</source>
+            <translation>Durée</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong.</source>
+            <translation>La date de cet ordinateur semble incorrecte.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong. Official plugins are off until the date is right. If the date is right, create a support bundle and contact support.</source>
+            <translation>La date de cet ordinateur semble incorrecte. Les modules officiels sont désactivés tant que la date n&apos;est pas correcte. Si la date est correcte, créez une archive de support et contactez le support.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The installed licence is not valid.</source>
+            <translation>La licence installée n&apos;est pas valide.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>This computer is %1.</source>
+            <translation>Cet ordinateur est %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This file is not a valid Virtual Serial Studio licence. It may be damaged or incomplete. Ask for the file again.</source>
+            <translation>Ce fichier n&apos;est pas une licence Virtual Serial Studio valide. Il est peut-être endommagé ou incomplet. Demandez de nouveau le fichier.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This is a 14 day trial of the Pro edition. It ends on %1. Nothing you make during the trial is lost.</source>
+            <translation>Ceci est un essai de 14 jours de l&apos;édition Pro. Il se termine le %1. Rien de ce que vous créez pendant l&apos;essai n&apos;est perdu.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence is for other computers. This computer is %1. Ask your administrator for a licence that names it.</source>
+            <translation>Cette licence est destinée à d&apos;autres ordinateurs. Cet ordinateur est %1. Demandez à votre administrateur une licence qui le désigne.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence needs a newer version of Studio. Install the latest version, then import the licence again.</source>
+            <translation>Cette licence nécessite une version plus récente de Studio. Installez la dernière version, puis importez de nouveau la licence.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence was withdrawn. Contact support.</source>
+            <translation>Cette licence a été retirée. Contactez le support.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid</source>
+            <translation>Valide</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1.</source>
+            <translation>Valide jusqu&apos;au %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. 1 day left.</source>
+            <translation>Valide jusqu&apos;au %1. 1 jour restant.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. Ends today.</source>
+            <translation>Valide jusqu&apos;au %1. Se termine aujourd&apos;hui.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. %n days left.</source>
+            <translation>
+                <numerusform>Valide jusqu&apos;au %1. %n jour restant.</numerusform>
+                <numerusform>Valide jusqu&apos;au %1. %n jours restants.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>What this edition includes</source>
+            <translation>Ce que comprend cette édition</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Why</source>
+            <translation>Raison</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence does not include this.</source>
+            <translation>Votre licence n&apos;inclut pas cela.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1.</source>
+            <translation>Votre licence s&apos;est terminée le %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off on %2.</source>
+            <translation>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent le %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1. Renew to keep official plugins and support.</source>
+            <translation>Votre licence se termine le %1. Renouvelez-la pour conserver les modules officiels et le support.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence is for other computers.</source>
+            <translation>Votre licence est destinée à d&apos;autres ordinateurs.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence starts on %1.</source>
+            <translation>Votre licence commence le %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>licence number</source>
+            <translation>numéro de licence</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceImport</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>All files (*)</source>
+            <translation>Tous les fichiers (*)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Choose another file</source>
+            <translation>Choisir un autre fichier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Could not import the licence</source>
+            <translation>Impossible d&apos;importer la licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import a licence</source>
+            <translation>Importer une licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence files (*.vsslic)</source>
+            <translation>Fichiers de licence (*.vsslic)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Licence imported. This is now the %1 edition.</source>
+            <translation>Licence importée. C&apos;est maintenant l&apos;édition %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Studio could not read %1. Check that the file still exists and that you are allowed to open it.</source>
+            <translation>Studio n&apos;a pas pu lire %1. Vérifiez que le fichier existe toujours et que vous avez le droit de l&apos;ouvrir.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>That licence is already installed.</source>
+            <translation>Cette licence est déjà installée.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence ended on %1. It was imported, but it does not turn anything on.</source>
+            <translation>Cette licence s&apos;est terminée le %1. Elle a été importée, mais ne met rien en marche.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence starts on %1.</source>
+            <translation>Cette licence commence le %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceNotice</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Dismiss</source>
+            <translation>Masquer</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/licence_notice.cpp" line="1" />
+            <source>Licence</source>
+            <translation>Licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Remind me tomorrow</source>
+            <translation>Me le rappeler demain</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong, so official plugins are off.</source>
+            <translation>La date de cet ordinateur semble incorrecte, donc les modules officiels sont désactivés.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off today.</source>
+            <translation>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent aujourd&apos;hui.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off tomorrow.</source>
+            <translation>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent demain.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1.</source>
+            <translation>Votre licence se termine le %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence has ended, so official plugins are off. Studio is now the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>Votre licence est terminée, donc les modules officiels sont désactivés. Studio est maintenant l&apos;édition Community. Vos ports, configurations et fichiers sont inchangés.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off in %n days.</source>
+            <translation>
+                <numerusform>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent dans %n jour.</numerusform>
+                <numerusform>Votre licence s&apos;est terminée le %1. Les modules officiels s&apos;arrêtent dans %n jours.</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportBundleDialog</name>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>1 file</source>
+            <translation>1 fichier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Could not save the bundle</source>
+            <translation>Impossible d&apos;enregistrer l&apos;archive</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>Copier les détails</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Off by default</source>
+            <translation>Désactivé par défaut</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>Rassemble ce dont un assistant a besoin pour comprendre votre configuration. Rien n&apos;est envoyé nulle part. Vous choisissez où l&apos;enregistrer.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Include</source>
+            <translation>Inclure</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Setup</source>
+            <translation>Configuration</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Ports, links and their settings, as a topology file.</source>
+            <translation>Les ports, les liens et leurs paramètres, sous forme de fichier de topologie.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Event log</source>
+            <translation>Journal des événements</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State changes and errors since the setup was opened.</source>
+            <translation>Changements d&apos;état et erreurs depuis l&apos;ouverture de la configuration.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Port counters</source>
+            <translation>Compteurs des ports</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State, bytes in and out, and bytes dropped for each port.</source>
+            <translation>État, octets reçus et envoyés, et octets perdus pour chaque port.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview</source>
+            <translation>Aperçu</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy environment only</source>
+            <translation>Copier l&apos;environnement seulement</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save bundle</source>
+            <translation>Enregistrer l&apos;archive</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bundle has too many files.</source>
+            <translation>L&apos;archive contient trop de fichiers.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>ZIP archives (*.zip)</source>
+            <translation>Archives ZIP (*.zip)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Saved %1.</source>
+            <translation>%1 enregistré.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Environment copied.</source>
+            <translation>Environnement copié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>Annuler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>Non disponible dans cette version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>Licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Studio could not write to that folder. Choose another place, such as your Documents folder.</source>
+            <translation>Studio n&apos;a pas pu écrire dans ce dossier. Choisissez un autre emplacement, par exemple votre dossier Documents.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Choose another place</source>
+            <translation>Choisir un autre emplacement</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Create a support bundle</source>
+            <translation>Créer une archive de support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Creating a support bundle is not available in this build.</source>
+            <translation>La création d&apos;une archive de support n&apos;est pas disponible dans cette version.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Version and environment</source>
+            <translation>Version et environnement</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Build, compiler, Qt version, operating system, architecture and edition.</source>
+            <translation>Version, compilateur, version de Qt, système d&apos;exploitation, architecture et édition.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Driver state</source>
+            <translation>État du pilote</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service&apos;s state and the results of the setup check.</source>
+            <translation>Si le pilote Studio et com0com sont présents, leurs versions, la façon dont le pilote est signé, l&apos;état du service auxiliaire et les résultats de la vérification de la configuration.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Serial ports on this computer</source>
+            <translation>Ports série de cet ordinateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>One line for each serial port: name, description, vendor and product ids, and driver.</source>
+            <translation>Une ligne par port série : nom, description, identifiants du fabricant et du produit, et pilote.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence number, edition, term and state. Not the licence file.</source>
+            <translation>Numéro de licence, édition, durée et état. Pas le fichier de licence.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licensee name</source>
+            <translation>Nom du titulaire de la licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The name your licence was issued to. Turn this on if you are writing to support about the licence itself.</source>
+            <translation>Le nom auquel votre licence a été délivrée. Cochez cette case si vous écrivez au support à propos de la licence elle-même.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This computer&apos;s name</source>
+            <translation>Nom de cet ordinateur</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Needed when a licence names computers.</source>
+            <translation>Nécessaire lorsqu&apos;une licence désigne des ordinateurs.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Always left out</source>
+            <translation>Toujours exclu</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bytes your ports sent and received are never included. Passwords, tokens and keys are replaced with [redacted]. The path of your home folder is shortened to ~. The name of this computer and your user name are not included. Serial numbers of devices are not included. The licence file itself is never included.</source>
+            <translation>Les octets envoyés et reçus par vos ports ne sont jamais inclus. Les mots de passe, les jetons et les clés sont remplacés par [redacted]. Le chemin de votre dossier personnel est raccourci en ~. Le nom de cet ordinateur et votre nom d&apos;utilisateur ne sont pas inclus. Les numéros de série des appareils ne sont pas inclus. Le fichier de licence lui-même n&apos;est jamais inclus.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Nothing leaves this computer until you share the file yourself.</source>
+            <translation>Rien ne quitte cet ordinateur tant que vous ne partagez pas le fichier vous-même.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Files in the bundle</source>
+            <translation>Fichiers de l&apos;archive</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This is exactly what the file will contain.</source>
+            <translation>Voici exactement ce que contiendra le fichier.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview shortened. The saved file is complete.</source>
+            <translation>Aperçu raccourci. Le fichier enregistré est complet.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview of %1</source>
+            <translation>Aperçu de %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save support bundle</source>
+            <translation>Enregistrer l&apos;archive de support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Show in folder</source>
+            <translation>Afficher dans le dossier</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>%n files</source>
+            <translation>
+                <numerusform>%n fichier</numerusform>
+                <numerusform>%n fichiers</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportDialog</name>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1 copié.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>Fermer</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>Version</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>Système d’exploitation</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy</source>
+            <translation>Copier</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Help contents</source>
+            <translation>Sommaire de l&apos;aide</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Why is nothing arriving?</source>
+            <translation>Pourquoi rien n&apos;arrive ?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>Copier l&apos;adresse</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>Copier le numéro de licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>Édition</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>Comment renouveler</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>Numéro de licence</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support</source>
+            <translation>Support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>Archive de support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Where to get help, and what to send so a helper can understand your setup.</source>
+            <translation>Où obtenir de l&apos;aide, et quoi envoyer pour qu&apos;un assistant comprenne votre configuration.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your support</source>
+            <translation>Votre support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy documents address</source>
+            <translation>Copier l&apos;adresse des documents</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy issues address</source>
+            <translation>Copier l&apos;adresse des problèmes</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Studio never sends anything itself. You choose what to share.</source>
+            <translation>Studio n&apos;envoie jamais rien de lui-même. Vous choisissez ce que vous partagez.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Before you write</source>
+            <translation>Avant d&apos;écrire</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say what you expected and what happened instead.</source>
+            <translation>Dites ce que vous attendiez et ce qui s&apos;est passé à la place.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say which port or program it happened with.</source>
+            <translation>Indiquez avec quel port ou quel programme cela s&apos;est produit.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Attach a support bundle. It answers most first questions.</source>
+            <translation>Joignez une archive de support. Elle répond à la plupart des premières questions.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>A support bundle is one zip file with the version, the driver state, your setup, the log and the list of serial ports on this computer. You see everything in it before you save it.</source>
+            <translation>Une archive de support est un fichier zip contenant la version, l&apos;état du pilote, votre configuration, le journal et la liste des ports série de cet ordinateur. Vous voyez tout son contenu avant de l&apos;enregistrer.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>Créer une archive de support</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>This copy of Studio</source>
+            <translation>Cet exemplaire de Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy the version, edition and operating system</source>
+            <translation>Copier la version, l&apos;édition et le système d&apos;exploitation</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Details copied.</source>
+            <translation>Détails copiés.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support included</source>
+            <translation>Support inclus</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your %1 licence includes support until %2. Write to %3 and quote your licence number, %4.</source>
+            <translation>Votre licence %1 inclut le support jusqu&apos;au %2. Écrivez à %3 en indiquant votre numéro de licence, %4.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Community support</source>
+            <translation>Support Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>The Community edition is supported by its users. Search the documents and the issue list first, then open an issue. Support from the developer comes with a Pro or Enterprise licence.</source>
+            <translation>L&apos;édition Community est prise en charge par ses utilisateurs. Cherchez d&apos;abord dans les documents et la liste des problèmes, puis ouvrez un ticket. Le support du développeur est inclus avec une licence Pro ou Enterprise.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended</source>
+            <translation>Support terminé</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended with your licence on %1.</source>
+            <translation>Le support s&apos;est terminé avec votre licence le %1.</translation>
         </message>
     </context>
 </TS>

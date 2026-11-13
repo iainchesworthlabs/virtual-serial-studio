@@ -321,6 +321,16 @@
             <source>BSD 2-Clause License, or Creative Commons Zero, version 1.0.</source>
             <translation>BSD 2-Clause License, אָדער Creative Commons Zero, ווערסיע 1.0.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
+            <translation>ווערסיע %1. פֿרײַע סאָפֿטווער אונטער דער GNU General Public License, ווערסיע 3 אָדער שפּעטער. אויסגאַבע: %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>באַשאַפֿן שטיצע־פּעקל</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -9165,6 +9175,31 @@ Networks: %5</source>
             <source>Diagnostic information copied.</source>
             <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>דערלויבעניש...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>דערלויבעניש אויסגאַבע pro community פּלאַג־אינס אימפּאָרט באַנײַען</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>שטיצע...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>שטיצע הילף קאָנטאַקט פּעקל אַדרעס פּראָבלעמען</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>שטיצע־פּעקל</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10741,6 +10776,16 @@ Networks: %5</source>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="369" />
             <source>%1 copied.</source>
             <translation>%1 איז אָפּגעקאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>באַשאַפֿן שטיצע־פּעקל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Still stuck? A support bundle gathers the setup, the log and the environment for whoever helps you. The bytes your ports sent and received are never included.</source>
+            <translation>נאָך אַלץ פֿאַרהאַקט? אַ שטיצע־פּעקל זאַמלט די אײַנשטעלונג, דעם לאָג און די סבֿיבֿה פֿאַר דעם וואָס העלפֿט אײַך. די בײַטן וואָס אײַערע פּאָרטן האָבן געשיקט און באַקומען ווערן קיינמאָל נישט אײַנגעשלאָסן.</translation>
         </message>
     </context>
     <context>
@@ -16939,6 +16984,31 @@ Networks: %5</source>
             <source>Diagnostic information copied.</source>
             <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>דערלויבעניש...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>דערלויבעניש אויסגאַבע pro community פּלאַג־אינס אימפּאָרט באַנײַען</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>שטיצע...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>שטיצע הילף קאָנטאַקט פּעקל אַדרעס פּראָבלעמען</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>שטיצע־פּעקל</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -19188,6 +19258,974 @@ Networks: %5</source>
             <location filename="../src/topology/topology_view.cpp" line="181" />
             <source>Zoom in</source>
             <translation>פארגרעסערן</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceChip</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro trial</source>
+            <translation>Pro פּראָבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, 1 day left</source>
+            <translation>%1, נאָך איין טאָג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, ends today</source>
+            <translation>%1, ענדיקט זיך הײַנט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, licence ended</source>
+            <translation>%1, די דערלויבעניש האָט זיך געענדיקט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Edition: %1. Open the licence page.</source>
+            <translation>אויסגאַבע: %1. עפֿנט די דערלויבעניש־בלאַט.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, %n days left</source>
+            <translation>
+                <numerusform>%1, נאָך %n טאָג</numerusform>
+                <numerusform>%1, נאָך %n טעג</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceDialog</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1 איז אָפּגעקאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Available</source>
+            <translation>פֿאַראַנען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not started</source>
+            <translation>נישט אָנגעהויבן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not valid</source>
+            <translation>נישט גילטיק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove</source>
+            <translation>אַוועקנעמען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro (trial)</source>
+            <translation>Pro (פּראָבע)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1 to %2</source>
+            <translation>%1 ביז %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>1 seat</source>
+            <translation>1 פּלאַץ</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%n seats</source>
+            <translation>
+                <numerusform>%n פּלאַץ</numerusform>
+                <numerusform>%n פּלעצער</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Seats</source>
+            <translation>פּלעצער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Site licence</source>
+            <translation>סײַט־דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
+            <translation>אַ פּלאַץ איז אײַער קאָמפּיוטער, פּלוס איין אַנדער קאָמפּיוטער וואָס איר נוצט צו מאָניטאָרירן אים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A licence is renewed by installing a new licence file. Write to %1 and quote your licence number, %2. Studio does not open a web page or send anything itself.</source>
+            <translation>אַ דערלויבעניש באַנײַט מען דורך אײַנשטעלן אַ נײַע דערלויבעניש־טעקע. שרײַבט צו %1 און דערמאָנט אײַער דערלויבעניש־נומער, %2. Studio עפֿנט נישט קיין וועב־בלאַט און שיקט גאָרנישט אַליין.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Check the date</source>
+            <translation>קאָנטראָלירן דעם דאַטום</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Computers</source>
+            <translation>קאָמפּיוטערס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>קאָפּירן אַדרעס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>קאָפּירן דערלויבעניש־נומער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>אויסגאַבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended</source>
+            <translation>געענדיקט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Official plugins keep working until %2, then switch off.</source>
+            <translation>געענדיקט דעם %1. אָפֿיציעלע פּלאַג־אינס ארבעטן ווײַטער ביז %2, דערנאָך שטעלן זיי זיך אָפּ.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Studio is running as the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>געענדיקט דעם %1. Studio לויפֿט ווי די Community אויסגאַבע. אײַערע פּאָרטן, אײַנשטעלונגען און טעקעס זענען אומגעענדערט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ends soon</source>
+            <translation>ענדיקט זיך באַלד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Feature</source>
+            <translation>פֿונקציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>ווי אַזוי צו באַנײַען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import licence...</source>
+            <translation>אימפּאָרטירן דערלויבעניש...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Includes</source>
+            <translation>אײַנגעשלאָסן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Installed by an administrator</source>
+            <translation>אײַנגעשטעלט דורך אַן אַדמיניסטראַטאָר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>דערלויבעניש־נומער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licensed to</source>
+            <translation>דערלויבעניש געגעבן צו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Microsoft-signed driver</source>
+            <translation>דרײַווער אונטערגעשריבן דורך Microsoft</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Needs a Pro licence.</source>
+            <translation>דאַרף אַ Pro דערלויבעניש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>No licence is installed. This is the Community edition: free software, complete for capturing, monitoring and sharing serial ports.</source>
+            <translation>קיין דערלויבעניש איז נישט אײַנגעשטעלט. דאָס איז די Community אויסגאַבע: פֿרײַע סאָפֿטווער, פֿולשטענדיק פֿאַר כאַפּן, מאָניטאָרירן און טיילן סעריעלע פּאָרטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available</source>
+            <translation>נישט פֿאַראַנען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins</source>
+            <translation>אָפֿיציעלע פּלאַג־אינס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins are off. Nothing you made is lost: every port, setup and file still opens and saves.</source>
+            <translation>אָפֿיציעלע פּלאַג־אינס זענען אויסגעשאַלט. גאָרנישט וואָס איר האָט געמאַכט איז פֿאַרלוירן: יעדער פּאָרט, יעדע אײַנשטעלונג און יעדע טעקע עפֿנט זיך און היט זיך אָפּ ווי פֿריִער.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Other licences on this computer (%1)</source>
+            <translation>אַנדערע דערלויבענישן אויף דעם קאָמפּיוטער (%1)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove licence</source>
+            <translation>אַוועקנעמען דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove this licence?</source>
+            <translation>אַוועקנעמען די דערלויבעניש?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Renew your licence</source>
+            <translation>באַנײַט אײַער דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Shows which edition this is and what your licence includes. Studio checks a licence on this computer and never contacts a server.</source>
+            <translation>ווײַזט וועלכע אויסגאַבע דאָס איז און וואָס אײַער דערלויבעניש שליסט אײַן. Studio קאָנטראָלירט אַ דערלויבעניש אויף דעם קאָמפּיוטער און קאָנטאַקטירט קיינמאָל נישט קיין סערווער.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Starts on %1.</source>
+            <translation>הייבט זיך אָן דעם %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>סטאַטוס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio returns to the Community edition. Your ports, setups and files are unchanged. Keep the licence file so you can import it again.</source>
+            <translation>Studio קערט זיך אום צו דער Community אויסגאַבע. אײַערע פּאָרטן, אײַנשטעלונגען און טעקעס בלײַבן אומגעענדערט. היט אָפּ די דערלויבעניש־טעקע כּדי איר זאָלט קענען אימפּאָרטירן עס נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio uses the licence that gives you the most.</source>
+            <translation>Studio ניצט די דערלויבעניש וואָס גיט אײַך דאָס מערסטע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Support</source>
+            <translation>שטיצע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Term</source>
+            <translation>תּקופֿה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong.</source>
+            <translation>דער דאַטום אויף דעם קאָמפּיוטער זעט אויס אומריכטיק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong. Official plugins are off until the date is right. If the date is right, create a support bundle and contact support.</source>
+            <translation>דער דאַטום אויף דעם קאָמפּיוטער זעט אויס אומריכטיק. אָפֿיציעלע פּלאַג־אינס זענען אויסגעשאַלט ביז דער דאַטום איז ריכטיק. אויב דער דאַטום איז ריכטיק, באַשאַפֿט אַ שטיצע־פּעקל און קאָנטאַקטירט שטיצע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The installed licence is not valid.</source>
+            <translation>די אײַנגעשטעלטע דערלויבעניש איז נישט גילטיק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>This computer is %1.</source>
+            <translation>דער קאָמפּיוטער איז %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This file is not a valid Virtual Serial Studio licence. It may be damaged or incomplete. Ask for the file again.</source>
+            <translation>די טעקע איז נישט קיין גילטיקע Virtual Serial Studio דערלויבעניש. זי קען זײַן פֿאַרשעדיקט אָדער נישט פֿולשטענדיק. בעט די טעקע נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This is a 14 day trial of the Pro edition. It ends on %1. Nothing you make during the trial is lost.</source>
+            <translation>דאָס איז אַ 14־טאָגיקע פּראָבע פֿון דער Pro אויסגאַבע. זי ענדיקט זיך דעם %1. גאָרנישט וואָס איר מאַכט בעת דער פּראָבע גייט נישט פֿאַרלוירן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence is for other computers. This computer is %1. Ask your administrator for a licence that names it.</source>
+            <translation>די דערלויבעניש איז פֿאַר אַנדערע קאָמפּיוטערס. דער קאָמפּיוטער איז %1. בעט אײַער אַדמיניסטראַטאָר אום אַ דערלויבעניש וואָס דערמאָנט אים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence needs a newer version of Studio. Install the latest version, then import the licence again.</source>
+            <translation>די דערלויבעניש דאַרף אַ נײַערע ווערסיע פֿון Studio. שטעלט אײַן די נײַסטע ווערסיע, דערנאָך אימפּאָרטירט די דערלויבעניש נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence was withdrawn. Contact support.</source>
+            <translation>די דערלויבעניש איז צוריקגעצויגן געוואָרן. קאָנטאַקטירט שטיצע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid</source>
+            <translation>גילטיק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1.</source>
+            <translation>גילטיק ביז %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. 1 day left.</source>
+            <translation>גילטיק ביז %1. נאָך איין טאָג.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. Ends today.</source>
+            <translation>גילטיק ביז %1. ענדיקט זיך הײַנט.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. %n days left.</source>
+            <translation>
+                <numerusform>גילטיק ביז %1. נאָך %n טאָג.</numerusform>
+                <numerusform>גילטיק ביז %1. נאָך %n טעג.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>What this edition includes</source>
+            <translation>וואָס די אויסגאַבע שליסט אײַן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Why</source>
+            <translation>סיבה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence does not include this.</source>
+            <translation>אײַער דערלויבעניש שליסט דאָס נישט אײַן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1.</source>
+            <translation>אײַער דערלויבעניש האָט זיך געענדיקט דעם %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off on %2.</source>
+            <translation>אײַער דערלויבעניש האָט זיך געענדיקט דעם %1. אָפֿיציעלע פּלאַג־אינס שטעלן זיך אָפּ דעם %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1. Renew to keep official plugins and support.</source>
+            <translation>אײַער דערלויבעניש ענדיקט זיך דעם %1. באַנײַט זי כּדי צו האַלטן אָפֿיציעלע פּלאַג־אינס און שטיצע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence is for other computers.</source>
+            <translation>אײַער דערלויבעניש איז פֿאַר אַנדערע קאָמפּיוטערס.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence starts on %1.</source>
+            <translation>אײַער דערלויבעניש הייבט זיך אָן דעם %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>licence number</source>
+            <translation>דערלויבעניש־נומער</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceImport</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>All files (*)</source>
+            <translation>אַלע טעקעס (*)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Choose another file</source>
+            <translation>אויסקלײַבן אַן אַנדער טעקע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Could not import the licence</source>
+            <translation>די דערלויבעניש האָט זיך נישט געלאָזט אימפּאָרטירן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import a licence</source>
+            <translation>אימפּאָרטירן אַ דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence files (*.vsslic)</source>
+            <translation>דערלויבעניש־טעקעס (*.vsslic)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Licence imported. This is now the %1 edition.</source>
+            <translation>די דערלויבעניש איז אימפּאָרטירט. דאָס איז איצט די %1 אויסגאַבע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Studio could not read %1. Check that the file still exists and that you are allowed to open it.</source>
+            <translation>Studio האָט נישט געקענט לייענען %1. קאָנטראָלירט אַז די טעקע עקזיסטירט נאָך און אַז איר מעגט זי עפֿענען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>That licence is already installed.</source>
+            <translation>די דערלויבעניש איז שוין אײַנגעשטעלט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence ended on %1. It was imported, but it does not turn anything on.</source>
+            <translation>די דערלויבעניש האָט זיך געענדיקט דעם %1. זי איז אימפּאָרטירט געוואָרן, אָבער שאַלט גאָרנישט אָן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence starts on %1.</source>
+            <translation>די דערלויבעניש הייבט זיך אָן דעם %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceNotice</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Dismiss</source>
+            <translation>באַהאַלטן</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/licence_notice.cpp" line="1" />
+            <source>Licence</source>
+            <translation>דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Remind me tomorrow</source>
+            <translation>דערמאָנט מיר מאָרגן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong, so official plugins are off.</source>
+            <translation>דער דאַטום אויף דעם קאָמפּיוטער זעט אויס אומריכטיק, דעריבער זענען אָפֿיציעלע פּלאַג־אינס אויסגעשאַלט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off today.</source>
+            <translation>אײַער דערלויבעניש האָט זיך געענדיקט דעם %1. אָפֿיציעלע פּלאַג־אינס שטעלן זיך הײַנט אָפּ.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off tomorrow.</source>
+            <translation>אײַער דערלויבעניש האָט זיך געענדיקט דעם %1. אָפֿיציעלע פּלאַג־אינס שטעלן זיך מאָרגן אָפּ.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1.</source>
+            <translation>אײַער דערלויבעניש ענדיקט זיך דעם %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence has ended, so official plugins are off. Studio is now the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>אײַער דערלויבעניש האָט זיך געענדיקט, דעריבער זענען אָפֿיציעלע פּלאַג־אינס אויסגעשאַלט. Studio איז איצט די Community אויסגאַבע. אײַערע פּאָרטן, אײַנשטעלונגען און טעקעס זענען אומגעענדערט.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off in %n days.</source>
+            <translation>
+                <numerusform>אײַער דערלויבעניש האָט זיך געענדיקט דעם %1. אָפֿיציעלע פּלאַג־אינס שטעלן זיך אָפּ אין %n טאָג.</numerusform>
+                <numerusform>אײַער דערלויבעניש האָט זיך געענדיקט דעם %1. אָפֿיציעלע פּלאַג־אינס שטעלן זיך אָפּ אין %n טעג.</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportBundleDialog</name>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>1 file</source>
+            <translation>1 טעקע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Could not save the bundle</source>
+            <translation>דאָס פּעקל האָט זיך נישט געלאָזט אָפּהיטן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>קאָפּירן פּרטים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Off by default</source>
+            <translation>אויסגעשאַלט לויט דעפֿאָלט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>זאַמלט וואָס אַ העלפֿער דאַרף כדי צו פֿאַרשטיין אײַער אײַנשטעלונג. גאָרנישט ווערט געשיקט ערגעץ. איר קלײַבט אויס וווּ אָפּצוהיטן עס.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Include</source>
+            <translation>אײַנשליסן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Setup</source>
+            <translation>אײַנשטעלונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Ports, links and their settings, as a topology file.</source>
+            <translation>פּאָרטן, פֿאַרבינדונגען און זייערע פּאַראַמעטערס, ווי אַ טאָפּאָלאָגיע־טעקע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Event log</source>
+            <translation>געשעעניש־לאָג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State changes and errors since the setup was opened.</source>
+            <translation>צושטאַנד־ענדערונגען און טעותן זינט די אײַנשטעלונג איז געעפֿנט געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Port counters</source>
+            <translation>פּאָרט־קאָונטערס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State, bytes in and out, and bytes dropped for each port.</source>
+            <translation>צושטאַנד, בײַטן אַרײַן און אַרויס, און אָפּגעוואָרפֿענע בײַטן פֿאַר יעדן פּאָרט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview</source>
+            <translation>פֿאָרויסבליק</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy environment only</source>
+            <translation>קאָפּירן נאָר די סבֿיבֿה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save bundle</source>
+            <translation>אָפּהיטן פּעקל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bundle has too many files.</source>
+            <translation>דאָס פּעקל האָט צו פֿיל טעקעס.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>ZIP archives (*.zip)</source>
+            <translation>ZIP־אַרכיוון (*.zip)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Saved %1.</source>
+            <translation>%1 איז אָפּגעהיט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Environment copied.</source>
+            <translation>די סבֿיבֿה איז אָפּגעקאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Studio could not write to that folder. Choose another place, such as your Documents folder.</source>
+            <translation>Studio האָט נישט געקענט שרײַבן אין יענער פּאַפּקע. קלײַבט אויס אַן אַנדער אָרט, למשל אײַער דאָקומענטן־פּאַפּקע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Choose another place</source>
+            <translation>אויסקלײַבן אַן אַנדער אָרט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Create a support bundle</source>
+            <translation>באַשאַפֿן אַ שטיצע־פּעקל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Creating a support bundle is not available in this build.</source>
+            <translation>שטיצע־פּעקל קען מען נישט באַשאַפֿן אין דער דאָזיקער ווערסיע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Version and environment</source>
+            <translation>ווערסיע און סבֿיבֿה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Build, compiler, Qt version, operating system, architecture and edition.</source>
+            <translation>בילד, קאָמפּײַלער, Qt־ווערסיע, אָפּעראַציע־סיסטעם, אַרכיטעקטור און אויסגאַבע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Driver state</source>
+            <translation>דרײַווער־צושטאַנד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service&apos;s state and the results of the setup check.</source>
+            <translation>צי דער Studio דרײַווער און com0com זענען פֿאַראַנען, זייערע ווערסיעס, ווי אַזוי דער דרײַווער איז אונטערגעשריבן, דער צושטאַנד פֿון דער הילף־סערוויס, און די רעזולטאַטן פֿון דער אײַנשטעלונג־קאָנטראָלע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Serial ports on this computer</source>
+            <translation>סעריעלע פּאָרטן אויף דעם קאָמפּיוטער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>One line for each serial port: name, description, vendor and product ids, and driver.</source>
+            <translation>איין שורה פֿאַר יעדן סעריעלן פּאָרט: נאָמען, באַשרײַבונג, ווענדאָר־ און פּראָדוקט־ID, און דרײַווער.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence number, edition, term and state. Not the licence file.</source>
+            <translation>דערלויבעניש־נומער, אויסגאַבע, תּקופֿה און צושטאַנד. נישט די דערלויבעניש־טעקע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licensee name</source>
+            <translation>נאָמען פֿון דעם דערלויבעניש־האַלטער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The name your licence was issued to. Turn this on if you are writing to support about the licence itself.</source>
+            <translation>דער נאָמען אויף וועלכן אײַער דערלויבעניש איז אויסגעגעבן געוואָרן. שאַלט דאָס אָן אויב איר שרײַבט צו שטיצע וועגן דער דערלויבעניש אַלײן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This computer&apos;s name</source>
+            <translation>דער נאָמען פֿון דעם קאָמפּיוטער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Needed when a licence names computers.</source>
+            <translation>נייטיק ווען אַ דערלויבעניש דערמאָנט קאָמפּיוטערס.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Always left out</source>
+            <translation>תּמיד אויסגעלאָזט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bytes your ports sent and received are never included. Passwords, tokens and keys are replaced with [redacted]. The path of your home folder is shortened to ~. The name of this computer and your user name are not included. Serial numbers of devices are not included. The licence file itself is never included.</source>
+            <translation>די בײַטן וואָס אײַערע פּאָרטן האָבן געשיקט און באַקומען ווערן קיינמאָל נישט אײַנגעשלאָסן. פּאַסווערטער, טאָקענס און שליסלען ווערן פֿאַרבײַטן מיט [redacted]. דער וועג פֿון אײַער היים־פּאַפּקע ווערט פֿאַרקירצט צו ~. דער נאָמען פֿון דעם קאָמפּיוטער און אײַער באַניצער־נאָמען ווערן נישט אײַנגעשלאָסן. סעריע־נומערן פֿון אַפּאַראַטן ווערן נישט אײַנגעשלאָסן. די דערלויבעניש־טעקע אַלײן ווערט קיינמאָל נישט אײַנגעשלאָסן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Nothing leaves this computer until you share the file yourself.</source>
+            <translation>גאָרנישט פֿאַרלאָזט דעם קאָמפּיוטער ביז איר טיילט אַליין די טעקע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Files in the bundle</source>
+            <translation>טעקעס אין פּעקל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This is exactly what the file will contain.</source>
+            <translation>דאָס איז גענוי וואָס די טעקע וועט אַנטהאַלטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview shortened. The saved file is complete.</source>
+            <translation>דער פֿאָרויסבליק איז פֿאַרקירצט. די אָפּגעהיטענע טעקע איז פֿולשטענדיק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview of %1</source>
+            <translation>פֿאָרויסבליק פֿון %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save support bundle</source>
+            <translation>אָפּהיטן שטיצע־פּעקל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Show in folder</source>
+            <translation>ווײַזן אין פּאַפּקע</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>%n files</source>
+            <translation>
+                <numerusform>%n טעקע</numerusform>
+                <numerusform>%n טעקעס</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportDialog</name>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1 איז אָפּגעקאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>אָפּעראַציע־סיסטעם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy</source>
+            <translation>קאָפּירן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Help contents</source>
+            <translation>הילף־אינהאַלט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Why is nothing arriving?</source>
+            <translation>פֿאַרוואָס קומט גאָרנישט אָן?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>קאָפּירן אַדרעס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>קאָפּירן דערלויבעניש־נומער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>אויסגאַבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>ווי אַזוי צו באַנײַען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>דערלויבעניש־נומער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support</source>
+            <translation>שטיצע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>שטיצע־פּעקל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Where to get help, and what to send so a helper can understand your setup.</source>
+            <translation>וווּ צו באַקומען הילף, און וואָס צו שיקן כּדי אַ העלפֿער זאָל פֿאַרשטיין אײַער אײַנשטעלונג.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your support</source>
+            <translation>אײַער שטיצע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy documents address</source>
+            <translation>קאָפּירן דאָקומענטן־אַדרעס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy issues address</source>
+            <translation>קאָפּירן אַדרעס פֿון פּראָבלעמען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Studio never sends anything itself. You choose what to share.</source>
+            <translation>Studio שיקט קיינמאָל גאָרנישט אַליין. איר קלײַבט אויס וואָס צו טיילן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Before you write</source>
+            <translation>איידער איר שרײַבט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say what you expected and what happened instead.</source>
+            <translation>שרײַבט וואָס איר האָט דערוואַרט און וואָס איז אַנשטאָט געשען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say which port or program it happened with.</source>
+            <translation>זאָגט מיט וועלכן פּאָרט אָדער פּראָגראַם עס איז געשען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Attach a support bundle. It answers most first questions.</source>
+            <translation>צולייגט אַ שטיצע־פּעקל. עס ענטפֿערט אויף די מערסטע ערשטע פֿראַגעס.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>A support bundle is one zip file with the version, the driver state, your setup, the log and the list of serial ports on this computer. You see everything in it before you save it.</source>
+            <translation>אַ שטיצע־פּעקל איז איין zip־טעקע מיט דער ווערסיע, דעם דרײַווער־צושטאַנד, אײַער אײַנשטעלונג, דעם לאָג און דער רשימה פֿון סעריעלע פּאָרטן אויף דעם קאָמפּיוטער. איר זעט אַלץ וואָס אין אים איידער איר היט עס אָפּ.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>באַשאַפֿן שטיצע־פּעקל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>This copy of Studio</source>
+            <translation>די דאָזיקע קאָפּיע פֿון Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy the version, edition and operating system</source>
+            <translation>קאָפּירן די ווערסיע, אויסגאַבע און אָפּעראַציע־סיסטעם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Details copied.</source>
+            <translation>די פּרטים זענען אָפּגעקאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support included</source>
+            <translation>שטיצע אײַנגעשלאָסן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your %1 licence includes support until %2. Write to %3 and quote your licence number, %4.</source>
+            <translation>אײַער %1 דערלויבעניש שליסט אײַן שטיצע ביז %2. שרײַבט צו %3 און דערמאָנט אײַער דערלויבעניש־נומער, %4.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Community support</source>
+            <translation>Community שטיצע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>The Community edition is supported by its users. Search the documents and the issue list first, then open an issue. Support from the developer comes with a Pro or Enterprise licence.</source>
+            <translation>די Community אויסגאַבע ווערט געשטיצט דורך אירע באַניצער. זוכט פֿריִער אין די דאָקומענטן און אין דער רשימה פֿון פּראָבלעמען, דערנאָך עפֿנט אַ פּראָבלעם. שטיצע פֿון דעם אַנטוויקלער קומט מיט אַ Pro אָדער Enterprise דערלויבעניש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended</source>
+            <translation>שטיצע האָט זיך געענדיקט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended with your licence on %1.</source>
+            <translation>די שטיצע האָט זיך געענדיקט מיט אײַער דערלויבעניש דעם %1.</translation>
         </message>
     </context>
 </TS>

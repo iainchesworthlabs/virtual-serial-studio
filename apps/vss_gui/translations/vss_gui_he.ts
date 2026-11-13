@@ -321,6 +321,16 @@
             <source>BSD 2-Clause License, or Creative Commons Zero, version 1.0.</source>
             <translation>BSD 2-Clause License, או Creative Commons Zero, גרסה 1.0.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
+            <translation>גרסה %1. תוכנה חופשית ברישיון הציבורי הכללי של GNU, גרסה 3 ואילך. מהדורה: %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>יצירת חבילת תמיכה</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -9165,6 +9175,31 @@ Networks: %5</source>
             <source>Diagnostic information copied.</source>
             <translation>מידע האבחון הועתק.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>רישיון...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>רישיון מהדורה pro community תוספים ייבוא חידוש</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>תמיכה...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>תמיכה עזרה יצירת קשר חבילה כתובת בעיות</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>חבילת תמיכה</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -10741,6 +10776,16 @@ Networks: %5</source>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="369" />
             <source>%1 copied.</source>
             <translation>%1 הועתק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>יצירת חבילת תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Still stuck? A support bundle gathers the setup, the log and the environment for whoever helps you. The bytes your ports sent and received are never included.</source>
+            <translation>עדיין תקועים? חבילת תמיכה אוספת את התצורה, היומן והסביבה עבור מי שעוזר לכם. הבתים שהיציאות שלכם שלחו וקיבלו אינם נכללים לעולם.</translation>
         </message>
     </context>
     <context>
@@ -16939,6 +16984,31 @@ Networks: %5</source>
             <source>Diagnostic information copied.</source>
             <translation>מידע האבחון הועתק.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>רישיון...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>רישיון מהדורה pro community תוספים ייבוא חידוש</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>תמיכה...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>תמיכה עזרה יצירת קשר חבילה כתובת בעיות</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>חבילת תמיכה</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -19188,6 +19258,974 @@ Networks: %5</source>
             <location filename="../src/topology/topology_view.cpp" line="181" />
             <source>Zoom in</source>
             <translation>הגדלה</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceChip</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro trial</source>
+            <translation>Pro לניסיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, 1 day left</source>
+            <translation>%1, נותר יום אחד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, ends today</source>
+            <translation>%1, מסתיים היום</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, licence ended</source>
+            <translation>%1, הרישיון הסתיים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Edition: %1. Open the licence page.</source>
+            <translation>מהדורה: %1. פתחו את דף הרישיון.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, %n days left</source>
+            <translation>
+                <numerusform>%1, נותר %n יום</numerusform>
+                <numerusform>%1, נותרו %n ימים</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceDialog</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1 הועתק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Available</source>
+            <translation>זמין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>סגירה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>לא זמין בגרסה זו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not started</source>
+            <translation>לא התחיל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not valid</source>
+            <translation>לא תקין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove</source>
+            <translation>הסרה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro (trial)</source>
+            <translation>Pro (ניסיון)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1 to %2</source>
+            <translation>%1 עד %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>1 seat</source>
+            <translation>עמדה אחת</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%n seats</source>
+            <translation>
+                <numerusform>%n עמדה</numerusform>
+                <numerusform>%n עמדות</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Seats</source>
+            <translation>עמדות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Site licence</source>
+            <translation>רישיון אתר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
+            <translation>עמדה היא המחשב שלכם, ועוד מחשב אחד נוסף שבאמצעותו אתם מנטרים אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A licence is renewed by installing a new licence file. Write to %1 and quote your licence number, %2. Studio does not open a web page or send anything itself.</source>
+            <translation>רישיון מחדשים על ידי התקנת קובץ רישיון חדש. כתבו אל %1 וציינו את מספר הרישיון שלכם, %2. Studio אינו פותח דף אינטרנט ואינו שולח דבר בעצמו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Check the date</source>
+            <translation>בדיקת התאריך</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Computers</source>
+            <translation>מחשבים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>העתקת הכתובת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>העתקת מספר הרישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>מהדורה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended</source>
+            <translation>הסתיימה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Official plugins keep working until %2, then switch off.</source>
+            <translation>הסתיים ב-%1. התוספים הרשמיים ימשיכו לפעול עד %2 ואז ייכבו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Studio is running as the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>הסתיים ב-%1. Studio פועל כמהדורת Community. היציאות, התצורות והקבצים שלכם לא השתנו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ends soon</source>
+            <translation>מסתיים בקרוב</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Feature</source>
+            <translation>יכולת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>איך מחדשים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import licence...</source>
+            <translation>ייבוא רישיון...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Includes</source>
+            <translation>כולל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Installed by an administrator</source>
+            <translation>הותקן על ידי מנהל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>מספר רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licensed to</source>
+            <translation>מורשה עבור</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Microsoft-signed driver</source>
+            <translation>מנהל התקן חתום על ידי Microsoft</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Needs a Pro licence.</source>
+            <translation>דורש רישיון Pro.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>No licence is installed. This is the Community edition: free software, complete for capturing, monitoring and sharing serial ports.</source>
+            <translation>לא מותקן רישיון. זו מהדורת Community: תוכנה חופשית, שלמה ללכידה, ניטור ושיתוף של יציאות טוריות.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available</source>
+            <translation>לא זמין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins</source>
+            <translation>תוספים רשמיים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins are off. Nothing you made is lost: every port, setup and file still opens and saves.</source>
+            <translation>התוספים הרשמיים כבויים. דבר ממה שיצרתם לא אבד: כל יציאה, תצורה וקובץ עדיין נפתחים ונשמרים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Other licences on this computer (%1)</source>
+            <translation>רישיונות נוספים במחשב זה (%1)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove licence</source>
+            <translation>הסרת הרישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove this licence?</source>
+            <translation>להסיר את הרישיון הזה?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Renew your licence</source>
+            <translation>חידוש הרישיון שלכם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Shows which edition this is and what your licence includes. Studio checks a licence on this computer and never contacts a server.</source>
+            <translation>מציג איזו מהדורה זו ומה כולל הרישיון שלכם. Studio בודק רישיון במחשב זה ואינו פונה לשרת לעולם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Starts on %1.</source>
+            <translation>מתחיל ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>מצב</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio returns to the Community edition. Your ports, setups and files are unchanged. Keep the licence file so you can import it again.</source>
+            <translation>Studio חוזר למהדורת Community. היציאות, התצורות והקבצים שלכם לא משתנים. שמרו את קובץ הרישיון כדי שתוכלו לייבא אותו שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio uses the licence that gives you the most.</source>
+            <translation>Studio משתמש ברישיון שנותן לכם הכי הרבה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Support</source>
+            <translation>תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Term</source>
+            <translation>תקופה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong.</source>
+            <translation>נראה שהתאריך במחשב זה שגוי.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong. Official plugins are off until the date is right. If the date is right, create a support bundle and contact support.</source>
+            <translation>נראה שהתאריך במחשב זה שגוי. התוספים הרשמיים כבויים עד שהתאריך יתוקן. אם התאריך נכון, צרו חבילת תמיכה ופנו לתמיכה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The installed licence is not valid.</source>
+            <translation>הרישיון המותקן אינו תקין.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>This computer is %1.</source>
+            <translation>מחשב זה הוא %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This file is not a valid Virtual Serial Studio licence. It may be damaged or incomplete. Ask for the file again.</source>
+            <translation>קובץ זה אינו רישיון תקין של Virtual Serial Studio. ייתכן שהוא פגום או לא שלם. בקשו את הקובץ שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This is a 14 day trial of the Pro edition. It ends on %1. Nothing you make during the trial is lost.</source>
+            <translation>זהו ניסיון של 14 יום של מהדורת Pro. הוא מסתיים ב-%1. דבר ממה שתיצרו במהלך הניסיון לא יאבד.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence is for other computers. This computer is %1. Ask your administrator for a licence that names it.</source>
+            <translation>רישיון זה מיועד למחשבים אחרים. מחשב זה הוא %1. בקשו ממנהל המערכת רישיון שמציין אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence needs a newer version of Studio. Install the latest version, then import the licence again.</source>
+            <translation>רישיון זה דורש גרסה חדשה יותר של Studio. התקינו את הגרסה העדכנית ואז ייבאו את הרישיון שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence was withdrawn. Contact support.</source>
+            <translation>רישיון זה בוטל. פנו לתמיכה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid</source>
+            <translation>תקין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1.</source>
+            <translation>תקין עד %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. 1 day left.</source>
+            <translation>תקין עד %1. נותר יום אחד.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. Ends today.</source>
+            <translation>תקין עד %1. מסתיים היום.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. %n days left.</source>
+            <translation>
+                <numerusform>תקין עד %1. נותר %n יום.</numerusform>
+                <numerusform>תקין עד %1. נותרו %n ימים.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>What this edition includes</source>
+            <translation>מה כוללת מהדורה זו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Why</source>
+            <translation>סיבה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence does not include this.</source>
+            <translation>הרישיון שלכם אינו כולל זאת.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1.</source>
+            <translation>הרישיון שלכם הסתיים ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off on %2.</source>
+            <translation>הרישיון שלכם הסתיים ב-%1. התוספים הרשמיים ייכבו ב-%2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1. Renew to keep official plugins and support.</source>
+            <translation>הרישיון שלכם מסתיים ב-%1. חדשו אותו כדי לשמור על התוספים הרשמיים ועל התמיכה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence is for other computers.</source>
+            <translation>הרישיון שלכם מיועד למחשבים אחרים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence starts on %1.</source>
+            <translation>הרישיון שלכם מתחיל ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>licence number</source>
+            <translation>מספר רישיון</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceImport</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>All files (*)</source>
+            <translation>כל הקבצים (*)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Choose another file</source>
+            <translation>בחירת קובץ אחר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Could not import the licence</source>
+            <translation>לא ניתן לייבא את הרישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import a licence</source>
+            <translation>ייבוא רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence files (*.vsslic)</source>
+            <translation>קובצי רישיון (*.vsslic)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Licence imported. This is now the %1 edition.</source>
+            <translation>הרישיון יובא. זו עכשיו מהדורת %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Studio could not read %1. Check that the file still exists and that you are allowed to open it.</source>
+            <translation>Studio לא הצליח לקרוא את %1. בדקו שהקובץ עדיין קיים ושיש לכם הרשאה לפתוח אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>That licence is already installed.</source>
+            <translation>הרישיון הזה כבר מותקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence ended on %1. It was imported, but it does not turn anything on.</source>
+            <translation>הרישיון הזה הסתיים ב-%1. הוא יובא, אך אינו מדליק דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence starts on %1.</source>
+            <translation>הרישיון הזה מתחיל ב-%1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceNotice</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Dismiss</source>
+            <translation>הסתרה</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/licence_notice.cpp" line="1" />
+            <source>Licence</source>
+            <translation>רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Remind me tomorrow</source>
+            <translation>הזכירו לי מחר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong, so official plugins are off.</source>
+            <translation>נראה שהתאריך במחשב זה שגוי, ולכן התוספים הרשמיים כבויים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off today.</source>
+            <translation>הרישיון שלכם הסתיים ב-%1. התוספים הרשמיים ייכבו היום.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off tomorrow.</source>
+            <translation>הרישיון שלכם הסתיים ב-%1. התוספים הרשמיים ייכבו מחר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1.</source>
+            <translation>הרישיון שלכם מסתיים ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence has ended, so official plugins are off. Studio is now the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>הרישיון שלכם הסתיים, ולכן התוספים הרשמיים כבויים. Studio הוא עכשיו מהדורת Community. היציאות, התצורות והקבצים שלכם לא השתנו.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off in %n days.</source>
+            <translation>
+                <numerusform>הרישיון שלכם הסתיים ב-%1. התוספים הרשמיים ייכבו בעוד %n יום.</numerusform>
+                <numerusform>הרישיון שלכם הסתיים ב-%1. התוספים הרשמיים ייכבו בעוד %n ימים.</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportBundleDialog</name>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>1 file</source>
+            <translation>קובץ אחד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Could not save the bundle</source>
+            <translation>לא ניתן לשמור את החבילה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>העתקת פרטים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Off by default</source>
+            <translation>כבוי כברירת מחדל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>אוסף את מה שעוזר צריך כדי להבין את התצורה שלכם. דבר אינו נשלח לשום מקום. אתם בוחרים היכן לשמור אותה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Include</source>
+            <translation>לכלול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Setup</source>
+            <translation>תצורה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Ports, links and their settings, as a topology file.</source>
+            <translation>יציאות, קישורים והגדרותיהם, כקובץ טופולוגיה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Event log</source>
+            <translation>יומן אירועים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State changes and errors since the setup was opened.</source>
+            <translation>שינויי מצב ושגיאות מאז שנפתחה התצורה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Port counters</source>
+            <translation>מונים של יציאות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State, bytes in and out, and bytes dropped for each port.</source>
+            <translation>מצב, בתים נכנסים ויוצאים ובתים שנשמטו לכל יציאה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview</source>
+            <translation>תצוגה מקדימה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy environment only</source>
+            <translation>העתקת הסביבה בלבד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save bundle</source>
+            <translation>שמירת החבילה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bundle has too many files.</source>
+            <translation>בחבילה יותר מדי קבצים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>ZIP archives (*.zip)</source>
+            <translation>ארכיוני ZIP (*.zip)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Saved %1.</source>
+            <translation>%1 נשמר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Environment copied.</source>
+            <translation>הסביבה הועתקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>לא זמין בגרסה זו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Studio could not write to that folder. Choose another place, such as your Documents folder.</source>
+            <translation>Studio לא הצליח לכתוב בתיקייה הזו. בחרו מקום אחר, כמו תיקיית המסמכים שלכם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Choose another place</source>
+            <translation>בחירת מקום אחר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Create a support bundle</source>
+            <translation>יצירת חבילת תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Creating a support bundle is not available in this build.</source>
+            <translation>יצירת חבילת תמיכה אינה זמינה בגרסה זו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Version and environment</source>
+            <translation>גרסה וסביבה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Build, compiler, Qt version, operating system, architecture and edition.</source>
+            <translation>הבנייה, המהדר, גרסת Qt, מערכת ההפעלה, הארכיטקטורה והמהדורה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Driver state</source>
+            <translation>מצב מנהל ההתקן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service&apos;s state and the results of the setup check.</source>
+            <translation>האם מנהל ההתקן של Studio ו-com0com קיימים, הגרסאות שלהם, איך מנהל ההתקן חתום, מצב שירות העזר ותוצאות בדיקת ההגדרות.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Serial ports on this computer</source>
+            <translation>יציאות טוריות במחשב זה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>One line for each serial port: name, description, vendor and product ids, and driver.</source>
+            <translation>שורה אחת לכל יציאה טורית: שם, תיאור, מזהי יצרן ומוצר, ומנהל התקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence number, edition, term and state. Not the licence file.</source>
+            <translation>מספר רישיון, מהדורה, תקופה ומצב. לא קובץ הרישיון.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licensee name</source>
+            <translation>שם בעל הרישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The name your licence was issued to. Turn this on if you are writing to support about the licence itself.</source>
+            <translation>השם שעליו הונפק הרישיון שלכם. סמנו אפשרות זו אם אתם כותבים לתמיכה על הרישיון עצמו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This computer&apos;s name</source>
+            <translation>שם מחשב זה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Needed when a licence names computers.</source>
+            <translation>נדרש כשרישיון מציין מחשבים בשמם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Always left out</source>
+            <translation>תמיד לא נכלל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bytes your ports sent and received are never included. Passwords, tokens and keys are replaced with [redacted]. The path of your home folder is shortened to ~. The name of this computer and your user name are not included. Serial numbers of devices are not included. The licence file itself is never included.</source>
+            <translation>הבתים שהיציאות שלכם שלחו וקיבלו אינם נכללים לעולם. סיסמאות, אסימונים ומפתחות מוחלפים ב-[redacted]. הנתיב של תיקיית הבית שלכם מקוצר ל-~. שם המחשב הזה ושם המשתמש שלכם אינם נכללים. המספרים הסידוריים של ההתקנים אינם נכללים. קובץ הרישיון עצמו אינו נכלל לעולם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Nothing leaves this computer until you share the file yourself.</source>
+            <translation>דבר אינו יוצא ממחשב זה עד ששיתפתם את הקובץ בעצמכם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Files in the bundle</source>
+            <translation>קבצים בחבילה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This is exactly what the file will contain.</source>
+            <translation>זה בדיוק מה שהקובץ יכיל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview shortened. The saved file is complete.</source>
+            <translation>התצוגה המקדימה קוצרה. הקובץ שנשמר שלם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview of %1</source>
+            <translation>תצוגה מקדימה של %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save support bundle</source>
+            <translation>שמירת חבילת תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Show in folder</source>
+            <translation>הצגה בתיקייה</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>%n files</source>
+            <translation>
+                <numerusform>%n קובץ</numerusform>
+                <numerusform>%n קבצים</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportDialog</name>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1 הועתק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>סגירה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>גרסה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>מערכת הפעלה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy</source>
+            <translation>העתקה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Help contents</source>
+            <translation>תוכן העזרה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Why is nothing arriving?</source>
+            <translation>למה שום דבר לא מגיע?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>העתקת הכתובת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>העתקת מספר הרישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>מהדורה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>איך מחדשים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>מספר רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support</source>
+            <translation>תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>חבילת תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Where to get help, and what to send so a helper can understand your setup.</source>
+            <translation>היכן לקבל עזרה, ומה לשלוח כדי שעוזר יבין את התצורה שלכם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your support</source>
+            <translation>התמיכה שלכם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy documents address</source>
+            <translation>העתקת כתובת המסמכים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy issues address</source>
+            <translation>העתקת כתובת הבעיות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Studio never sends anything itself. You choose what to share.</source>
+            <translation>Studio לעולם אינו שולח דבר בעצמו. אתם בוחרים מה לשתף.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Before you write</source>
+            <translation>לפני שכותבים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say what you expected and what happened instead.</source>
+            <translation>ציינו מה ציפיתם שיקרה ומה קרה בפועל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say which port or program it happened with.</source>
+            <translation>ציינו באיזו יציאה או תוכנית זה קרה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Attach a support bundle. It answers most first questions.</source>
+            <translation>צרפו חבילת תמיכה. היא עונה על רוב השאלות הראשונות.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>A support bundle is one zip file with the version, the driver state, your setup, the log and the list of serial ports on this computer. You see everything in it before you save it.</source>
+            <translation>חבילת תמיכה היא קובץ zip אחד עם הגרסה, מצב מנהל ההתקן, התצורה שלכם, היומן ורשימת היציאות הטוריות במחשב זה. אתם רואים את כל תוכנה לפני שאתם שומרים אותה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>יצירת חבילת תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>This copy of Studio</source>
+            <translation>העותק הזה של Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy the version, edition and operating system</source>
+            <translation>העתקת הגרסה, המהדורה ומערכת ההפעלה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Details copied.</source>
+            <translation>הפרטים הועתקו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support included</source>
+            <translation>התמיכה כלולה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your %1 licence includes support until %2. Write to %3 and quote your licence number, %4.</source>
+            <translation>רישיון %1 שלכם כולל תמיכה עד %2. כתבו אל %3 וציינו את מספר הרישיון שלכם, %4.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Community support</source>
+            <translation>תמיכת Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>The Community edition is supported by its users. Search the documents and the issue list first, then open an issue. Support from the developer comes with a Pro or Enterprise licence.</source>
+            <translation>מהדורת Community נתמכת על ידי המשתמשים שלה. חפשו קודם במסמכים וברשימת הבעיות, ואז פתחו דיווח. תמיכה מהמפתח כלולה ברישיון Pro או Enterprise.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended</source>
+            <translation>התמיכה הסתיימה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended with your licence on %1.</source>
+            <translation>התמיכה הסתיימה עם הרישיון שלכם ב-%1.</translation>
         </message>
     </context>
 </TS>
