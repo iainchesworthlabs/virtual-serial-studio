@@ -17,6 +17,7 @@ using vss::gui::first_com_candidate;
 using vss::gui::kFirstGuiComNumber;
 using vss::gui::kLastGuiComNumber;
 using vss::gui::next_com_candidate;
+using vss::gui::reusable_com_candidates;
 
 TEST_CASE("com numbers: reads COM paths and ignores everything else")
 {
@@ -68,4 +69,25 @@ TEST_CASE("com numbers: the next candidate skips what is in use and stops")
     REQUIRE_EQ(next_com_candidate(kLastGuiComNumber, 100, in_use), 4U);
     // It stops once it has gone all the way round to where it started.
     REQUIRE_EQ(next_com_candidate(9, 10, in_use), 0U);
+}
+
+TEST_CASE("com numbers: kept numbers are offered for reuse, lowest first")
+{
+    // COM7 and COM9 are listed, so they are not reusable; COM1 and COM2 never.
+    const auto numbers = reusable_com_candidates(
+        {3, 7, 9}, {12, 7, 1, 5, 9, 5, 2, 300, 4}, 10);
+    REQUIRE_EQ(numbers.size(), std::size_t{3});
+    REQUIRE_EQ(numbers[0], 4U);
+    REQUIRE_EQ(numbers[1], 5U);
+    REQUIRE_EQ(numbers[2], 12U);
+}
+
+TEST_CASE("com numbers: reuse is limited and empty when nothing is kept")
+{
+    REQUIRE(reusable_com_candidates({5}, {}, 6).empty());
+    const auto few =
+        reusable_com_candidates({}, {20, 19, 18, 17, 16, 15, 14, 13}, 3);
+    REQUIRE_EQ(few.size(), std::size_t{3});
+    REQUIRE_EQ(few[0], 13U);
+    REQUIRE_EQ(few[2], 15U);
 }
