@@ -198,6 +198,29 @@ TEST_CASE("rules: machine does not fire on a near miss")
     REQUIRE_EQ(feed(each, "02 03", ms(3)).size(), std::size_t{1});
 }
 
+namespace
+{
+
+/// Feeds `data` in chunks of odd sizes, a millisecond apart, and returns
+/// every firing.
+std::vector<firing> feed_in_pieces(machine& each, const byte_buffer& data)
+{
+    const std::size_t sizes[] = {1, 7, 63, 2, 30, 5, 22};
+    std::vector<firing> got;
+    std::size_t at = 0;
+    std::size_t turn = 0;
+    std::int64_t when = 1;
+    while (at < data.size())
+    {
+        const std::size_t take = std::min(sizes[turn++ % 7], data.size() - at);
+        each.feed(bytes_view(data).subspan(at, take), ms(when++), got);
+        at += take;
+    }
+    return got;
+}
+
+} // namespace
+
 TEST_CASE("rules: machine matches a pattern of more than 64 bytes")
 {
     byte_buffer pattern;
@@ -212,18 +235,7 @@ TEST_CASE("rules: machine matches a pattern of more than 64 bytes")
         1);
 
     // Odd-sized chunks, so the pattern crosses the words at 64 and 128.
-    std::vector<firing> got;
-    std::size_t at = 0;
-    std::int64_t when = 1;
-    const std::size_t sizes[] = {1, 7, 63, 2, 30, 5, 22};
-    std::size_t turn = 0;
-    while (at < pattern.size())
-    {
-        const std::size_t take =
-            std::min(sizes[turn++ % 7], pattern.size() - at);
-        each.feed(bytes_view(pattern).subspan(at, take), ms(when++), got);
-        at += take;
-    }
+    const std::vector<firing> got = feed_in_pieces(each, pattern);
     REQUIRE_EQ(got.size(), std::size_t{1});
     REQUIRE_EQ(got[0].length, std::size_t{130});
     REQUIRE_EQ(got[0].offset, std::uint64_t{0});

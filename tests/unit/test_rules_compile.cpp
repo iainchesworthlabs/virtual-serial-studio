@@ -700,8 +700,9 @@ TEST_CASE("rules: compile refuses a rule with no step")
 TEST_CASE("rules: compile refuses more than 64 steps")
 {
     rule_set_source source = with_action(mark());
-    source.rules[0].sequence.assign(max_sequence_steps + 1,
-                                    source.rules[0].sequence[0]);
+    // A copy: assign() must not be given an element of the vector it fills.
+    const step one = source.rules[0].sequence[0];
+    source.rules[0].sequence.assign(max_sequence_steps + 1, one);
     require_only(source, "rules[0].sequence");
 }
 
