@@ -96,7 +96,7 @@ std::string peer_set(std::string_view rules_json, std::string_view extra = "")
     text += extra;
     text += R"("rules": )";
     text += rules_json;
-    text += "}";
+    text += '}';
     return text;
 }
 
