@@ -791,8 +791,15 @@ its tests in the project's framework:
 Decided on 13 November 2026: 2 (the additions to `vss_core`), 3 (the rule
 document replaces the responder script), 5 (rules are removed when their owner
 is lost) and the first half of 7 (the 1 ms Windows timer period while a hub
-runs). Decision 1 follows from approving the design. Still open: 4, 6, the
-timing thread of 7, and 8.
+runs). Decision 1 follows from approving the design.
+
+Decided later the same day, each as recommended: 4 (a run seeds link jitter),
+6 (fixed-length patterns only in the first version), the second half of 7 (the
+timing thread for `tight` actions, at most 16 in a rule set; slice 2 measures
+that combination) and 8 (rule sets stay out of the topology file). The section
+"Triggers from a plugin" is approved too: `quiet_us` and `signal` go into the
+matcher and `bus_fault` into the engine path, all in slice 2. Nothing on this
+list is open.
 
 1. **Rules are data the engine runs; a plugin never sits in the path.** `ask` is
    the only wait, bounded and refused under the floor. (Recommended: yes.)
