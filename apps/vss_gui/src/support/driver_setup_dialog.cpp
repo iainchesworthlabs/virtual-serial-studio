@@ -118,10 +118,10 @@ void DriverSetupDialog::build(driver_problem problem)
     layout->addWidget(paragraph(
         QCoreApplication::translate(
             "DriverSetup",
-            "Windows only lets a driver make COM ports that other programs "
-            "can open. Setup installs the Virtual Serial Studio driver and a "
-            "small helper service that makes ports for you, so administrator "
-            "rights are needed once, now, and not each time you add a port."),
+            "Windows only lets a driver make COM ports that other programs can "
+            "open. Setup installs the Virtual Serial Studio driver and a small "
+            "helper service that makes ports for you, so administrator rights "
+            "are needed once, not each time you add a port."),
         this));
     // The next paragraphs set expectations before the permission prompt:
     // what it will ask, that Studio stays unelevated, and the port restart.

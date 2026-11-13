@@ -161,11 +161,11 @@ private:
 class gate_process
 {
 public:
-    explicit gate_process(std::string name)
+    /// `more` are further options of `vss_gate`, such as `--local-role=`.
+    explicit gate_process(std::string name,
+                          const std::vector<std::string>& more = {})
         : instance_(std::move(name)), audit_dir_(scratch_.path() / "audit"),
-          child_(VSS_GATE_PROGRAM,
-                 {"--instance=" + instance_, "--agent-instance=" + instance_,
-                  "--audit-dir=" + audit_dir_.string()})
+          child_(VSS_GATE_PROGRAM, arguments_for(instance_, audit_dir_, more))
     {
         wait_for_line(child_, "administration on", "the gateway");
     }
@@ -184,6 +184,18 @@ public:
     }
 
 private:
+    static std::vector<std::string>
+    arguments_for(const std::string& instance,
+                  const std::filesystem::path& audit_dir,
+                  const std::vector<std::string>& more)
+    {
+        std::vector<std::string> arguments{"--instance=" + instance,
+                                           "--agent-instance=" + instance,
+                                           "--audit-dir=" + audit_dir.string()};
+        arguments.insert(arguments.end(), more.begin(), more.end());
+        return arguments;
+    }
+
     std::string instance_;
     scratch_directory scratch_;
     std::filesystem::path audit_dir_;
@@ -197,19 +209,28 @@ struct cli_result
     std::string output;
 };
 
-/// Runs `vss_cli <group> <words> --instance=<instance>` to its end.  `code` is
-/// empty when it did not end within the limit (the child is then killed).
-cli_result run_cli(const std::string& group, const std::string& instance,
-                   const std::vector<std::string>& words)
+/// Starts `vss_cli <group> <words> --instance=<instance>` and leaves it
+/// running.  The child is killed when the pointer goes.
+std::unique_ptr<child_process> start_cli(const std::string& group,
+                                         const std::string& instance,
+                                         const std::vector<std::string>& words)
 {
     std::vector<std::string> arguments{group};
     for (const auto& word : words)
         arguments.push_back(word);
     arguments.push_back("--instance=" + instance);
-    child_process child(VSS_AGENT_CLI_PROGRAM, arguments);
+    return std::make_unique<child_process>(VSS_AGENT_CLI_PROGRAM, arguments);
+}
+
+/// Runs `vss_cli <group> <words> --instance=<instance>` to its end.  `code` is
+/// empty when it did not end within the limit (the child is then killed).
+cli_result run_cli(const std::string& group, const std::string& instance,
+                   const std::vector<std::string>& words)
+{
+    const auto child = start_cli(group, instance, words);
     cli_result outcome;
-    outcome.code = child.wait(long_limit);
-    outcome.output = child.read_all(5000ms);
+    outcome.code = child->wait(long_limit);
+    outcome.output = child->read_all(5000ms);
     return outcome;
 }
 
@@ -390,6 +411,200 @@ std::size_t require_files_free_of(const std::filesystem::path& directory,
                        "the file " + item.path().filename().string());
     }
     return looked_at;
+}
+
+// -- watching ----------------------------------------------------------------
+
+/// The words of a line, which are separated by single spaces.
+std::vector<std::string> words_of(const std::string& line)
+{
+    std::vector<std::string> words;
+    std::istringstream stream(line);
+    std::string word;
+    while (stream >> word)
+        words.push_back(word);
+    return words;
+}
+
+/// The lines of `text` without their line endings.
+std::vector<std::string> lines_of(const std::string& text)
+{
+    std::vector<std::string> lines;
+    std::istringstream stream(text);
+    std::string line;
+    while (std::getline(stream, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        lines.push_back(line);
+    }
+    return lines;
+}
+
+bool all_digits(const std::string& text)
+{
+    return !text.empty() &&
+           text.find_first_not_of("0123456789") == std::string::npos;
+}
+
+/// A line of `control watch`:
+/// `<batch> <time ns> <kind> <port> <direction> <size> <hex>`.
+struct event_line
+{
+    std::string batch;
+    std::string time_ns;
+    std::string kind;
+    std::string port;
+    std::string direction;
+    std::string size;
+    std::string bytes;
+};
+
+/// The line as an event; fails the test for a line that is not one.
+event_line parse_event_line(const std::string& line)
+{
+    const std::vector<std::string> words = words_of(line);
+    if (words.size() != 7 || !all_digits(words[0]) || !all_digits(words[1]) ||
+        !all_digits(words[5]))
+    {
+        throw vss_test::failure("not a line of control watch: \"" + line +
+                                "\"");
+    }
+    return {words[0], words[1], words[2], words[3],
+            words[4], words[5], words[6]};
+}
+
+/// The events in the output of `control watch`, which has nothing else.
+std::vector<event_line> parse_events(const std::string& output)
+{
+    std::vector<event_line> events;
+    for (const std::string& line : lines_of(output))
+        events.push_back(parse_event_line(line));
+    return events;
+}
+
+/// True when an event is `size` bytes of `direction` on `port`, and `bytes`
+/// is what the line says about them.
+bool has_bytes(const std::vector<event_line>& events, const std::string& port,
+               const std::string& direction, const std::string& size,
+               const std::string& bytes)
+{
+    for (const event_line& event : events)
+    {
+        if (event.kind == "data" && event.port == port &&
+            event.direction == direction && event.size == size &&
+            event.bytes == bytes)
+            return true;
+    }
+    return false;
+}
+
+/// The rows of `control sessions`, each split into its words: number,
+/// principal, transport, events, traffic, requests, events sent, events
+/// lost, process and the name of the client.
+std::vector<std::vector<std::string>> session_rows(const std::string& output)
+{
+    std::vector<std::vector<std::string>> rows;
+    for (const std::string& line : lines_of(output))
+    {
+        std::vector<std::string> row = words_of(line);
+        if (row.size() < 10 || !all_digits(row[0]))
+        {
+            throw vss_test::failure("not a line of control sessions: \"" +
+                                    line + "\"");
+        }
+        rows.push_back(std::move(row));
+    }
+    return rows;
+}
+
+/// The row of the session with this number, if it is listed.
+std::optional<std::vector<std::string>> find_session(const std::string& output,
+                                                     const std::string& number)
+{
+    for (const auto& row : session_rows(output))
+    {
+        if (row[0] == number)
+            return row;
+    }
+    return std::nullopt;
+}
+
+/// Asks `control sessions` until at least `count` sessions of programs that
+/// are not administration have a stream.  Returns their numbers.  This is
+/// what a test waits for before it makes something happen: a watch that has
+/// not subscribed yet would miss it.
+std::vector<std::string> wait_for_streams(const std::string& instance,
+                                          std::size_t count)
+{
+    std::string seen;
+    const auto deadline = std::chrono::steady_clock::now() + long_limit;
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        const auto listed = run_cli("control", instance, {"sessions"});
+        require_exit(listed, 0, "vss_cli control sessions");
+        seen = listed.output;
+        std::vector<std::string> numbers;
+        for (const auto& row : session_rows(seen))
+        {
+            if (row[2] != "local-admin" && (row[3] == "yes" || row[4] == "yes"))
+                numbers.push_back(row[0]);
+        }
+        if (numbers.size() >= count)
+            return numbers;
+    }
+    throw vss_test::failure("no " + std::to_string(count) +
+                            " sessions with a stream; the last list: " + seen);
+}
+
+/// Makes the ports `first` and `second` and links them one way, from the
+/// first to the second.
+void make_linked_pair(const std::string& instance, const std::string& first,
+                      const std::string& second)
+{
+    create_port(instance, first);
+    create_port(instance, second);
+    require_exit(
+        run_cli("agent", instance, {"connect", first, second, "--one-way"}), 0,
+        "vss_cli agent connect");
+}
+
+/// The id of the port `name`, which is `p_` and a number.
+std::string id_of_port(const std::string& instance, const std::string& name)
+{
+    auto script = connect_client(instance);
+    const auto listed = script->list_ports();
+    require_ok(listed, "listing the ports through the gateway");
+    const auto* port = find_port(*listed, name);
+    if (port == nullptr)
+    {
+        throw vss_test::failure("the gateway lists no port called " + name);
+    }
+    return port->id;
+}
+
+/// Writes `bytes_hex` to the port `name` through the agent.
+void write_hex(const std::string& instance, const std::string& name,
+               const std::string& bytes_hex)
+{
+    require_exit(
+        run_cli("agent", instance, {"write", name, bytes_hex, "--hex"}), 0,
+        "vss_cli agent write");
+}
+
+/// Waits for `watch` to end and returns what it printed.  Fails the test
+/// unless it ended with `expected`.
+std::string finish_watch(child_process& watch, int expected, const char* what)
+{
+    const std::optional<int> code = watch.wait(long_limit);
+    const std::string output = watch.read_all(5000ms);
+    if (code != expected)
+    {
+        throw vss_test::failure(std::string(what) + " did not exit with " +
+                                std::to_string(expected) +
+                                "; output: " + output);
+    }
+    return output;
 }
 
 } // namespace
@@ -729,4 +944,138 @@ TEST_CASE("system control: no log, output or file holds a token")
     REQUIRE(contains(audit, "\"event\":\"auth.failed\""));
     REQUIRE(contains(audit, id));
     REQUIRE(contains(read_text(gate.audit_dir() / "tokens.json"), id));
+}
+
+TEST_CASE("system control: watch --data prints the bytes of linked ports")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+    make_linked_pair(instance, "a", "b");
+    const std::string a_id = id_of_port(instance, "a");
+    const std::string b_id = id_of_port(instance, "b");
+
+    // One watch hears every port; the other only the second one.
+    const auto everything = start_cli(
+        "control", instance, {"watch", "--data", "--count=4", "--interval=20"});
+    const auto only_b = start_cli(
+        "control", instance,
+        {"watch", "--data", "--ports=" + b_id, "--count=2", "--interval=20"});
+    REQUIRE_EQ(wait_for_streams(instance, 2).size(), std::size_t{2});
+
+    // Bytes that a program that reads lines would trip over.
+    const std::string sent = "00ff0a20";
+    write_hex(instance, "a", sent);
+
+    const auto all_events = parse_events(
+        finish_watch(*everything, 0, "vss_cli control watch --data"));
+    REQUIRE_EQ(all_events.size(), std::size_t{4});
+    REQUIRE(has_bytes(all_events, a_id, "tx", "4", sent));
+    REQUIRE(has_bytes(all_events, b_id, "rx", "4", sent));
+
+    const auto b_events =
+        parse_events(finish_watch(*only_b, 0, "vss_cli control watch --ports"));
+    REQUIRE_EQ(b_events.size(), std::size_t{2});
+    for (const event_line& event : b_events)
+    {
+        REQUIRE_EQ(event.port, b_id);
+    }
+    REQUIRE(has_bytes(b_events, b_id, "rx", "4", sent));
+}
+
+TEST_CASE("system control: a monitor watches without the bytes")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    // The local user holds the scope monitor and nothing else.
+    gate_process gate(instance, {"--local-role=monitor"});
+    make_linked_pair(instance, "a", "b");
+    const std::string b_id = id_of_port(instance, "b");
+
+    const auto refused =
+        run_cli("control", instance, {"watch", "--data", "--count=1"});
+    require_exit(refused, 1, "vss_cli control watch --data as a monitor");
+    REQUIRE(contains(refused.output, "forbidden"));
+    REQUIRE(contains(refused.output, "control watch failed"));
+    // A refusal is a message on the error output and no event line.
+    REQUIRE(!contains(refused.output, " data "));
+
+    const auto watch =
+        start_cli("control", instance, {"watch", "--count=4", "--interval=20"});
+    REQUIRE_EQ(wait_for_streams(instance, 1).size(), std::size_t{1});
+    write_hex(instance, "a", "68656c6c6f");
+
+    const auto events =
+        parse_events(finish_watch(*watch, 0, "vss_cli control watch"));
+    REQUIRE_EQ(events.size(), std::size_t{4});
+    bool saw_b = false;
+    for (const event_line& event : events)
+    {
+        // The bytes moved, and the line says how many, and not which.
+        REQUIRE_EQ(event.kind, std::string("data"));
+        REQUIRE_EQ(event.size, std::string("5"));
+        REQUIRE_EQ(event.bytes, std::string("-"));
+        saw_b = saw_b || (event.port == b_id && event.direction == "rx");
+    }
+    REQUIRE(saw_b);
+}
+
+TEST_CASE("system control: sessions lists a watch and kick ends it")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+
+    const auto watch =
+        start_cli("control", instance, {"watch", "--interval=20"});
+    const std::vector<std::string> numbers = wait_for_streams(instance, 1);
+    REQUIRE_EQ(numbers.size(), std::size_t{1});
+    const std::string& number = numbers[0];
+
+    const auto listed = run_cli("control", instance, {"sessions"});
+    require_exit(listed, 0, "vss_cli control sessions");
+    const auto row = find_session(listed.output, number);
+    REQUIRE(row.has_value());
+    REQUIRE_EQ((*row)[2], std::string("local"));
+    REQUIRE_EQ((*row)[3], std::string("yes"));
+    REQUIRE_EQ((*row)[4], std::string("no"));
+    REQUIRE_EQ(row->back(), std::string("vss_cli"));
+    // The one that asked is there too, on the administration endpoint.
+    bool saw_admin = false;
+    for (const auto& other : session_rows(listed.output))
+    {
+        saw_admin = saw_admin || other[2] == "local-admin";
+    }
+    REQUIRE(saw_admin);
+
+    const auto kicked = run_cli("control", instance, {"kick", number});
+    require_exit(kicked, 0, "vss_cli control kick");
+    REQUIRE(kicked.output.empty());
+
+    // The watch is over, with an error and not as if it were done.
+    const std::optional<int> code = watch->wait(long_limit);
+    const std::string output = watch->read_all(5000ms);
+    REQUIRE(code.has_value());
+    REQUIRE(*code != 0);
+    REQUIRE(contains(output, "control watch failed"));
+
+    // Nothing lists the session any more.
+    bool listed_still = true;
+    const auto deadline = std::chrono::steady_clock::now() + long_limit;
+    while (listed_still && std::chrono::steady_clock::now() < deadline)
+    {
+        const auto again = run_cli("control", instance, {"sessions"});
+        require_exit(again, 0, "vss_cli control sessions");
+        listed_still = find_session(again.output, number).has_value();
+    }
+    REQUIRE(!listed_still);
+
+    // The number is gone, so kicking it says so, and a word that is no
+    // number is not a command.
+    const auto missing = run_cli("control", instance, {"kick", number});
+    require_exit(missing, 1, "vss_cli control kick of a session that is gone");
+    REQUIRE(contains(missing.output, "no session has that number"));
+    const auto unusable = run_cli("control", instance, {"kick", "first"});
+    require_exit(unusable, 2, "vss_cli control kick of a word");
+    REQUIRE(contains(unusable.output, "vss_cli control kick"));
 }

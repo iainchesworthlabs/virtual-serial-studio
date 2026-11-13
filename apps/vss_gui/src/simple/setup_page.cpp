@@ -170,7 +170,8 @@ void SetupPage::build()
     auto* show_row = new QHBoxLayout();
     show_row->addWidget(show_data_);
     show_row->addWidget(
-        muted(tr("Read only. Useful when a program says nothing arrives."),
+        muted(tr("Read only. Use it to check the data when a program reports "
+                 "that nothing arrives."),
               body),
         1);
     layout->addLayout(show_row);

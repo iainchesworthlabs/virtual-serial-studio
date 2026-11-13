@@ -1404,16 +1404,39 @@ bool holds(const std::string& haystack, std::string_view needle)
     return haystack.find(needle) != std::string::npos;
 }
 
+/// The time of a clock a test moves by hand.  The test moves it on its own
+/// thread while the gateway reads it on another.
+class moved_time
+{
+public:
+    moved_time() : ticks_(control::wall_clock::now().time_since_epoch().count())
+    {
+    }
+
+    moved_time& operator+=(control::wall_clock::duration step) noexcept
+    {
+        ticks_.fetch_add(step.count());
+        return *this;
+    }
+
+    control::wall_clock::time_point get() const noexcept
+    {
+        return control::wall_clock::time_point(
+            control::wall_clock::duration(ticks_.load()));
+    }
+
+private:
+    std::atomic<control::wall_clock::rep> ticks_;
+};
+
 /// A clock a test moves by hand, for a gateway.
 struct shared_time
 {
-    std::shared_ptr<control::wall_clock::time_point> now =
-        std::make_shared<control::wall_clock::time_point>(
-            control::wall_clock::now());
+    std::shared_ptr<moved_time> now = std::make_shared<moved_time>();
 
     control::token_store::time_source source() const
     {
-        return [shared = now] { return *shared; };
+        return [shared = now] { return shared->get(); };
     }
 };
 
@@ -1830,4 +1853,773 @@ TEST_CASE("control gateway: no token is written anywhere the gateway keeps "
     }
     REQUIRE(!holds(kept, "vsst1_"));
     require_intact(env.audit_directory);
+}
+
+// -- streams -----------------------------------------------------------------
+
+namespace
+{
+
+/// Ports behind the gateway and a way to move bytes through them: `a` sends
+/// to `b` and `c` sends to `d`.  It talks to the agent itself, as Studio
+/// would, so the gateway under test only ever watches.
+struct traffic_rig
+{
+    explicit traffic_rig(const fixture& env)
+    {
+        agent::client_options options;
+        options.instance = env.instance.name();
+        options.name = "maker";
+        auto connected = agent::client::connect(options);
+        REQUIRE(connected);
+        maker = std::move(*connected);
+        a = make("a");
+        b = make("b");
+        c = make("c");
+        d = make("d");
+        REQUIRE(maker->connect_ports(a, b, true));
+        REQUIRE(maker->connect_ports(c, d, true));
+    }
+
+    vss::endpoint_id make(const char* name) const
+    {
+        const auto made = maker->create_port(name);
+        REQUIRE(made);
+        return *made;
+    }
+
+    void send(vss::endpoint_id from, std::string_view text) const
+    {
+        REQUIRE(maker->write(from, vss::to_bytes(text)));
+    }
+
+    std::unique_ptr<agent::client> maker;
+    vss::endpoint_id a = 0;
+    vss::endpoint_id b = 0;
+    vss::endpoint_id c = 0;
+    vss::endpoint_id d = 0;
+};
+
+control::gateway_options with_local_scopes(control::scope_set scopes)
+{
+    control::gateway_options options;
+    options.local_scopes = scopes;
+    return options;
+}
+
+control::scope_set monitor_with_data()
+{
+    return {control::scope::monitor, control::scope::monitor_data};
+}
+
+control::stream_options every(std::uint32_t interval_ms,
+                              std::vector<std::string> ports = {})
+{
+    control::stream_options options;
+    options.interval_ms = interval_ms;
+    options.ports = std::move(ports);
+    return options;
+}
+
+bool is_rx_on(const control::event_entry& event, vss::endpoint_id port)
+{
+    return event.kind == "data" && event.direction == "rx" &&
+           event.port == control::port_id_text(port);
+}
+
+/// Reads batches until `visit` says it has what it wants, or the time is up.
+/// Every batch must follow on from the one before.
+template <class Visitor>
+bool read_batches(control::client& source, std::uint64_t& next_seq,
+                  Visitor visit, std::chrono::milliseconds limit = long_wait)
+{
+    const auto deadline = steady::now() + limit;
+    for (;;)
+    {
+        const auto now = steady::now();
+        if (now >= deadline)
+            return false;
+        const auto batch = source.next_events(
+            std::chrono::duration_cast<std::chrono::milliseconds>(deadline -
+                                                                  now));
+        if (!batch)
+            return false;
+        REQUIRE_EQ(batch->seq, next_seq);
+        ++next_seq;
+        if (visit(*batch))
+            return true;
+    }
+}
+
+std::uint64_t steady_ns()
+{
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            steady::now().time_since_epoch())
+            .count());
+}
+
+std::uint64_t wall_ms()
+{
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now().time_since_epoch())
+            .count());
+}
+
+} // namespace
+
+TEST_CASE("control gateway: a monitor is told that bytes moved and is not "
+          "given them")
+{
+    fixture env;
+    const traffic_rig rig(env);
+    auto watcher = env.connect(false, "watcher");
+    const auto& features = watcher->gateway().features;
+    REQUIRE(std::ranges::find(features, "events") != features.end());
+    REQUIRE(std::ranges::find(features, "traffic") != features.end());
+
+    const auto started = watcher->subscribe_events(every(20));
+    REQUIRE(started);
+    REQUIRE_EQ(started->interval_ms, std::uint32_t{20});
+    REQUIRE_EQ(started->next_seq, std::uint64_t{1});
+    REQUIRE(wait_until([&] { return env.gate.counters().streams == 1; }));
+
+    const std::uint64_t before_ns = steady_ns();
+    const std::uint64_t before_ms = wall_ms();
+    rig.send(rig.a, "hello");
+
+    std::optional<control::event_entry> seen;
+    control::event_batch carrier;
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             for (const control::event_entry& event :
+                                  batch.events)
+                             {
+                                 // Whatever the kind, an events stream has no
+                                 // bytes in it.
+                                 REQUIRE(event.data.empty());
+                                 if (is_rx_on(event, rig.b))
+                                 {
+                                     seen = event;
+                                     carrier = batch;
+                                 }
+                             }
+                             return seen.has_value();
+                         }));
+    const std::uint64_t after_ns = steady_ns();
+    REQUIRE(seen.has_value());
+    REQUIRE_EQ(seen->size, std::uint64_t{5});
+    REQUIRE_EQ(seen->name, std::string("b"));
+    REQUIRE(seen->error.empty());
+    // The time is the engine's, on the one clock of this computer, and the
+    // batch says how that clock stood against the time of day.
+    REQUIRE(seen->mono_ns >= before_ns);
+    REQUIRE(seen->mono_ns <= after_ns);
+    REQUIRE(carrier.mono_ns >= seen->mono_ns);
+    REQUIRE(carrier.mono_ns <= after_ns);
+    REQUIRE(carrier.wall_ms >= before_ms);
+    REQUIRE(carrier.wall_ms <= wall_ms());
+    REQUIRE_EQ(carrier.dropped, std::uint64_t{0});
+
+    // The bytes need their own scope, and asking costs only an error.
+    const auto bytes = watcher->subscribe_traffic(every(20));
+    REQUIRE(!bytes);
+    REQUIRE_EQ(bytes.error(), code(control::api_errc::forbidden));
+    REQUIRE(watcher->status());
+    REQUIRE(env.gate.counters().events_sent >= 1);
+}
+
+TEST_CASE("control gateway: the traffic stream carries the bytes, and only "
+          "the traffic")
+{
+    fixture env(with_local_scopes(monitor_with_data()));
+    const traffic_rig rig(env);
+    auto tap = env.connect(false, "tap");
+    const auto started = tap->subscribe_traffic(every(20));
+    REQUIRE(started);
+
+    rig.send(rig.a, "hello");
+    // A port made now is an event, and not traffic.
+    const vss::endpoint_id extra = rig.make("extra");
+    rig.send(rig.c, std::string_view("\x00\xff\r\n", 4));
+
+    std::string to_b;
+    std::string to_d;
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(
+        *tap, next_seq,
+        [&](const control::event_batch& batch)
+        {
+            for (const control::event_entry& event : batch.events)
+            {
+                REQUIRE_EQ(event.kind, std::string("data"));
+                REQUIRE(event.port != control::port_id_text(extra));
+                REQUIRE_EQ(event.data.size(), event.size);
+                const std::string text =
+                    vss::to_string(vss::bytes_view(event.data));
+                if (is_rx_on(event, rig.b))
+                    to_b += text;
+                if (is_rx_on(event, rig.d))
+                    to_d += text;
+            }
+            return to_b.size() >= 5 && to_d.size() >= 4;
+        }));
+    REQUIRE_EQ(to_b, std::string("hello"));
+    REQUIRE_EQ(to_d, std::string("\x00\xff\r\n", 4));
+}
+
+TEST_CASE("control gateway: a stream that names ports hears of no other")
+{
+    fixture env(with_local_scopes(monitor_with_data()));
+    const traffic_rig rig(env);
+    auto tap = env.connect(false, "tap");
+    // Events of `d`, bytes of `b`: two lists, kept apart.
+    const auto events =
+        tap->subscribe_events(every(20, {control::port_id_text(rig.d)}));
+    REQUIRE(events);
+    const auto traffic = tap->subscribe_traffic(every(
+        20, {control::port_id_text(rig.b), control::port_id_text(rig.b)}));
+    REQUIRE(traffic);
+
+    rig.send(rig.a, "for b");
+    rig.send(rig.c, "for d");
+
+    bool b_seen = false;
+    bool d_seen = false;
+    std::uint64_t next_seq = events->next_seq;
+    REQUIRE(read_batches(
+        *tap, next_seq,
+        [&](const control::event_batch& batch)
+        {
+            for (const control::event_entry& event : batch.events)
+            {
+                const bool about_b = event.port == control::port_id_text(rig.b);
+                const bool about_d = event.port == control::port_id_text(rig.d);
+                // Nothing about `a`, `c` or no port at all.
+                REQUIRE((about_b || about_d));
+                if (about_b)
+                {
+                    // Only its traffic, with the bytes.
+                    REQUIRE_EQ(event.kind, std::string("data"));
+                    REQUIRE_EQ(event.data.size(), event.size);
+                    b_seen = b_seen || is_rx_on(event, rig.b);
+                }
+                else
+                {
+                    // Its events, and no bytes: `d` is not in that list.
+                    REQUIRE(event.data.empty());
+                    d_seen = d_seen || is_rx_on(event, rig.d);
+                }
+            }
+            return b_seen && d_seen;
+        }));
+}
+
+TEST_CASE("control gateway: a port that is not one costs an error, not the "
+          "session")
+{
+    fixture env;
+    auto watcher = env.connect();
+    for (const char* const bad : {"COM3", "p_", "p_-1", "", "p_1 ", "b"})
+    {
+        const auto refused = watcher->subscribe_events(every(20, {bad}));
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(control::api_errc::invalid_argument));
+    }
+    REQUIRE_EQ(env.gate.counters().streams, std::uint64_t{0});
+    REQUIRE(watcher->status());
+    // A port that does not exist is not an error: it may be made later.
+    REQUIRE(watcher->subscribe_events(every(20, {"p_999999"})));
+}
+
+TEST_CASE("control gateway: the pace of a stream is kept inside its limits")
+{
+    fixture env;
+    auto watcher = env.connect();
+    const auto fast = watcher->subscribe_events(every(0));
+    REQUIRE(fast);
+    REQUIRE_EQ(fast->interval_ms, control::min_stream_interval_ms);
+    const auto slow = watcher->subscribe_events(
+        every(std::numeric_limits<std::uint32_t>::max()));
+    REQUIRE(slow);
+    REQUIRE_EQ(slow->interval_ms, control::max_stream_interval_ms);
+    const auto usual = watcher->subscribe_events();
+    REQUIRE(usual);
+    REQUIRE_EQ(usual->interval_ms, control::default_stream_interval_ms);
+    REQUIRE_EQ(env.gate.counters().streams, std::uint64_t{1});
+}
+
+TEST_CASE("control gateway: a stream that is ended sends nothing more")
+{
+    fixture env;
+    const traffic_rig rig(env);
+    auto watcher = env.connect(false, "watcher");
+    const auto started = watcher->subscribe_events(every(10));
+    REQUIRE(started);
+    rig.send(rig.a, "one");
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             return std::ranges::any_of(
+                                 batch.events,
+                                 [&](const control::event_entry& event)
+                                 { return is_rx_on(event, rig.b); });
+                         }));
+
+    REQUIRE(watcher->unsubscribe_events());
+    REQUIRE(wait_until([&] { return env.gate.counters().streams == 0; }));
+    // Ending what is not there is not an error.
+    REQUIRE(watcher->unsubscribe_events());
+
+    // What was already on its way when the stream ended may still arrive.
+    // After that there is nothing, whatever the ports do.
+    while (watcher->next_events(100ms))
+    {
+    }
+    const std::uint64_t sent = env.gate.counters().events_sent;
+    rig.send(rig.a, "two");
+    rig.send(rig.a, "three");
+    const auto quiet = watcher->next_events(300ms);
+    REQUIRE(!quiet);
+    REQUIRE_EQ(quiet.error(), vss::make_error_code(vss::errc::timeout));
+    REQUIRE_EQ(env.gate.counters().events_sent, sent);
+    REQUIRE(watcher->status());
+
+    // It can be started again, and goes on counting where it was.
+    const auto again = watcher->subscribe_events(every(10));
+    REQUIRE(again);
+    REQUIRE(again->next_seq >= next_seq);
+    next_seq = again->next_seq;
+    rig.send(rig.a, "four");
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             return std::ranges::any_of(
+                                 batch.events,
+                                 [&](const control::event_entry& event)
+                                 { return is_rx_on(event, rig.b); });
+                         }));
+
+    watcher.reset();
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+    const auto records = audit_records(env.audit_directory);
+    const auto starts = records_of(records, "stream.started");
+    const auto stops = records_of(records, "stream.stopped");
+    REQUIRE_EQ(starts.size(), std::size_t{2});
+    REQUIRE_EQ(stops.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(starts.front(), "stream"), std::string("events"));
+    REQUIRE_EQ(number_of(starts.front(), "interval_ms"), std::uint64_t{10});
+    REQUIRE_EQ(text_of(stops.front(), "reason"), std::string("unsubscribed"));
+    const auto closed = records_of(records, "session.closed");
+    REQUIRE(number_of(closed.back(), "events_sent") >= 2);
+    require_intact(env.audit_directory);
+}
+
+TEST_CASE("control gateway: when the ports change a stream says so, with or "
+          "without events")
+{
+    fixture env;
+    const traffic_rig rig(env);
+    auto watcher = env.connect();
+    const auto before = watcher->list_ports();
+    REQUIRE(before);
+    // A stream that names a port nothing happens to.
+    const auto started = watcher->subscribe_events(every(10, {"p_999999"}));
+    REQUIRE(started);
+
+    // Nothing happens and nothing changed: nothing is sent.
+    const auto quiet = watcher->next_events(100ms);
+    REQUIRE(!quiet);
+    REQUIRE_EQ(quiet.error(), vss::make_error_code(vss::errc::timeout));
+
+    std::uint64_t next_seq = started->next_seq;
+    std::uint64_t told = before->revision;
+    rig.make("late");
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             REQUIRE(batch.events.empty());
+                             told = batch.revision;
+                             return told != before->revision;
+                         }));
+    const auto after = watcher->list_ports();
+    REQUIRE(after);
+    REQUIRE_EQ(told, after->revision);
+    REQUIRE_EQ(after->ports.size(), before->ports.size() + 1);
+}
+
+TEST_CASE("control gateway: a session that can only look has an agent "
+          "connection that can only look")
+{
+    {
+        fixture env;
+        auto watcher = env.connect();
+        REQUIRE(watcher->status());
+        const agent::server_counters seen = env.backend->server.counters();
+        REQUIRE_EQ(seen.clients, std::uint64_t{1});
+        REQUIRE_EQ(seen.read_only_clients, std::uint64_t{1});
+    }
+    {
+        // The bytes are still only looking.
+        fixture env(with_local_scopes(monitor_with_data()));
+        auto tap = env.connect();
+        REQUIRE(tap->subscribe_traffic(every(20)));
+        REQUIRE_EQ(env.backend->server.counters().read_only_clients,
+                   std::uint64_t{1});
+    }
+    {
+        fixture env(with_local_scopes(control::role_control()));
+        auto driver = env.connect();
+        REQUIRE(driver->status());
+        const agent::server_counters seen = env.backend->server.counters();
+        REQUIRE_EQ(seen.clients, std::uint64_t{1});
+        REQUIRE_EQ(seen.read_only_clients, std::uint64_t{0});
+    }
+    {
+        fixture env;
+        auto admin = env.connect(true);
+        REQUIRE(admin->status());
+        REQUIRE_EQ(env.backend->server.counters().read_only_clients,
+                   std::uint64_t{0});
+    }
+}
+
+TEST_CASE("control gateway: a subscriber that does not read loses events, is "
+          "told how many and keeps its session")
+{
+    fixture env(with_local_scopes(monitor_with_data()));
+    const traffic_rig rig(env);
+    raw_client raw(env.instance.name());
+    say_hello(raw, "sleeper");
+    REQUIRE(raw.send(wire_of(
+        control::request{2, control::traffic_subscribe_request{every(10)}})));
+    const control::reply subscribed = read_reply(raw);
+    const auto* started =
+        std::get_if<control::subscribed_reply>(&subscribed.body);
+    REQUIRE(started != nullptr);
+
+    // It reads nothing while the ports are busy, until the gateway has had
+    // to let events go.
+    const std::string chunk(1024, 'x');
+    const auto deadline = steady::now() + long_wait;
+    while (env.gate.counters().events_dropped == 0 && steady::now() < deadline)
+        rig.send(rig.a, chunk);
+    REQUIRE(env.gate.counters().events_dropped > 0);
+    // Batches never take more than their share of what may wait for one
+    // client, so a busy port does not close whoever watches it.
+    REQUIRE_EQ(env.gate.counters().slow_clients_closed, std::uint64_t{0});
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+
+    // Now it reads.  The batches are numbered without a gap, and one of them
+    // says that events were lost.
+    std::uint64_t next_seq = started->next_seq;
+    std::uint64_t lost = 0;
+    while (lost == 0)
+    {
+        const auto received = raw.read_frame();
+        REQUIRE(received.has_value());
+        const auto message = control::decode_server_message(*received);
+        REQUIRE(message);
+        const auto* batch = std::get_if<control::event_batch>(&*message);
+        REQUIRE(batch != nullptr);
+        REQUIRE_EQ(batch->seq, next_seq);
+        ++next_seq;
+        lost += batch->dropped;
+    }
+    REQUIRE(lost > 0);
+
+    // The session is as good as it was.
+    REQUIRE(raw.send(wire_of(control::request{3, control::status_request{}})));
+    for (;;)
+    {
+        const auto received = raw.read_frame();
+        REQUIRE(received.has_value());
+        const auto message = control::decode_server_message(*received);
+        REQUIRE(message);
+        if (const auto* answer = std::get_if<control::reply>(&*message))
+        {
+            REQUIRE_EQ(answer->id, std::uint64_t{3});
+            REQUIRE(
+                std::holds_alternative<control::status_reply>(answer->body));
+            break;
+        }
+    }
+}
+
+TEST_CASE("control gateway: a stream has an allowance of bytes, and what is "
+          "over it is dropped and told")
+{
+    control::gateway_options options = with_local_scopes(monitor_with_data());
+    options.max_event_bytes_per_second = 4000;
+    fixture env(options);
+    const traffic_rig rig(env);
+    auto tap = env.connect(false, "tap");
+    const auto started = tap->subscribe_traffic(every(10));
+    REQUIRE(started);
+
+    // Much more than a second's allowance, at once.
+    const std::string chunk(1024, 'y');
+    for (int index = 0; index < 64; ++index)
+        rig.send(rig.a, chunk);
+
+    std::uint64_t next_seq = started->next_seq;
+    std::uint64_t lost = 0;
+    std::size_t bytes = 0;
+    REQUIRE(read_batches(*tap, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             lost += batch.dropped;
+                             for (const control::event_entry& event :
+                                  batch.events)
+                                 bytes += event.data.size();
+                             return lost > 0;
+                         }));
+    // The reader was never behind: it was the allowance that ran out.
+    REQUIRE(lost > 0);
+    REQUIRE(bytes < std::size_t{64} * 1024);
+    REQUIRE(env.gate.counters().events_dropped >= lost);
+    REQUIRE(tap->status());
+}
+
+TEST_CASE("control gateway: when the agent goes away a stream's session is "
+          "ended and told why")
+{
+    fixture env;
+    auto watcher = env.connect(false, "watcher");
+    auto other = env.connect(false, "other");
+    REQUIRE(watcher->subscribe_events(every(10)));
+    REQUIRE(other->status());
+
+    env.stop_agent();
+    std::optional<vss::error_code> ended;
+    const auto deadline = steady::now() + long_wait;
+    while (!ended && steady::now() < deadline)
+    {
+        const auto batch = watcher->next_events(long_wait);
+        if (!batch)
+            ended = batch.error();
+    }
+    REQUIRE(ended == code(control::api_errc::unavailable));
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 1; }));
+    REQUIRE_EQ(env.gate.counters().agent_lost, std::uint64_t{1});
+    REQUIRE_EQ(env.gate.counters().streams, std::uint64_t{0});
+
+    // A session without a stream is told when it asks, and stays.
+    const auto refused = other->subscribe_events(every(10));
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), code(control::api_errc::unavailable));
+    const auto state = other->status();
+    REQUIRE(state);
+    REQUIRE(!state->agent_running);
+
+    // And when the agent is back, so is the stream for whoever asks.
+    env.start_agent();
+    REQUIRE(other->subscribe_events(every(10)));
+
+    const auto closed =
+        records_of(audit_records(env.audit_directory), "session.closed");
+    REQUIRE_EQ(closed.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(closed.front(), "reason"), std::string("agent_lost"));
+}
+
+TEST_CASE("control gateway: a token that ends, ends its stream without "
+          "waiting for a request")
+{
+    const shared_time time;
+    control::gateway_options options;
+    options.clock = time.source();
+    fixture env(options);
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor(), 60);
+    auto connected = connect_with(env, made.token);
+    REQUIRE(connected);
+    auto& watcher = **connected;
+    REQUIRE(watcher.subscribe_events(every(10)));
+
+    // It sends nothing from here on: only the stream is running.
+    *time.now += std::chrono::seconds(61);
+    std::optional<vss::error_code> ended;
+    const auto deadline = steady::now() + long_wait;
+    while (!ended && steady::now() < deadline)
+    {
+        const auto batch = watcher.next_events(long_wait);
+        if (!batch)
+            ended = batch.error();
+    }
+    REQUIRE(ended == code(control::api_errc::unauthenticated));
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+    const auto closed =
+        records_of(audit_records(env.audit_directory), "session.closed");
+    REQUIRE_EQ(text_of(closed.back(), "reason"), std::string("token_expired"));
+}
+
+TEST_CASE("control gateway: revoking a token ends its stream")
+{
+    control::gateway_options options;
+    options.local_ceiling = control::every_scope();
+    fixture env(options);
+    const traffic_rig rig(env);
+    const control::token_created_reply made =
+        make_token(env, monitor_with_data());
+    auto connected = connect_with(env, made.token);
+    REQUIRE(connected);
+    auto& tap = **connected;
+    const auto started = tap.subscribe_traffic(every(10));
+    REQUIRE(started);
+    rig.send(rig.a, "seen");
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(tap, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             return std::ranges::any_of(
+                                 batch.events,
+                                 [&](const control::event_entry& event)
+                                 { return is_rx_on(event, rig.b); });
+                         }));
+
+    auto admin = env.connect(true);
+    REQUIRE(admin->revoke_token(made.entry.id));
+    REQUIRE(wait_until([&] { return env.gate.counters().streams == 0; }));
+    rig.send(rig.a, "unseen");
+    std::string after;
+    for (;;)
+    {
+        const auto batch = tap.next_events(long_wait);
+        if (!batch)
+            break;
+        for (const control::event_entry& event : batch->events)
+            after += vss::to_string(vss::bytes_view(event.data));
+    }
+    REQUIRE(!holds(after, "unseen"));
+}
+
+TEST_CASE("control gateway: the administration endpoint sees who is "
+          "connected and can close a session")
+{
+    fixture env;
+    auto admin = env.connect(true, "admin tool");
+    auto watcher = env.connect(false, "watcher");
+    auto idle = env.connect(false, "idle");
+    REQUIRE(watcher->subscribe_events(every(20)));
+    REQUIRE(watcher->status());
+    const std::uint64_t now_ms = wall_ms();
+
+    const auto listed = admin->list_sessions();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->sessions.size(), std::size_t{3});
+    const auto find =
+        [&](std::string_view name) -> const control::session_entry&
+    {
+        const auto found = std::ranges::find(listed->sessions, name,
+                                             &control::session_entry::client);
+        REQUIRE(found != listed->sessions.end());
+        return *found;
+    };
+    const control::session_entry& watching = find("watcher");
+    REQUIRE_EQ(watching.principal.rfind("local:", 0), std::size_t{0});
+    REQUIRE_EQ(watching.transport, std::string("local"));
+    REQUIRE(watching.events);
+    REQUIRE(!watching.traffic);
+    REQUIRE_EQ(watching.requests, std::uint64_t{2});
+    REQUIRE(watching.process != 0);
+    REQUIRE(watching.opened_ms <= now_ms);
+    REQUIRE(watching.opened_ms + 60000 > now_ms);
+    REQUIRE(!find("idle").events);
+    REQUIRE_EQ(find("idle").requests, std::uint64_t{0});
+    REQUIRE_EQ(find("admin tool").transport, std::string("local-admin"));
+    // In the order they came.
+    REQUIRE(std::ranges::is_sorted(listed->sessions, {},
+                                   &control::session_entry::number));
+
+    // No scope reaches either operation from the public endpoint.
+    const auto peeked = watcher->list_sessions();
+    REQUIRE(!peeked);
+    REQUIRE_EQ(peeked.error(), code(control::api_errc::forbidden));
+    const auto shoved = idle->kick_session(watching.number);
+    REQUIRE(!shoved);
+    REQUIRE_EQ(shoved.error(), code(control::api_errc::forbidden));
+
+    const auto missing = admin->kick_session(999999);
+    REQUIRE(!missing);
+    REQUIRE_EQ(missing.error(), code(control::api_errc::not_found));
+    REQUIRE(admin->kick_session(watching.number));
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 2; }));
+    REQUIRE_EQ(env.gate.counters().streams, std::uint64_t{0});
+    REQUIRE(!watcher->status());
+    REQUIRE(idle->status());
+    const auto fewer = admin->list_sessions();
+    REQUIRE(fewer);
+    REQUIRE_EQ(fewer->sessions.size(), std::size_t{2});
+
+    const auto records = audit_records(env.audit_directory);
+    std::vector<json::object> kicks;
+    for (const json::object& record : records_of(records, "operation"))
+    {
+        if (text_of(record, "operation") == "sessions.kick")
+            kicks.push_back(record);
+    }
+    REQUIRE_EQ(kicks.size(), std::size_t{2});
+    REQUIRE_EQ(text_of(kicks.front(), "outcome"), std::string("not_found"));
+    REQUIRE_EQ(text_of(kicks.back(), "outcome"), std::string("ok"));
+    REQUIRE_EQ(number_of(kicks.back(), "target"), watching.number);
+    const auto closed = records_of(records, "session.closed");
+    REQUIRE_EQ(text_of(closed.back(), "reason"), std::string("kicked"));
+    require_intact(env.audit_directory);
+}
+
+TEST_CASE("control gateway: stress with busy streams and a stop underneath")
+{
+    fixture env(with_local_scopes(monitor_with_data()));
+    const traffic_rig rig(env);
+    std::atomic<bool> finished{false};
+    std::atomic<std::uint64_t> batches{0};
+    {
+        std::vector<joining_thread> readers;
+        readers.reserve(4);
+        for (int index = 0; index < 4; ++index)
+        {
+            readers.emplace_back(
+                [&env, &finished, &batches, index]
+                {
+                    control::client_options options;
+                    options.instance = env.instance.name();
+                    options.name = "reader";
+                    auto connected = control::client::connect(options);
+                    if (!connected)
+                        return;
+                    auto& reader = **connected;
+                    // Two take the bytes, two do not, and one of each keeps
+                    // asking for other things meanwhile.
+                    if (index % 2 == 0)
+                        (void)reader.subscribe_traffic(every(10));
+                    else
+                        (void)reader.subscribe_events(every(10));
+                    while (!finished.load())
+                    {
+                        const auto batch = reader.next_events(20ms);
+                        if (batch)
+                            batches.fetch_add(1);
+                        else if (batch.error() !=
+                                 vss::make_error_code(vss::errc::timeout))
+                            return;
+                        if (index < 2)
+                            (void)reader.list_ports();
+                    }
+                });
+        }
+        const std::string chunk(512, 'z');
+        const auto until = steady::now() + 400ms;
+        while (steady::now() < until)
+            rig.send(rig.a, chunk);
+        REQUIRE(wait_until([&] { return batches.load() > 0; }));
+        // The gateway goes while they are all at it.
+        env.gate.stop();
+        finished.store(true);
+    }
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{0});
+    REQUIRE_EQ(env.gate.counters().connections, std::uint64_t{0});
 }

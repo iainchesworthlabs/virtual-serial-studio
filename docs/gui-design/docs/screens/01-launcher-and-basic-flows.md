@@ -11,14 +11,14 @@ Opens: at start when the studio is empty, and from View, Show launcher. Replaces
   3. **Share one device with several programs**. "Open a real serial device once, then give each program its own port." "Result: one port per program". Opens the share wizard, step 1.
   4. **Watch traffic**. "See what flows through a port without changing it." "Result: a live monitor, read only". Opens the Watch dialog.
 - **Saved setups row** (card): "Saved setups", most recent file name in mono, "3 ports, 1 link" style summary, buttons Open and Browse. When there is no history: "No saved setups yet" and only Browse.
-- Hint line: "Need addresses, fault injection or port ownership? Advanced mode adds them to this same window. Nothing you have built changes." The words "Advanced mode" are a link that turns it on.
+- Hint line: "Advanced mode adds addresses, fault injection and port ownership to this window. Nothing you have built changes." The words "Advanced mode" are a link that turns it on.
 - Status bar left: "No ports yet".
 Acceptance: all four cards reachable and activatable by keyboard; the strip reflects the real setup check result; the launcher disappears when the first port exists and returns after File, New.
 
 ## Add a port (AddPort.html), width 760
 Opens: Ports, Add port (Ctrl+Shift+N), toolbar Add port, launcher cards 1 and 2. Title "Add a port". Sub "What should the new port be?"
 - PickCards (radio group): **Virtual port** "A port that other programs can open. Use it when a program needs a COM port and this PC has none." **Linked pair** "Two ports wired together like a null-modem cable, so two programs can talk to each other." **Real device** "Open a serial device that is plugged into this PC, so you can share it."
-- Dashed row "More types" with ADVANCED badge. Simple: "Network endpoint and mock fixture. Turn on Advanced mode to add them." (link). Advanced: expands to two more PickCards: **Network endpoint** "A TCP, UDP or RFC 2217 address, used as a port." and **Mock fixture** "A pretend device you can script, for testing without hardware."
+- Dashed row "More types" with ADVANCED badge. Simple: "Network endpoint and mock fixture. Turn on Advanced mode to add them." (link). Advanced: expands to two more PickCards: **Network endpoint** "A TCP, UDP or RFC 2217 address, used as a port." and **Mock fixture** "A simulated device for testing without hardware."
 - Settings section below, titled per selection. Virtual port: Name (default `port-1`, a unique suffix is added automatically), How many (spin box, 1 to 32, default 1), Kind (combo: "Best available (recommended)", "Pseudo terminal", "In-process loopback"). Hint: "Best available uses com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on."
 - ResultSentence (info): "This creates one port named **port-1**. Studio then shows the name to open in your program, such as COM7." Plural form for more than one.
 - Primary button text follows the selection: "Create port", "Create pair", or "Next" (Real device continues to Attach). Real device and Linked pair swap the settings section to the fields of those screens below.
