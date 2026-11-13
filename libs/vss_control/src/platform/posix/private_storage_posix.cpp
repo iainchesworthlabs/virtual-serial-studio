@@ -260,7 +260,7 @@ result<std::string> read_private_file(const std::filesystem::path& path,
 
     // The file may grow after it was measured, so the limit is kept while
     // reading too.
-    constexpr std::size_t chunk_size = 64 * 1024;
+    constexpr std::size_t chunk_size = std::size_t{64} * 1024;
     std::string content;
     for (;;)
     {

@@ -948,7 +948,7 @@ private:
         audit_->record(
             "operation",
             {{"session", client->number},
-             {"principal", client->who->id},
+             {"principal", client->principal_id()},
              {"operation", info_of(operation::tokens_create).name},
              {"token", made ? made->record.id : std::string()},
              {"label", wanted.label},
@@ -995,7 +995,7 @@ private:
         audit_->record(
             "operation",
             {{"session", client->number},
-             {"principal", client->who->id},
+             {"principal", client->principal_id()},
              {"operation", info_of(operation::tokens_revoke).name},
              {"token", valid_token_id(wanted.id) ? wanted.id : std::string()},
              {"sessions_closed", closed},
