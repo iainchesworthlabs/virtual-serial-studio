@@ -11554,6 +11554,10 @@ Redes: %5</translation>
             <source> Try a different name or kind, then try again.</source>
             <translation> Pruebe con otro nombre o tipo e inténtelo de nuevo.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>Creando</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +11865,10 @@ Redes: %5</translation>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>Elegir otro</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>Conectando</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +12970,14 @@ Redes: %5</translation>
             <source>Scroll</source>
             <translation>Desplazamiento</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Progreso</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14027,6 +14043,10 @@ Redes: %5</translation>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>Crear par</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Creando</translation>
         </message>
     </context>
     <context>
@@ -16638,6 +16658,14 @@ Redes: %5</translation>
             <source>Layout reset.</source>
             <translation>Disposición restablecida.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Progreso</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17073,6 +17101,14 @@ Redes: %5</translation>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>Se guardó %1.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Aplicando</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
         </message>
     </context>
     <context>
@@ -17835,6 +17871,26 @@ Redes: %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio no pudo leer qué números COM reserva Windows, así que elige uno libre al crear el puerto y lo muestra cuando el puerto está listo.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Aplicando</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Creando</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Aplicando el cambio. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>Progreso de la configuración</translation>
         </message>
     </context>
     <context>

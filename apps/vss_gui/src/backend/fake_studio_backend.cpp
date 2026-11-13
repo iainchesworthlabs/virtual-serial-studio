@@ -1085,6 +1085,8 @@ vss::config::document FakeStudioBackend::snapshot() const
 vss::result<void>
 FakeStudioBackend::apply(const vss::config::document& document, bool)
 {
+    if (create_delay_.count() > 0)
+        std::this_thread::sleep_for(create_delay_);
     // Fail first if a test queued an error, then reject an invalid document.
     // Nothing is changed until the whole document has been built.
     if (const auto error = take_error())

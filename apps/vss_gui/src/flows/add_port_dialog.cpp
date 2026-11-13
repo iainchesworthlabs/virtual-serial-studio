@@ -23,7 +23,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QRegularExpression>
@@ -104,24 +103,6 @@ AddPortDialog::AddPortDialog(StudioBackend& backend, bool advanced,
                     accept();
                 }
             });
-
-    // Shown while the engine makes the ports.
-    busy_row_ = new QWidget(body());
-    busy_row_->setObjectName(QStringLiteral("addPortBusy"));
-    auto* busy_layout = new QVBoxLayout(busy_row_);
-    busy_layout->setContentsMargins(0, 0, 0, 0);
-    busy_layout->setSpacing(6);
-    busy_bar_ = new QProgressBar(busy_row_);
-    busy_bar_->setRange(0, 0);
-    busy_bar_->setTextVisible(false);
-    busy_bar_->setAccessibleName(tr("Creating progress"));
-    busy_layout->addWidget(busy_bar_);
-    busy_label_ = new QLabel(busy_row_);
-    busy_label_->setObjectName(QStringLiteral("addPortBusyText"));
-    busy_label_->setWordWrap(true);
-    busy_layout->addWidget(busy_label_);
-    busy_row_->setVisible(false);
-    body_layout()->insertWidget(0, busy_row_);
 
     set_mode(initial);
     finish_layout(780);
@@ -639,50 +620,10 @@ QString AddPortDialog::validation_error() const
     return {};
 }
 
-void AddPortDialog::done(int result)
-{
-    // The ports cannot be taken back half way, and the worker reports to this
-    // dialog, so it stays until the answer is in.
-    if (work_.busy())
-        return;
-    FlowDialog::done(result);
-}
-
-void AddPortDialog::set_busy(bool busy)
-{
-    if (busy)
-    {
-        idle_primary_text_ = primary_button()->text();
-        set_primary_text(tr("Creating"));
-        busy_label_->setText(
-            tr("Setting up. Windows installs each new port, which can take up "
-               "to 20 seconds."));
-        busy_label_->setAccessibleName(busy_label_->text());
-    }
-    else
-    {
-        set_primary_text(idle_primary_text_);
-    }
-    set_primary_enabled(!busy);
-    cancel_->setEnabled(!busy);
-    for (auto* page : {virtual_page_, pair_page_, real_page_})
-    {
-        if (page != nullptr)
-            page->setEnabled(!busy);
-    }
-    for (auto* card : cards_)
-        card->setEnabled(!busy);
-    busy_row_->setVisible(busy);
-    if (busy)
-        announce_name_change(busy_label_);
-    else
-        set_mode(mode_);
-}
-
 void AddPortDialog::create_virtual_ports()
 {
     VSS_PROFILE_ZONE("gui.flows.add_port.create_virtual");
-    if (work_.busy())
+    if (busy())
         return;
     validate_count();
     name_row_->clear_error();
@@ -707,8 +648,7 @@ void AddPortDialog::create_virtual_ports()
         std::optional<vss::error_code> failure;
     };
     auto state = std::make_shared<outcome>();
-    set_busy(true);
-    work_.start(
+    run_in_background(
         [this, state, names = planned_names(), kind, com_number]
         {
             for (const QString& target : names)
@@ -740,7 +680,6 @@ void AddPortDialog::create_virtual_ports()
         },
         [this, state, kind, com_number]
         {
-            set_busy(false);
             backend_.refresh();
             if (state->failure)
             {
@@ -775,13 +714,14 @@ void AddPortDialog::create_virtual_ports()
                             : kind == 2 ? QStringLiteral("loopback")
                                         : QStringLiteral("auto");
             accept();
-        });
+        },
+        tr("Creating"), setting_up_text());
 }
 
 void AddPortDialog::create_pair()
 {
     VSS_PROFILE_ZONE("gui.flows.add_port.create_pair");
-    if (work_.busy())
+    if (busy())
         return;
     flow_error error;
     const auto request = pair_panel_->prepare_pair(&error);
@@ -798,13 +738,11 @@ void AddPortDialog::create_pair()
         std::optional<pair_outcome> pair;
     };
     auto state = std::make_shared<outcome>();
-    set_busy(true);
-    work_.start(
+    run_in_background(
         [this, state, request = *request]
         { state->pair = pair_panel_->run_pair(request, &state->error); },
         [this, state]
         {
-            set_busy(false);
             backend_.refresh();
             if (!state->pair)
             {
@@ -816,7 +754,8 @@ void AddPortDialog::create_pair()
             created_ports_ = {pair_outcome_->first, pair_outcome_->second};
             created_kind_ = QStringLiteral("pair");
             accept();
-        });
+        },
+        tr("Creating"), setting_up_text());
 }
 
 void AddPortDialog::show_error(const flow_error& error)

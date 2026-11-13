@@ -58,12 +58,19 @@ bool submit_and_wait(JobForm* form)
 {
     const QPointer<JobForm> guard(form);
     bool made = false;
-    QObject::connect(form, &JobForm::done,
-                     [&made](vss::endpoint_id, const setup_prefs&)
-                     { made = true; });
+    // The connection ends with this call: `made` is a local.
+    const QMetaObject::Connection connection = QObject::connect(
+        form, &JobForm::done,
+        [&made](vss::endpoint_id, const setup_prefs&) { made = true; });
     if (!form->submit())
+    {
+        QObject::disconnect(connection);
         return false;
-    REQUIRE(vss_test::wait_until([&guard] { return guard.isNull() || !guard->busy(); }));
+    }
+    const bool finished = vss_test::wait_until(
+        [&guard] { return guard.isNull() || !guard->busy(); });
+    QObject::disconnect(connection);
+    REQUIRE(finished);
     return made;
 }
 

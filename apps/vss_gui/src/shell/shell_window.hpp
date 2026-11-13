@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_SHELL_SHELL_WINDOW_HPP
 #define VSS_GUI_SHELL_SHELL_WINDOW_HPP
 
+#include "backend/background_work.hpp"
 #include "backend/studio_backend.hpp"
 #include "panes/selection_service.hpp"
 #include "shell/action_registry.hpp"
@@ -18,6 +19,7 @@
 #include <QMainWindow>
 #include <QString>
 
+#include <functional>
 #include <vector>
 
 class QAction;
@@ -25,6 +27,7 @@ class QDockWidget;
 class QLabel;
 class QLineEdit;
 class QStackedWidget;
+class QProgressBar;
 class QThread;
 class QTimer;
 class QToolBar;
@@ -211,6 +214,12 @@ private:
     void new_document();
     void open_document();
     void open_path(const QString& path);
+    /// Applies `document` to the engine on a worker thread, with the window
+    /// locked and a progress bar showing, then runs `finished` on the GUI
+    /// thread.  Nothing happens while an earlier apply is still running.
+    void apply_in_background(
+        vss::config::document document,
+        std::function<void(const vss::result<void>&)> finished);
     void save_document();
     void save_document_as();
     bool confirm_discard();
@@ -285,6 +294,10 @@ private:
     QString title_override_;
     bool dirty_ = false;
     bool loading_ = false;
+    /// Applies a document to the engine on a worker thread: making ports
+    /// installs devices in Windows and takes seconds.
+    BackgroundWork apply_work_;
+    QProgressBar* apply_bar_ = nullptr;
     UndoService undo_;
     /// The ports the history was recorded against; a change to the set
     /// clears the history.

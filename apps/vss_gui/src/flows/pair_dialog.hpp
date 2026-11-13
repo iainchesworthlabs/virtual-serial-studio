@@ -7,17 +7,11 @@
 #ifndef VSS_GUI_FLOWS_PAIR_DIALOG_HPP
 #define VSS_GUI_FLOWS_PAIR_DIALOG_HPP
 
-#include "backend/background_work.hpp"
 #include "flows/common.hpp"
 #include "flows/flow_dialog.hpp"
 #include "flows/pair_panel.hpp"
 
 #include <optional>
-
-class QPushButton;
-
-class QLabel;
-class QProgressBar;
 
 namespace vss::gui
 {
@@ -35,9 +29,6 @@ public:
     PairPanel* panel() const noexcept { return panel_; }
     std::optional<pair_outcome> outcome() const { return outcome_; }
     void set_advanced(bool advanced) { panel_->set_advanced(advanced); }
-    /// True while the ports are being made on a worker thread.  The dialog
-    /// stays open until the answer is in.
-    bool busy() const noexcept { return work_.busy(); }
 
 Q_SIGNALS:
     void advanced_requested();
@@ -45,20 +36,13 @@ Q_SIGNALS:
     void driver_setup_requested();
     void error_shown(const QString& title);
 
-protected:
-    void done(int result) override;
-
 private:
     void create_pair();
-    void set_busy(bool busy);
     void show_error(const flow_error& error);
 
     StudioBackend& backend_;
-    BackgroundWork work_;
     PairPanel* panel_ = nullptr;
-    QPushButton* cancel_ = nullptr;
-    QWidget* busy_row_ = nullptr;
-    QLabel* busy_label_ = nullptr;
+
     std::optional<pair_outcome> outcome_;
 };
 

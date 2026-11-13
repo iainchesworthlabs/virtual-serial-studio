@@ -7,7 +7,6 @@
 #ifndef VSS_GUI_FLOWS_ADD_PORT_DIALOG_HPP
 #define VSS_GUI_FLOWS_ADD_PORT_DIALOG_HPP
 
-#include "backend/background_work.hpp"
 #include "backend/studio_backend.hpp"
 #include "flows/common.hpp"
 #include "flows/flow_dialog.hpp"
@@ -21,7 +20,6 @@
 class QComboBox;
 class QLabel;
 class QLineEdit;
-class QProgressBar;
 class QPushButton;
 class QSpinBox;
 class QStackedWidget;
@@ -76,9 +74,6 @@ public:
     QString created_kind_token() const { return created_kind_; }
     bool wants_attach() const noexcept { return wants_attach_; }
     std::optional<pair_outcome> pair_result() const { return pair_outcome_; }
-    /// True while the ports are being made on a worker thread.  The dialog
-    /// cannot be closed meanwhile: the ports would appear after it was gone.
-    bool busy() const noexcept { return work_.busy(); }
 
     /// Names the current form would use, after silent unique suffixing.
     QVector<QString> planned_names() const;
@@ -91,12 +86,8 @@ Q_SIGNALS:
     void driver_setup_requested();
     void error_shown(const QString& title);
 
-protected:
-    void done(int result) override;
-
 private:
     void build(bool advanced, mode initial);
-    void set_busy(bool busy);
     void build_virtual_page();
     void build_pair_page();
     void build_real_page();
@@ -137,12 +128,6 @@ private:
     ResultSentence* result_ = nullptr;
     PairPanel* pair_panel_ = nullptr;
     QPushButton* cancel_ = nullptr;
-
-    BackgroundWork work_;
-    QWidget* busy_row_ = nullptr;
-    QLabel* busy_label_ = nullptr;
-    QProgressBar* busy_bar_ = nullptr;
-    QString idle_primary_text_;
 
     QVector<vss::endpoint_id> created_ports_;
     QString created_kind_;

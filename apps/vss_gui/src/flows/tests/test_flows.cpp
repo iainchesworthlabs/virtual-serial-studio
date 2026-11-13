@@ -779,7 +779,7 @@ TEST_CASE("flows: add port stays responsive while the ports are made")
     REQUIRE(!dialog.primary_button()->isEnabled());
     REQUIRE(!dialog.cancel_button()->isEnabled());
     auto* status =
-        dialog.findChild<QLabel*>(QStringLiteral("addPortBusyText"));
+        dialog.findChild<QLabel*>(QStringLiteral("flowBusyText"));
     REQUIRE(status != nullptr);
     REQUIRE(status->isVisibleTo(&dialog));
     REQUIRE(!status->accessibleName().isEmpty());
@@ -919,13 +919,40 @@ TEST_CASE("flows: attach enumerates, explains rows and refreshes")
     REQUIRE(dialog.device_radio(0)->isEnabled());
     REQUIRE_EQ(dialog.address_block()->text(),
                QStringLiteral("serial://COM6?baud=115200"));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE(dialog.logical_port() != 0);
     REQUIRE(dialog.physical_port() != 0);
     REQUIRE_EQ(backend.ports().size(), 2);
     REQUIRE_EQ(backend.links().size(), 1);
     REQUIRE_EQ(backend.links().front().shape, vss::gui::link_shape::split);
+}
+
+TEST_CASE("flows: attach stays responsive while the port is made")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_devices(
+        {make_device(QStringLiteral("COM6"), false, false, false, -1, {})});
+    backend.set_create_delay(std::chrono::milliseconds(200));
+    vss::gui::AttachDialog dialog(backend, false,
+                                  vss::gui::platform_kind::windows);
+    dialog.show();
+    settle();
+    dialog.primary_button()->click();
+    REQUIRE(dialog.busy());
+    REQUIRE_EQ(dialog.primary_button()->text(), QStringLiteral("Attaching"));
+    REQUIRE(!dialog.primary_button()->isEnabled());
+    auto* status = dialog.findChild<QLabel*>(QStringLiteral("flowBusyText"));
+    REQUIRE(status != nullptr);
+    REQUIRE(status->isVisibleTo(&dialog));
+    // Closing waits for the port.
+    dialog.reject();
+    REQUIRE(dialog.isVisible());
+    REQUIRE(vss_test::wait_until([&dialog] { return !dialog.busy(); }));
+    REQUIRE_EQ(dialog.result(), QDialog::Accepted);
+    REQUIRE_EQ(backend.ports().size(), 2);
+    REQUIRE_EQ(backend.links().size(), 1);
 }
 
 TEST_CASE("flows: attach empty state accepts a manual path")
@@ -951,7 +978,7 @@ TEST_CASE("flows: attach empty state accepts a manual path")
     REQUIRE(dialog.primary_button()->isEnabled());
     REQUIRE_EQ(dialog.address_block()->text(),
                QStringLiteral("serial://COM9?baud=115200"));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     REQUIRE_EQ(backend.ports().size(), 2);
     REQUIRE_EQ(backend.links().size(), 1);
@@ -976,7 +1003,7 @@ TEST_CASE("flows: attach advanced address wins over the settings fields")
     settle();
     REQUIRE(dialog.result_sentence()->accessibleName().contains(
         QStringLiteral("at 9600 baud")));
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(dialog.result(), QDialog::Accepted);
     const auto physical = backend.port(dialog.physical_port());
     REQUIRE(physical.has_value());
@@ -999,7 +1026,7 @@ TEST_CASE("flows: attach failure offers recovery and changes nothing")
                      [&title](const QString& value) { title = value; });
     modal_probe probe;
     close_next_modal(&probe);
-    dialog.primary_button()->click();
+    click_primary(dialog);
     REQUIRE_EQ(title, QStringLiteral("Could not open COM3"));
     REQUIRE(probe.error_dialog);
     REQUIRE(probe.buttons.contains(QStringLiteral("Try again")));
