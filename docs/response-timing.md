@@ -74,6 +74,15 @@ seen) and before the half-duplex line and the link's delay line. So a link's
 `delay_ms` is added after an inline rule's own delay, and a byte an inline rule
 removed never reaches the wire or the counters of the line.
 
+A plugin modifier (`docs/plugins.md`, section 7.6) is a second user of the same
+stage. When one direction of a link has both, the `inline` set runs first and
+the modifiers follow, in the order of the link's plugin bindings. So a rule
+matches the bytes the program sent, at the time the engine read them, and what a
+rule set does never depends on a plugin being fast, slow or stopped. The stage
+keeps the bytes of a direction in order from one user to the next: when a
+modifier is removed, bytes a rule still holds go straight on when they are due,
+and bytes the modifier had not yet answered for are passed on unchanged first.
+
 ## The rule model
 
 A rule set is one JSON document, apart from the topology file, whose schema does
@@ -334,7 +343,12 @@ they are what the log records.
 **What it does not.** When the machine actually ran a timer, and in which order
 bytes arrived at two different places, depend on the machine. A rule that
 depends on time (`gap_us`) decides from real arrival times, so it can decide
-differently on a second run if the program under test was slower.
+differently on a second run if the program under test was slower. A link
+direction that has a plugin modifier is not exactly repeatable either: the
+modifier's round trip follows the rule's delay, so the rule's delay is no longer
+the last thing before the wire. A run marks that direction "not exactly
+repeatable" and its report names the modifier. The rules' own decisions on that
+direction still repeat.
 
 **Replay.** Two modes, and a run says which it was:
 
