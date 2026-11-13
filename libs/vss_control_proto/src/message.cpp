@@ -341,6 +341,24 @@ struct request_writer
         header["timeout_ms"] = body.timeout_ms;
         if (!body.send_port.empty())
             header["send_port"] = clean_text(body.send_port);
+        if (!body.label.empty())
+            header["label"] = clean_text(body.label);
+    }
+    void operator()(const runs_begin_request& body) const
+    {
+        header["name"] = clean_text(body.name);
+    }
+    void operator()(const runs_end_request&) const {}
+    void operator()(const runs_record_request& body) const
+    {
+        header["name"] = clean_text(body.name);
+        header["outcome"] = clean_text(body.outcome);
+        header["message"] = clean_text(body.message);
+        header["duration_ms"] = body.duration_ms;
+    }
+    void operator()(const report_junit_request& body) const
+    {
+        header["run"] = clean_text(body.run);
     }
 };
 
@@ -467,10 +485,39 @@ result<request_body> read_request_body(operation wanted,
             !read_text(header, "pattern", pattern) ||
             !from_hex_text(pattern, body.pattern) ||
             !read_optional_text(header, "direction", body.direction) ||
-            !read_optional_text(header, "send_port", body.send_port))
+            !read_optional_text(header, "send_port", body.send_port) ||
+            !read_optional_text(header, "label", body.label))
             return malformed();
         if (header.contains("timeout_ms") &&
             !read_u32(header, "timeout_ms", body.timeout_ms))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::runs_begin:
+    {
+        runs_begin_request body;
+        if (!read_text(header, "name", body.name))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::runs_end:
+        return request_body{runs_end_request{}};
+    case operation::runs_record:
+    {
+        runs_record_request body;
+        if (!read_text(header, "name", body.name) ||
+            !read_text(header, "outcome", body.outcome) ||
+            !read_optional_text(header, "message", body.message))
+            return malformed();
+        if (header.contains("duration_ms") &&
+            !read_u64(header, "duration_ms", body.duration_ms))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::report_junit:
+    {
+        report_junit_request body;
+        if (!read_optional_text(header, "run", body.run))
             return malformed();
         return request_body{std::move(body)};
     }
@@ -611,6 +658,27 @@ bool read_session(const json::value& item, session_entry& out)
 struct reply_writer
 {
     json::object& header;
+
+    void operator()(const run_reply& body) const
+    {
+        header["reply"] = "run";
+        header["run"] = clean_text(body.run);
+        header["name"] = clean_text(body.name);
+        header["open"] = body.open;
+        header["tests"] = body.tests;
+        header["failures"] = body.failures;
+        header["errors"] = body.errors;
+        header["skipped"] = body.skipped;
+        header["duration_ms"] = body.duration_ms;
+    }
+
+    void operator()(const report_reply& body) const
+    {
+        // The document is the gateway's own writing and longer than any
+        // other text, so it is neither cut nor cleaned here.
+        header["reply"] = "report";
+        header["xml"] = body.xml;
+    }
 
     void operator()(const matched_reply& body) const
     {
@@ -949,6 +1017,30 @@ result<reply_body> read_reply_body(const json::object& header,
         return read_tokens_reply(header);
     if (kind == "subscribed")
         return read_subscribed_reply(header);
+    if (kind == "run")
+    {
+        run_reply body;
+        if (!read_text(header, "run", body.run) ||
+            !read_text(header, "name", body.name) ||
+            !read_bool(header, "open", body.open) ||
+            !read_u64(header, "tests", body.tests) ||
+            !read_u64(header, "failures", body.failures) ||
+            !read_u64(header, "errors", body.errors) ||
+            !read_u64(header, "skipped", body.skipped) ||
+            !read_u64(header, "duration_ms", body.duration_ms))
+            return malformed();
+        return reply_body{std::move(body)};
+    }
+    if (kind == "report")
+    {
+        const json::value* const xml = header.if_contains("xml");
+        if (xml == nullptr || !xml->is_string() ||
+            xml->get_string().size() > max_report_size)
+            return malformed();
+        report_reply body;
+        body.xml.assign(xml->get_string().data(), xml->get_string().size());
+        return reply_body{std::move(body)};
+    }
     if (kind == "matched")
     {
         matched_reply body;
@@ -1049,6 +1141,22 @@ operation operation_of(const request_body& body)
         operation operator()(const expect_bytes_request&) const noexcept
         {
             return operation::expect_bytes;
+        }
+        operation operator()(const runs_begin_request&) const noexcept
+        {
+            return operation::runs_begin;
+        }
+        operation operator()(const runs_end_request&) const noexcept
+        {
+            return operation::runs_end;
+        }
+        operation operator()(const runs_record_request&) const noexcept
+        {
+            return operation::runs_record;
+        }
+        operation operator()(const report_junit_request&) const noexcept
+        {
+            return operation::report_junit;
         }
     };
     return std::visit(visitor{}, body);

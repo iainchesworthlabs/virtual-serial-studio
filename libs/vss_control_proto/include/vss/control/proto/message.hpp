@@ -64,6 +64,13 @@ inline constexpr std::size_t max_send_size = std::size_t{64} * 1024;
 inline constexpr std::size_t max_pattern_size = 256;
 inline constexpr std::uint32_t max_expect_timeout_ms = 60'000;
 inline constexpr std::uint32_t default_expect_timeout_ms = 1000;
+/// The longest name of a run or of a check, and the longest message of a
+/// check, in bytes; the most checks one run keeps; and the most bytes a
+/// report may have.
+inline constexpr std::size_t max_run_name_size = 128;
+inline constexpr std::size_t max_case_message_size = 512;
+inline constexpr std::size_t max_run_cases = 1000;
+inline constexpr std::size_t max_report_size = std::size_t{512} * 1024;
 /// The most ports a subscription may name.
 inline constexpr std::size_t max_port_filter_size = 64;
 /// The shortest, the longest and the usual time between two batches of a
@@ -266,9 +273,53 @@ struct expect_bytes_request
     std::string send_port;
     /// The bytes to send: the frame's blob.
     byte_buffer send;
+    /// What the check is called in the report of a run; empty for
+    /// `expect <port>`.
+    std::string label;
 
     friend bool operator==(const expect_bytes_request&,
                            const expect_bytes_request&) = default;
+};
+
+/// Begins a named run.  While it is open, the gateway notes how each
+/// `expect.bytes` of the same principal ended, and what `runs.record`
+/// tells it.  One open run for each principal.
+struct runs_begin_request
+{
+    std::string name;
+
+    friend bool operator==(const runs_begin_request&,
+                           const runs_begin_request&) = default;
+};
+
+/// Ends the principal's open run.  The run is kept for `report.junit`.
+struct runs_end_request
+{
+    friend bool operator==(const runs_end_request&,
+                           const runs_end_request&) = default;
+};
+
+/// Adds a check the harness made itself to the open run.
+struct runs_record_request
+{
+    std::string name;
+    /// `passed`, `failed`, `error` or `skipped`.
+    std::string outcome;
+    std::string message;
+    std::uint64_t duration_ms = 0;
+
+    friend bool operator==(const runs_record_request&,
+                           const runs_record_request&) = default;
+};
+
+/// Asks for a run as a JUnit XML document.  `run` is the id `runs.begin`
+/// gave (`r_3`); empty for the principal's latest.
+struct report_junit_request
+{
+    std::string run;
+
+    friend bool operator==(const report_junit_request&,
+                           const report_junit_request&) = default;
 };
 
 using request_body = std::variant<
@@ -278,7 +329,8 @@ using request_body = std::variant<
     traffic_subscribe_request, traffic_unsubscribe_request,
     sessions_list_request, sessions_kick_request, ports_create_request,
     ports_remove_request, links_connect_request, ports_send_request,
-    expect_bytes_request>;
+    expect_bytes_request, runs_begin_request, runs_end_request,
+    runs_record_request, report_junit_request>;
 
 struct request
 {
@@ -465,6 +517,31 @@ struct matched_reply
                            const matched_reply&) = default;
 };
 
+/// A run, as `runs.begin` and `runs.end` tell it.
+struct run_reply
+{
+    /// The id of the run (`r_3`).
+    std::string run;
+    std::string name;
+    /// False once it has ended.
+    bool open = false;
+    std::uint64_t tests = 0;
+    std::uint64_t failures = 0;
+    std::uint64_t errors = 0;
+    std::uint64_t skipped = 0;
+    std::uint64_t duration_ms = 0;
+
+    friend bool operator==(const run_reply&, const run_reply&) = default;
+};
+
+/// A run as a JUnit XML document.
+struct report_reply
+{
+    std::string xml;
+
+    friend bool operator==(const report_reply&, const report_reply&) = default;
+};
+
 /// A port or a link was made: its public id (`p_3`, `l_2`).
 struct created_reply
 {
@@ -484,7 +561,8 @@ struct error_reply
 using reply_body =
     std::variant<done_reply, hello_reply, status_reply, ports_reply,
                  token_created_reply, tokens_reply, subscribed_reply,
-                 sessions_reply, created_reply, matched_reply, error_reply>;
+                 sessions_reply, created_reply, matched_reply, run_reply,
+                 report_reply, error_reply>;
 
 struct reply
 {
