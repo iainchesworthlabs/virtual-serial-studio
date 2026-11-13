@@ -271,7 +271,7 @@ TEST_CASE("support: build info and the environment report")
 
     const QVector<support::environment_row> rows =
         support::environment_rows(info);
-    REQUIRE_EQ(rows.size(), 10);
+    REQUIRE_EQ(rows.size(), 11);
     QStringList labels;
     for (const support::environment_row& row : rows)
         labels << row.label;
@@ -282,6 +282,7 @@ TEST_CASE("support: build info and the environment report")
     REQUIRE(labels.contains(QStringLiteral("Architecture")));
     REQUIRE(labels.contains(QStringLiteral("Language")));
     REQUIRE(labels.contains(QStringLiteral("Profiling")));
+    REQUIRE(labels.contains(QStringLiteral("Renderer")));
     REQUIRE(!info.profiling.isEmpty());
 
     const QString report = support::environment_report(info);
@@ -290,6 +291,7 @@ TEST_CASE("support: build info and the environment report")
     REQUIRE(report.contains(QStringLiteral("Commit:")));
     REQUIRE(report.contains(QStringLiteral("Qt:")));
     REQUIRE(report.contains(QStringLiteral("Profiling:")));
+    REQUIRE(report.contains(QStringLiteral("Renderer:")));
 }
 
 TEST_CASE("support: redaction removes credentials and keeps JSON valid")

@@ -35,7 +35,7 @@ Tabs: "Monitor". Advanced also "Log" and "Topology JSON".
 - Empty state: "No traffic yet. Send some bytes, or open the port in a program."
 
 ## Status bar
-Left: "Ports 4", "Links 1", "RX 38 B/s", "TX 114 B/s", "Hub running". Advanced adds a warn chip "214 B dropped, not owner" when relevant. Right: readiness chip and the Simple or Advanced segmented switch (24 high).
+Left: "Ports 4", "Links 1", "RX 38 B/s", "TX 114 B/s", "Hub running". Advanced adds a warn chip "214 B dropped, not owner" when relevant. Right: readiness chip and the Simple or Advanced segmented switch (24 high). If the canvas has to go back from the graphics card to the processor while Studio runs, the status bar shows "The canvas is drawn on the processor: <reason>" for ten seconds and the Log gets the same line.
 
 ## Threading
 Engine callbacks run on hub threads. Marshal everything to the GUI thread with queued connections, coalesce by the refresh interval (default 250 ms, range 50 to 5000), and never block the GUI thread on the engine. Subscribers must capture state that outlives the hub, see `docs/architecture.md` in the repo.

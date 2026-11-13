@@ -41,6 +41,8 @@ struct build_info
     /// The language chosen at start-up and the languages the system offered.
     QString profiling;
     QString language;
+    /// What draws the canvas now: hardware (GPU) or software (CPU).
+    QString renderer;
 };
 
 /// The build this binary was produced from.

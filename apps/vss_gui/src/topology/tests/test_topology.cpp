@@ -7,6 +7,7 @@
 #include "test_framework.hpp"
 
 #include "backend/fake_studio_backend.hpp"
+#include "rendering/render_state.hpp"
 #include "shell/shell_window.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
@@ -33,6 +34,8 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QSet>
+#include <QThread>
 #include <QScrollBar>
 #include <QSettings>
 #include <QStatusBar>
@@ -1783,4 +1786,61 @@ TEST_CASE("topology: hit-testing and dragging stay correct when zoomed")
         REQUIRE_NEAR(view.mapToScene(at).y(), node.center().y(), 1.0);
     }
     view.close();
+}
+
+TEST_CASE("topology: the canvas is drawn by the CPU in software mode")
+{
+    vss::gui::rendering::set_state({});
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    REQUIRE(!view.gpu_active());
+    const QImage image = view.grab().toImage();
+    REQUIRE(!image.isNull());
+    // The ground, the dots and the cards are not one colour.
+    QSet<QRgb> colours;
+    for (int y = 0; y < image.height(); y += 7)
+    {
+        for (int x = 0; x < image.width(); x += 7)
+            colours.insert(image.pixel(x, y));
+    }
+    REQUIRE(colours.size() > 3);
+    REQUIRE_EQ(view.node_count(), 4);
+}
+
+TEST_CASE("topology: asking for the GPU where there is none leaves a working "
+          "canvas")
+{
+    // The test programs run on the offscreen platform, which has no usable
+    // graphics device, so this is the fallback path: the canvas must end up
+    // drawn by the CPU, say so, and still hold its items.
+    vss::gui::rendering::render_state state;
+    state.requested = vss::gui::rendering::render_mode::hardware;
+    state.active = vss::gui::rendering::renderer::hardware;
+    vss::gui::rendering::set_state(state);
+
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    for (int i = 0; i < 20; ++i)
+    {
+        QApplication::processEvents();
+        QThread::msleep(15);
+    }
+    REQUIRE_EQ(view.node_count(), 4);
+    REQUIRE(!view.grab().toImage().isNull());
+    // Either the device came up (then it is the one asked for) or the canvas
+    // went back to software and the state says so.
+    if (!view.gpu_active())
+    {
+        REQUIRE(vss::gui::rendering::current().active ==
+                vss::gui::rendering::renderer::software);
+    }
+    vss::gui::rendering::set_state({});
 }

@@ -5929,6 +5929,45 @@ Redes: %5</translation>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>No se pudo iniciar el sistema gráfico (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>no se indicó ningún motivo</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>El único dispositivo gráfico encontrado es un renderizador por software (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>Hardware (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>Software (CPU), porque: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>El dispositivo gráfico dejó de funcionar.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>no se creó ningún dispositivo gráfico</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6252,6 +6291,38 @@ Redes: %5</translation>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
             <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
             <translation>Sirve para averiguar por qué Studio va lento. Solo registra tiempos y no envía nada a ninguna parte: Studio escucha solo en este equipo, y la línea de tiempo aparece únicamente cuando inicias aquí el perfilador Tracy y lo conectas a la dirección anterior. Studio recuerda este interruptor y vuelve a registrar la próxima vez que se inicie. Permitir que se conecten otros equipos requiere reiniciar.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>Renderizado</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>Automático</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>Hardware dibuja el lienzo en la tarjeta gráfica, lo que lo mantiene fluido con muchos puertos. Software lo dibuja en el procesador. Automático usa la tarjeta gráfica cuando hay una utilizable.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>Dibujando ahora con: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>Reinicia Studio para usar esta opción.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER o --render está definido, así que anula esta opción.</translation>
         </message>
     </context>
     <context>
@@ -8914,6 +8985,10 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio está configurado. Otros programas pueden abrir los puertos nuevos.</translation>
+        </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>El lienzo se dibuja en el procesador: %1</translation>
         </message>
     </context>
     <context>

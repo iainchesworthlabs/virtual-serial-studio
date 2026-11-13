@@ -68,6 +68,7 @@ target_link_libraries(vss_gui_support PUBLIC
   vss_gui_widgets
   vss_gui_backend
   vss_gui_profiling
+  vss_gui_rendering
   Qt6::Widgets)
 
 if(WIN32)

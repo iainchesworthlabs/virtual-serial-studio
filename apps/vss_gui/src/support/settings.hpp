@@ -8,6 +8,7 @@
 #define VSS_GUI_SUPPORT_SETTINGS_HPP
 
 #include "backend/view_types.hpp"
+#include "rendering/render_mode.hpp"
 #include "theme/theme.hpp"
 
 #include <QString>
@@ -39,6 +40,10 @@ struct ui_settings
     /// Record a performance trace from the start (`ui/profileOnStart`).
     /// Recording listens on this computer only; see `docs/profiling.md`.
     bool profile_on_start = false;
+    /// How the canvas is drawn (`ui/renderMode`): by the GPU, by the CPU, or
+    /// by the GPU when there is a usable one. A change applies at the next
+    /// start. See `docs/gui-design/docs/rendering.md`.
+    rendering::render_mode render_mode = rendering::render_mode::automatic;
 };
 
 inline constexpr int kRefreshMinMs = 50;

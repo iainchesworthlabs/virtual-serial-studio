@@ -9,6 +9,7 @@
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
 #include "profiling/stall_watchdog.hpp"
+#include "rendering/render_state.hpp"
 #include "shell/shell_window.hpp"
 #include "shell/single_instance.hpp"
 #include "shell/studio_tray.hpp"
@@ -143,6 +144,32 @@ try
                              vss::profiling::describe(*started).c_str());
                 VSS_PROFILE_MESSAGE("gui.startup");
             }
+        }
+    }
+    // How the canvas is drawn: GPU or CPU. The command line (--render=auto,
+    // hardware or software) wins over VSS_RENDER, which wins over the saved
+    // setting. The GPU is confirmed later, when the canvas has a device; if it
+    // has none the canvas falls back to the CPU and says so.
+    {
+        QString render_argument;
+        for (int index = 1; index < argc; ++index)
+        {
+            if (std::strncmp(argv[index], "--render=", 9) == 0)
+                render_argument = QString::fromLocal8Bit(argv[index] + 9);
+        }
+        vss::gui::rendering::initialise(
+            vss::gui::support::load_ui_settings().render_mode,
+            qEnvironmentVariable("VSS_RENDER"), render_argument);
+        // Qt only asks the graphics device for GPU timings when it is told
+        // to when the device is made, at the first window. So the GPU zone
+        // (gui.gpu.frame) appears when the profiler is already recording by
+        // then; started later from Settings, the CPU zones record and the GPU
+        // zone needs a restart. Timings only; nothing leaves this computer.
+        if (vss::profiling::current().current ==
+                vss::profiling::state::recording &&
+            !qEnvironmentVariableIsSet("QSG_RHI_PROFILE"))
+        {
+            qputenv("QSG_RHI_PROFILE", QByteArrayLiteral("1"));
         }
     }
     // The icon of every window and of the taskbar or dock entry, from the Qt

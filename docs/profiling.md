@@ -127,6 +127,11 @@ Generic coverage, so slow work shows up without a hand-placed zone:
 - **Frames.** The main frame ticks once per pass of the event loop, `gui.loop` is
   the busy time of each pass (a discontinuous frame), and `gui.paint` marks each
   top-level window paint.
+- **`gui.render.*`, `gui.gpu.frame` and `gui.render_mode`**: how the canvas is drawn
+  on the GPU (frame, draw, texture upload, sync, plots of item textures and their
+  memory), the GPU's time for a frame, and a message with the renderer chosen at
+  start-up or after a fallback. See `docs/gui-design/docs/11-rendering.md`; the GPU
+  time needs the profiler to be recording at start-up.
 - **`gui.paint.*`** zones for the custom painting: port rows, topology nodes and
   links, the canvas background. Every other widget's paint is a `gui.event` zone
   with the class name.
