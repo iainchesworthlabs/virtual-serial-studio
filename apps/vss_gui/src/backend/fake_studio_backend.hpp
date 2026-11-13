@@ -16,6 +16,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <mutex>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -162,8 +163,16 @@ public:
     set_port_settings(vss::endpoint_id id,
                       const vss::serial_settings& settings) override;
 
-    std::vector<port_view> ports() const override { return ports_; }
-    std::vector<link_view> links() const override { return links_; }
+    std::vector<port_view> ports() const override
+    {
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
+        return ports_;
+    }
+    std::vector<link_view> links() const override
+    {
+        const std::lock_guard<std::recursive_mutex> lock(mutex_);
+        return links_;
+    }
     std::vector<device_view> devices() const override { return devices_; }
     std::optional<std::vector<unsigned>> reserved_com_numbers() const override
     {
@@ -279,6 +288,9 @@ private:
     std::vector<vss::fault_kind> injected_;
     QHash<vss::link_id, line_wiring> wiring_;
     std::chrono::milliseconds create_delay_{0};
+    /// Guards the ports and links: a job on a worker thread changes them while
+    /// the GUI thread reads them.  Recursive, as the mutators call each other.
+    mutable std::recursive_mutex mutex_;
     std::optional<vss::error_code> next_error_;
     int calls_before_error_ = 0;
     vss::endpoint_id next_port_ = 1;

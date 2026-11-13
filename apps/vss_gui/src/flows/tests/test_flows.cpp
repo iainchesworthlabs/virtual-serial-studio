@@ -1436,8 +1436,8 @@ TEST_CASE("flows: change COM number applies, and says why it was refused")
     settle();
     REQUIRE(dialog.primary_button()->isEnabled());
     dialog.primary_button()->click();
-    REQUIRE(dialog.busy());
-    REQUIRE(vss_test::wait_until([&] { return !dialog.busy(); }));
+    REQUIRE(dialog.changing());
+    REQUIRE(vss_test::wait_until([&] { return !dialog.changing(); }));
     REQUIRE(dialog.result() != QDialog::Accepted);
     REQUIRE(dialog.number_spin()->accessibleDescription().contains(
         QStringLiteral("COM5 already belongs to another device")));
@@ -1468,7 +1468,7 @@ TEST_CASE("flows: change COM number explains a missing helper and a held port")
         settle();
         fixture.backend.fail_next(vss::make_error_code(vss::errc::unsupported));
         dialog.primary_button()->click();
-        REQUIRE(vss_test::wait_until([&] { return !dialog.busy(); }));
+        REQUIRE(vss_test::wait_until([&] { return !dialog.changing(); }));
         REQUIRE(dialog.number_spin()->accessibleDescription().contains(
             QStringLiteral("needs the Virtual Serial Studio helper service")));
         dialog.close();

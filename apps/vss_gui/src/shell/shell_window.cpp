@@ -3449,7 +3449,8 @@ void ShellWindow::enable_background(const QString& running_path, bool use_tray)
 
 bool ShellWindow::needed_in_background() const
 {
-    return restore_failed_ || !backend_.ports().empty();
+    // Ports being started are a reason to stay: they may not be listed yet.
+    return apply_work_.busy() || restore_failed_ || !backend_.ports().empty();
 }
 
 void ShellWindow::bring_to_front()

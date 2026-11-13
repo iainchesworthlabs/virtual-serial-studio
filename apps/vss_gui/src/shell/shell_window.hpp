@@ -97,6 +97,9 @@ public:
     /// the second case the notification that says so, and the Start again
     /// banner behind it, are only there while Studio is.
     bool needed_in_background() const;
+    /// True while a document is being applied to the engine on a worker
+    /// thread (opening a setup, a template, or starting the ports again).
+    bool applying() const noexcept { return apply_work_.busy(); }
 
     /// Shows the window again and puts it in front: the notification-area
     /// icon, and a second Studio that was started while this one runs.
