@@ -11719,6 +11719,10 @@ Netzwerke: %5</translation>
             <source> Try a different name or kind, then try again.</source>
             <translation> Versuchen Sie es mit einem anderen Namen oder einer anderen Art noch einmal.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>Wird erstellt</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -12026,6 +12030,10 @@ Netzwerke: %5</translation>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>Anderes wählen</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>Wird verbunden</translation>
         </message>
     </context>
     <context>
@@ -13127,6 +13135,14 @@ Netzwerke: %5</translation>
             <source>Scroll</source>
             <translation>Scrollen</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Fortschritt</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14192,6 +14208,10 @@ Netzwerke: %5</translation>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>Paar erstellen</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Wird erstellt</translation>
         </message>
     </context>
     <context>
@@ -16804,6 +16824,14 @@ Netzwerke: %5</translation>
             <translation>Layout zurückgesetzt.</translation>
         </message>
         <message>
+            <source>Progress</source>
+            <translation>Fortschritt</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+        </message>
+        <message>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Copy diagnostic information</source>
             <translation>Diagnoseinformationen kopieren</translation>
@@ -17253,6 +17281,14 @@ Netzwerke: %5</translation>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 gespeichert.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Wird angewendet</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
         </message>
     </context>
     <context>
@@ -18015,6 +18051,26 @@ Netzwerke: %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio konnte nicht lesen, welche COM-Nummern Windows belegt hält, und wählt deshalb beim Erstellen des Ports eine freie Nummer und zeigt sie an, sobald der Port bereit ist.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Wird angewendet</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Wird erstellt</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Die Änderung wird angewendet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>Fortschritt der Einrichtung</translation>
         </message>
     </context>
     <context>

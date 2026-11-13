@@ -28,6 +28,7 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QPainterPath>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
@@ -37,6 +38,8 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <memory>
+#include <optional>
 
 namespace vss::gui::simple
 {
@@ -502,12 +505,12 @@ void JobForm::build()
     header_layout->setSpacing(12);
     auto* titles = new QVBoxLayout();
     titles->setSpacing(4);
-    auto* back = new QPushButton(
+    back_ = new QPushButton(
         editing() ? tr("Back to the setup") : tr("All jobs"), header);
-    set_role(back, "ghost");
-    back->setObjectName(QStringLiteral("jobFormBack"));
-    connect(back, &QPushButton::clicked, this, [this] { Q_EMIT cancelled(); });
-    titles->addWidget(back, 0, Qt::AlignLeft);
+    set_role(back_, "ghost");
+    back_->setObjectName(QStringLiteral("jobFormBack"));
+    connect(back_, &QPushButton::clicked, this, [this] { Q_EMIT cancelled(); });
+    titles->addWidget(back_, 0, Qt::AlignLeft);
     // When changing an existing setup the title names it: its saved name if
     // it has one, otherwise a description built from its ports.
     QString heading = job_title(kind_);
@@ -522,9 +525,9 @@ void JobForm::build()
     titles->addWidget(
         make_label(job_description(kind_), text_style::body, header));
     header_layout->addLayout(titles, 1);
-    auto* cancel = new QPushButton(tr("Cancel"), header);
-    set_role(cancel, "secondary");
-    connect(cancel, &QPushButton::clicked, this,
+    cancel_ = new QPushButton(tr("Cancel"), header);
+    set_role(cancel_, "secondary");
+    connect(cancel_, &QPushButton::clicked, this,
             [this] { Q_EMIT cancelled(); });
     // The same button creates a new setup or applies a change. It is the
     // default, so Enter submits; validate() enables it only when nothing
@@ -534,11 +537,30 @@ void JobForm::build()
     set_role(create_, "primary");
     create_->setDefault(true);
     connect(create_, &QPushButton::clicked, this, [this] { submit(); });
-    header_layout->addWidget(cancel, 0, Qt::AlignVCenter);
+    header_layout->addWidget(cancel_, 0, Qt::AlignVCenter);
     header_layout->addWidget(create_, 0, Qt::AlignVCenter);
     outer->addWidget(header);
 
+    // Shown while the engine works: a bar that only says "not stuck" and a
+    // sentence that says what is happening and why it takes a while.
+    busy_row_ = new QWidget(this);
+    busy_row_->setObjectName(QStringLiteral("jobFormBusy"));
+    auto* busy_layout = new QVBoxLayout(busy_row_);
+    busy_layout->setContentsMargins(24, 0, 24, 8);
+    busy_layout->setSpacing(6);
+    busy_bar_ = new QProgressBar(busy_row_);
+    busy_bar_->setRange(0, 0);
+    busy_bar_->setTextVisible(false);
+    busy_bar_->setAccessibleName(tr("Setting up progress"));
+    busy_layout->addWidget(busy_bar_);
+    busy_label_ = make_label({}, text_style::body, busy_row_);
+    busy_label_->setObjectName(QStringLiteral("jobFormBusyText"));
+    busy_layout->addWidget(busy_label_);
+    busy_row_->setVisible(false);
+    outer->addWidget(busy_row_);
+
     auto* scroll = new QScrollArea(this);
+    scroll_ = scroll;
     scroll->setObjectName(QStringLiteral("jobFormScroll"));
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
@@ -1469,16 +1491,74 @@ void JobForm::validate()
     blocker_label_->setVisible(!blocker_.isEmpty());
 }
 
+void JobForm::set_busy(bool busy)
+{
+    const QString verb = editing() ? tr("Applying") : tr("Creating");
+    create_->setText(busy ? verb : (editing() ? tr("Apply") : tr("Create")));
+    create_->setAccessibleName(create_->text());
+    cancel_->setEnabled(!busy);
+    back_->setEnabled(!busy);
+    scroll_->setEnabled(!busy);
+    busy_row_->setVisible(busy);
+    if (busy)
+    {
+        create_->setEnabled(false);
+        busy_label_->setText(
+            editing() ? tr("Applying the change. Windows installs each new "
+                           "port, which can take up to 20 seconds.")
+                      : tr("Setting up. Windows installs each new port, which "
+                           "can take up to 20 seconds."));
+        busy_label_->setAccessibleName(busy_label_->text());
+        announce_name_change(busy_label_);
+    }
+    else
+    {
+        validate();
+    }
+}
+
 bool JobForm::submit()
 {
     VSS_PROFILE_ZONE("gui.simple.job_form.submit");
+    // A second click, or Enter, while the first build runs does nothing.
+    if (work_.busy())
+        return false;
     validate();
     if (!blocker_.isEmpty())
         return false;
     error_->setVisible(false);
-    const setup_view* previous = previous_ ? &*previous_ : nullptr;
-    unsigned clashed = 0;
-    const auto built = build_setup(backend_, plan_, previous, &clashed);
+
+    // The worker gets copies: the form's own state stays the GUI thread's.
+    struct outcome
+    {
+        job_plan plan;
+        std::optional<setup_view> previous;
+        unsigned clashed = 0;
+        vss::result<vss::endpoint_id> built = vss::endpoint_id{0};
+    };
+    auto state = std::make_shared<outcome>();
+    state->plan = plan_;
+    state->previous = previous_;
+    set_busy(true);
+    return work_.start(
+        [this, state]
+        {
+            state->built = build_setup(
+                backend_, state->plan,
+                state->previous ? &*state->previous : nullptr,
+                &state->clashed);
+        },
+        [this, state]
+        {
+            set_busy(false);
+            finish_submit(state->built, state->clashed);
+        });
+}
+
+void JobForm::finish_submit(const vss::result<vss::endpoint_id>& built,
+                            unsigned clashed)
+{
+    backend_.refresh();
     if (!built)
     {
         if (const auto problem = driver_problem_of(built.error()))
@@ -1501,7 +1581,7 @@ bool JobForm::submit()
                     });
             }
             error_->setVisible(true);
-            return false;
+            return;
         }
         error_->clear_action();
         if (clashed != 0)
@@ -1528,7 +1608,7 @@ bool JobForm::submit()
                          "again.")
                           .arg(clashed));
             error_->setVisible(true);
-            return false;
+            return;
         }
         error_->set_text(
             editing()
@@ -1539,7 +1619,7 @@ bool JobForm::submit()
                      "changed.")
                       .arg(error_text(built.error())));
         error_->setVisible(true);
-        return false;
+        return;
     }
     // A program's new name for a port that stays is a rename.
     if (backend_.caps().rename_port)
@@ -1558,7 +1638,6 @@ bool JobForm::submit()
         }
     }
     Q_EMIT done(*built, prefs_);
-    return true;
 }
 
 } // namespace vss::gui::simple

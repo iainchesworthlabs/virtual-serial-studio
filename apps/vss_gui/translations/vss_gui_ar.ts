@@ -11747,6 +11747,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> جرّب اسماً أو نوعاً آخر، ثم أعد المحاولة.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -12054,6 +12058,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>اختيار آخر</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>جارٍ التوصيل</translation>
         </message>
     </context>
     <context>
@@ -13155,6 +13163,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>تمرير</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>التقدم</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14220,6 +14236,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>إنشاء الزوج</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
         </message>
     </context>
     <context>
@@ -16848,6 +16868,14 @@ Networks: %5</source>
             <translation>أُعيد ضبط التخطيط.</translation>
         </message>
         <message>
+            <source>Progress</source>
+            <translation>التقدم</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+        </message>
+        <message>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Copy diagnostic information</source>
             <translation>نسخ معلومات التشخيص</translation>
@@ -17297,6 +17325,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>تم حفظ %1.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>جارٍ التطبيق</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
         </message>
     </context>
     <context>
@@ -18063,6 +18099,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>جارٍ التطبيق</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>جارٍ تطبيق التغيير. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>تقدم الإعداد</translation>
         </message>
     </context>
     <context>

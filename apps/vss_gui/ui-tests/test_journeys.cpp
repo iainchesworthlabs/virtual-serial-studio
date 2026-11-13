@@ -14,6 +14,7 @@
 // waiting for is on screen.
 //
 
+#include "qt_wait.hpp"
 #include "test_framework.hpp"
 
 #include "backend/fake_studio_backend.hpp"
@@ -23,6 +24,7 @@
 #include "shell/command_palette.hpp"
 #include "shell/launcher.hpp"
 #include "shell/shell_window.hpp"
+#include "simple/job_form.hpp"
 #include "simple/job_grid.hpp"
 #include "simple/setup_page.hpp"
 #include "simple/simple_page.hpp"
@@ -34,6 +36,7 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QListWidget>
+#include <QPointer>
 #include <QPushButton>
 #include <QSettings>
 #include <QStatusBar>
@@ -224,6 +227,11 @@ TEST_CASE("journey: give my program a serial port, with the keyboard")
     label->setFocus();
     QTest::keyClicks(label, QStringLiteral("PuTTY"));
     QTest::mouseClick(form->create_button(), Qt::LeftButton);
+    {
+        const QPointer<vss::gui::simple::JobForm> building(form);
+        REQUIRE(vss_test::wait_until(
+            [&building] { return building.isNull() || !building->busy(); }));
+    }
     QApplication::processEvents();
 
     REQUIRE_EQ(session.backend.ports().size(), 1);
@@ -250,6 +258,11 @@ TEST_CASE("journey: connect two programs")
     REQUIRE(form != nullptr);
     REQUIRE(form->create_button()->isEnabled());
     QTest::mouseClick(form->create_button(), Qt::LeftButton);
+    {
+        const QPointer<vss::gui::simple::JobForm> building(form);
+        REQUIRE(vss_test::wait_until(
+            [&building] { return building.isNull() || !building->busy(); }));
+    }
     QApplication::processEvents();
 
     REQUIRE_EQ(session.backend.ports().size(), 2);

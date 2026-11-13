@@ -11712,6 +11712,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation>別の名前または種類を試してから、もう一度やり直してください。</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -12019,6 +12023,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>別のものを選ぶ</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>接続中</translation>
         </message>
     </context>
     <context>
@@ -13120,6 +13128,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>スクロール</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>進行状況</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14185,6 +14201,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>ペアを作成</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
         </message>
     </context>
     <context>
@@ -16793,6 +16813,14 @@ Networks: %5</source>
             <translation>レイアウトをリセットしました。</translation>
         </message>
         <message>
+            <source>Progress</source>
+            <translation>進行状況</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+        </message>
+        <message>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Copy diagnostic information</source>
             <translation>診断情報をコピー</translation>
@@ -17242,6 +17270,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1を保存しました。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>適用中</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
         </message>
     </context>
     <context>
@@ -18003,6 +18039,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>適用中</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>変更を適用しています。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 20 秒かかることがあります。</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>セットアップの進行状況</translation>
         </message>
     </context>
     <context>

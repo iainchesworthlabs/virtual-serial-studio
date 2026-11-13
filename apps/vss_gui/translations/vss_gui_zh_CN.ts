@@ -11712,6 +11712,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation>请更换名称或类型，然后重试。</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -12019,6 +12023,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>选择其他设备</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>正在连接</translation>
         </message>
     </context>
     <context>
@@ -13120,6 +13128,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>滚动</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>进度</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14185,6 +14201,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>创建串口对</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
         </message>
     </context>
     <context>
@@ -16793,6 +16813,14 @@ Networks: %5</source>
             <translation>已重置布局。</translation>
         </message>
         <message>
+            <source>Progress</source>
+            <translation>进度</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
+        <message>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Copy diagnostic information</source>
             <translation>复制诊断信息</translation>
@@ -17242,6 +17270,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>已保存 %1。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>正在应用</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
         </message>
     </context>
     <context>
@@ -18003,6 +18039,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio 无法读取 Windows 保留了哪些 COM 编号，因此会在创建端口时选择一个空闲编号，并在端口就绪时显示。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>正在应用</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在应用更改。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>设置进度</translation>
         </message>
     </context>
     <context>
