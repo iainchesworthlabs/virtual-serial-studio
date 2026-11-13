@@ -390,17 +390,17 @@ result<std::string> local_address(local_endpoint endpoint,
 
 result<std::unique_ptr<local_listener>>
 listen_local(const boost::asio::any_io_executor& executor,
-             local_endpoint endpoint, std::string_view instance)
+             local_endpoint which, std::string_view instance)
 {
     const std::filesystem::path directory = runtime_directory();
     if (const error_code failed = ensure_private_directory(directory))
         return failed;
 
-    std::string socket_path = file_path(directory, endpoint, instance, ".sock");
+    std::string socket_path = file_path(directory, which, instance, ".sock");
     if (socket_path.size() > longest_socket_path)
         return make_error_code(errc::invalid_argument);
 
-    auto lock = take_lock(file_path(directory, endpoint, instance, ".lock"));
+    auto lock = take_lock(file_path(directory, which, instance, ".lock"));
     if (!lock)
         return lock.error();
 
@@ -417,7 +417,7 @@ listen_local(const boost::asio::any_io_executor& executor,
 
 result<std::unique_ptr<local_stream>>
 connect_local(const boost::asio::any_io_executor& executor,
-              local_endpoint endpoint, std::string_view instance)
+              local_endpoint which, std::string_view instance)
 {
     const std::filesystem::path directory = runtime_directory();
     if (const error_code checked = check_private_directory(directory))
@@ -429,7 +429,7 @@ connect_local(const boost::asio::any_io_executor& executor,
     }
 
     const std::string socket_path =
-        file_path(directory, endpoint, instance, ".sock");
+        file_path(directory, which, instance, ".sock");
     if (socket_path.size() > longest_socket_path)
         return make_error_code(errc::invalid_argument);
 
