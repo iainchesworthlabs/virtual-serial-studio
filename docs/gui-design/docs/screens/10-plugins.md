@@ -269,7 +269,7 @@ The setup is never changed and nothing is removed. The port stays a port: it kee
 
 **Saving.** Saving keeps every plugin part exactly as it was read, whether or not the plugin is installed: the type, the plugin's id and the settings. Studio never offers to remove them and never removes them on save. A setup made on a computer with a plugin opens on one without it, and opens again, unchanged, on the first.
 
-Where the plugin part is written (a key in the setup file, or a second file beside it) is decision 13 of `docs/plugins.md`. This rule holds either way; with a second file, Save and Open move both, and Studio says "This setup's plugin settings are in <file name>. Keep the two files together." once when it first writes one.
+The plugin part is written in the setup file itself, as a list named `plugins` on the port or the link (decision 13 of `docs/plugins.md`, section 7.8). There is no second file.
 
 **Removing.** The user can remove such a port or behaviour like any other. Nothing else removes it.
 

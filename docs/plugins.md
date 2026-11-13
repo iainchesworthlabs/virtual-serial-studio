@@ -30,7 +30,7 @@ Not in this page, and referenced only:
 | The signed-file envelope, the Ed25519 code and the trust list | `docs/licensing.md`, `vss::signed_file` | The plugin signature is one more purpose of that envelope, with its own key (section 8.2). There is one verifier, not two |
 | The plain support bundle (version, driver state, setup, log, serial ports; never traffic) | `docs/licensing.md` and `screens/09-licence-and-support.md` | A plugin can add a section to it (section 19). Studio owns the bundle, its dialog and its preview |
 | The rule model for response timing: matches, actions, clocks, determinism, replaying a recording | `docs/response-timing.md` (the response-timing work, under review on its own branch) | Section 6 is the plugin side only: which tier a plugin declares and what the host holds it to. Where the two pages differ, that page is right |
-| The Plugins screens and their strings | `docs/gui-design/docs/screens/10-plugins.md`, in this pull request | Section 10 names the failures; the screen spec has the words |
+| The Plugins screens and their strings | `docs/gui-design/docs/screens/10-plugins.md` and `11-decoding-and-triggers.md`, in this pull request | Section 10 names the failures; the screen spec has the words |
 | Security of the remote control endpoint (tokens, OAuth, bindings to other computers) | The remote-control work | An automation adapter gets the engine's agent operations through the proxy of section 7.7. How an adapter is exposed to the network is not designed here |
 | Website and downloads | The website work | none |
 | `vss_core` behaviour, the JSON topology schema | Unchanged without a request | Section 6 shows how the first version avoids both. Where it cannot, it says so |
@@ -1495,13 +1495,13 @@ The owner went through these on 13 November 2026. Each line says what was decide
    recommends the signing key's `valid_to` and gives the reasons (section 8.5). To be confirmed.
 3. **The order of a rule set and modifiers on one route stage.** This page recommends the rule set first
    (section 7.6). `docs/response-timing.md` has to say the same.
-4. **The screens for decoding and triggers** (section 20.9). They are not written yet.
 
 **Closed since the review:**
 
 - **Studio installed for one user**: investigated (section 5.2). No installer gets a second mode; Studio tells
   the kind of install from its folder; the agent's `hello` has to say which copy it is.
 - **Licence files and the key list**: the owner decided that licence files do not use it (section 8.9).
+- **The screens for decoding and triggers**: written, `screens/11-decoding-and-triggers.md` (section 20.9).
 
 ## 18. Order of work after review
 
@@ -2057,6 +2057,6 @@ It asks for no network permission and no `modifier.inline`. It is never in the p
 | No shared way to write a protocol down | The description format and its corpus (20.5). Decision 20 |
 | What Community gets | The basic framing view, in Studio (20.2). Decision 21 |
 
-Not designed here, and needed before any of it is built in the window: the screens. Where decoded frames show in
-the traffic view, the list of triggers, the choices of section 20.8 and their strings need a screen specification
-beside `screens/10-plugins.md`.
+The screens are in `docs/gui-design/docs/screens/11-decoding-and-triggers.md`, which is the copy to build from:
+the basic framing view as "Rows" in the Monitor, the dialog that starts a decoding, frames and their fields in the
+Monitor, the Triggers tab with the name and sentence of every kind, and the choices of section 20.8.
