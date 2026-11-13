@@ -94,7 +94,6 @@ public:
     explicit ResizeCounter(QObject* parent) : QObject(parent) {}
     int count() const noexcept { return count_; }
 
-protected:
     bool eventFilter(QObject* watched, QEvent* event) override
     {
         if (event->type() == QEvent::Resize)

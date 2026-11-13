@@ -74,7 +74,7 @@ StallWatchdog::StallWatchdog(int threshold_ms, sink report, QObject* parent)
         QDir().mkpath(QFileInfo(path).absolutePath());
         // The log is for the last few stalls, not a history: start afresh when
         // it has grown past a quarter of a megabyte.
-        if (QFileInfo(path).size() > 256 * 1024)
+        if (QFileInfo(path).size() > qint64{256} * 1024)
             QFile::remove(path);
         log_path_ = path.toStdString();
     }
