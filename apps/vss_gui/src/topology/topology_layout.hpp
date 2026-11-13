@@ -81,6 +81,8 @@ struct topo_link_placement
     QVector<QPolygonF> arrows;
     QPointF primary_anchor;
     QPointF secondary_anchor;
+
+    bool operator==(const topo_link_placement&) const = default;
 };
 
 struct topology_layout

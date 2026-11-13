@@ -7,6 +7,8 @@
 #ifndef VSS_GUI_TOPOLOGY_NODE_ITEM_HPP
 #define VSS_GUI_TOPOLOGY_NODE_ITEM_HPP
 
+#include "rendering/content_revision.hpp"
+
 #include <vss/core/types.hpp>
 
 #include <QFont>
@@ -73,7 +75,7 @@ struct node_item_callbacks
 };
 
 /// One port drawn as a card on the topology scene.
-class NodeItem final : public QGraphicsItem
+class NodeItem final : public QGraphicsItem, public rendering::content_revision
 {
 public:
     NodeItem(node_data data, const QSizeF& size, node_item_callbacks callbacks);
@@ -122,6 +124,9 @@ protected:
     void hoverLeaveEvent(QGraphicsSceneHoverEvent* event) override;
 
 private:
+    /// For every change in what `paint` draws.
+    void redraw();
+
     node_data data_;
     QSizeF size_;
     node_item_callbacks callbacks_;

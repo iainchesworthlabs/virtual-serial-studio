@@ -34,8 +34,10 @@ namespace vss::gui::rendering
 ///   each scene item, as a texture that the item's own `paint()` filled once.
 ///
 /// The textures are drawn at the view's zoom and the screen's pixel ratio,
-/// and made again only when the item changes (the scene reports the changed
-/// regions), the zoom changes or the theme changes. Moving, panning and
+/// and made again only when the item changes, the zoom changes or the theme
+/// changes. An item that derives from `content_revision` says itself when it
+/// changed; for any other item the scene's changed regions decide, which also
+/// redraws an item when something that overlaps it changes. Moving, panning and
 /// resizing the view cost the GPU a handful of textured quads and no CPU
 /// drawing. What stays on the CPU is the drawing of an item's content (text,
 /// icons, shapes) into its texture.
@@ -89,6 +91,8 @@ protected:
     void paint(QCanvasPainter* painter) override;
     void graphicsResourcesInvalidated() override;
     void render(QRhiCommandBuffer* cb) override;
+    void initialize(QRhiCommandBuffer* cb) override;
+    void paintEvent(QPaintEvent* event) override;
 
 private:
     struct entry
@@ -98,6 +102,9 @@ private:
         QRectF scene;
         qreal scale = 0.0;
         quint64 used = 0;
+        /// The item's own revision when the texture was made; 0 for an item
+        /// that does not report one.
+        quint64 revision = 0;
     };
 
     void scene_changed(const QList<QRectF>& regions);

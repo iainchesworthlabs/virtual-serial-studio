@@ -9,6 +9,8 @@
 
 #include "topology/topology_layout.hpp"
 
+#include "rendering/content_revision.hpp"
+
 #include <vss/core/types.hpp>
 
 #include <QGraphicsItem>
@@ -45,7 +47,7 @@ struct link_item_callbacks
 ///
 /// The item has an 8 px hit tolerance, as the design asks, and the label text
 /// is part of the shape so clicking a label selects the link.
-class LinkItem final : public QGraphicsItem
+class LinkItem final : public QGraphicsItem, public rendering::content_revision
 {
 public:
     LinkItem(link_data data, link_item_callbacks callbacks);
@@ -76,6 +78,8 @@ protected:
 
 private:
     void compute_label_rects();
+    /// For every change in what `paint` draws.
+    void redraw();
 
     link_data data_;
     link_item_callbacks callbacks_;

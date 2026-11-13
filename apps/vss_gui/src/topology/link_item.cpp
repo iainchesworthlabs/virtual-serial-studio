@@ -72,9 +72,19 @@ void LinkItem::compute_label_rects()
 void LinkItem::set_geometry(const topo_link_placement& geometry)
 {
     VSS_PROFILE_ZONE("gui.topology.link.set_geometry");
+    // Every link is given its geometry again whenever a node moves; most of
+    // them have not changed.
+    if (geometry == geometry_)
+        return;
     prepareGeometryChange();
     geometry_ = geometry;
     compute_label_rects();
+    redraw();
+}
+
+void LinkItem::redraw()
+{
+    content_changed();
     update();
 }
 
@@ -85,7 +95,7 @@ void LinkItem::set_state(bool selected, bool focused, bool hovered)
     selected_ = selected;
     focused_ = focused;
     hovered_ = hovered;
-    update();
+    redraw();
 }
 
 void LinkItem::set_in_loop(bool value)
@@ -93,7 +103,7 @@ void LinkItem::set_in_loop(bool value)
     if (in_loop_ == value)
         return;
     in_loop_ = value;
-    update();
+    redraw();
 }
 
 QRectF LinkItem::boundingRect() const
@@ -237,7 +247,7 @@ void LinkItem::mousePressEvent(QGraphicsSceneMouseEvent* event)
 void LinkItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event)
 {
     hovered_ = true;
-    update();
+    redraw();
     if (callbacks_.hover_entered)
         callbacks_.hover_entered(data_.id);
     QGraphicsItem::hoverEnterEvent(event);
@@ -246,7 +256,7 @@ void LinkItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event)
 void LinkItem::hoverLeaveEvent(QGraphicsSceneHoverEvent* event)
 {
     hovered_ = false;
-    update();
+    redraw();
     if (callbacks_.hover_left)
         callbacks_.hover_left(data_.id);
     QGraphicsItem::hoverLeaveEvent(event);
