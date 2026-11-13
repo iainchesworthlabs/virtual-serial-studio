@@ -2,7 +2,7 @@
 
 This note explains how the pieces fit and, more importantly, why the pieces
 that look odd are the way they are. The threading rules and the shutdown order
-are not incidental; both were written after a real failure.
+were each written after a failure.
 
 ## Layers
 
@@ -546,7 +546,7 @@ the rest keep the model and report it through events.
 
 A loopback transport is a loopback *plug*: what you write comes back on the
 receive side. That makes it a useful demo device and a good test double, and it
-means two loopback devices wired duplex are an echo chamber. This is a property
+means two loopback devices wired duplex send each other's data back and forth. This is a property
 of the device, not a routing bug. Use a one-way link (`redirect` or `monitor`)
 when the point is observation rather than full duplex.
 
