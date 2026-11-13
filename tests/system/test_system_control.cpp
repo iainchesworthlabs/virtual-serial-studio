@@ -229,8 +229,10 @@ cli_result run_cli(const std::string& group, const std::string& instance,
 {
     const auto child = start_cli(group, instance, words);
     cli_result outcome;
+    // The output is read first: a command that says more than a pipe holds,
+    // as the usage text does, waits for its reader before it ends.
+    outcome.output = child->read_all(long_limit);
     outcome.code = child->wait(long_limit);
-    outcome.output = child->read_all(5000ms);
     return outcome;
 }
 
@@ -1208,6 +1210,63 @@ TEST_CASE("system control: a monitor can change nothing")
     REQUIRE(contains(status.output, "You may: monitor"));
 }
 
+TEST_CASE("system control: expect waits for the bytes that a send brings")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+
+    const std::string a_id =
+        control_create_port(instance, "alpha", {"--kind=loopback"});
+    const std::string b_id = control_create_port(instance, "beta");
+    const auto linked =
+        run_cli("control", instance, {"link", a_id, b_id, "--one-way"});
+    static_cast<void>(id_line(linked, "l_", "vss_cli control link --one-way"));
+
+    // `noise OK` and a line ending is sent to the first port; the pattern
+    // is `OK` and a line ending, so six bytes go by before it.  The gateway
+    // listens before it sends, so nothing is missed.
+    const auto matched =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=4f4b0d0a", "--send-to=" + a_id,
+                 "--send=6e6f697365204f4b0d0a", "--timeout=20000"});
+    require_exit(matched, 0, "vss_cli control expect");
+    const std::vector<std::string> lines = lines_of(matched.output);
+    REQUIRE_EQ(lines.size(), std::size_t{1});
+    const std::vector<std::string> words = words_of(lines[0]);
+    REQUIRE_EQ(words.size(), std::size_t{4});
+    REQUIRE_EQ(words[0], std::string("matched"));
+    REQUIRE_EQ(words[1], std::string("6"));
+    REQUIRE(all_digits(words[2]));
+    REQUIRE_EQ(words[3], std::string("0"));
+
+    // A pattern that does not come is a failure of the command with the
+    // name of the gateway's answer.
+    const auto missed =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=4e45564552", "--send-to=" + a_id,
+                 "--send=00", "--timeout=200"});
+    require_exit(missed, 1, "vss_cli control expect of a pattern that is late");
+    REQUIRE(contains(missed.output, "control expect failed"));
+    REQUIRE(contains(missed.output, "timeout"));
+    REQUIRE(!contains(missed.output, "matched"));
+}
+
+TEST_CASE("system control: a monitor may not wait for bytes")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    // The default role holds the scope monitor, which is not monitor.data.
+    gate_process gate(instance);
+
+    const auto refused =
+        run_cli("control", instance,
+                {"expect", "p_1", "--pattern=00", "--timeout=100"});
+    require_exit(refused, 1, "vss_cli control expect as a monitor");
+    REQUIRE(contains(refused.output, "forbidden"));
+    REQUIRE(contains(refused.output, "control expect failed"));
+}
+
 TEST_CASE("system control: the commands on ports refuse a bad command line")
 {
     // No gateway runs: a command line that is wrong ends in a usage error
@@ -1245,7 +1304,40 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"status", "--one-way"},
         {"sessions", "--hex=00"},
         {"watch", "--kind=loopback"},
-        {"token", "list", "--one-way"}};
+        {"token", "list", "--one-way"},
+        {"expect", "p_1", "--pattern=abc"},
+        {"expect", "p_1", "--pattern="},
+        {"expect", "p_1", "--pattern=zz"},
+        {"expect", "p_1", "--pattern=00", "--pattern=00"},
+        {"expect", "p_1"},
+        {"expect", "p_1", "--timeout=100"},
+        {"expect", "--pattern=00"},
+        {"expect", "p_1", "p_2", "--pattern=00"},
+        {"expect", "p_1", "--pattern=00", "--send=00"},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2"},
+        {"expect", "p_1", "--pattern=00", "--send-to=", "--send=00"},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send="},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send=0"},
+        {"expect", "p_1", "--pattern=00", "--timeout=0"},
+        {"expect", "p_1", "--pattern=00", "--timeout=x"},
+        {"expect", "p_1", "--pattern=00", "--timeout="},
+        {"expect", "p_1", "--pattern=00", "--timeout=-5"},
+        {"expect", "p_1", "--pattern=00", "--timeout=100", "--timeout=100"},
+        {"expect", "p_1", "--pattern=00", "--tx", "--tx"},
+        {"expect", "p_1", "--pattern=00", "--hex=00"},
+        {"expect", "p_1", "--pattern=00", "--kind=loopback"},
+        {"expect", "p_1", "--pattern=00", "--one-way"},
+        {"expect", "p_1", "--pattern=00", "--data"},
+        {"expect", "p_1", "--pattern=00", "--ports=p_1"},
+        {"send", "p_1", "--hex=00", "--pattern=00"},
+        {"send", "p_1", "--hex=00", "--send=00"},
+        {"link", "p_1", "p_2", "--send-to=p_3"},
+        {"port", "remove", "p_1", "--timeout=100"},
+        {"watch", "--tx"},
+        {"status", "--timeout=100"},
+        {"sessions", "--pattern=00"},
+        {"kick", "1", "--tx"},
+        {"token", "list", "--send=00"}};
     for (const auto& words : unusable)
     {
         const auto outcome = run_cli("control", instance, words);
@@ -1258,7 +1350,10 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"send", "p_1", "--hex=00FFab"},
         {"port", "create", "a", "--kind=loopback"},
         {"port", "remove", "p_1"},
-        {"link", "p_1", "p_2", "--one-way"}};
+        {"link", "p_1", "p_2", "--one-way"},
+        {"expect", "p_1", "--pattern=00"},
+        {"expect", "p_1", "--pattern=00FFab", "--timeout=100000", "--tx"},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send=AB"}};
     for (const auto& words : usable)
     {
         const auto outcome = run_cli("control", instance, words);
