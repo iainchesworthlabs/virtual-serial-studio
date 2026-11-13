@@ -88,6 +88,11 @@ public:
         record.message = event.message;
         if (event.error)
             record.error = to_wire(event.error);
+        const auto since =
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                event.when.time_since_epoch())
+                .count();
+        record.when_ns = since > 0 ? static_cast<std::uint64_t>(since) : 0;
         if (event.data)
         {
             record.size = event.data->size();
@@ -167,6 +172,8 @@ struct session
     bool reading = false;
     bool closed = false;
     bool greeted = false;
+    /// Said in `hello`: this connection may list and subscribe only.
+    bool read_only = false;
     /// An error was sent: nothing more is read, and the connection closes
     /// when the error has been written.
     bool leaving = false;
@@ -341,7 +348,9 @@ public:
         out.handshake_timeouts = handshake_timeouts_.load();
         out.slow_clients_closed = slow_clients_closed_.load();
         out.dropped_events = dropped_events_.load();
+        out.read_only_refused = read_only_refused_.load();
         out.clients = clients_.load();
+        out.read_only_clients = read_only_clients_.load();
         return out;
     }
 
@@ -504,6 +513,19 @@ private:
                  make_error_code(protocol_errc::handshake_required));
             return;
         }
+        // A connection that only looks may list and subscribe.  The two are
+        // named here, so an operation that is added later is refused until
+        // someone decides otherwise.
+        if (client->read_only &&
+            !std::holds_alternative<list_request>(asked.body) &&
+            !std::holds_alternative<subscribe_request>(asked.body))
+        {
+            read_only_refused_.fetch_add(1);
+            send_reply(client,
+                       error_reply_for(
+                           asked.id, make_error_code(errc::permission_denied)));
+            return;
+        }
         if (const auto* wanted = std::get_if<subscribe_request>(&asked.body))
         {
             subscribe(client, *wanted);
@@ -552,8 +574,12 @@ private:
             return;
         }
         client->greeted = true;
+        client->read_only = hello.read_only;
+        if (client->read_only)
+            read_only_clients_.fetch_add(1);
         client->handshake_timer.cancel();
         hello_reply welcome;
+        welcome.read_only = hello.read_only;
         welcome.protocol = protocol_version;
         welcome.agent_version = agent_version();
         welcome.process_id = platform::process_id();
@@ -727,6 +753,8 @@ private:
         // them holds the session, so it is let go here.
         for (outgoing& item : client->unsent)
             item.after = nullptr;
+        if (client->read_only)
+            read_only_clients_.fetch_sub(1);
         sessions_.erase(client);
         clients_.store(sessions_.size());
     }
@@ -870,7 +898,9 @@ private:
     std::atomic<std::uint64_t> handshake_timeouts_{0};
     std::atomic<std::uint64_t> slow_clients_closed_{0};
     std::atomic<std::uint64_t> dropped_events_{0};
+    std::atomic<std::uint64_t> read_only_refused_{0};
     std::atomic<std::uint64_t> clients_{0};
+    std::atomic<std::uint64_t> read_only_clients_{0};
 };
 
 server::server(studio& app, server_options options)

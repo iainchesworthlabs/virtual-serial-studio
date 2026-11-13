@@ -1481,3 +1481,164 @@ TEST_CASE("agent transport: a listener destroyed with an accept pending is "
         REQUIRE(pending->stream == nullptr);
     }
 }
+
+// -- a connection that only looks --------------------------------------------
+
+TEST_CASE("agent server: a read-only connection lists and subscribes and "
+          "changes nothing")
+{
+    fixture env;
+    auto maker = env.connect("maker");
+    const auto a = maker->create_port("a");
+    const auto b = maker->create_port("b");
+    REQUIRE(a);
+    REQUIRE(b);
+    REQUIRE(maker->connect_ports(*a, *b, true));
+
+    agent::client_options options;
+    options.instance = env.instance.name();
+    options.name = "looker";
+    options.read_only = true;
+    auto connected = agent::client::connect(options);
+    REQUIRE(connected);
+    auto looker = std::move(*connected);
+    REQUIRE(looker->agent().read_only);
+    REQUIRE(!maker->agent().read_only);
+    REQUIRE_EQ(env.server.counters().read_only_clients, std::uint64_t{1});
+
+    const auto before = looker->list();
+    REQUIRE(before);
+    REQUIRE_EQ(before->ports.size(), std::size_t{2});
+
+    // Every request that changes something, and the one that ends the agent.
+    const auto denied = code(vss::errc::permission_denied);
+    const auto made = looker->create_port("c");
+    REQUIRE(!made);
+    REQUIRE_EQ(made.error(), denied);
+    const auto removed = looker->remove_port(*a);
+    REQUIRE(!removed);
+    REQUIRE_EQ(removed.error(), denied);
+    const auto linked = looker->connect_ports(*b, *a, true);
+    REQUIRE(!linked);
+    REQUIRE_EQ(linked.error(), denied);
+    const auto written = looker->write(*a, vss::to_bytes("x"));
+    REQUIRE(!written);
+    REQUIRE_EQ(written.error(), denied);
+    const auto ended = looker->shutdown();
+    REQUIRE(!ended);
+    REQUIRE_EQ(ended.error(), denied);
+    REQUIRE(!env.server.wait_for_stop_request(0ms));
+    REQUIRE_EQ(env.server.counters().read_only_refused, std::uint64_t{5});
+
+    // Nothing changed, and the connection is still good for looking.
+    const auto after = looker->list();
+    REQUIRE(after);
+    REQUIRE_EQ(after->revision, before->revision);
+    REQUIRE_EQ(after->ports.size(), std::size_t{2});
+    REQUIRE_EQ(after->links.size(), before->links.size());
+
+    REQUIRE(looker->subscribe(true, 20));
+    REQUIRE(maker->write(*a, vss::to_bytes("seen")));
+    std::optional<agent::event_record> tapped;
+    const bool seen = read_batches(
+        *looker, long_wait,
+        [&](const agent::event_batch& received)
+        {
+            for (const agent::event_record& event : received.events)
+            {
+                if (is_rx_data_on(event, *b))
+                    tapped = event;
+            }
+            return tapped.has_value();
+        });
+    REQUIRE(seen);
+    REQUIRE(tapped.has_value());
+    REQUIRE_EQ(vss::to_string(vss::bytes_view(tapped->data)),
+               std::string("seen"));
+
+    looker.reset();
+    const auto gone = steady::now() + long_wait;
+    while (env.server.counters().read_only_clients != 0 &&
+           steady::now() < gone)
+        std::this_thread::sleep_for(1ms);
+    REQUIRE_EQ(env.server.counters().read_only_clients, std::uint64_t{0});
+}
+
+TEST_CASE("agent server: an event says when the engine made it")
+{
+    fixture env;
+    auto maker = env.connect("maker");
+    const auto a = maker->create_port("a");
+    const auto b = maker->create_port("b");
+    REQUIRE(a);
+    REQUIRE(b);
+    REQUIRE(maker->connect_ports(*a, *b, true));
+    auto tapping = env.connect("tapping");
+    REQUIRE(tapping->subscribe(true, 20));
+
+    const auto ns = [](steady::time_point at)
+    {
+        return static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                at.time_since_epoch())
+                .count());
+    };
+    const std::uint64_t before = ns(steady::now());
+    REQUIRE(maker->write(*a, vss::to_bytes("when")));
+    std::optional<agent::event_record> tapped;
+    const bool seen = read_batches(
+        *tapping, long_wait,
+        [&](const agent::event_batch& received)
+        {
+            for (const agent::event_record& event : received.events)
+            {
+                if (is_rx_data_on(event, *b))
+                    tapped = event;
+            }
+            return tapped.has_value();
+        });
+    const std::uint64_t after = ns(steady::now());
+    REQUIRE(seen);
+    REQUIRE(tapped.has_value());
+    REQUIRE(tapped->when_ns >= before);
+    REQUIRE(tapped->when_ns <= after);
+}
+
+TEST_CASE("agent client: asking for events with no time to wait takes what "
+          "has arrived")
+{
+    fixture env;
+    auto maker = env.connect("maker");
+    const auto a = maker->create_port("a");
+    const auto b = maker->create_port("b");
+    REQUIRE(a);
+    REQUIRE(b);
+    REQUIRE(maker->connect_ports(*a, *b, true));
+    auto tapping = env.connect("tapping");
+    REQUIRE(tapping->subscribe(true, 10));
+
+    // Nothing has happened: no batch, at once, and the connection is good.
+    const auto started = steady::now();
+    const auto nothing = tapping->next_events(0ms);
+    REQUIRE(steady::now() - started < 1000ms);
+    REQUIRE(!nothing);
+    REQUIRE_EQ(nothing.error(), code(vss::errc::timeout));
+
+    REQUIRE(maker->write(*a, vss::to_bytes("poll")));
+    bool found = false;
+    const auto deadline = steady::now() + long_wait;
+    while (!found && steady::now() < deadline)
+    {
+        const auto batch = tapping->next_events(0ms);
+        if (!batch)
+        {
+            REQUIRE_EQ(batch.error(), code(vss::errc::timeout));
+            std::this_thread::sleep_for(1ms);
+            continue;
+        }
+        for (const agent::event_record& event : batch->events)
+            found = found || is_rx_data_on(event, *b);
+    }
+    REQUIRE(found);
+    REQUIRE(tapping->list());
+}
