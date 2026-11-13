@@ -67,7 +67,11 @@ enum class action_kind
     token_revoke,
     watch,
     sessions,
-    kick
+    kick,
+    port_create,
+    port_remove,
+    link,
+    send
 };
 
 struct control_arguments
@@ -90,6 +94,15 @@ struct control_arguments
     std::uint64_t count = 0;
     /// For `kick`: the number of the session.
     std::uint64_t session = 0;
+    /// For `port create`, `port remove`, `link` and `send`: the name or kind
+    /// of a port, the ports (the second is for `link`), whether a link goes
+    /// one way, and the bytes to send.
+    std::string name;
+    std::string kind;
+    std::string port;
+    std::string other_port;
+    bool one_way = false;
+    vss::byte_buffer bytes;
     bool valid = true;
 };
 
@@ -108,7 +121,10 @@ struct raw_arguments
     std::optional<std::string> interval;
     std::optional<std::string> seconds;
     std::optional<std::string> count;
+    std::optional<std::string> kind;
+    std::optional<std::string> hex;
     bool data = false;
+    bool one_way = false;
     bool valid = true;
 };
 
@@ -141,13 +157,22 @@ raw_arguments read_words(const std::vector<std::string>& arguments)
             take_option(word, "--ports=", raw.ports, raw.valid) ||
             take_option(word, "--interval=", raw.interval, raw.valid) ||
             take_option(word, "--seconds=", raw.seconds, raw.valid) ||
-            take_option(word, "--count=", raw.count, raw.valid))
+            take_option(word, "--count=", raw.count, raw.valid) ||
+            take_option(word, "--kind=", raw.kind, raw.valid) ||
+            take_option(word, "--hex=", raw.hex, raw.valid))
             continue;
         if (word == "--data")
         {
             if (raw.data)
                 raw.valid = false;
             raw.data = true;
+            continue;
+        }
+        if (word == "--one-way")
+        {
+            if (raw.one_way)
+                raw.valid = false;
+            raw.one_way = true;
             continue;
         }
         if (word.starts_with("--"))
@@ -230,6 +255,37 @@ std::optional<std::uint64_t> life_from_days(const std::string& days)
     return std::uint64_t{count} * seconds_per_day;
 }
 
+/// The value of a hexadecimal digit, or -1 for a character that is not one.
+int hex_value(char letter) noexcept
+{
+    if (letter >= '0' && letter <= '9')
+        return letter - '0';
+    if (letter >= 'a' && letter <= 'f')
+        return letter - 'a' + 10;
+    if (letter >= 'A' && letter <= 'F')
+        return letter - 'A' + 10;
+    return -1;
+}
+
+/// The bytes that `text` spells: an even number of hex digits, at least two,
+/// with no separator.  Nothing for anything else.
+std::optional<vss::byte_buffer> hex_bytes(std::string_view text)
+{
+    if (text.empty() || text.size() % 2 != 0)
+        return std::nullopt;
+    vss::byte_buffer bytes;
+    bytes.reserve(text.size() / 2);
+    for (std::size_t index = 0; index < text.size(); index += 2)
+    {
+        const int high = hex_value(text[index]);
+        const int low = hex_value(text[index + 1]);
+        if (high < 0 || low < 0)
+            return std::nullopt;
+        bytes.push_back(static_cast<vss::byte>(high * 16 + low));
+    }
+    return bytes;
+}
+
 /// Reads the options of `token create` into `parsed`.  False when they are
 /// not what the command takes.
 bool read_create_options(const raw_arguments& raw, control_arguments& parsed)
@@ -267,6 +323,19 @@ bool no_watch_options(const raw_arguments& raw)
 {
     return !raw.data && !raw.ports && !raw.interval && !raw.seconds &&
            !raw.count;
+}
+
+/// True when none of the options that only `port create`, `link` and `send`
+/// take is there.
+bool no_port_options(const raw_arguments& raw)
+{
+    return !raw.kind && !raw.hex && !raw.one_way;
+}
+
+/// True when none of the options of `token create` and of `watch` is there.
+bool no_foreign_options(const raw_arguments& raw)
+{
+    return no_create_options(raw) && no_watch_options(raw);
 }
 
 /// Reads the options of `watch` into `parsed`.  False when they are not what
@@ -317,7 +386,7 @@ control_arguments parse(const std::vector<std::string>& arguments)
         const bool is_status = words[0] == "status";
         // Only `status` takes a token; no command takes the options of
         // `token create` or of `watch`.
-        if (!no_create_options(raw) || !no_watch_options(raw) ||
+        if (!no_foreign_options(raw) || !no_port_options(raw) ||
             (!is_status && raw.token_file))
             return parsed;
         parsed.action = is_status ? action_kind::status : action_kind::stop;
@@ -327,7 +396,7 @@ control_arguments parse(const std::vector<std::string>& arguments)
     }
     if (words.size() == 1 && words[0] == "watch")
     {
-        if (!no_create_options(raw))
+        if (!no_create_options(raw) || !no_port_options(raw))
             return parsed;
         parsed.action = action_kind::watch;
         parsed.token_file = raw.token_file;
@@ -336,7 +405,7 @@ control_arguments parse(const std::vector<std::string>& arguments)
     }
     if (words.size() == 1 && words[0] == "sessions")
     {
-        if (!no_create_options(raw) || !no_watch_options(raw) || raw.token_file)
+        if (!no_foreign_options(raw) || !no_port_options(raw) || raw.token_file)
             return parsed;
         parsed.action = action_kind::sessions;
         parsed.valid = true;
@@ -345,7 +414,7 @@ control_arguments parse(const std::vector<std::string>& arguments)
     if (words.size() == 2 && words[0] == "kick")
     {
         const auto number = whole_number<std::uint64_t>(words[1]);
-        if (!number || !no_create_options(raw) || !no_watch_options(raw) ||
+        if (!number || !no_foreign_options(raw) || !no_port_options(raw) ||
             raw.token_file)
             return parsed;
         parsed.action = action_kind::kick;
@@ -353,8 +422,59 @@ control_arguments parse(const std::vector<std::string>& arguments)
         parsed.valid = true;
         return parsed;
     }
+    if (words.size() == 3 && words[0] == "port" &&
+        (words[1] == "create" || words[1] == "remove"))
+    {
+        // A port is made with a name and removed by its id; only `create`
+        // takes a kind.
+        const bool create = words[1] == "create";
+        if (!no_foreign_options(raw) || raw.hex || raw.one_way ||
+            (!create && raw.kind) || words[2].empty() ||
+            (raw.kind && raw.kind->empty()))
+            return parsed;
+        parsed.action =
+            create ? action_kind::port_create : action_kind::port_remove;
+        if (create)
+        {
+            parsed.name = words[2];
+            parsed.kind = raw.kind.value_or(std::string());
+        }
+        else
+        {
+            parsed.port = words[2];
+        }
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
+    if (words.size() == 3 && words[0] == "link")
+    {
+        if (!no_foreign_options(raw) || raw.kind || raw.hex)
+            return parsed;
+        parsed.action = action_kind::link;
+        parsed.port = words[1];
+        parsed.other_port = words[2];
+        parsed.one_way = raw.one_way;
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
+    if (words.size() == 2 && words[0] == "send")
+    {
+        if (!no_foreign_options(raw) || raw.kind || raw.one_way || !raw.hex)
+            return parsed;
+        auto bytes = hex_bytes(*raw.hex);
+        if (!bytes)
+            return parsed;
+        parsed.action = action_kind::send;
+        parsed.port = words[1];
+        parsed.bytes = std::move(*bytes);
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
     if (words.size() < 2 || words[0] != "token" || raw.token_file ||
-        !no_watch_options(raw))
+        !no_watch_options(raw) || !no_port_options(raw))
         return parsed;
     if (words.size() == 2 && words[1] == "create")
     {
@@ -396,6 +516,14 @@ const char* action_name(action_kind action) noexcept
         return "sessions";
     case action_kind::kick:
         return "kick";
+    case action_kind::port_create:
+        return "port create";
+    case action_kind::port_remove:
+        return "port remove";
+    case action_kind::link:
+        return "link";
+    case action_kind::send:
+        return "send";
     case action_kind::none:
         break;
     }
@@ -414,8 +542,9 @@ int report(const char* what, const vss::error_code& error,
     return exit_refused;
 }
 
-/// As `report`, and for a refusal of the gateway its code name too, as in
-/// `not allowed (forbidden)`: the wording alone does not say which it was.
+/// As `report`, and for a refusal of the gateway or of the engine its code
+/// name too, as in `not allowed (forbidden)` or `the engine refused the
+/// request (engine.not_found)`: the wording alone does not say which it was.
 int report_with_code(const char* what, const vss::error_code& error,
                      const client& gateway)
 {
@@ -427,6 +556,12 @@ int report_with_code(const char* what, const vss::error_code& error,
         message += " (";
         message += vss::control::code_name(
             static_cast<vss::control::api_errc>(error.value()));
+        message += ')';
+    }
+    else if (error.category() == vss::error_category())
+    {
+        message += " (";
+        message += vss::control::engine_error_name(error);
         message += ')';
     }
     std::fprintf(stderr, "control %s failed: %s\n", what, message.c_str());
@@ -752,6 +887,41 @@ int kick(client& gateway, std::uint64_t number)
     return exit_ok;
 }
 
+int port_create(client& gateway, const control_arguments& args)
+{
+    const auto made = gateway.create_port(args.name, args.kind);
+    if (!made)
+        return report_with_code("port create", made.error(), gateway);
+    std::printf("%s\n", made->c_str());
+    return exit_ok;
+}
+
+int port_remove(client& gateway, const std::string& port)
+{
+    const auto removed = gateway.remove_port(port);
+    if (!removed)
+        return report_with_code("port remove", removed.error(), gateway);
+    return exit_ok;
+}
+
+int link_ports(client& gateway, const control_arguments& args)
+{
+    const auto made =
+        gateway.connect_ports(args.port, args.other_port, args.one_way);
+    if (!made)
+        return report_with_code("link", made.error(), gateway);
+    std::printf("%s\n", made->c_str());
+    return exit_ok;
+}
+
+int send_bytes(client& gateway, const control_arguments& args)
+{
+    const auto sent = gateway.send(args.port, args.bytes);
+    if (!sent)
+        return report_with_code("send", sent.error(), gateway);
+    return exit_ok;
+}
+
 /// The token on the first line of the file at `path`, without its line
 /// ending.  Nothing when the file cannot be read or holds no token.  The text
 /// is read into a buffer that is wiped before this returns.
@@ -834,6 +1004,25 @@ const char* control_usage() noexcept
            "      requests, events sent, events lost, process and the name\n"
            "      the program gave itself.  kick closes one session by its\n"
            "      number.\n"
+           "\n"
+           "  vss_cli control port create <name> [--kind=<kind>]\n"
+           "           [--instance=<name>] [--token-file=<file>]\n"
+           "  vss_cli control port remove <id> [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "  vss_cli control link <id> <id> [--one-way] [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "  vss_cli control send <id> --hex=<digits> [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "      Make and remove ports, link them and send bytes to one.\n"
+           "      port create prints the id of the new port (p_3), and link\n"
+           "      prints the id of the link (l_2).  A link joins the two\n"
+           "      ports both ways, or with --one-way from the first to the\n"
+           "      second.  send takes the bytes as hex digits, two for each\n"
+           "      byte and no spaces, as in --hex=00ff68690d0a.  It sends\n"
+           "      64 KiB at most.  These need the scope control.ports, and\n"
+           "      send needs control.data; the default role of this user\n"
+           "      (monitor) has neither.  When the engine says no, the line\n"
+           "      ends with the name of its error, as in (engine.not_found).\n"
            "\n";
 }
 
@@ -849,10 +1038,14 @@ int command_control(const std::vector<std::string>& arguments)
     vss::control::client_options options;
     options.instance = args.instance;
     options.name = "vss_cli";
-    // `status` and `watch` are for any caller; the rest are for this user on
-    // the administration endpoint.
-    options.admin =
-        args.action != action_kind::status && args.action != action_kind::watch;
+    // `status`, `watch` and the four commands on ports are for any caller;
+    // the rest are for this user on the administration endpoint.
+    options.admin = args.action == action_kind::stop ||
+                    args.action == action_kind::token_create ||
+                    args.action == action_kind::token_list ||
+                    args.action == action_kind::token_revoke ||
+                    args.action == action_kind::sessions ||
+                    args.action == action_kind::kick;
     if (args.token_file)
     {
         auto token = read_token_file(*args.token_file);
@@ -892,6 +1085,14 @@ int command_control(const std::vector<std::string>& arguments)
         return sessions(gateway);
     case action_kind::kick:
         return kick(gateway, args.session);
+    case action_kind::port_create:
+        return port_create(gateway, args);
+    case action_kind::port_remove:
+        return port_remove(gateway, args.port);
+    case action_kind::link:
+        return link_ports(gateway, args);
+    case action_kind::send:
+        return send_bytes(gateway, args);
     case action_kind::status:
     case action_kind::none:
         break;
