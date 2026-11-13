@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <random>
@@ -33,9 +34,13 @@ namespace vss {
 class delay_line : public std::enable_shared_from_this<delay_line>
 {
 public:
+    using clock_function = std::function<time_point()>;
+
+    /// `clock` is the hub's (`hub_options::clock`); empty is the steady
+    /// clock.
     delay_line(const boost::asio::any_io_executor& executor,
                std::shared_ptr<endpoint> target, std::uint32_t delay_ms,
-               std::uint32_t jitter_ms);
+               std::uint32_t jitter_ms, clock_function clock = {});
 
     delay_line(const delay_line&) = delete;
     delay_line& operator=(const delay_line&) = delete;
@@ -61,12 +66,14 @@ private:
 
     void arm();
     void fire();
+    time_point now() const;
 
     const boost::asio::strand<boost::asio::any_io_executor> strand_;
     boost::asio::steady_timer timer_;
     const std::shared_ptr<endpoint> target_;
     const std::uint32_t delay_ms_;
     const std::uint32_t jitter_ms_;
+    const clock_function clock_;
 
     /// Held while chunks that are due are written to the target, and by
     /// #close, so that a close waits for a write under way.  Always taken

@@ -102,6 +102,8 @@ vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli age
 vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
+vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
+vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
 ```
 
 Run `vss_cli --help` for the full list.
@@ -230,12 +232,15 @@ python tools/changelog.py --release 0.2.0
 libs/vss_core        hub, endpoints, links, control lines, events
 libs/vss_ports       serial transport, PTY, loopback, com0com, enumeration
 libs/vss_config      JSON topology documents
+libs/vss_license     licence files and the signed envelope (verify, judge, sign)
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent
+libs/vss_plugin      plugin manifests and the checks made before a plugin runs
 libs/vss_agent       the agent's local transport, server and client
 libs/vss_control_proto the control API: messages, errors and the policy table
 libs/vss_control     the control gateway, its audit log and its client
+third_party          Monocypher, vendored unchanged (Ed25519)
 apps/vss_cli         headless command line
 apps/vss_agent       keeps ports running without the window (a first slice)
 apps/vss_gate        serves the control API to this user's programs (a first slice)

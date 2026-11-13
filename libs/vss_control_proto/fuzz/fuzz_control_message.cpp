@@ -11,10 +11,12 @@
 // reader starts with the small limit of a connection that has not said hello
 // and takes the full limit after its first frame, as the gateway does. Every
 // frame is decoded as a request and as a reply; what decodes must encode
-// again, and the frame made from it must decode to the same value. The input
-// is also split into a header and a blob and decoded directly, because a
-// mutated length prefix would otherwise keep most inputs from reaching the
-// JSON decoder.
+// again, and the frame made from it must decode to the same value. Every
+// frame is also decoded as a message from the gateway, which may be a batch of
+// events with its bytes in the blob; a batch must make the same round trip.
+// The input is also split into a header and a blob and decoded directly,
+// because a mutated length prefix would otherwise keep most inputs from
+// reaching the JSON decoder.
 //
 
 #include <vss/agent/proto/error.hpp>
@@ -29,6 +31,7 @@
 #include <cstdlib>
 #include <optional>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace
@@ -212,12 +215,42 @@ void check_reply(const agent::frame& value)
     require(second && *second == *decoded);
 }
 
+/// What a client makes of a frame from the gateway: a reply or a batch of
+/// events.  A reply is what the reply decoder finds; a batch must encode and
+/// decode to the same value, bytes included.
+void check_server_message(const agent::frame& value)
+{
+    const auto decoded = control::decode_server_message(value);
+    if (!decoded)
+    {
+        require(is_decode_error(decoded.error(), false));
+        return;
+    }
+    if (const auto* answer = std::get_if<control::reply>(&*decoded))
+    {
+        const auto direct = control::decode_reply(value);
+        require(direct && *direct == *answer);
+        return;
+    }
+    const auto& batch = std::get<control::event_batch>(*decoded);
+    const agent::frame again = control::encode(batch);
+    const auto sent = carried(again);
+    if (!sent)
+    {
+        return;
+    }
+    const auto second = control::decode_server_message(*sent);
+    require(second && std::holds_alternative<control::event_batch>(*second) &&
+            std::get<control::event_batch>(*second) == batch);
+}
+
 void check_frame(const agent::frame& value)
 {
     // Never throws, and the id is what the request decoder would find.
     static_cast<void>(control::peek_request_id(value));
     check_request(value);
     check_reply(value);
+    check_server_message(value);
 }
 
 /// The input as one frame: the first byte says how much of the rest is the

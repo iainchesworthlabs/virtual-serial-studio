@@ -43,6 +43,20 @@ constexpr std::array operation_rows{
                    true},
     operation_info{operation::tokens_list, "tokens.list", scope::admin, false},
     operation_info{operation::tokens_revoke, "tokens.revoke", scope::admin,
+                   true},
+    // Looking is not a change, so none of the four is "mutating"; the
+    // gateway audits when a stream starts and ends all the same.
+    operation_info{operation::events_subscribe, "events.subscribe",
+                   scope::monitor, false},
+    operation_info{operation::events_unsubscribe, "events.unsubscribe",
+                   scope::monitor, false},
+    operation_info{operation::traffic_subscribe, "traffic.subscribe",
+                   scope::monitor_data, false},
+    operation_info{operation::traffic_unsubscribe, "traffic.unsubscribe",
+                   scope::monitor_data, false},
+    operation_info{operation::sessions_list, "sessions.list", scope::admin,
+                   false},
+    operation_info{operation::sessions_kick, "sessions.kick", scope::admin,
                    true}};
 
 } // namespace

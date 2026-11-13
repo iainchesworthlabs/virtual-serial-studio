@@ -30,12 +30,15 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_options.cpp
   unit/test_hub_options_stress.cpp
   unit/test_hub_owner.cpp
+  unit/test_hub_read_stage.cpp
   unit/test_hub_sources.cpp
   unit/test_hub_sources_stress.cpp
   unit/test_hub_targets.cpp
   unit/test_hub_targets_stress.cpp
   unit/test_hub_timers.cpp
   unit/test_hub_topology.cpp
+  unit/test_license.cpp
+  unit/test_license_signature.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
   unit/test_rfc2217.cpp
@@ -43,6 +46,9 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_permissions.cpp
   unit/test_permissions_linux.cpp
   unit/test_permissions_macos.cpp
+  unit/test_plugin_hash.cpp
+  unit/test_plugin_manifest.cpp
+  unit/test_plugin_verify.cpp
   unit/test_profiling.cpp
   unit/test_serial_settings.cpp
   unit/test_serial_transport.cpp
@@ -51,6 +57,10 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_capture.cpp
   unit/test_replay.cpp
   unit/test_responder.cpp
+  unit/test_rules_compile.cpp
+  unit/test_rules_machine.cpp
+  unit/test_rules_parse.cpp
+  unit/test_rules_random.cpp
   unit/test_studio.cpp
   unit/test_studio_reopen.cpp
   unit/test_studio_links.cpp
@@ -90,8 +100,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
-  vss_agent_proto vss_agent_core vss_control_proto vss_control_core
-  Vss::BoostJson)
+  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto
+  vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE
@@ -172,10 +182,44 @@ endif()
 
 add_subdirectory(fuzz)
 
+# The timing benchmark measures the engine's timers and a round trip to the
+# agent. It is built with the tests and is not registered with CTest, because
+# a time must never decide whether a change passes. Run it by hand:
+#   vss_timing_bench --verbose
+if(TARGET vss_agent)
+  set(VSS_TIMING_BENCH_SOURCES framework/main.cpp bench/test_timing_bench.cpp)
+  if(WIN32)
+    list(APPEND VSS_TIMING_BENCH_SOURCES
+      support/platform/windows/child_process_windows.cpp
+      bench/platform/windows/precise_wait_windows.cpp)
+  else()
+    list(APPEND VSS_TIMING_BENCH_SOURCES
+      support/platform/posix/child_process_posix.cpp
+      bench/platform/posix/precise_wait_posix.cpp)
+  endif()
+  add_executable(vss_timing_bench ${VSS_TIMING_BENCH_SOURCES})
+  target_include_directories(vss_timing_bench PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/bench
+    ${CMAKE_CURRENT_SOURCE_DIR}/framework
+    ${CMAKE_CURRENT_SOURCE_DIR}/support)
+  target_link_libraries(vss_timing_bench PRIVATE vss_studio vss_testkit
+    vss_agent_core)
+  if(WIN32)
+    # timeBeginPeriod and timeEndPeriod, for the timer_period_scope.
+    target_link_libraries(vss_timing_bench PRIVATE winmm)
+  endif()
+  add_dependencies(vss_timing_bench vss_agent)
+  target_compile_definitions(vss_timing_bench PRIVATE
+    VSS_AGENT_PROGRAM="$<TARGET_FILE:vss_agent>")
+  vss_set_warnings(vss_timing_bench)
+endif()
+
 # A packaging smoke test: the public headers compile on their own.
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
-  vss_agent_proto vss_agent_core vss_control_proto vss_control_core)
+  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto vss_control_core
+  vss_license_test_keys)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 

@@ -10,10 +10,12 @@
 #   libs/vss_core        topology, routing, control lines, events
 #   libs/vss_ports       OS virtual ports (PTY, named pipe), serial transports
 #   libs/vss_config      JSON configuration documents
+#   libs/vss_rules       response timing rules: model, checks, matcher
 #   libs/vss_studio      the application service used by the CLI and the GUI
 #   libs/vss_testkit     reusable fakes for downstream tests
 #   libs/vss_agent_proto the wire protocol of the per-user agent
 #   libs/vss_agent       the agent's local transport, server and client
+#   libs/vss_plugin      plugin manifests and the checks made before a plugin runs
 #   libs/vss_control_proto the control API: messages, errors, the policy table
 #   libs/vss_control     the control gateway, its audit log and its client
 #   apps/vss_gate        the control gateway program
@@ -117,11 +119,13 @@ include(VssFuzz)
 # Subprojects
 # ---------------------------------------------------------------------------
 
+# Monocypher (third_party) and the portable core of the Windows driver are C.
+enable_language(C)
+add_subdirectory(third_party/monocypher)
 add_subdirectory(libs)
 
-# The portable core of the Windows driver is C. It is built for the tests only.
+# The driver core is built for the tests only.
 if(VSS_BUILD_TESTS)
-  enable_language(C)
   add_subdirectory(drivers/windows/vsscom/core)
 endif()
 
@@ -156,6 +160,7 @@ if(VSS_INSTALL)
     DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio
     COMPONENT runtime)
   install(FILES LICENSES/BSL-1.0.txt LICENSES/GPL-3.0-or-later.txt
+    LICENSES/BSD-2-Clause.txt LICENSES/CC0-1.0.txt
     DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio/LICENSES
     COMPONENT runtime)
   # The fonts are inside the program (Qt resources); their licences ship beside

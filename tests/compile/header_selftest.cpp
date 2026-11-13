@@ -27,6 +27,12 @@
 #include <vss/core/transport.hpp>
 #include <vss/core/types.hpp>
 
+#include <vss/license/error.hpp>
+#include <vss/license/license.hpp>
+#include <vss/license/sign.hpp>
+#include <vss/license/signed_file.hpp>
+#include <vss/license/test_keys.hpp>
+
 #include <vss/ports/com0com.hpp>
 #include <vss/ports/loopback_transport.hpp>
 #include <vss/ports/native_lines.hpp>
@@ -35,6 +41,18 @@
 #include <vss/ports/virtual_port.hpp>
 
 #include <vss/config/document.hpp>
+
+#include <vss/plugin/error.hpp>
+#include <vss/plugin/hash.hpp>
+#include <vss/plugin/manifest.hpp>
+#include <vss/plugin/policy.hpp>
+#include <vss/plugin/revocations.hpp>
+#include <vss/plugin/verify.hpp>
+#include <vss/rules/compile.hpp>
+#include <vss/rules/machine.hpp>
+#include <vss/rules/model.hpp>
+#include <vss/rules/parse.hpp>
+#include <vss/rules/random.hpp>
 
 #include <vss/studio/studio.hpp>
 
