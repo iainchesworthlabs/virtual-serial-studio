@@ -215,6 +215,9 @@ studio::~studio()
     VSS_PROFILE_ZONE("studio.destroy");
     if (hub_ && reconnect_subscription_ != 0)
         hub_->unsubscribe(reconnect_subscription_);
+    // A rule set's actions call the studio, so every set is closed first.
+    if (hub_)
+        close_all_rules();
     // Ends the tries first: one may be in the middle of opening a transport.
     if (reconnector_)
     {
@@ -852,6 +855,8 @@ result<void> studio::remove_port(endpoint_id id)
 
     if (echo != 0)
         hub_->unsubscribe(echo);
+    // A port's rule set goes with it; a port with none is not an error.
+    static_cast<void>(remove_rules(id));
     const auto removed = hub_->remove_endpoint(id);
     if (!removed)
         return removed.error();
