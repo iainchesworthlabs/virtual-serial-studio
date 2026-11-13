@@ -6250,8 +6250,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>Hilft herauszufinden, warum Studio langsam ist. Es zeichnet nur Zeiten auf und sendet nichts, bis Sie den Tracy-Profiler mit der Adresse oben verbinden. Beim nächsten Start von Studio ist es wieder aus.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>Hilft herauszufinden, warum Studio langsam ist. Es zeichnet nur Zeiten auf und sendet nichts irgendwohin: Studio lauscht nur auf diesem Computer, und eine Zeitleiste erscheint nur, wenn Sie den Tracy-Profiler hier starten und mit der Adresse oben verbinden. Studio merkt sich diesen Schalter und zeichnet beim nächsten Start wieder auf. Anderen Computern die Verbindung zu erlauben, erfordert einen Neustart.</translation>
         </message>
     </context>
     <context>
@@ -18836,6 +18836,29 @@ Netzwerke: %5</translation>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>In diesem Build nicht verfügbar</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>Zoomleiste</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>Verkleinern</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>Zoom auf 100 % zurücksetzen</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>Vergrößern</translation>
         </message>
     </context>
 </TS>

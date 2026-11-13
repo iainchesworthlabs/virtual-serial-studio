@@ -8,6 +8,7 @@
 
 #include "backend/fake_studio_backend.hpp"
 #include "shell/shell_window.hpp"
+#include "theme/focus_ring_style.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
 #include "topology/links_list.hpp"
@@ -1851,5 +1852,33 @@ TEST_CASE("topology: hit-testing and dragging stay correct when zoomed")
         REQUIRE_NEAR(view.mapToScene(at).x(), node.center().x(), 1.0);
         REQUIRE_NEAR(view.mapToScene(at).y(), node.center().y(), 1.0);
     }
+    view.close();
+}
+
+TEST_CASE("topology: a zoom button shows the focus ring for keyboard focus")
+{
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(900, 600);
+    view.show();
+    view.activateWindow();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    auto* button =
+        view.findChild<QToolButton*>(QStringLiteral("topologyZoomIn"));
+    REQUIRE(button != nullptr);
+    button->setFocus(Qt::TabFocusReason);
+    QApplication::processEvents();
+    REQUIRE(button->hasFocus());
+    REQUIRE(vss::gui::FocusRingStyle::keyboard_focus());
+
+    const QImage image = button->grab().toImage();
+    const QColor ring =
+        vss::gui::Theme::instance().colour(vss::gui::colour_role::focus);
+    bool found = false;
+    for (int y = 0; y < 4 && !found; ++y)
+        found = image.pixelColor(image.width() / 2, y) == ring;
+    REQUIRE(found);
     view.close();
 }

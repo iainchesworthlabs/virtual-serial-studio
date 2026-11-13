@@ -8,11 +8,13 @@
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
+#include "profiling/stall_watchdog.hpp"
 #include "shell/shell_window.hpp"
 #include "shell/single_instance.hpp"
 #include "shell/studio_tray.hpp"
 #include "support/console.hpp"
 #include "support/running_setup.hpp"
+#include "support/settings.hpp"
 #include "support/stall_probe.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -119,6 +121,30 @@ try
     QApplication::setOrganizationName(QStringLiteral("Virtual Serial Studio"));
     QApplication::setOrganizationDomain(
         QStringLiteral("virtualserial.example"));
+    // Settings, Performance, Profiling is remembered here, as soon as the
+    // settings store has its name. An explicit --no-profile or VSS_PROFILE=0
+    // wins over it, and so do the unattended runs.
+    if (!profile.enable && !selftest && !screenshot)
+    {
+        bool declined =
+            qEnvironmentVariable("VSS_PROFILE") == QLatin1String("0");
+        for (int index = 1; index < argc; ++index)
+            declined = declined ||
+                       std::strcmp(argv[index], "--no-profile") == 0;
+        if (!declined &&
+            vss::gui::support::load_ui_settings().profile_on_start)
+        {
+            auto remembered = profile;
+            remembered.enable = true;
+            const auto started = vss::profiling::start(remembered);
+            if (started)
+            {
+                std::fprintf(stderr, "%s\n",
+                             vss::profiling::describe(*started).c_str());
+                VSS_PROFILE_MESSAGE("gui.startup");
+            }
+        }
+    }
     // The icon of every window and of the taskbar or dock entry, from the Qt
     // resource. The desktop file name lets a Linux desktop pair the window with
     // the icon in the hicolor theme that vss_gui.desktop names.
@@ -376,6 +402,10 @@ try
             window.show();
             VSS_PROFILE_MESSAGE("gui.window_shown");
         }
+        // Writes a line to stalls.log in the local data folder when the
+        // window stops answering for two seconds, naming the event it was
+        // inside. Local only; see docs/profiling.md.
+        const vss::gui::StallWatchdog stall_watchdog;
         const int exit_code = application.exec();
         VSS_PROFILE_MESSAGE("gui.shutdown");
         return exit_code;

@@ -6,6 +6,7 @@
 
 #include "topology/topology_view.hpp"
 
+#include "theme/focus_ring_style.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
@@ -39,8 +40,10 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QNativeGestureEvent>
+#include <QPaintEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPen>
 #include <QResizeEvent>
 #include <QRubberBand>
 #include <QScrollBar>
@@ -56,6 +59,28 @@ namespace vss::gui::topology
 {
 namespace
 {
+/// A tool button that paints the 2 px keyboard focus ring, which a QSS-styled
+/// QToolButton does not draw by itself.
+class ZoomButton final : public QToolButton
+{
+public:
+    using QToolButton::QToolButton;
+
+protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        QToolButton::paintEvent(event);
+        if (!hasFocus() || !FocusRingStyle::keyboard_focus())
+            return;
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(
+            QPen(Theme::instance().colour(colour_role::focus), 2.0));
+        painter.drawRoundedRect(QRectF(rect()).adjusted(2, 2, -2, -2), 4, 4);
+    }
+};
+
 
 /// The central column is about this wide at the 960 by 640 minimum window,
 /// where the design asks for the compact 120 by 48 nodes.
@@ -163,7 +188,7 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
     const auto make_zoom_button = [this, zoom_layout](const QString& name,
                                                        const QString& tip)
     {
-        auto* button = new QToolButton(zoom_bar_);
+        auto* button = new ZoomButton(zoom_bar_);
         button->setObjectName(name);
         button->setAccessibleName(tip);
         button->setToolTip(tip);
@@ -712,6 +737,7 @@ void TopologyView::apply_positions(bool refresh_scene_rect)
 
 void TopologyView::update_scene_rect()
 {
+    VSS_PROFILE_ZONE("gui.topology.update_scene_rect");
     QRectF content;
     for (const auto& placement : layout_.nodes)
     {
@@ -751,6 +777,7 @@ void TopologyView::update_scene_rect()
 
 void TopologyView::update_overlays()
 {
+    VSS_PROFILE_ZONE("gui.topology.update_overlays");
     const bool has_ports = !ports_.empty();
     const int view_width = std::max(1, viewport()->width());
     const int view_height = std::max(1, viewport()->height());
@@ -1566,6 +1593,7 @@ void TopologyView::dropEvent(QDropEvent* event)
 
 void TopologyView::resizeEvent(QResizeEvent* event)
 {
+    VSS_PROFILE_ZONE("gui.topology.resize");
     // Qt lays the new viewport over the old scroll bars before this runs, so
     // the centre cannot be read back here; `view_centre_` holds the scene
     // point the user was looking at.
@@ -1686,7 +1714,7 @@ void TopologyView::drawBackground(QPainter* painter, const QRectF& rect)
     if (transform().m11() * kGrid < 6.0)
         return;
     painter->setPen(QPen(theme.colour(colour_role::line2), 1.5, Qt::SolidLine,
-                         Qt::RoundCap));
+                         Qt::FlatCap));
     const qreal left = std::floor(rect.left() / kGrid) * kGrid;
     const qreal top = std::floor(rect.top() / kGrid) * kGrid;
     const int columns = static_cast<int>((rect.right() - left) / kGrid) + 1;
@@ -1942,6 +1970,7 @@ void TopologyView::tidy_layout()
 
 void TopologyView::fit_content()
 {
+    VSS_PROFILE_ZONE("gui.topology.fit_content");
     if (ports_.empty())
     {
         resetTransform();

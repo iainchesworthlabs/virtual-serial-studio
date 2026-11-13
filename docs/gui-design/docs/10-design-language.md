@@ -56,18 +56,18 @@ and TX. The language works with the system font and plain Qt widgets.
 
 | Role | Light | Dark | Use |
 |---|---|---|---|
-| ground | #ECEEF1 | #0E0F12 | Window background behind panes |
-| panel | #FFFFFF | #18191D | Pane, dialog, card and field surface |
-| sunken | #F4F5F7 | #121316 | Grouped sections, canvas, tracks |
-| fill | #EEF0F3 | #26282D | Secondary button, segment track, neutral chip |
-| fillHover | #E4E7EB | #2F3137 | Secondary button hover |
-| hover | #F3F4F6 | #1F2125 | Row and ghost button hover |
-| pressed | #E4E7EB | #2F3137 | Pressed state |
-| line | #E2E5E9 | #27292E | Pane borders and dividers (decorative) |
-| line2 | #CDD2D9 | #373A41 | Field and card borders |
+| ground | #ECEEF1 | #14161A | Window background behind panes |
+| panel | #FFFFFF | #22252B | Pane, dialog, card and field surface |
+| sunken | #F4F5F7 | #1A1D22 | Grouped sections, canvas, tracks |
+| fill | #EEF0F3 | #2D3139 | Secondary button, segment track, neutral chip |
+| fillHover | #E4E7EB | #363B44 | Secondary button hover |
+| hover | #F3F4F6 | #2A2E35 | Row and ghost button hover |
+| pressed | #E4E7EB | #3A3F49 | Pressed state |
+| line | #E2E5E9 | #343944 | Pane borders and dividers (decorative) |
+| line2 | #CDD2D9 | #454A55 | Field and card borders |
 | accent | #2160E0 | #2F6AE6 | Primary fill, selection border, checked controls |
-| accentText | #1D56C9 | #8AB4FF | Accent text and links on `panel` |
-| violet, violetSoft | #6941C6, #EDE9FB | #B9A4FF, #272042 | TX tags and fixture tiles |
+| accentText | #1D56C9 | #9BBCF7 | Accent text and links on `panel` |
+| violet, violetSoft | #6941C6, #EDE9FB | #B7A8F0, #2B2644 | TX tags and fixture tiles |
 
 `tokens.json` has the full set and `tools/check_contrast.py` checks the pairs.
 
