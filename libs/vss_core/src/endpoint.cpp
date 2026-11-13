@@ -261,6 +261,10 @@ void endpoint::on_read(boost::system::error_code ec, std::size_t count)
         return;
     }
 
+    // The chunk's one time: for a stage, for a half-duplex bus and for the
+    // data event.  Read before routing, so it does not include it.
+    const time_point read_at = owner_.now();
+
     {
         std::lock_guard lock(stats_mutex_);
         stats_.bytes_rx += count;
@@ -271,11 +275,14 @@ void endpoint::on_read(boost::system::error_code ec, std::size_t count)
     auto chunk = std::make_shared<const byte_buffer>(
         read_buffer_.begin(), read_buffer_.begin() + static_cast<std::ptrdiff_t>(count));
 
+    if (read_stage_)
+        read_stage_->on_read(id_, *chunk, read_at);
+
     // Route on the I/O thread: the fast path does not wait for the event
     // dispatcher, and never copies for links with no subscriber.
-    owner_.route_data(id_, *chunk);
+    owner_.route_data(id_, *chunk, read_at);
     if (options_.capture_traffic)
-        emit_data(data_direction::rx, std::move(chunk));
+        emit_data(data_direction::rx, std::move(chunk), read_at);
 
     do_read();
 }
@@ -438,7 +445,7 @@ void endpoint::on_write(const std::shared_ptr<pending_write>& write,
         if (options_.capture_traffic)
         {
             auto done = std::shared_ptr<const byte_buffer>(write->data);
-            emit_data(data_direction::tx, std::move(done));
+            emit_data(data_direction::tx, std::move(done), owner_.now());
         }
         if (write->handler)
         {
@@ -673,7 +680,7 @@ void endpoint::transition(endpoint_state next)
                                                : event_kind::stopped;
     event.endpoint = id_;
     event.name = name();
-    event.when = clock_type::now();
+    event.when = owner_.now();
     event.message = std::string(to_string(previous)) + " -> "
         + to_string(next);
     owner_.publish(std::move(event));
@@ -687,12 +694,27 @@ void endpoint::emit(error_code ec, std::string message, event_kind kind)
     event.name = name();
     event.error = ec;
     event.message = std::move(message);
-    event.when = clock_type::now();
+    event.when = owner_.now();
     owner_.publish(std::move(event));
 }
 
+void endpoint::set_read_stage(std::shared_ptr<read_stage> stage,
+                              std::function<void()> done)
+{
+    boost::asio::post(
+        strand_, [self = shared_from_this(), stage = std::move(stage),
+                  done = std::move(done)]() mutable
+        {
+            // The old stage goes when `stage` does, after `done`.
+            self->read_stage_.swap(stage);
+            if (done)
+                done();
+        });
+}
+
 void endpoint::emit_data(data_direction direction,
-                         std::shared_ptr<const byte_buffer> data)
+                         std::shared_ptr<const byte_buffer> data,
+                         time_point when)
 {
     endpoint_event event;
     event.kind = event_kind::data;
@@ -700,7 +722,7 @@ void endpoint::emit_data(data_direction direction,
     event.name = name();
     event.direction = direction;
     event.data = std::move(data);
-    event.when = clock_type::now();
+    event.when = when;
     owner_.publish(std::move(event));
 }
 
@@ -711,7 +733,7 @@ void endpoint::emit_lines()
     event.endpoint = id_;
     event.name = name();
     event.lines = lines();
-    event.when = clock_type::now();
+    event.when = owner_.now();
     owner_.publish(std::move(event));
 }
 

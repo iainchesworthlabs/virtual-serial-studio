@@ -748,13 +748,25 @@ TEST_CASE("half-duplex: the link delay is added after the wire")
     const link_id bus = fixture.make_bus(options);
 
     fixture.send(0, "late");
-    // The wire is still the hand clock's; the delay is real time, and starts
-    // when the chunk leaves the wire.
-    const auto left = std::chrono::steady_clock::now();
+    // The delay is on the hub's clock, as the wire is, and starts when the
+    // chunk leaves the wire.  With the chunk off the wire and the clock
+    // still, no amount of real time delivers it.
     fixture.clock.advance(40ms);
-    REQUIRE(fixture.heard(1, "late"));
-    REQUIRE(fixture.heard(2, "late"));
-    REQUIRE(std::chrono::steady_clock::now() - left >= 150ms);
+    std::this_thread::sleep_for(50ms);
+    REQUIRE_EQ(fixture.ports[1].written(), std::string());
+    REQUIRE_EQ(fixture.ports[2].written(), std::string());
+
+    // Moving the clock does.  It is moved a step at a time until the chunk
+    // arrives, because when the chunk left the wire, and so when its delay
+    // began, is the business of the wire's strand.
+    REQUIRE(wait_until(
+        [&]
+        {
+            fixture.clock.advance(10ms);
+            return fixture.ports[1].written() == "late" &&
+                   fixture.ports[2].written() == "late";
+        },
+        5000ms));
     REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{0});
 }
 
