@@ -2,14 +2,15 @@
 #
 # Plugins: the manifest of a plugin, and the checks made on a plugin before
 # any of its code runs. It starts no process and, apart from the load and save
-# of the trust store, does no I/O, so it can be tested and fuzzed alone. See
-# docs/plugins.md.
+# of the trust store and the reading of a plugin's directory, does no I/O, so
+# it can be tested and fuzzed alone. See docs/plugins.md.
 #
 
 add_library(vss_plugin
   src/error.cpp
   src/hash.cpp
   src/manifest.cpp
+  src/measure.cpp
   src/policy.cpp
   src/revocations.cpp
   src/trust_store.cpp

@@ -45,6 +45,7 @@
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/manifest.hpp>
+#include <vss/plugin/measure.hpp>
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/revocations.hpp>
 #include <vss/plugin/trust_store.hpp>
