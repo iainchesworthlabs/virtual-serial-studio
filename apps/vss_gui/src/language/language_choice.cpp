@@ -14,6 +14,7 @@
 #include <QLocale>
 #include <QTranslator>
 
+#include <memory>
 #include <string_view>
 
 namespace vss::gui
@@ -23,6 +24,7 @@ namespace
 {
 
 QString g_description;
+std::unique_ptr<QTranslator> g_translator;
 
 /// The code of the catalogue that serves a tag, or an empty string when there
 /// is none for it.
@@ -277,14 +279,18 @@ language_choice apply_language()
                : choose_language(preferred, available);
     record_language_choice(choice, preferred);
 
-    QTranslator* translator = nullptr;
+    // The program keeps the translator for the rest of its life, and a second
+    // call replaces the first.
+    if (g_translator != nullptr)
+        QCoreApplication::removeTranslator(g_translator.get());
+    g_translator.reset();
     if (pseudo)
-        translator = make_pseudo_translator(QCoreApplication::instance());
+        g_translator.reset(make_pseudo_translator(nullptr));
     else if (choice.code != QStringLiteral("en"))
-        translator = make_catalogue_translator(catalogue_path(choice.code),
-                                               QCoreApplication::instance());
-    if (translator != nullptr)
-        QCoreApplication::installTranslator(translator);
+        g_translator.reset(
+            make_catalogue_translator(catalogue_path(choice.code), nullptr));
+    if (g_translator != nullptr)
+        QCoreApplication::installTranslator(g_translator.get());
 
     const bool right_to_left = pseudo ? forced == QStringLiteral("pseudo-rtl")
                                       : is_right_to_left(choice.code);

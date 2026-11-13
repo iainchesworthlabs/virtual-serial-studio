@@ -164,10 +164,9 @@ TEST_CASE("language: pseudo and pseudo-rtl show every text accented")
     REQUIRE(shown == vss::gui::pseudo_localise(QStringLiteral("Add a port")));
 
     // Put the program back as the other tests expect it.
-    const auto translators =
-        QCoreApplication::instance()->findChildren<QTranslator*>();
-    for (QTranslator* translator : translators)
-        delete translator;
+    qputenv("VSS_LANGUAGE", QByteArrayLiteral("en"));
+    static_cast<void>(vss::gui::apply_language());
+    qunsetenv("VSS_LANGUAGE");
     QGuiApplication::setLayoutDirection(Qt::LeftToRight);
     REQUIRE_EQ(QCoreApplication::translate("Any", "Add a port"),
                QStringLiteral("Add a port"));
