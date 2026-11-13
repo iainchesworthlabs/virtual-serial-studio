@@ -48,6 +48,8 @@ QToolButton::menu-indicator { image: none; width: 0; }
 QToolButton[role="secondary"] { background: %fill%; color: %ink%; font-weight: 500; }
 QToolButton[role="secondary"]:hover { background: %fillHover%; }
 QToolButton[role="secondary"]:pressed { background: %pressed%; }
+/* The tool row takes keyboard focus only (Tab), so :focus is keyboard focus here. The padding shrinks by the border width so the button keeps its size. */
+QToolBar QToolButton:focus { border: 2px solid %focus%; padding: 0 6px; }
 QStatusBar { background: %ground%; border: 0; color: %ink3%; }
 QStatusBar::item { border: 0; }
 QStatusBar QLabel { color: %ink3%; }

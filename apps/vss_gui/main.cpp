@@ -14,6 +14,7 @@
 #include "shell/single_instance.hpp"
 #include "shell/studio_tray.hpp"
 #include "support/app_identity.hpp"
+#include "support/build_info.hpp"
 #include "support/console.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
@@ -119,7 +120,8 @@ try
     vss::gui::support::apply_application_identity();
     QApplication::setApplicationDisplayName(
         vss::gui::support::application_name());
-    QApplication::setApplicationVersion(QStringLiteral(VSS_GUI_VERSION));
+    QApplication::setApplicationVersion(
+        vss::gui::support::current_version_string());
     QApplication::setOrganizationDomain(
         QStringLiteral("virtualserial.example"));
     // Settings, Performance, Profiling is remembered here, as soon as the

@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>تم نسخ معلومات البيئة.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>معلومات البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>نسخ معلومات البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>تم نسخ معلومات البناء.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>انسخ هذا في تقرير الخلل. فهو يجيب عن سؤال «على ماذا يعمل هذا؟»</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>الإصدار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>وسم Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>مراجعة Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>المراجعة المختصرة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>شجرة العمل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>الفرع</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>رقم البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>وقت البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>نوع البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>المترجم</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>إصدار Qt عند البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>نظام التشغيل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>المعمارية</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>النواة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>إصدار Qt عند التشغيل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>ملحق المنصة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>الشاشة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>اللغة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>التنميط</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>يُشحن مع Studio في شكل مكتبات مشتركة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>موجود لأن هذا البناء يتضمن دعم التنميط.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>رخصة الخطوط المفتوحة SIL، الإصدار 1.1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>المُصيِّر</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1316,6 +1461,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>تم نسخ معلومات البيئة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
         </message>
     </context>
     <context>
@@ -9085,157 +9240,172 @@ Networks: %5</source>
             <translation>تُرسم اللوحة على المعالج: %1</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="384" />
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>بناء بيئة تقرير خلل</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="385" />
             <source>canvas new port</source>
             <translation>لوحة منفذ جديد</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="391" />
+            <location filename="../src/shell/shell_window.cpp" line="392" />
             <source>Add fixture</source>
             <translation>إضافة جهاز محاكاة</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="392" />
+            <location filename="../src/shell/shell_window.cpp" line="393" />
             <source>canvas new mock fixture</source>
             <translation>لوحة جهاز محاكاة جديد</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="399" />
+            <location filename="../src/shell/shell_window.cpp" line="400" />
             <source>Add pair</source>
             <translation>إضافة زوج</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="400" />
+            <location filename="../src/shell/shell_window.cpp" line="401" />
             <source>canvas bundle two ports null modem</source>
             <translation>لوحة حزمة منفذين null-modem</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="408" />
+            <location filename="../src/shell/shell_window.cpp" line="409" />
             <source>Duplicate</source>
             <translation>تكرار</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="409" />
+            <location filename="../src/shell/shell_window.cpp" line="410" />
             <source>copy ports canvas</source>
             <translation>نسخ منافذ لوحة</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="423" />
+            <location filename="../src/shell/shell_window.cpp" line="424" />
             <source>Show toolbox</source>
             <translation>إظهار صندوق الأدوات</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="424" />
+            <location filename="../src/shell/shell_window.cpp" line="425" />
             <source>canvas tiles palette</source>
             <translation>لوحة بلاطات صندوق الأدوات</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="764" />
+            <location filename="../src/shell/shell_window.cpp" line="775" />
             <source>Start again</source>
             <translation>البدء مجدداً</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3305" />
+            <location filename="../src/shell/shell_window.cpp" line="3351" />
             <source>This stops %1 ports and %2 links. Studio offers to start them again the next time it opens.</source>
             <translation>يوقف هذا %1 منفذاً و%2 ارتباطاً. يعرض Studio تشغيلها مجدداً عند فتحه في المرة التالية.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3309" />
+            <location filename="../src/shell/shell_window.cpp" line="3355" />
             <source>Stop the ports and quit?</source>
             <translation>إيقاف المنافذ والإنهاء؟</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3310" />
+            <location filename="../src/shell/shell_window.cpp" line="3356" />
             <source>Stop the ports and quit</source>
             <translation>إيقاف المنافذ والإنهاء</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3311" />
+            <location filename="../src/shell/shell_window.cpp" line="3357" />
             <source>Keep running</source>
             <translation>إبقاء التشغيل</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3356" />
+            <location filename="../src/shell/shell_window.cpp" line="3402" />
             <source>Keep the ports running?</source>
             <translation>إبقاء المنافذ تعمل؟</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3357" />
+            <location filename="../src/shell/shell_window.cpp" line="3403" />
             <source>This desktop has no notification area to keep Studio in. Minimise the window to keep the ports running, or stop them and quit.</source>
             <translation>لا تحتوي سطح المكتب هذا على منطقة إشعارات لإبقاء Studio فيها. صغّر النافذة لإبقاء المنافذ تعمل، أو أوقفها وأنهِ البرنامج.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3364" />
+            <location filename="../src/shell/shell_window.cpp" line="3410" />
             <source>Minimise instead</source>
             <translation>تصغير بدلاً من ذلك</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3444" />
+            <location filename="../src/shell/shell_window.cpp" line="3490" />
             <source>Could not change start at sign-in</source>
             <translation>تعذر تغيير البدء عند تسجيل الدخول</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3445" />
+            <location filename="../src/shell/shell_window.cpp" line="3491" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>تعذر على Studio كتابة إدخال تسجيل الدخول. لم يتغير شيء.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3467" />
+            <location filename="../src/shell/shell_window.cpp" line="3513" />
             <source>The ports from last time could not be read, so Studio started without them.</source>
             <translation>تعذرت قراءة المنافذ من المرة السابقة، لذا بدأ Studio بدونها.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3547" />
+            <location filename="../src/shell/shell_window.cpp" line="3593" />
             <source>Could not start the ports from last time: %1</source>
             <translation>تعذر تشغيل المنافذ من المرة السابقة: %1</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3553" />
+            <location filename="../src/shell/shell_window.cpp" line="3599" />
             <source>Could not start the ports from last time</source>
             <translation>تعذر تشغيل المنافذ من المرة السابقة</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3554" />
+            <location filename="../src/shell/shell_window.cpp" line="3600" />
             <source>Open Studio to see why and start them again.</source>
             <translation>افتح Studio لمعرفة السبب وتشغيلها مجدداً.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3572" />
+            <location filename="../src/shell/shell_window.cpp" line="3618" />
             <source>Started the ports that were running before: %1 ports, %2 links.</source>
             <translation>تم تشغيل المنافذ التي كانت تعمل سابقاً: %1 منفذاً، %2 ارتباطاً.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3576" />
+            <location filename="../src/shell/shell_window.cpp" line="3622" />
             <source>Started the ports again: %1 ports, %2 links.</source>
             <translation>تم تشغيل المنافذ مجدداً: %1 منفذاً، %2 ارتباطاً.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3605" />
+            <location filename="../src/shell/shell_window.cpp" line="3651" />
             <source>When you last quit, %1 ports and %2 links were running.</source>
             <translation>عند آخر إنهاء كان %1 منفذاً و%2 ارتباطاً قيد التشغيل.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3620" />
+            <location filename="../src/shell/shell_window.cpp" line="3666" />
             <source>Some COM ports were lost</source>
             <translation>فُقدت بعض منافذ COM</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3621" />
+            <location filename="../src/shell/shell_window.cpp" line="3667" />
             <source>Open Studio to recreate them.</source>
             <translation>افتح Studio لإعادة إنشائها.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3635" />
+            <location filename="../src/shell/shell_window.cpp" line="3681" />
             <source>Studio is still running your ports</source>
             <translation>لا يزال Studio يشغّل منافذك</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3637" />
+            <location filename="../src/shell/shell_window.cpp" line="3683" />
             <source>Open it again from this icon, or quit it there to stop the ports. To have them back after a restart, choose Start when I sign in in the same menu.</source>
             <translation>افتحه مجدداً من هذه الأيقونة، أو أنهِه من هناك لإيقاف المنافذ. لاستعادتها بعد إعادة التشغيل، اختر «البدء عند تسجيل الدخول» في القائمة نفسها.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3640" />
+            <location filename="../src/shell/shell_window.cpp" line="3686" />
             <source>Open it again from this icon, or quit it there to stop the ports.</source>
             <translation>افتحه مجدداً من هذه الأيقونة، أو أنهِه من هناك لإيقاف المنافذ.</translation>
         </message>
@@ -13137,6 +13307,14 @@ Networks: %5</source>
             <translation>RX %1، TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>إجمالي حركة البيانات</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>إجمالي البايتات المستلمة والمرسلة. يعرض شريط الحالة المعدل الحالي.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>لم يفتح أي برنامج %1 بعد. يجب أن يفتح البرنامج %1 تحديدًا؛ لن يستقبل منفذ آخر أي شيء.</translation>
@@ -16675,6 +16853,21 @@ Networks: %5</source>
         <message>
             <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
             <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>بناء بيئة تقرير خلل</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
         </message>
     </context>
     <context>

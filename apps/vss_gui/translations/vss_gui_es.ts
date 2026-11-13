@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>Entorno copiado.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>Información de la compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>Copiar información de la compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>Información de la compilación copiada.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>Copie esto en un informe de error. Responde a «¿en qué se está ejecutando esto?»</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>Versión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Etiqueta de Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Revisión de Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>Revisión corta</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>Árbol de trabajo</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>Rama</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>Número de compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>Compilado</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>Tipo de compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>Compilador</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>Qt de la compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>Sistema operativo</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>Arquitectura</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>Núcleo</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>Qt en ejecución</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>Complemento de plataforma</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>Pantalla</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>Idioma</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>Perfilado</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>Se incluye con Studio como bibliotecas compartidas.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>Presente porque esta compilación incluye compatibilidad con el perfilado.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>Licencia de fuentes abiertas SIL, versión 1.1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>Renderizador</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1316,6 +1461,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>Entorno copiado.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
         </message>
     </context>
     <context>
@@ -9061,157 +9216,172 @@ Redes: %5</translation>
             <translation>El lienzo se dibuja en el procesador: %1</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="384" />
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>compilación entorno informe de error</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="385" />
             <source>canvas new port</source>
             <translation>lienzo nuevo puerto</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="391" />
+            <location filename="../src/shell/shell_window.cpp" line="392" />
             <source>Add fixture</source>
             <translation>Añadir dispositivo simulado</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="392" />
+            <location filename="../src/shell/shell_window.cpp" line="393" />
             <source>canvas new mock fixture</source>
             <translation>lienzo nuevo dispositivo simulado</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="399" />
+            <location filename="../src/shell/shell_window.cpp" line="400" />
             <source>Add pair</source>
             <translation>Añadir par</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="400" />
+            <location filename="../src/shell/shell_window.cpp" line="401" />
             <source>canvas bundle two ports null modem</source>
             <translation>lienzo paquete dos puertos módem nulo</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="408" />
+            <location filename="../src/shell/shell_window.cpp" line="409" />
             <source>Duplicate</source>
             <translation>Duplicar</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="409" />
+            <location filename="../src/shell/shell_window.cpp" line="410" />
             <source>copy ports canvas</source>
             <translation>copiar puertos lienzo</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="423" />
+            <location filename="../src/shell/shell_window.cpp" line="424" />
             <source>Show toolbox</source>
             <translation>Mostrar caja de herramientas</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="424" />
+            <location filename="../src/shell/shell_window.cpp" line="425" />
             <source>canvas tiles palette</source>
             <translation>lienzo fichas paleta</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="764" />
+            <location filename="../src/shell/shell_window.cpp" line="775" />
             <source>Start again</source>
             <translation>Iniciar de nuevo</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3305" />
+            <location filename="../src/shell/shell_window.cpp" line="3351" />
             <source>This stops %1 ports and %2 links. Studio offers to start them again the next time it opens.</source>
             <translation>Esto detiene %1 puertos y %2 enlaces. Studio ofrece iniciarlos de nuevo la próxima vez que se abra.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3309" />
+            <location filename="../src/shell/shell_window.cpp" line="3355" />
             <source>Stop the ports and quit?</source>
             <translation>¿Detener los puertos y salir?</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3310" />
+            <location filename="../src/shell/shell_window.cpp" line="3356" />
             <source>Stop the ports and quit</source>
             <translation>Detener los puertos y salir</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3311" />
+            <location filename="../src/shell/shell_window.cpp" line="3357" />
             <source>Keep running</source>
             <translation>Mantener en ejecución</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3356" />
+            <location filename="../src/shell/shell_window.cpp" line="3402" />
             <source>Keep the ports running?</source>
             <translation>¿Mantener los puertos en ejecución?</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3357" />
+            <location filename="../src/shell/shell_window.cpp" line="3403" />
             <source>This desktop has no notification area to keep Studio in. Minimise the window to keep the ports running, or stop them and quit.</source>
             <translation>Este escritorio no tiene área de notificaciones donde mantener Studio. Minimice la ventana para mantener los puertos en ejecución, o deténgalos y salga.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3364" />
+            <location filename="../src/shell/shell_window.cpp" line="3410" />
             <source>Minimise instead</source>
             <translation>Minimizar en su lugar</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3444" />
+            <location filename="../src/shell/shell_window.cpp" line="3490" />
             <source>Could not change start at sign-in</source>
             <translation>No se pudo cambiar el inicio al iniciar sesión</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3445" />
+            <location filename="../src/shell/shell_window.cpp" line="3491" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio no pudo escribir la entrada de inicio de sesión. No se cambió nada.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3467" />
+            <location filename="../src/shell/shell_window.cpp" line="3513" />
             <source>The ports from last time could not be read, so Studio started without them.</source>
             <translation>No se pudieron leer los puertos de la vez anterior, así que Studio se inició sin ellos.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3547" />
+            <location filename="../src/shell/shell_window.cpp" line="3593" />
             <source>Could not start the ports from last time: %1</source>
             <translation>No se pudieron iniciar los puertos de la vez anterior: %1</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3553" />
+            <location filename="../src/shell/shell_window.cpp" line="3599" />
             <source>Could not start the ports from last time</source>
             <translation>No se pudieron iniciar los puertos de la vez anterior</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3554" />
+            <location filename="../src/shell/shell_window.cpp" line="3600" />
             <source>Open Studio to see why and start them again.</source>
             <translation>Abra Studio para ver el motivo e iniciarlos de nuevo.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3572" />
+            <location filename="../src/shell/shell_window.cpp" line="3618" />
             <source>Started the ports that were running before: %1 ports, %2 links.</source>
             <translation>Se iniciaron los puertos que estaban en ejecución antes: %1 puertos, %2 enlaces.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3576" />
+            <location filename="../src/shell/shell_window.cpp" line="3622" />
             <source>Started the ports again: %1 ports, %2 links.</source>
             <translation>Se iniciaron de nuevo los puertos: %1 puertos, %2 enlaces.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3605" />
+            <location filename="../src/shell/shell_window.cpp" line="3651" />
             <source>When you last quit, %1 ports and %2 links were running.</source>
             <translation>Al salir la última vez, había %1 puertos y %2 enlaces en ejecución.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3620" />
+            <location filename="../src/shell/shell_window.cpp" line="3666" />
             <source>Some COM ports were lost</source>
             <translation>Se perdieron algunos puertos COM</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3621" />
+            <location filename="../src/shell/shell_window.cpp" line="3667" />
             <source>Open Studio to recreate them.</source>
             <translation>Abra Studio para recrearlos.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3635" />
+            <location filename="../src/shell/shell_window.cpp" line="3681" />
             <source>Studio is still running your ports</source>
             <translation>Studio sigue ejecutando sus puertos</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3637" />
+            <location filename="../src/shell/shell_window.cpp" line="3683" />
             <source>Open it again from this icon, or quit it there to stop the ports. To have them back after a restart, choose Start when I sign in in the same menu.</source>
             <translation>Ábralo de nuevo desde este icono, o salga desde allí para detener los puertos. Para recuperarlos tras un reinicio, elija Iniciar al iniciar sesión en el mismo menú.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3640" />
+            <location filename="../src/shell/shell_window.cpp" line="3686" />
             <source>Open it again from this icon, or quit it there to stop the ports.</source>
             <translation>Ábralo de nuevo desde este icono, o salga desde allí para detener los puertos.</translation>
         </message>
@@ -13109,6 +13279,14 @@ Redes: %5</translation>
             <translation>RX %1, TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>Tráfico total</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>Bytes recibidos y enviados en total. La barra de estado muestra la velocidad actual.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>Ningún programa ha abierto %1 todavía. El programa debe abrir exactamente %1; otro puerto no recibirá nada.</translation>
@@ -16631,6 +16809,21 @@ Redes: %5</translation>
         <message>
             <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
             <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>compilación entorno informe de error</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
         </message>
     </context>
     <context>

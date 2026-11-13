@@ -93,6 +93,24 @@ comes from vcpkg, so the configure needs the vcpkg toolchain file; the
 `*-tracy*` presets take it from `VCPKG_ROOT`. How profiling is switched on, what
 it costs and how to capture a trace are in [Profiling](profiling.md#building-it).
 
+## The version a build reports
+
+About and `vss_gui --version` show one string, for example
+`v0.1.0-rc.3+build.6083-3de4617`: the semantic version, the CI run number and the short
+commit (`-dirty` follows the commit when the tree was modified). `cmake/VssBuildStamp.cmake`
+works it out before every build and writes a generated source file, so a new commit shows
+without a reconfigure and no preprocessor definition is involved.
+
+| Part | Where it comes from |
+|---|---|
+| Version and tag | The tag of a tag build in GitHub Actions, else the nearest `v*` tag git can see, else `<project version>-dev` (a shallow CI clone has no tags) |
+| Build number | `-DVSS_BUILD_NUMBER=`, else the GitHub Actions run number, else none |
+| Commit | `GITHUB_SHA`, else git `HEAD` (a pull request build is the merge commit) |
+| Branch | The pull request's head branch, else the branch Actions built, else the checked-out branch; on a detached `HEAD` the tag, or a branch pointing at the commit |
+| Time | UTC, refreshed only when one of the above changes |
+
+`-DVSS_VERSION_TAG=v1.2.3` takes the version from a tag when git is not available.
+
 ## Language standard
 
 The application targets **C++23** (`std::span`, `std::string_view`, defaulted
