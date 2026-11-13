@@ -34,6 +34,7 @@
 #include "theme/theme.hpp"
 #include "widgets/dialogs.hpp"
 #include "widgets/notes.hpp"
+#include "widgets/controls.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -41,7 +42,9 @@
 #include <QDir>
 #include <QDockWidget>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
+#include <QMenuBar>
 #include <QPushButton>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -325,6 +328,62 @@ TEST_CASE("palette: renders a review screenshot in both themes")
         QDir(directory).filePath(QStringLiteral("palette-dark.png"))));
     vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
     palette.close();
+}
+
+TEST_CASE("shell: the search and the level switch are centred in the header")
+{
+    clear_settings();
+    const QFont original = QApplication::font();
+    const QString directory = QDir(QCoreApplication::applicationDirPath())
+                                  .filePath(QStringLiteral("../gui-shots"));
+    REQUIRE(QDir().mkpath(directory));
+    for (const double scale : {1.0, 1.5, 2.0})
+    {
+        QFont font = original;
+        font.setPointSizeF(original.pointSizeF() * scale);
+        QApplication::setFont(font);
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::ShellWindow window(backend);
+        window.resize(1280, 800);
+        window.show();
+        QApplication::processEvents();
+
+        QMenuBar* bar = window.menuBar();
+        QWidget* corner = bar->cornerWidget(Qt::TopRightCorner);
+        REQUIRE(corner != nullptr);
+        auto* search = corner->findChild<QLineEdit*>();
+        auto* level = corner->findChild<vss::gui::SegmentedControl*>();
+        REQUIRE(search != nullptr);
+        REQUIRE(level != nullptr);
+        if (scale == 1.0)
+        {
+            for (const auto mode : {vss::gui::theme_mode::light,
+                                    vss::gui::theme_mode::dark})
+            {
+                vss::gui::Theme::instance().set_mode(mode);
+                QApplication::processEvents();
+                const bool dark = mode == vss::gui::theme_mode::dark;
+                REQUIRE(bar->grab().save(QDir(directory).filePath(
+                    dark ? QStringLiteral("header-dark.png")
+                         : QStringLiteral("header-light.png"))));
+            }
+            vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
+        }
+        for (QWidget* child : {static_cast<QWidget*>(search),
+                               static_cast<QWidget*>(level)})
+        {
+            const QRect box(child->mapTo(bar, QPoint(0, 0)), child->size());
+            REQUIRE(box.top() > 0);
+            REQUIRE(box.bottom() < bar->height() - 1);
+            REQUIRE(box.height() >= 24);
+            // Centred to within a pixel of rounding.
+            REQUIRE(std::abs(box.top() - (bar->height() - 1 - box.bottom())) <=
+                    1);
+            REQUIRE(box.height() < bar->height());
+        }
+        window.close();
+    }
+    QApplication::setFont(original);
 }
 
 TEST_CASE("shell: every toolbar action has a name and a unique shortcut")
