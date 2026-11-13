@@ -1341,7 +1341,26 @@ result<link_id> studio::bus(const std::vector<std::string>& members,
 result<void> studio::disconnect(link_id id)
 {
     VSS_PROFILE_ZONE("studio.disconnect");
-    return hub_->disconnect(id);
+    const auto removed = hub_->disconnect(id);
+    if (removed)
+    {
+        std::lock_guard lock(record_mutex_);
+        link_plugins_.erase(id);
+    }
+    return removed;
+}
+
+void studio::forget_plugins_of_removed_links()
+{
+    // The hub is asked first and the lock taken second, as everywhere else:
+    // no call into the hub is made while the records are locked.
+    const auto links = hub_->links();
+    std::lock_guard lock(record_mutex_);
+    std::erase_if(link_plugins_, [&links](const auto& kept) {
+        return std::ranges::none_of(links, [&kept](const link_info& link) {
+            return link.id == kept.first;
+        });
+    });
 }
 
 result<void> studio::add_target(link_id id, std::string_view target)
@@ -1501,6 +1520,7 @@ result<void> studio::apply(const config::document& value,
     VSS_PROFILE_MESSAGE("studio.apply_config");
     if (const error_code invalid = config::validate(value))
         return invalid;
+    forget_plugins_of_removed_links();
 
     // Track the ports made so far, and the id each document name got, so
     // links can refer to ports by name and a failure can undo the ports.
@@ -1564,6 +1584,15 @@ result<void> studio::apply(const config::document& value,
 
         created.push_back((*added)->id());
         ids.emplace(port.name, (*added)->id());
+
+        // The plugin bindings are kept with the port, for snapshot().
+        if (!port.plugins.empty())
+        {
+            std::lock_guard lock(record_mutex_);
+            if (const auto record = records_.find((*added)->id());
+                record != records_.end())
+                record->second.plugins = port.plugins;
+        }
     }
 
     // Links: turn the names into ids.  at() cannot throw because validate()
@@ -1616,6 +1645,11 @@ result<void> studio::apply(const config::document& value,
             rollback();
             return added.error();
         }
+        if (!link.plugins.empty())
+        {
+            std::lock_guard lock(record_mutex_);
+            link_plugins_[*added] = link.plugins;
+        }
     }
 
     return {};
@@ -1628,8 +1662,11 @@ config::document studio::snapshot() const
     document.name = "studio";
 
     std::unordered_map<endpoint_id, std::string> names;
+    std::unordered_map<link_id, std::vector<config::plugin_binding>>
+        link_plugins;
     {
         std::lock_guard lock(record_mutex_);
+        link_plugins = link_plugins_;
         for (const auto& entry : records_)
         {
             const auto& record = entry.second;
@@ -1637,6 +1674,7 @@ config::document studio::snapshot() const
                 record.name, record.kind, record.uri, record.virtual_kind,
                 record.serial, record.capture);
             entry_of_port.com_number = record.com_number;
+            entry_of_port.plugins = record.plugins;
             document.ports.push_back(std::move(entry_of_port));
             names.emplace(record.id, record.name);
         }
@@ -1691,6 +1729,9 @@ config::document studio::snapshot() const
         entry.delay_ms = link.options.delay_ms;
         entry.jitter_ms = link.options.jitter_ms;
         entry.half_duplex = link.options.half_duplex;
+        if (const auto kept = link_plugins.find(link.id);
+            kept != link_plugins.end())
+            entry.plugins = kept->second;
         document.links.push_back(std::move(entry));
     }
 

@@ -474,11 +474,17 @@ TEST_CASE("bus: a plain bus forwards two senders at once and reports nothing")
     REQUIRE(made->options.policy == merge_policy::interleave);
 
     // Two members speak with nothing between them.  Each chunk reaches the
-    // other two members whole, at once and unchanged.
+    // other two members whole, at once and unchanged.  The two are read on
+    // their own strands, so the third member may hear either one first.
     fixture.ports[0].inject_read("first");
     fixture.ports[1].inject_read("second");
     REQUIRE(wait_until(
-        [&] { return fixture.ports[2].written() == "firstsecond"; }, 5000ms));
+        [&]
+        {
+            const std::string heard = fixture.ports[2].written();
+            return heard == "firstsecond" || heard == "secondfirst";
+        },
+        5000ms));
     REQUIRE(wait_until([&] { return fixture.ports[1].written() == "first"; },
                        5000ms));
     REQUIRE(wait_until([&] { return fixture.ports[0].written() == "second"; },

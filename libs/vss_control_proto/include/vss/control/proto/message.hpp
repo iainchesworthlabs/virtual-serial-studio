@@ -57,6 +57,9 @@ inline constexpr std::size_t max_text_size = 1024;
 inline constexpr std::size_t max_list_size = 4096;
 /// How deep the JSON of a header may nest.
 inline constexpr std::size_t max_json_depth = 8;
+/// The most bytes one `ports.send` may carry.  The decoder takes more, so
+/// that the gateway can answer `limit_exceeded` and keep the session.
+inline constexpr std::size_t max_send_size = std::size_t{64} * 1024;
 /// The most ports a subscription may name.
 inline constexpr std::size_t max_port_filter_size = 64;
 /// The shortest, the longest and the usual time between two batches of a
@@ -195,13 +198,55 @@ struct sessions_kick_request
                            const sessions_kick_request&) = default;
 };
 
-using request_body =
-    std::variant<hello_request, status_request, ports_list_request,
-                 endpoint_stop_request, tokens_create_request,
-                 tokens_list_request, tokens_revoke_request,
-                 events_subscribe_request, events_unsubscribe_request,
-                 traffic_subscribe_request, traffic_unsubscribe_request,
-                 sessions_list_request, sessions_kick_request>;
+/// Makes a port in the agent.  `kind` is a kind the agent makes; empty for
+/// a loopback port.
+struct ports_create_request
+{
+    std::string name;
+    std::string kind;
+
+    friend bool operator==(const ports_create_request&,
+                           const ports_create_request&) = default;
+};
+
+/// Removes the port with this id (`p_3`).
+struct ports_remove_request
+{
+    std::string port;
+
+    friend bool operator==(const ports_remove_request&,
+                           const ports_remove_request&) = default;
+};
+
+/// Links two ports: both ways, or from `first` to `second` only.
+struct links_connect_request
+{
+    std::string first;
+    std::string second;
+    bool one_way = false;
+
+    friend bool operator==(const links_connect_request&,
+                           const links_connect_request&) = default;
+};
+
+/// Writes bytes to a port.  The bytes are the frame's blob; it is the one
+/// request that has one.
+struct ports_send_request
+{
+    std::string port;
+    byte_buffer data;
+
+    friend bool operator==(const ports_send_request&,
+                           const ports_send_request&) = default;
+};
+
+using request_body = std::variant<
+    hello_request, status_request, ports_list_request, endpoint_stop_request,
+    tokens_create_request, tokens_list_request, tokens_revoke_request,
+    events_subscribe_request, events_unsubscribe_request,
+    traffic_subscribe_request, traffic_unsubscribe_request,
+    sessions_list_request, sessions_kick_request, ports_create_request,
+    ports_remove_request, links_connect_request, ports_send_request>;
 
 struct request
 {
@@ -371,6 +416,15 @@ struct sessions_reply
                            const sessions_reply&) = default;
 };
 
+/// A port or a link was made: its public id (`p_3`, `l_2`).
+struct created_reply
+{
+    std::string id;
+
+    friend bool operator==(const created_reply&,
+                           const created_reply&) = default;
+};
+
 struct error_reply
 {
     api_error error;
@@ -378,9 +432,10 @@ struct error_reply
     friend bool operator==(const error_reply&, const error_reply&) = default;
 };
 
-using reply_body = std::variant<done_reply, hello_reply, status_reply,
-                                ports_reply, token_created_reply, tokens_reply,
-                                subscribed_reply, sessions_reply, error_reply>;
+using reply_body =
+    std::variant<done_reply, hello_reply, status_reply, ports_reply,
+                 token_created_reply, tokens_reply, subscribed_reply,
+                 sessions_reply, created_reply, error_reply>;
 
 struct reply
 {

@@ -891,7 +891,8 @@ private:
         welcome.version = gateway_version();
         welcome.principal = client->principal_id();
         welcome.scopes = scope_names(client->scopes());
-        welcome.features = {"ports.read", "events", "traffic"};
+        welcome.features = {"ports.read", "events", "traffic", "ports.write",
+                            "ports.send"};
 
         audit_->record("session.opened",
                        {{"session", client->number},
@@ -1821,6 +1822,18 @@ private:
                 return reply{asked.id, status(client, sessions_now)};
             if (std::holds_alternative<ports_list_request>(asked.body))
                 return list_ports(client, asked.id);
+            if (const auto* making =
+                    std::get_if<ports_create_request>(&asked.body))
+                return create_port(client, asked.id, *making);
+            if (const auto* removing =
+                    std::get_if<ports_remove_request>(&asked.body))
+                return remove_port(client, asked.id, *removing);
+            if (const auto* linking =
+                    std::get_if<links_connect_request>(&asked.body))
+                return connect_ports(client, asked.id, *linking);
+            if (const auto* sending =
+                    std::get_if<ports_send_request>(&asked.body))
+                return send_bytes(client, asked.id, *sending);
         }
         catch (const std::exception&)
         {
@@ -1852,6 +1865,150 @@ private:
             }
         }
         return out;
+    }
+
+    // -- what changes the ports ----------------------------------------------
+
+    /// The answer for a request the agent did not carry out.  What the
+    /// engine said crosses as the name of its error and nothing else; any
+    /// other failure is the agent's connection, which is let go.
+    static reply agent_refused(session& client, std::uint64_t id,
+                               const error_code& failed)
+    {
+        if (failed.category() == vss::error_category())
+            return reply{id, error_reply{engine_api_error(failed)}};
+        drop_agent(client);
+        return error_reply_for(id, api_errc::unavailable);
+    }
+
+    /// One record for each request that changes a port, whatever came of
+    /// it.  The bytes of a `ports.send` are never in it, only how many.
+    void record_change(const session& client, operation done,
+                       std::vector<audit_field> fields,
+                       std::string_view outcome)
+    {
+        std::vector<audit_field> all{{"session", client.number},
+                                     {"principal", client.principal_id()},
+                                     {"operation", info_of(done).name}};
+        all.insert(all.end(), std::make_move_iterator(fields.begin()),
+                   std::make_move_iterator(fields.end()));
+        all.push_back({"outcome", outcome});
+        audit_->record("operation", all);
+    }
+
+    static std::string_view outcome_name(const reply& answer)
+    {
+        const auto* refused = std::get_if<error_reply>(&answer.body);
+        return refused == nullptr ? std::string_view("ok")
+                                  : std::string_view(refused->error.code);
+    }
+
+    reply create_port(session& client, std::uint64_t id,
+                      const ports_create_request& wanted)
+    {
+        reply answer = error_reply_for(id, api_errc::unavailable);
+        std::string made_id;
+        if (agent::client* const source = agent_of(client))
+        {
+            const auto made = source->create_port(
+                wanted.name, wanted.kind.empty() ? "loopback" : wanted.kind);
+            if (made)
+            {
+                made_id = port_id_text(*made);
+                answer = reply{id, created_reply{made_id}};
+            }
+            else
+            {
+                answer = agent_refused(client, id, made.error());
+            }
+        }
+        record_change(client, operation::ports_create,
+                      {{"name", wanted.name}, {"port", made_id}},
+                      outcome_name(answer));
+        return answer;
+    }
+
+    reply remove_port(session& client, std::uint64_t id,
+                      const ports_remove_request& wanted)
+    {
+        const auto port = parse_port_id(wanted.port);
+        reply answer = error_reply_for(id, api_errc::invalid_argument);
+        if (port)
+        {
+            answer = error_reply_for(id, api_errc::unavailable);
+            if (agent::client* const source = agent_of(client))
+            {
+                const auto removed = source->remove_port(*port);
+                answer = removed ? reply{id, done_reply{}}
+                                 : agent_refused(client, id, removed.error());
+            }
+        }
+        record_change(client, operation::ports_remove,
+                      {{"port", port ? wanted.port : std::string()}},
+                      outcome_name(answer));
+        return answer;
+    }
+
+    reply connect_ports(session& client, std::uint64_t id,
+                        const links_connect_request& wanted)
+    {
+        const auto first = parse_port_id(wanted.first);
+        const auto second = parse_port_id(wanted.second);
+        reply answer = error_reply_for(id, api_errc::invalid_argument);
+        std::string made_id;
+        if (first && second)
+        {
+            answer = error_reply_for(id, api_errc::unavailable);
+            if (agent::client* const source = agent_of(client))
+            {
+                const auto linked =
+                    source->connect_ports(*first, *second, wanted.one_way);
+                if (linked)
+                {
+                    made_id = link_id_text(*linked);
+                    answer = reply{id, created_reply{made_id}};
+                }
+                else
+                {
+                    answer = agent_refused(client, id, linked.error());
+                }
+            }
+        }
+        record_change(client, operation::links_connect,
+                      {{"first", first ? wanted.first : std::string()},
+                       {"second", second ? wanted.second : std::string()},
+                       {"one_way", wanted.one_way ? "yes" : "no"},
+                       {"link", made_id}},
+                      outcome_name(answer));
+        return answer;
+    }
+
+    reply send_bytes(session& client, std::uint64_t id,
+                     const ports_send_request& wanted)
+    {
+        const auto port = parse_port_id(wanted.port);
+        reply answer = error_reply_for(id, api_errc::invalid_argument);
+        if (wanted.data.size() > max_send_size)
+        {
+            answer = error_reply_for(id, api_errc::limit_exceeded);
+        }
+        else if (port && !wanted.data.empty())
+        {
+            answer = error_reply_for(id, api_errc::unavailable);
+            if (agent::client* const source = agent_of(client))
+            {
+                const auto written =
+                    source->write(*port, bytes_view(wanted.data));
+                answer = written ? reply{id, done_reply{}}
+                                 : agent_refused(client, id, written.error());
+            }
+        }
+        record_change(
+            client, operation::ports_send,
+            {{"port", port ? wanted.port : std::string()},
+             {"bytes", static_cast<std::uint64_t>(wanted.data.size())}},
+            outcome_name(answer));
+        return answer;
     }
 
     reply list_ports(session& client, std::uint64_t id)

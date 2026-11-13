@@ -425,7 +425,8 @@ constexpr std::array extension_kind_names{
     std::pair{"generator"sv, extension_kind::generator},
     std::pair{"fixture"sv, extension_kind::fixture},
     std::pair{"modifier"sv, extension_kind::modifier},
-    std::pair{"adapter"sv, extension_kind::adapter}};
+    std::pair{"adapter"sv, extension_kind::adapter},
+    std::pair{"decoder"sv, extension_kind::decoder}};
 
 constexpr std::array timing_class_names{
     std::pair{"rules"sv, timing_class::rules},
@@ -1442,6 +1443,7 @@ bool timing_allowed(extension_kind kind, timing_class type) noexcept
     case extension_kind::modifier:
         return type != timing_class::rules;
     case extension_kind::adapter:
+    case extension_kind::decoder:
         return type == timing_class::async;
     }
     return false;
@@ -1672,16 +1674,31 @@ void check_whole(context& ctx, const manifest& out)
     for (std::size_t i = 0; i < out.extension_points.size(); ++i)
     {
         const extension_point& point = out.extension_points[i];
-        if (point.timing.type != timing_class::in_line)
-            continue;
-        const permission_request* const held =
-            out.find(permission::modifier_inline);
-        if (held == nullptr || !held->required)
+        if (point.timing.type == timing_class::in_line)
         {
-            ctx.invalid(
-                member(element("extension_points", i), "timing.class"),
-                "needs the permission \"modifier.inline\", as required");
-            return;
+            const permission_request* const held =
+                out.find(permission::modifier_inline);
+            if (held == nullptr || !held->required)
+            {
+                ctx.invalid(
+                    member(element("extension_points", i), "timing.class"),
+                    "needs the permission \"modifier.inline\", as required");
+                return;
+            }
+        }
+        // A decoder reads the traffic of the places it is given, so it
+        // cannot work without the tap.
+        if (point.kind == extension_kind::decoder)
+        {
+            const permission_request* const held =
+                out.find(permission::traffic_tap);
+            if (held == nullptr || !held->required)
+            {
+                ctx.invalid(member(element("extension_points", i), "kind"),
+                            "needs the permission \"traffic.tap\", as "
+                            "required");
+                return;
+            }
         }
     }
     if (!out.bundle_sections.empty())
