@@ -456,3 +456,31 @@ TEST_CASE("licence errors: every code has its own message")
         seen.push_back(message);
     }
 }
+
+TEST_CASE("signed file: a private key has one text form")
+{
+    const signing::seed key = test_keys::private_key();
+    std::string text = signing::format_seed(key);
+    REQUIRE_EQ(text.size(), std::size_t{43});
+
+    const auto plain = signing::parse_seed(text);
+    REQUIRE(plain);
+    REQUIRE(*plain == key);
+    // A key file ends with a new line, and may have been saved on Windows.
+    const auto spaced = signing::parse_seed("  " + text + "\r\n");
+    REQUIRE(spaced);
+    REQUIRE(*spaced == key);
+
+    REQUIRE(!signing::parse_seed(""));
+    REQUIRE(!signing::parse_seed(" \n"));
+    REQUIRE(!signing::parse_seed("not a key"));
+    // Well-formed base64url of the wrong length.
+    REQUIRE(!signing::parse_seed(text.substr(0, 40)));
+    REQUIRE(!signing::parse_seed(text + "AAAA"));
+
+    signing::seed copy = key;
+    signing::wipe(copy);
+    REQUIRE(copy == signing::seed{});
+    signing::wipe(text);
+    REQUIRE(text.empty());
+}

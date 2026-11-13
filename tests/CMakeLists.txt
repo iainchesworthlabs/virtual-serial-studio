@@ -71,7 +71,19 @@ elseif(UNIX)
     unit/platform/posix/test_permissions_posix.cpp)
 endif()
 
+# The commands of vss_license, run in the test process.
+if(TARGET vss_license_tool)
+  list(APPEND VSS_UNIT_TEST_SOURCES unit/test_license_tool.cpp)
+  if(UNIX)
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/posix/test_license_tool_posix.cpp)
+  endif()
+endif()
+
 add_executable(vss_unit_tests ${VSS_UNIT_TEST_SOURCES})
+if(TARGET vss_license_tool)
+  target_link_libraries(vss_unit_tests PRIVATE vss_license_tool)
+endif()
 target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/framework
