@@ -24,13 +24,19 @@ target_include_directories(vss_core PUBLIC
 target_compile_features(vss_core PUBLIC cxx_std_23)
 target_link_libraries(vss_core PUBLIC Vss::Boost)
 
-# The process environment is read and set per platform family; the Tracy side
+# The process environment and the timer period are per platform family; the Tracy side
 # of vss::profiling exists only in an instrumented build.
 target_include_directories(vss_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 if(WIN32)
-  target_sources(vss_core PRIVATE src/platform/windows/environment_windows.cpp)
+  target_sources(vss_core PRIVATE
+    src/platform/windows/environment_windows.cpp
+    src/platform/windows/timer_period_windows.cpp)
+  # timeBeginPeriod and timeEndPeriod.
+  target_link_libraries(vss_core PUBLIC winmm)
 else()
-  target_sources(vss_core PRIVATE src/platform/posix/environment_posix.cpp)
+  target_sources(vss_core PRIVATE
+    src/platform/posix/environment_posix.cpp
+    src/platform/posix/timer_period_posix.cpp)
 endif()
 
 if(VSS_TRACY)

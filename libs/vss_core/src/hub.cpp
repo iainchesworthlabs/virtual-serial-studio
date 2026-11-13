@@ -6,6 +6,7 @@
 
 #include "bus_wire.hpp"
 #include "delay_line.hpp"
+#include "platform/timer_period_platform.hpp"
 
 #include <vss/core/bus_line.hpp>
 #include <vss/core/hub.hpp>
@@ -109,6 +110,9 @@ void hub::start()
         return;
 
     stopping_.store(false);
+    // Before the first thread runs, so that no timer is set on the coarse tick.
+    if (options_.fine_timers)
+        timer_period_ = std::make_shared<platform::timer_period>();
     io_.restart();
     work_ = std::make_unique<
         boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
@@ -186,6 +190,8 @@ void hub::join()
     }
     threads_.clear();
     work_.reset();
+    // After the threads: nothing of this hub is waiting on a timer any more.
+    timer_period_.reset();
 }
 
 result<std::shared_ptr<endpoint>> hub::add_endpoint(
