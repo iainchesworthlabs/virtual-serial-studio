@@ -87,7 +87,6 @@ private:
     licence_store_options options_;
     vss::license::clock_state clock_;
     vss::license::revocation_list revocations_;
-    bool have_revocations_ = false;
     licence_view view_;
 };
 
