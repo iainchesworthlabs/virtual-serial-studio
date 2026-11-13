@@ -100,9 +100,22 @@ TEST_CASE("simple: connect two programs when Windows keeps some COM numbers")
     {
         for (int index = 0; index < combo->count(); ++index)
         {
+            // 0 is Automatic, which lists first.
             const unsigned number = combo->itemData(index).toUInt();
-            REQUIRE(number > 6);
+            REQUIRE(index == 0 ? number == 0 : number > 6);
         }
+    }
+    s.step(QStringLiteral("choose COM7 for the first program"));
+    {
+        auto* combo =
+            form->findChildren<QComboBox*>(QStringLiteral("jobFormPort"))
+                .value(0);
+        REQUIRE(combo != nullptr);
+        const int index = combo->findText(QStringLiteral("COM7"));
+        REQUIRE(index >= 0);
+        combo->setCurrentIndex(index);
+        Q_EMIT combo->activated(index);
+        s.settle();
     }
     s.step(QStringLiteral("click Create: Windows refuses COM7"));
     click(form->create_button());
