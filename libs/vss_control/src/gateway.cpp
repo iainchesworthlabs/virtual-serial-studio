@@ -1763,6 +1763,8 @@ private:
         catch (const std::exception&)
         {
             // Out of memory: as if the agent had not answered.
+            drop_agent(client);
+            return false;
         }
         drop_agent(client);
         return false;

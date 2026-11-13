@@ -1540,17 +1540,17 @@ TEST_CASE("agent server: a read-only connection lists and subscribes and "
     REQUIRE(looker->subscribe(true, 20));
     REQUIRE(maker->write(*a, vss::to_bytes("seen")));
     std::optional<agent::event_record> tapped;
-    const bool seen = read_batches(
-        *looker, long_wait,
-        [&](const agent::event_batch& received)
-        {
-            for (const agent::event_record& event : received.events)
-            {
-                if (is_rx_data_on(event, *b))
-                    tapped = event;
-            }
-            return tapped.has_value();
-        });
+    const bool seen = read_batches(*looker, long_wait,
+                                   [&](const agent::event_batch& received)
+                                   {
+                                       for (const agent::event_record& event :
+                                            received.events)
+                                       {
+                                           if (is_rx_data_on(event, *b))
+                                               tapped = event;
+                                       }
+                                       return tapped.has_value();
+                                   });
     REQUIRE(seen);
     REQUIRE(tapped.has_value());
     REQUIRE_EQ(vss::to_string(vss::bytes_view(tapped->data)),
@@ -1558,8 +1558,7 @@ TEST_CASE("agent server: a read-only connection lists and subscribes and "
 
     looker.reset();
     const auto gone = steady::now() + long_wait;
-    while (env.server.counters().read_only_clients != 0 &&
-           steady::now() < gone)
+    while (env.server.counters().read_only_clients != 0 && steady::now() < gone)
         std::this_thread::sleep_for(1ms);
     REQUIRE_EQ(env.server.counters().read_only_clients, std::uint64_t{0});
 }
@@ -1586,17 +1585,17 @@ TEST_CASE("agent server: an event says when the engine made it")
     const std::uint64_t before = ns(steady::now());
     REQUIRE(maker->write(*a, vss::to_bytes("when")));
     std::optional<agent::event_record> tapped;
-    const bool seen = read_batches(
-        *tapping, long_wait,
-        [&](const agent::event_batch& received)
-        {
-            for (const agent::event_record& event : received.events)
-            {
-                if (is_rx_data_on(event, *b))
-                    tapped = event;
-            }
-            return tapped.has_value();
-        });
+    const bool seen = read_batches(*tapping, long_wait,
+                                   [&](const agent::event_batch& received)
+                                   {
+                                       for (const agent::event_record& event :
+                                            received.events)
+                                       {
+                                           if (is_rx_data_on(event, *b))
+                                               tapped = event;
+                                       }
+                                       return tapped.has_value();
+                                   });
     const std::uint64_t after = ns(steady::now());
     REQUIRE(seen);
     REQUIRE(tapped.has_value());

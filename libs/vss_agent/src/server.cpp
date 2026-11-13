@@ -88,10 +88,9 @@ public:
         record.message = event.message;
         if (event.error)
             record.error = to_wire(event.error);
-        const auto since =
-            std::chrono::duration_cast<std::chrono::nanoseconds>(
-                event.when.time_since_epoch())
-                .count();
+        const auto since = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                               event.when.time_since_epoch())
+                               .count();
         record.when_ns = since > 0 ? static_cast<std::uint64_t>(since) : 0;
         if (event.data)
         {

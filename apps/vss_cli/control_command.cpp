@@ -195,10 +195,13 @@ std::vector<std::string> split_commas(std::string_view text)
 template <class Number>
 std::optional<Number> whole_number(std::string_view text)
 {
+    if (text.empty())
+        return std::nullopt;
     Number number{};
-    const char* const end = text.data() + text.size();
-    const auto parsed = std::from_chars(text.data(), end, number);
-    if (text.empty() || parsed.ec != std::errc{} || parsed.ptr != end)
+    const char* const first = &text.front();
+    const char* const end = first + text.size();
+    const auto parsed = std::from_chars(first, end, number);
+    if (parsed.ec != std::errc{} || parsed.ptr != end)
         return std::nullopt;
     return number;
 }
