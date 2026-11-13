@@ -14,6 +14,7 @@
 #include <QColor>
 #include <QDirIterator>
 #include <QFile>
+#include <QFontDatabase>
 #include <QImage>
 #include <QListWidget>
 #include <QRegularExpression>
@@ -307,6 +308,23 @@ TEST_CASE("theme: fonts, metrics, spacing and density")
     theme.set_density(vss::gui::density_mode::compact);
     REQUIRE_EQ(theme.row_height(), 28);
     theme.set_density(vss::gui::density_mode::comfortable);
+}
+
+TEST_CASE("theme: the bundled fonts are registered and used")
+{
+    auto& theme = vss::gui::Theme::instance();
+    const QStringList families = QFontDatabase::families();
+    REQUIRE(families.contains(QStringLiteral("IBM Plex Mono")));
+    REQUIRE(families.contains(QStringLiteral("Noto Sans Hebrew")));
+    REQUIRE(families.contains(QStringLiteral("Noto Sans Arabic")));
+    // Byte views use the bundled face, so hex columns match on every system.
+    REQUIRE_EQ(theme.font(vss::gui::text_style::data).family(),
+               QStringLiteral("IBM Plex Mono"));
+    // The UI font stays the system font; the Noto faces are glyph fallbacks.
+    const QStringList ui = theme.font(vss::gui::text_style::body).families();
+    REQUIRE(ui.contains(QStringLiteral("Noto Sans Hebrew")));
+    REQUIRE(ui.contains(QStringLiteral("Noto Sans Arabic")));
+    REQUIRE(ui.front() != QStringLiteral("Noto Sans Hebrew"));
 }
 
 TEST_CASE("theme: reduced motion override zeroes the durations")

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# LeakSanitizer suppressions. Use with
+#   LSAN_OPTIONS=suppressions=<repository>/tests/lsan.supp
+# An entry needs a reason that holds for every report it can match, and nothing here
+# may hide a leak in this project's code.
+
+# Theme registers the bundled fonts with QFontDatabase::addApplicationFont. On Linux Qt
+# hands the font to fontconfig (FcConfigAppFontAddFile), and fontconfig keeps what it
+# parsed for the life of the process and never frees it at exit. Every frame of the
+# report is inside libfontconfig or libexpat below Qt's own addApplicationFont.
+leak:QFontconfigDatabase::addApplicationFont

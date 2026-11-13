@@ -91,6 +91,9 @@ install(FILES
 install(FILES
     "${CMAKE_SOURCE_DIR}/LICENSES/BSL-1.0.txt"
     "${CMAKE_SOURCE_DIR}/LICENSES/GPL-3.0-or-later.txt"
+    "${CMAKE_SOURCE_DIR}/apps/vss_gui/assets/fonts/IBMPlexMono-OFL.txt"
+    "${CMAKE_SOURCE_DIR}/apps/vss_gui/assets/fonts/NotoSansArabic-OFL.txt"
+    "${CMAKE_SOURCE_DIR}/apps/vss_gui/assets/fonts/NotoSansHebrew-OFL.txt"
   DESTINATION "${VSS_PACKAGE_DOCDIR}/LICENSES" COMPONENT integration)
 install(CODE "
   file(MAKE_DIRECTORY \"\$ENV{DESTDIR}/usr/bin\")
@@ -193,7 +196,9 @@ set(VSS_DEB_DEPENDS
 list(JOIN VSS_DEB_DEPENDS ", " CPACK_DEBIAN_PACKAGE_DEPENDS)
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
 # Studio offers to add the user to the serial port group through pkexec.
-set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "pkexec")
+# fonts-noto-cjk draws Chinese and Japanese on a system with no CJK font; Windows
+# and macOS have their own, and no CJK font is bundled.
+set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "pkexec, fonts-noto-cjk")
 
 # ---------------------------------------------------------------------------
 # Red Hat
@@ -203,7 +208,7 @@ set(CPACK_RPM_FILE_NAME "RPM-DEFAULT")
 set(CPACK_RPM_PACKAGE_ARCHITECTURE "${_vss_rpm_arch}")
 set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0-or-later")
 set(CPACK_RPM_PACKAGE_URL "${PROJECT_HOMEPAGE_URL}")
-set(CPACK_RPM_PACKAGE_SUGGESTS "polkit")
+set(CPACK_RPM_PACKAGE_SUGGESTS "polkit, google-noto-sans-cjk-fonts")
 
 set(CPACK_RPM_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION}")
 # /opt belongs to the filesystem package.
