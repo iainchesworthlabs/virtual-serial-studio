@@ -85,6 +85,7 @@
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontMetrics>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -698,6 +699,7 @@ void ShellWindow::build_toolbar()
     toolbar_->setObjectName(QStringLiteral("mainToolbar"));
     toolbar_->setMovable(false);
     toolbar_->setFloatable(false);
+    toolbar_->installEventFilter(this);
     toolbar_->setIconSize(QSize(16, 16));
     toolbar_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toolbar_->setStyleSheet(QStringLiteral(
@@ -1698,8 +1700,7 @@ void ShellWindow::apply_compact()
     compact_ = compact;
     VSS_PROFILE_ZONE("gui.shell.apply_compact");
 
-    toolbar_->setToolButtonStyle(compact ? Qt::ToolButtonIconOnly
-                                         : Qt::ToolButtonTextBesideIcon);
+    update_toolbar_style();
     if (compact)
     {
         if (!tabifiedDockWidgets(inspector_dock_).contains(send_dock_))
@@ -3176,6 +3177,42 @@ void ShellWindow::resizeEvent(QResizeEvent* event)
         QMainWindow::resizeEvent(event);
     }
     apply_compact();
+}
+
+void ShellWindow::update_toolbar_style()
+{
+    // Show the labels while they all fit in the row, and only the icons when
+    // they do not or when the window is compact.  Qt would otherwise shorten
+    // the labels to "Attach ... device".  The width needed does not depend on
+    // the current style, so this cannot flip back and forth.
+    const QFontMetrics metrics(toolbar_->font());
+    const int icon = toolbar_->iconSize().width();
+    int needed = toolbar_->contentsMargins().left() +
+                 toolbar_->contentsMargins().right();
+    for (const QAction* action : toolbar_->actions())
+    {
+        if (!action->isVisible())
+            continue;
+        if (action->isSeparator())
+        {
+            needed += 13;
+            continue;
+        }
+        needed += metrics.horizontalAdvance(action->text()) + icon + 40;
+    }
+    const bool icons_only = compact_ || needed > toolbar_->width();
+    const auto style = icons_only ? Qt::ToolButtonIconOnly
+                                  : Qt::ToolButtonTextBesideIcon;
+    if (toolbar_->toolButtonStyle() != style)
+        toolbar_->setToolButtonStyle(style);
+}
+
+bool ShellWindow::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == toolbar_ && event != nullptr &&
+        (event->type() == QEvent::Resize || event->type() == QEvent::Show))
+        update_toolbar_style();
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void ShellWindow::showEvent(QShowEvent* event)

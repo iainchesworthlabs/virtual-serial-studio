@@ -111,6 +111,7 @@ public:
 protected:
     void closeEvent(QCloseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    bool eventFilter(QObject* watched, QEvent* event) override;
     void showEvent(QShowEvent* event) override;
 
 private:
@@ -134,6 +135,7 @@ private:
     void update_status();
     void update_dock_titles();
     void apply_compact();
+    void update_toolbar_style();
     QString document_signature() const;
     void remove_selected_port();
     void copy_selected_port();

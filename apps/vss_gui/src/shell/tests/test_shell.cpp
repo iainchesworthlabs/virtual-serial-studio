@@ -1830,7 +1830,7 @@ TEST_CASE("shell: toolbar icons stay distinct and named when only icons show")
             dark ? vss::gui::theme_mode::dark : vss::gui::theme_mode::light);
         const QString theme = dark ? QStringLiteral("dark")
                                    : QStringLiteral("light");
-        window.resize(1280, 800);
+        window.resize(2000, 900);
         QApplication::processEvents();
         REQUIRE(toolbar->toolButtonStyle() == Qt::ToolButtonTextBesideIcon);
         check_and_shoot(QStringLiteral("wide-") + theme);
