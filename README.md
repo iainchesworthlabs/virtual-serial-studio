@@ -54,7 +54,7 @@ The same pages are published as a site by the Docs workflow (`mkdocs build --str
 
 ## Building
 
-Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.74+ headers and git. [docs/building.md](docs/building.md) has every preset, the options, Qt and the language standard.
+Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.88+ headers and git. [docs/building.md](docs/building.md) has every preset, the options, Qt and the language standard.
 
 ```bash
 cmake --preset linux-release
@@ -99,6 +99,9 @@ vss_cli bench --from=serial://COM3 --to=serial://COM5 --bytes=10MB
 vss_cli selftest
 vss_agent &                         # keep ports after the command that made them (a first slice)
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
+vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
+vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
+vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
 ```
 
 Run `vss_cli --help` for the full list.
@@ -232,9 +235,12 @@ libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent
 libs/vss_agent       the agent's local transport, server and client
+libs/vss_control_proto the control API: messages, errors and the policy table
+libs/vss_control     the control gateway, its audit log and its client
 third_party          Monocypher, vendored unchanged (Ed25519)
 apps/vss_cli         headless command line
 apps/vss_agent       keeps ports running without the window (a first slice)
+apps/vss_gate        serves the control API to this user's programs (a first slice)
 apps/vss_gui         Qt 6 desktop application
 tests/               in-tree framework, unit and system suites
 perf/                performance suite and floors

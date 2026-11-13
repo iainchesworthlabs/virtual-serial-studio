@@ -449,3 +449,49 @@ TEST_CASE("agent transport: a connection of another user is closed unseen")
     REQUIRE(!accepted->failed);
     REQUIRE(accepted->stream != nullptr);
 }
+
+TEST_CASE("control transport: both sockets of the gateway are private and "
+          "have their own lock")
+{
+    const scoped_instance instance;
+    boost::asio::io_context io;
+    for (const agent::local_endpoint endpoint :
+         {agent::local_endpoint::control, agent::local_endpoint::control_admin})
+    {
+        auto listener =
+            agent::listen_local(io.get_executor(), endpoint, instance.name());
+        REQUIRE(listener);
+        const std::filesystem::path socket((*listener)->address());
+        const auto expected = agent::local_address(endpoint, instance.name());
+        REQUIRE(expected);
+        REQUIRE_EQ(socket.string(), *expected);
+
+        const auto socket_status = status_of(socket);
+        REQUIRE(socket_status.has_value());
+        REQUIRE(S_ISSOCK(socket_status->st_mode));
+        REQUIRE_EQ(permission_bits(*socket_status), 0600U);
+
+        const auto directory_status = status_of(socket.parent_path());
+        REQUIRE(directory_status.has_value());
+        REQUIRE_EQ(directory_status->st_uid, ::geteuid());
+        REQUIRE_EQ(permission_bits(*directory_status), 0700U);
+
+        // One gateway for each name: a second listener is refused.
+        const auto second =
+            agent::listen_local(io.get_executor(), endpoint, instance.name());
+        REQUIRE(!second);
+        REQUIRE_EQ(second.error(), code(agent::protocol_errc::already_running));
+
+        std::filesystem::path lock = socket;
+        lock.replace_extension(".lock");
+        REQUIRE(status_of(lock).has_value());
+        (*listener)->close();
+        listener->reset();
+        std::error_code ignored;
+        std::filesystem::remove(lock, ignored);
+    }
+
+    // The agent's own name is not taken by either.
+    auto own = agent::listen_local(io.get_executor(), instance.name());
+    REQUIRE(own);
+}

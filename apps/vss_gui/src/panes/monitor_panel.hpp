@@ -9,6 +9,7 @@
 
 #include "backend/studio_backend.hpp"
 
+#include <QElapsedTimer>
 #include <QHash>
 #include <QStringList>
 #include <QWidget>
@@ -26,6 +27,7 @@ class QPushButton;
 class QStackedWidget;
 class QTabWidget;
 class QTableView;
+class QTimer;
 class QVBoxLayout;
 
 namespace vss::gui
@@ -50,6 +52,12 @@ public:
     void set_selected_port(vss::endpoint_id id);
     void refresh_ports();
     void handle_events(const event_batch& events);
+
+    /// The shortest time between two additions of rows to the table, unless
+    /// `set_commit_interval` changed it.
+    static constexpr int kCommitIntervalMs = 33;
+    /// Changes that time. Rows that are waiting wait for the new time.
+    void set_commit_interval(int milliseconds);
 
     /// Lets the Advanced controls share the pane's title row. They sit there
     /// while the row is wide enough for all of them, and drop to a row of
@@ -76,6 +84,11 @@ private:
     void export_visible();
     void export_capture();
     void follow_if_enabled();
+    /// Puts the rows the model has queued in the table now.
+    void commit_rows();
+    /// Puts them there now if the last time is long enough ago, and when it
+    /// will be if not.
+    void schedule_commit();
     void place_controls();
 
     StudioBackend& backend_;
@@ -113,6 +126,9 @@ private:
     bool refreshing_ports_ = false;
     bool show_advanced_tabs_ = true;
     QStringList port_signature_;
+    QTimer* commit_timer_ = nullptr;
+    int commit_interval_ms_ = kCommitIntervalMs;
+    QElapsedTimer last_commit_;
 };
 
 } // namespace vss::gui
