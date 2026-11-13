@@ -105,8 +105,7 @@ std::string unique_instance_name()
     static const unsigned random = std::random_device{}();
     static std::atomic<unsigned> counter{0};
     std::ostringstream out;
-    out << "c" << std::hex << random << '-' << std::dec
-        << counter.fetch_add(1);
+    out << "c" << std::hex << random << '-' << std::dec << counter.fetch_add(1);
     return out.str();
 }
 
