@@ -436,11 +436,35 @@ EngineStudioBackend::create_port_with_com_number(
         paths.push_back(device.path);
     for (const auto& info : studio_.endpoint_infos())
         paths.push_back(info.path);
-    std::vector<unsigned> in_use = com_numbers_in_use(paths);
+    const std::vector<unsigned> listed = com_numbers_in_use(paths);
+    std::vector<unsigned> in_use = listed;
     // The names Windows keeps for ports that are not listed come first, so the
     // refusals below are the exception rather than the rule.
-    if (const auto kept = studio_.reserved_com_numbers())
-        in_use.insert(in_use.end(), kept->begin(), kept->end());
+    std::vector<unsigned> kept;
+    if (const auto reserved = studio_.reserved_com_numbers())
+        kept = *reserved;
+    in_use.insert(in_use.end(), kept.begin(), kept.end());
+
+    // A number this computer has had before is made in a fraction of a second;
+    // a number it has never had takes Windows about 27 seconds to install.  So
+    // try the kept numbers first.  Another device's number, or one whose old
+    // port Windows is still removing, is refused in about a tenth of a
+    // second, and this runs off the GUI thread.
+    constexpr std::size_t reuse_tries = 16;
+    for (const unsigned number :
+         reusable_com_candidates(listed, kept, reuse_tries))
+    {
+        auto reused =
+            studio_.create_virtual_port(port_name, kind, options, number);
+        if (reused)
+            return reused;
+        if (reused.error() != vss::errc::already_exists)
+        {
+            if (reused.error() == vss::errc::unsupported)
+                return studio_.create_virtual_port(port_name, kind, options);
+            return reused;
+        }
+    }
 
     const unsigned start = first_com_candidate(in_use);
     unsigned candidate = start;

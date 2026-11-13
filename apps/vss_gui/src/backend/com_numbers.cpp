@@ -69,6 +69,25 @@ std::vector<unsigned> com_numbers_in_use(const std::vector<std::string>& paths)
     return numbers;
 }
 
+std::vector<unsigned> reusable_com_candidates(const std::vector<unsigned>& listed,
+                                              const std::vector<unsigned>& kept,
+                                              std::size_t limit)
+{
+    std::vector<unsigned> out;
+    for (const unsigned number : kept)
+    {
+        if (number < kFirstGuiComNumber || number > kLastGuiComNumber ||
+            taken(number, listed) ||
+            std::find(out.begin(), out.end(), number) != out.end())
+            continue;
+        out.push_back(number);
+    }
+    std::sort(out.begin(), out.end());
+    if (out.size() > limit)
+        out.resize(limit);
+    return out;
+}
+
 unsigned first_com_candidate(const std::vector<unsigned>& in_use)
 {
     unsigned highest = 0;
