@@ -38,7 +38,7 @@ namespace vss::plugin
 inline constexpr std::uint32_t manifest_format_version = 1;
 
 /// `plugin.json` may be this many bytes and no more.
-inline constexpr std::size_t max_manifest_size = 256 * 1024;
+inline constexpr std::size_t max_manifest_size = std::size_t{256} * 1024;
 /// How deep the JSON of a manifest may nest.
 inline constexpr std::size_t max_manifest_depth = 8;
 

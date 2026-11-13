@@ -465,6 +465,8 @@ constexpr std::array reserved_device_names{
 class duplicate_key_finder
 {
 public:
+    // Boost.JSON looks for these four by name.
+    // NOLINTBEGIN(readability-identifier-naming)
     static constexpr std::size_t max_array_size =
         std::numeric_limits<std::size_t>::max();
     static constexpr std::size_t max_object_size =
@@ -473,6 +475,7 @@ public:
         std::numeric_limits<std::size_t>::max();
     static constexpr std::size_t max_key_size =
         std::numeric_limits<std::size_t>::max();
+    // NOLINTEND(readability-identifier-naming)
 
     /// The first key that was given twice in one object; empty when none.
     const std::string& repeated() const noexcept { return repeated_; }
