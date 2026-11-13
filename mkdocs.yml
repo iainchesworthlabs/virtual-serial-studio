@@ -1,10 +1,15 @@
 site_name: Virtual Serial Studio
 site_description: A tool for real, virtual and networked serial ports
 repo_url: https://github.com/iainchesworthlabs/virtual-serial-studio
+site_url: https://virtual-serial-studio.com/docs/
 docs_dir: docs
+# Not the default "site": that name is too close to website/, the product site.
+site_dir: build/docs
 strict: true
 theme:
   name: material
+  # The system font: the published site loads nothing from another host.
+  font: false
   features:
     - navigation.sections
     - content.code.copy
