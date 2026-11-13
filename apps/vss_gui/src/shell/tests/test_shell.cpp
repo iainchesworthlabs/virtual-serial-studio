@@ -1785,17 +1785,43 @@ TEST_CASE("shell: toolbar icons stay distinct and named when only icons show")
                        action->text().remove(QLatin1Char('&')));
             REQUIRE(access->role() == QAccessible::Button);
         }
-        if (auto* first = toolbar->widgetForAction(actions.front()))
-            first->setFocus(Qt::TabFocusReason);
-        QApplication::processEvents();
         // Grab the window and cut the bar out, so it has the window's own
         // background in both themes, and enlarge it for a person to read.
-        const QRect bar(toolbar->mapTo(&window, QPoint(0, 0)), toolbar->size());
-        const QPixmap shot = window.grab().copy(bar);
-        REQUIRE(shot.scaled(shot.size() * 3, Qt::IgnoreAspectRatio,
-                            Qt::FastTransformation)
-                    .save(QDir(directory).filePath(
-                        QStringLiteral("toolbar-%1.png").arg(tag))));
+        const auto shoot = [&](const QString& name)
+        {
+            QApplication::processEvents();
+            const QRect bar(toolbar->mapTo(&window, QPoint(0, 0)),
+                            toolbar->size());
+            const QPixmap shot = window.grab().copy(bar);
+            REQUIRE(shot.scaled(shot.size() * 3, Qt::IgnoreAspectRatio,
+                                Qt::FastTransformation)
+                        .save(QDir(directory).filePath(
+                            QStringLiteral("toolbar-%1.png").arg(name))));
+            return shot.toImage();
+        };
+        auto* first = toolbar->widgetForAction(actions.front());
+        REQUIRE(first != nullptr);
+        first->clearFocus();
+        const QImage plain = shoot(tag);
+
+        // A keyboard focus draws a ring around the button.
+        first->setFocus(Qt::TabFocusReason);
+        REQUIRE(first->hasFocus());
+        const QImage focused = shoot(tag + QStringLiteral("-focus"));
+        const QRect first_rect(first->mapTo(&window, QPoint(0, 0)),
+                               first->size());
+        const QRect in_bar = first_rect.translated(
+            -toolbar->mapTo(&window, QPoint(0, 0)));
+        REQUIRE(plain.copy(in_bar) != focused.copy(in_bar));
+        first->clearFocus();
+
+        // A disabled bar draws every icon in the disabled colour.
+        for (QAction* action : actions)
+            action->setEnabled(false);
+        const QImage disabled = shoot(tag + QStringLiteral("-disabled"));
+        REQUIRE(disabled != plain);
+        for (QAction* action : actions)
+            action->setEnabled(true);
     };
 
     for (const bool dark : {false, true})
