@@ -7,6 +7,7 @@
 #include "support/about_dialog.hpp"
 
 #include "support/build_info.hpp"
+#include "support/third_party.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "widgets/common.hpp"
@@ -149,7 +150,7 @@ void AboutDialog::build()
             "About",
             "Version %1. Free software under the GNU General Public License, "
             "version 3 or later.")
-            .arg(info_.version),
+            .arg(info_.full_version()),
         header);
     sub->setFont(Theme::instance().font(text_style::body));
     sub->setProperty("muted", true);
@@ -159,7 +160,8 @@ void AboutDialog::build()
     header_layout->addLayout(heading, 1);
     outer->addWidget(header);
 
-    // Four tabs follow, in this order: About, Environment, Licences, Fonts.
+    // Five tabs follow, in this order: About, Build information,
+    // Environment, Licences, Fonts.
     // page() makes each tab's content page and its vertical layout.
     tabs_ = new QTabWidget(this);
     tabs_->setAccessibleName(
@@ -210,46 +212,29 @@ void AboutDialog::build()
     about_layout->addStretch(1);
     tabs_->addTab(about_page, QCoreApplication::translate("About", "About"));
 
-    // Environment tab.
-    // The build information shown as a label and value grid, built from the
-    // same info_ as the copied report. Values can be selected with the mouse.
-    QVBoxLayout* environment_layout = nullptr;
-    QWidget* environment_page = page(tabs_, environment_layout);
-    environment_layout->addWidget(body_label(
-        QCoreApplication::translate(
-            "About",
-            "Copy this into a bug report. It shows which build you are "
-            "running."),
-        environment_page));
-    auto* card = new QFrame(environment_page);
-    card->setProperty("card", true);
-    polish(card);
-    auto* grid = new QGridLayout(card);
-    grid->setContentsMargins(0, 0, 0, 0);
-    grid->setHorizontalSpacing(0);
-    grid->setVerticalSpacing(0);
-    const QVector<environment_row> rows = environment_rows(info_);
-    for (int index = 0; index < rows.size(); ++index)
-    {
-        auto* label = new QLabel(rows.at(index).label, card);
-        label->setFont(Theme::instance().font(text_style::caption));
-        label->setProperty("muted", true);
-        label->setContentsMargins(14, 8, 14, 8);
-        polish(label);
-        auto* value = new QLabel(rows.at(index).value, card);
-        value->setFont(Theme::instance().font(text_style::data));
-        value->setContentsMargins(14, 8, 14, 8);
-        value->setTextInteractionFlags(Qt::TextSelectableByMouse);
-        value->setWordWrap(true);
-        grid->addWidget(label, index, 0);
-        grid->addWidget(value, index, 1);
-    }
-    // Let the value column take the spare width so long values wrap there.
-    grid->setColumnStretch(1, 1);
-    environment_layout->addWidget(card);
-    environment_layout->addStretch(1);
-    tabs_->addTab(environment_page,
-                  QCoreApplication::translate("About", "Environment"));
+    // Build information tab, then Environment tab.
+    // Each is a label and value grid built from the same info_ as its copied
+    // report, with its own copy button. Values can be selected with the mouse.
+    tabs_->addTab(
+        rows_page(
+            QCoreApplication::translate(
+                "About",
+                "Copy this into a bug report. It shows which build you are "
+                "running."),
+            build_information_rows(info_),
+            QCoreApplication::translate("About", "Copy build information"),
+            &AboutDialog::copy_build_information),
+        QCoreApplication::translate("About", "Build information"));
+    tabs_->addTab(
+        rows_page(
+            QCoreApplication::translate(
+                "About",
+                "Copy this into a bug report. It answers \"what is this "
+                "running on?\""),
+            environment_rows(info_),
+            QCoreApplication::translate("About", "Copy environment"),
+            &AboutDialog::copy_environment),
+        QCoreApplication::translate("About", "Environment"));
 
     // Licences tab.
     // One entry per component, each with its licence and an optional note on
@@ -262,61 +247,47 @@ void AboutDialog::build()
             "Virtual Serial Studio is free software under the GNU General "
             "Public License, version 3 or later. It uses these components:"),
         licences_page));
-    add_licence(licences_layout, QCoreApplication::translate("About", "Qt 6"),
-                QCoreApplication::translate(
-                    "About",
-                    "GNU Lesser General Public License, version 3, or the GNU "
-                    "General Public License, version 3."),
-                QCoreApplication::translate(
-                    "About", "Linked dynamically as installed on this PC."),
-                licences_page);
-    add_licence(licences_layout, QCoreApplication::translate("About", "Boost"),
-                QCoreApplication::translate(
-                    "About", "Boost Software License, version 1.0."),
-                {}, licences_page);
-    add_licence(licences_layout,
-                QCoreApplication::translate("About", "Boost.VirtualSerial"),
-                QCoreApplication::translate(
-                    "About", "Boost Software License, version 1.0."),
-                {}, licences_page);
-    add_licence(
-        licences_layout, QCoreApplication::translate("About", "Tracy"),
-        QCoreApplication::translate("About", "BSD 3-Clause License."),
-        QCoreApplication::translate(
-            "About", "Only present when profiling support is built in."),
-        licences_page);
-    add_licence(
-        licences_layout, QCoreApplication::translate("About", "com0com"),
-        QCoreApplication::translate("About",
-                                    "GNU General Public License, version 3."),
-        QCoreApplication::translate(
-            "About",
-            "An optional driver for Windows, installed separately by you."),
-        licences_page);
+    for (const third_party_component& component :
+         bundled_components(profiling_compiled()))
+        add_licence(licences_layout, component.name,
+                    licence_text(component.spdx),
+                    licence_note(component.notice), licences_page);
     licences_layout->addStretch(1);
     tabs_->addTab(licences_page,
                   QCoreApplication::translate("About", "Licences"));
 
     // Fonts tab.
-    // Studio bundles none, so report the families the system supplies for the
-    // interface and for fixed-width text.
+    // The families third_party.json lists as bundled, each with its licence.
+    // With none, it says so and reports the families the system supplies for
+    // the interface and for fixed-width text.
     QVBoxLayout* fonts_layout = nullptr;
     QWidget* fonts_page = page(tabs_, fonts_layout);
-    fonts_layout->addWidget(body_label(
-        QCoreApplication::translate(
-            "About",
-            "No fonts are bundled. Studio uses your system's UI font."),
-        fonts_page));
-    const QFont ui = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
-    const QFont fixed = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    fonts_layout->addWidget(
-        body_label(QCoreApplication::translate("About", "Interface font: %1.")
-                       .arg(ui.family()),
-                   fonts_page));
-    fonts_layout->addWidget(
-        body_label(QCoreApplication::translate("About", "Fixed font: %1.")
-                       .arg(fixed.family()),
-                   fonts_page));
+    const QVector<third_party_font> fonts = third_party_fonts();
+    if (fonts.isEmpty())
+    {
+        fonts_layout->addWidget(body_label(
+            QCoreApplication::translate(
+                "About",
+                "No fonts are bundled. Studio uses your system's UI font."),
+            fonts_page));
+        const QFont ui = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
+        const QFont fixed =
+            QFontDatabase::systemFont(QFontDatabase::FixedFont);
+        fonts_layout->addWidget(body_label(
+            QCoreApplication::translate("About", "Interface font: %1.")
+                .arg(ui.family()),
+            fonts_page));
+        fonts_layout->addWidget(body_label(
+            QCoreApplication::translate("About", "Fixed font: %1.")
+                .arg(fixed.family()),
+            fonts_page));
+    }
+    for (const third_party_font& font : fonts)
+        add_licence(fonts_layout,
+                    font.version.isEmpty()
+                        ? font.family
+                        : QStringLiteral("%1 %2").arg(font.family, font.version),
+                    licence_text(font.spdx), font.url, fonts_page);
     fonts_layout->addStretch(1);
     tabs_->addTab(fonts_page, QCoreApplication::translate("About", "Fonts"));
 
@@ -334,10 +305,11 @@ void AboutDialog::build()
             &AboutDialog::bundle_requested);
     footer_layout->addWidget(bundle);
     auto* copy = make_dialog_button(
-        QCoreApplication::translate("About", "Copy environment"), nullptr,
-        footer);
+        QCoreApplication::translate("About", "Copy diagnostic information"),
+        nullptr, footer);
     copy->setAutoDefault(false);
-    connect(copy, &QPushButton::clicked, this, &AboutDialog::copy_environment);
+    connect(copy, &QPushButton::clicked, this,
+            &AboutDialog::copy_diagnostic_information);
     footer_layout->addWidget(copy);
     auto* close = make_dialog_button(
         QCoreApplication::translate("About", "Close"), "primary", footer);
@@ -359,9 +331,27 @@ QString AboutDialog::source_url()
         "https://github.com/iainchesworthlabs/virtual-serial-studio");
 }
 
+QString AboutDialog::build_information_text() const
+{
+    return build_information_report(info_);
+}
+
 QString AboutDialog::environment_text() const
 {
     return environment_report(info_);
+}
+
+QString AboutDialog::diagnostic_text() const
+{
+    return diagnostic_report(info_);
+}
+
+void AboutDialog::copy_build_information()
+{
+    QGuiApplication::clipboard()->setText(build_information_text());
+    ToastManager::instance().show(
+        this,
+        QCoreApplication::translate("About", "Build information copied."));
 }
 
 void AboutDialog::copy_environment()
@@ -369,6 +359,59 @@ void AboutDialog::copy_environment()
     QGuiApplication::clipboard()->setText(environment_text());
     ToastManager::instance().show(
         this, QCoreApplication::translate("About", "Environment copied."));
+}
+
+void AboutDialog::copy_diagnostic_information()
+{
+    QGuiApplication::clipboard()->setText(diagnostic_text());
+    ToastManager::instance().show(
+        this, QCoreApplication::translate("About",
+                                          "Diagnostic information copied."));
+}
+
+QWidget* AboutDialog::rows_page(const QString& intro,
+                                const QVector<environment_row>& rows,
+                                const QString& copy_text,
+                                void (AboutDialog::*copy)())
+{
+    QVBoxLayout* layout = nullptr;
+    QWidget* result = page(tabs_, layout);
+    QWidget* content = static_cast<QScrollArea*>(result)->widget();
+    layout->addWidget(body_label(intro, content));
+    auto* card = new QFrame(content);
+    card->setProperty("card", true);
+    polish(card);
+    auto* grid = new QGridLayout(card);
+    grid->setContentsMargins(0, 0, 0, 0);
+    grid->setHorizontalSpacing(0);
+    grid->setVerticalSpacing(0);
+    for (int index = 0; index < rows.size(); ++index)
+    {
+        auto* label = new QLabel(
+            QCoreApplication::translate(
+                "About", rows.at(index).label.toUtf8().constData()),
+            card);
+        label->setFont(Theme::instance().font(text_style::caption));
+        label->setProperty("muted", true);
+        label->setContentsMargins(14, 8, 14, 8);
+        polish(label);
+        auto* value = new QLabel(rows.at(index).value, card);
+        value->setFont(Theme::instance().font(text_style::data));
+        value->setContentsMargins(14, 8, 14, 8);
+        value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+        value->setWordWrap(true);
+        grid->addWidget(label, index, 0);
+        grid->addWidget(value, index, 1);
+    }
+    // Let the value column take the spare width so long values wrap there.
+    grid->setColumnStretch(1, 1);
+    layout->addWidget(card);
+    auto* button = make_dialog_button(copy_text, nullptr, content);
+    button->setAutoDefault(false);
+    connect(button, &QPushButton::clicked, this, copy);
+    layout->addWidget(button, 0, Qt::AlignLeft);
+    layout->addStretch(1);
+    return result;
 }
 
 } // namespace vss::gui::support

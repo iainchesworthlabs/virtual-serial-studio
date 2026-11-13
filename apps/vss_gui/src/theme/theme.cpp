@@ -100,14 +100,61 @@ double logical_dpi()
     return 96.0;
 }
 
+/// The faces that ship inside the program (assets/fonts, embedded through
+/// theme_resources.qrc).  Registered once, before the base fonts are resolved.
+struct BundledFonts
+{
+    /// The byte-view face.  Empty when it could not be loaded.
+    QString mono;
+    /// Noto Sans Hebrew and Noto Sans Arabic, in the order they are tried for
+    /// glyphs the system UI font does not have.
+    QStringList script_fallbacks;
+};
+
+const BundledFonts& bundled_fonts()
+{
+    static const BundledFonts fonts = []
+    {
+        BundledFonts result;
+        const auto add = [](const char* file) -> QStringList
+        {
+            const int id = QFontDatabase::addApplicationFont(
+                QStringLiteral(":/fonts/") + QLatin1String(file));
+            return id < 0 ? QStringList{}
+                          : QFontDatabase::applicationFontFamilies(id);
+        };
+        const QStringList mono = add("IBMPlexMono-Regular.ttf");
+        if (!mono.isEmpty())
+            result.mono = mono.front();
+        // The system fonts that cover Hebrew and Arabic stay first; these
+        // are what Linux without font packages, and Yiddish, fall back to.
+        for (const char* file :
+             {"NotoSansHebrew-Regular.ttf", "NotoSansHebrew-SemiBold.ttf",
+              "NotoSansArabic-Regular.ttf", "NotoSansArabic-Bold.ttf"})
+        {
+            for (const QString& family : add(file))
+            {
+                if (!result.script_fallbacks.contains(family))
+                    result.script_fallbacks.append(family);
+            }
+        }
+        return result;
+    }();
+    return fonts;
+}
+
 /// The family is whatever the system reports for its UI font.  Segoe UI
 /// Variable would be the Windows 11 face, but Qt 6 draws its variable
 /// instances at the wrong weight through DirectWrite (every regular label
 /// comes out semi-bold), so Windows keeps Segoe UI.  The look comes from the
-/// whole-pixel sizes and the unhinted outline instead.
+/// whole-pixel sizes and the unhinted outline instead.  A Hebrew or Arabic
+/// glyph the system face lacks is drawn with the bundled Noto face.
 QFont resolve_base_font()
 {
     QFont font = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
+    QStringList families{font.family()};
+    families.append(bundled_fonts().script_fallbacks);
+    font.setFamilies(families);
     // Hinting snaps stems to whole pixels, which is what makes Windows text
     // look crunchy next to a modern UI.  Positions and sizes are already whole
     // pixels (see Theme::font), so ask for the unhinted outline.
@@ -116,18 +163,20 @@ QFont resolve_base_font()
     return font;
 }
 
-/// The default fixed font on Windows is Courier New, a thin typewriter face.
-/// Consolas ships with Windows and is drawn for screens.  The fixed font on
-/// the other platforms is already a screen face.
+/// Hex and byte columns use the bundled IBM Plex Mono, so they line up the
+/// same on every platform.  The system fixed font (and the Hebrew and Arabic
+/// faces after it) only cover glyphs Plex Mono lacks, or the whole job if the
+/// resource could not be loaded.
 QFont resolve_mono_font()
 {
     QFont font = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    // Only the typewriter default is replaced, so this is a no-op wherever the
-    // system already reports a screen face.
-    const QString consolas = QStringLiteral("Consolas");
-    if (font.family() == QLatin1String("Courier New") &&
-        QFontDatabase::families().contains(consolas))
-        font.setFamily(consolas);
+    QStringList families;
+    if (!bundled_fonts().mono.isEmpty())
+        families.append(bundled_fonts().mono);
+    families.append(font.family());
+    families.append(bundled_fonts().script_fallbacks);
+    font.setFamilies(families);
+    font.setFamily(families.front());
     font.setHintingPreference(QFont::PreferNoHinting);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;

@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>環境情報をコピーしました。</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>ビルド情報</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>ビルド情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>ビルド情報をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>バグ報告に貼り付けてください。「何の上で動いているか」がわかります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>バージョン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Git タグ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Git リビジョン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>短いリビジョン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>作業ツリー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>ブランチ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>ビルド番号</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>ビルド日時</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>ビルドの種類</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>コンパイラ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>ビルド時の Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>オペレーティングシステム</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>アーキテクチャ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>カーネル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>実行時の Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>プラットフォームプラグイン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>ディスプレイ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>言語</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>プロファイリング</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>共有ライブラリとして Studio に同梱されています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>このビルドにはプロファイリング対応が含まれているため、同梱されています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>SIL Open Font License バージョン1.1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>レンダラー</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1485,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>環境情報をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
         </message>
     </context>
     <context>
@@ -5927,6 +6082,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>グラフィックスシステムを開始できませんでした (%1)。</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>理由は示されていません</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>見つかったグラフィックスデバイスはソフトウェアレンダラーだけです (%1)。</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>ハードウェア (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>ハードウェア (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>ソフトウェア (CPU)、理由: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ソフトウェア (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>グラフィックスデバイスが動作を停止しました。</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>グラフィックスデバイスが作成されませんでした</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6247,8 +6441,40 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>Studio が遅い原因を調べるための機能です。記録するのは処理時間だけで、上のアドレスに Tracy プロファイラーを接続するまで何も送信しません。Studio を起動するたびに、再びオフになります。</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>Studio が遅い原因を調べるための機能です。記録するのは処理時間だけで、何も送信しません。Studio はこのコンピューターだけで待ち受け、ここで Tracy プロファイラーを起動して上のアドレスに接続したときにだけタイムラインが表示されます。このスイッチは記憶され、次回の起動時にも記録されます。他のコンピューターからの接続を許可するには再起動が必要です。</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>描画</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>自動</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>ハードウェア (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ソフトウェア (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>ハードウェアはキャンバスをグラフィックスカードで描画します。ポートが多くても滑らかに動きます。ソフトウェアはプロセッサーで描画します。自動は、使えるグラフィックスカードがあればそれを使います。</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>現在の描画方法: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>この選択を使うには Studio を再起動してください。</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER または --render が設定されているため、この選択より優先されます。</translation>
         </message>
     </context>
     <context>
@@ -8904,6 +9130,25 @@ Networks: %5</source>
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio のセットアップが完了しました。新しいポートを他のプログラムから開けます。</translation>
         </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>キャンバスはプロセッサーで描画されています: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>ビルド 環境 バグ報告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11542,6 +11787,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation>別の名前または種類を試してから、もう一度やり直してください。</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11849,6 +12098,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>別のものを選ぶ</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>接続中</translation>
         </message>
     </context>
     <context>
@@ -12950,6 +13203,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>スクロール</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>進行状況</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13085,6 +13346,14 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="417" />
             <source>RX %1, TX %2</source>
             <translation>RX %1, TX %2</translation>
+        </message>
+        <message>
+            <source>Total traffic</source>
+            <translation>合計トラフィック</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>受信と送信の合計バイト数です。現在の速度はステータスバーに表示されます。</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
@@ -14015,6 +14284,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>ペアを作成</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
         </message>
     </context>
     <context>
@@ -16617,6 +16890,29 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>レイアウトをリセットしました。</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>進行状況</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>ビルド 環境 バグ報告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17052,6 +17348,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1を保存しました。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>適用中</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
     </context>
     <context>
@@ -17813,6 +18117,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>適用中</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>変更を適用しています。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>セットアップの進行状況</translation>
         </message>
     </context>
     <context>

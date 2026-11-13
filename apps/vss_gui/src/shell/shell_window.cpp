@@ -34,6 +34,7 @@
 #include "panes/monitor_panel.hpp"
 #include "panes/ports_panel.hpp"
 #include "panes/send_panel.hpp"
+#include "rendering/render_state.hpp"
 #include "shell/canvas_controller.hpp"
 #include "shell/command_palette.hpp"
 #include "shell/format.hpp"
@@ -85,6 +86,7 @@
 #include <QDockWidget>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontMetrics>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -96,6 +98,7 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QProgressBar>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QResizeEvent>
@@ -323,13 +326,13 @@ void ShellWindow::build_actions()
         { return backend_.caps().rename_port && selection_.port() != 0; });
     add(
         QStringLiteral("ports.remove"), tr("Remove port"), tr("delete remove"),
-        QStringLiteral("remove"), {}, action_level::simple,
+        QStringLiteral("remove-port"), {}, action_level::simple,
         [this] { remove_selected_port(); }, false,
         [this] { return selection_.port() != 0; });
     add(
         QStringLiteral("topology.removeSetup"), tr("Remove setup"),
         tr("delete remove teardown close pair share attach everything"),
-        QStringLiteral("remove"), {}, action_level::simple,
+        QStringLiteral("remove-setup"), {}, action_level::simple,
         [this] { remove_selected_setup(); }, false,
         [this] { return selection_.port() != 0 || selection_.link() != 0; });
 
@@ -540,8 +543,8 @@ void ShellWindow::build_actions()
         [this] { open_troubleshoot(); });
     add(QStringLiteral("help.shortcuts"), tr("Keyboard shortcuts"), tr("keys"),
         {}, {}, action_level::simple, [this] { open_shortcuts(); });
-    add(QStringLiteral("help.environment"), tr("Copy environment"),
-        tr("build bug report"), QStringLiteral("copy"), {},
+    add(QStringLiteral("help.environment"), tr("Copy diagnostic information"),
+        tr("build environment bug report"), QStringLiteral("copy"), {},
         action_level::simple, [this] { copy_environment(); });
     add(QStringLiteral("help.about"), tr("About"),
         tr("version licence copyright"), {}, {}, action_level::simple,
@@ -698,6 +701,7 @@ void ShellWindow::build_toolbar()
     toolbar_->setObjectName(QStringLiteral("mainToolbar"));
     toolbar_->setMovable(false);
     toolbar_->setFloatable(false);
+    toolbar_->installEventFilter(this);
     toolbar_->setIconSize(QSize(16, 16));
     toolbar_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     toolbar_->setStyleSheet(QStringLiteral(
@@ -717,6 +721,15 @@ void ShellWindow::build_toolbar()
     toolbar_->addSeparator();
     add(QStringLiteral("ports.remove"));
     add(QStringLiteral("topology.removeSetup"));
+
+    // A QToolBar makes its buttons unfocusable.  The tool row must be reachable
+    // by keyboard, with the style's focus ring.
+    for (QAction* action : toolbar_->actions())
+    {
+        if (auto* button =
+                qobject_cast<QToolButton*>(toolbar_->widgetForAction(action)))
+            button->setFocusPolicy(Qt::TabFocus);
+    }
 
     // Menus, the action search and the mode switch share one row: the search
     // and the switch are the menu bar's right-hand corner widget.
@@ -739,7 +752,9 @@ void ShellWindow::build_toolbar()
                                                   colour_role::ink3, 16),
                     QLineEdit::LeadingPosition)
         ->setText(tr("Search actions"));
-    corner_layout->addWidget(search_);
+    // The menu bar gives its corner widget the whole header row; without a
+    // vertical alignment the layout stretches the children to that height.
+    corner_layout->addWidget(search_, 0, Qt::AlignVCenter);
     connect(search_, &QLineEdit::returnPressed, this,
             [this] { open_palette(); });
     menuBar()->setCornerWidget(corner, Qt::TopRightCorner);
@@ -1015,6 +1030,9 @@ void ShellWindow::build_docks()
     monitor_dock_ = make_pane_dock(QStringLiteral("monitorDock"), tr("Monitor"),
                                    monitor_panel_, &monitor_header_);
 
+    // The Monitor controls share the pane's title row while it is wide enough.
+    monitor_panel_->attach_header(monitor_header_);
+
     // The Ports pane carries its own Add port button.
     if (QAction* add = registry_.action(QStringLiteral("ports.add")))
     {
@@ -1186,6 +1204,18 @@ void ShellWindow::build_docks()
     // Advanced bottom tabs.  Log and Topology JSON are tabified with the
     // Monitor dock; WP3 owns the Monitor pane, this package owns these two.
     event_log_ = new EventLogPanel(this);
+    // The canvas went back to the processor after start-up.
+    connect(&rendering::render_events::instance(),
+            &rendering::render_events::fell_back, this,
+            [this](const QString& reason)
+            {
+                const QString text =
+                    tr("The canvas is drawn on the processor: %1")
+                        .arg(reason);
+                if (status_ != nullptr)
+                    status_->showMessage(text, 10000);
+                log_local(text);
+            });
     log_dock_ = new QDockWidget(tr("Log"), this);
     log_dock_->setObjectName(QStringLiteral("logDock"));
     log_dock_->setAllowedAreas(Qt::AllDockWidgetAreas);
@@ -1277,12 +1307,17 @@ void ShellWindow::build_status()
     menuBar()->setFont(Theme::instance().font(text_style::body));
     // One header row: the menus on the left, the action search and the
     // Simple and Advanced switch on the right.
-    menuBar()->setFixedHeight(
-        Theme::instance().metric(QStringLiteral("header")));
+    const int header = Theme::instance().metric(QStringLiteral("header"));
+    menuBar()->setFixedHeight(header);
     if (QWidget* corner = menuBar()->cornerWidget(Qt::TopRightCorner))
     {
+        // The menu bar sizes a corner widget to its size hint and puts it at
+        // the top, so make the widget as tall as the row and let its layout
+        // centre the children.
+        corner->setFixedHeight(header);
         if (auto* corner_layout = qobject_cast<QHBoxLayout*>(corner->layout()))
-            corner_layout->addWidget(status_->release_level_switch(corner));
+            corner_layout->addWidget(status_->release_level_switch(corner), 0,
+                                     Qt::AlignVCenter);
     }
     toolbar_->setFixedHeight(
         Theme::instance().metric(QStringLiteral("buttonSmall")) + 4);
@@ -1684,9 +1719,9 @@ void ShellWindow::apply_compact()
     if (compact == compact_)
         return;
     compact_ = compact;
+    VSS_PROFILE_ZONE("gui.shell.apply_compact");
 
-    toolbar_->setToolButtonStyle(compact ? Qt::ToolButtonIconOnly
-                                         : Qt::ToolButtonTextBesideIcon);
+    update_toolbar_style();
     if (compact)
     {
         if (!tabifiedDockWidgets(inspector_dock_).contains(send_dock_))
@@ -1813,6 +1848,78 @@ void ShellWindow::open_network_endpoint()
         tr("Open monitor"), [this] { show_monitor(); });
 }
 
+void ShellWindow::apply_in_background(
+    vss::config::document document,
+    std::function<void(const vss::result<void>&)> finished)
+{
+    if (apply_work_.busy())
+        return;
+    struct outcome
+    {
+        vss::config::document document;
+        vss::error_code error;
+    };
+    auto state = std::make_shared<outcome>();
+    state->document = std::move(document);
+
+    // Nothing in the window may change the setup while the engine works on
+    // it, and the changes it makes meanwhile are not the user's edits.
+    loading_ = true;
+    const QList<QWidget*> locked = [this]
+    {
+        QList<QWidget*> widgets;
+        widgets.push_back(centralWidget());
+        widgets.push_back(menuBar());
+        for (auto* dock : findChildren<QDockWidget*>())
+            widgets.push_back(dock);
+        return widgets;
+    }();
+    for (QWidget* widget : locked)
+    {
+        if (widget != nullptr)
+            widget->setEnabled(false);
+    }
+    if (apply_bar_ == nullptr)
+    {
+        apply_bar_ = new QProgressBar(status_);
+        apply_bar_->setRange(0, 0);
+        apply_bar_->setTextVisible(false);
+        apply_bar_->setFixedWidth(160);
+        apply_bar_->setAccessibleName(tr("Progress"));
+        status_->addPermanentWidget(apply_bar_);
+    }
+    apply_bar_->setVisible(true);
+    status_->showMessage(
+        tr("Setting up. Windows installs each new port, which can take up to "
+           "a minute."));
+
+    apply_work_.start(
+        [this, state]
+        {
+            const auto applied = backend_.apply(state->document, true);
+            if (!applied)
+                state->error = applied.error();
+        },
+        [this, state, locked = QList<QPointer<QWidget>>(locked.begin(),
+                                                        locked.end()),
+         finished = std::move(finished)]
+        {
+            for (const auto& widget : locked)
+            {
+                if (widget != nullptr)
+                    widget->setEnabled(true);
+            }
+            apply_bar_->setVisible(false);
+            status_->clearMessage();
+            loading_ = false;
+            backend_.refresh();
+            if (state->error)
+                finished(state->error);
+            else
+                finished(vss::result<void>{});
+        });
+}
+
 void ShellWindow::open_templates()
 {
     if (!confirm_discard())
@@ -1825,43 +1932,48 @@ void ShellWindow::open_templates()
     if (!document)
         return;
 
-    loading_ = true;
-    const auto applied = backend_.apply(*document, true);
-    loading_ = false;
-    if (!applied)
-    {
-        ErrorDialog error(
-            tr("Could not open %1").arg(dialog.result_title()),
-            tr("The setup needs a device or network endpoint that "
-               "is not available on this PC. Nothing was changed. "
-               "Check the device, then try again."),
-            error_text(applied.error()), this);
-        error.exec();
-        status_->refresh();
-        return;
-    }
+    apply_in_background(
+        *document,
+        [this, title = dialog.result_title(),
+         is_template = dialog.result_is_template(),
+         path = dialog.result_path()](const vss::result<void>& applied)
+        {
+            if (!applied)
+            {
+                ErrorDialog error(
+                    tr("Could not open %1").arg(title),
+                    tr("The setup needs a device or network endpoint that "
+                       "is not available on this PC. Nothing was changed. "
+                       "Check the device, then try again."),
+                    error_text(applied.error()), this);
+                error.exec();
+                status_->refresh();
+                return;
+            }
 
-    if (dialog.result_is_template())
-    {
-        document_path_.clear();
-        title_override_ = dialog.result_title();
-        set_dirty(true);
-    }
-    else
-    {
-        document_path_ = dialog.result_path();
-        title_override_.clear();
-        set_dirty(false);
-        const auto ports = backend_.ports();
-        const auto links = backend_.links();
-        add_recent(document_path_,
-                   tr("%1 ports, %2 links")
-                       .arg(static_cast<qulonglong>(ports.size()))
-                       .arg(static_cast<qulonglong>(links.size())));
-    }
-    show_workspace();
-    update_title();
-    status_->refresh();
+            if (is_template)
+            {
+                document_path_.clear();
+                title_override_ = title;
+                set_dirty(true);
+            }
+            else
+            {
+                document_path_ = path;
+                title_override_.clear();
+                set_dirty(false);
+                const auto ports = backend_.ports();
+                const auto links = backend_.links();
+                add_recent(
+                    document_path_,
+                    tr("%1 ports, %2 links")
+                        .arg(static_cast<qulonglong>(ports.size()))
+                        .arg(static_cast<qulonglong>(links.size())));
+            }
+            show_workspace();
+            update_title();
+            status_->refresh();
+        });
 }
 
 void ShellWindow::show_monitor()
@@ -2859,8 +2971,8 @@ void ShellWindow::open_bundle()
 
 void ShellWindow::copy_environment()
 {
-    QGuiApplication::clipboard()->setText(environment_report());
-    ToastManager::instance().show(this, tr("Environment copied."));
+    QGuiApplication::clipboard()->setText(diagnostic_report());
+    ToastManager::instance().show(this, tr("Diagnostic information copied."));
 }
 
 void ShellWindow::new_document()
@@ -2918,30 +3030,33 @@ void ShellWindow::open_path(const QString& path)
         return;
     }
 
-    loading_ = true;
-    const auto applied = backend_.apply(*document, true);
-    loading_ = false;
-    if (!applied)
-    {
-        ErrorDialog dialog(
-            tr("Could not open %1").arg(QFileInfo(path).fileName()),
-            error_text(applied.error()), {}, this);
-        dialog.exec();
-        return;
-    }
-    document_path_ = path;
-    last_signature_ = document_signature();
-    title_override_.clear();
-    set_dirty(false);
-    update_title();
-    const auto ports = backend_.ports();
-    const auto links = backend_.links();
-    add_recent(path, tr("%1 ports, %2 links")
-                         .arg(static_cast<qulonglong>(ports.size()))
-                         .arg(static_cast<qulonglong>(links.size())));
-    log_local(tr("Opened %1.").arg(QFileInfo(path).fileName()));
-    show_workspace();
-    status_->refresh();
+    apply_in_background(
+        *document,
+        [this, path](const vss::result<void>& applied)
+        {
+            if (!applied)
+            {
+                ErrorDialog dialog(
+                    tr("Could not open %1").arg(QFileInfo(path).fileName()),
+                    error_text(applied.error()), {}, this);
+                dialog.exec();
+                return;
+            }
+            document_path_ = path;
+            last_signature_ = document_signature();
+            title_override_.clear();
+            set_dirty(false);
+            update_title();
+            const auto ports = backend_.ports();
+            const auto links = backend_.links();
+            add_recent(path,
+                       tr("%1 ports, %2 links")
+                           .arg(static_cast<qulonglong>(ports.size()))
+                           .arg(static_cast<qulonglong>(links.size())));
+            log_local(tr("Opened %1.").arg(QFileInfo(path).fileName()));
+            show_workspace();
+            status_->refresh();
+        });
 }
 
 void ShellWindow::save_document()
@@ -3151,8 +3266,48 @@ void ShellWindow::apply_menu_palette()
 
 void ShellWindow::resizeEvent(QResizeEvent* event)
 {
-    QMainWindow::resizeEvent(event);
+    VSS_PROFILE_ZONE("gui.shell.resize");
+    {
+        VSS_PROFILE_ZONE("gui.shell.resize.main_window");
+        QMainWindow::resizeEvent(event);
+    }
     apply_compact();
+}
+
+void ShellWindow::update_toolbar_style()
+{
+    // Show the labels while they all fit in the row, and only the icons when
+    // they do not or when the window is compact.  Qt would otherwise shorten
+    // the labels to "Attach ... device".  The width needed does not depend on
+    // the current style, so this cannot flip back and forth.
+    const QFontMetrics metrics(toolbar_->font());
+    const int icon = toolbar_->iconSize().width();
+    int needed = toolbar_->contentsMargins().left() +
+                 toolbar_->contentsMargins().right();
+    for (const QAction* action : toolbar_->actions())
+    {
+        if (!action->isVisible())
+            continue;
+        if (action->isSeparator())
+        {
+            needed += 13;
+            continue;
+        }
+        needed += metrics.horizontalAdvance(action->text()) + icon + 40;
+    }
+    const bool icons_only = compact_ || needed > toolbar_->width();
+    const auto style = icons_only ? Qt::ToolButtonIconOnly
+                                  : Qt::ToolButtonTextBesideIcon;
+    if (toolbar_->toolButtonStyle() != style)
+        toolbar_->setToolButtonStyle(style);
+}
+
+bool ShellWindow::eventFilter(QObject* watched, QEvent* event)
+{
+    if (watched == toolbar_ && event != nullptr &&
+        (event->type() == QEvent::Resize || event->type() == QEvent::Show))
+        update_toolbar_style();
+    return QMainWindow::eventFilter(watched, event);
 }
 
 void ShellWindow::showEvent(QShowEvent* event)
@@ -3203,6 +3358,13 @@ bool ShellWindow::confirm_exit()
 
 void ShellWindow::closeEvent(QCloseEvent* event)
 {
+    // The engine is part way through setting up ports; closing now would
+    // leave half a setup.
+    if (apply_work_.busy())
+    {
+        event->ignore();
+        return;
+    }
     if (restarting_)
     {
         // The Studio that replaces this one (as administrator) starts the
@@ -3355,7 +3517,8 @@ void ShellWindow::enable_background(const QString& running_path, bool use_tray)
 
 bool ShellWindow::needed_in_background() const
 {
-    return restore_failed_ || !backend_.ports().empty();
+    // Ports being started are a reason to stay: they may not be listed yet.
+    return apply_work_.busy() || restore_failed_ || !backend_.ports().empty();
 }
 
 void ShellWindow::bring_to_front()
@@ -3414,49 +3577,53 @@ void ShellWindow::start_running_setup(bool automatic)
     if (!automatic && !backend_.ports().empty())
         return;
 
-    loading_ = true;
-    const auto applied = backend_.apply(setup->document, true);
-    loading_ = false;
-    if (!applied)
-    {
-        const QString text = tr("Could not start the ports from last time: %1")
-                                 .arg(error_text(applied.error()));
-        status_->showMessage(text, 10000);
-        log_local(text);
-        if (tray_ != nullptr && !isVisible())
-            tray_->notify(tr("Could not start the ports from last time"),
-                          tr("Open Studio to see why and start them again."),
-                          true);
-        if (automatic)
-            restore_failed_ = true;
-        // Offer it again from the banner, as after a Quit.
-        support::running_state state = setup->state;
-        state.stopped = true;
-        support::save_running_state(running_path_, state);
-        update_resume_banner();
-        return;
-    }
-    restore_failed_ = false;
-    document_path_ = setup->state.document_path;
-    title_override_.clear();
-    last_signature_ = document_signature();
-    dirty_ = setup->state.dirty;
-    update_title();
-    const QString text =
-        automatic ? tr("Started the ports that were running before: %1 "
-                       "ports, %2 links.")
-                        .arg(setup->ports)
-                        .arg(setup->links)
-                  : tr("Started the ports again: %1 ports, %2 links.")
-                        .arg(setup->ports)
-                        .arg(setup->links);
-    status_->showMessage(text, 6000);
-    log_local(text);
-    show_workspace();
-    status_->refresh();
-    save_running_now(false);
-    update_resume_banner();
-    update_tray();
+    apply_in_background(
+        setup->document,
+        [this, setup = *setup, automatic](const vss::result<void>& applied)
+        {
+            if (!applied)
+            {
+                const QString text =
+                    tr("Could not start the ports from last time: %1")
+                        .arg(error_text(applied.error()));
+                status_->showMessage(text, 10000);
+                log_local(text);
+                if (tray_ != nullptr && !isVisible())
+                    tray_->notify(
+                        tr("Could not start the ports from last time"),
+                        tr("Open Studio to see why and start them again."),
+                        true);
+                if (automatic)
+                    restore_failed_ = true;
+                // Offer it again from the banner, as after a Quit.
+                support::running_state state = setup.state;
+                state.stopped = true;
+                support::save_running_state(running_path_, state);
+                update_resume_banner();
+                return;
+            }
+            restore_failed_ = false;
+            document_path_ = setup.state.document_path;
+            title_override_.clear();
+            last_signature_ = document_signature();
+            dirty_ = setup.state.dirty;
+            update_title();
+            const QString text =
+                automatic ? tr("Started the ports that were running before: "
+                               "%1 ports, %2 links.")
+                                .arg(setup.ports)
+                                .arg(setup.links)
+                          : tr("Started the ports again: %1 ports, %2 links.")
+                                .arg(setup.ports)
+                                .arg(setup.links);
+            status_->showMessage(text, 6000);
+            log_local(text);
+            show_workspace();
+            status_->refresh();
+            save_running_now(false);
+            update_resume_banner();
+            update_tray();
+        });
 }
 
 void ShellWindow::update_resume_banner()

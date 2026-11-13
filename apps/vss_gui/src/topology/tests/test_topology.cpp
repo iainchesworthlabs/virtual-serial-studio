@@ -7,10 +7,12 @@
 #include "test_framework.hpp"
 
 #include "backend/fake_studio_backend.hpp"
+#include "rendering/render_state.hpp"
 #include "shell/shell_window.hpp"
 #include "theme/focus_ring_style.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
+#include "topology/link_item.hpp"
 #include "topology/links_list.hpp"
 #include "topology/node_item.hpp"
 #include "topology/topology_layout.hpp"
@@ -34,6 +36,8 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPushButton>
+#include <QSet>
+#include <QThread>
 #include <QScrollBar>
 #include <QSettings>
 #include <QStatusBar>
@@ -1545,6 +1549,75 @@ TEST_CASE("topology canvas: a resize re-fits until the user takes over")
     view.close();
 }
 
+TEST_CASE("topology canvas: a manual view keeps its centre across resizes")
+{
+    pair_with_fixtures fixture;
+    topo::TopologyView view;
+    view.resize(900, 600);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    // Zoomed out a little, so the content is smaller than the window and the
+    // user is in charge of the view.
+    view.zoom_out();
+    REQUIRE(!view.is_auto_fit());
+    const qreal zoom = view.zoom();
+    const auto view_centre = [&view]
+    {
+        return view.mapToScene(view.viewport()->rect().center());
+    };
+    const QPointF centre = view_centre();
+
+    const QSize sizes[] = {{1400, 900}, {700, 500}, {1100, 800}, {900, 600},
+                           {1600, 1000}, {900, 600}};
+    for (const QSize& size : sizes)
+    {
+        view.resize(size);
+        QApplication::processEvents();
+        REQUIRE_NEAR(view.zoom(), zoom, 1e-9);
+        REQUIRE(!view.is_auto_fit());
+
+        // The same scene point stays at the centre: no drift.
+        const QPointF now = view_centre();
+        REQUIRE_NEAR(now.x(), centre.x(), 1.5 / zoom);
+        REQUIRE_NEAR(now.y(), centre.y(), 1.5 / zoom);
+
+        // The content stays in view whenever the window can hold it.
+        const QRectF visible =
+            view.mapToScene(view.viewport()->rect()).boundingRect();
+        const QRectF content = view.scene()->itemsBoundingRect();
+        if (content.width() * zoom < view.viewport()->width() &&
+            content.height() * zoom < view.viewport()->height())
+        {
+            REQUIRE(visible.contains(content));
+        }
+    }
+
+    // Zoomed in and scrolled by the user: the point they scrolled to stays at
+    // the centre through the same resizes.
+    view.resize(900, 600);
+    QApplication::processEvents();
+    for (int step = 0; step < 6; ++step)
+        view.zoom_in();
+    view.horizontalScrollBar()->triggerAction(
+        QAbstractSlider::SliderPageStepAdd);
+    QApplication::processEvents();
+    const qreal big = view.zoom();
+    const QPointF panned = view_centre();
+    REQUIRE(panned != centre);
+    for (const QSize& size : sizes)
+    {
+        view.resize(size);
+        QApplication::processEvents();
+        REQUIRE_NEAR(view.zoom(), big, 1e-9);
+        const QPointF now = view_centre();
+        REQUIRE_NEAR(now.x(), panned.x(), 1.5 / big);
+        REQUIRE_NEAR(now.y(), panned.y(), 1.5 / big);
+    }
+    view.close();
+}
+
 TEST_CASE("topology canvas: zoom in, zoom out, Fit and Tidy through the shell")
 {
     clear_settings();
@@ -1680,6 +1753,11 @@ TEST_CASE("topology: zoom keeps the point under the anchor still")
     graph_fixture fixture;
     topo::TopologyView view;
     view.resize(800, 600);
+    // A scroll bar that appears after the zoom would shrink the viewport and move
+    // its centre, and whether one appears depends on the size of the text. This
+    // test is about the zoom, so the bars stay off.
+    view.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    view.setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     view.show();
     view.set_topology(fixture.backend.ports(), fixture.backend.links());
     QApplication::processEvents();
@@ -1784,6 +1862,103 @@ TEST_CASE("topology: hit-testing and dragging stay correct when zoomed")
         REQUIRE_NEAR(view.mapToScene(at).y(), node.center().y(), 1.0);
     }
     view.close();
+}
+
+TEST_CASE("topology: the canvas is drawn by the CPU in software mode")
+{
+    vss::gui::rendering::set_state({});
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    REQUIRE(!view.gpu_active());
+    const QImage image = view.grab().toImage();
+    REQUIRE(!image.isNull());
+    // The ground, the dots and the cards are not one colour.
+    QSet<QRgb> colours;
+    for (int y = 0; y < image.height(); y += 7)
+    {
+        for (int x = 0; x < image.width(); x += 7)
+            colours.insert(image.pixel(x, y));
+    }
+    REQUIRE(colours.size() > 3);
+    REQUIRE_EQ(view.node_count(), 4);
+}
+
+TEST_CASE("topology: asking for the GPU where there is none leaves a working "
+          "canvas")
+{
+    // The test programs run on the offscreen platform, which has no usable
+    // graphics device, so this is the fallback path: the canvas must end up
+    // drawn by the CPU, say so, and still hold its items.
+    vss::gui::rendering::render_state state;
+    state.requested = vss::gui::rendering::render_mode::hardware;
+    state.active = vss::gui::rendering::renderer::hardware;
+    vss::gui::rendering::set_state(state);
+
+    graph_fixture fixture;
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    for (int i = 0; i < 20; ++i)
+    {
+        QApplication::processEvents();
+        QThread::msleep(15);
+    }
+    REQUIRE_EQ(view.node_count(), 4);
+    REQUIRE(!view.grab().toImage().isNull());
+    // Either the device came up (then it is the one asked for) or the canvas
+    // went back to software and the state says so.
+    if (!view.gpu_active())
+    {
+        REQUIRE(vss::gui::rendering::current().active ==
+                vss::gui::rendering::renderer::software);
+    }
+    vss::gui::rendering::set_state({});
+}
+
+TEST_CASE("topology: an item reports a change in its drawing, not a move")
+{
+    // The GPU canvas keeps a texture per item and makes it again only when
+    // the item's revision moves, so a move must not count and a change in
+    // what is drawn must.
+    topo::node_data data;
+    data.id = 1;
+    data.name = QStringLiteral("a");
+    topo::NodeItem node(data, QSizeF(168.0, 56.0), {});
+    const quint64 made = node.revision();
+    node.setPos(40.0, 40.0);
+    REQUIRE(node.revision() == made);
+    node.set_state(true, false, false);
+    const quint64 selected = node.revision();
+    REQUIRE(selected != made);
+    node.set_state(true, false, false);
+    REQUIRE(node.revision() == selected);
+    node.set_in_loop(true);
+    REQUIRE(node.revision() != selected);
+
+    topo::link_data link;
+    link.id = 1;
+    topo::LinkItem item(link, {});
+    topo::topo_link_placement placement;
+    placement.id = 1;
+    placement.segments = {QLineF(0.0, 0.0, 100.0, 0.0)};
+    placement.stroke.moveTo(0.0, 0.0);
+    placement.stroke.lineTo(100.0, 0.0);
+    item.set_geometry(placement);
+    const quint64 placed = item.revision();
+    REQUIRE(placed != 1);
+    // The same geometry again, as every link gets when another node moves.
+    item.set_geometry(placement);
+    REQUIRE(item.revision() == placed);
+    placement.stroke.lineTo(120.0, 10.0);
+    item.set_geometry(placement);
+    REQUIRE(item.revision() != placed);
+    REQUIRE(item.geometry() == placement);
 }
 
 TEST_CASE("topology: a zoom button shows the focus ring for keyboard focus")

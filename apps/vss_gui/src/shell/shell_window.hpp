@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_SHELL_SHELL_WINDOW_HPP
 #define VSS_GUI_SHELL_SHELL_WINDOW_HPP
 
+#include "backend/background_work.hpp"
 #include "backend/studio_backend.hpp"
 #include "panes/selection_service.hpp"
 #include "shell/action_registry.hpp"
@@ -18,6 +19,7 @@
 #include <QMainWindow>
 #include <QString>
 
+#include <functional>
 #include <vector>
 
 class QAction;
@@ -25,6 +27,7 @@ class QDockWidget;
 class QLabel;
 class QLineEdit;
 class QStackedWidget;
+class QProgressBar;
 class QThread;
 class QTimer;
 class QToolBar;
@@ -94,6 +97,9 @@ public:
     /// the second case the notification that says so, and the Start again
     /// banner behind it, are only there while Studio is.
     bool needed_in_background() const;
+    /// True while a document is being applied to the engine on a worker
+    /// thread (opening a setup, a template, or starting the ports again).
+    bool applying() const noexcept { return apply_work_.busy(); }
 
     /// Shows the window again and puts it in front: the notification-area
     /// icon, and a second Studio that was started while this one runs.
@@ -104,6 +110,8 @@ public:
 
     /// Writes the running setup now.  `stopped` records a Quit.
     void save_running_now(bool stopped = false);
+
+    bool eventFilter(QObject* watched, QEvent* event) override;
 
     StudioTray* tray() const noexcept { return tray_; }
     NoteBanner* resume_banner() const noexcept { return resume_banner_; }
@@ -134,6 +142,7 @@ private:
     void update_status();
     void update_dock_titles();
     void apply_compact();
+    void update_toolbar_style();
     QString document_signature() const;
     void remove_selected_port();
     void copy_selected_port();
@@ -210,6 +219,12 @@ private:
     void new_document();
     void open_document();
     void open_path(const QString& path);
+    /// Applies `document` to the engine on a worker thread, with the window
+    /// locked and a progress bar showing, then runs `finished` on the GUI
+    /// thread.  Nothing happens while an earlier apply is still running.
+    void apply_in_background(
+        vss::config::document document,
+        std::function<void(const vss::result<void>&)> finished);
     void save_document();
     void save_document_as();
     bool confirm_discard();
@@ -284,6 +299,10 @@ private:
     QString title_override_;
     bool dirty_ = false;
     bool loading_ = false;
+    /// Applies a document to the engine on a worker thread: making ports
+    /// installs devices in Windows and takes seconds.
+    BackgroundWork apply_work_;
+    QProgressBar* apply_bar_ = nullptr;
     UndoService undo_;
     /// The ports the history was recorded against; a change to the set
     /// clears the history.

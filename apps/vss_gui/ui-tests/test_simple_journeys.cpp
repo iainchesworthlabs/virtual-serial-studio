@@ -106,6 +106,7 @@ TEST_CASE("simple: connect two programs when Windows keeps some COM numbers")
     }
     s.step(QStringLiteral("click Create: Windows refuses COM7"));
     click(form->create_button());
+    wait_for("the failed build", [&] { return !form->busy(); });
     s.settle();
     // The form stays open with the failure, and nothing was made.
     REQUIRE(s.simple_page()->form() == form);

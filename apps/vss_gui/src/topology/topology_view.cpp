@@ -8,6 +8,8 @@
 
 #include "theme/focus_ring_style.hpp"
 #include "theme/icon_provider.hpp"
+#include "rendering/gpu_canvas.hpp"
+#include "rendering/render_state.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
 #include "topology/link_item.hpp"
@@ -27,6 +29,7 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QElapsedTimer>
 #include <QFocusEvent>
 #include <QFontMetricsF>
 #include <QFrame>
@@ -213,16 +216,22 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
     viewport()->installEventFilter(this);
     // A scroll bar action comes from the user (a drag, a click, a key); the
     // view's own moves do not trigger it.  Either one ends automatic fitting.
-    connect(horizontalScrollBar(), &QAbstractSlider::actionTriggered, this,
-            [this](int) { mark_manual_view(); });
-    connect(verticalScrollBar(), &QAbstractSlider::actionTriggered, this,
-            [this](int) { mark_manual_view(); });
+    // Wherever the scroll bars end up, outside a resize, is where the user
+    // left the view: remember its centre for the next resize.
+    for (QScrollBar* bar : {horizontalScrollBar(), verticalScrollBar()})
+    {
+        connect(bar, &QAbstractSlider::actionTriggered, this,
+                [this](int) { mark_manual_view(); });
+        connect(bar, &QAbstractSlider::valueChanged, this,
+                [this](int) { remember_centre(); });
+    }
     connect(&Theme::instance(), &Theme::theme_changed, this,
             [this]
             {
                 empty_->setFont(Theme::instance().font(text_style::body));
                 hint_->setFont(Theme::instance().font(text_style::caption));
                 update_zoom_controls();
+                apply_gpu_style();
                 scene_->update();
                 viewport()->update();
                 update_overlays();
@@ -230,9 +239,110 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
     update_zoom_controls();
     update_accessibility();
     update_overlays();
+    if (rendering::current().active == rendering::renderer::hardware)
+        enable_gpu();
 }
 
 TopologyView::~TopologyView() = default;
+
+void TopologyView::enable_gpu()
+{
+    if (gpu_ != nullptr)
+        return;
+    gpu_ = new rendering::GpuCanvas(*this);
+    apply_gpu_style();
+    gpu_->lower();
+    gpu_->show();
+    // The canvas draws the whole frame itself, so the view never repaints its
+    // viewport for a change in the scene: the canvas hears of the change from
+    // the scene (`GpuCanvas::scene_changed`) and of a scroll from
+    // `scrollContentsBy`. A viewport repaint would redraw the overlay widgets
+    // and upload the viewport's part of the window to the GPU again for every
+    // frame of the canvas, which cost more than the frame itself
+    // (docs/gui-design/docs/12-render-profiling.md).
+    setViewportUpdateMode(QGraphicsView::NoViewportUpdate);
+    connect(gpu_, &rendering::GpuCanvas::device_ready, this,
+            [this](const rendering::gpu_report& report)
+            {
+                if (!rendering::confirm_gpu(report))
+                    disable_gpu();
+            });
+    connect(gpu_, &rendering::GpuCanvas::device_lost, this,
+            [this](const QString& reason)
+            {
+                rendering::report_gpu_failure(reason);
+                disable_gpu();
+            });
+    connect(&rendering::render_events::instance(),
+            &rendering::render_events::fell_back, this,
+            [this](const QString&) { disable_gpu(); });
+}
+
+void TopologyView::disable_gpu()
+{
+    if (gpu_ == nullptr)
+        return;
+    // Not deleted here: this runs from the canvas's own signals.
+    gpu_->hide();
+    gpu_->disconnect(this);
+    gpu_->deleteLater();
+    gpu_ = nullptr;
+    setViewportUpdateMode(QGraphicsView::BoundingRectViewportUpdate);
+    viewport()->update();
+}
+
+void TopologyView::apply_gpu_style()
+{
+    if (gpu_ == nullptr)
+        return;
+    const Theme& theme = Theme::instance();
+    rendering::GpuCanvas::style style;
+    style.ground = theme.colour(colour_role::sunken);
+    style.dots = theme.colour(colour_role::line2);
+    gpu_->set_style(style);
+    gpu_->invalidate_all();
+}
+
+void TopologyView::paintEvent(QPaintEvent* event)
+{
+    VSS_PROFILE_ZONE("gui.render.view");
+    if (gpu_ != nullptr)
+    {
+        // The GPU canvas covers the viewport and draws the frame.
+        gpu_->update();
+        return;
+    }
+    QElapsedTimer timer;
+    timer.start();
+    QGraphicsView::paintEvent(event);
+    software_paint_ms_ = static_cast<double>(timer.nsecsElapsed()) / 1e6;
+}
+
+void TopologyView::request_frame()
+{
+    if (gpu_ != nullptr)
+        gpu_->update();
+    else
+        viewport()->update();
+}
+
+void TopologyView::scrollContentsBy(int dx, int dy)
+{
+    QGraphicsView::scrollContentsBy(dx, dy);
+    // With the GPU canvas the view does not update its viewport itself.
+    if (gpu_ != nullptr)
+        gpu_->update();
+}
+
+double TopologyView::last_paint_ms() const noexcept
+{
+    return gpu_ != nullptr ? gpu_->last_paint_ms() : software_paint_ms_;
+}
+
+double TopologyView::last_gpu_ms() const noexcept
+{
+    return gpu_ != nullptr ? gpu_->last_gpu_ms() : 0.0;
+}
 
 void TopologyView::set_capabilities(const capabilities& caps)
 {
@@ -732,6 +842,7 @@ void TopologyView::apply_positions(bool refresh_scene_rect)
 
 void TopologyView::update_scene_rect()
 {
+    VSS_PROFILE_ZONE("gui.topology.update_scene_rect");
     QRectF content;
     for (const auto& placement : layout_.nodes)
     {
@@ -771,6 +882,7 @@ void TopologyView::update_scene_rect()
 
 void TopologyView::update_overlays()
 {
+    VSS_PROFILE_ZONE("gui.topology.update_overlays");
     const bool has_ports = !ports_.empty();
     const int view_width = std::max(1, viewport()->width());
     const int view_height = std::max(1, viewport()->height());
@@ -1041,6 +1153,16 @@ bool TopologyView::focusNextPrevChild(bool next)
 
 bool TopologyView::event(QEvent* event)
 {
+    if (event->type() == QEvent::Resize)
+    {
+        // Everything the scroll bars do while the window changes size is
+        // Qt's layout, not the user: it never replaces the remembered centre.
+        resizing_ = true;
+        const bool handled = QGraphicsView::event(event);
+        resizing_ = false;
+        return handled;
+    }
+
     // The window's Remove shortcut (Delete) removes one port at a time and
     // knows nothing of the canvas selection or its Undo step. On the editing
     // canvas, claim Delete first so the canvas deletes what is selected.
@@ -1576,6 +1698,10 @@ void TopologyView::dropEvent(QDropEvent* event)
 
 void TopologyView::resizeEvent(QResizeEvent* event)
 {
+    VSS_PROFILE_ZONE("gui.topology.resize");
+    // Qt lays the new viewport over the old scroll bars before this runs, so
+    // the centre cannot be read back here; `view_centre_` holds the scene
+    // point the user was looking at.
     QGraphicsView::resizeEvent(event);
 
     const bool compact_now = viewport()->width() < kCompactWidth;
@@ -1599,14 +1725,38 @@ void TopologyView::resizeEvent(QResizeEvent* event)
         keep_content_in_view();
 }
 
+void TopologyView::remember_centre()
+{
+    if (resizing_)
+        return;
+    view_centre_ = mapToScene(viewport()->rect().center());
+}
+
 void TopologyView::keep_content_in_view()
 {
     internal_scroll_ = true;
+    // Qt has already laid the new viewport over the old scene rect, which can
+    // have moved the centre.  Cover the area that will be visible around the
+    // remembered centre, then put the centre back, so repeated resizes never
+    // drift.
+    const qreal scale_factor = std::max(transform().m11(), 1e-6);
+    // The whole widget, not the viewport: the viewport grows when a scroll bar
+    // goes away, and a scene smaller than the viewport is re-centred by Qt.
+    const QSizeF size((width() + 2) / scale_factor,
+                      (height() + 2) / scale_factor);
+    const QRectF wanted(
+        view_centre_ - QPointF(size.width(), size.height()) / 2.0, size);
     update_scene_rect();
+    setSceneRect(sceneRect().united(wanted));
+    centerOn(view_centre_);
+
     const QRectF visible = mapToScene(viewport()->rect()).boundingRect();
     const QRectF content = scene_->itemsBoundingRect();
     if (!content.isNull() && !visible.intersects(content))
+    {
         centerOn(content.center());
+        view_centre_ = content.center();
+    }
     internal_scroll_ = false;
 }
 
@@ -1669,7 +1819,7 @@ void TopologyView::drawBackground(QPainter* painter, const QRectF& rect)
     if (transform().m11() * kGrid < 6.0)
         return;
     painter->setPen(QPen(theme.colour(colour_role::line2), 1.5, Qt::SolidLine,
-                         Qt::RoundCap));
+                         Qt::FlatCap));
     const qreal left = std::floor(rect.left() / kGrid) * kGrid;
     const qreal top = std::floor(rect.top() / kGrid) * kGrid;
     const int columns = static_cast<int>((rect.right() - left) / kGrid) + 1;
@@ -1925,6 +2075,7 @@ void TopologyView::tidy_layout()
 
 void TopologyView::fit_content()
 {
+    VSS_PROFILE_ZONE("gui.topology.fit_content");
     if (ports_.empty())
     {
         resetTransform();
@@ -1960,6 +2111,7 @@ void TopologyView::fit_content()
     internal_scroll_ = false;
     fitting_ = false;
     auto_fit_ = true;
+    remember_centre();
     update_zoom_controls();
 }
 
@@ -2000,6 +2152,7 @@ void TopologyView::zoom_at(qreal factor, const QPoint& view_point)
     centerOn(wanted.center());
     internal_scroll_ = false;
     setTransformationAnchor(previous);
+    remember_centre();
     update_zoom_controls();
 }
 
@@ -2076,6 +2229,7 @@ void TopologyView::centre_on_links(const QVector<vss::link_id>& ids)
     centerOn(bounds.center());
     fitting_ = false;
     auto_fit_ = false;
+    remember_centre();
     update_zoom_controls();
 }
 
