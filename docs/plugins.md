@@ -583,8 +583,12 @@ and gives the stage the result.
   - Weighed and not taken: refusing a rule set and a modifier on the same link direction. It is simpler, and it
     stops the common case of a scripted fault with a plugin that corrupts frames.
 
-  This is the recommendation of this page. `docs/response-timing.md` owns the stage, and one sentence there has
-  to say the same before the modifier slice starts (section 17).
+  The owner agreed to this order on 13 November 2026, and `docs/response-timing.md`, which owns the stage, says
+  the same ("Where a rule set sits" and "Determinism"). From that page: the stage keeps a direction's bytes in
+  order from one user to the next; when a modifier is removed, the bytes it had not yet answered for pass on
+  unchanged first; and bytes a rule still holds go on when they are due.
+- Two capability flags cover the one stage: `rules_link` for `inline` rule sets, which is that page's, and
+  `route_hook` for modifiers.
 - The capability `route_hook` says the engine has the stage and the host can use it for modifiers. Without it a
   modifier is `disabled: capability_missing` and the page says "Not available in this build".
 
@@ -1493,14 +1497,15 @@ The owner went through these on 13 November 2026. Each line says what was decide
    the first official key list, as public files. Nothing is needed before then (section 8.9).
 2. **How long an official plugin's `not_after` runs.** The owner's first thought was 28 days; this page
    recommends the signing key's `valid_to` and gives the reasons (section 8.5). To be confirmed.
-3. **The order of a rule set and modifiers on one route stage.** This page recommends the rule set first
-   (section 7.6). `docs/response-timing.md` has to say the same.
 
 **Closed since the review:**
 
 - **Studio installed for one user**: investigated (section 5.2). No installer gets a second mode; Studio tells
   the kind of install from its folder; the agent's `hello` has to say which copy it is.
 - **Licence files and the key list**: the owner decided that licence files do not use it (section 8.9).
+- **The order of a rule set and modifiers on one route stage**: the rule set first, agreed by the owner and
+  written in both pages (section 7.6). The stage itself is not built yet; it is slice 4 of
+  `docs/response-timing.md`.
 - **The screens for decoding and triggers**: written, `screens/11-decoding-and-triggers.md` (section 20.9).
 
 ## 18. Order of work after review
