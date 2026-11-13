@@ -1,0 +1,23 @@
+{
+  "manifest_version": 1,
+  "id": "com.example.modbus-decoder",
+  "name": "Modbus decoder",
+  "version": "1.0.0",
+  "requires": { "api": { "min": "1.0", "max": "1.x" } },
+  "run": { "executable": "bin/decode", "platforms": ["linux-x64", "windows-x64"] },
+  "permissions": [
+    { "name": "traffic.tap", "reason": "Reads the traffic it decodes." }
+  ],
+  "extension_points": [
+    {
+      "kind": "decoder",
+      "id": "modbus-rtu",
+      "name": "Modbus RTU",
+      "timing": { "class": "async" },
+      "parameters": [
+        { "id": "silence", "type": "duration", "default": "1750us",
+          "label": "Silence between frames" }
+      ]
+    }
+  ]
+}

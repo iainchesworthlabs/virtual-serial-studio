@@ -277,7 +277,10 @@ struct parameter
     friend bool operator==(const parameter&, const parameter&) = default;
 };
 
-enum class extension_kind { generator, fixture, modifier, adapter };
+/// What a plugin provides at an extension point.  A decoder reads traffic
+/// and only ever runs `async`; the manifest must then ask for `traffic.tap`
+/// as a required permission.  docs/plugins.md, section 20.6.
+enum class extension_kind { generator, fixture, modifier, adapter, decoder };
 
 std::string_view to_string(extension_kind value) noexcept;
 
