@@ -1054,12 +1054,12 @@ back as they are. An entry that is malformed (no `id`, a `name` with a control
 character, `params` that is not an object) is an error, like any other mistake
 in the file.
 
-This build does not run plugins. It checks the list when it reads a setup, and
-ignores it when it makes the ports and links. Studio writes a setup from the
-ports and links that are running, and those do not hold the list yet, so a setup
-that is opened and saved again loses it. Keeping it comes with the part of
-Studio that runs plugins. A version of Studio from before this change opens
-such a file, ignores the list, and leaves it out when it saves.
+This build does not run plugins. It checks the list when it reads a setup and
+keeps it with the port or the link, so a setup that is opened and saved again,
+from the window or from the command line, still has it. The list goes with its
+port or link: remove the link and make it again, and the new link has none. A
+version of Studio from before this change opens such a file, ignores the list,
+and leaves it out when it saves.
 
 ## When the window is closed
 
