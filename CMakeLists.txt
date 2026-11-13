@@ -133,6 +133,7 @@ if(VSS_BUILD_TOOLS)
   add_subdirectory(apps/vss_cli)
   add_subdirectory(apps/vss_agent)
   add_subdirectory(apps/vss_gate)
+  add_subdirectory(apps/vss_license)
 endif()
 
 if(VSS_BUILD_GUI)
