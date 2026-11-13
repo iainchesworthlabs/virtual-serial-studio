@@ -26,7 +26,11 @@ Not in this page, and referenced only:
 
 | Area | Where it is decided | What this page assumes |
 |---|---|---|
-| Licence files, seats, which edition may load which plugin | The licensing work | A function answers "may this plugin run now" (section 8). This page does not look inside a licence |
+| Licence files, seats, which edition may load which plugin | `docs/licensing.md` (the licensing work, under review on its own branch) | `licence_service::check(feature)` answers "may this plugin run now" (section 8.7). This page does not look inside a licence |
+| The signed-file envelope, the Ed25519 code and the trust list | `docs/licensing.md`, `vss::signed_file` | The plugin signature is one more purpose of that envelope, with its own key (section 8.2). There is one verifier, not two |
+| The plain support bundle (version, driver state, setup, log, serial ports; never traffic) | `docs/licensing.md` and `screens/09-licence-and-support.md` | A plugin can add a section to it (section 19). Studio owns the bundle, its dialog and its preview |
+| The rule model for response timing: matches, actions, clocks, determinism, replaying a recording | `docs/response-timing.md` (the response-timing work, under review on its own branch) | Section 6 is the plugin side only: which tier a plugin declares and what the host holds it to. Where the two pages differ, that page is right |
+| The Plugins screens and their strings | `docs/gui-design/docs/screens/10-plugins.md`, in this pull request | Section 10 names the failures; the screen spec has the words |
 | Security of the remote control endpoint (tokens, OAuth, bindings to other computers) | The remote-control work | An automation adapter gets the engine's agent operations through the proxy of section 7.7. How an adapter is exposed to the network is not designed here |
 | Website and downloads | The website work | none |
 | `vss_core` behaviour, the JSON topology schema | Unchanged without a request | Section 6 shows how the first version avoids both. Where it cannot, it says so |
@@ -151,7 +155,7 @@ In this order, stopping at the first failure. Each step has a reason code (secti
 3. **Check the layout**: every listed file exists, is a regular file, has a normalised relative path with no `..`, no
    absolute path, no drive letter, no alternate data stream, no reserved device name, and no case-insensitive
    duplicate. No file exists that the manifest does not list (a signed plugin only).
-4. **Check the signature** if there is one: a detached signature over the manifest bytes (section 8.2). The signing key
+4. **Check the signature** if there is one: a signed envelope that names the manifest by its hash (section 8.2). The signing key
    must be known: an official key built into Studio, or a key the user has trusted.
 5. **Check every listed file's hash** against the manifest (signed plugins). An unsigned plugin has no hashes in its
    manifest, so the verifier computes a tree hash itself (section 8.3).
@@ -232,7 +236,22 @@ A plugin that ignores a stop is killed, never waited for. No stop blocks any thr
 
 ## 6. Response timing: declared to the engine
 
-This is open decision 1 of `editions.md`. The proposal, with the reasons.
+This is open decision 1 of `editions.md`. Since this page was first written the decision has its own page,
+`docs/response-timing.md`, which designs the rule model in full: what a rule matches and does, the three places a
+rule set sits (`peer`, `station`, `inline`), the one clock, determinism, limits, and what happens when the plugin
+dies. **That page owns the rule language.** The two agree on the answer: a plugin hands the engine a bounded,
+declarative rule set and is not in the path of the bytes. This section keeps what the plugin framework has to add:
+the tier a plugin declares in its manifest, what the host holds it to, and the capability flags. Sections 6.3 and
+6.6 are a summary to be replaced by a reference when that page is agreed.
+
+Two points where the pages meet:
+
+- Its `ask` action (a rule waits for a plugin's answer, with a timeout and an `on_timeout`) is this page's inline
+  tier T1, seen from the engine. The batch, budget and circuit breaker of section 7.6 are how the host carries an
+  `ask` to the plugin.
+- Its `inline` role puts a rule set on one direction of a link, inside the engine. Where the engine has it
+  (`capabilities::rules_link`), a behaviour modifier uses it and the two internal endpoints of section 7.6 are not
+  made. The insertion stays as the way that needs no engine change.
 
 ### 6.1 The problem
 
@@ -438,8 +457,12 @@ Most fixtures send one `rules.set` when created and again when a parameter chang
 can then die and the fixture still answers. **State that changes** (the reading) is `rules.set` with a new reply, sent
 whenever the value changes; a rig that needs the reading to be a function of time uses T1/T2 and accepts the latency.
 
-Whether a plugin fixture appears in the Advanced toolbox beside the built-in ones is open decision 2 of `editions.md`
-and is repeated in section 17. The API does not depend on the answer.
+**Decided by the owner:** a plugin's fixture types appear in the Advanced toolbox, only while the plugin is installed
+and switched on, and are marked as provided by a plugin with the plugin's name and trust level. A type of a plugin
+that the user switched on and that cannot run now (starting, failed, no licence) is shown disabled with the reason;
+a type of a plugin that is off or cannot be switched on is not shown. `screens/10-plugins.md` has the rule, the
+mark and the strings. For that the host's view of a plugin carries, for each fixture type, its id, name,
+description and parameters, taken from the verified manifest, so the toolbox never asks a plugin process anything.
 
 ### 7.6 Behaviour modifiers
 
@@ -560,11 +583,34 @@ Validation is done by the **agent** from the manifest, then the values are sent.
 values, and a plugin may still refuse a combination with a reason (`params.changed` error), which the form shows
 beside the field.
 
-**State.** Each instance's saved state is in the agent's private area: `plugins/<id>/<hash-independent id>/instance-<n>.json`.
-It holds the instance, its target (port or link by *name*, not by id), parameter values, the override for
-`on_timeout`, and the rule set the plugin last sent (so rules come back after a restart without the plugin).
-**It is not part of the topology file and the schema of the topology does not change.** When the topology is applied
-at start, the agent re-creates the instances whose targets exist and reports the others as `unbound`.
+**State, and the setup that uses a plugin.** Two things are kept, in two places:
+
+| What | Where | Why there |
+|---|---|---|
+| The **binding**: this port is a fixture of type T from plugin P, or this link has behaviour T from plugin P, with its parameter values (never a `secret`) and the `on_timeout` choice | With the setup, so it travels with the file | A setup opened on another computer, or after the plugin is removed, must still say what it was made of, and must save again unchanged |
+| The **run state**: the rule set the plugin last sent, secrets, anything the plugin stores | The agent's private area, `plugins/<id>/instances/` | It is this computer's, can be large, and is rebuilt by the plugin |
+
+Rules for the binding, whatever the plugin's state (the screens are in `screens/10-plugins.md`):
+
+- **A setup is never changed or refused because a plugin is missing, off, blocked, unlicensed, failed or
+  incompatible.** The port stays a port, as a plain fixture that says nothing, with its name, place and links. A
+  link with a behaviour passes data unchanged (or is faulted, if the user chose fail-closed). A generator stops.
+- The binding is read and written back **as it was read**, including a plugin id and parameters this Studio knows
+  nothing about. Parameters are validated only when the plugin is present; an unknown plugin's values are kept
+  as opaque JSON, with size and depth limits.
+- When the plugin becomes available, its instances are made again from the bindings, without a prompt.
+- Only the user removes a binding.
+
+**Where the binding is written is a decision for the owner (section 17, decision 13)**, because the first choice
+changes the topology schema, which this work must not do unasked:
+
+| Choice | How | Cost |
+|---|---|---|
+| **A. One optional key in the topology** (recommended) | A port or a link may carry `"plugin": {"id": ..., "type": ..., "params": {...}, "on_timeout": ...}`. A reader without plugins keeps the object and writes it back | An additive change to the schema and to `vss_config`'s parser, which refuses unknown keys today. `vss_core` is not touched |
+| B. A file beside the setup | `<name>.plugins.json`, keyed by port and link name, written and read with the setup | No schema change. Two files to keep together: a person who sends only the setup loses the bindings without knowing, which is the loss the owner asked to prevent |
+
+Until the owner decides, the design assumes A and names B as the fallback. The running setup that the agent
+keeps (`running-setup.json`) follows the same choice.
 
 ### 7.9 Limits per plugin (defaults, set in the host, never raised by a manifest above the host's maximum)
 
@@ -599,35 +645,40 @@ is safe, and the interface never says "verified" about anything else.
 ### 8.2 Files and the signature
 
 ```
-plugin.json        the manifest (the signed bytes)
-plugin.sig         detached signature, a small JSON document
+plugin.json        the manifest, readable as it is
+plugin.sig         a vss::signed_file envelope, purpose "plugin"
 <other files>      listed in the manifest with their hashes
 ```
 
-`plugin.sig`:
+The signature is **not a second scheme**. `docs/licensing.md` proposes one envelope for every signed file,
+`vss::signed_file` (`{format, purpose, key_id, payload, signature}`, Ed25519, the signed message being
+`"VSS-SIGNED-FILE-1" 0x00 <purpose> 0x00 <payload>`), with a trust list whose entries carry a key id, a purpose,
+a public key and a validity window. A plugin signature is that envelope with the purpose `plugin`:
 
 ```json
-{
-  "sig_version": 1,
-  "alg": "ed25519",
-  "key_id": "<fingerprint, 16 hex>",
-  "signature": "<base64 of 64 bytes>",
-  "chain": []
-}
+payload = { "plugin_id": "com.example.modbus-fixture",
+            "version": "1.2.0",
+            "manifest_sha512": "<hex of the exact bytes of plugin.json>" }
 ```
 
-- The signature covers **the exact bytes of `plugin.json`**, not a re-serialisation, and so there is no
-  canonicalisation to get wrong. The domain separator `"vss-plugin-v1\0"` is put in front of the bytes before
-  signing, so a signature of this kind cannot be reused for any other purpose (including the revocation list).
-- The manifest lists every file as `{path, size, sha512}`. The verifier checks each, and that no other file is in the
-  directory.
-- `key_id` is the first 8 bytes of the SHA-512 of the public key, in hex. The public key itself is in a **key
-  record** (below), never trusted from `plugin.sig`.
-- `chain` is reserved for delegation: an official key signing an author key. The first release accepts an empty
-  chain only. The field exists so that a later version can add it without a format change.
+- The payload names the manifest by the hash of **its exact bytes**, so there is no canonical form to get wrong,
+  and `plugin.json` stays a plain file a person can read. The verifier hashes the manifest bytes it holds and
+  compares, then checks `plugin_id` and `version` against the parsed manifest.
+- The purpose is inside the signed message, so a licence signature can never pass as a plugin signature, nor a
+  plugin signature as a revocation list (purpose `plugin-revocations`).
+- The manifest lists every file as `{path, size, sha512}`. The verifier checks each, and that no other file is in
+  the directory.
+- The public key comes from the trust list (official keys, built in) or from the user's approved keys, never from
+  `plugin.sig`. A key of another purpose does not verify a plugin, even if it is official.
+- Delegation (an official key signing an author's key) is not in the first version.
 
-**Algorithm choice.** Ed25519 with SHA-512. It is small, has no parameters to get wrong, and gives deterministic
-signatures. The project's dependencies are Boost and Qt, and Qt has no Ed25519 primitive. The options:
+This makes `libs/vss_plugin` depend on the `vss::signed_file` part of `libs/vss_license`, which the licensing work
+builds. If that part is not merged when slice 1 starts, slice 1 begins with the manifest parser and the hashing,
+and the signature check follows (section 18).
+
+**Algorithm choice.** Ed25519, as `docs/licensing.md` proposes, and whichever implementation the owner picks there
+(question 5 of that page; a vendored Monocypher is its recommendation and this page's). The reasoning, for the
+record:
 
 | Option | Cost |
 |---|---|
@@ -635,7 +686,7 @@ signatures. The project's dependencies are Boost and Qt, and Qt has no Ed25519 p
 | The operating system's cryptography (CNG, CryptoKit, OpenSSL) | Three code paths, and OpenSSL as a dependency on Linux. Against the rule to pick files in CMake and not to use `#if` |
 | Qt's `QCryptographicHash` for hashing | SHA-512 only; no signatures |
 
-This is decision 6.
+This is decision 6, and it is the same decision as the licensing page's.
 
 ### 8.3 The hash that a decision is tied to
 
@@ -679,7 +730,7 @@ There is no network, so:
 - **The revocation list** is a signed file, `revocations.json`, shipped inside each release (and importable by the
   user from a file: Plugins > Import revocations). It holds a `serial` (increasing integer), `issued_at`, and lists of
   revoked `key_id`s, revoked `plugin_hash`es and revoked `plugin_id` + `max_version`. It is signed with an **official
-  key** and the signature uses a different domain separator than plugins have. The verifier accepts a list only with a
+  key** and the envelope has its own purpose, `plugin-revocations`. The verifier accepts a list only with a
   higher `serial` than any it has seen, and stores the highest in the trust ledger. A list that fails to verify is
   ignored and reported; a list with a lower serial is ignored silently.
 - A revoked plugin or key is `rejected: revoked` at the next check. A running plugin is stopped within a second of
@@ -724,21 +775,27 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
 
 ### 8.7 Licence and edition
 
-`plugin_entitlement` is an interface the licensing work implements:
+The host asks the licensing work's one question, as proposed in `docs/licensing.md`:
 
-```cpp
-struct entitlement
-{
-    bool allowed;
-    std::string reason_code;          // e.g. "licence_expired", "pro_required"
-    std::optional<std::chrono::sys_days> grace_ends;
-};
-entitlement check(const plugin_identity& plugin);
+```
+entitlement licence_service::check(feature) ->
+    { granted: bool, reason: reason_code, licence_id, days_left }
 ```
 
-The host calls it when verifying and when the licence changes. A plugin whose official `requires.edition` is not
-met is `disabled: not_licensed`, and the page shows the reason and the renew link, as the licence page does.
-Verification never looks inside a licence, and the licence code never sees a plugin's files.
+with the feature names `plugins.official` and `plugins.<plugin id>`. The plugin framework owns the plugin ids.
+The host calls it when verifying an official plugin, and again when the licence state changes. A plugin that is not
+granted is `disabled: not_licensed`; the reason code is the licence service's and the screens show its sentence
+unchanged. Verification never looks inside a licence, and the licence code never sees a plugin's files.
+
+Points taken from that page, so the two stay in step:
+
+- **An official plugin checks the licence itself as well**, with the same library, because Studio is GPL and can be
+  patched. The host's check is for telling the user the truth; the plugin's own check is the enforcement.
+- **A plugin that is running when the grace period ends keeps running until it is stopped** (proposed there, for
+  the owner to confirm). The host does not kill on a licence change; it refuses the next start.
+- **The version window** (`updates_until`) needs a release date in the signed manifest. The manifest gains an
+  optional `released` date for it (section 13).
+- A third-party or unsigned plugin is never asked about a licence.
 
 ### 8.8 The verifier's interface
 
@@ -809,6 +866,7 @@ name and, for some, a scope.
 | `serial.devices` | Enumerate devices on the computer | |
 | `fs.read` / `fs.write` | Read/write below a named directory chosen by the user (a parameter of type `path`) | Scoped; never `/` or a drive |
 | `data.private` | Read and write its own data directory | Always granted |
+| `bundle.section` | Add a section to a support bundle | The user sees the section, its preview and its tick box in Studio's own dialog (section 19) |
 | `net.listen` | Listen on a declared address and port | Loopback unless stated; shown |
 | `net.outbound` | Connect to declared hosts | Shown. Not granted by default. Absent for the GUI regardless: the GUI itself has no network access, and the policy can deny |
 | `process.spawn` | Start child programs | Child processes are inside the same sandbox and job |
@@ -872,9 +930,15 @@ programs). It does not link Qt or the engine.
 
 ## 10. Failure modes and what the user sees
 
-Words below are proposals. The GUI's strings are copied from `docs/gui-design/` and wrapped in `tr()`, so the
-owner or the GUI work needs to add them there before they are built. Plugin-provided text is shown as plain text and
-quoted, never mixed into a sentence that could be mistaken for Studio's own.
+The exact strings, the Plugins dialog, the decision dialog, the toolbox rule and what a setup shows when its plugin
+is not available are in `docs/gui-design/docs/screens/10-plugins.md`, which is the copy to build from. The table
+below is the host's side: what it does for each failure. Where its words differ from the screen spec, the screen
+spec is right. Plugin-provided text is shown as plain text and quoted, never mixed into a sentence that could be
+mistaken for Studio's own.
+
+The GUI groups the reason codes of section 12 into ten states: Available, Starting, Off, Needs your decision,
+Blocked by your administrator, Needs a licence, Stopped after failing, Needs a newer Studio, Can't be used and Not
+installed. Each has a reason and, where there is one, an action.
 
 | Failure | Host action | What the user sees |
 |---|---|---|
@@ -1001,6 +1065,8 @@ parser), so a misspelling is found. Duplicate keys are errors. Strings have leng
 | `id` | Reverse-domain, lower case, `[a-z0-9.-]`, 3 to 128 characters. Identity for trust and state |
 | `version` | Semantic version. Compared only for display and the "newer than trusted" note |
 | `not_after` | A date. Optional for third party, required for official |
+| `released` | A date. Optional. Used by the licence's version window (`updates_until`, section 8.7) |
+| `contributes.bundle_sections` | Optional. Sections the plugin can add to a support bundle (section 19) |
 | `requires.api`, `capabilities`, `edition`, `runtime` | Section 7.2, 6.6, 8.7, 8.3 |
 | `run` | One executable, a fixed argument list, the platforms it supports. No shell string. A missing platform means the plugin is not offered on this one |
 | `permissions` | Section 9.1; unknown names are errors |
@@ -1020,7 +1086,7 @@ The plugin API range (`requires.api`) is separate: a plugin may keep an old mani
 
 | Library | Content | Depends on |
 |---|---|---|
-| `libs/vss_plugin` | The manifest parser, the verifier, the trust store, revocation, policy, the lifecycle state machine, the back-off logic, the rule-set model, the parameter model (no I/O, no processes) | `vss_core` (errors), `vss_config` (JSON helpers), Boost.JSON |
+| `libs/vss_plugin` | The manifest parser, the verifier, the trust store, revocation, policy, the lifecycle state machine, the back-off logic, the rule-set model, the parameter model (no I/O, no processes) | `vss_core` (errors), `vss_config` (JSON helpers), Boost.JSON, `vss::signed_file` from `libs/vss_license` |
 | `libs/vss_plugin_host` | The supervisor, the channel, process start through the launcher, the budgets, the API message codec and handling, the instance types. Uses `vss_agent_proto` framing | `vss_plugin`, `vss_agent_proto`, `vss_studio` |
 | `apps/vss_plugin_launcher` | The sandbox application and the exec. Platform files chosen **in CMake**, no `#if` | none |
 | `apps/vss_agent` | Starts the launcher first; owns the host | |
@@ -1082,7 +1148,7 @@ own trust ledger or system clock (the clock is a deterrent).
 | T11 | A manifest string or a log line is used for injection into the GUI (markup, format strings, control characters, bidi override to spoof a name) | All plugin text is plain text, length-limited, with control and bidi characters removed or shown escaped; never a format string; the signer's name comes from the key record, not the plugin | A long name that looks like another: the id and the hash are always shown |
 | T12 | A confusing trust prompt leads the user to approve | One decision per hash, permissions in plain sentences, an increase in permissions called out, **no "trust everything"**, no default-enabled button on unofficial plugins, the warning wording as in `editions.md` | A determined click-through is the user's choice |
 | T13 | A revoked key or plugin keeps working | A signed revocation list with a rising serial, applied at once; an expiry on every official plugin; rotation | Without a network a user who never updates Studio never gets a new list. Expiry bounds that, and the page says when the last list was installed |
-| T14 | The revocation list is rolled back or forged | Signed by an official key with a separate domain separator; only a higher serial accepted; the highest serial stored | A user who deletes their ledger |
+| T14 | The revocation list is rolled back or forged | Signed by an official key under its own purpose; only a higher serial accepted; the highest serial stored | A user who deletes their ledger |
 | T15 | The clock is set back to revive an expired plugin | High-water mark | A deterrent only, said so |
 | T16 | A compromised or hostile plugin directory (world-writable machine root) | Ownership and ACL checks; a machine root that fails is not searched, reported | |
 | T17 | A modifier hangs the link, silently | Budgets, fail-open default, circuit breaker, visible state and counters | A user who selects fail-closed gets a failed link and is told |
@@ -1106,6 +1172,7 @@ other framework. Waits are for a condition with a time limit, never a fixed slee
 |---|---|---|
 | Manifest parser | Valid and invalid manifests: every key, every limit, unknown and duplicate keys, bad types, depth and size, path tricks, unicode tricks | Unit tests with a table of cases, each with the exact reason code and position; **fuzz** `fuzz_plugin_manifest` (accept or reject without a crash; accepted text writes and reads back the same) |
 | Verifier | Pure function with vectors: good, wrong key, flipped bit in manifest, flipped bit in a file, extra file, missing file, expired, revoked key, revoked hash, rolled-back list, policy cases, downgraded trust level, domain separation (a plugin signature used on a revocation list and the reverse) | Unit tests with in-memory test keys (section 8.8) and a fake clock |
+| Recording and bundle sections | The index and the lines of a recording, a section's file list: limits, a higher format number, path tricks, a hash that does not match | Unit tests + **fuzz** `fuzz_recording` |
 | Revocation and policy | Parse, serial rules, malformed lists, policy ownership failures (a fake file-status provider), fail-closed behaviour | Unit tests + **fuzz** `fuzz_revocations`, `fuzz_policy` |
 | Trust store | Atomic write (a crash between steps leaves the old file or the new one, never half), corrupt file, concurrent writers, hash change asks again | Unit tests with a failing-file-system double |
 | State machine and back-off | Every transition, every failure sequence, the window count, the reset after five minutes, the user pressing Start, quarantine | Unit tests with the injected clock; a **property test** that no sequence reaches an undefined state |
@@ -1174,25 +1241,230 @@ recovery is bounded.
 9. **The sandbox minimum**: whether an unsigned plugin may run with sandbox `none`, or the default `min_sandbox` is
    `partial`. Recommended: allow, with the warning, as `editions.md` says an unsigned plugin "can do anything Studio
    can".
-10. **Whether a plugin fixture appears in the Advanced toolbox** (decision 2 of `editions.md`). The API is the same
-    either way.
+10. ~~Whether a plugin fixture appears in the Advanced toolbox.~~ **Decided:** yes, only while the plugin is
+    installed and on, marked as provided by a plugin with its name and trust level (section 7.5 and
+    `screens/10-plugins.md`). Still to confirm: the recommendation that a plugin the user switched on and that
+    cannot run now keeps its tiles, disabled with the reason, and every other unavailable plugin's tiles are hidden.
 11. **Whether "run anyway" for an expired third-party plugin** is offered (this page proposes yes for non-official).
 12. **In-process plugins** with a C ABI or WASM: not in the first version. Confirm it stays that way.
+13. **Where a setup records that it uses a plugin** (section 7.8): one optional `plugin` key on a port or link in the
+    topology file (recommended; an additive schema change, which needs the owner's request), or a second file
+    beside the setup.
+14. **Recording inside the agent** (section 19): a recording that must not lose bytes is written by the agent with
+    `vss::capture`, on a plugin's request, and not copied through the plugin. Confirm, and confirm that capture
+    gains a format with nanosecond times.
+15. **Bundle sections as a fifth thing a plugin can add** (section 19): `contributes.bundle_sections` and the
+    `bundle.section` permission, shown in Studio's own bundle dialog.
+16. **Who can open a recording.** The format is open and documented. Proposed: reading a bundle and looking at its
+    traffic is possible with the public reader; replaying it is the Pro plugin.
 
 ## 18. Order of work after review
 
 Small vertical slices, each with its tests, each a pull request:
 
 1. **`vss_plugin`: the manifest parser and the verification library** (parse, verify, hash, revocation, policy,
-   trust store, reason codes), with unit tests and the three fuzz harnesses. No processes. This is the security
+   trust store, reason codes), with unit tests and the fuzz harnesses. No processes. This is the security
    foundation and is written by the author of this design.
 2. **The supervisor**: the state machine, back-off with an injected clock, the channel and the API codec with a fake
    plugin in memory, then real processes through `vss_test_plugin` without a sandbox, then the launcher and one
    platform's sandbox at a time.
 3. **The first extension point: generators.** They have the simplest contract (credit flow, one direction, no byte
    path), and they exercise the instance lifecycle, parameters, permissions, the Plugins page and the failure
-   states. Fixtures with engine rules follow, then modifiers, then adapters.
+   states. The replay half of the worked example of section 19 is a generator, so it is the first real plugin to
+   run against the API. Fixtures with engine rules follow, then modifiers, then adapters.
+
+Slice 1 takes its signature check from `vss::signed_file` (section 8.2). If the licensing work has not merged that
+part, slice 1 is the manifest parser, the layout checks, the hashing, the trust store and the policy, and the
+signature check is its own small pull request afterwards.
 
 Simple, well specified parts of these slices (the parameter model and its form, the `vss_test_plugin` flags, table
 tests of the parser) can be handed to subagents. The verifier, the supervisor, the protocol, the concurrency and the
 sandbox stay with the author of this design.
+
+## 19. Worked example: the Diagnostics and replay plugin
+
+The owner chose this as the first plugin to frame the API with. It is an official Pro plugin. This section says
+what it does, derives what the API must offer, and lists what the earlier sections lacked. It designs the plugin
+only as far as the API needs.
+
+### 19.1 What it does
+
+1. **Record.** A Pro user with a problem records it in their own Studio: the bytes in and out at every port and
+   link they choose, every line change and fault, on one clock, with the setup and their own notes.
+2. **Pack.** The recording goes into one bundle file, after the user has chosen what goes in, seen it and removed
+   what they do not want to share.
+3. **Replay.** Another Studio opens the bundle and plays the same traffic with the same timing, or scaled, so that
+   support sees what the user saw.
+4. **Test.** The same bundle is test data: a harness replays it into a setup and checks the results.
+
+**Consent.** The user chooses what is recorded and what is packed, sees a preview of exactly what the file will
+hold, can redact, and sends the file themselves. Nothing is sent by Studio or by the plugin. The plugin asks for no
+network permission, so on a computer with network isolation it cannot send anything even if it tried. Support uses
+only what is in the file the user sent.
+
+### 19.2 The boundary with the support bundle
+
+`docs/licensing.md` and `screens/09-licence-and-support.md` own the **support bundle**: one zip with a
+`manifest.json` of sections (version, driver state, setup, log, counters, serial ports, licence), a checklist, a
+preview built by the function that writes the file, and **never any traffic**. It is in the Community application.
+That work reserved the section id `traffic` and the folder `traffic/` for this plugin.
+
+So there is one bundle and one dialog, and the split is:
+
+| | Support bundle (Studio, Community) | Diagnostics and replay (plugin, Pro) |
+|---|---|---|
+| Version, driver and engine state, setup, log, counters, real serial port list | Yes, its own sections | Not repeated. A replay reads them from the same bundle |
+| Bytes on the wire, line changes and faults with times | Never | The `traffic` section |
+| The user's notes | No | The `notes` section |
+| The dialog, the checklist, the preview, the save | Studio's | Adds rows to it; draws nothing |
+| Redaction of names, paths and secrets in Studio's files | Studio's | Not involved |
+| Redaction of traffic | No traffic to redact | By port, by time range and by byte pattern, in the plugin's section settings |
+| Opening a bundle to replay it | No | Yes |
+
+A bundle made without the plugin is a plain support bundle. A bundle made with it is the same file with two more
+sections, and a reader that does not know them ignores them, as the bundle format already says.
+
+### 19.3 What stays in the engine
+
+The plugin decides **what** to record and replay. The engine and the agent do the recording and the replaying.
+
+| Stays in the engine or the agent | Why |
+|---|---|
+| **The recording itself.** The agent writes it with `vss::capture`, to a file in the plugin's data directory, on the plugin's request | A copy sent to a plugin through a queue can drop under load (`agent.md`, section 4), and a recording with holes cannot be replayed. `agent.md` already plans capture inside the agent for this reason |
+| **Every timestamp**, on the run's one clock | A plugin's clock is not the engine's |
+| **The replay schedule.** A recording is a timeline that the engine's rule scheduler plays (`docs/response-timing.md`, "Replaying a recording"): never early, with reported lateness, with `time_scale` | A plugin that writes bytes at recorded times would add its own scheduling error to every one |
+| **Determinism**: the seed, the rule sets that were installed, the hand-moved clock for exact repeats | The same reason, and it keeps a replay comparable with its recording item by item (`source_ns`) |
+| **The preview and the write of the bundle** | Studio's function writes what it showed. The plugin hands over files; it does not write the zip |
+| **Limits**: recording size and length, disk space | The agent enforces them even if the plugin does not |
+
+### 19.4 What the API must offer
+
+| Need | API | Kind | Permission | In this design |
+|---|---|---|---|---|
+| Know the ports, links and their state | `agent.call` (`list`, `snapshot`) | Proxy call | `ports.read` | Section 7.7, written for adapters only. **Change:** the read operations of the proxy are open to every plugin kind that holds the permission |
+| Follow events with times: opens, closes, line changes, faults, rule firings, counters | `agent.subscribe` without `data` | Proxy call | `ports.read` | The same change. Read-only: this plugin never holds `topology.modify` while recording |
+| A live view of the bytes while recording, so the user sees that it works | `agent.subscribe` with `data` (a tap; it may drop, and says how much) | Proxy call | `traffic.tap` | Section 7.7 |
+| **A complete recording** of chosen ports and links | `capture.start {places, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
+| The setup, the driver and engine state, the real serial ports | None: they are the support bundle's own sections | | | The plugin does not need `serial.devices` |
+| Add its sections to the bundle, with a preview | `contributes.bundle_sections` in the manifest; `bundle.prepare {section, settings}` from the host, answered with a list of files in the data directory | **New** contribution | `bundle.section` | **New.** Decision 15. Section 19.5 |
+| Redaction choices | The section's declared parameters, drawn by Studio's form in the bundle dialog | Parameters | none | Section 7.8, reused |
+| Open a bundle the user chose | A `path` parameter, read access to that one file | Parameter | `fs.read` | Sections 7.8 and 9.1 |
+| Rebuild the setup for a replay | `agent.call apply`, after Studio has asked the user | Proxy call | `topology.modify` (optional) | Section 7.7. Without it the user opens the setup themselves |
+| **Replay onto a port** with original or scaled timing | Generator type "Replay a recording": `timeline.load {recording, place, time_scale, seed}`; the engine plays it | **Generator** (extension point), timing class `rules` | `ports.write` | `generator.pattern` of section 7.4 was the nearest thing. **Change:** a generator may hand the engine a timeline, as `docs/response-timing.md` defines it |
+| **Stand in for a device** that is not on the replaying computer | Fixture type "Recorded device": the recorded bytes of that port as a `station` timeline | **Fixture type** (extension point), timing class `rules` | `ports.write` | Section 7.5 with the same change. It appears in the Advanced toolbox with the plugin mark |
+| Repeat exactly | The seed and rule sets kept in the recording; `time_scale`; the hand-moved clock | Engine | none | `docs/response-timing.md` |
+| Tell a harness what happened | Rule and data events with `when`, `source_ns` and the item's index | Proxy events | `ports.read` | For tests the harness adapter reads them; this plugin shows a summary |
+| Stay inside limits | Recording limits; a data directory quota the manifest asks for and the user sees | Host | none | **Change** to section 9.4: the quota is declared (`limits.data_bytes`), shown in the decision dialog when it is over 64 MiB, and capped by the host |
+
+**Permissions of this plugin**, as the user sees them in the decision dialog:
+
+| Sentence | Needed | Note |
+|---|---|---|
+| "See your ports and links, their state and their counters." | Yes | |
+| **"Read the data that passes through the ports and links you use it on."** | Yes | The read-traffic permission. An amber row, never granted silently, not even to an official plugin |
+| "Add a section to a support bundle. You see it and choose whether to include it." | Yes | |
+| "Read files in a folder you choose." | Yes | To open a bundle |
+| "Send data from the ports you use it on." | Yes | To replay |
+| "Add, remove and connect ports and links." | Optional | To rebuild the setup of a bundle |
+
+It asks for no network permission, no `faults` and no `modifier.inline`.
+
+`traffic.tap` is scoped: it covers the places the user picked for this recording, and the host refuses a
+`capture.start` or a tap for any other. While a recording runs, Studio shows it: a "Recording" chip in the status
+bar that names the plugin and opens it, so traffic is never read without a sign on the screen.
+
+### 19.5 Bundle sections
+
+A plugin declares the sections it can add:
+
+```json
+"contributes": {
+  "bundle_sections": [
+    { "id": "traffic", "title": { "en": "Recorded traffic" }, "sensitive": true,
+      "parameters": [ { "id": "ports", "type": "port" }, { "id": "blank", "type": "bytes" } ] },
+    { "id": "notes", "title": { "en": "Your notes" }, "sensitive": false,
+      "parameters": [ { "id": "text", "type": "string", "max_length": 8000 } ] }
+  ]
+}
+```
+
+- Studio's bundle dialog shows each as a row, marked "Added by <plugin name>". A `sensitive` section is an amber
+  row and is **off by default**, every time.
+- When the user ticks a row or changes its settings, the host sends `bundle.prepare`. The plugin writes the
+  section's files into a new folder of its data directory and answers with their names and sizes. Studio reads
+  them, shows them in its preview and, on Save, writes exactly those bytes under `<section id>/` in the zip. What
+  was previewed is what is saved, because Studio does both from the same files.
+- The plugin never learns where the bundle was saved, and is not told whether it was.
+- Limits: 16 files and 256 MiB for a section (the host's maximum), a `bundle.prepare` answer within 30 s with
+  progress and cancel, and section ids that are the plugin's own or reserved for it (`traffic` and `notes` for
+  this plugin; a third-party plugin's ids are prefixed with its plugin id).
+- A plugin that fails or is stopped during `bundle.prepare` loses its rows for that bundle, with the reason shown.
+  The rest of the bundle is unaffected.
+
+The strings of these rows belong to the bundle dialog, which `screens/09-licence-and-support.md` owns; that page
+already has "Added by <plugin name>".
+
+### 19.6 The `traffic` section: an open format
+
+Third parties must be able to read a bundle, so the format is documented in this repository and uses formats the
+project already has.
+
+```
+traffic/recording.json     the index
+traffic/<n>.jsonl          one file for each recorded place: JSON Lines, a capture format vss::capture already writes
+notes/notes.txt            UTF-8 text
+```
+
+`recording.json`:
+
+```json
+{
+  "recording_format": 1,
+  "origin_utc": "2026-11-13T09:41:07Z",
+  "time_unit": "ns",
+  "duration_ns": 184000000000,
+  "seed": 7,
+  "places": [ { "file": "1.jsonl", "kind": "port", "name": "COM7", "settings": "19200 8N1",
+                "bytes": 48213, "sha256": "<hex>" } ],
+  "rule_sets": [],
+  "redactions": [ { "place": "COM7", "from_ns": 1200000000, "to_ns": 1900000000, "how": "blanked" } ],
+  "dropped": 0,
+  "made_by": { "plugin": "com.virtualserialstudio.diagnostics", "version": "1.0.0" }
+}
+```
+
+- **Versioned.** `recording_format` rises only for a change an old reader cannot ignore, the same rule as the
+  bundle's `bundle_format`. A reader refuses a higher number and says so.
+- **Times** are whole nanoseconds since the recording's origin, on the recording Studio's one clock. The capture
+  formats of today hold milliseconds, so capture gains a version with nanoseconds (part of decision 14, and a
+  change in `vss_studio`, not in `vss_core`).
+- **`rule_sets`** holds the text and generation of each rule set that was installed, so the recording alone is
+  enough to run it again.
+- **Integrity.** Each file's SHA-256 is in the index, so a damaged or edited file is found. That is a check against
+  accidents, not a proof of origin.
+- **Optional signature.** A lab that wants to show a recording is theirs can sign the index as a
+  `vss::signed_file` envelope with the purpose `recording`, with its own key. Studio shows "Signed by <name>" only
+  for a key the user has approved, and never treats an unsigned recording as worse than "not signed".
+- **Redaction is honest.** A redacted span keeps its length and its times and has its bytes replaced with a filler,
+  so the timing still replays; the index lists every span. A place the user left out has no file and no entry.
+  `dropped` says how many bytes the recording lost, which should be zero.
+- **Sizes.** A recording stops at its limit and says so. Defaults: 64 MiB or 10 minutes; ring mode keeps the last
+  10 minutes. The maximum is the section limit above.
+
+A replay never trusts a bundle. It is a file from someone else: the index and every line are parsed with limits,
+paths inside the zip follow the layout rules of section 5.3, and the reader has a fuzz harness (section 16).
+
+### 19.7 What this example changed in the design
+
+| Gap | Where it is now |
+|---|---|
+| The proxy's read operations were for adapters only | Open to any plugin kind with `ports.read` (19.4) |
+| No way to record without loss | `capture.start` in the agent (decision 14) |
+| Nothing let a plugin add to the support bundle | `contributes.bundle_sections` and `bundle.section` (decision 15) |
+| A generator or fixture could only repeat a fixed pattern | It can hand the engine a timeline, defined by `docs/response-timing.md` |
+| The data directory quota was fixed at 64 MiB | Declared, shown and capped |
+| A setup did not say which plugin its parts came from | Section 7.8 and decision 13: a replayed setup with a "Recorded device" must open on a computer without the plugin |
+| Who may open a recording | Decision 16 |
+
+The four extension points were otherwise enough: the plugin is a generator, a fixture type and two bundle sections,
+with read-only proxy calls. It needs no behaviour modifier and is never in the path of the data.
