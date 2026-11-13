@@ -6,10 +6,13 @@
 
 #include "backend/fake_studio_backend.hpp"
 
+#include <QMetaObject>
 #include <QStringList>
+#include <QThread>
 
 #include <algorithm>
 #include <cstddef>
+#include <mutex>
 #include <thread>
 #include <utility>
 
@@ -115,6 +118,7 @@ std::vector<traffic_view> FakeStudioBackend::traffic(int limit) const
 
 std::optional<port_view> FakeStudioBackend::port(vss::endpoint_id id) const
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     const auto it =
         std::find_if(ports_.begin(), ports_.end(),
                      [id](const port_view& view) { return view.id == id; });
@@ -125,6 +129,7 @@ std::optional<port_view> FakeStudioBackend::port(vss::endpoint_id id) const
 
 std::optional<link_view> FakeStudioBackend::link(vss::link_id id) const
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     const auto it =
         std::find_if(links_.begin(), links_.end(),
                      [id](const link_view& view) { return view.id == id; });
@@ -186,6 +191,9 @@ vss::result<vss::endpoint_id>
 FakeStudioBackend::create_virtual_port(const QString& name,
                                        vss::virtual_port_kind kind, bool)
 {
+    if (create_delay_.count() > 0)
+        std::this_thread::sleep_for(create_delay_);
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (const auto error = take_error())
         return *error;
 
@@ -311,6 +319,7 @@ FakeStudioBackend::create_mock_port(const QString& name,
                                     const vss::serial_settings& settings,
                                     const QString& target)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (const auto error = take_error())
         return *error;
 
@@ -336,6 +345,7 @@ vss::result<vss::endpoint_id>
 FakeStudioBackend::attach_serial(const QString& name, const QString& uri,
                                  const vss::serial_settings& settings, bool)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (const auto error = take_error())
         return *error;
 
@@ -359,6 +369,7 @@ FakeStudioBackend::attach_serial(const QString& name, const QString& uri,
 
 vss::result<void> FakeStudioBackend::remove_port(vss::endpoint_id id)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (const auto error = take_error())
         return *error;
 
@@ -567,6 +578,7 @@ FakeStudioBackend::add_link(link_shape shape, vss::link_mode mode,
                             const std::vector<vss::endpoint_id>& targets,
                             const vss::link_options& options)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     link_view view;
     view.id = next_link_++;
     const vss::link_id link_id = view.id;
@@ -586,6 +598,7 @@ FakeStudioBackend::add_link(link_shape shape, vss::link_mode mode,
 
 vss::result<void> FakeStudioBackend::disconnect(vss::link_id id)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (const auto error = take_error())
         return *error;
     const auto it =
@@ -1081,6 +1094,9 @@ vss::config::document FakeStudioBackend::snapshot() const
 vss::result<void>
 FakeStudioBackend::apply(const vss::config::document& document, bool)
 {
+    if (create_delay_.count() > 0)
+        std::this_thread::sleep_for(create_delay_);
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     // Fail first if a test queued an error, then reject an invalid document.
     // Nothing is changed until the whole document has been built.
     if (const auto error = take_error())
@@ -1229,6 +1245,7 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
 vss::result<share_view> FakeStudioBackend::share_serial(const QString& uri,
                                                         int listeners)
 {
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
     if (listeners < 1 || listeners > 64)
         return vss::make_error_code(vss::errc::invalid_argument);
     if (const auto error = take_error())
@@ -1377,6 +1394,14 @@ vss::result<void> FakeStudioBackend::create_com0com_pair()
 
 void FakeStudioBackend::refresh()
 {
+    // A job on a worker thread makes ports too; the signals are the GUI
+    // thread's, like the engine adapter's.
+    if (QThread::currentThread() != thread())
+    {
+        QMetaObject::invokeMethod(this, [this] { refresh(); },
+                                  Qt::QueuedConnection);
+        return;
+    }
     Q_EMIT ports_changed();
     Q_EMIT links_changed();
 }

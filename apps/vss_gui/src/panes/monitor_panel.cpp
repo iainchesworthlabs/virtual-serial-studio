@@ -12,6 +12,7 @@
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/notes.hpp"
+#include "widgets/surfaces.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -200,10 +201,13 @@ void MonitorPanel::build()
     // Advanced toolbar: the filters (port, direction, payload search), the
     // preview format, and the export buttons. Hidden until set_advanced().
     advanced_bar_ = new QWidget(monitor_page_);
-    advanced_bar_->setFixedHeight(36);
-    auto* advanced_layout = new QHBoxLayout(advanced_bar_);
-    advanced_layout->setContentsMargins(12, 0, 12, 0);
-    advanced_layout->setSpacing(8);
+    advanced_bar_->setMinimumHeight(36);
+    advanced_layout_ = new QHBoxLayout(advanced_bar_);
+    advanced_layout_->setContentsMargins(12, 0, 12, 0);
+    advanced_layout_->setSpacing(8);
+    QHBoxLayout* advanced_layout = advanced_layout_;
+    page_layout_ = page_layout;
+    advanced_bar_->installEventFilter(this);
     port_filter_ = new QComboBox(advanced_bar_);
     port_filter_->setAccessibleName(tr("Filter by port"));
     port_filter_->setMinimumWidth(120);
@@ -424,6 +428,7 @@ void MonitorPanel::set_advanced(bool advanced)
     advanced_ = advanced;
     simple_bar_->setVisible(!advanced);
     advanced_bar_->setVisible(advanced);
+    place_controls();
     tabs_->setTabVisible(1, advanced && show_advanced_tabs_);
     tabs_->setTabVisible(2, advanced && show_advanced_tabs_);
     tabs_->tabBar()->setVisible(advanced && show_advanced_tabs_);
@@ -431,6 +436,65 @@ void MonitorPanel::set_advanced(bool advanced)
         tabs_->setCurrentIndex(0);
     update_filters();
     update_actions();
+}
+
+void MonitorPanel::attach_header(PaneHeader* header)
+{
+    if (header_ != nullptr)
+        header_->removeEventFilter(this);
+    header_ = header;
+    if (header_ != nullptr)
+        header_->installEventFilter(this);
+    place_controls();
+}
+
+bool MonitorPanel::eventFilter(QObject* watched, QEvent* event)
+{
+    const QEvent::Type type = event->type();
+    if (watched == header_ &&
+        (type == QEvent::Resize || type == QEvent::Show ||
+         type == QEvent::FontChange || type == QEvent::StyleChange))
+    {
+        place_controls();
+    }
+    else if (watched == advanced_bar_ &&
+             (type == QEvent::FontChange || type == QEvent::StyleChange))
+    {
+        // The controls got wider or narrower: the same test decides again.
+        QTimer::singleShot(0, this, [this] { place_controls(); });
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void MonitorPanel::place_controls()
+{
+    if (advanced_bar_ == nullptr || page_layout_ == nullptr)
+        return;
+    // The test uses size hints only, so the answer does not depend on where
+    // the controls are now and cannot flip back and forth.
+    const bool want_header =
+        advanced_ && header_ != nullptr && header_->isVisible() &&
+        header_->width() >=
+            header_->lead_width() + advanced_bar_->sizeHint().width();
+    if (want_header == in_header_)
+        return;
+    in_header_ = want_header;
+    if (want_header)
+    {
+        page_layout_->removeWidget(advanced_bar_);
+        advanced_layout_->setContentsMargins(0, 0, 0, 0);
+        advanced_bar_->setMinimumHeight(0);
+        header_->set_fill(advanced_bar_);
+    }
+    else
+    {
+        if (header_ != nullptr)
+            header_->set_fill(nullptr);
+        advanced_layout_->setContentsMargins(12, 0, 12, 0);
+        advanced_bar_->setMinimumHeight(36);
+        page_layout_->insertWidget(1, advanced_bar_);
+    }
+    advanced_bar_->setVisible(advanced_);
 }
 
 void MonitorPanel::set_compact(bool compact)
@@ -503,7 +567,16 @@ void MonitorPanel::handle_events(const event_batch& events)
             continue;
         append_log(event);
     }
-    update_actions();
+    // New rows change only whether there is anything to export. The rest of
+    // `update_actions` sets the Pause button's icon, and Qt repaints a button
+    // and lays its row out again whenever an icon is set, changed or not:
+    // that was a relayout of the bar and a repaint of its controls for every
+    // batch of traffic.
+    const bool any_rows = model_->rowCount() > 0;
+    if (export_ != nullptr)
+        export_->setEnabled(any_rows);
+    if (export_capture_ != nullptr)
+        export_capture_->setEnabled(any_rows);
     update_empty();
     follow_if_enabled();
 }

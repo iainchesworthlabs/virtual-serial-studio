@@ -20,6 +20,7 @@
 #include "support/setup_check_dialog.hpp"
 #include "support/setup_facts.hpp"
 #include "support/shortcuts_dialog.hpp"
+#include "support/third_party.hpp"
 #include "support/troubleshoot.hpp"
 #include "support/troubleshoot_dialog.hpp"
 #include "support/zip_writer.hpp"
@@ -46,6 +47,7 @@
 #include <QProcess>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QRegularExpression>
 #include <QSettings>
 #include <QSlider>
 #include <QStandardPaths>
@@ -262,34 +264,218 @@ QVector<zip_entry> read_zip(const QByteArray& archive)
 
 } // namespace
 
-TEST_CASE("support: build info and the environment report")
+TEST_CASE("support: the version string is composed from its parts")
+{
+    using support::compose_version;
+    REQUIRE_EQ(compose_version(QStringLiteral("0.10.0-beta.1"),
+                               QStringLiteral("6083"),
+                               QStringLiteral("3de4617"), false),
+               QStringLiteral("v0.10.0-beta.1+build.6083-3de4617"));
+    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0"), QString(),
+                               QStringLiteral("3de4617"), false),
+               QStringLiteral("v0.1.0+3de4617"));
+    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0-dev"),
+                               QStringLiteral("12"), QString(), false),
+               QStringLiteral("v0.1.0-dev+build.12"));
+    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0"), QString(),
+                               QStringLiteral("unknown"), false),
+               QStringLiteral("v0.1.0"));
+    REQUIRE_EQ(compose_version(QStringLiteral("0.1.0-rc.3"),
+                               QStringLiteral("7"), QStringLiteral("abc1234"),
+                               true),
+               QStringLiteral("v0.1.0-rc.3+build.7-abc1234-dirty"));
+
+    // This binary's own string is built the same way from the stamp.
+    const support::build_info info = support::current_build_info();
+    REQUIRE_EQ(info.full_version(), support::current_version_string());
+    REQUIRE(info.full_version().startsWith(QStringLiteral("v") + info.version));
+    static const QRegularExpression semver(
+        QStringLiteral("^\\d+\\.\\d+\\.\\d+(-[0-9A-Za-z.-]+)?$"));
+    REQUIRE(semver.match(info.version).hasMatch());
+}
+
+TEST_CASE("support: build information and environment are separate reports")
 {
     const support::build_info info = support::current_build_info();
-    REQUIRE(!info.version.isEmpty());
     REQUIRE_EQ(info.qt_runtime, QString::fromLatin1(qVersion()));
     REQUIRE(!info.operating_system.isEmpty());
-
-    const QVector<support::environment_row> rows =
-        support::environment_rows(info);
-    REQUIRE_EQ(rows.size(), 10);
-    QStringList labels;
-    for (const support::environment_row& row : rows)
-        labels << row.label;
-    REQUIRE(labels.contains(QStringLiteral("Commit")));
-    REQUIRE(labels.contains(QStringLiteral("Qt")));
-    REQUIRE(labels.contains(QStringLiteral("Boost")));
-    REQUIRE(labels.contains(QStringLiteral("Operating system")));
-    REQUIRE(labels.contains(QStringLiteral("Architecture")));
-    REQUIRE(labels.contains(QStringLiteral("Language")));
-    REQUIRE(labels.contains(QStringLiteral("Profiling")));
     REQUIRE(!info.profiling.isEmpty());
+    REQUIRE_EQ(info.commit_full.left(info.commit.size()), info.commit);
 
-    const QString report = support::environment_report(info);
-    REQUIRE(report.contains(
-        QStringLiteral("Virtual Serial Studio %1").arg(info.version)));
-    REQUIRE(report.contains(QStringLiteral("Commit:")));
-    REQUIRE(report.contains(QStringLiteral("Qt:")));
-    REQUIRE(report.contains(QStringLiteral("Profiling:")));
+    QStringList build_labels;
+    for (const support::environment_row& row :
+         support::build_information_rows(info))
+        build_labels << row.label;
+    for (const char* label :
+         {"Version", "Git tag", "Git revision", "Short revision",
+          "Working tree", "Branch", "Build number", "Built", "Build type",
+          "Compiler", "Qt built with", "Boost"})
+        REQUIRE(build_labels.contains(QString::fromLatin1(label)));
+
+    QStringList environment_labels;
+    for (const support::environment_row& row : support::environment_rows(info))
+        environment_labels << row.label;
+    for (const char* label :
+         {"Operating system", "Architecture", "Kernel", "Qt running",
+          "Platform plugin", "Display", "Renderer", "Language", "Profiling"})
+        REQUIRE(environment_labels.contains(QString::fromLatin1(label)));
+    for (const QString& label : build_labels)
+        REQUIRE(!environment_labels.contains(label));
+
+    const QString build = support::build_information_report(info);
+    const QString environment = support::environment_report(info);
+    const QString both = support::diagnostic_report(info);
+    REQUIRE(build.contains(QStringLiteral("Version: %1").arg(info.full_version())));
+    REQUIRE(build.contains(QStringLiteral("Git revision: ")));
+    REQUIRE(!build.contains(QStringLiteral("Operating system:")));
+    REQUIRE(environment.contains(QStringLiteral("Operating system: ")));
+    REQUIRE(environment.contains(QStringLiteral("Profiling: ")));
+    REQUIRE(!environment.contains(QStringLiteral("Git revision:")));
+    REQUIRE(both.contains(build));
+    REQUIRE(both.contains(environment));
+    REQUIRE(both.indexOf(build) < both.indexOf(environment));
+
+    // A fixed identity prints as it should, including a build outside CI.
+    support::build_info fixed = info;
+    fixed.version = QStringLiteral("0.10.0-beta.1");
+    fixed.tag = QStringLiteral("v0.10.0-beta.1");
+    fixed.commits_since_tag = 3;
+    fixed.commit = QStringLiteral("3de4617");
+    fixed.commit_full = QStringLiteral("3de4617aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    fixed.branch = QStringLiteral("develop");
+    fixed.dirty = true;
+    fixed.build_number = QString();
+    const QString text = support::build_information_report(fixed);
+    REQUIRE(text.contains(QStringLiteral("Version: v0.10.0-beta.1+3de4617-dirty")));
+    REQUIRE(text.contains(QStringLiteral("Git tag: v0.10.0-beta.1, 3 commits later")));
+    REQUIRE(text.contains(QStringLiteral("Working tree: modified")));
+    REQUIRE(text.contains(QStringLiteral("Branch: develop")));
+    REQUIRE(text.contains(QStringLiteral("Build number: none (not a CI build)")));
+}
+
+namespace
+{
+
+QString read_repository_file(const QString& relative)
+{
+    QFile file(QStringLiteral(VSS_SOURCE_DIR "/") + relative);
+    REQUIRE(file.open(QIODevice::ReadOnly | QIODevice::Text));
+    return QString::fromUtf8(file.readAll());
+}
+
+/// The component names in the first column of the "Linked or built against"
+/// table of THIRD_PARTY_NOTICES.md.
+QStringList notice_components()
+{
+    const QString notices = read_repository_file(
+        QStringLiteral("THIRD_PARTY_NOTICES.md"));
+    const qsizetype start = notices.indexOf(QStringLiteral("## Linked or built against"));
+    const qsizetype end = notices.indexOf(QStringLiteral("\n## "), start + 3);
+    REQUIRE(start >= 0);
+    QStringList names;
+    static const QRegularExpression row(
+        QStringLiteral("^\\| \\[?([^\\]|]+?)\\]?(\\([^)]*\\))? \\|"),
+        QRegularExpression::MultilineOption);
+    const QString table = notices.mid(start, end - start);
+    for (const QRegularExpressionMatch& match : row.globalMatch(table))
+    {
+        const QString name = match.captured(1).trimmed();
+        if (name != QStringLiteral("Component") && !name.startsWith(QLatin1Char('-')))
+            names << name;
+    }
+    return names;
+}
+
+} // namespace
+
+TEST_CASE("support: licences match the bundled components")
+{
+    const QVector<support::third_party_component> all =
+        support::third_party_components();
+    REQUIRE(!all.isEmpty());
+
+    // third_party.json and the notices table list the same components.
+    QStringList inventory;
+    for (const support::third_party_component& component : all)
+    {
+        inventory << component.notice;
+        REQUIRE(!component.name.isEmpty());
+        REQUIRE(!component.spdx.isEmpty());
+        REQUIRE(!component.shipped.isEmpty());
+        // Every licence has wording in the tab, not just its SPDX name.
+        REQUIRE(support::licence_text(component.spdx) != component.spdx);
+    }
+    QStringList notices = notice_components();
+    inventory.sort();
+    notices.sort();
+    REQUIRE_EQ(inventory.join(QLatin1Char(',')), notices.join(QLatin1Char(',')));
+
+    // Every vcpkg dependency of the program is in the inventory.
+    const QJsonObject manifest =
+        QJsonDocument::fromJson(
+            read_repository_file(QStringLiteral("vcpkg.json")).toUtf8())
+            .object();
+    for (const auto& dependency : manifest.value(QLatin1String("dependencies")).toArray())
+    {
+        const QString package = dependency.isString()
+                                    ? dependency.toString()
+                                    : dependency.toObject().value(QLatin1String("name")).toString();
+        bool listed = false;
+        for (const support::third_party_component& component : all)
+            listed = listed || component.vcpkg == package;
+        REQUIRE(listed);
+    }
+
+    // Qt is shipped because the package deploys it; Tracy only when it is
+    // compiled in, and the release presets do not use vcpkg.
+    REQUIRE(read_repository_file(QStringLiteral("apps/vss_gui/CMakeLists.txt"))
+                .contains(QStringLiteral("qt_generate_deploy_app_script")));
+    for (const support::third_party_component& component : all)
+    {
+        if (component.vcpkg.isEmpty())
+            REQUIRE(component.condition.isEmpty());
+        else
+            REQUIRE_EQ(component.condition, QStringLiteral("profiling"));
+    }
+
+    // A bundled font names its family, licence, licence text and source, and
+    // the licence text is in the repository.
+    for (const support::third_party_font& font : support::third_party_fonts())
+    {
+        REQUIRE(!font.family.isEmpty());
+        REQUIRE(!font.spdx.isEmpty());
+        REQUIRE(!font.url.isEmpty());
+        REQUIRE(!read_repository_file(font.licence_text).isEmpty());
+        REQUIRE(support::licence_text(font.spdx) != font.spdx);
+    }
+
+    // A component that is only installed separately is never listed.
+    for (const QString& name : support::third_party_not_shipped())
+    {
+        REQUIRE(!inventory.contains(name));
+        for (const support::third_party_component& component :
+             support::bundled_components(true))
+            REQUIRE(component.name.compare(name, Qt::CaseInsensitive) != 0);
+    }
+    REQUIRE(support::third_party_not_shipped().contains(QStringLiteral("com0com")));
+
+    // The tab shows the unconditional components, plus Tracy only in a build
+    // that has the profiler.
+    REQUIRE_EQ(support::bundled_components(false).size(), all.size() - 1);
+    REQUIRE_EQ(support::bundled_components(true).size(), all.size());
+    support::AboutDialog dialog;
+    QTabWidget* tabs = dialog.tabs();
+    QWidget* licences = tabs->widget(3);
+    QStringList shown;
+    for (QLabel* label : licences->findChildren<QLabel*>())
+        shown << label->text();
+    const QString shown_text = shown.join(QLatin1Char('\n'));
+    for (const support::third_party_component& component :
+         support::bundled_components(support::profiling_compiled()))
+        REQUIRE(shown_text.contains(component.name));
+    REQUIRE(!shown_text.contains(QStringLiteral("com0com")));
+    REQUIRE_EQ(shown_text.contains(QStringLiteral("Tracy")),
+               support::profiling_compiled());
 }
 
 TEST_CASE("support: redaction removes credentials and keeps JSON valid")
@@ -859,6 +1045,9 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     REQUIRE_EQ(files.at(0).name, QStringLiteral("setup.json"));
     REQUIRE_EQ(files.at(1).name, QStringLiteral("log.txt"));
     REQUIRE_EQ(files.at(2).name, QStringLiteral("environment.txt"));
+    // environment.txt holds the build information and the environment.
+    REQUIRE(files.at(2).data.contains("Git revision:"));
+    REQUIRE(files.at(2).data.contains("Operating system:"));
     REQUIRE_EQ(files.at(3).name, QStringLiteral("counters.csv"));
 
     // Check each file's content: the setup is valid JSON with the one port,
@@ -873,7 +1062,7 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     REQUIRE(files.at(3).data.contains("name,path,state"));
     REQUIRE(files.at(1).data.contains("opened"));
     REQUIRE(!files.at(1).data.contains("abc123"));
-    REQUIRE(files.at(2).data.contains("Commit:"));
+    REQUIRE(files.at(2).data.contains("Short revision:"));
 
     // Opting in to traffic adds a fifth file, placed after the others.
     selection.traffic = true;
@@ -1047,16 +1236,27 @@ TEST_CASE("support: shortcuts are generated, filtered and cross-platform")
     check_accessible(dialog);
 }
 
-TEST_CASE("support: About reports the environment and copies it")
+TEST_CASE("support: About reports the build and environment and copies them")
 {
     support::AboutDialog dialog;
     QTabWidget* tabs = dialog.tabs();
     REQUIRE(tabs != nullptr);
-    REQUIRE_EQ(tabs->count(), 4);
+    REQUIRE_EQ(tabs->count(), 5);
     REQUIRE_EQ(tabs->tabText(0), QStringLiteral("About"));
-    REQUIRE_EQ(tabs->tabText(1), QStringLiteral("Environment"));
-    REQUIRE_EQ(tabs->tabText(2), QStringLiteral("Licences"));
-    REQUIRE_EQ(tabs->tabText(3), QStringLiteral("Fonts"));
+    REQUIRE_EQ(tabs->tabText(1), QStringLiteral("Build information"));
+    REQUIRE_EQ(tabs->tabText(2), QStringLiteral("Environment"));
+    REQUIRE_EQ(tabs->tabText(3), QStringLiteral("Licences"));
+    REQUIRE_EQ(tabs->tabText(4), QStringLiteral("Fonts"));
+
+    // The header carries the single full version string.
+    bool has_version = false;
+    for (QLabel* label : dialog.findChildren<QLabel*>())
+    {
+        if (label->text().startsWith(QStringLiteral("Version ")) &&
+            label->text().contains(support::current_version_string()))
+            has_version = true;
+    }
+    REQUIRE(has_version);
 
     // The About tab offers the licence and a link to the source.
     bool has_source_link = false;
@@ -1070,16 +1270,31 @@ TEST_CASE("support: About reports the environment and copies it")
     REQUIRE(support::AboutDialog::source_url().startsWith(
         QStringLiteral("https://")));
 
-    const QString environment = dialog.environment_text();
-    REQUIRE(environment.contains(QStringLiteral("Commit:")));
-    REQUIRE(environment.contains(QStringLiteral("Qt:")));
-
-    QGuiApplication::clipboard()->clear();
-    QPushButton* copy =
-        button_with_text(dialog, QStringLiteral("Copy environment"));
-    REQUIRE(copy != nullptr);
-    copy->click();
-    REQUIRE_EQ(QGuiApplication::clipboard()->text(), environment);
+    // Each copy button puts exactly its own text on the clipboard.
+    REQUIRE(dialog.build_information_text().contains(QStringLiteral("Git revision:")));
+    REQUIRE(dialog.environment_text().contains(QStringLiteral("Operating system:")));
+    REQUIRE(!dialog.environment_text().contains(QStringLiteral("Git revision:")));
+    const struct
+    {
+        const char* button;
+        QString text;
+    } copies[] = {
+        {"Copy build information", dialog.build_information_text()},
+        {"Copy environment", dialog.environment_text()},
+        {"Copy diagnostic information", dialog.diagnostic_text()},
+    };
+    for (const auto& copy : copies)
+    {
+        QGuiApplication::clipboard()->clear();
+        QPushButton* button =
+            button_with_text(dialog, QString::fromLatin1(copy.button));
+        REQUIRE(button != nullptr);
+        button->click();
+        REQUIRE_EQ(QGuiApplication::clipboard()->text(), copy.text);
+    }
+    REQUIRE_EQ(dialog.diagnostic_text(),
+               dialog.build_information_text() + QLatin1Char('\n') +
+                   dialog.environment_text());
     check_accessible(dialog);
 }
 

@@ -215,6 +215,7 @@ you pass `-DQt6_DIR=<kit>/lib/cmake/Qt6`.
   and keeps checking every access made by this project's code, so a race between the hub
   or endpoint threads and the GUI thread in our own code is reported. A deliberate race in
   a small program still fails under the same setting.
+* **Leak suppression.** `tests/lsan.supp` (passed as `LSAN_OPTIONS` in the ASan jobs) has one entry: fontconfig keeps the bundled fonts that Qt's `addApplicationFont` gives it until exit.
 * **Suppressions.** `tests/tsan.supp` (passed as `suppressions=` in the CI jobs) has one
   entry, for the construction of Qt's `QCallableObject` slot object, which a worker builds
   for a queued call and the GUI thread runs. The header template is compiled into our code

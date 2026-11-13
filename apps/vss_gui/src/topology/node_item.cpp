@@ -122,6 +122,12 @@ NodeItem::NodeItem(node_data data, const QSizeF& size,
     setZValue(1.0);
 }
 
+void NodeItem::redraw()
+{
+    ++revision_;
+    update();
+}
+
 void NodeItem::set_state(bool selected, bool focused, bool hovered)
 {
     if (selected_ == selected && focused_ == focused && hovered_ == hovered)
@@ -129,7 +135,7 @@ void NodeItem::set_state(bool selected, bool focused, bool hovered)
     selected_ = selected;
     focused_ = focused;
     hovered_ = hovered;
-    update();
+    redraw();
 }
 
 void NodeItem::set_in_loop(bool value)
@@ -137,7 +143,7 @@ void NodeItem::set_in_loop(bool value)
     if (in_loop_ == value)
         return;
     in_loop_ = value;
-    update();
+    redraw();
 }
 
 void NodeItem::set_editing(bool value)
@@ -145,7 +151,7 @@ void NodeItem::set_editing(bool value)
     if (editing_ == value)
         return;
     editing_ = value;
-    update();
+    redraw();
 }
 
 void NodeItem::set_wiring(bool value, bool source)
@@ -154,7 +160,7 @@ void NodeItem::set_wiring(bool value, bool source)
         return;
     wiring_ = value;
     wire_source_ = source;
-    update();
+    redraw();
 }
 
 void NodeItem::set_drop_state(drop_state value)
@@ -162,7 +168,7 @@ void NodeItem::set_drop_state(drop_state value)
     if (drop_ == value)
         return;
     drop_ = value;
-    update();
+    redraw();
 }
 
 bool NodeItem::handles_visible() const noexcept
@@ -462,7 +468,7 @@ void NodeItem::mouseDoubleClickEvent(QGraphicsSceneMouseEvent* event)
 void NodeItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event)
 {
     hovered_ = true;
-    update();
+    redraw();
     if (callbacks_.hover_entered)
         callbacks_.hover_entered(data_.id);
     QGraphicsItem::hoverEnterEvent(event);
@@ -471,7 +477,7 @@ void NodeItem::hoverEnterEvent(QGraphicsSceneHoverEvent* event)
 void NodeItem::hoverLeaveEvent(QGraphicsSceneHoverEvent* event)
 {
     hovered_ = false;
-    update();
+    redraw();
     if (callbacks_.hover_left)
         callbacks_.hover_left(data_.id);
     QGraphicsItem::hoverLeaveEvent(event);

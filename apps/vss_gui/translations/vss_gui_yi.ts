@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>די סבֿיבֿה איז אָפּגעקאָפּירט.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>בילד אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>קאפּירן בילד אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>בילד אינפֿאָרמאַציע קאפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>קאָפּירט דאָס אין אַ באַריכט וועגן אַ טעות. עס ענטפֿערט אויף "אויף וואָס לויפֿט דאָס?"</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Git טאַג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Git רעוויזיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>קורצע רעוויזיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>אַרבעטס־בוים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>צווייג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>בילד נומער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>געבילד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>בילד טיפּ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>קאָמפּיילער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>Qt בײַם בילדן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>אָפּעראַציע־סיסטעם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>אַרכיטעקטור</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>קערנעל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>Qt בײַם לויפֿן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>פּלאַטפֿאָרמע־פּלאַג־אין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>אויסשטעלונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>שפּראַך</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>פּראָפֿילירונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>ווערט געשיקט מיט Studio ווי געמיינזאַמע ביבליאָטעקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>פֿאַרהאַנען ווײַל דער בילד כולל'ט פּראָפֿילירונג־שטיצע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>SIL Open Font License, ווערסיע 1.1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>רענדערער</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1485,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>די סבֿיבֿה איז אָפּגעקאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
         </message>
     </context>
     <context>
@@ -5929,6 +6084,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>די גראַפֿיק־סיסטעם האָט נישט געקענט סטאַרטירן (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>קיין סיבה נישט געגעבן</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>דער איינציקער גראַפֿיק־אָרגאַן וואָס מען האָט געפֿונען איז אַ ווייכווער־רענדערער (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>האַרדווער (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>האַרדווער (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>ווייכווער (CPU), ווײַל: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ווייכווער (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>דער גראַפֿיק־אָרגאַן האָט אויפֿגעהערט צו אַרבעטן.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>קיין גראַפֿיק־אָרגאַן איז נישט געשאַפֿן געוואָרן</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6250,8 +6444,40 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>כּדי צו פֿאַרשטיין פֿאַרוואָס Studio איז לאַנגזאַם. עס רעקאָרדירט נאָר צײַטן און שיקט גאָרנישט ביז דו פֿאַרבינדסט דעם Tracy־פּראָפֿילער צו דער אַדרעס אויבן. עס איז ווידער אויס יעדעס מאָל ווען Studio הייבט זיך אָן.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>כּדי צו פֿאַרשטיין פֿאַרוואָס Studio איז לאַנגזאַם. עס רעקאָרדירט נאָר צײַטן און שיקט גאָרנישט אין קיין אָרט: Studio הערט זיך נאָר אויף דעם קאָמפּיוטער, און אַ צײַט־שורה דערשײַנט נאָר ווען דו הייבסט דאָ אָן דעם Tracy־פּראָפֿילער און פֿאַרבינדסט אים צו דער אַדרעס אויבן. Studio געדענקט דעם שאַלטער און רעקאָרדירט ווידער דעם נאָכגענדיקן מאָל ווען עס הייבט זיך אָן. צו דערלויבן אַנדערע קאָמפּיוטערס זיך צו פֿאַרבינדן דאַרף מען ריסטאַרטן.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>רענדערינג</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אויטאָמאַטיש</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>האַרדווער (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ווייכווער (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>האַרדווער צייכנט דעם קאַנוואַס אויף דער גראַפֿיק־קאַרטע, וואָס האַלט אים גלאַט מיט אַ סך פּאָרטן. ווייכווער צייכנט אים אויפֿן פּראָצעסאָר. אויטאָמאַטיש נוצט די גראַפֿיק־קאַרטע ווען עס איז דאָ איינע וואָס מען קען נוצן.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>איצט געצייכנט מיט: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>סטאַרט Studio איבער כּדי צו נוצן דעם אויסוואַל.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER אָדער ‎--render איז באַשטימט, דעריבער איבערשרייבט עס דעם אויסוואַל.</translation>
         </message>
     </context>
     <context>
@@ -8915,6 +9141,25 @@ Networks: %5</source>
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio איז אײַנגעשטעלט. אַנדערע פּראָגראַמען קענען עפֿענען נײַע פּאָרטן.</translation>
         </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>דער קאַנוואַס ווערט געצייכנט אויפֿן פּראָצעסאָר: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>בילד סביבה טעות באַריכט</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11554,6 +11799,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> פּרובירט אַן אַנדער נאָמען אָדער סאָרט, און פּרובירט נאָך אַ מאָל.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +12110,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>קלײַבט אויס אַן אַנדערן</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>פֿאַרבינדט</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +13215,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>ראָלן</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>פּראָגרעס</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13097,6 +13358,14 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="417" />
             <source>RX %1, TX %2</source>
             <translation>RX %1, TX %2</translation>
+        </message>
+        <message>
+            <source>Total traffic</source>
+            <translation>גאַנצער טראַפֿיק</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>גאַנצע ביטעס באקומען און געשיקט. די סטאַטוס־שטאַנג ווײַזט די איצטיקע גיכקייט.</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
@@ -14027,6 +14296,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>באַשאַפֿן פּאָר</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
         </message>
     </context>
     <context>
@@ -16638,6 +16911,29 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>דער אויסלייג איז צוריקגעשטעלט.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>פּראָגרעס</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>בילד סביבה טעות באַריכט</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17073,6 +17369,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 איז אָפּגעהיט.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>אָנווענדט</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
         </message>
     </context>
     <context>
@@ -17835,6 +18139,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio האָט נישט געקענט לייענען וועלכע COM־נומערן Windows האַלט, דעריבער קלײַבט עס אויס אַ פֿרײַען ווען דער פּאָרט ווערט באַשאַפֿן און ווײַזט אים ווען דער פּאָרט איז גרייט.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>אָנווענדט</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>װענדט אָן די ענדערונג. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז א מינוט.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>פּראָגרעס פֿון דער אײַנשטעלונג</translation>
         </message>
     </context>
     <context>
@@ -18836,6 +19160,29 @@ Networks: %5</source>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>זום קאנטראלן</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>אפקלענערן</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>צוריקשטעלן דעם זום צו 100%</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>פארגרעסערן</translation>
         </message>
     </context>
 </TS>

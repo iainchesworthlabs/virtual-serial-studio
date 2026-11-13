@@ -85,7 +85,6 @@ private:
     QWidget* serial_row_ = nullptr;
     QLabel* help_text_ = nullptr;
     QLabel* help_link_ = nullptr;
-    QPushButton* help_copy_ = nullptr;
     QWidget* simple_lines_ = nullptr;
     QWidget* advanced_lines_ = nullptr;
     std::array<StatusChip*, 6> line_chips_{};
