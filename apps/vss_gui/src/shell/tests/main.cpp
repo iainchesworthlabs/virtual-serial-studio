@@ -15,6 +15,7 @@
 #include <QSettings>
 #include <QString>
 
+#include <chrono>
 #include <cstdio>
 #include <cstring>
 #include <exception>
@@ -82,12 +83,20 @@ try
         ++selected;
         if (verbose)
             std::printf("[RUN ] %s\n", test.name);
+        const auto case_started = std::chrono::steady_clock::now();
         try
         {
             test.function();
             ++passed;
             if (verbose)
-                std::printf("[PASS] %s\n", test.name);
+            {
+                // The time tells a slow case from a hung one.
+                const auto milliseconds =
+                    std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now() - case_started);
+                std::printf("[PASS] %s (%lld ms)\n", test.name,
+                            static_cast<long long>(milliseconds.count()));
+            }
         }
         catch (const vss_test::skip_signal& skip)
         {
