@@ -83,7 +83,7 @@ vss_cli selftest
 missing=$(
   cd "$root"
   ldd bin/vss_gui bin/vss_cli lib/libQt6Core.so.6 lib/libQt6DBus.so.6 lib/libQt6Gui.so.6 \
-    lib/libQt6Network.so.6 lib/libQt6OpenGL.so.6 lib/libQt6OpenGLWidgets.so.6 lib/libQt6Svg.so.6 lib/libQt6Widgets.so.6 \
+    lib/libQt6Network.so.6 lib/libQt6OpenGL.so.6 lib/libQt6CanvasPainter.so.6 lib/libQt6Svg.so.6 lib/libQt6Widgets.so.6 \
     lib/libQt6XcbQpa.so.6 plugins/platforms/*.so plugins/xcbglintegrations/*.so \
     plugins/imageformats/*.so plugins/iconengines/*.so 2>&1 | grep 'not found' || true
 )
