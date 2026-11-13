@@ -133,7 +133,11 @@ void require_revocations_refused(std::string_view text, std::string_view part)
     REQUIRE(detail.find(part) != std::string::npos);
 }
 
-const std::string a_hash = to_hex(sha512_of(std::string_view("a plugin")));
+/// The hash of a plugin that the list tests withdraw, as hex.
+std::string a_hash()
+{
+    return to_hex(sha512_of(std::string_view("a plugin")));
+}
 
 } // namespace
 
@@ -306,7 +310,7 @@ TEST_CASE("plugin verify: a revocation list reads and answers")
              "issued_at": "2026-11-13",
              "key_ids": ["plugins-2025"],
              "plugin_hashes": [")" +
-        a_hash + R"("],
+        a_hash() + R"("],
              "plugins": [ { "id": "com.example.plugin",
                             "max_version": "1.2.0" } ] })";
     std::string detail = "old";
@@ -383,7 +387,7 @@ TEST_CASE("plugin verify: a revocation list that is not understood is refused")
     require_revocations_refused(with(R"("key_ids": [1])"), "not a key id");
     require_revocations_refused(with(R"("plugin_hashes": ["abc"])"),
                                 "128 lower-case hex");
-    std::string upper = a_hash;
+    std::string upper = a_hash();
     upper[0] = 'A';
     require_revocations_refused(
         with("\"plugin_hashes\": [\"" + upper + "\"]"), "128 lower-case hex");

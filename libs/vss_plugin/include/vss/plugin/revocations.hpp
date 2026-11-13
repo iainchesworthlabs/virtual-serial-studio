@@ -30,7 +30,8 @@ namespace vss::plugin
 /// The format of the list this version reads.
 inline constexpr std::uint32_t revocations_format_version = 1;
 
-inline constexpr std::size_t max_revocations_size = 256 * 1024;
+inline constexpr std::size_t max_revocations_size =
+    std::size_t{256} * 1024;
 inline constexpr std::size_t max_revocations_depth = 4;
 inline constexpr std::size_t max_revoked_entries = 4096;
 /// The largest serial: every integer up to it is exact in any JSON reader.

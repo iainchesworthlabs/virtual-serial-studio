@@ -31,7 +31,7 @@ namespace vss::plugin
 /// The policy format this version reads.
 inline constexpr std::uint32_t policy_format_version = 1;
 
-inline constexpr std::size_t max_policy_size = 64 * 1024;
+inline constexpr std::size_t max_policy_size = std::size_t{64} * 1024;
 inline constexpr std::size_t max_policy_depth = 4;
 inline constexpr std::size_t max_policy_keys = 256;
 inline constexpr std::size_t max_policy_plugins = 1024;
