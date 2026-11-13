@@ -438,6 +438,17 @@ TEST_CASE("support: licences match the bundled components")
             REQUIRE_EQ(component.condition, QStringLiteral("profiling"));
     }
 
+    // A bundled font names its family, licence, licence text and source, and
+    // the licence text is in the repository.
+    for (const support::third_party_font& font : support::third_party_fonts())
+    {
+        REQUIRE(!font.family.isEmpty());
+        REQUIRE(!font.spdx.isEmpty());
+        REQUIRE(!font.url.isEmpty());
+        REQUIRE(!read_repository_file(font.licence_text).isEmpty());
+        REQUIRE(support::licence_text(font.spdx) != font.spdx);
+    }
+
     // A component that is only installed separately is never listed.
     for (const QString& name : support::third_party_not_shipped())
     {

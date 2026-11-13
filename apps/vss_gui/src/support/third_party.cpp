@@ -58,6 +58,24 @@ QVector<third_party_component> third_party_components()
     return result;
 }
 
+QVector<third_party_font> third_party_fonts()
+{
+    QVector<third_party_font> result;
+    const QJsonArray array = inventory().value(QLatin1String("fonts")).toArray();
+    for (const QJsonValue& value : array)
+    {
+        const QJsonObject object = value.toObject();
+        third_party_font font;
+        font.family = object.value(QLatin1String("family")).toString();
+        font.version = object.value(QLatin1String("version")).toString();
+        font.spdx = object.value(QLatin1String("spdx")).toString();
+        font.licence_text = object.value(QLatin1String("licence_text")).toString();
+        font.url = object.value(QLatin1String("url")).toString();
+        result.push_back(font);
+    }
+    return result;
+}
+
 QStringList third_party_not_shipped()
 {
     QStringList result;
@@ -95,6 +113,9 @@ QString licence_text(const QString& spdx)
     if (spdx == QLatin1String("BSL-1.0"))
         return QCoreApplication::translate("About",
                                            "Boost Software License, version 1.0.");
+    if (spdx == QLatin1String("OFL-1.1"))
+        return QCoreApplication::translate("About",
+                                           "SIL Open Font License, version 1.1.");
     if (spdx == QLatin1String("BSD-3-Clause"))
         return QCoreApplication::translate("About", "BSD 3-Clause License.");
     return spdx;

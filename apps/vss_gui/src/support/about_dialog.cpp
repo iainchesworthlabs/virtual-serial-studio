@@ -257,25 +257,37 @@ void AboutDialog::build()
                   QCoreApplication::translate("About", "Licences"));
 
     // Fonts tab.
-    // Studio bundles none, so report the families the system supplies for the
-    // interface and for fixed-width text.
+    // The families third_party.json lists as bundled, each with its licence.
+    // With none, it says so and reports the families the system supplies for
+    // the interface and for fixed-width text.
     QVBoxLayout* fonts_layout = nullptr;
     QWidget* fonts_page = page(tabs_, fonts_layout);
-    fonts_layout->addWidget(body_label(
-        QCoreApplication::translate(
-            "About",
-            "No fonts are bundled. Studio uses your system's UI font."),
-        fonts_page));
-    const QFont ui = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
-    const QFont fixed = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    fonts_layout->addWidget(
-        body_label(QCoreApplication::translate("About", "Interface font: %1.")
-                       .arg(ui.family()),
-                   fonts_page));
-    fonts_layout->addWidget(
-        body_label(QCoreApplication::translate("About", "Fixed font: %1.")
-                       .arg(fixed.family()),
-                   fonts_page));
+    const QVector<third_party_font> fonts = third_party_fonts();
+    if (fonts.isEmpty())
+    {
+        fonts_layout->addWidget(body_label(
+            QCoreApplication::translate(
+                "About",
+                "No fonts are bundled. Studio uses your system's UI font."),
+            fonts_page));
+        const QFont ui = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
+        const QFont fixed =
+            QFontDatabase::systemFont(QFontDatabase::FixedFont);
+        fonts_layout->addWidget(body_label(
+            QCoreApplication::translate("About", "Interface font: %1.")
+                .arg(ui.family()),
+            fonts_page));
+        fonts_layout->addWidget(body_label(
+            QCoreApplication::translate("About", "Fixed font: %1.")
+                .arg(fixed.family()),
+            fonts_page));
+    }
+    for (const third_party_font& font : fonts)
+        add_licence(fonts_layout,
+                    font.version.isEmpty()
+                        ? font.family
+                        : QStringLiteral("%1 %2").arg(font.family, font.version),
+                    licence_text(font.spdx), font.url, fonts_page);
     fonts_layout->addStretch(1);
     tabs_->addTab(fonts_page, QCoreApplication::translate("About", "Fonts"));
 

@@ -694,7 +694,8 @@ became "Copy diagnostic information", which copies both and is what
 version string. The Licences tab lists only what a build contains, read from
 `third_party.json`: the com0com driver is installed separately by the user and
 is no longer listed, and Tracy appears only in a build that has the profiler. The
-Fonts tab stays as the spec has it. The Licences tab summarises each licence (component, licence name,
+Fonts tab is read from the same file (`fonts`), so adding a bundled font is one entry there; with
+none, it keeps the text the spec has. The Licences tab summarises each licence (component, licence name,
 one line of context) instead of embedding the full licence texts; the
 product's own GPLv3 notice and warranty disclaimer are in the About tab, and
 no font is bundled. The standard GPLv3 "This program is free software..."

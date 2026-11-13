@@ -31,6 +31,8 @@
       "condition": "profiling"
     }
   ],
+  "fonts": [],
+  "fonts_comment": "Font families shipped with the program, one object each: family, version, spdx (the licence id), licence_text (path of the licence text from the repository root) and url (where the font comes from). The About window's Fonts tab lists them; with none, it says no fonts are bundled.",
   "not_shipped": [
     {
       "notice": "com0com",

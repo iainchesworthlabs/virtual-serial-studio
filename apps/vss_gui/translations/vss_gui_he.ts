@@ -306,6 +306,11 @@
             <source>Present because this build includes profiling support.</source>
             <translation>קיים כי בנייה זו כוללת תמיכה בפרופיילינג.</translation>
         </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>רישיון הגופנים הפתוח של SIL, גרסה 1.1.</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>

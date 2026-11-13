@@ -29,6 +29,22 @@ struct third_party_component
     QString condition;
 };
 
+/// One font family shipped with the program.
+struct third_party_font
+{
+    QString family;
+    QString version;
+    /// The licence as an SPDX identifier.
+    QString spdx;
+    /// The licence text, as a path from the repository root.
+    QString licence_text;
+    /// Where the font comes from.
+    QString url;
+};
+
+/// The fonts third_party.json lists; empty while none is bundled.
+QVector<third_party_font> third_party_fonts();
+
 /// Everything third_party.json lists as shipped, whatever the build.
 QVector<third_party_component> third_party_components();
 

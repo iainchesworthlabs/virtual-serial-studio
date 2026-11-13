@@ -306,6 +306,11 @@
             <source>Present because this build includes profiling support.</source>
             <translation>Presente porque esta compilación incluye compatibilidad con el perfilado.</translation>
         </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>Licencia de fuentes abiertas SIL, versión 1.1.</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>

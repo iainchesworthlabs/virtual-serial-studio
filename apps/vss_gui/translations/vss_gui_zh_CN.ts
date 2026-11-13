@@ -306,6 +306,11 @@
             <source>Present because this build includes profiling support.</source>
             <translation>此构建包含性能分析支持，因此包含该组件。</translation>
         </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>SIL 开放字体许可证第 1.1 版。</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
