@@ -6247,8 +6247,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>Studio が遅い原因を調べるための機能です。記録するのは処理時間だけで、上のアドレスに Tracy プロファイラーを接続するまで何も送信しません。Studio を起動するたびに、再びオフになります。</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>Studio が遅い原因を調べるための機能です。記録するのは処理時間だけで、何も送信しません。Studio はこのコンピューターだけで待ち受け、ここで Tracy プロファイラーを起動して上のアドレスに接続したときにだけタイムラインが表示されます。このスイッチは記憶され、次回の起動時にも記録されます。他のコンピューターからの接続を許可するには再起動が必要です。</translation>
         </message>
     </context>
     <context>

@@ -6,6 +6,8 @@
 
 #include "profiling/profiled_application.hpp"
 
+#include "profiling/stall_watchdog.hpp"
+
 #include <vss/core/profile.hpp>
 
 #include <QAbstractEventDispatcher>
@@ -79,7 +81,25 @@ int ProfiledApplication::budget_ms(int event_type) noexcept
 bool ProfiledApplication::notify(QObject* receiver, QEvent* event)
 {
     VSS_PROFILE_ZONE_NAMED(zone, "gui.event");
-    if (!zone.active() || receiver == nullptr || event == nullptr)
+    if (receiver == nullptr || event == nullptr)
+        return QApplication::notify(receiver, event);
+
+    // The stall watchdog reads this from its own thread to say what the GUI
+    // thread was doing when it stopped answering: two relaxed stores per
+    // event, with the outer event put back when a nested one ends.
+    const current_event_snapshot outer = current_event();
+    publish_current_event(receiver->metaObject()->className(),
+                          static_cast<int>(event->type()));
+    struct restore
+    {
+        current_event_snapshot previous;
+        ~restore()
+        {
+            publish_current_event(previous.receiver_class,
+                                  previous.event_type);
+        }
+    } const restore_outer{outer};
+    if (!zone.active())
         return QApplication::notify(receiver, event);
 
     // Read everything needed from the receiver and the event up front: either

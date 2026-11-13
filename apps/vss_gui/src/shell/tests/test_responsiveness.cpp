@@ -38,6 +38,7 @@
 #include <QString>
 #include <QWidget>
 
+#include <algorithm>
 #include <cstdio>
 
 namespace
@@ -84,6 +85,26 @@ void right_click_node(TopologyView& view, vss::endpoint_id id)
         popup->close();
     vss_test::spin(1);
 }
+
+/// Counts the resize events a widget receives, so a test can tell a resize
+/// that settles from one that sets off another.
+class ResizeCounter : public QObject
+{
+public:
+    explicit ResizeCounter(QObject* parent) : QObject(parent) {}
+    int count() const noexcept { return count_; }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::Resize)
+            ++count_;
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    int count_ = 0;
+};
 
 } // namespace
 
@@ -181,4 +202,67 @@ TEST_CASE("responsive: a busy loopback linked to a fixture does not freeze "
     REQUIRE(probe.ticks() > 0);
     REQUIRE_EQ(traffic_over, 0);
     REQUIRE_EQ(probe.busy_over(menu_budget_ms()), 0);
+}
+
+TEST_CASE("responsive: dragging the window corner again and again stays cheap")
+{
+    QSettings().clear();
+    QSettings().setValue(QStringLiteral("ui/advanced"), true);
+
+    vss::studio studio;
+    EngineStudioBackend backend(studio);
+    ShellWindow window(backend);
+    window.resize(1280, 800);
+    window.show();
+    vss_test::spin(50);
+
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("port-1"), vss::virtual_port_kind::loopback, true);
+    const auto second = backend.create_mock_port(
+        QStringLiteral("port-2"), vss::serial_settings{},
+        QStringLiteral("scripted"));
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    REQUIRE(backend.connect_ports(*second, *first, vss::link_options{})
+                .has_value());
+    vss_test::spin(100);
+
+    auto* canvas = window.findChild<TopologyView*>();
+    REQUIRE(canvas != nullptr);
+    auto* resizes = new ResizeCounter(canvas);
+    canvas->installEventFilter(resizes);
+
+    // A drag of the bottom-right corner sends a resize for every few pixels,
+    // out to a large window and back below the point where the layout turns
+    // compact. Every step is followed by the event loop, as it is for a person.
+    qint64 slowest = 0;
+    qint64 total = 0;
+    int steps = 0;
+    for (int sweep = 0; sweep < 6; ++sweep)
+    {
+        for (int i = 0; i <= 40; ++i)
+        {
+            const int along = sweep % 2 == 0 ? i : 40 - i;
+            const int width = 900 + along * 20;
+            const int height = 560 + along * 12;
+            QElapsedTimer step;
+            step.start();
+            window.resize(width, height);
+            vss_test::spin(1);
+            const qint64 took = step.elapsed();
+            slowest = std::max(slowest, took);
+            total += took;
+            ++steps;
+        }
+    }
+    std::printf("        %d resizes: slowest %lld ms, mean %lld ms\n", steps,
+                static_cast<long long>(slowest),
+                static_cast<long long>(total / std::max(steps, 1)));
+    std::printf("        the canvas received %d resize events for %d steps\n",
+                resizes->count(), steps);
+    REQUIRE(steps > 0);
+    // A window resize reaches the canvas once. More than two per step means
+    // a resize is setting off another (a layout feedback loop).
+    REQUIRE(resizes->count() <= steps * 2);
+    REQUIRE(slowest < 1000);
 }

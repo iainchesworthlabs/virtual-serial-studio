@@ -1684,6 +1684,7 @@ void ShellWindow::apply_compact()
     if (compact == compact_)
         return;
     compact_ = compact;
+    VSS_PROFILE_ZONE("gui.shell.apply_compact");
 
     toolbar_->setToolButtonStyle(compact ? Qt::ToolButtonIconOnly
                                          : Qt::ToolButtonTextBesideIcon);
@@ -3157,7 +3158,11 @@ void ShellWindow::apply_menu_palette()
 
 void ShellWindow::resizeEvent(QResizeEvent* event)
 {
-    QMainWindow::resizeEvent(event);
+    VSS_PROFILE_ZONE("gui.shell.resize");
+    {
+        VSS_PROFILE_ZONE("gui.shell.resize.main_window");
+        QMainWindow::resizeEvent(event);
+    }
     apply_compact();
 }
 
