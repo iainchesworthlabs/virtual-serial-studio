@@ -277,6 +277,7 @@ private:
         if (in.size() > max_actions)
             bad(path, "more than " + std::to_string(max_actions) +
                           " actions in one list");
+        out.reserve(in.size());
         for (std::size_t i = 0; i < in.size(); ++i)
             out.push_back(one_action(in[i],
                                      path + "[" + std::to_string(i) + "]",

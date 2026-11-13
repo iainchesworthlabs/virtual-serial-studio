@@ -418,7 +418,7 @@ TEST_CASE("rules: compile builds the table of a pattern longer than 64 bytes")
     const compiled_rule& long_rule = set->rules[0];
     REQUIRE_EQ(long_rule.length, std::size_t{130});
     REQUIRE_EQ(long_rule.words, std::size_t{3});
-    REQUIRE_EQ(long_rule.accept.size(), std::size_t{256 * 3});
+    REQUIRE_EQ(long_rule.accept.size(), std::size_t{256} * 3);
     for (const std::size_t position :
          {std::size_t{0}, std::size_t{1}, std::size_t{3}, std::size_t{62},
           std::size_t{63}, std::size_t{64}, std::size_t{65}, std::size_t{66},

@@ -330,9 +330,10 @@ TEST_CASE(
             R"j({"name": "wild", "when": {"bytes": "?2 03"}, "do": [{"mark": "wild"}]})j";
         const std::string exact =
             R"j({"name": "exact", "when": {"bytes": "02 03"}, "do": [{"mark": "exact"}]})j";
-        machine each(make_set(peer_set(wild_first ? wild + "," + exact
-                                                  : exact + "," + wild)),
-                     1);
+        std::string both = wild_first ? wild : exact;
+        both += ',';
+        both += wild_first ? exact : wild;
+        machine each(make_set(peer_set(both)), 1);
         const auto fired = feed(each, "02 03", ms(1));
         REQUIRE_EQ(fired.size(), std::size_t{1});
         REQUIRE_EQ(text_of(fired[0]),
@@ -673,6 +674,7 @@ TEST_CASE("rules: machine takes a delay table in order across matches")
                      R"j("order": "independent", )j")),
                  1);
     std::vector<std::int64_t> drawn;
+    drawn.reserve(7);
     for (int i = 0; i < 7; ++i)
         drawn.push_back(
             feed(each, "01", ms(i + 1))[0].actions[0].drawn.count());
@@ -739,7 +741,7 @@ TEST_CASE("rules: machine waits for the silence after a pattern")
     REQUIRE(!each.next_deadline().has_value());
     REQUIRE(feed(each, "01 02", ms(10)).empty());
     REQUIRE(each.next_deadline().has_value());
-    REQUIRE(*each.next_deadline() == ms(15));
+    REQUIRE(each.next_deadline() == ms(15));
 
     REQUIRE(tick(each, ms(12)).empty());
     REQUIRE(tick(each, ms(15) - 1us).empty());
@@ -797,7 +799,7 @@ TEST_CASE("rules: machine drops the waiting rule when a byte arrives sooner")
 
     // Then the pattern, alone again, is waited for as before.
     REQUIRE(feed(each, "01 02", ms(400)).empty());
-    REQUIRE(*each.next_deadline() == ms(405));
+    REQUIRE(each.next_deadline() == ms(405));
 }
 
 TEST_CASE("rules: machine lets a rule with no gap win over one that waits")
@@ -852,7 +854,7 @@ TEST_CASE("rules: machine counts the silence on both sides when asked")
                           "do": [{"mark": "B"}]})j")),
         1);
     REQUIRE(feed(each, "01 02", ms(10)).empty());
-    REQUIRE(*each.next_deadline() == ms(15));
+    REQUIRE(each.next_deadline() == ms(15));
     REQUIRE_EQ(tick(each, ms(15)).size(), std::size_t{1});
     // Too soon after the last byte (2 ms): it is not waited for at all.
     REQUIRE(feed(each, "01 02", ms(12)).empty());

@@ -308,14 +308,14 @@ TEST_CASE("rules: parse takes a seed signed or unsigned")
                      std::string(number) + "}");
         return source.seed;
     };
-    REQUIRE_EQ(*seed_of("42"), std::uint64_t{42});
-    REQUIRE_EQ(*seed_of("-1"), std::uint64_t{0xffffffffffffffffULL});
-    REQUIRE_EQ(*seed_of("18446744073709551615"),
-               std::uint64_t{0xffffffffffffffffULL});
-    REQUIRE_EQ(*seed_of("9223372036854775808"),
-               std::uint64_t{0x8000000000000000ULL});
-    REQUIRE_EQ(*seed_of("-9223372036854775808"),
-               std::uint64_t{0x8000000000000000ULL});
+    REQUIRE(seed_of("42") == std::uint64_t{42});
+    REQUIRE(seed_of("-1") == std::uint64_t{0xffffffffffffffffULL});
+    REQUIRE(seed_of("18446744073709551615") ==
+            std::uint64_t{0xffffffffffffffffULL});
+    REQUIRE(seed_of("9223372036854775808") ==
+            std::uint64_t{0x8000000000000000ULL});
+    REQUIRE(seed_of("-9223372036854775808") ==
+            std::uint64_t{0x8000000000000000ULL});
 }
 
 TEST_CASE("rules: parse keeps the order of states and slots, and empty slots")
@@ -396,9 +396,9 @@ TEST_CASE("rules: parse reads gaps, lines, port and state of a trigger")
 
     const trigger opened = trigger_of(R"j({"port": "opened"})j");
     REQUIRE(opened.port.has_value());
-    REQUIRE(*opened.port == port_event::opened);
+    REQUIRE(opened.port == port_event::opened);
     const trigger closed = trigger_of(R"j({"port": "closed"})j");
-    REQUIRE(*closed.port == port_event::closed);
+    REQUIRE(closed.port == port_event::closed);
     REQUIRE(!trigger_of(R"j({"bytes": "01"})j").port.has_value());
 }
 
@@ -995,7 +995,6 @@ TEST_CASE("rules: parse refuses a list longer than its limit, unread")
 {
     // The items are wrong on purpose: if they were read, there would be more
     // than the one problem about the length.
-    const std::string base = std::string(head);
     require_refused(
         R"j({"attach": {"port": "p", "role": "peer"}, "states": [)j" +
             repeat_items("5", max_states + 1) + "]}",
@@ -1273,7 +1272,7 @@ TEST_CASE("rules: parse stops listing after a great many problems")
     std::string text = "{\"attach\": {\"port\": \"p\", \"role\": \"peer\"}";
     for (int i = 0; i < 2000; ++i)
         text += ", \"k" + std::to_string(i) + "\": 0";
-    text += "}";
+    text += '}';
     const auto problems = parse_bad(text);
     REQUIRE(problems.size() < 300);
     REQUIRE(problems.size() > 100);
