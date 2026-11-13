@@ -1189,3 +1189,18 @@ lines applied. The numbers are the rows of the design review.
   troubleshoot row say that the program has to open exactly this port, because a
   program that was set up with another COM name opens nothing of ours. The
   Inspector adds a "Copy name" button to the waiting note.
+
+## Busy feedback while ports are made
+
+The bundle has no busy pattern for a slow engine call; the nearest are the
+com-number dialog's "Changing" primary label and the benchmark's progress bar.
+Making a port on Windows installs a device and takes 15 to 20 seconds, so the
+job form, the Add a port, Connect two programs and Attach dialogs (through
+`FlowDialog::run_in_background`), the JSON editor's Apply and the window's
+open-setup, template and restore paths run it on a worker thread
+(`BackgroundWork`) and show: the primary button relabelled "Creating",
+"Attaching" or "Applying", an indeterminate `QProgressBar` (styled by the
+existing token rule) and one sentence, "Setting up. Windows installs each new
+port, which can take up to 20 seconds." Cancel, Back and the fields are
+disabled meanwhile, and the dialogs and the main window refuse to close until
+the worker has reported. The strings are new and not in the specs.

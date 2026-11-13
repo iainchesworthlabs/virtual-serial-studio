@@ -37,6 +37,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <memory>
 
 namespace vss::gui
 {
@@ -456,7 +457,7 @@ bool TopologyJsonEditor::is_dirty() const
 
 bool TopologyJsonEditor::can_apply() const
 {
-    return is_dirty() && validation_.valid();
+    return !applying_ && is_dirty() && validation_.valid();
 }
 
 void TopologyJsonEditor::revert()
@@ -492,19 +493,42 @@ bool TopologyJsonEditor::apply()
     if (!can_apply())
         return false;
     applying_ = true;
-    const auto result = backend_.apply(validation_.document, true);
-    applying_ = false;
-    if (!result)
-    {
-        show_apply_error(error_text(result.error()));
-        return false;
-    }
-    baseline_ = text();
-    apply_error_summary_.clear();
-    apply_error_detail_.clear();
-    update_ui();
-    Q_EMIT applied();
-    Q_EMIT message(tr("Applied the changes."));
+    editor_->setReadOnly(true);
+    apply_->setText(tr("Applying"));
+    apply_->setAccessibleName(tr("Applying"));
+    apply_->setEnabled(false);
+    Q_EMIT message(
+        tr("Setting up. Windows installs each new port, which can take up to "
+           "20 seconds."));
+
+    auto failure = std::make_shared<vss::error_code>();
+    work_.start(
+        [this, failure, document = validation_.document]
+        {
+            const auto result = backend_.apply(document, true);
+            if (!result)
+                *failure = result.error();
+        },
+        [this, failure]
+        {
+            applying_ = false;
+            editor_->setReadOnly(false);
+            apply_->setText(tr("Apply changes"));
+            apply_->setAccessibleName(tr("Apply changes"));
+            backend_.refresh();
+            if (*failure)
+            {
+                show_apply_error(error_text(*failure));
+                update_ui();
+                return;
+            }
+            baseline_ = text();
+            apply_error_summary_.clear();
+            apply_error_detail_.clear();
+            update_ui();
+            Q_EMIT applied();
+            Q_EMIT message(tr("Applied the changes."));
+        });
     return true;
 }
 

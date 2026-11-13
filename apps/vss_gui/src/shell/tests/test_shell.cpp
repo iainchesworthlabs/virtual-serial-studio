@@ -49,6 +49,7 @@
 #include <QToolBar>
 #include <QToolButton>
 
+#include <chrono>
 #include <cmath>
 
 namespace
@@ -58,6 +59,12 @@ void clear_settings()
 {
     QSettings settings;
     settings.clear();
+}
+
+/// Waits for the ports a window is starting on its worker thread.
+void wait_applied(vss::gui::ShellWindow& window)
+{
+    REQUIRE(vss_test::wait_until([&window] { return !window.applying(); }));
 }
 
 } // namespace
@@ -1468,6 +1475,7 @@ TEST_CASE("background: the ports that ran before a restart start again")
     vss::gui::FakeStudioBackend backend;
     vss::gui::ShellWindow window(backend);
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(window.background_enabled());
     REQUIRE(backend.ports().size() == 2);
@@ -1489,6 +1497,7 @@ TEST_CASE("background: a hidden start with nothing to run has no reason to "
         vss::gui::FakeStudioBackend backend;
         vss::gui::ShellWindow window(backend);
         window.enable_background(running_file(directory), false);
+        wait_applied(window);
         QApplication::processEvents();
         REQUIRE(!window.needed_in_background());
     }
@@ -1499,10 +1508,32 @@ TEST_CASE("background: a hidden start with nothing to run has no reason to "
         vss::gui::FakeStudioBackend backend;
         vss::gui::ShellWindow window(backend);
         window.enable_background(running_file(directory), false);
+        wait_applied(window);
         QApplication::processEvents();
         REQUIRE(backend.ports().empty());
         REQUIRE(!window.needed_in_background());
     }
+    clear_settings();
+}
+
+TEST_CASE("background: a hidden start stays while the ports are being started")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_running(running_file(directory), false);
+
+    vss::gui::FakeStudioBackend backend;
+    backend.set_create_delay(std::chrono::milliseconds(200));
+    vss::gui::ShellWindow window(backend);
+    window.enable_background(running_file(directory), false);
+    // Installing the ports takes seconds on Windows and runs off the GUI
+    // thread.  `vss_gui --background` asks this straight away, and quitting
+    // on "no ports yet" would throw the restore away.
+    REQUIRE(window.applying());
+    REQUIRE(window.needed_in_background());
+    wait_applied(window);
+    REQUIRE(backend.ports().size() == 2);
+    REQUIRE(window.needed_in_background());
     clear_settings();
 }
 
@@ -1517,6 +1548,7 @@ TEST_CASE("background: a hidden start stays when the ports could not start")
     vss::gui::ShellWindow window(backend);
     // Not shown: this is what `vss_gui --background` does at sign-in.
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     // Quitting now would take the notification with it, and nobody would
@@ -1526,6 +1558,7 @@ TEST_CASE("background: a hidden start stays when the ports could not start")
     // Start again from the banner works, and then the ports are the reason.
     REQUIRE(window.resume_banner()->action_button() != nullptr);
     window.resume_banner()->action_button()->click();
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().size() == 2);
     REQUIRE(window.needed_in_background());
@@ -1542,6 +1575,7 @@ TEST_CASE("background: after a Quit Studio offers to start the ports again")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     auto* banner = window.resume_banner();
@@ -1554,6 +1588,7 @@ TEST_CASE("background: after a Quit Studio offers to start the ports again")
 
     REQUIRE(banner->action_button() != nullptr);
     banner->action_button()->click();
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().size() == 2);
     REQUIRE(!banner->isVisible());
@@ -1571,6 +1606,7 @@ TEST_CASE("background: a setup that cannot start is offered again")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     REQUIRE(window.resume_banner()->isVisible());
@@ -1616,6 +1652,7 @@ TEST_CASE("background: Quit asks before it stops the ports")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
 
     remove_probe probe;

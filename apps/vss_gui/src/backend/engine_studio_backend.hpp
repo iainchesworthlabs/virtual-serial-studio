@@ -10,6 +10,7 @@
 #include "backend/studio_backend.hpp"
 
 #include <memory>
+#include <mutex>
 #include <vector>
 
 class QTimer;
@@ -68,8 +69,8 @@ public:
     std::vector<vss::endpoint_id> lost_ports() const override;
     vss::result<std::size_t> recreate_lost_ports() override;
 
-    std::vector<port_view> ports() const override { return ports_; }
-    std::vector<link_view> links() const override { return links_; }
+    std::vector<port_view> ports() const override;
+    std::vector<link_view> links() const override;
     std::vector<device_view> devices() const override;
     std::optional<std::vector<unsigned>> reserved_com_numbers() const override
     {
@@ -173,6 +174,9 @@ private:
     /// platform cannot tell.
     QTimer* peer_timer_ = nullptr;
     bool rebuild_scheduled_ = false;
+    /// Guards `ports_` and `links_`: a job that runs off the GUI thread (making
+    /// a port installs a device and takes seconds) rebuilds them too.
+    mutable std::mutex snapshot_mutex_;
     std::vector<port_view> ports_;
     std::vector<link_view> links_;
 };

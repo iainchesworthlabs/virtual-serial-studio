@@ -11554,6 +11554,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> פּרובירט אַן אַנדער נאָמען אָדער סאָרט, און פּרובירט נאָך אַ מאָל.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +11865,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>קלײַבט אויס אַן אַנדערן</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>פֿאַרבינדט</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +12970,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>ראָלן</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>פּראָגרעס</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14027,6 +14043,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>באַשאַפֿן פּאָר</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
         </message>
     </context>
     <context>
@@ -16638,6 +16658,14 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>דער אויסלייג איז צוריקגעשטעלט.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>פּראָגרעס</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17073,6 +17101,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 איז אָפּגעהיט.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>אָנווענדט</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
         </message>
     </context>
     <context>
@@ -17835,6 +17871,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio האָט נישט געקענט לייענען וועלכע COM־נומערן Windows האַלט, דעריבער קלײַבט עס אויס אַ פֿרײַען ווען דער פּאָרט ווערט באַשאַפֿן און ווײַזט אים ווען דער פּאָרט איז גרייט.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>אָנווענדט</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>װענדט אָן די ענדערונג. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>פּראָגרעס פֿון דער אײַנשטעלונג</translation>
         </message>
     </context>
     <context>

@@ -96,6 +96,7 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
+#include <QProgressBar>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QResizeEvent>
@@ -1817,6 +1818,78 @@ void ShellWindow::open_network_endpoint()
         tr("Open monitor"), [this] { show_monitor(); });
 }
 
+void ShellWindow::apply_in_background(
+    vss::config::document document,
+    std::function<void(const vss::result<void>&)> finished)
+{
+    if (apply_work_.busy())
+        return;
+    struct outcome
+    {
+        vss::config::document document;
+        vss::error_code error;
+    };
+    auto state = std::make_shared<outcome>();
+    state->document = std::move(document);
+
+    // Nothing in the window may change the setup while the engine works on
+    // it, and the changes it makes meanwhile are not the user's edits.
+    loading_ = true;
+    const QList<QWidget*> locked = [this]
+    {
+        QList<QWidget*> widgets;
+        widgets.push_back(centralWidget());
+        widgets.push_back(menuBar());
+        for (auto* dock : findChildren<QDockWidget*>())
+            widgets.push_back(dock);
+        return widgets;
+    }();
+    for (QWidget* widget : locked)
+    {
+        if (widget != nullptr)
+            widget->setEnabled(false);
+    }
+    if (apply_bar_ == nullptr)
+    {
+        apply_bar_ = new QProgressBar(status_);
+        apply_bar_->setRange(0, 0);
+        apply_bar_->setTextVisible(false);
+        apply_bar_->setFixedWidth(160);
+        apply_bar_->setAccessibleName(tr("Progress"));
+        status_->addPermanentWidget(apply_bar_);
+    }
+    apply_bar_->setVisible(true);
+    status_->showMessage(
+        tr("Setting up. Windows installs each new port, which can take up to "
+           "20 seconds."));
+
+    apply_work_.start(
+        [this, state]
+        {
+            const auto applied = backend_.apply(state->document, true);
+            if (!applied)
+                state->error = applied.error();
+        },
+        [this, state, locked = QList<QPointer<QWidget>>(locked.begin(),
+                                                        locked.end()),
+         finished = std::move(finished)]
+        {
+            for (const auto& widget : locked)
+            {
+                if (widget != nullptr)
+                    widget->setEnabled(true);
+            }
+            apply_bar_->setVisible(false);
+            status_->clearMessage();
+            loading_ = false;
+            backend_.refresh();
+            if (state->error)
+                finished(state->error);
+            else
+                finished(vss::result<void>{});
+        });
+}
+
 void ShellWindow::open_templates()
 {
     if (!confirm_discard())
@@ -1829,43 +1902,48 @@ void ShellWindow::open_templates()
     if (!document)
         return;
 
-    loading_ = true;
-    const auto applied = backend_.apply(*document, true);
-    loading_ = false;
-    if (!applied)
-    {
-        ErrorDialog error(
-            tr("Could not open %1").arg(dialog.result_title()),
-            tr("The setup needs a device or network endpoint that "
-               "is not available on this PC. Nothing was changed. "
-               "Check the device, then try again."),
-            error_text(applied.error()), this);
-        error.exec();
-        status_->refresh();
-        return;
-    }
+    apply_in_background(
+        *document,
+        [this, title = dialog.result_title(),
+         is_template = dialog.result_is_template(),
+         path = dialog.result_path()](const vss::result<void>& applied)
+        {
+            if (!applied)
+            {
+                ErrorDialog error(
+                    tr("Could not open %1").arg(title),
+                    tr("The setup needs a device or network endpoint that "
+                       "is not available on this PC. Nothing was changed. "
+                       "Check the device, then try again."),
+                    error_text(applied.error()), this);
+                error.exec();
+                status_->refresh();
+                return;
+            }
 
-    if (dialog.result_is_template())
-    {
-        document_path_.clear();
-        title_override_ = dialog.result_title();
-        set_dirty(true);
-    }
-    else
-    {
-        document_path_ = dialog.result_path();
-        title_override_.clear();
-        set_dirty(false);
-        const auto ports = backend_.ports();
-        const auto links = backend_.links();
-        add_recent(document_path_,
-                   tr("%1 ports, %2 links")
-                       .arg(static_cast<qulonglong>(ports.size()))
-                       .arg(static_cast<qulonglong>(links.size())));
-    }
-    show_workspace();
-    update_title();
-    status_->refresh();
+            if (is_template)
+            {
+                document_path_.clear();
+                title_override_ = title;
+                set_dirty(true);
+            }
+            else
+            {
+                document_path_ = path;
+                title_override_.clear();
+                set_dirty(false);
+                const auto ports = backend_.ports();
+                const auto links = backend_.links();
+                add_recent(
+                    document_path_,
+                    tr("%1 ports, %2 links")
+                        .arg(static_cast<qulonglong>(ports.size()))
+                        .arg(static_cast<qulonglong>(links.size())));
+            }
+            show_workspace();
+            update_title();
+            status_->refresh();
+        });
 }
 
 void ShellWindow::show_monitor()
@@ -2928,30 +3006,33 @@ void ShellWindow::open_path(const QString& path)
         return;
     }
 
-    loading_ = true;
-    const auto applied = backend_.apply(*document, true);
-    loading_ = false;
-    if (!applied)
-    {
-        ErrorDialog dialog(
-            tr("Could not open %1").arg(QFileInfo(path).fileName()),
-            error_text(applied.error()), {}, this);
-        dialog.exec();
-        return;
-    }
-    document_path_ = path;
-    last_signature_ = document_signature();
-    title_override_.clear();
-    set_dirty(false);
-    update_title();
-    const auto ports = backend_.ports();
-    const auto links = backend_.links();
-    add_recent(path, tr("%1 ports, %2 links")
-                         .arg(static_cast<qulonglong>(ports.size()))
-                         .arg(static_cast<qulonglong>(links.size())));
-    log_local(tr("Opened %1.").arg(QFileInfo(path).fileName()));
-    show_workspace();
-    status_->refresh();
+    apply_in_background(
+        *document,
+        [this, path](const vss::result<void>& applied)
+        {
+            if (!applied)
+            {
+                ErrorDialog dialog(
+                    tr("Could not open %1").arg(QFileInfo(path).fileName()),
+                    error_text(applied.error()), {}, this);
+                dialog.exec();
+                return;
+            }
+            document_path_ = path;
+            last_signature_ = document_signature();
+            title_override_.clear();
+            set_dirty(false);
+            update_title();
+            const auto ports = backend_.ports();
+            const auto links = backend_.links();
+            add_recent(path,
+                       tr("%1 ports, %2 links")
+                           .arg(static_cast<qulonglong>(ports.size()))
+                           .arg(static_cast<qulonglong>(links.size())));
+            log_local(tr("Opened %1.").arg(QFileInfo(path).fileName()));
+            show_workspace();
+            status_->refresh();
+        });
 }
 
 void ShellWindow::save_document()
@@ -3217,6 +3298,13 @@ bool ShellWindow::confirm_exit()
 
 void ShellWindow::closeEvent(QCloseEvent* event)
 {
+    // The engine is part way through setting up ports; closing now would
+    // leave half a setup.
+    if (apply_work_.busy())
+    {
+        event->ignore();
+        return;
+    }
     if (restarting_)
     {
         // The Studio that replaces this one (as administrator) starts the
@@ -3369,7 +3457,8 @@ void ShellWindow::enable_background(const QString& running_path, bool use_tray)
 
 bool ShellWindow::needed_in_background() const
 {
-    return restore_failed_ || !backend_.ports().empty();
+    // Ports being started are a reason to stay: they may not be listed yet.
+    return apply_work_.busy() || restore_failed_ || !backend_.ports().empty();
 }
 
 void ShellWindow::bring_to_front()
@@ -3428,49 +3517,53 @@ void ShellWindow::start_running_setup(bool automatic)
     if (!automatic && !backend_.ports().empty())
         return;
 
-    loading_ = true;
-    const auto applied = backend_.apply(setup->document, true);
-    loading_ = false;
-    if (!applied)
-    {
-        const QString text = tr("Could not start the ports from last time: %1")
-                                 .arg(error_text(applied.error()));
-        status_->showMessage(text, 10000);
-        log_local(text);
-        if (tray_ != nullptr && !isVisible())
-            tray_->notify(tr("Could not start the ports from last time"),
-                          tr("Open Studio to see why and start them again."),
-                          true);
-        if (automatic)
-            restore_failed_ = true;
-        // Offer it again from the banner, as after a Quit.
-        support::running_state state = setup->state;
-        state.stopped = true;
-        support::save_running_state(running_path_, state);
-        update_resume_banner();
-        return;
-    }
-    restore_failed_ = false;
-    document_path_ = setup->state.document_path;
-    title_override_.clear();
-    last_signature_ = document_signature();
-    dirty_ = setup->state.dirty;
-    update_title();
-    const QString text =
-        automatic ? tr("Started the ports that were running before: %1 "
-                       "ports, %2 links.")
-                        .arg(setup->ports)
-                        .arg(setup->links)
-                  : tr("Started the ports again: %1 ports, %2 links.")
-                        .arg(setup->ports)
-                        .arg(setup->links);
-    status_->showMessage(text, 6000);
-    log_local(text);
-    show_workspace();
-    status_->refresh();
-    save_running_now(false);
-    update_resume_banner();
-    update_tray();
+    apply_in_background(
+        setup->document,
+        [this, setup = *setup, automatic](const vss::result<void>& applied)
+        {
+            if (!applied)
+            {
+                const QString text =
+                    tr("Could not start the ports from last time: %1")
+                        .arg(error_text(applied.error()));
+                status_->showMessage(text, 10000);
+                log_local(text);
+                if (tray_ != nullptr && !isVisible())
+                    tray_->notify(
+                        tr("Could not start the ports from last time"),
+                        tr("Open Studio to see why and start them again."),
+                        true);
+                if (automatic)
+                    restore_failed_ = true;
+                // Offer it again from the banner, as after a Quit.
+                support::running_state state = setup.state;
+                state.stopped = true;
+                support::save_running_state(running_path_, state);
+                update_resume_banner();
+                return;
+            }
+            restore_failed_ = false;
+            document_path_ = setup.state.document_path;
+            title_override_.clear();
+            last_signature_ = document_signature();
+            dirty_ = setup.state.dirty;
+            update_title();
+            const QString text =
+                automatic ? tr("Started the ports that were running before: "
+                               "%1 ports, %2 links.")
+                                .arg(setup.ports)
+                                .arg(setup.links)
+                          : tr("Started the ports again: %1 ports, %2 links.")
+                                .arg(setup.ports)
+                                .arg(setup.links);
+            status_->showMessage(text, 6000);
+            log_local(text);
+            show_workspace();
+            status_->refresh();
+            save_running_now(false);
+            update_resume_banner();
+            update_tray();
+        });
 }
 
 void ShellWindow::update_resume_banner()
