@@ -9609,13 +9609,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>المحور يعمل</translation>
+            <source>Engine running</source>
+            <translation>المحرك يعمل</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>المحور متوقف</translation>
+            <source>Engine stopped</source>
+            <translation>المحرك متوقف</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -16915,13 +16915,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>المحور يعمل</translation>
+            <source>Engine running</source>
+            <translation>المحرك يعمل</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>المحور متوقف</translation>
+            <source>Engine stopped</source>
+            <translation>المحرك متوقف</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />

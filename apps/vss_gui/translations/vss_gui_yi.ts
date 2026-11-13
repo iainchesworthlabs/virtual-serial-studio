@@ -9581,13 +9581,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>האַב לויפֿט</translation>
+            <source>Engine running</source>
+            <translation>דער מאָטאָר לויפֿט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>האַב אָפּגעשטעלט</translation>
+            <source>Engine stopped</source>
+            <translation>דער מאָטאָר איז אָפּגעשטעלט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -16871,13 +16871,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>האַב לויפֿט</translation>
+            <source>Engine running</source>
+            <translation>דער מאָטאָר לויפֿט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>האַב אָפּגעשטעלט</translation>
+            <source>Engine stopped</source>
+            <translation>דער מאָטאָר איז אָפּגעשטעלט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />

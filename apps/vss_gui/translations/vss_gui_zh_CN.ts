@@ -9574,13 +9574,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>中枢运行中</translation>
+            <source>Engine running</source>
+            <translation>引擎运行中</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>中枢已停止</translation>
+            <source>Engine stopped</source>
+            <translation>引擎已停止</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -16860,13 +16860,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>中枢运行中</translation>
+            <source>Engine running</source>
+            <translation>引擎运行中</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>中枢已停止</translation>
+            <source>Engine stopped</source>
+            <translation>引擎已停止</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />

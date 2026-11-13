@@ -57,7 +57,7 @@ on.
 │ Save... Open...   │  Look and check                                  │
 │       Remove all  │                                                  │
 ├───────────────────┴──────────────────────────────────────────────────┤
-│ Ports 2  Links 1  RX  TX  Hub running                    Setup ready │
+│ Ports 2  Links 1  RX  TX  Engine running                 Setup ready │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -86,7 +86,7 @@ on.
 ├───────────────┴──────────────────────────────────────┴───────────────┤
 │ Monitor | Log | Topology JSON                                        │
 ├──────────────────────────────────────────────────────────────────────┤
-│ Ports 2  Links 1  RX  TX  Hub running                    Setup ready │
+│ Ports 2  Links 1  RX  TX  Engine running                 Setup ready │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
