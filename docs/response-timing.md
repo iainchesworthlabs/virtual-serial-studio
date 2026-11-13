@@ -129,6 +129,9 @@ keep reading, so there is no compatibility reader).
 | `gap_us` beside `bytes` | The pattern counts only if nothing arrived for this long before its first byte, after its last byte, or both (`"gap": "before"`, `"after"`, `"both"`). This is how a frame that ends in silence (Modbus RTU) is told from the same bytes inside a longer one |
 | `lines` | An input line of the place took this value (an edge, not a level). On a `peer` these are the program's DTR, RTS and BREAK |
 | `port` | `opened` or `closed`: a program opened or closed the port, where the platform can tell (the peer-open capability) |
+| `quiet_us` | Nothing has arrived at the place for this long since the last byte. It fires once for each silence. With a state it is a timeout: a request moves the set to `waiting`, and silence in `waiting` is the reply that never came |
+| `bus_fault` | The half-duplex line gave a verdict other than a clean transmission: `overlap`, `too_soon`, `line_held`, `transmitter_off`, `overrun` or `any`, with `"from": "self"`, `"other"` or `"any"` (the default) for whose bytes they were |
+| `signal` | The plugin that owns the set raised the named signal (see [Triggers from a plugin](#triggers-from-a-plugin)) |
 | `state` | The rule is considered only while the set is in this state |
 
 Bytes are matched as a stream, so a pattern that arrives in two reads is found.
@@ -149,6 +152,71 @@ is in the frame, or whose reply needs a calculation the list below does not
 have, is matched on its fixed start and answered from a slot the plugin keeps
 filled (see [Staying one step ahead](#staying-one-step-ahead)), or it stays in
 the plugin.
+
+### Triggers from a plugin
+
+A decoding plugin reads traffic and understands it: framing, fields, a checksum
+that failed, a message type it does not know, a reply out of sequence. It never
+sits in the path, so it learns of bytes after they have passed. When it decides
+something is worth acting on it raises a **signal**, and a rule that matches the
+signal does the acting: a fault, a line change, a reply. This is how a trigger
+fires an engine action without the plugin doing I/O of its own.
+
+```json
+{ "name": "answer a bad checksum with a break",
+  "when": { "signal": "checksum_failed", "state": "armed" },
+  "do": [ { "line_error": "break", "after": "cause",
+            "delay": { "fixed_us": 20000 } } ] }
+```
+
+`raise_signal(set, name, cause_ns, bytes)` is one operation of the plugin's
+connection. The rules for it:
+
+* **The clock.** `cause_ns` is the time of the event the plugin decoded, copied
+  from that event, so it is on the run's one clock and the plugin's own clock is
+  never used. The engine also notes when the signal arrived. An action's edge is
+  `match_end` (the arrival) or `cause` (the decoded event's time). The firing's
+  event carries both, so the log shows how long the decision took outside the
+  engine. A `cause_ns` in the future, or more than a minute old, is refused.
+* **Lateness.** A signal has crossed a process boundary and waited for the
+  plugin, so an action timed from `cause` may be due already when the signal
+  arrives. It is then done at once and flagged `late`, like any late action. A
+  signal is therefore for reactions measured in tens of milliseconds. It is the
+  slow path, and the page's rule for choosing it stands.
+* **Bytes.** A signal may carry up to 256 bytes of decoded context (an address,
+  a sequence number). A reply uses them as it uses the bytes of a match.
+* **Limits.** A set declares its signals (`"signals": [...]`, at most 64). A
+  signal that is not declared, or raised by a connection that does not own the
+  set, is refused. Signals count against the set's budget of firings, so a
+  plugin that raises them in a loop suspends its own set and nothing else.
+* **Order.** A signal is handled on the place's strand, between two chunks,
+  like a line change. The first rule listed that matches it fires, and it uses
+  up no bytes.
+
+What stays in the engine and is never left to a signal:
+
+| Need | In the engine as |
+|---|---|
+| A frame that ends in silence | `gap_us` on the pattern |
+| A reply that did not come in time | `quiet_us` with a state |
+| Two stations sending at once, a reply inside the turn-around, a transmitter held or off | `bus_fault`, decided from the line's own verdict at the instant of the verdict, with no event queue between |
+| A fault or a reply at an exact time after a frame | Any rule on `bytes` |
+
+So the split with a decoding plugin is: what can be told from bytes, silence
+and the line is a rule and is exact; what needs the meaning of a message is the
+plugin's, arrives as a signal, and is honest about how late it was.
+
+`bus_fault` rules are for a `station` on a half-duplex bus and for an `inline`
+set on one of its links. The verdict already exists (`bus_line::transmit`), and
+the published `event_kind::bus_fault` is unchanged: the rule is run from the
+same verdict, and the rule's own event names the fault and the link, so a
+recording shows the fault and what was done about it side by side.
+
+Not built yet: `signal`, `bus_fault` and `quiet_us` are not in the first slice's
+model. `quiet_us` and `signal` are small additions to the machine (it already
+keeps a deadline for silence and already handles events that use up no bytes).
+`bus_fault` needs the hub and comes with the engine path. The capability names
+are `rules_signal` and `rules_bus_fault`.
 
 ### What a rule does
 
@@ -182,6 +250,7 @@ Every action has a time, made of an edge and a delay.
 | `match_start` | The instant the first byte of the match arrived (on a half-duplex bus, started on the wire) |
 | `previous` | The time of the action before it in the same `do` list, for a reply in parts with gaps between them |
 | `run_start` | The start of the run. With `fixed_us` this is an absolute test time. The `timeline` list is shorthand for actions on this edge with no match |
+| `cause` | For a rule on a `signal`: the time of the event the plugin decoded |
 
 "Arrived" means the time the endpoint read the chunk that holds the byte, read
 once on the endpoint's strand before the chunk is routed. A virtual port hands
@@ -421,7 +490,7 @@ other, after the path of the bytes has moved on.
 
 | Event | Carries |
 |---|---|
-| `rule_fired` | Place, set, generation, rule, step of the sequence, the stream offset and length of the match, the edge time, and for each action: kind, draw, due time, done time, bytes, and `late`, `dropped` or `suspended` if so |
+| `rule_fired` | Place, set, generation, rule, step of the sequence, the stream offset and length of the match (or the signal's name, arrival and cause times, or the bus fault and its link), the edge time, and for each action: kind, draw, due time, done time, bytes, and `late`, `dropped` or `suspended` if so |
 | `rule_set` | Installed, changed, removed, suspended, orphaned: generations, seed, the reason |
 | `run` | Started and ended: origin, seed, wall-clock time of the origin |
 
