@@ -367,6 +367,12 @@ public:
 
     // -- persistence -------------------------------------------------------
 
+    /// `apply` makes the ports and links of a setup, and `snapshot` writes
+    /// down the ones that are running.  The plugin bindings of a setup (the
+    /// `plugins` list of a port or a link) pass through both: `apply` keeps
+    /// each list with the port or link it made and runs none of it, and
+    /// `snapshot` writes the list back.  A list goes when its port or link
+    /// is removed, and a port or link made in any other way has none.
     result<void> apply(const config::document& value,
                        bool rollback_on_error = true);
     config::document snapshot() const;
@@ -398,6 +404,9 @@ private:
         subscriber_id echo = 0;
         /// The device a mock fixture plays, so it can be made again.
         std::string mock_target;
+        /// What plugins provide at this port, as the setup that was applied
+        /// said.  Kept for `snapshot`; the studio runs none of it.
+        std::vector<config::plugin_binding> plugins;
         /// For a port of the Windows driver: the number it was asked to have
         /// (0 for whichever Windows picked), and its transport, which the
         /// number is changed through.
@@ -433,6 +442,9 @@ private:
     bool path_in_use(const std::string& path) const;
     void claim_paths(const std::string& target, const std::string& advertised);
 
+    /// Drops the plugin bindings of links that are gone: a link goes with
+    /// its ports, and nothing tells the studio when it does.
+    void forget_plugins_of_removed_links();
     /// One try of the retry policy for a lost connection.
     result<void> reconnect_attempt(endpoint_id id);
     /// True for an endpoint the retry policy applies to.
@@ -444,6 +456,10 @@ private:
     subscriber_id reconnect_subscription_ = 0;
     mutable std::mutex record_mutex_;
     std::unordered_map<endpoint_id, port_record> records_;
+    /// The plugin bindings of links, by link, kept for `snapshot` as a
+    /// port's are.  Guarded by `record_mutex_`.
+    std::unordered_map<link_id, std::vector<config::plugin_binding>>
+        link_plugins_;
     std::unordered_set<std::string> claimed_paths_;
 };
 
