@@ -34,6 +34,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_sources_stress.cpp
   unit/test_hub_targets.cpp
   unit/test_hub_targets_stress.cpp
+  unit/test_hub_timers.cpp
   unit/test_hub_topology.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
@@ -69,7 +70,8 @@ if(WIN32)
     unit/platform/windows/test_driver_client_windows.cpp
     unit/platform/windows/test_helper_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
-    unit/platform/windows/test_ports_windows.cpp)
+    unit/platform/windows/test_ports_windows.cpp
+    unit/platform/windows/test_timer_period_windows.cpp)
 elseif(UNIX)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/platform/posix/test_ports_posix.cpp
     unit/platform/posix/test_agent_transport_posix.cpp

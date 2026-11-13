@@ -1,0 +1,74 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{head_title}}</title>
+<meta name="description" content="{{description}}">
+<link rel="canonical" href="{{canonical}}">
+<link rel="stylesheet" href="css/site.css">
+<link rel="icon" href="img/icon.svg" type="image/svg+xml">
+<link rel="icon" href="img/icon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="img/icon-256.png">
+<meta name="referrer" content="no-referrer">
+<meta property="og:title" content="{{head_title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="{{canonical}}">
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="site-header">
+<div class="bar pane">
+<a class="brand" href="index.html"><img src="img/icon.svg" alt="" width="32" height="32"><span>{{name}}</span></a>
+<nav class="site-nav" aria-label="Main">
+<ul>
+{{nav}}
+</ul>
+</nav>
+<a class="btn primary bar-cta" href="downloads.html#get">Get {{release_tag}}</a>
+</div>
+</header>
+<main id="main">
+{{content}}
+</main>
+<footer class="site-footer">
+<div class="foot pane">
+<div class="foot-brand">
+<img src="img/icon.svg" alt="" width="40" height="40">
+<p><strong>{{name}}</strong><br>A playground for real, virtual and networked serial ports.</p>
+<p class="quiet">This site sets no cookies, runs no scripts and loads nothing from any other site.</p>
+</div>
+<nav class="foot-nav" aria-label="Footer">
+<div>
+<h2>Product</h2>
+<ul>
+<li><a href="features.html">Features</a></li>
+<li><a href="editions.html">Editions and pricing</a></li>
+<li><a href="plugins.html">Plugins and integrations</a></li>
+<li><a href="downloads.html">Downloads</a></li>
+</ul>
+</div>
+<div>
+<h2>Help</h2>
+<ul>
+<li><a href="documentation.html">Documentation</a></li>
+<li><a href="support.html">Support and contact</a></li>
+<li><a href="security.html">Security policy</a></li>
+<li><a href="{{repo_url}}">Source code on GitHub</a></li>
+</ul>
+</div>
+<div>
+<h2>Legal</h2>
+<ul>
+<li><a href="licence.html">Licence</a></li>
+<li><a href="privacy.html">Privacy</a></li>
+</ul>
+</div>
+</nav>
+<p class="foot-legal quiet">Copyright Iain Chesworth Labs. The program is free software under the GNU General Public License, version 3 or later, and comes with no warranty.</p>
+</div>
+</footer>
+</body>
+</html>

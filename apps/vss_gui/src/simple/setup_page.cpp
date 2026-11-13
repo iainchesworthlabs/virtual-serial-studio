@@ -695,15 +695,18 @@ void SetupPage::add_events(const event_batch& events)
         if (!paused_)
         {
             lines_.push_back({QDateTime::currentDateTime(),
-                              shown(event.endpoint), event.data, false});
+                              shown(event.endpoint), event.data.to_byte_array(),
+                              false});
             if (lines_.size() > kMaxLines)
                 lines_.remove(0, lines_.size() - kMaxLines);
             data_changed = true;
         }
         if (event.endpoint == type_target_)
         {
-            conversation_.push_back(
-                {QDateTime::currentDateTime(), {}, event.data, false});
+            conversation_.push_back({QDateTime::currentDateTime(),
+                                     {},
+                                     event.data.to_byte_array(),
+                                     false});
             if (conversation_.size() > kMaxLines)
                 conversation_.remove(0, conversation_.size() - kMaxLines);
             conversation_changed = true;
