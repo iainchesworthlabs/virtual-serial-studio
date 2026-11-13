@@ -1749,6 +1749,11 @@ TEST_CASE("topology: zoom keeps the point under the anchor still")
     graph_fixture fixture;
     topo::TopologyView view;
     view.resize(800, 600);
+    // A scroll bar that appears after the zoom would shrink the viewport and move
+    // its centre, and whether one appears depends on the size of the text. This
+    // test is about the zoom, so the bars stay off.
+    view.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    view.setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     view.show();
     view.set_topology(fixture.backend.ports(), fixture.backend.links());
     QApplication::processEvents();
