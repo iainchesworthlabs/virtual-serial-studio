@@ -606,17 +606,9 @@
             <translation>打开 COM3 这类固定名称的程序每次运行都能再次找到该端口。“自动”会选取高于此电脑现有端口的空闲编号，绝不使用 COM1 或 COM2。指定编号需要 Studio 驱动程序及其辅助服务，并且只在创建单个端口时使用。</translation>
         </message>
         <message>
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation type="vanished">打开 COM3 这类固定名称的程序每次运行都能找到该端口。“自动”使用最小的空闲编号。指定编号需要 Studio 驱动程序及其辅助服务，并且只在创建一个端口时使用。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
             <source>Best available uses the Studio driver or com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
             <translation>“最佳可用”在 Windows 上使用 Studio 驱动程序或 com0com，在 Linux 和 macOS 上使用伪终端。最多可同时创建 32 个。多个端口依次命名为 port-1、port-2，依此类推。</translation>
-        </message>
-        <message>
-            <source>Best available uses com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
-            <translation type="vanished">“最佳可用”在 Windows 上使用 com0com，在 Linux 和 macOS 上使用伪终端。一次最多 32 个。多个串口依次命名为 port-1、port-2 等。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="377" />
@@ -746,10 +738,6 @@
             <location filename="../src/flows/attach_dialog.cpp" line="76" />
             <source>Attach a real device</source>
             <translation>连接真实设备</translation>
-        </message>
-        <message>
-            <source>Studio opens the device once. Your programs then open the port Studio creates for them.</source>
-            <translation type="vanished">Studio 会打开该设备一次。然后您的程序打开 Studio 为它们创建的串口。</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="77" />
@@ -961,14 +949,6 @@
             <location filename="../src/flows/attach_dialog.cpp" line="616" />
             <source>Studio will hold %1 open at %2 baud. Your programs should not open %1. They open the new virtual port that Studio creates, and Studio passes data between that port and %1.</source>
             <translation>Studio 会以 %2 波特率保持 %1 打开。你的程序不应打开 %1，而是打开 Studio 创建的新虚拟串口，Studio 会在该串口与 %1 之间传递数据。</translation>
-        </message>
-        <message>
-            <source>Studio will open &lt;b&gt;%1&lt;/b&gt; at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio 将以 %2 波特率打开 &lt;b&gt;%1&lt;/b&gt; 并保持打开。您的程序应打开 Studio 创建的串口，而不是 %1。</translation>
-        </message>
-        <message>
-            <source>Studio will open %1 at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio 将以 %2 波特率打开 %1 并保持打开。您的程序应打开 Studio 创建的串口，而不是 %1。</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="632" />
@@ -1274,10 +1254,6 @@
             <location filename="../src/advanced/benchmark_dialog.cpp" line="568" />
             <source>%1: sent %2, received %3, lost %4, throughput %5.</source>
             <translation>%1：已发送 %2，已接收 %3，丢失 %4，吞吐量 %5。</translation>
-        </message>
-        <message>
-            <source>The benchmark command is not available in this build.</source>
-            <translation type="vanished">此版本不提供基准测试命令。</translation>
         </message>
     </context>
     <context>
@@ -2753,10 +2729,6 @@ Networks: %5</source>
             <translation>复制名称，%1</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet.</source>
-            <translation type="vanished">尚无程序打开 %1。</translation>
-        </message>
-        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="451" />
             <location filename="../src/panes/inspector_panel.cpp" line="457" />
             <source>Not available in this build</source>
@@ -3317,6 +3289,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio 无法读取 Windows 保留了哪些 COM 编号，因此会在创建端口时选择一个空闲编号，并在端口就绪时显示。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1577" />
+            <source>Copy details</source>
+            <translation>复制详细信息</translation>
         </message>
     </context>
     <context>
@@ -3906,6 +3883,71 @@ Networks: %5</source>
             <location filename="../src/advanced/link_settings_dialog.cpp" line="45" />
             <source>Applying changes the link where it is and keeps its ports. Bytes it still holds for its delay are discarded when the delay changes.</source>
             <translation>应用时会就地更改该链接，并保留其端口。链接因延迟而仍保留的字节，会在更改延迟时被丢弃。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="34" />
+            <source>Settings for %1</source>
+            <translation>%1 的设置</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="59" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="62" />
+            <source>Delay</source>
+            <translation>延迟</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="64" />
+            <source>Jitter</source>
+            <translation>抖动</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="67" />
+            <source>Every byte arrives this much later.</source>
+            <translation>每个字节都会晚这么久到达。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="70" />
+            <source>Each delay varies by up to this much. No more than the delay.</source>
+            <translation>每次延迟最多在此范围内变化，不超过延迟本身。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="77" />
+            <source>If two write at once</source>
+            <translation>两者同时写入时</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="78" />
+            <source>Mix them</source>
+            <translation>混合</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="80" />
+            <source>One owner at a time</source>
+            <translation>一次一个所有者</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="89" />
+            <source>Emulate modem lines</source>
+            <translation>模拟调制解调器线路</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="110" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="113" />
+            <source>Apply</source>
+            <translation>应用</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="175" />
+            <source>The jitter can be no more than the delay.</source>
+            <translation>抖动不能超过延迟。</translation>
         </message>
     </context>
     <context>
@@ -5338,10 +5380,6 @@ Networks: %5</source>
             <translation>还没有程序打开 %1。请在您的程序中选择正好 %1。有程序打开后，此面板会更新。</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet. This panel updates when one does.</source>
-            <translation type="vanished">尚无程序打开 %1。有程序打开时，此面板会更新。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="365" />
             <source>Program connected</source>
             <translation>程序已连接</translation>
@@ -5453,6 +5491,16 @@ Networks: %5</source>
             <location filename="../src/panes/ports_panel.cpp" line="341" />
             <source>Copied %1.</source>
             <translation>已复制 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="136" />
+            <source>Ports table columns</source>
+            <translation>串口表的列</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="235" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>%1 列宽 %2 像素。</translation>
         </message>
     </context>
     <context>
@@ -6129,10 +6177,6 @@ Networks: %5</source>
             <translation>发送</translation>
         </message>
         <message>
-            <source>Send to port</source>
-            <translation type="vanished">发送到串口</translation>
-        </message>
-        <message>
             <location filename="../src/panes/send_panel.cpp" line="81" />
             <source>Sending from</source>
             <translation>发送自</translation>
@@ -6476,6 +6520,56 @@ Networks: %5</source>
             <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
             <translation>已设置 VSS_RENDER 或 --render，因此它会覆盖此选择。</translation>
         </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="166" />
+            <source>Running</source>
+            <translation>运行中</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="252" />
+            <source>Your ports run on this computer until you quit Studio or open another setup. The window is only for setting them up and watching them.</source>
+            <translation>在你退出 Studio 或打开其他配置之前，串口会一直在这台计算机上运行。窗口只用于设置和查看串口。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="262" />
+            <source>When I close the window</source>
+            <translation>关闭窗口时</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="271" />
+            <source>Keep the ports running in the background</source>
+            <translation>让串口在后台继续运行</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="276" />
+            <source>Stop the ports and quit</source>
+            <translation>停止串口并退出</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="289" />
+            <source>Start when I sign in</source>
+            <translation>登录时启动</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="296" />
+            <source>Not available in this build</source>
+            <translation>此版本不可用</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Studio starts in the notification area and starts the ports that were running before the computer restarted.</source>
+            <translation>Studio 在通知区域中启动，并启动计算机重启前正在运行的串口。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="624" />
+            <source>Could not change start at sign-in</source>
+            <translation>无法更改登录时启动</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="626" />
+            <source>Studio could not write the sign-in entry. Nothing was changed.</source>
+            <translation>Studio 无法写入登录启动项。没有做任何更改。</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -6814,10 +6908,6 @@ Networks: %5</source>
             <translation>已安装 com0com，因此其他程序可以将虚拟串口视为 COM 口。</translation>
         </message>
         <message>
-            <source>com0com was not found. Windows needs a driver before other programs can see virtual ports as COM ports.</source>
-            <translation type="vanished">未找到 com0com。Windows 需要驱动程序，其他程序才能将虚拟串口视为 COM 口。</translation>
-        </message>
-        <message>
             <location filename="../src/support/setup_facts.cpp" line="187" />
             <source>Neither the Virtual Serial Studio driver nor com0com was found. Windows needs a driver before other programs can see virtual ports as COM ports.</source>
             <translation>未找到 Virtual Serial Studio 驱动程序，也未找到 com0com。Windows 需要驱动程序，其他程序才能把虚拟端口当作 COM 端口。</translation>
@@ -6976,10 +7066,6 @@ Networks: %5</source>
             <location filename="../src/support/setup_facts.cpp" line="585" />
             <source>You declined the Windows permission prompt, so Studio keeps running as before. Nothing was changed.</source>
             <translation>您拒绝了 Windows 的权限提示，因此 Studio 保持原样运行。没有任何更改。</translation>
-        </message>
-        <message>
-            <source>Windows did not allow the elevated restart. Try again from the Start menu.</source>
-            <translation type="vanished">Windows 不允许提升权限重新启动。请从“开始”菜单重试。</translation>
         </message>
         <message>
             <location filename="../src/support/setup_facts.cpp" line="589" />
@@ -7671,10 +7757,6 @@ Networks: %5</source>
             <location filename="../src/dialogs/share_wizard.cpp" line="453" />
             <source>The address of the serial server, using TCP, UDP or RFC 2217.</source>
             <translation>串口服务器的地址，使用 TCP、UDP 或 RFC 2217。</translation>
-        </message>
-        <message>
-            <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are.</source>
-            <translation type="vanished">您的程序将打开 Studio 创建的串口，而不是 %1 本身。接下来请选择程序的数量。</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="483" />
@@ -8758,10 +8840,6 @@ Networks: %5</source>
             <translation>保持 Studio 打开</translation>
         </message>
         <message>
-            <source>Undo needs an exact restore, which this build cannot prove.</source>
-            <translation type="vanished">撤销需要精确还原，而此版本无法证明能做到。</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="533" />
             <source>&amp;File</source>
             <translation>文件(&amp;F)</translation>
@@ -8810,10 +8888,6 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="619" />
             <source>Main toolbar</source>
             <translation>主工具栏</translation>
-        </message>
-        <message>
-            <source>Not available in this build.</source>
-            <translation type="vanished">此版本不可用。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="833" />
@@ -8912,10 +8986,6 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2058" />
             <source>Remove %1?</source>
             <translation>移除 %1？</translation>
-        </message>
-        <message>
-            <source>The port and its links will be removed. This cannot be undone.</source>
-            <translation type="vanished">该串口及其链接将被移除。此操作无法撤销。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1963" />
@@ -9153,6 +9223,161 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Diagnostic information copied.</source>
             <translation>已复制诊断信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="385" />
+            <source>canvas new port</source>
+            <translation>画布 新建串口</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="392" />
+            <source>Add fixture</source>
+            <translation>添加模拟设备</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="393" />
+            <source>canvas new mock fixture</source>
+            <translation>画布 新建模拟设备</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="400" />
+            <source>Add pair</source>
+            <translation>添加串口对</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="401" />
+            <source>canvas bundle two ports null modem</source>
+            <translation>画布 组合 两个串口 null-modem</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="409" />
+            <source>Duplicate</source>
+            <translation>复制</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="410" />
+            <source>copy ports canvas</source>
+            <translation>复制 串口 画布</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="424" />
+            <source>Show toolbox</source>
+            <translation>显示工具箱</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="425" />
+            <source>canvas tiles palette</source>
+            <translation>画布 图块 面板</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="775" />
+            <source>Start again</source>
+            <translation>重新启动</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3351" />
+            <source>This stops %1 ports and %2 links. Studio offers to start them again the next time it opens.</source>
+            <translation>这将停止 %1 个串口和 %2 条链接。下次打开时，Studio 会提示重新启动它们。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3355" />
+            <source>Stop the ports and quit?</source>
+            <translation>停止串口并退出？</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3356" />
+            <source>Stop the ports and quit</source>
+            <translation>停止串口并退出</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3357" />
+            <source>Keep running</source>
+            <translation>继续运行</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3402" />
+            <source>Keep the ports running?</source>
+            <translation>让串口继续运行？</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3403" />
+            <source>This desktop has no notification area to keep Studio in. Minimise the window to keep the ports running, or stop them and quit.</source>
+            <translation>此桌面没有可供 Studio 驻留的通知区域。请最小化窗口以保持串口运行，或停止串口并退出。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3410" />
+            <source>Minimise instead</source>
+            <translation>改为最小化</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3490" />
+            <source>Could not change start at sign-in</source>
+            <translation>无法更改登录时启动</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3491" />
+            <source>Studio could not write the sign-in entry. Nothing was changed.</source>
+            <translation>Studio 无法写入登录启动项。没有做任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3513" />
+            <source>The ports from last time could not be read, so Studio started without them.</source>
+            <translation>无法读取上次的串口，因此 Studio 在没有它们的情况下启动。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3593" />
+            <source>Could not start the ports from last time: %1</source>
+            <translation>无法启动上次的串口：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3599" />
+            <source>Could not start the ports from last time</source>
+            <translation>无法启动上次的串口</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3600" />
+            <source>Open Studio to see why and start them again.</source>
+            <translation>打开 Studio 查看原因并重新启动它们。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3618" />
+            <source>Started the ports that were running before: %1 ports, %2 links.</source>
+            <translation>已启动之前正在运行的串口：%1 个串口，%2 条链接。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3622" />
+            <source>Started the ports again: %1 ports, %2 links.</source>
+            <translation>已重新启动串口：%1 个串口，%2 条链接。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3651" />
+            <source>When you last quit, %1 ports and %2 links were running.</source>
+            <translation>你上次退出时，有 %1 个串口和 %2 条链接正在运行。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3666" />
+            <source>Some COM ports were lost</source>
+            <translation>部分 COM 串口丢失</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3667" />
+            <source>Open Studio to recreate them.</source>
+            <translation>打开 Studio 重新创建它们。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3681" />
+            <source>Studio is still running your ports</source>
+            <translation>Studio 仍在运行你的串口</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3683" />
+            <source>Open it again from this icon, or quit it there to stop the ports. To have them back after a restart, choose Start when I sign in in the same menu.</source>
+            <translation>从此图标重新打开，或在那里退出以停止串口。若要在重启后恢复串口，请在同一菜单中选择“登录时启动”。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3686" />
+            <source>Open it again from this icon, or quit it there to stop the ports.</source>
+            <translation>从此图标重新打开，或在那里退出以停止串口。</translation>
         </message>
     </context>
     <context>
@@ -10180,10 +10405,6 @@ Networks: %5</source>
             <translation>您是想输入“%1”吗？该行已高亮显示，未应用任何内容。</translation>
         </message>
         <message>
-            <source>Use duplex, split, join, redirect or monitor. Nothing was applied.</source>
-            <translation type="vanished">请使用 duplex、split、join、redirect 或 monitor。未应用任何内容。</translation>
-        </message>
-        <message>
             <location filename="../src/advanced/json_validation.cpp" line="1032" />
             <source>Line %1: a link needs ports on both sides</source>
             <translation>第 %1 行：链接两侧都需要串口</translation>
@@ -10643,10 +10864,6 @@ Networks: %5</source>
             <translation>还没有程序打开 %1，因此什么也无法到达。程序必须正好打开 %1；其他 COM 端口不会收到任何内容。</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet, so nothing can arrive.</source>
-            <translation type="vanished">还没有程序打开 %1，因此不会有数据到达。</translation>
-        </message>
-        <message>
             <location filename="../src/support/troubleshoot.cpp" line="361" />
             <location filename="../src/support/troubleshoot.cpp" line="370" />
             <source>Data reaches the program</source>
@@ -10967,17 +11184,6 @@ Networks: %5</source>
         </message>
     </context>
     <context>
-        <name>json_validation</name>
-        <message>
-            <source>Valid, version 1</source>
-            <translation type="vanished">有效，版本 1</translation>
-        </message>
-        <message>
-            <source>Not valid</source>
-            <translation type="vanished">无效</translation>
-        </message>
-    </context>
-    <context>
         <name>ordinal</name>
         <message>
             <location filename="../src/dialogs/share_plan.cpp" line="111" />
@@ -11138,269 +11344,6 @@ Networks: %5</source>
             <location filename="../src/dialogs/share_plan.cpp" line="142" />
             <source>thirty-second</source>
             <translation>第32个</translation>
-        </message>
-    </context>
-    <context>
-        <name>vss::gui</name>
-        <message>
-            <source>%1 (%2)</source>
-            <translation type="vanished">%1（%2）</translation>
-        </message>
-        <message>
-            <source>Started</source>
-            <translation type="vanished">已启动</translation>
-        </message>
-        <message>
-            <source>Stopped</source>
-            <translation type="vanished">已停止</translation>
-        </message>
-        <message>
-            <source>Control lines</source>
-            <translation type="vanished">控制线</translation>
-        </message>
-        <message>
-            <source>Error</source>
-            <translation type="vanished">错误</translation>
-        </message>
-        <message>
-            <source>Counters</source>
-            <translation type="vanished">计数器</translation>
-        </message>
-        <message>
-            <source>Message</source>
-            <translation type="vanished">消息</translation>
-        </message>
-        <message>
-            <source>Traffic</source>
-            <translation type="vanished">流量</translation>
-        </message>
-        <message>
-            <source>1 port, all names unique</source>
-            <translation type="vanished">1 个串口，名称均唯一</translation>
-        </message>
-        <message>
-            <source>%1 ports, all names unique</source>
-            <translation type="vanished">%1 个串口，名称均唯一</translation>
-        </message>
-        <message>
-            <source>1 port, a name is used twice</source>
-            <translation type="vanished">1 个串口，有名称被重复使用</translation>
-        </message>
-        <message>
-            <source>%1 ports, a name is used twice</source>
-            <translation type="vanished">%1 个串口，有名称被重复使用</translation>
-        </message>
-        <message>
-            <source>1 link, no loops</source>
-            <translation type="vanished">1 个链接，无环路</translation>
-        </message>
-        <message>
-            <source>%1 links, no loops</source>
-            <translation type="vanished">%1 个链接，无环路</translation>
-        </message>
-        <message>
-            <source>1 link, a loop was found</source>
-            <translation type="vanished">1 个链接，发现环路</translation>
-        </message>
-        <message>
-            <source>%1 links, a loop was found</source>
-            <translation type="vanished">%1 个链接，发现环路</translation>
-        </message>
-        <message>
-            <source>Valid JSON, version 1</source>
-            <translation type="vanished">有效的 JSON，版本 1</translation>
-        </message>
-        <message>
-            <source>Ports, all names unique</source>
-            <translation type="vanished">串口，名称均唯一</translation>
-        </message>
-        <message>
-            <source>Links, no loops</source>
-            <translation type="vanished">链接，无环路</translation>
-        </message>
-        <message>
-            <source>Line %1: %2</source>
-            <translation type="vanished">第 %1 行：%2</translation>
-        </message>
-        <message>
-            <source>The line is highlighted and nothing was applied.</source>
-            <translation type="vanished">该行已高亮显示，未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Line 1: the document must be a JSON object</source>
-            <translation type="vanished">第 1 行：文档必须是 JSON 对象</translation>
-        </message>
-        <message>
-            <source>A setup file starts with a { and ends with a }.</source>
-            <translation type="vanished">配置文件以 { 开头，以 } 结尾。</translation>
-        </message>
-        <message>
-            <source>Line %1: version must be 1</source>
-            <translation type="vanished">第 %1 行：version 必须为 1</translation>
-        </message>
-        <message>
-            <source>The document needs "version": 1</source>
-            <translation type="vanished">文档需要 "version": 1</translation>
-        </message>
-        <message>
-            <source>Nothing was applied.</source>
-            <translation type="vanished">未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>"ports" must be a list</source>
-            <translation type="vanished">"ports" 必须是列表</translation>
-        </message>
-        <message>
-            <source>Each port must be an object</source>
-            <translation type="vanished">每个串口必须是对象</translation>
-        </message>
-        <message>
-            <source>Line %1: a port has no name</source>
-            <translation type="vanished">第 %1 行：有串口没有名称</translation>
-        </message>
-        <message>
-            <source>A port has no name</source>
-            <translation type="vanished">有串口没有名称</translation>
-        </message>
-        <message>
-            <source>Every port needs a name so links can refer to it.</source>
-            <translation type="vanished">每个串口都需要名称，以便链接引用它。</translation>
-        </message>
-        <message>
-            <source>Line %1: the name "%2" is used twice</source>
-            <translation type="vanished">第 %1 行：名称“%2”被重复使用</translation>
-        </message>
-        <message>
-            <source>The name "%1" is used twice</source>
-            <translation type="vanished">名称“%1”被重复使用</translation>
-        </message>
-        <message>
-            <source>Port names identify ports in links, so each name must be unique. Nothing was applied.</source>
-            <translation type="vanished">串口名称用于在链接中标识串口，因此每个名称必须唯一。未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown port kind "%2"</source>
-            <translation type="vanished">第 %1 行：未知的串口类型“%2”</translation>
-        </message>
-        <message>
-            <source>Unknown port kind "%1"</source>
-            <translation type="vanished">未知的串口类型“%1”</translation>
-        </message>
-        <message>
-            <source>Use virtual, physical, tcp, udp, rfc2217 or mock. Nothing was applied.</source>
-            <translation type="vanished">请使用 virtual、physical、tcp、udp、rfc2217 或 mock。未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown virtual kind "%2"</source>
-            <translation type="vanished">第 %1 行：未知的虚拟类型“%2”</translation>
-        </message>
-        <message>
-            <source>Unknown virtual kind "%1"</source>
-            <translation type="vanished">未知的虚拟类型“%1”</translation>
-        </message>
-        <message>
-            <source>Use auto, pty, named-pipe, loopback or windows-driver. Nothing was applied.</source>
-            <translation type="vanished">请使用 auto、pty、named-pipe、loopback 或 windows-driver。未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Line %1: port "%2" has no address</source>
-            <translation type="vanished">第 %1 行：串口“%2”没有地址</translation>
-        </message>
-        <message>
-            <source>Port "%1" has no address</source>
-            <translation type="vanished">串口“%1”没有地址</translation>
-        </message>
-        <message>
-            <source>A physical or network port needs a uri. Nothing was applied.</source>
-            <translation type="vanished">物理串口或网络串口需要 uri。未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>"links" must be a list</source>
-            <translation type="vanished">"links" 必须是列表</translation>
-        </message>
-        <message>
-            <source>Line %1: each link must be an object</source>
-            <translation type="vanished">第 %1 行：每个链接必须是对象</translation>
-        </message>
-        <message>
-            <source>Each link must be an object</source>
-            <translation type="vanished">每个链接必须是对象</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown link mode "%2"</source>
-            <translation type="vanished">第 %1 行：未知的链接模式“%2”</translation>
-        </message>
-        <message>
-            <source>Unknown link mode "%1"</source>
-            <translation type="vanished">未知的链接模式“%1”</translation>
-        </message>
-        <message>
-            <source>Did you mean "%1"? The line is highlighted and nothing was applied.</source>
-            <translation type="vanished">您是想输入“%1”吗？该行已高亮显示，未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Use duplex, split, join, redirect or monitor. Nothing was applied.</source>
-            <translation type="vanished">请使用 duplex、split、join、redirect 或 monitor。未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Line %1: a link needs ports on both sides</source>
-            <translation type="vanished">第 %1 行：链接两侧都需要串口</translation>
-        </message>
-        <message>
-            <source>A link needs ports on both sides</source>
-            <translation type="vanished">链接两侧都需要串口</translation>
-        </message>
-        <message>
-            <source>sources and targets must be non-empty lists of port names. Nothing was applied.</source>
-            <translation type="vanished">sources 和 targets 必须是非空的串口名称列表。未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Line %1: "%2" has the wrong number of ports</source>
-            <translation type="vanished">第 %1 行：“%2”的串口数量不对</translation>
-        </message>
-        <message>
-            <source>"%1" has the wrong number of ports</source>
-            <translation type="vanished">“%1”的串口数量不对</translation>
-        </message>
-        <message>
-            <source>A duplex, redirect or monitor link joins one port to one port; a split has one source; a join has one target. Nothing was applied.</source>
-            <translation type="vanished">duplex、redirect 或 monitor 链接将一个串口连到一个串口；split 只有一个来源；join 只有一个目标。未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>Line %1: no port is called "%2"</source>
-            <translation type="vanished">第 %1 行：没有名为“%2”的串口</translation>
-        </message>
-        <message>
-            <source>No port is called "%1"</source>
-            <translation type="vanished">没有名为“%1”的串口</translation>
-        </message>
-        <message>
-            <source>Line %1: these links create a loop</source>
-            <translation type="vanished">第 %1 行：这些链接会形成环路</translation>
-        </message>
-        <message>
-            <source>These links create a loop</source>
-            <translation type="vanished">这些链接会形成环路</translation>
-        </message>
-        <message>
-            <source>Bytes would go round forever, so the hub refuses a loop and nothing was applied.</source>
-            <translation type="vanished">字节会无限循环，因此中枢拒绝环路，未应用任何内容。</translation>
-        </message>
-        <message>
-            <source>The setup format rejected this document</source>
-            <translation type="vanished">配置格式拒绝了此文档</translation>
-        </message>
-        <message>
-            <source>Open</source>
-            <translation type="vanished">已打开</translation>
-        </message>
-        <message>
-            <source>Failed</source>
-            <translation type="vanished">失败</translation>
-        </message>
-        <message>
-            <source>Closed</source>
-            <translation type="vanished">已关闭</translation>
         </message>
     </context>
     <context>
@@ -11677,17 +11620,9 @@ Networks: %5</source>
             <translation>打开 COM3 这类固定名称的程序每次运行都能再次找到该端口。“自动”会选取高于此电脑现有端口的空闲编号，绝不使用 COM1 或 COM2。指定编号需要 Studio 驱动程序及其辅助服务，并且只在创建单个端口时使用。</translation>
         </message>
         <message>
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation type="vanished">打开 COM3 这类固定名称的程序每次运行都能找到该端口。“自动”使用最小的空闲编号。指定编号需要 Studio 驱动程序及其辅助服务，并且只在创建一个端口时使用。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
             <source>Best available uses the Studio driver or com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
             <translation>“最佳可用”在 Windows 上使用 Studio 驱动程序或 com0com，在 Linux 和 macOS 上使用伪终端。最多可同时创建 32 个。多个端口依次命名为 port-1、port-2，依此类推。</translation>
-        </message>
-        <message>
-            <source>Best available uses com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
-            <translation type="vanished">“最佳可用”在 Windows 上使用 com0com，在 Linux 和 macOS 上使用伪终端。一次最多 32 个。多个串口依次命名为 port-1、port-2 等。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="377" />
@@ -11803,10 +11738,6 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="76" />
             <source>Attach a real device</source>
             <translation>连接真实设备</translation>
-        </message>
-        <message>
-            <source>Studio opens the device once. Your programs then open the port Studio creates for them.</source>
-            <translation type="vanished">Studio 会打开该设备一次。然后您的程序打开 Studio 为它们创建的串口。</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="77" />
@@ -12018,14 +11949,6 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="616" />
             <source>Studio will hold %1 open at %2 baud. Your programs should not open %1. They open the new virtual port that Studio creates, and Studio passes data between that port and %1.</source>
             <translation>Studio 会以 %2 波特率保持 %1 打开。你的程序不应打开 %1，而是打开 Studio 创建的新虚拟串口，Studio 会在该串口与 %1 之间传递数据。</translation>
-        </message>
-        <message>
-            <source>Studio will open &lt;b&gt;%1&lt;/b&gt; at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio 将以 %2 波特率打开 &lt;b&gt;%1&lt;/b&gt; 并保持打开。您的程序应打开 Studio 创建的串口，而不是 %1。</translation>
-        </message>
-        <message>
-            <source>Studio will open %1 at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio 将以 %2 波特率打开 %1 并保持打开。您的程序应打开 Studio 创建的串口，而不是 %1。</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="632" />
@@ -12327,10 +12250,6 @@ Networks: %5</source>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="568" />
             <source>%1: sent %2, received %3, lost %4, throughput %5.</source>
             <translation>%1：已发送 %2，已接收 %3，丢失 %4，吞吐量 %5。</translation>
-        </message>
-        <message>
-            <source>The benchmark command is not available in this build.</source>
-            <translation type="vanished">此版本不提供基准测试命令。</translation>
         </message>
     </context>
     <context>
@@ -13369,10 +13288,6 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="436" />
             <source>Copy name, %1</source>
             <translation>复制名称，%1</translation>
-        </message>
-        <message>
-            <source>No program has opened %1 yet.</source>
-            <translation type="vanished">尚无程序打开 %1。</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="451" />
@@ -14845,10 +14760,6 @@ Networks: %5</source>
             <translation>还没有程序打开 %1。请在您的程序中选择正好 %1。有程序打开后，此面板会更新。</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet. This panel updates when one does.</source>
-            <translation type="vanished">尚无程序打开 %1。有程序打开时，此面板会更新。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="365" />
             <source>Program connected</source>
             <translation>程序已连接</translation>
@@ -15130,10 +15041,6 @@ Networks: %5</source>
             <location filename="../src/panes/send_panel.cpp" line="98" />
             <source>Send</source>
             <translation>发送</translation>
-        </message>
-        <message>
-            <source>Send to port</source>
-            <translation type="vanished">发送到串口</translation>
         </message>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="81" />
@@ -15441,10 +15348,6 @@ Networks: %5</source>
             <location filename="../src/dialogs/share_wizard.cpp" line="453" />
             <source>The address of the serial server, using TCP, UDP or RFC 2217.</source>
             <translation>串口服务器的地址，使用 TCP、UDP 或 RFC 2217。</translation>
-        </message>
-        <message>
-            <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are.</source>
-            <translation type="vanished">您的程序将打开 Studio 创建的串口，而不是 %1 本身。接下来请选择程序的数量。</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="483" />
@@ -16528,10 +16431,6 @@ Networks: %5</source>
             <translation>保持 Studio 打开</translation>
         </message>
         <message>
-            <source>Undo needs an exact restore, which this build cannot prove.</source>
-            <translation type="vanished">撤销需要精确还原，而此版本无法证明能做到。</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="533" />
             <source>&amp;File</source>
             <translation>文件(&amp;F)</translation>
@@ -16580,10 +16479,6 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="619" />
             <source>Main toolbar</source>
             <translation>主工具栏</translation>
-        </message>
-        <message>
-            <source>Not available in this build.</source>
-            <translation type="vanished">此版本不可用。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="833" />
@@ -16682,10 +16577,6 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2058" />
             <source>Remove %1?</source>
             <translation>移除 %1？</translation>
-        </message>
-        <message>
-            <source>The port and its links will be removed. This cannot be undone.</source>
-            <translation type="vanished">该串口及其链接将被移除。此操作无法撤销。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1963" />
@@ -17567,17 +17458,6 @@ Networks: %5</source>
         </message>
     </context>
     <context>
-        <name>vss::gui::json_validation</name>
-        <message>
-            <source>Valid, version 1</source>
-            <translation type="vanished">有效，版本 1</translation>
-        </message>
-        <message>
-            <source>Not valid</source>
-            <translation type="vanished">无效</translation>
-        </message>
-    </context>
-    <context>
         <name>vss::gui::other_ports</name>
         <message>
             <location filename="../src/backend/other_ports.hpp" line="32" />
@@ -18398,18 +18278,6 @@ Networks: %5</source>
             </translation>
         </message>
         <message numerus="yes">
-            <source>Line with %n</source>
-            <translation type="vanished">
-                <numerusform>含 %n 个成员的线路</numerusform>
-            </translation>
-        </message>
-        <message numerus="yes">
-            <source>%n into %1</source>
-            <translation type="vanished">
-                <numerusform>%n 个合并到 %1</numerusform>
-            </translation>
-        </message>
-        <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="425" />
             <source>%n programs take turns sending to %1</source>
             <translation>
@@ -19068,6 +18936,151 @@ Networks: %5</source>
             <source>Set up Virtual Serial Studio</source>
             <translation>设置 Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="72" />
+            <source>End A</source>
+            <translation>端 A</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="72" />
+            <source>End B</source>
+            <translation>端 B</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="74" />
+            <source>Source</source>
+            <translation>来源</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="75" />
+            <source>Target %1</source>
+            <translation>目标 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="77" />
+            <source>Target</source>
+            <translation>目标</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="78" />
+            <source>Source %1</source>
+            <translation>来源 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="80" />
+            <source>Device</source>
+            <translation>设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="81" />
+            <source>Program %1</source>
+            <translation>程序 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="83" />
+            <source>Member %1</source>
+            <translation>成员 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="85" />
+            <source>From</source>
+            <translation>从</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="85" />
+            <source>To</source>
+            <translation>到</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="87" />
+            <source>Watched</source>
+            <translation>被监视</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="87" />
+            <source>Copy</source>
+            <translation>复制</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="89" />
+            <source>Fixture %1</source>
+            <translation>模拟设备 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="90" />
+            <source>Port %1</source>
+            <translation>串口 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="99" />
+            <source>Name</source>
+            <translation>名称</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="100" />
+            <source>Name %1</source>
+            <translation>名称 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="109" />
+            <source>Add %1</source>
+            <translation>添加 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="145" />
+            <source>How many</source>
+            <translation>数量</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="166" />
+            <source>More settings</source>
+            <translation>更多设置</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="176" />
+            <source>Baud rate</source>
+            <translation>波特率</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="184" />
+            <source>Framing</source>
+            <translation>帧格式</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="207" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="211" />
+            <source>Add</source>
+            <translation>添加</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="262" />
+            <source>%1 kind</source>
+            <translation>%1 类型</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="263" />
+            <source>New port</source>
+            <translation>新串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="264" />
+            <source>New fixture</source>
+            <translation>新建模拟设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="265" />
+            <source>Loopback</source>
+            <translation>回环</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="270" />
+            <source>%1 name</source>
+            <translation>%1 名称</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -19163,6 +19176,726 @@ Networks: %5</source>
             <location filename="../src/topology/topology_view.cpp" line="181" />
             <source>Zoom in</source>
             <translation>放大</translation>
+        </message>
+    </context>
+    <context>
+        <name>CanvasController</name>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="67" />
+            <source>Delete</source>
+            <translation>Delete</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="67" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="200" />
+            <source>Nothing was added: %1</source>
+            <translation>未添加任何内容：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="205" />
+            <source>Add %1</source>
+            <translation>添加 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="209" />
+            <source>Added %1.</source>
+            <translation>已添加 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="247" />
+            <source>Could not link the ports: %1</source>
+            <translation>无法链接串口：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="254" />
+            <source>Connect ports</source>
+            <translation>连接串口</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="273" />
+            <source>Linked %1.</source>
+            <translation>已链接 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="323" />
+            <source>Could not add and link a new port.</source>
+            <translation>无法添加并链接新串口。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="355" />
+            <source>This port can only be opened once.</source>
+            <translation>此串口只能打开一次。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="356" />
+            <source>Could not duplicate: %1</source>
+            <translation>无法复制：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="359" />
+            <source>Duplicate</source>
+            <translation>复制</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="380" />
+            <source>%1 and %2</source>
+            <translation>%1 和 %2</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/shell/canvas_controller.cpp" line="386" />
+            <source>%n link(s)</source>
+            <translation>
+                <numerusform>%n 条链接</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="407" />
+            <source>Delete %1 and the links on them? Undo brings them back.</source>
+            <translation>删除 %1 及其上的链接？撤销可恢复。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="409" />
+            <source>Delete %1? Undo brings it back.</source>
+            <translation>删除 %1？撤销可恢复。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="410" />
+            <source>Delete %1?</source>
+            <translation>删除 %1？</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="417" />
+            <source>Could not delete: %1</source>
+            <translation>无法删除：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="424" />
+            <source>link</source>
+            <translation>链接</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="425" />
+            <source>%1 ports</source>
+            <translation>%1 个串口</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="428" />
+            <source>Delete %1</source>
+            <translation>删除 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="439" />
+            <source>Recreated %1 as %2 (it was %3).</source>
+            <translation>已将 %1 重新创建为 %2（原为 %3）。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="451" />
+            <source>Deleted %1.</source>
+            <translation>已删除 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="488" />
+            <source>Link selected</source>
+            <translation>链接所选项</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="518" />
+            <source>Could not change the link: %1</source>
+            <translation>无法更改链接：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="552" />
+            <source>Link settings</source>
+            <translation>链接设置</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="584" />
+            <source>Could not reverse the link.</source>
+            <translation>无法反转链接。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="587" />
+            <source>Reverse direction</source>
+            <translation>反转方向</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="617" />
+            <source>Settings for %1</source>
+            <translation>%1 的设置</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/shell/canvas_controller.cpp" line="618" />
+            <source>Settings for %n ports</source>
+            <translation>
+                <numerusform>%n 个串口的设置</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="634" />
+            <source>Settings changed.</source>
+            <translation>设置已更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="650" />
+            <source>Link settings changed.</source>
+            <translation>链接设置已更改。</translation>
+        </message>
+    </context>
+    <context>
+        <name>PaneHeader</name>
+        <message numerus="yes">
+            <location filename="../src/widgets/surfaces.cpp" line="100" />
+            <source>%n item(s)</source>
+            <translation>
+                <numerusform>%n 项</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>PortSettingsDialog</name>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="61" />
+            <source>no flow control</source>
+            <translation>无流控制</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="63" />
+            <source>hardware flow control</source>
+            <translation>硬件流控制</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="65" />
+            <source>software flow control</source>
+            <translation>软件流控制</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="137" />
+            <source>Settings for %1</source>
+            <translation>%1 的设置</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="138" />
+            <source>Settings for %n ports</source>
+            <translation>
+                <numerusform>%n 个串口的设置</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="159" />
+            <source>Studio opens the device with these settings.</source>
+            <translation>Studio 使用这些设置打开设备。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="162" />
+            <source>Studio asks the remote device to use these settings.</source>
+            <translation>Studio 请求远程设备使用这些设置。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="165" />
+            <source>The fixture behaves as a device set to these values.</source>
+            <translation>模拟设备的行为如同设置为这些值的设备。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="168" />
+            <source>A program that opens this port sets its own speed. These are the values saved with the setup.</source>
+            <translation>打开此串口的程序会自行设置速度。这些是随配置保存的值。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="178" />
+            <source>Program set %1.</source>
+            <translation>程序设置 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="185" />
+            <source>A loopback has no line speed. These values are saved with the setup.</source>
+            <translation>回环没有线路速度。这些值随配置保存。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="189" />
+            <source>A network port has no line settings.</source>
+            <translation>网络串口没有线路设置。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="203" />
+            <source>Baud rate</source>
+            <translation>波特率</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="211" />
+            <source>Data bits</source>
+            <translation>数据位</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="215" />
+            <source>Parity</source>
+            <translation>奇偶校验</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="216" />
+            <source>None</source>
+            <translation>无</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="217" />
+            <source>Odd</source>
+            <translation>奇</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="218" />
+            <source>Even</source>
+            <translation>偶</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="219" />
+            <source>Mark</source>
+            <translation>标记</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="220" />
+            <source>Space</source>
+            <translation>空格</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="222" />
+            <source>Stop bits</source>
+            <translation>停止位</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="230" />
+            <source>Flow control</source>
+            <translation>流控制</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="232" />
+            <source>Hardware (RTS/CTS)</source>
+            <translation>硬件（RTS/CTS）</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="234" />
+            <source>Software (XON/XOFF)</source>
+            <translation>软件（XON/XOFF）</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="244" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="245" />
+            <source>Wait</source>
+            <translation>等待</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="248" />
+            <source>Read timeout</source>
+            <translation>读取超时</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="249" />
+            <source>Write timeout</source>
+            <translation>写入超时</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="283" />
+            <source>Restarting the port drops bytes that are in flight. Programs that have it open keep their handle.</source>
+            <translation>重新启动串口会丢弃传输中的字节。已打开它的程序保留其句柄。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="313" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="316" />
+            <source>Apply and restart</source>
+            <translation>应用并重新启动</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="317" />
+            <source>Apply</source>
+            <translation>应用</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="399" />
+            <source>%1, %2</source>
+            <translation>%1，%2</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="401" />
+            <source>The baud rate must be a whole number from %1 to %2.</source>
+            <translation>波特率必须是 %1 到 %2 之间的整数。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>The port could not take these settings: %1</source>
+            <translation>串口无法使用这些设置：%1</translation>
+        </message>
+    </context>
+    <context>
+        <name>StudioTray</name>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="25" />
+            <source>Open Studio</source>
+            <translation>打开 Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="32" />
+            <source>Start when I sign in</source>
+            <translation>登录时启动</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="37" />
+            <source>Stop the ports and quit</source>
+            <translation>停止串口并退出</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="83" />
+            <source>%1 ports, %2 links running</source>
+            <translation>正在运行 %1 个串口、%2 条链接</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="85" />
+            <source>Virtual Serial Studio: %1</source>
+            <translation>Virtual Serial Studio: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="104" />
+            <source>Not available in this build</source>
+            <translation>此版本不可用</translation>
+        </message>
+    </context>
+    <context>
+        <name>Toolbox</name>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="62" />
+            <source>Port</source>
+            <translation>串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="64" />
+            <source>Fixture</source>
+            <translation>模拟设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="66" />
+            <source>Loopback</source>
+            <translation>回环</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="68" />
+            <source>Device</source>
+            <translation>设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="70" />
+            <source>Network</source>
+            <translation>网络</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="72" />
+            <source>Pair</source>
+            <translation>串口对</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="74" />
+            <source>Split</source>
+            <translation>拆分</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="76" />
+            <source>Join</source>
+            <translation>合并</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="78" />
+            <source>Bus</source>
+            <translation>总线</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="80" />
+            <source>Switch</source>
+            <translation>交换</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="82" />
+            <source>Redirect</source>
+            <translation>重定向</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="84" />
+            <source>Monitor</source>
+            <translation>监视器</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="86" />
+            <source>Share</source>
+            <translation>共享</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="88" />
+            <source>Bench</source>
+            <translation>基准测试</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="98" />
+            <source>A virtual port of the best available kind</source>
+            <translation>最合适类型的虚拟串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="100" />
+            <source>A mock device</source>
+            <translation>模拟设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="102" />
+            <source>A port that sends back everything it receives</source>
+            <translation>把收到的所有内容发回去的串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="104" />
+            <source>A real serial device on this computer</source>
+            <translation>这台计算机上的真实串口设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="106" />
+            <source>A TCP, UDP or RFC 2217 endpoint</source>
+            <translation>TCP、UDP 或 RFC 2217 端点</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="108" />
+            <source>Two ports linked both ways, like a null-modem cable</source>
+            <translation>两个双向链接的串口，类似 null-modem 线缆</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="111" />
+            <source>One port feeds several; their replies merge back</source>
+            <translation>一个串口向多个串口发送；它们的回复会合并返回</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="113" />
+            <source>Several ports send into one, one way</source>
+            <translation>多个串口向同一个串口发送，单向</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="115" />
+            <source>Several ports on one shared line; each hears all the others</source>
+            <translation>多个串口在同一条共享线路上；每个都能听到其他所有串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="118" />
+            <source>Several programs send to one port, one owner at a time</source>
+            <translation>多个程序向同一个串口发送，同一时间只有一个所有者</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="121" />
+            <source>Bytes from one port go to another, one way</source>
+            <translation>一个串口的字节单向传到另一个串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="123" />
+            <source>A passive copy of one port's traffic</source>
+            <translation>某个串口流量的被动副本</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="125" />
+            <source>A real device given to several programs</source>
+            <translation>把一个真实设备提供给多个程序</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="127" />
+            <source>Several fixtures, each paired with its own port</source>
+            <translation>多个模拟设备，各自与自己的串口配对</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="171" />
+            <source>Toolbox</source>
+            <translation>工具箱</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="173" />
+            <source>Drag a tile onto the canvas, or press Enter on it.</source>
+            <translation>把图块拖到画布上，或在其上按 Enter。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="239" />
+            <source>%1: %2</source>
+            <translation>%1：%2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="254" />
+            <source>Ports</source>
+            <translation>串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="257" />
+            <source>Bundles</source>
+            <translation>组合</translation>
+        </message>
+    </context>
+    <context>
+        <name>TopologyView</name>
+        <message numerus="yes">
+            <location filename="../src/topology/topology_view.cpp" line="919" />
+            <source>%n selected: %1</source>
+            <translation>
+                <numerusform>已选择 %n 项：%1</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2363" />
+            <source>Drag a port or bundle from the toolbox, or press Enter on one.</source>
+            <translation>从工具箱拖出串口或组合，或在其上按 Enter。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2572" />
+            <source>Choose the port to link %1 to, then press Enter. Esc cancels.</source>
+            <translation>选择要与 %1 链接的串口，然后按 Enter。按 Esc 取消。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2704" />
+            <source>Two-way</source>
+            <translation>双向</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2705" />
+            <source>One way, from %1 to %2</source>
+            <translation>单向，从 %1 到 %2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2706" />
+            <source>Monitor %1 on %2</source>
+            <translation>在 %2 上监视 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2727" />
+            <source>Link %1 and %2</source>
+            <translation>链接 %1 和 %2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2761" />
+            <source>New port here</source>
+            <translation>在此新建串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2764" />
+            <source>New fixture here</source>
+            <translation>在此新建模拟设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2765" />
+            <source>New loopback here</source>
+            <translation>在此新建回环</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2771" />
+            <source>One way, to the new port</source>
+            <translation>单向，到新串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2772" />
+            <source>Monitor on the new port</source>
+            <translation>在新串口上监视</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2812" />
+            <source>Settings...</source>
+            <translation>设置...</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2818" />
+            <source>A network port has no line settings.</source>
+            <translation>网络串口没有线路设置。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2827" />
+            <source>Duplicate</source>
+            <translation>复制</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2833" />
+            <source>This port can only be opened once.</source>
+            <translation>此串口只能打开一次。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2847" />
+            <source>Delete</source>
+            <translation>Delete</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2855" />
+            <source>Link selected</source>
+            <translation>链接所选项</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2871" />
+            <source>Select exactly two ports.</source>
+            <translation>请恰好选择两个串口。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2872" />
+            <source>Split from %1</source>
+            <translation>从 %1 拆分</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2873" />
+            <source>Join into %1</source>
+            <translation>合并到 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2874" />
+            <source>Bus</source>
+            <translation>总线</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2875" />
+            <source>Switch on %1</source>
+            <translation>%1 上的交换</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/topology/topology_view.cpp" line="2898" />
+            <source>Settings for %n ports...</source>
+            <translation>
+                <numerusform>%n 个串口的设置...</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2918" />
+            <source>A monitor link has no settings.</source>
+            <translation>监视链接没有设置。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2922" />
+            <source>Reverse direction</source>
+            <translation>反转方向</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2949" />
+            <source>Add port</source>
+            <translation>添加串口</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2950" />
+            <source>Add fixture</source>
+            <translation>添加模拟设备</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2951" />
+            <source>Add loopback</source>
+            <translation>添加回环</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2952" />
+            <source>Add bundle</source>
+            <translation>添加组合</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2959" />
+            <source>Select all</source>
+            <translation>全选</translation>
         </message>
     </context>
 </TS>
