@@ -111,6 +111,8 @@ public:
     /// Writes the running setup now.  `stopped` records a Quit.
     void save_running_now(bool stopped = false);
 
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
     StudioTray* tray() const noexcept { return tray_; }
     NoteBanner* resume_banner() const noexcept { return resume_banner_; }
 
@@ -140,6 +142,7 @@ private:
     void update_status();
     void update_dock_titles();
     void apply_compact();
+    void update_toolbar_style();
     QString document_signature() const;
     void remove_selected_port();
     void copy_selected_port();
