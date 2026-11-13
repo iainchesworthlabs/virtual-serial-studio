@@ -299,7 +299,7 @@ void add_windows_rows(QVector<setup_row>& rows, const setup_facts& facts,
     carry_on.state = setup_state::info;
     carry_on.icon = QStringLiteral("run");
     carry_on.title =
-        QCoreApplication::translate("SetupCheck", "Carry on without a driver");
+        QCoreApplication::translate("SetupCheck", "Continue without a driver");
     carry_on.sentence = QCoreApplication::translate(
         "SetupCheck", "You can still use in-process ports, the monitor "
                       "and the Send panel to try things out.");
@@ -515,7 +515,7 @@ setup_report build_setup_report(const setup_facts& facts,
     }
     else
         report.header_chip =
-            QCoreApplication::translate("SetupCheck", "All set");
+            QCoreApplication::translate("SetupCheck", "Ready");
 
     if (windows && checks_available && !windows_ports_ready(normalised))
     {

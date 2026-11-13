@@ -1,0 +1,16 @@
+{
+  "manifest_version": 1,
+  "id": "de.example.pruefgeraet",
+  "name": "Prüfgerät 😀",
+  "version": "1.0.0",
+  "requires": { "api": { "min": "1.0", "max": "1.x" } },
+  "run": { "executable": "bin/pruef", "platforms": ["linux-x64"] },
+  "extension_points": [
+    {
+      "kind": "fixture",
+      "id": "pruef",
+      "name": { "de": "Prüfgerät", "en": "Test device" },
+      "timing": { "class": "rules" }
+    }
+  ]
+}

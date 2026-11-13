@@ -6,6 +6,7 @@
 
 #include "panes/monitor_panel.hpp"
 
+#include "panes/monitor_cell_delegate.hpp"
 #include "panes/monitor_model.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -81,6 +82,9 @@ public:
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const override
     {
+        VSS_PROFILE_ZONE_NAMED(zone, "gui.monitor.paint_cell");
+        VSS_PROFILE_ZONE_TEXT(
+            zone, MonitorCellDelegate::column_label(index.column()));
         const Theme& theme = Theme::instance();
         const bool selected = (option.state & QStyle::State_Selected) != 0;
         painter->save();
@@ -125,6 +129,9 @@ MonitorPanel::MonitorPanel(StudioBackend& backend, QWidget* parent)
     : QWidget(parent), backend_(backend)
 {
     build();
+    commit_timer_ = new QTimer(this);
+    commit_timer_->setSingleShot(true);
+    connect(commit_timer_, &QTimer::timeout, this, [this] { commit_rows(); });
     connect(&backend_, &StudioBackend::batch_ready, this,
             [this](const event_batch& events) { handle_events(events); });
     connect(&backend_, &StudioBackend::ports_changed, this,
@@ -292,6 +299,7 @@ void MonitorPanel::build()
     table_->setColumnWidth(1, 140);
     table_->setColumnWidth(2, 70);
     table_->setColumnWidth(3, 70);
+    table_->setItemDelegate(new MonitorCellDelegate(4, table_));
     table_->setItemDelegateForColumn(2, new DirectionDelegate(table_));
     table_->setFocusPolicy(Qt::StrongFocus);
     table_->setMinimumHeight(60);
@@ -326,7 +334,8 @@ void MonitorPanel::build()
 
     // The Log and Topology JSON tabs are hidden until set_advanced() shows
     // them, and the tab bar with them.
-    json_ = new QLabel(tr("The topology JSON editor arrives with WP7."), tabs_);
+    json_ = new QLabel(tr("The topology JSON editor is not available yet."),
+                       tabs_);
     json_->setAlignment(Qt::AlignCenter);
     json_->setWordWrap(true);
     json_->setProperty("muted", true);
@@ -560,14 +569,59 @@ void MonitorPanel::refresh_ports()
 void MonitorPanel::handle_events(const event_batch& events)
 {
     VSS_PROFILE_ZONE("gui.monitor.handle_events");
-    model_->append_events(events);
+    model_->queue_events(events);
     for (const gui_event& event : events)
     {
         if (event.kind == vss::event_kind::data)
             continue;
         append_log(event);
     }
-    update_actions();
+    if (!model_->has_queued())
+        return;
+    // The table takes new rows at most once every `kCommitIntervalMs`. Under
+    // heavy traffic batches arrive every few milliseconds, and each one put
+    // in the table at once is a layout, a scroll to the end and a repaint of
+    // rows that are gone again before anyone could read them. Traffic that
+    // arrives slower than that is shown as it arrives.
+    schedule_commit();
+}
+
+void MonitorPanel::schedule_commit()
+{
+    if (!model_->has_queued())
+        return;
+    const qint64 since =
+        last_commit_.isValid() ? last_commit_.elapsed() : commit_interval_ms_;
+    if (since >= commit_interval_ms_)
+        commit_rows();
+    else
+        commit_timer_->start(static_cast<int>(commit_interval_ms_ - since));
+}
+
+void MonitorPanel::set_commit_interval(int milliseconds)
+{
+    commit_interval_ms_ = std::max(milliseconds, 0);
+    commit_timer_->stop();
+    schedule_commit();
+}
+
+void MonitorPanel::commit_rows()
+{
+    commit_timer_->stop();
+    if (!model_->has_queued())
+        return;
+    model_->commit_queued();
+    last_commit_.start();
+    // New rows change only whether there is anything to export. The rest of
+    // `update_actions` sets the Pause button's icon, and Qt repaints a button
+    // and lays its row out again whenever an icon is set, changed or not:
+    // that was a relayout of the bar and a repaint of its controls for every
+    // batch of traffic.
+    const bool any_rows = model_->rowCount() > 0;
+    if (export_ != nullptr)
+        export_->setEnabled(any_rows);
+    if (export_capture_ != nullptr)
+        export_capture_->setEnabled(any_rows);
     update_empty();
     follow_if_enabled();
 }
@@ -693,12 +747,15 @@ void MonitorPanel::append_log(const gui_event& event)
 
 void MonitorPanel::toggle_pause()
 {
+    // What arrived before the click is shown; nothing after it is.
+    commit_rows();
     model_->set_paused(!model_->paused());
     update_actions();
 }
 
 void MonitorPanel::export_visible()
 {
+    commit_rows();
     const QString path = QFileDialog::getSaveFileName(
         this, tr("Export visible traffic"), QStringLiteral("traffic.txt"),
         tr("Text files (*.txt);;All files (*)"));
@@ -716,6 +773,7 @@ void MonitorPanel::export_visible()
 
 void MonitorPanel::export_capture()
 {
+    commit_rows();
     const QString cap_filter = tr("Capture text (*.cap)");
     const QString csv_filter = tr("Comma separated values (*.csv)");
     const QString jsonl_filter = tr("JSON Lines (*.jsonl)");

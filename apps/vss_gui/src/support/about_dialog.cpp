@@ -221,8 +221,8 @@ void AboutDialog::build()
         rows_page(
             QCoreApplication::translate(
                 "About",
-                "Copy this into a bug report. It answers \"which build is "
-                "this?\""),
+                "Copy this into a bug report. It shows which build you are "
+                "running."),
             build_information_rows(info_),
             QCoreApplication::translate("About", "Copy build information"),
             &AboutDialog::copy_build_information),

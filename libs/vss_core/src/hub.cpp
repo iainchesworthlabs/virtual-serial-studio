@@ -6,6 +6,7 @@
 
 #include "bus_wire.hpp"
 #include "delay_line.hpp"
+#include "platform/timer_period_platform.hpp"
 
 #include <vss/core/bus_line.hpp>
 #include <vss/core/hub.hpp>
@@ -109,6 +110,9 @@ void hub::start()
         return;
 
     stopping_.store(false);
+    // Before the first thread runs, so that no timer is set on the coarse tick.
+    if (options_.fine_timers)
+        timer_period_ = std::make_shared<platform::timer_period>();
     io_.restart();
     work_ = std::make_unique<
         boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
@@ -186,6 +190,8 @@ void hub::join()
     }
     threads_.clear();
     work_.reset();
+    // After the threads: nothing of this hub is waiting on a timer any more.
+    timer_period_.reset();
 }
 
 result<std::shared_ptr<endpoint>> hub::add_endpoint(
@@ -590,7 +596,8 @@ std::shared_ptr<delay_line> hub::make_delay(endpoint_id to,
     if (target == endpoints_.end())
         return nullptr;
     return std::make_shared<delay_line>(io_.get_executor(), target->second,
-                                        options.delay_ms, options.jitter_ms);
+                                        options.delay_ms, options.jitter_ms,
+                                        options_.clock);
 }
 
 hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
@@ -1390,6 +1397,13 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
 
 void hub::route_data(endpoint_id from, bytes_view data)
 {
+    if (data.empty())
+        return;
+    route_data(from, data, now());
+}
+
+void hub::route_data(endpoint_id from, bytes_view data, time_point when)
+{
     VSS_PROFILE_ZONE("hub.route");
 
     if (data.empty())
@@ -1449,7 +1463,7 @@ void hub::route_data(endpoint_id from, bytes_view data)
                 if (!wire)
                 {
                     wire = record.wire;
-                    verdict = record.line->transmit(from, data.size(), now());
+                    verdict = record.line->transmit(from, data.size(), when);
                     if (verdict.fault != bus_fault::none)
                     {
                         const auto name_of = [this](endpoint_id id)
@@ -1507,7 +1521,7 @@ void hub::route_data(endpoint_id from, bytes_view data)
                    std::move(on_wire));
     if (fault)
     {
-        fault->when = clock_type::now();
+        fault->when = when;
         publish(std::move(*fault));
     }
 }

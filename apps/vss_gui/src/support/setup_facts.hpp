@@ -84,7 +84,7 @@ struct setup_row
     QString icon;
     QString title;
     QString sentence;
-    /// Empty for a row that has no chip (Carry on without a driver).
+    /// Empty for a row that has no chip (Continue without a driver).
     QString chip;
     QString action_text;
     setup_action action = setup_action::none;
@@ -107,7 +107,7 @@ struct setup_report
     /// The piece of the Windows driver set-up that is wrong, if the guided
     /// set-up can fix it; `none` otherwise and on other systems.
     driver_problem problem = driver_problem::none;
-    /// "All set", "1 thing to fix" or "Not checked yet".
+    /// "Ready", "1 thing to fix" or "Not checked yet".
     QString header_chip;
     /// The warning above the rows; empty when nothing is wrong.
     QString driver_note;

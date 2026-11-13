@@ -38,10 +38,9 @@ several sources."
 - Uses **Advanced** plus `vss_cli --verbose`, the support bundle and the
   Tracy profiling build.
 
-The levels are therefore not "basic" and "pro" feature sets; they are two
-vocabularies over the same operations. Every port and link created at the
-Simple level is a full-strength studio object, and switching never changes what
-has been built.
+The two levels are two vocabularies over the same operations, not a basic and
+a pro feature set. Every port and link created at the Simple level is an
+ordinary studio object, and switching levels never changes what has been built.
 
 ## Principles
 
@@ -70,12 +69,12 @@ has been built.
    is shown disabled with "Not available in this build", or the simpler variant
    is shown. The list is in
    [08-engine-gaps.md](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/docs/gui-design/docs/08-engine-gaps.md).
-9. **The keyboard is a first-class path.** Every action has a menu item, and
+9. **Everything works from the keyboard.** Every action has a menu item, and
    the shortcut list is generated from the same action registry as the menus.
-10. **Accessible by default.** Names and roles on every control, a visible focus
+10. **Accessibility.** Names and roles on every control, a visible focus
     ring, 24 pixel targets, both themes and 200 percent text, checked by a
     test that walks every dialog.
-11. **No surprises on exit.** Unsaved work is protected by a prompt that can be
+11. **Unsaved work.** A prompt protects it on exit; it can be
     turned off for scripted sessions.
 
 ## The two levels
@@ -146,7 +145,7 @@ saved-setup entry and the equivalent `vss_cli` command.
 
 Design notes: the name field is pre-filled and the suffix is automatic; the
 dialog explains the three kinds in one sentence each; the result sentence
-changes with the count; the dialog is honest when there is no driver ("port-1
+changes with the count; the dialog says so when there is no driver ("port-1
 is ready inside Studio").
 
 ### Connect two programs (operator)
@@ -201,7 +200,7 @@ the setup, log and environment; it never holds the bytes the ports carried.
   Windows) the port reads *Waiting for program* and then *Program connected*.
   Elsewhere a healthy port reads *Open* and the troubleshooting list says "Not
   checked yet" for the last steps. It does not guess.
-- **The log is Advanced.** It is invaluable when diagnosing and noise for
+- **The log is Advanced.** It is useful when diagnosing and noise for
   everyone else; the monitor carries the everyday feedback.
 - **Simple speaks of setups, not wiring.** The page of a setup says which port
   to open in which program and hides the boxes and lines; a beginner should not
@@ -209,8 +208,8 @@ the setup, log and environment; it never holds the bytes the ports carried.
   mode)** shows the diagram, where the boxes are the mental model. A list of
   links is available from **View** at Advanced for screen readers and for people
   who prefer one.
-- **Level is global, not per document.** A user is an operator or a
-  diagnostician, not both from file to file.
+- **Level is global, not per document.** A user works as an operator or as a
+  diagnostician, and does not switch from file to file.
 - **Refresh is adjustable.** The default, 250 ms, feels live; busy machines can
   slow it down without changing what the studio does.
 - **Theme and density follow the user.** The theme follows the desktop by

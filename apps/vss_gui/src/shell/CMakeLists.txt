@@ -77,6 +77,7 @@ if(VSS_BUILD_TOOLS)
   target_link_libraries(vss_gui_render_bench PRIVATE
     vss_gui_shell
     vss_gui_rendering
+    vss_gui_profiling
     Vss::studio
     Qt6::Widgets)
   vss_set_warnings(vss_gui_render_bench)

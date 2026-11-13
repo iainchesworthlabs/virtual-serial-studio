@@ -378,11 +378,15 @@ void JobForm::fix_com_numbers()
         {
             if (end.what != end_plan::kind::program || end.existing != 0)
                 continue;
-            const auto free = free_com_numbers(&end, kLastGuiComNumber);
-            if (end.com_number != 0 && std::find(free.begin(), free.end(),
-                                                 end.com_number) != free.end())
+            // Automatic stays Automatic; a chosen number that is now taken
+            // falls back to it.
+            if (end.com_number == 0)
                 continue;
-            end.com_number = free.empty() ? 0 : free.front();
+            const auto free = free_com_numbers(&end, kLastGuiComNumber);
+            if (std::find(free.begin(), free.end(), end.com_number) !=
+                free.end())
+                continue;
+            end.com_number = 0;
         }
     }
 }
@@ -432,9 +436,9 @@ end_plan JobForm::new_program()
     refresh_reserved();
     if (com_numbers_shown())
     {
-        const auto free = free_com_numbers(nullptr);
-        if (!free.empty())
-            end.com_number = free.front();
+        // Automatic: the backend takes back a number this PC has had, so a
+        // setup keeps its COM numbers and a new port is quick to make.
+        end.com_number = 0;
     }
     return end;
 }
@@ -601,8 +605,8 @@ void JobForm::build()
             body);
         answer_echo_ = new PickCard(
             tr("Send everything straight back"),
-            tr("Whatever your program sends comes back to it at once. A quick "
-               "test that its sending and receiving both work."),
+            tr("Whatever your program sends comes back to it at once. Use it "
+               "to check that the program can send and receive."),
             body);
         auto* group = new QButtonGroup(this);
         group->addButton(answer_type_->radio());
@@ -673,8 +677,8 @@ void JobForm::build()
             });
     fields->addRow(tr("Device speed (baud rate)"), baud_);
     fields->addRow(QString(),
-                   hint_label(tr("The device's manual gives it. If text looks "
-                                 "garbled later, this is usually why."),
+                   hint_label(tr("Check the device's manual. A wrong rate "
+                                 "usually shows as garbled text."),
                               device_fields_));
 
     // The less common line settings are tucked into a disclosure, so the baud
@@ -757,7 +761,7 @@ void JobForm::build()
                     [this](bool on) { prefs_.type_here = on; });
             layout->addWidget(type_here_);
             layout->addWidget(hint_label(
-                tr("Handy for checking the device works before your own "
+                tr("Use it to check that the device works before your own "
                    "program is ready. What you type goes to the device, and "
                    "its replies show here and in your programs."),
                 body));
@@ -772,9 +776,8 @@ void JobForm::build()
                     [this](bool on) { prefs_.show_data = on; });
             layout->addWidget(show_data_);
             layout->addWidget(hint_label(
-                tr("A live list of what is sent each way, on the setup's "
-                   "page. It only looks, so it changes nothing. You can turn "
-                   "it on later too."),
+                tr("Lists the data sent in each direction on the setup's page. "
+                   "It does not change the data. You can turn it on later."),
                 body));
         }
     }
@@ -912,6 +915,7 @@ QWidget* JobForm::program_row(bool second, int index)
         auto* com = new QComboBox(row);
         com->setObjectName(QStringLiteral("jobFormPort"));
         com->setAccessibleName(tr("Port name"));
+        com->addItem(tr("Automatic"), 0u);
         for (const unsigned number : free_com_numbers(&end))
             com->addItem(QStringLiteral("COM%1").arg(number), number);
         com->setCurrentIndex(std::max(0, com->findData(end.com_number)));

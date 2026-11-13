@@ -410,7 +410,7 @@ void append_permission_rows(QVector<setup_row>& rows,
                             const std::vector<perm::fact>& facts)
 {
     VSS_PROFILE_ZONE("gui.support.permission_rows.append");
-    // Before "Carry on without a driver", which stays the last row.
+    // Before "Continue without a driver", which stays the last row.
     for (const perm::fact& fact : facts)
     {
         std::optional<setup_row> row;

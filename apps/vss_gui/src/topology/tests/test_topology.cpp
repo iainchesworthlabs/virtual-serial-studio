@@ -12,6 +12,7 @@
 #include "theme/focus_ring_style.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
+#include "topology/link_item.hpp"
 #include "topology/links_list.hpp"
 #include "topology/node_item.hpp"
 #include "topology/topology_layout.hpp"
@@ -1918,6 +1919,46 @@ TEST_CASE("topology: asking for the GPU where there is none leaves a working "
                 vss::gui::rendering::renderer::software);
     }
     vss::gui::rendering::set_state({});
+}
+
+TEST_CASE("topology: an item reports a change in its drawing, not a move")
+{
+    // The GPU canvas keeps a texture per item and makes it again only when
+    // the item's revision moves, so a move must not count and a change in
+    // what is drawn must.
+    topo::node_data data;
+    data.id = 1;
+    data.name = QStringLiteral("a");
+    topo::NodeItem node(data, QSizeF(168.0, 56.0), {});
+    const quint64 made = node.revision();
+    node.setPos(40.0, 40.0);
+    REQUIRE(node.revision() == made);
+    node.set_state(true, false, false);
+    const quint64 selected = node.revision();
+    REQUIRE(selected != made);
+    node.set_state(true, false, false);
+    REQUIRE(node.revision() == selected);
+    node.set_in_loop(true);
+    REQUIRE(node.revision() != selected);
+
+    topo::link_data link;
+    link.id = 1;
+    topo::LinkItem item(link, {});
+    topo::topo_link_placement placement;
+    placement.id = 1;
+    placement.segments = {QLineF(0.0, 0.0, 100.0, 0.0)};
+    placement.stroke.moveTo(0.0, 0.0);
+    placement.stroke.lineTo(100.0, 0.0);
+    item.set_geometry(placement);
+    const quint64 placed = item.revision();
+    REQUIRE(placed != 1);
+    // The same geometry again, as every link gets when another node moves.
+    item.set_geometry(placement);
+    REQUIRE(item.revision() == placed);
+    placement.stroke.lineTo(120.0, 10.0);
+    item.set_geometry(placement);
+    REQUIRE(item.revision() != placed);
+    REQUIRE(item.geometry() == placement);
 }
 
 TEST_CASE("topology: a zoom button shows the focus ring for keyboard focus")
