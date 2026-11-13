@@ -105,6 +105,13 @@ void require_inside_limits(const plugin::manifest& value)
             require(value.find(plugin::permission::modifier_inline) !=
                     nullptr);
         }
+        if (point.kind == plugin::extension_kind::decoder)
+        {
+            require(point.timing.type == plugin::timing_class::async);
+            const plugin::permission_request* const tap =
+                value.find(plugin::permission::traffic_tap);
+            require(tap != nullptr && tap->required);
+        }
     }
     for (const plugin::bundle_section& section : value.bundle_sections)
     {
