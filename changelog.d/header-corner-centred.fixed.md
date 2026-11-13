@@ -1,0 +1,1 @@
+**The search field and the Simple and Advanced switch are centred in the header row.** They had been stretched to the full height of the menu bar, so the search field showed empty space above its text and the toggle sat against the top edge.

@@ -309,6 +309,7 @@ struct request_writer
         header["op"] = "hello";
         header["protocol"] = body.protocol;
         header["client"] = clean_text(body.client);
+        header["read_only"] = body.read_only;
     }
     void operator()(const list_request&) const { header["op"] = "list"; }
     void operator()(const create_port_request& body) const
@@ -359,6 +360,10 @@ result<request_body> read_request_body(const json::object& header,
         hello_request body;
         if (!read_u32(header, "protocol", body.protocol) ||
             !read_text(header, "client", body.client))
+            return malformed();
+        // Left out means a connection that may change things, as before.
+        if (header.contains("read_only") &&
+            !read_bool(header, "read_only", body.read_only))
             return malformed();
         return request_body{std::move(body)};
     }
@@ -477,6 +482,7 @@ struct reply_writer
         for (const std::string& kind : body.port_kinds)
             kinds.emplace_back(clean_text(kind));
         header["port_kinds"] = std::move(kinds);
+        header["read_only"] = body.read_only;
     }
     void operator()(const list_reply& body) const
     {
@@ -522,6 +528,9 @@ result<reply_body> read_reply_body(const json::object& header,
         if (kinds == nullptr || !read_u32(header, "protocol", body.protocol) ||
             !read_text(header, "agent_version", body.agent_version) ||
             !read_u64(header, "process_id", body.process_id))
+            return malformed();
+        if (header.contains("read_only") &&
+            !read_bool(header, "read_only", body.read_only))
             return malformed();
         for (const json::value& item : *kinds)
         {
@@ -601,6 +610,8 @@ bool event_from_json(const json::value& item, const byte_buffer& blob,
         return false;
     if (event.contains("error") && !read_error(event, "error", out.error))
         return false;
+    if (event.contains("when") && !read_u64(event, "when", out.when_ns))
+        return false;
     if (stored > blob.size() - cursor)
         return false;
     const auto first = blob.begin() + static_cast<std::ptrdiff_t>(cursor);
@@ -671,6 +682,8 @@ frame encode(const event_batch& value)
         event["message"] = clean_text(record.message);
         if (record.error != wire_error{})
             event["error"] = error_to_json(record.error);
+        if (record.when_ns != 0)
+            event["when"] = record.when_ns;
         events.emplace_back(std::move(event));
         blob.insert(blob.end(), record.data.begin(), record.data.end());
     }

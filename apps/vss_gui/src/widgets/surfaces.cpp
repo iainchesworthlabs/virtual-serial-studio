@@ -112,6 +112,34 @@ void PaneHeader::add_leading(QWidget* widget)
     ++leading_index_;
 }
 
+void PaneHeader::set_fill(QWidget* widget)
+{
+    if (fill_ != nullptr)
+    {
+        layout_->removeWidget(fill_);
+        fill_ = nullptr;
+    }
+    // The spacer after the title keeps no stretch while a fill widget takes
+    // all the spare width.
+    const int spacer = leading_index_;
+    if (widget == nullptr)
+    {
+        layout_->setStretch(spacer, 1);
+        return;
+    }
+    layout_->insertWidget(leading_index_, widget, 1);
+    layout_->setStretch(leading_index_ + 1, 0);
+    fill_ = widget;
+}
+
+int PaneHeader::lead_width() const
+{
+    const int count = count_->isHidden() ? 0 : count_->sizeHint().width();
+    return layout_->contentsMargins().left() +
+           layout_->contentsMargins().right() + title_->sizeHint().width() +
+           count + 2 * layout_->spacing();
+}
+
 Pane::Pane(const QString& title, QWidget* parent) : QFrame(parent)
 {
     setProperty("pane", true);

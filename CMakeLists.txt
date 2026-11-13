@@ -15,6 +15,9 @@
 #   libs/vss_agent_proto the wire protocol of the per-user agent
 #   libs/vss_agent       the agent's local transport, server and client
 #   libs/vss_plugin      plugin manifests and the checks made before a plugin runs
+#   libs/vss_control_proto the control API: messages, errors, the policy table
+#   libs/vss_control     the control gateway, its audit log and its client
+#   apps/vss_gate        the control gateway program
 #   apps/                command line tool and Qt 6 GUI
 #   tests/               unit, system and integration suites
 #   perf/                throughput and latency floors
@@ -59,17 +62,18 @@ option(VSS_BUILD_TOOLS
   "Build the auxiliary developer tools" ${VSS_IS_TOP_LEVEL})
 option(VSS_COVERAGE
   "Instrument the libraries for statement and branch coverage" OFF)
-# Tracy is part of a normal Debug build: the client is compiled in and waits
-# for a profiler, so it can be attached at any point. Release keeps it out by
-# default, but -DVSS_TRACY=ON builds a release binary that can still be
-# profiled when something needs triage. Without the vcpkg toolchain there is
-# no package to find, so the Debug default only applies when it is present.
+# Tracy is compiled into every build that can find it, Debug and Release alike.
+# Debug starts it by itself so a profiler can attach at any point; Release keeps
+# it dormant (no thread, no socket) until Settings, --profile or VSS_PROFILE
+# switches it on, so a problem seen in a release build can still be profiled.
+# Without the vcpkg toolchain there is no package to find, so the default only
+# applies when it is present.
 set(_vss_tracy_default OFF)
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND DEFINED VCPKG_TARGET_TRIPLET)
+if(DEFINED VCPKG_TARGET_TRIPLET)
   set(_vss_tracy_default ON)
 endif()
 option(VSS_TRACY
-  "Instrument with Tracy: on by default in vcpkg Debug builds" ${_vss_tracy_default})
+  "Instrument with Tracy: on by default in vcpkg builds" ${_vss_tracy_default})
 unset(_vss_tracy_default)
 option(VSS_INSTALL
   "Generate install and package configuration rules" ${VSS_IS_TOP_LEVEL})
@@ -106,6 +110,7 @@ include(VssVirtualSerial)
 include(VssCoverage)
 include(VssSanitizers)
 include(VssTracy)
+include(VssBuildInfo)
 include(VssWindowsResources)
 include(VssFuzz)
 
@@ -124,6 +129,7 @@ endif()
 if(VSS_BUILD_TOOLS)
   add_subdirectory(apps/vss_cli)
   add_subdirectory(apps/vss_agent)
+  add_subdirectory(apps/vss_gate)
 endif()
 
 if(VSS_BUILD_GUI)
@@ -151,6 +157,14 @@ if(VSS_INSTALL)
     DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio
     COMPONENT runtime)
   install(FILES LICENSES/BSL-1.0.txt LICENSES/GPL-3.0-or-later.txt
+    DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio/LICENSES
+    COMPONENT runtime)
+  # The fonts are inside the program (Qt resources); their licences ship beside
+  # the others.
+  install(FILES
+    apps/vss_gui/assets/fonts/IBMPlexMono-OFL.txt
+    apps/vss_gui/assets/fonts/NotoSansArabic-OFL.txt
+    apps/vss_gui/assets/fonts/NotoSansHebrew-OFL.txt
     DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio/LICENSES
     COMPONENT runtime)
 

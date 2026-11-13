@@ -25,6 +25,9 @@ class PortDelegate final : public QStyledItemDelegate
 public:
     explicit PortDelegate(QObject* parent = nullptr);
 
+    /// Width of a state chip holding `text`, as painted.
+    static int state_chip_width(const QString& text);
+
     void set_compact(bool compact);
     void set_table_mode(bool table) { table_ = table; }
     void set_copy_handler(std::function<void(vss::endpoint_id)> handler)

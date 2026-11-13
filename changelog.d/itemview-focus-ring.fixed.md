@@ -1,0 +1,1 @@
+**Lists, tables and trees now show a focus ring on the current row when you reach them with the keyboard.** Tabbing into the Simple mode setups list, the ports tables or any other list, table or tree draws the same 2 px ring as other controls, in both themes. Clicking with the mouse still shows no ring.

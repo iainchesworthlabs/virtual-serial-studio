@@ -16,6 +16,10 @@ vss_add_fuzz_target(fuzz_agent_frame
   SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_agent_proto/fuzz/fuzz_agent_frame.cpp"
   LIBS vss_agent_proto)
 
+vss_add_fuzz_target(fuzz_control_message
+  SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_control_proto/fuzz/fuzz_control_message.cpp"
+  LIBS vss_control_proto)
+
 vss_add_fuzz_target(fuzz_plugin_manifest
   SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_plugin/fuzz/fuzz_plugin_manifest.cpp"
   LIBS vss_plugin)

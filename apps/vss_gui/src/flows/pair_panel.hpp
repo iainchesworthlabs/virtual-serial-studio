@@ -40,6 +40,14 @@ struct pair_outcome
     QString second_path;
 };
 
+/// What `PairPanel::prepare_pair` read from the form, so the ports can be made
+/// on a worker thread without touching a widget.
+struct pair_request
+{
+    QString base;
+    bool emulate_modem_lines = true;
+};
+
 /// The linked-pair form, shared by the Add a port dialog and the standalone
 /// Connect two programs dialog.
 ///
@@ -68,6 +76,15 @@ public:
     /// Returns the error in `error` when creation fails.  Any port created
     /// before the failure is removed again, so a failed call changes nothing.
     std::optional<pair_outcome> create_pair(flow_error* error = nullptr);
+
+    /// The two halves of `create_pair`.  `prepare_pair` reads and checks the
+    /// form on the GUI thread.  `run_pair` makes the ports and the link, which
+    /// takes seconds where Windows installs a device, so it may run on a
+    /// worker thread: it touches no widget.  The caller refreshes the backend
+    /// afterwards on the GUI thread.
+    std::optional<pair_request> prepare_pair(flow_error* error = nullptr);
+    std::optional<pair_outcome> run_pair(const pair_request& request,
+                                         flow_error* error = nullptr);
 
     QLineEdit* pair_name_edit() const noexcept { return pair_name_; }
     QLineEdit* first_port_edit() const noexcept { return first_port_; }
