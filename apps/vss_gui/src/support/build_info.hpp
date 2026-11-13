@@ -49,6 +49,8 @@ struct build_info
     QString platform_plugin;
     QString display;
     QString profiling;
+    /// What draws the canvas now: hardware (GPU) or software (CPU).
+    QString renderer;
     /// The language chosen at start-up and the languages the system offered.
     QString language;
 

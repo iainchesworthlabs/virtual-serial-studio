@@ -311,6 +311,11 @@
             <source>SIL Open Font License, version 1.1.</source>
             <translation>رخصة الخطوط المفتوحة SIL، الإصدار 1.1.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>المُصيِّر</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -6087,6 +6092,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>تعذر بدء نظام الرسوميات (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>لم يُذكر سبب</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>جهاز الرسوميات الوحيد الذي عُثر عليه هو معالج عرض برمجي (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>الأجهزة (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>الأجهزة (GPU): %1، %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>البرمجيات (CPU)، بسبب: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>البرمجيات (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>توقف جهاز الرسوميات عن العمل.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>لم يتم إنشاء جهاز رسوميات</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6414,6 +6458,38 @@ Networks: %5</source>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
             <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
             <translation>لمعرفة سبب بطء Studio. يسجّل الأزمنة فقط ولا يرسل شيئًا إلى أي مكان: يستمع Studio على هذا الحاسوب فقط، ولا يظهر مخطط زمني إلا عندما تشغّل محلل Tracy هنا وتوصله بالعنوان أعلاه. يتذكّر Studio هذا المفتاح ويسجّل مجددًا عند بدء تشغيله في المرة التالية. السماح لحواسيب أخرى بالاتصال يتطلب إعادة التشغيل.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>العرض</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>تلقائي</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>الأجهزة (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>البرمجيات (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>وضع الأجهزة يرسم اللوحة على بطاقة الرسوميات، فتبقى سلسة مع المنافذ الكثيرة. وضع البرمجيات يرسمها على المعالج. الوضع التلقائي يستخدم بطاقة الرسوميات عند وجود بطاقة صالحة للاستخدام.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>الرسم الحالي: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>أعد تشغيل Studio لاستخدام هذا الاختيار.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>تم تعيين VSS_RENDER أو ‎--render، لذلك يتجاوز هذا الاختيار.</translation>
         </message>
     </context>
     <context>
@@ -9088,6 +9164,10 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>تم إعداد Virtual Serial Studio. يمكن للبرامج الأخرى فتح المنافذ الجديدة.</translation>
+        </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>تُرسم اللوحة على المعالج: %1</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1" />

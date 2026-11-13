@@ -311,6 +311,11 @@
             <source>SIL Open Font License, version 1.1.</source>
             <translation>SIL Open Font License, Version 1.1.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>Renderer</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -6079,6 +6084,45 @@ Netzwerke: %5</translation>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>Das Grafiksystem konnte nicht gestartet werden (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>kein Grund angegeben</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>Das einzige gefundene Grafikgerät ist ein Software-Renderer (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>Hardware (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>Software (CPU), weil: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>Das Grafikgerät funktioniert nicht mehr.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>es wurde kein Grafikgerät erstellt</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6402,6 +6446,38 @@ Netzwerke: %5</translation>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
             <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
             <translation>Hilft herauszufinden, warum Studio langsam ist. Es zeichnet nur Zeiten auf und sendet nichts irgendwohin: Studio lauscht nur auf diesem Computer, und eine Zeitleiste erscheint nur, wenn Sie den Tracy-Profiler hier starten und mit der Adresse oben verbinden. Studio merkt sich diesen Schalter und zeichnet beim nächsten Start wieder auf. Anderen Computern die Verbindung zu erlauben, erfordert einen Neustart.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>Darstellung</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>Automatisch</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>Hardware zeichnet die Zeichenfläche auf der Grafikkarte, das bleibt auch mit vielen Ports flüssig. Software zeichnet sie auf dem Prozessor. Automatisch verwendet die Grafikkarte, wenn eine nutzbare vorhanden ist.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>Aktuell gezeichnet mit: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>Starten Sie Studio neu, um diese Auswahl zu verwenden.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER oder --render ist gesetzt und überschreibt diese Auswahl.</translation>
         </message>
     </context>
     <context>
@@ -9064,6 +9140,10 @@ Netzwerke: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio ist eingerichtet. Neue Ports können von anderen Programmen geöffnet werden.</translation>
+        </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>Die Zeichenfläche wird auf dem Prozessor gezeichnet: %1</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1" />

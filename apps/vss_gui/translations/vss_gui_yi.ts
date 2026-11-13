@@ -311,6 +311,11 @@
             <source>SIL Open Font License, version 1.1.</source>
             <translation>SIL Open Font License, ווערסיע 1.1.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>רענדערער</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -6079,6 +6084,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>די גראַפֿיק־סיסטעם האָט נישט געקענט סטאַרטירן (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>קיין סיבה נישט געגעבן</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>דער איינציקער גראַפֿיק־אָרגאַן וואָס מען האָט געפֿונען איז אַ ווייכווער־רענדערער (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>האַרדווער (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>האַרדווער (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>ווייכווער (CPU), ווײַל: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ווייכווער (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>דער גראַפֿיק־אָרגאַן האָט אויפֿגעהערט צו אַרבעטן.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>קיין גראַפֿיק־אָרגאַן איז נישט געשאַפֿן געוואָרן</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6402,6 +6446,38 @@ Networks: %5</source>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
             <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
             <translation>כּדי צו פֿאַרשטיין פֿאַרוואָס Studio איז לאַנגזאַם. עס רעקאָרדירט נאָר צײַטן און שיקט גאָרנישט אין קיין אָרט: Studio הערט זיך נאָר אויף דעם קאָמפּיוטער, און אַ צײַט־שורה דערשײַנט נאָר ווען דו הייבסט דאָ אָן דעם Tracy־פּראָפֿילער און פֿאַרבינדסט אים צו דער אַדרעס אויבן. Studio געדענקט דעם שאַלטער און רעקאָרדירט ווידער דעם נאָכגענדיקן מאָל ווען עס הייבט זיך אָן. צו דערלויבן אַנדערע קאָמפּיוטערס זיך צו פֿאַרבינדן דאַרף מען ריסטאַרטן.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>רענדערינג</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אויטאָמאַטיש</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>האַרדווער (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ווייכווער (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>האַרדווער צייכנט דעם קאַנוואַס אויף דער גראַפֿיק־קאַרטע, וואָס האַלט אים גלאַט מיט אַ סך פּאָרטן. ווייכווער צייכנט אים אויפֿן פּראָצעסאָר. אויטאָמאַטיש נוצט די גראַפֿיק־קאַרטע ווען עס איז דאָ איינע וואָס מען קען נוצן.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>איצט געצייכנט מיט: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>סטאַרט Studio איבער כּדי צו נוצן דעם אויסוואַל.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER אָדער ‎--render איז באַשטימט, דעריבער איבערשרייבט עס דעם אויסוואַל.</translation>
         </message>
     </context>
     <context>
@@ -9064,6 +9140,10 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio איז אײַנגעשטעלט. אַנדערע פּראָגראַמען קענען עפֿענען נײַע פּאָרטן.</translation>
+        </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>דער קאַנוואַס ווערט געצייכנט אויפֿן פּראָצעסאָר: %1</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1" />

@@ -317,7 +317,7 @@ TEST_CASE("support: build information and environment are separate reports")
         environment_labels << row.label;
     for (const char* label :
          {"Operating system", "Architecture", "Kernel", "Qt running",
-          "Platform plugin", "Display", "Language", "Profiling"})
+          "Platform plugin", "Display", "Renderer", "Language", "Profiling"})
         REQUIRE(environment_labels.contains(QString::fromLatin1(label)));
     for (const QString& label : build_labels)
         REQUIRE(!environment_labels.contains(label));

@@ -9,7 +9,7 @@ Qt 6 is optional and only needed for the GUI. CMake looks for it through
 Qt's own config package first, then looks in `VSS_QT_ROOT`, `ICL_QT_ROOT`,
 `QT_ROOT_DIR`, `QTDIR` and the usual install locations. The
 `*-gui` presets make a missing Qt an error instead of silently building the
-CLI alone. The GUI needs Qt 6.2 or newer with Widgets, Svg, Network and the Linguist
+CLI alone. The GUI needs Qt 6.11 or newer with Widgets, Svg, Network, Qt Canvas Painter and the Linguist
 tools; the GUI test programs also need Qt Test.
 
 ```bash
