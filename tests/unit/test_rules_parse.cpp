@@ -597,7 +597,8 @@ TEST_CASE("rules: parse reads after, precision and each kind of delay")
         {"match_end", edge::match_end},
         {"match_start", edge::match_start},
         {"previous", edge::previous},
-        {"run_start", edge::run_start}};
+        {"run_start", edge::run_start},
+        {"cause", edge::cause}};
     for (const auto& [name, kind] : edges)
     {
         const action each = action_of(
@@ -1348,4 +1349,191 @@ TEST_CASE("rules: compile reports a do list where it was written")
     REQUIRE_EQ(problems[0].path, std::string("rules[0].do[0].set_state"));
     REQUIRE_EQ(problems[1].path,
                std::string("rules[1].sequence[0].do[0].set_state"));
+}
+
+TEST_CASE("rules: parse reads quiet_us and signal of a trigger")
+{
+    const trigger quiet = trigger_of(R"j({"quiet_us": 4500})j");
+    REQUIRE(quiet.quiet == microseconds(4500));
+    REQUIRE(quiet.signal.empty());
+    REQUIRE(quiet.bytes.empty());
+    REQUIRE(quiet.state.empty());
+
+    const trigger in_state =
+        trigger_of(R"j({"quiet_us": 1, "state": "waiting"})j");
+    REQUIRE(in_state.quiet == microseconds(1));
+    REQUIRE_EQ(in_state.state, std::string("waiting"));
+
+    // The reader takes anything up to the longest time; the compiler holds
+    // a rule on silence to 60 seconds.
+    REQUIRE(trigger_of(R"j({"quiet_us": 86400000000})j").quiet ==
+            microseconds(86'400'000'000));
+
+    const trigger signal = trigger_of(R"j({"signal": "bad_crc"})j");
+    REQUIRE_EQ(signal.signal, std::string("bad_crc"));
+    REQUIRE(signal.quiet == microseconds(0));
+    REQUIRE(signal.bytes.empty());
+
+    const trigger armed =
+        trigger_of(R"j({"signal": "bad_crc", "state": "armed"})j");
+    REQUIRE_EQ(armed.signal, std::string("bad_crc"));
+    REQUIRE_EQ(armed.state, std::string("armed"));
+
+    // A trigger of the older kinds has neither.
+    const trigger bytes = trigger_of(R"j({"bytes": "01"})j");
+    REQUIRE(bytes.quiet == microseconds(0));
+    REQUIRE(bytes.signal.empty());
+
+    // Whether a rule has exactly one trigger is the compiler's to say.
+    const trigger both = trigger_of(R"j({"bytes": "01", "quiet_us": 7})j");
+    REQUIRE(!both.bytes.empty());
+    REQUIRE(both.quiet == microseconds(7));
+}
+
+TEST_CASE("rules: parse reads the signals of a set")
+{
+    REQUIRE(parse_ok(R"j({"attach": {"port": "p", "role": "peer"}})j")
+                .signals.empty());
+    REQUIRE(parse_ok(R"j({"attach": {"port": "p", "role": "peer"},
+                          "signals": []})j")
+                .signals.empty());
+
+    const rule_set_source source = parse_ok(
+        R"j({"attach": {"port": "p", "role": "peer"},
+             "signals": ["zeta", "alpha", "mid"]})j");
+    REQUIRE_EQ(source.signals.size(), std::size_t{3});
+    REQUIRE_EQ(source.signals[0], std::string("zeta"));
+    REQUIRE_EQ(source.signals[1], std::string("alpha"));
+    REQUIRE_EQ(source.signals[2], std::string("mid"));
+
+    // At the limit itself the list is read.
+    REQUIRE_EQ(
+        parse_ok(R"j({"attach": {"port": "p", "role": "peer"}, "signals": [)j" +
+                 repeat_items("\"a\"", max_signals) + "]}")
+            .signals.size(),
+        max_signals);
+}
+
+TEST_CASE("rules: parse reads a document with signals, a signal rule and "
+          "a rule on silence")
+{
+    const rule_set_source source = parse_ok(
+        R"j({
+  "attach": { "port": "meter", "role": "station" },
+  "states": ["idle", "waiting"],
+  "signals": ["checksum_failed", "address_seen"],
+  "rules": [
+    {
+      "name": "request",
+      "when": { "bytes": "11 03" },
+      "do": [ { "set_state": "waiting" } ]
+    },
+    {
+      "name": "no reply came",
+      "when": { "quiet_us": 250000, "state": "waiting" },
+      "do": [ { "mark": "timeout" }, { "set_state": "idle" } ]
+    },
+    {
+      "name": "break on a bad checksum",
+      "when": { "signal": "checksum_failed", "state": "idle" },
+      "do": [ { "line_error": "break", "after": "cause",
+                "delay": { "fixed_us": 2000 } },
+              { "reply": [ { "match": [0, 1] } ] } ]
+    }
+  ]
+})j");
+    REQUIRE_EQ(source.states.size(), std::size_t{2});
+    REQUIRE_EQ(source.signals.size(), std::size_t{2});
+    REQUIRE_EQ(source.signals[0], std::string("checksum_failed"));
+    REQUIRE_EQ(source.signals[1], std::string("address_seen"));
+    REQUIRE_EQ(source.rules.size(), std::size_t{3});
+
+    const rule& silent = source.rules[1];
+    REQUIRE(silent.when.quiet == microseconds(250'000));
+    REQUIRE_EQ(silent.when.state, std::string("waiting"));
+    REQUIRE(silent.when.bytes.empty());
+    REQUIRE(silent.when.signal.empty());
+    REQUIRE_EQ(silent.sequence.size(), std::size_t{1});
+    REQUIRE_EQ(silent.sequence[0].actions.size(), std::size_t{2});
+    REQUIRE(silent.sequence[0].actions[1].kind == action_kind::set_state);
+
+    const rule& signalled = source.rules[2];
+    REQUIRE_EQ(signalled.when.signal, std::string("checksum_failed"));
+    REQUIRE_EQ(signalled.when.state, std::string("idle"));
+    REQUIRE(signalled.when.quiet == microseconds(0));
+    REQUIRE(signalled.when.bytes.empty());
+    REQUIRE_EQ(signalled.sequence.size(), std::size_t{1});
+    REQUIRE_EQ(signalled.sequence[0].actions.size(), std::size_t{2});
+    const action& error = signalled.sequence[0].actions[0];
+    REQUIRE(error.kind == action_kind::raise_error);
+    REQUIRE(error.when.after == edge::cause);
+    REQUIRE(error.when.delay.kind == delay_kind::fixed);
+    REQUIRE(error.when.delay.fixed == microseconds(2000));
+
+    // The set means something, too.
+    std::vector<problem> problems;
+    const auto compiled = compile(source, &problems);
+    if (!compiled)
+        throw vss_test::failure("rejected:" + describe(problems));
+    REQUIRE_EQ((*compiled)->signals.size(), std::size_t{2});
+    REQUIRE(problems.empty());
+}
+
+TEST_CASE("rules: parse refuses quiet_us, signal and signals of the wrong type")
+{
+    const std::string base = std::string(head);
+    for (const char* number :
+         {"-1", "0.5", "1e3", "86400000001", "\"5\"", "true", "null", "[]"})
+    {
+        require_refused(
+            with_rule(std::string(R"j({"name": "r", "when": {"quiet_us": )j") +
+                      number + R"j(}, "do": []})j"),
+            "rules[0].when.quiet_us");
+    }
+    for (const char* value : {"5", "true", "null", "[]", "{}"})
+    {
+        require_refused(
+            with_rule(std::string(R"j({"name": "r", "when": {"signal": )j") +
+                      value + R"j(}, "do": []})j"),
+            "rules[0].when.signal");
+    }
+    require_refused(base + R"j("signals": {}})j", "signals");
+    require_refused(base + R"j("signals": "a"})j", "signals");
+    require_refused(base + R"j("signals": ["a", 2]})j", "signals[1]");
+    require_refused(base + R"j("signals": [null, "b"]})j", "signals[0]");
+    // The key of the document is "signals", and of a trigger "signal".
+    require_refused(base + R"j("signal": ["a"]})j", "signal");
+
+    // The unknown-key check still sees a misspelling of the new keys.
+    require_refused(
+        with_rule(R"j({"name": "r", "when": {"quiet": 5}, "do": []})j"),
+        "rules[0].when.quiet");
+    require_refused(
+        with_rule(R"j({"name": "r", "when": {"signals": "s"}, "do": []})j"),
+        "rules[0].when.signals");
+}
+
+TEST_CASE("rules: parse refuses a quiet_us of zero, which is no silence")
+{
+    // Zero is what the model holds for "not set", so the reader refuses it
+    // by name, and a rule that also has another trigger does not slip by.
+    require_refused(
+        with_rule(R"j({"name": "r", "when": {"quiet_us": 0}, "do": []})j"),
+        "rules[0].when.quiet_us");
+    require_refused(
+        with_rule(
+            R"j({"name": "r", "when": {"bytes": "01", "quiet_us": 0}, "do": []})j"),
+        "rules[0].when.quiet_us");
+    // The shortest silence is accepted.
+    parse_ok(
+        with_rule(R"j({"name": "r", "when": {"quiet_us": 1}, "do": []})j"));
+}
+
+TEST_CASE(
+    "rules: parse refuses a list of signals longer than its limit, unread")
+{
+    require_refused(
+        R"j({"attach": {"port": "p", "role": "peer"}, "signals": [)j" +
+            repeat_items("5", max_signals + 1) + "]}",
+        "signals");
 }

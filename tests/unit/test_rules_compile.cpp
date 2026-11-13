@@ -1309,3 +1309,334 @@ TEST_CASE("rules: compile clears an old list when it succeeds")
     REQUIRE(compile(with_action(mark()), &problems));
     REQUIRE(problems.empty());
 }
+
+// -- quiet and signal --------------------------------------------------------
+
+namespace
+{
+
+/// A rule on `quiet` microseconds of silence.
+rule quiet_rule(std::string name, std::int64_t quiet, std::vector<action> list)
+{
+    rule out = rule_of(std::move(name), {}, std::move(list));
+    out.when.quiet = microseconds(quiet);
+    return out;
+}
+
+/// A rule on the signal `signal`.
+rule signal_rule(std::string name, std::string signal, std::vector<action> list)
+{
+    rule out = rule_of(std::move(name), {}, std::move(list));
+    out.when.signal = std::move(signal);
+    return out;
+}
+
+/// A set that declares the signal `s` and has one rule on it that does `one`.
+rule_set_source on_signal(action one, role as = role::peer)
+{
+    rule_set_source out = set_of(as);
+    out.signals = {"s"};
+    std::vector<action> list;
+    list.push_back(std::move(one));
+    out.rules.push_back(signal_rule("r", "s", std::move(list)));
+    return out;
+}
+
+/// A set that has one rule on silence that does `one`.
+rule_set_source on_quiet(action one, role as = role::peer)
+{
+    rule_set_source out = set_of(as);
+    std::vector<action> list;
+    list.push_back(std::move(one));
+    out.rules.push_back(quiet_rule("r", 1000, std::move(list)));
+    return out;
+}
+
+action match_reply(std::size_t first, std::size_t last)
+{
+    action out = of_kind(action_kind::reply);
+    reply_part part;
+    part.kind = part_kind::match;
+    part.first = first;
+    part.last = last;
+    out.parts.push_back(part);
+    return out;
+}
+
+action copy_to_slot(std::size_t first, std::size_t last)
+{
+    action out = of_kind(action_kind::set_slot);
+    out.slot = "s";
+    out.first = first;
+    out.last = last;
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("rules: compile resolves a rule on silence and a rule on a signal")
+{
+    rule_set_source source = set_of(role::station);
+    source.states = {"idle", "waiting"};
+    source.signals = {"first", "second"};
+
+    rule silent = quiet_rule("silent", 250'000, {mark("late")});
+    silent.when.state = "waiting";
+    source.rules.push_back(silent);
+    source.rules.push_back(signal_rule("second one", "second", {mark("2")}));
+    source.rules.push_back(signal_rule("first one", "first", {mark("1")}));
+    source.rules.back().when.state = "idle";
+    source.rules.push_back(rule_of("bytes", buf({1, 2, 3}), {mark()}));
+
+    const auto set = compile_ok(source);
+    REQUIRE_EQ(set->signals.size(), std::size_t{2});
+    REQUIRE_EQ(set->signals[0], std::string("first"));
+    REQUIRE_EQ(set->signals[1], std::string("second"));
+    REQUIRE_EQ(set->rules.size(), std::size_t{4});
+
+    const compiled_rule& quiet = set->rules[0];
+    REQUIRE(quiet.kind == trigger_kind::quiet);
+    REQUIRE(quiet.quiet == microseconds(250'000));
+    REQUIRE_EQ(quiet.state, std::size_t{1});
+    REQUIRE_EQ(quiet.signal, no_index);
+    REQUIRE_EQ(quiet.length, std::size_t{0});
+
+    REQUIRE(set->rules[1].kind == trigger_kind::signal);
+    REQUIRE_EQ(set->rules[1].signal, std::size_t{1});
+    REQUIRE_EQ(set->rules[1].state, no_index);
+    REQUIRE_EQ(set->rules[1].length, std::size_t{0});
+    REQUIRE(set->rules[1].quiet == microseconds(0));
+    REQUIRE(set->rules[2].kind == trigger_kind::signal);
+    REQUIRE_EQ(set->rules[2].signal, std::size_t{0});
+    REQUIRE_EQ(set->rules[2].state, std::size_t{0});
+
+    // The older kinds name no signal and wait for no silence.
+    REQUIRE(set->rules[3].kind == trigger_kind::bytes);
+    REQUIRE_EQ(set->rules[3].signal, no_index);
+    REQUIRE(set->rules[3].quiet == microseconds(0));
+    REQUIRE_EQ(set->longest_pattern, std::size_t{3});
+
+    // A set with no signals has none.
+    REQUIRE(compile_ok(with_action(mark()))->signals.empty());
+}
+
+TEST_CASE("rules: compile wants exactly one of bytes, lines, port, quiet and "
+          "signal")
+{
+    // One of the new kinds alone is accepted.
+    compile_ok(on_quiet(mark()));
+    compile_ok(on_signal(mark()));
+
+    rule_set_source quiet_and_bytes = with_action(mark());
+    quiet_and_bytes.rules[0].when.quiet = microseconds(5);
+    require_only(quiet_and_bytes, "rules[0].when");
+
+    rule_set_source signal_and_bytes = with_action(mark());
+    signal_and_bytes.signals = {"s"};
+    signal_and_bytes.rules[0].when.signal = "s";
+    require_only(signal_and_bytes, "rules[0].when");
+
+    rule_set_source quiet_and_signal = on_signal(mark());
+    quiet_and_signal.rules[0].when.quiet = microseconds(5);
+    require_only(quiet_and_signal, "rules[0].when");
+
+    rule_set_source quiet_and_port = on_quiet(mark());
+    quiet_and_port.rules[0].when.port = port_event::opened;
+    require_only(quiet_and_port, "rules[0].when");
+
+    rule_set_source signal_and_lines = on_signal(mark());
+    signal_and_lines.rules[0].when.lines.push_back(
+        line_value{control_line::cts, true});
+    require_only(signal_and_lines, "rules[0].when");
+
+    // A quiet of zero is "not set": with nothing else there is no trigger.
+    // (The reader refuses a written 0 by name, at "quiet_us".)
+    rule_set_source zero = on_quiet(mark());
+    zero.rules[0].when.quiet = microseconds(0);
+    require_only(zero, "rules[0].when");
+
+    // A gap or a mask goes with bytes, not with silence or a signal.
+    rule_set_source quiet_with_gap = on_quiet(mark());
+    quiet_with_gap.rules[0].when.gap = microseconds(5);
+    require_only(quiet_with_gap, "rules[0].when");
+    rule_set_source signal_with_mask = on_signal(mark());
+    signal_with_mask.rules[0].when.mask = buf({0xff});
+    require_only(signal_with_mask, "rules[0].when");
+}
+
+TEST_CASE("rules: compile takes a quiet of 1 us to 60 s")
+{
+    rule_set_source source = on_quiet(mark());
+    source.rules[0].when.quiet = microseconds(1);
+    compile_ok(source);
+    source.rules[0].when.quiet = microseconds(60'000'000);
+    compile_ok(source);
+
+    source.rules[0].when.quiet = microseconds(60'000'001);
+    require_only(source, "rules[0].when.quiet_us");
+    source.rules[0].when.quiet = microseconds(-1);
+    require_only(source, "rules[0].when.quiet_us");
+    source.rules[0].when.quiet = microseconds(86'400'000'000);
+    require_only(source, "rules[0].when.quiet_us");
+}
+
+TEST_CASE("rules: compile refuses a signal that the set does not declare")
+{
+    rule_set_source source = on_signal(mark());
+    compile_ok(source);
+
+    source.rules[0].when.signal = "other";
+    require_only(source, "rules[0].when.signal");
+
+    source.signals.clear();
+    source.rules[0].when.signal = "s";
+    require_only(source, "rules[0].when.signal");
+
+    // A declared signal that no rule uses is fine.
+    rule_set_source unused = with_action(mark());
+    unused.signals = {"s"};
+    compile_ok(unused);
+}
+
+TEST_CASE("rules: compile refuses bad signals")
+{
+    rule_set_source source = with_action(mark());
+    source.signals = {"a", "b"};
+    compile_ok(source);
+
+    source.signals = {"a", "a"};
+    require_only(source, "signals[1]");
+    source.signals = {"a", ""};
+    require_only(source, "signals[1]");
+    source.signals = {"", "a"};
+    require_only(source, "signals[0]");
+    source.signals = {"a", std::string(max_name_bytes + 1, 'x')};
+    require_only(source, "signals[1]");
+    source.signals = {"a", std::string(max_name_bytes, 'x')};
+    compile_ok(source);
+
+    // A signal and a state of the same name are two different things.
+    source.signals = {"a"};
+    source.states = {"a"};
+    compile_ok(source);
+
+    source.states.clear();
+    source.signals.clear();
+    for (std::size_t i = 0; i < max_signals; ++i)
+        source.signals.push_back("s" + std::to_string(i));
+    compile_ok(source);
+    source.signals.push_back("s" + std::to_string(max_signals));
+    require_only(source, "signals");
+}
+
+TEST_CASE("rules: compile allows the edge cause on a rule on a signal only")
+{
+    action caused = mark();
+    caused.when.after = edge::cause;
+    caused.when.delay.fixed = microseconds(2000);
+    action reply = reply_of(buf({1}));
+    reply.when.after = edge::cause;
+
+    // On a signal it is accepted, in the rule's actions and in an on_timeout.
+    compile_ok(on_signal(caused));
+    compile_ok(on_signal(reply));
+    action ask = of_kind(action_kind::ask);
+    ask.timeout = microseconds(5000);
+    ask.on_timeout.push_back(caused);
+    compile_ok(on_signal(ask));
+
+    // Anywhere else it is not.
+    require_only(with_action(caused), action_path(".after"));
+    require_only(on_quiet(caused), action_path(".after"));
+    require_only(on_quiet(reply), action_path(".after"));
+
+    rule_set_source on_lines = set_of(role::peer);
+    rule by_lines;
+    by_lines.name = "l";
+    by_lines.when.lines.push_back(line_value{control_line::dtr, true});
+    step one;
+    one.actions.push_back(caused);
+    by_lines.sequence.push_back(one);
+    on_lines.rules.push_back(by_lines);
+    require_only(on_lines, action_path(".after"));
+
+    rule_set_source on_port = set_of(role::peer);
+    rule by_port;
+    by_port.name = "p";
+    by_port.when.port = port_event::opened;
+    by_port.sequence.push_back(one);
+    on_port.rules.push_back(by_port);
+    require_only(on_port, action_path(".after"));
+
+    // Inside an on_timeout of a rule that is not on a signal.
+    ask.on_timeout.clear();
+    ask.on_timeout.push_back(caused);
+    require_only(with_action(ask), action_path(".on_timeout[0].after"));
+
+    // The timeline has no cause: its entry gives the time.
+    rule_set_source timeline = set_of(role::peer);
+    timeline_entry entry;
+    entry.at = microseconds(1000);
+    entry.actions.push_back(caused);
+    timeline.timeline.push_back(entry);
+    require_only(timeline, "timeline[0].do[0]");
+
+    // A rule on a signal that has a state change takes no time at all.
+    action state = of_kind(action_kind::set_state);
+    state.state = "x";
+    state.when.after = edge::cause;
+    rule_set_source changes = on_signal(state);
+    changes.states = {"x"};
+    require_problem(changes, first_action);
+}
+
+TEST_CASE("rules: compile refuses bytes of the match outside what a signal "
+          "carries")
+{
+    // A signal carries up to 256 bytes, so a range may reach byte 255.
+    action slot_copy = copy_to_slot(0, max_signal_bytes - 1);
+    rule_set_source slot_set = on_signal(slot_copy);
+    slot_set.slots.emplace_back("s", byte_buffer{});
+    compile_ok(slot_set);
+    compile_ok(on_signal(match_reply(0, max_signal_bytes - 1)));
+    compile_ok(on_signal(match_reply(255, 255)));
+
+    slot_set.rules[0].sequence[0].actions[0].last = max_signal_bytes;
+    require_only(slot_set, action_path(".set_slot"));
+    require_only(on_signal(match_reply(0, max_signal_bytes)),
+                 action_path(".reply[0]"));
+    require_only(on_signal(match_reply(256, 300)), action_path(".reply[0]"));
+    require_only(on_signal(match_reply(3, 2)), action_path(".reply[0]"));
+
+    // The same range in a rule on bytes is held to the pattern, and the
+    // message does not claim a signal.
+    require_only(with_action(match_reply(0, 3)), action_path(".reply[0]"));
+
+    // A rule on silence carries nothing.
+    require_only(on_quiet(match_reply(0, 0)), action_path(".reply[0]"));
+    rule_set_source quiet_slot = on_quiet(copy_to_slot(0, 0));
+    quiet_slot.slots.emplace_back("s", byte_buffer{});
+    require_only(quiet_slot, action_path(".set_slot"));
+
+    // A slot or a literal in a reply to a signal needs no carried bytes.
+    action plain = reply_of(buf({1, 2}));
+    compile_ok(on_signal(plain));
+    compile_ok(on_quiet(plain));
+}
+
+TEST_CASE("rules: compile refuses passing bytes on a signal or silence")
+{
+    // Only a rule on bytes has bytes to pass, hold, drop or change.
+    compile_ok(with_action(of_kind(action_kind::pass), role::in_line));
+    require_only(on_signal(of_kind(action_kind::pass), role::in_line),
+                 first_action);
+    require_only(on_quiet(of_kind(action_kind::pass), role::in_line),
+                 first_action);
+
+    // Other actions of an inline set on a signal are accepted.
+    compile_ok(on_signal(mark(), role::in_line));
+    compile_ok(on_quiet(mark(), role::in_line));
+
+    // And a rule on a signal still cannot reply on an inline set.
+    require_only(on_signal(reply_of(buf({1})), role::in_line), first_action);
+}

@@ -141,6 +141,17 @@ machine::machine(std::shared_ptr<const compiled_rule_set> set,
         rules_.push_back(std::move(runtime));
     }
     shift_.assign(words, 0);
+
+    for (std::size_t index = 0; index < set_->rules.size(); ++index)
+    {
+        if (set_->rules[index].kind == trigger_kind::quiet)
+            quiet_order_.push_back(index);
+    }
+    std::stable_sort(quiet_order_.begin(), quiet_order_.end(),
+                     [this](std::size_t a, std::size_t b)
+                     {
+                         return set_->rules[a].quiet < set_->rules[b].quiet;
+                     });
 }
 
 std::vector<firing> machine::start(time_point origin)
@@ -255,6 +266,9 @@ void machine::feed(bytes_view data, time_point when, std::vector<firing>& out)
 
     last_arrival_ = when;
     any_seen_ = true;
+    // The bytes ended a silence, and the next one is counted from them.
+    for (const std::size_t index : quiet_order_)
+        rules_[index].quiet_spent = false;
 }
 
 void machine::lines_changed(control_lines before, control_lines after_change,
@@ -298,10 +312,62 @@ void machine::port_changed(port_event what, time_point when,
     }
 }
 
+void machine::signal(std::size_t index, bytes_view carried, time_point cause,
+                     time_point when, std::vector<firing>& out)
+{
+    if (carried.size() > max_signal_bytes)
+        carried = carried.first(max_signal_bytes);
+    for (std::size_t each = 0; each < rules_.size(); ++each)
+    {
+        const compiled_rule& rule = set_->rules[each];
+        if (rule.kind != trigger_kind::signal || rule.signal != index ||
+            rules_[each].finished ||
+            (rule.state != no_index && rule.state != state_))
+            continue;
+        fire(each, seen_, carried, when, when, out, &cause);
+        return;
+    }
+}
+
 void machine::tick(time_point now, std::vector<firing>& out)
 {
-    if (!waiting_ || waiting_->deadline > now)
-        return;
+    // What became due is taken in the order of its time, because a firing
+    // may change the state the next one is judged in.  The order of
+    // `quiet_order_` is the order of the deadlines: they are all counted
+    // from the last byte.
+    std::size_t next = 0;
+    for (;;)
+    {
+        while (next < quiet_order_.size() &&
+               (!any_seen_ || rules_[quiet_order_[next]].quiet_spent))
+            ++next;
+        const bool quiet_due = next < quiet_order_.size() &&
+                               quiet_deadline(quiet_order_[next]) <= now;
+        const bool gap_due = waiting_ && waiting_->deadline <= now;
+        // At the same instant the rule that matched bytes goes first.
+        if (gap_due &&
+            (!quiet_due ||
+             waiting_->deadline <= quiet_deadline(quiet_order_[next])))
+        {
+            fire_waiting(out);
+            continue;
+        }
+        if (!quiet_due)
+            return;
+
+        const std::size_t index = quiet_order_[next];
+        const compiled_rule& rule = set_->rules[index];
+        rules_[index].quiet_spent = true;
+        if (rules_[index].finished ||
+            (rule.state != no_index && rule.state != state_))
+            continue;
+        const time_point at = quiet_deadline(index);
+        fire(index, seen_, {}, at, at, out);
+    }
+}
+
+void machine::fire_waiting(std::vector<firing>& out)
+{
     waiting ready = std::move(*waiting_);
     waiting_.reset();
     const compiled_rule& rule = set_->rules[ready.rule];
@@ -313,11 +379,30 @@ void machine::tick(time_point now, std::vector<firing>& out)
     consume();
 }
 
+time_point machine::quiet_deadline(std::size_t rule) const
+{
+    return after(last_arrival_, set_->rules[rule].quiet);
+}
+
 std::optional<time_point> machine::next_deadline() const
 {
-    if (!waiting_)
-        return std::nullopt;
-    return waiting_->deadline;
+    std::optional<time_point> next;
+    if (waiting_)
+        next = waiting_->deadline;
+    if (any_seen_)
+    {
+        for (const std::size_t index : quiet_order_)
+        {
+            if (rules_[index].quiet_spent || rules_[index].finished)
+                continue;
+            // The first one left is the earliest.
+            const time_point due = quiet_deadline(index);
+            if (!next || due < *next)
+                next = due;
+            break;
+        }
+    }
+    return next;
 }
 
 bytes_view machine::slot(std::size_t index) const
@@ -414,7 +499,8 @@ void machine::fire_event_rule(std::size_t rule, time_point when,
 }
 
 void machine::fire(std::size_t rule, std::uint64_t offset, bytes_view matched,
-                   time_point start, time_point end, std::vector<firing>& out)
+                   time_point start, time_point end, std::vector<firing>& out,
+                   const time_point* cause)
 {
     const compiled_rule& compiled = set_->rules[rule];
     rule_state& runtime = rules_[rule];
@@ -435,11 +521,20 @@ void machine::fire(std::size_t rule, std::uint64_t offset, bytes_view matched,
     fired.step = static_cast<std::size_t>(step);
     fired.ordinal = runtime.matches;
     fired.offset = offset;
-    fired.length = matched.size();
     fired.start = start;
     fired.end = end;
     ++stats_.firings;
-    stats_.bytes_matched += matched.size();
+    if (cause != nullptr)
+    {
+        fired.signal = compiled.signal;
+        fired.cause = *cause;
+        fired.signal_bytes = matched.size();
+    }
+    else
+    {
+        fired.length = matched.size();
+        stats_.bytes_matched += matched.size();
+    }
 
     const compiled_step& chosen = compiled.sequence[fired.step];
     if (chosen.chance_ppm < chance_always &&
@@ -501,6 +596,8 @@ void machine::plan(const std::vector<compiled_action>& actions,
                 from = previous;
             else if (action.when.after == edge::run_start)
                 from = origin_;
+            else if (action.when.after == edge::cause)
+                from = into.cause;
             planned.due = after(from, planned.drawn);
             // The timeline and absolute times are not held back by replies.
             if (runtime != nullptr && set_->order == ordering::fifo &&
