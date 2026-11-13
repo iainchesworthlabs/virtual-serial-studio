@@ -1,7 +1,7 @@
 # Secure remote control and monitoring
 
-Status: **proposed**. This page is a decision record for the owner. Nothing here is built. Section 14 lists the
-decisions to make, and section 13 the slices that follow once they are made.
+Status: **accepted**. The owner accepted the recommendations of section 14 on 13 November 2026. Section 13 lists the
+slices that build it; each slice says in its own pull request what it built and tested.
 
 It builds on [the per-user agent](agent.md) (the local protocol and its trust model) and on the access levels decided
 in [Editions, licensing and plugins](editions.md). Where this page says "the agent" it means `vss_agent` as agent.md
@@ -165,6 +165,14 @@ new kind of client.
 
 The peer check is a second line behind the access list, and is the line that matters when someone has weakened the
 list or the directory (a mistaken `chmod`, a share of the profile).
+
+**The administration endpoint.** Administration (section 5, `admin`) has an endpoint of its own beside the public
+one: `\\.\pipe\vss-control_admin-<user SID>` and `<agent directory>/control_admin.sock`, with the same access
+list, modes and peer check. Studio and `vss_cli control` use it, and nothing else should. A connection to the public
+endpoint can never hold `admin`, whatever its settings or its token say, so a harness adapter or a plugin that is
+tricked into sending an administration request is refused by construction and not by a setting. Under T2 this is not a
+boundary against a hostile program of the same user, which can open either endpoint; it separates the scriptable
+surface from the one that changes who may connect.
 
 **What a local connection is.** A connection that passes the peer check is the principal `local:<user>`. Its scope is
 a setting of the endpoint (section 5), and its **default is `monitor`**, not `control`, so that enabling the endpoint
@@ -359,7 +367,7 @@ A scope names a class of actions. A token carries a set of scopes; a role is a n
 | `control.faults` | Fault injection, response timing, modem line drops | |
 | `control.apply` | Apply a whole topology document (subject to the limits of section 9) | |
 | `record` | Start, stop and fetch a recording of a port (section 6) | |
-| `admin` | Everything local-only: tokens, listeners and certificates, policy, audit settings, stop the gateway, set the principal's scopes of other principals. **Cannot be carried by a token or an OIDC mapping over L2 or L3** | |
+| `admin` | Everything local-only: tokens, listeners and certificates, policy, audit settings, stop the gateway, set the scopes of other principals. **Held only by a connection to the administration endpoint (section 3)**, never by a token, an OIDC mapping or a connection to the public endpoint | |
 
 Roles:
 
@@ -368,7 +376,7 @@ Roles:
 | **Monitor** | `monitor` (and `monitor.data` if ticked) | The computer that watches |
 | **Control** | `monitor`, `monitor.data`, `control.ports`, `control.data`, `control.faults`, `record` | A test harness |
 | **Control plus apply** | Control and `control.apply` | A rig that deploys a topology |
-| **Admin** | all | Only on L1 or from the Studio window, never over the network |
+| **Admin** | all | Only the administration endpoint: Studio's window and `vss_cli control` |
 
 Rules:
 
@@ -554,7 +562,7 @@ validates the resulting access token. No sign-in page exists in Studio and none 
   paths used as keys. Times are `{ "mono_ns": …, "wall": "<RFC 3339>" }` from one clock.
 - **Errors.** `{ "code": "forbidden", "message": "…", "retryable": false }` with codes from a closed list:
   `unauthenticated`, `forbidden`, `invalid_argument`, `not_found`, `conflict`, `unsupported`, `busy`, `timeout`,
-  `limit_exceeded`, `cancelled`, `internal`, and the engine's errors under `engine.<name>`. No stack, no path, no
+  `limit_exceeded`, `cancelled`, `unavailable` (the agent is not running), `internal`, and the engine's errors under `engine.<name>`. No stack, no path, no
   engine internals reach the sender.
 - **Idempotency.** Mutating requests accept an `idempotency_key`; a repeat within 10 minutes returns the first
   result, so a harness can retry after a lost reply.
@@ -588,7 +596,7 @@ anything that elevates, `devices` and `facts` (they describe the computer, A3), 
 machine), path-taking operations, plugin management, and everything in `admin`. Some may be added with their own
 scope when there is a need.
 
-**Local-only administration** (agent pipe or L1 with `admin`): `endpoint.enable/disable`, `listeners.*`,
+**Local-only administration** (the administration endpoint of section 3): `endpoint.stop`, `listeners.*`,
 `tls.rotate`, `tls.pairing_bundle`, `tokens.create/list/revoke`, `policy.*`, `audit.*`, `sessions.list/kick`.
 
 ## 10. Remote monitoring and denial of service
@@ -725,7 +733,7 @@ After the owner's review. Each slice is reviewable alone, green alone and tested
 
 | Slice | What | Depends on |
 |---|---|---|
-| 1 | `libs/vss_control_proto` (framing with the preface, messages, limits, errors, the policy types, `secret_string`) and `vss_gate` with the **local endpoint with peer credentials** (L1), the agent client, the audit log, `authorise` with the operation registry and two operations (`status`, `ports.list`); `vss_cli control enable/disable/status`; the tests of section 15 for these | agent.md PR 1 |
+| 1 | `libs/vss_control_proto` (messages, limits, errors, the policy types) and `vss_gate` with the **local endpoint with peer credentials** (L1) and the administration endpoint, the agent client, the audit log, `authorise` with the operation registry and three operations (`status`, `ports.list`, `endpoint.stop`); `vss_cli control status` and `stop`; the tests of section 15 for these. `vss_gate` is started by hand, as `vss_agent` is, until the agent starts on demand (agent.md PR 6). The preface belongs to slice 4 (L2) and `secret_string` to slice 2, where each is first used | agent.md PR 1 |
 | 2 | **Tokens and scopes**: the store, generation, hashing, verification, constant-time compare, rate limiting, revocation, expiry; scopes and ceilings; `vss_cli control token`; token-leak canary tests; the full operation table | slice 1 |
 | 3 | **Read-only monitor**: `events.subscribe`, `traffic.subscribe` with `monitor.data`, the per-session read-only agent connection, the status chip and sessions list in the GUI (a design change in the GUI, to be reviewed on its own), live view | slice 2; agent.md PR 5 and decision 10 for `read_only` |
 | 4 | L2 and the control scopes (`control.*`), `expect.bytes`, runs and the JUnit report | slice 3 |
@@ -739,6 +747,8 @@ Slices 1 to 3 are what is requested after review. Slice 3's GUI part is the larg
 policy check, the token code and the peer-credential code are not delegated.
 
 ## 14. Decisions for the owner
+
+All twelve were accepted as recommended.
 
 | # | Question | Options | Recommended | Cost of being wrong |
 |---|---|---|---|---|
