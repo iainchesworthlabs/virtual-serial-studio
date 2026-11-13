@@ -1166,11 +1166,10 @@ private:
         // them holds the session, so it is let go here.
         for (outgoing& item : client->unsent)
             item.after = nullptr;
-        sessions_.erase(client);
-        connections_.store(sessions_.size());
+        // The record first, the counters after: whoever waits for a count
+        // to drop then finds the record already written.
         if (client->who)
         {
-            greeted_.fetch_sub(1);
             audit_->record(
                 "session.closed",
                 {{"session", client->number},
@@ -1179,7 +1178,10 @@ private:
                   reason.empty() ? std::string_view("closed") : reason},
                  {"forbidden_unrecorded", client->forbidden_burst.suppressed},
                  {"rate_limited_unrecorded", client->rate_burst.suppressed}});
+            greeted_.fetch_sub(1);
         }
+        sessions_.erase(client);
+        connections_.store(sessions_.size());
     }
 
     // -- the request pool ----------------------------------------------------

@@ -7,7 +7,7 @@
 // the agent can open.
 //
 //   name     \\.\pipe\vss-agent-<SID of the user>[-<instance>], with
-//            `control` or `control_admin` in place of `agent` for the
+//            `control` or `admin` in place of `agent` for the
 //            gateway's two endpoints
 //   access   D:P(A;;GA;;;<SID>): the user and nobody else, not even
 //            administrators or SYSTEM, and nothing inherited

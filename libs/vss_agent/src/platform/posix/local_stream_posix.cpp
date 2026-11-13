@@ -14,7 +14,7 @@
 //              of the fallback only, so that another user's directory in a
 //              shared /tmp cannot keep this user out.
 //   socket     agent.sock, mode 0600, or agent-<instance>.sock; the gateway's
-//              two endpoints are control.sock and control_admin.sock
+//              two endpoints are control.sock and admin.sock
 //   lock       agent.lock or agent-<instance>.lock, held with flock for as
 //              long as the listener lives: this is the rule that only one
 //              agent runs.  A crash drops the lock, so a socket file left by

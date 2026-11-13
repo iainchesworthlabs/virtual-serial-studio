@@ -109,8 +109,7 @@ std::string unique_instance_name()
     static const unsigned random = std::random_device{}();
     static std::atomic<unsigned> counter{0};
     std::ostringstream out;
-    out << "tc-" << std::hex << random << '-' << std::dec
-        << counter.fetch_add(1);
+    out << "c" << std::hex << random << '-' << std::dec << counter.fetch_add(1);
     return out.str();
 }
 
@@ -1272,7 +1271,7 @@ TEST_CASE("control transport: three endpoints, three addresses, and no "
 
     // The names a caller could choose to try to reach another endpoint.
     for (const char* name : {"admin", "_admin", "control", "control_admin",
-                             "agent", "-admin", "admin-"})
+                             "agent", "-admin", "admin-", "control-admin"})
     {
         for (const local_endpoint endpoint :
              {local_endpoint::agent, local_endpoint::control,

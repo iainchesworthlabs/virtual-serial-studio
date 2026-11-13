@@ -167,7 +167,7 @@ The peer check is a second line behind the access list, and is the line that mat
 list or the directory (a mistaken `chmod`, a share of the profile).
 
 **The administration endpoint.** Administration (section 5, `admin`) has an endpoint of its own beside the public
-one: `\\.\pipe\vss-control_admin-<user SID>` and `<agent directory>/control_admin.sock`, with the same access
+one: `\\.\pipe\vss-admin-<user SID>` and `<agent directory>/admin.sock`, with the same access
 list, modes and peer check. Studio and `vss_cli control` use it, and nothing else should. A connection to the public
 endpoint can never hold `admin`, whatever its settings or its token say, so a harness adapter or a plugin that is
 tricked into sending an administration request is refused by construction and not by a setting. Under T2 this is not a
