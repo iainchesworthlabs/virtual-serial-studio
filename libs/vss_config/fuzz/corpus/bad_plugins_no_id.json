@@ -1,0 +1,1 @@
+{"version":1,"name":"plugins","ports":[{"name":"device","kind":"mock","plugins":[{"kind":"fixture","type":"t"}]},{"name":"program","kind":"virtual"}],"links":[{"mode":"duplex","sources":["program"],"targets":["device"]}]}

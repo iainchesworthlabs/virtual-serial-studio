@@ -478,6 +478,9 @@ TEST_CASE("advanced: save a workspace, start over and reopen it")
     s.step(QStringLiteral("File > Open brings the ports and the link back"));
     file_dialog("Open");
     choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
+    // The ports are made on a worker thread, so wait for them to appear.
+    REQUIRE(vss_test::wait_until(
+        [&s] { return s.backend().ports().size() == 2; }, 10000));
     s.settle();
     s.pilot().check();
     REQUIRE_EQ(s.backend().ports().size(), 2);

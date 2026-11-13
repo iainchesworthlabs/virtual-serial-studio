@@ -177,7 +177,7 @@ QVector<bundle_file> build_bundle_files(const StudioBackend& backend,
     if (selection.environment)
     {
         files.push_back({QStringLiteral("environment.txt"),
-                         redact_secrets(environment_report()).toUtf8()});
+                         redact_secrets(diagnostic_report()).toUtf8()});
     }
     if (selection.counters)
         files.push_back(

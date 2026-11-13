@@ -67,3 +67,16 @@ vss_set_warnings(vss_gui_shell)
 
 add_subdirectory(tests)
 add_subdirectory(../simple/tests simple_tests)
+
+# The tool that measures what drawing the canvas costs, in either renderer.
+if(VSS_BUILD_TOOLS)
+  add_executable(vss_gui_render_bench bench/render_bench.cpp)
+  target_compile_definitions(vss_gui_render_bench PRIVATE QT_NO_KEYWORDS)
+  target_link_libraries(vss_gui_render_bench PRIVATE
+    vss_gui_shell
+    vss_gui_rendering
+    vss_gui_profiling
+    Vss::studio
+    Qt6::Widgets)
+  vss_set_warnings(vss_gui_render_bench)
+endif()

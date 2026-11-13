@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>Entorno copiado.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>Información de la compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>Copiar información de la compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>Información de la compilación copiada.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>Copie esto en un informe de error. Responde a «¿en qué se está ejecutando esto?»</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>Versión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Etiqueta de Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Revisión de Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>Revisión corta</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>Árbol de trabajo</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>Rama</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>Número de compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>Compilado</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>Tipo de compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>Compilador</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>Qt de la compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>Sistema operativo</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>Arquitectura</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>Núcleo</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>Qt en ejecución</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>Complemento de plataforma</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>Pantalla</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>Idioma</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>Perfilado</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>Se incluye con Studio como bibliotecas compartidas.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>Presente porque esta compilación incluye compatibilidad con el perfilado.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>Licencia de fuentes abiertas SIL, versión 1.1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>Renderizador</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -461,17 +606,9 @@
             <translation>Los programas que abren un nombre fijo como COM3 encuentran el puerto de nuevo en cada ejecución. Automático toma un número libre por encima de los puertos que este PC ya tiene, nunca COM1 ni COM2. Un número necesita el controlador de Studio y su servicio auxiliar, y se usa cuando se crea un solo puerto.</translation>
         </message>
         <message>
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation type="vanished">Los programas que abren un nombre fijo como COM3 encuentran el puerto en cada ejecución. «Automático» toma el número libre más bajo. Un número necesita el controlador de Studio y su servicio auxiliar, y se usa cuando se crea un solo puerto.</translation>
-        </message>
-        <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
             <source>Best available uses the Studio driver or com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
             <translation>«Mejor disponible» usa el controlador de Studio o com0com en Windows, y un pseudoterminal en Linux y macOS. Hasta 32 a la vez. Varios puertos se llaman port-1, port-2 y así sucesivamente.</translation>
-        </message>
-        <message>
-            <source>Best available uses com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
-            <translation type="vanished">Mejor disponible usa com0com en Windows y un pseudoterminal en Linux y macOS. Hasta 32 a la vez. Varios puertos se llaman port-1, port-2 y así sucesivamente.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="377" />
@@ -601,10 +738,6 @@
             <location filename="../src/flows/attach_dialog.cpp" line="76" />
             <source>Attach a real device</source>
             <translation>Conectar un dispositivo real</translation>
-        </message>
-        <message>
-            <source>Studio opens the device once. Your programs then open the port Studio creates for them.</source>
-            <translation type="vanished">Studio abre el dispositivo una vez. Sus programas abren después el puerto que Studio crea para ellos.</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="77" />
@@ -816,14 +949,6 @@
             <location filename="../src/flows/attach_dialog.cpp" line="616" />
             <source>Studio will hold %1 open at %2 baud. Your programs should not open %1. They open the new virtual port that Studio creates, and Studio passes data between that port and %1.</source>
             <translation>Studio mantendrá abierto %1 a %2 baudios. Sus programas no deben abrir %1. Abren el nuevo puerto virtual que Studio crea, y Studio pasa los datos entre ese puerto y %1.</translation>
-        </message>
-        <message>
-            <source>Studio will open &lt;b&gt;%1&lt;/b&gt; at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio abrirá &lt;b&gt;%1&lt;/b&gt; a %2 baudios y lo mantendrá abierto. Sus programas deben abrir el puerto que Studio crea, no %1.</translation>
-        </message>
-        <message>
-            <source>Studio will open %1 at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio abrirá %1 a %2 baudios y lo mantendrá abierto. Sus programas deben abrir el puerto que Studio crea, no %1.</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="632" />
@@ -1130,10 +1255,6 @@
             <source>%1: sent %2, received %3, lost %4, throughput %5.</source>
             <translation>%1: enviado %2, recibido %3, perdido %4, rendimiento %5.</translation>
         </message>
-        <message>
-            <source>The benchmark command is not available in this build.</source>
-            <translation type="vanished">El comando de la prueba de rendimiento no está disponible en esta compilación.</translation>
-        </message>
     </context>
     <context>
         <name>Bundle</name>
@@ -1340,6 +1461,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>Entorno copiado.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
         </message>
     </context>
     <context>
@@ -2598,10 +2729,6 @@ Redes: %5</translation>
             <translation>Copiar nombre, %1</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet.</source>
-            <translation type="vanished">Ningún programa ha abierto %1 todavía.</translation>
-        </message>
-        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="451" />
             <location filename="../src/panes/inspector_panel.cpp" line="457" />
             <source>Not available in this build</source>
@@ -3163,6 +3290,11 @@ Redes: %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio no pudo leer qué números COM reserva Windows, así que elige uno libre al crear el puerto y lo muestra cuando el puerto está listo.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1577" />
+            <source>Copy details</source>
+            <translation>Copiar detalles</translation>
         </message>
     </context>
     <context>
@@ -3752,6 +3884,71 @@ Redes: %5</translation>
             <location filename="../src/advanced/link_settings_dialog.cpp" line="45" />
             <source>Applying changes the link where it is and keeps its ports. Bytes it still holds for its delay are discarded when the delay changes.</source>
             <translation>Al aplicar, el enlace se modifica en su sitio y conserva sus puertos. Los bytes que aún retiene por su retardo se descartan cuando el retardo cambia.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="34" />
+            <source>Settings for %1</source>
+            <translation>Ajustes de %1</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="59" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="62" />
+            <source>Delay</source>
+            <translation>Retardo</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="64" />
+            <source>Jitter</source>
+            <translation>Jitter</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="67" />
+            <source>Every byte arrives this much later.</source>
+            <translation>Cada byte llega con este retraso.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="70" />
+            <source>Each delay varies by up to this much. No more than the delay.</source>
+            <translation>Cada retardo varía hasta este valor. No más que el retardo.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="77" />
+            <source>If two write at once</source>
+            <translation>Si dos escriben a la vez</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="78" />
+            <source>Mix them</source>
+            <translation>Mezclarlos</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="80" />
+            <source>One owner at a time</source>
+            <translation>Un propietario cada vez</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="89" />
+            <source>Emulate modem lines</source>
+            <translation>Emular las líneas del módem</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="110" />
+            <source>Cancel</source>
+            <translation>Cancelar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="113" />
+            <source>Apply</source>
+            <translation>Aplicar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="175" />
+            <source>The jitter can be no more than the delay.</source>
+            <translation>El jitter no puede ser mayor que el retardo.</translation>
         </message>
     </context>
     <context>
@@ -5185,10 +5382,6 @@ Redes: %5</translation>
             <translation>Ningún programa ha abierto %1 todavía. En su programa, elija exactamente %1. Este panel se actualiza cuando uno lo abre.</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet. This panel updates when one does.</source>
-            <translation type="vanished">Ningún programa ha abierto %1 todavía. Este panel se actualiza cuando alguno lo haga.</translation>
-        </message>
-        <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="365" />
             <source>Program connected</source>
             <translation>Programa conectado</translation>
@@ -5300,6 +5493,16 @@ Redes: %5</translation>
             <location filename="../src/panes/ports_panel.cpp" line="341" />
             <source>Copied %1.</source>
             <translation>Se copió %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="136" />
+            <source>Ports table columns</source>
+            <translation>Columnas de la tabla de puertos</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="235" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>La columna %1 mide %2 px de ancho.</translation>
         </message>
     </context>
     <context>
@@ -5929,16 +6132,51 @@ Redes: %5</translation>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>No se pudo iniciar el sistema gráfico (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>no se indicó ningún motivo</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>El único dispositivo gráfico encontrado es un renderizador por software (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>Hardware (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>Software (CPU), porque: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>El dispositivo gráfico dejó de funcionar.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>no se creó ningún dispositivo gráfico</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
             <location filename="../src/panes/send_panel.cpp" line="98" />
             <source>Send</source>
             <translation>Enviar</translation>
-        </message>
-        <message>
-            <source>Send to port</source>
-            <translation type="vanished">Enviar al puerto</translation>
         </message>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="81" />
@@ -6250,8 +6488,90 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>Sirve para averiguar por qué Studio va lento. Solo registra tiempos y no envía nada hasta que conectes el perfilador Tracy a la dirección anterior. Se desactiva de nuevo cada vez que se inicia Studio.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>Sirve para averiguar por qué Studio va lento. Solo registra tiempos y no envía nada a ninguna parte: Studio escucha solo en este equipo, y la línea de tiempo aparece únicamente cuando inicias aquí el perfilador Tracy y lo conectas a la dirección anterior. Studio recuerda este interruptor y vuelve a registrar la próxima vez que se inicie. Permitir que se conecten otros equipos requiere reiniciar.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>Renderizado</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>Automático</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>Hardware (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>Software (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>Hardware dibuja el lienzo en la tarjeta gráfica, lo que lo mantiene fluido con muchos puertos. Software lo dibuja en el procesador. Automático usa la tarjeta gráfica cuando hay una utilizable.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>Dibujando ahora con: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>Reinicia Studio para usar esta opción.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER o --render está definido, así que anula esta opción.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="166" />
+            <source>Running</source>
+            <translation>En ejecución</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="252" />
+            <source>Your ports run on this computer until you quit Studio or open another setup. The window is only for setting them up and watching them.</source>
+            <translation>Sus puertos se ejecutan en este equipo hasta que salga de Studio o abra otra configuración. La ventana solo sirve para configurarlos y supervisarlos.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="262" />
+            <source>When I close the window</source>
+            <translation>Al cerrar la ventana</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="271" />
+            <source>Keep the ports running in the background</source>
+            <translation>Mantener los puertos en ejecución en segundo plano</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="276" />
+            <source>Stop the ports and quit</source>
+            <translation>Detener los puertos y salir</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="289" />
+            <source>Start when I sign in</source>
+            <translation>Iniciar al iniciar sesión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="296" />
+            <source>Not available in this build</source>
+            <translation>No disponible en esta compilación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Studio starts in the notification area and starts the ports that were running before the computer restarted.</source>
+            <translation>Studio se inicia en el área de notificaciones y arranca los puertos que estaban en ejecución antes de reiniciar el equipo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="624" />
+            <source>Could not change start at sign-in</source>
+            <translation>No se pudo cambiar el inicio al iniciar sesión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="626" />
+            <source>Studio could not write the sign-in entry. Nothing was changed.</source>
+            <translation>Studio no pudo escribir la entrada de inicio de sesión. No se cambió nada.</translation>
         </message>
     </context>
     <context>
@@ -6591,10 +6911,6 @@ Redes: %5</translation>
             <translation>com0com está instalado, así que otros programas pueden ver los puertos virtuales como puertos COM.</translation>
         </message>
         <message>
-            <source>com0com was not found. Windows needs a driver before other programs can see virtual ports as COM ports.</source>
-            <translation type="vanished">No se encontró com0com. Windows necesita un controlador para que otros programas vean los puertos virtuales como puertos COM.</translation>
-        </message>
-        <message>
             <location filename="../src/support/setup_facts.cpp" line="187" />
             <source>Neither the Virtual Serial Studio driver nor com0com was found. Windows needs a driver before other programs can see virtual ports as COM ports.</source>
             <translation>No se encontró ni el controlador de Virtual Serial Studio ni com0com. Windows necesita un controlador para que otros programas vean los puertos virtuales como puertos COM.</translation>
@@ -6753,10 +7069,6 @@ Redes: %5</translation>
             <location filename="../src/support/setup_facts.cpp" line="585" />
             <source>You declined the Windows permission prompt, so Studio keeps running as before. Nothing was changed.</source>
             <translation>Rechazó el aviso de permiso de Windows, así que Studio sigue funcionando como antes. No se cambió nada.</translation>
-        </message>
-        <message>
-            <source>Windows did not allow the elevated restart. Try again from the Start menu.</source>
-            <translation type="vanished">Windows no permitió el reinicio con privilegios elevados. Inténtelo de nuevo desde el menú Inicio.</translation>
         </message>
         <message>
             <location filename="../src/support/setup_facts.cpp" line="589" />
@@ -7449,10 +7761,6 @@ Redes: %5</translation>
             <location filename="../src/dialogs/share_wizard.cpp" line="453" />
             <source>The address of the serial server, using TCP, UDP or RFC 2217.</source>
             <translation>La dirección del servidor serie, mediante TCP, UDP o RFC 2217.</translation>
-        </message>
-        <message>
-            <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are.</source>
-            <translation type="vanished">Sus programas abrirán los puertos que Studio crea, no el propio %1. A continuación elegirá cuántos programas hay.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="483" />
@@ -8538,10 +8846,6 @@ Redes: %5</translation>
             <translation>Mantener Studio abierto</translation>
         </message>
         <message>
-            <source>Undo needs an exact restore, which this build cannot prove.</source>
-            <translation type="vanished">Deshacer requiere una restauración exacta, que esta compilación no puede garantizar.</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="533" />
             <source>&amp;File</source>
             <translation>&amp;Archivo</translation>
@@ -8590,10 +8894,6 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="619" />
             <source>Main toolbar</source>
             <translation>Barra de herramientas principal</translation>
-        </message>
-        <message>
-            <source>Not available in this build.</source>
-            <translation type="vanished">No disponible en esta compilación.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="833" />
@@ -8692,10 +8992,6 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="2058" />
             <source>Remove %1?</source>
             <translation>¿Quitar %1?</translation>
-        </message>
-        <message>
-            <source>The port and its links will be removed. This cannot be undone.</source>
-            <translation type="vanished">El puerto y sus enlaces se quitarán. Esta acción no se puede deshacer.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1963" />
@@ -8914,6 +9210,180 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio está configurado. Otros programas pueden abrir los puertos nuevos.</translation>
+        </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>El lienzo se dibuja en el procesador: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>compilación entorno informe de error</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="385" />
+            <source>canvas new port</source>
+            <translation>lienzo nuevo puerto</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="392" />
+            <source>Add fixture</source>
+            <translation>Añadir dispositivo simulado</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="393" />
+            <source>canvas new mock fixture</source>
+            <translation>lienzo nuevo dispositivo simulado</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="400" />
+            <source>Add pair</source>
+            <translation>Añadir par</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="401" />
+            <source>canvas bundle two ports null modem</source>
+            <translation>lienzo paquete dos puertos módem nulo</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="409" />
+            <source>Duplicate</source>
+            <translation>Duplicar</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="410" />
+            <source>copy ports canvas</source>
+            <translation>copiar puertos lienzo</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="424" />
+            <source>Show toolbox</source>
+            <translation>Mostrar caja de herramientas</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="425" />
+            <source>canvas tiles palette</source>
+            <translation>lienzo fichas paleta</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="775" />
+            <source>Start again</source>
+            <translation>Iniciar de nuevo</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3351" />
+            <source>This stops %1 ports and %2 links. Studio offers to start them again the next time it opens.</source>
+            <translation>Esto detiene %1 puertos y %2 enlaces. Studio ofrece iniciarlos de nuevo la próxima vez que se abra.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3355" />
+            <source>Stop the ports and quit?</source>
+            <translation>¿Detener los puertos y salir?</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3356" />
+            <source>Stop the ports and quit</source>
+            <translation>Detener los puertos y salir</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3357" />
+            <source>Keep running</source>
+            <translation>Mantener en ejecución</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3402" />
+            <source>Keep the ports running?</source>
+            <translation>¿Mantener los puertos en ejecución?</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3403" />
+            <source>This desktop has no notification area to keep Studio in. Minimise the window to keep the ports running, or stop them and quit.</source>
+            <translation>Este escritorio no tiene área de notificaciones donde mantener Studio. Minimice la ventana para mantener los puertos en ejecución, o deténgalos y salga.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3410" />
+            <source>Minimise instead</source>
+            <translation>Minimizar en su lugar</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3490" />
+            <source>Could not change start at sign-in</source>
+            <translation>No se pudo cambiar el inicio al iniciar sesión</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3491" />
+            <source>Studio could not write the sign-in entry. Nothing was changed.</source>
+            <translation>Studio no pudo escribir la entrada de inicio de sesión. No se cambió nada.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3513" />
+            <source>The ports from last time could not be read, so Studio started without them.</source>
+            <translation>No se pudieron leer los puertos de la vez anterior, así que Studio se inició sin ellos.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3593" />
+            <source>Could not start the ports from last time: %1</source>
+            <translation>No se pudieron iniciar los puertos de la vez anterior: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3599" />
+            <source>Could not start the ports from last time</source>
+            <translation>No se pudieron iniciar los puertos de la vez anterior</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3600" />
+            <source>Open Studio to see why and start them again.</source>
+            <translation>Abra Studio para ver el motivo e iniciarlos de nuevo.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3618" />
+            <source>Started the ports that were running before: %1 ports, %2 links.</source>
+            <translation>Se iniciaron los puertos que estaban en ejecución antes: %1 puertos, %2 enlaces.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3622" />
+            <source>Started the ports again: %1 ports, %2 links.</source>
+            <translation>Se iniciaron de nuevo los puertos: %1 puertos, %2 enlaces.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3651" />
+            <source>When you last quit, %1 ports and %2 links were running.</source>
+            <translation>Al salir la última vez, había %1 puertos y %2 enlaces en ejecución.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3666" />
+            <source>Some COM ports were lost</source>
+            <translation>Se perdieron algunos puertos COM</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3667" />
+            <source>Open Studio to recreate them.</source>
+            <translation>Abra Studio para recrearlos.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3681" />
+            <source>Studio is still running your ports</source>
+            <translation>Studio sigue ejecutando sus puertos</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3683" />
+            <source>Open it again from this icon, or quit it there to stop the ports. To have them back after a restart, choose Start when I sign in in the same menu.</source>
+            <translation>Ábralo de nuevo desde este icono, o salga desde allí para detener los puertos. Para recuperarlos tras un reinicio, elija Iniciar al iniciar sesión en el mismo menú.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3686" />
+            <source>Open it again from this icon, or quit it there to stop the ports.</source>
+            <translation>Ábralo de nuevo desde este icono, o salga desde allí para detener los puertos.</translation>
         </message>
     </context>
     <context>
@@ -9942,10 +10412,6 @@ Redes: %5</translation>
             <translation>¿Quiso decir "%1"? La línea está resaltada y no se aplicó nada.</translation>
         </message>
         <message>
-            <source>Use duplex, split, join, redirect or monitor. Nothing was applied.</source>
-            <translation type="vanished">Use duplex, split, join, redirect o monitor. No se aplicó nada.</translation>
-        </message>
-        <message>
             <location filename="../src/advanced/json_validation.cpp" line="1032" />
             <source>Line %1: a link needs ports on both sides</source>
             <translation>Línea %1: un enlace necesita puertos en ambos lados</translation>
@@ -10405,10 +10871,6 @@ Redes: %5</translation>
             <translation>Ningún programa ha abierto %1 todavía, así que no puede llegar nada. El programa debe abrir exactamente %1; otro puerto COM no recibirá nada.</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet, so nothing can arrive.</source>
-            <translation type="vanished">Ningún programa ha abierto %1 todavía, así que no puede llegar nada.</translation>
-        </message>
-        <message>
             <location filename="../src/support/troubleshoot.cpp" line="361" />
             <location filename="../src/support/troubleshoot.cpp" line="370" />
             <source>Data reaches the program</source>
@@ -10729,17 +11191,6 @@ Redes: %5</translation>
         </message>
     </context>
     <context>
-        <name>json_validation</name>
-        <message>
-            <source>Valid, version 1</source>
-            <translation type="vanished">Válido, versión 1</translation>
-        </message>
-        <message>
-            <source>Not valid</source>
-            <translation type="vanished">No válido</translation>
-        </message>
-    </context>
-    <context>
         <name>ordinal</name>
         <message>
             <location filename="../src/dialogs/share_plan.cpp" line="111" />
@@ -10900,269 +11351,6 @@ Redes: %5</translation>
             <location filename="../src/dialogs/share_plan.cpp" line="142" />
             <source>thirty-second</source>
             <translation>trigésimo segundo</translation>
-        </message>
-    </context>
-    <context>
-        <name>vss::gui</name>
-        <message>
-            <source>%1 (%2)</source>
-            <translation type="vanished">%1 (%2)</translation>
-        </message>
-        <message>
-            <source>Started</source>
-            <translation type="vanished">Iniciado</translation>
-        </message>
-        <message>
-            <source>Stopped</source>
-            <translation type="vanished">Detenido</translation>
-        </message>
-        <message>
-            <source>Control lines</source>
-            <translation type="vanished">Líneas de control</translation>
-        </message>
-        <message>
-            <source>Error</source>
-            <translation type="vanished">Error</translation>
-        </message>
-        <message>
-            <source>Counters</source>
-            <translation type="vanished">Contadores</translation>
-        </message>
-        <message>
-            <source>Message</source>
-            <translation type="vanished">Mensaje</translation>
-        </message>
-        <message>
-            <source>Traffic</source>
-            <translation type="vanished">Tráfico</translation>
-        </message>
-        <message>
-            <source>1 port, all names unique</source>
-            <translation type="vanished">1 puerto, todos los nombres son únicos</translation>
-        </message>
-        <message>
-            <source>%1 ports, all names unique</source>
-            <translation type="vanished">%1 puertos, todos los nombres son únicos</translation>
-        </message>
-        <message>
-            <source>1 port, a name is used twice</source>
-            <translation type="vanished">1 puerto, un nombre se usa dos veces</translation>
-        </message>
-        <message>
-            <source>%1 ports, a name is used twice</source>
-            <translation type="vanished">%1 puertos, un nombre se usa dos veces</translation>
-        </message>
-        <message>
-            <source>1 link, no loops</source>
-            <translation type="vanished">1 enlace, sin bucles</translation>
-        </message>
-        <message>
-            <source>%1 links, no loops</source>
-            <translation type="vanished">%1 enlaces, sin bucles</translation>
-        </message>
-        <message>
-            <source>1 link, a loop was found</source>
-            <translation type="vanished">1 enlace, se encontró un bucle</translation>
-        </message>
-        <message>
-            <source>%1 links, a loop was found</source>
-            <translation type="vanished">%1 enlaces, se encontró un bucle</translation>
-        </message>
-        <message>
-            <source>Valid JSON, version 1</source>
-            <translation type="vanished">JSON válido, versión 1</translation>
-        </message>
-        <message>
-            <source>Ports, all names unique</source>
-            <translation type="vanished">Puertos, todos los nombres son únicos</translation>
-        </message>
-        <message>
-            <source>Links, no loops</source>
-            <translation type="vanished">Enlaces, sin bucles</translation>
-        </message>
-        <message>
-            <source>Line %1: %2</source>
-            <translation type="vanished">Línea %1: %2</translation>
-        </message>
-        <message>
-            <source>The line is highlighted and nothing was applied.</source>
-            <translation type="vanished">La línea está resaltada y no se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Line 1: the document must be a JSON object</source>
-            <translation type="vanished">Línea 1: el documento debe ser un objeto JSON</translation>
-        </message>
-        <message>
-            <source>A setup file starts with a { and ends with a }.</source>
-            <translation type="vanished">Un archivo de configuración empieza con { y termina con }.</translation>
-        </message>
-        <message>
-            <source>Line %1: version must be 1</source>
-            <translation type="vanished">Línea %1: la versión debe ser 1</translation>
-        </message>
-        <message>
-            <source>The document needs "version": 1</source>
-            <translation type="vanished">El documento necesita "version": 1</translation>
-        </message>
-        <message>
-            <source>Nothing was applied.</source>
-            <translation type="vanished">No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>"ports" must be a list</source>
-            <translation type="vanished">"ports" debe ser una lista</translation>
-        </message>
-        <message>
-            <source>Each port must be an object</source>
-            <translation type="vanished">Cada puerto debe ser un objeto</translation>
-        </message>
-        <message>
-            <source>Line %1: a port has no name</source>
-            <translation type="vanished">Línea %1: un puerto no tiene nombre</translation>
-        </message>
-        <message>
-            <source>A port has no name</source>
-            <translation type="vanished">Un puerto no tiene nombre</translation>
-        </message>
-        <message>
-            <source>Every port needs a name so links can refer to it.</source>
-            <translation type="vanished">Cada puerto necesita un nombre para que los enlaces puedan referirse a él.</translation>
-        </message>
-        <message>
-            <source>Line %1: the name "%2" is used twice</source>
-            <translation type="vanished">Línea %1: el nombre "%2" se usa dos veces</translation>
-        </message>
-        <message>
-            <source>The name "%1" is used twice</source>
-            <translation type="vanished">El nombre "%1" se usa dos veces</translation>
-        </message>
-        <message>
-            <source>Port names identify ports in links, so each name must be unique. Nothing was applied.</source>
-            <translation type="vanished">Los nombres de puerto identifican los puertos en los enlaces, por lo que cada nombre debe ser único. No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown port kind "%2"</source>
-            <translation type="vanished">Línea %1: tipo de puerto desconocido "%2"</translation>
-        </message>
-        <message>
-            <source>Unknown port kind "%1"</source>
-            <translation type="vanished">Tipo de puerto desconocido "%1"</translation>
-        </message>
-        <message>
-            <source>Use virtual, physical, tcp, udp, rfc2217 or mock. Nothing was applied.</source>
-            <translation type="vanished">Use virtual, physical, tcp, udp, rfc2217 o mock. No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown virtual kind "%2"</source>
-            <translation type="vanished">Línea %1: tipo virtual desconocido "%2"</translation>
-        </message>
-        <message>
-            <source>Unknown virtual kind "%1"</source>
-            <translation type="vanished">Tipo virtual desconocido "%1"</translation>
-        </message>
-        <message>
-            <source>Use auto, pty, named-pipe, loopback or windows-driver. Nothing was applied.</source>
-            <translation type="vanished">Use auto, pty, named-pipe, loopback o windows-driver. No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Line %1: port "%2" has no address</source>
-            <translation type="vanished">Línea %1: el puerto "%2" no tiene dirección</translation>
-        </message>
-        <message>
-            <source>Port "%1" has no address</source>
-            <translation type="vanished">El puerto "%1" no tiene dirección</translation>
-        </message>
-        <message>
-            <source>A physical or network port needs a uri. Nothing was applied.</source>
-            <translation type="vanished">Un puerto físico o de red necesita un uri. No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>"links" must be a list</source>
-            <translation type="vanished">"links" debe ser una lista</translation>
-        </message>
-        <message>
-            <source>Line %1: each link must be an object</source>
-            <translation type="vanished">Línea %1: cada enlace debe ser un objeto</translation>
-        </message>
-        <message>
-            <source>Each link must be an object</source>
-            <translation type="vanished">Cada enlace debe ser un objeto</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown link mode "%2"</source>
-            <translation type="vanished">Línea %1: modo de enlace desconocido "%2"</translation>
-        </message>
-        <message>
-            <source>Unknown link mode "%1"</source>
-            <translation type="vanished">Modo de enlace desconocido "%1"</translation>
-        </message>
-        <message>
-            <source>Did you mean "%1"? The line is highlighted and nothing was applied.</source>
-            <translation type="vanished">¿Quiso decir "%1"? La línea está resaltada y no se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Use duplex, split, join, redirect or monitor. Nothing was applied.</source>
-            <translation type="vanished">Use duplex, split, join, redirect o monitor. No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Line %1: a link needs ports on both sides</source>
-            <translation type="vanished">Línea %1: un enlace necesita puertos en ambos lados</translation>
-        </message>
-        <message>
-            <source>A link needs ports on both sides</source>
-            <translation type="vanished">Un enlace necesita puertos en ambos lados</translation>
-        </message>
-        <message>
-            <source>sources and targets must be non-empty lists of port names. Nothing was applied.</source>
-            <translation type="vanished">sources y targets deben ser listas no vacías de nombres de puerto. No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Line %1: "%2" has the wrong number of ports</source>
-            <translation type="vanished">Línea %1: "%2" tiene un número incorrecto de puertos</translation>
-        </message>
-        <message>
-            <source>"%1" has the wrong number of ports</source>
-            <translation type="vanished">"%1" tiene un número incorrecto de puertos</translation>
-        </message>
-        <message>
-            <source>A duplex, redirect or monitor link joins one port to one port; a split has one source; a join has one target. Nothing was applied.</source>
-            <translation type="vanished">Un enlace duplex, redirect o monitor une un puerto con otro puerto; un split tiene un origen; un join tiene un destino. No se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>Line %1: no port is called "%2"</source>
-            <translation type="vanished">Línea %1: ningún puerto se llama "%2"</translation>
-        </message>
-        <message>
-            <source>No port is called "%1"</source>
-            <translation type="vanished">Ningún puerto se llama "%1"</translation>
-        </message>
-        <message>
-            <source>Line %1: these links create a loop</source>
-            <translation type="vanished">Línea %1: estos enlaces crean un bucle</translation>
-        </message>
-        <message>
-            <source>These links create a loop</source>
-            <translation type="vanished">Estos enlaces crean un bucle</translation>
-        </message>
-        <message>
-            <source>Bytes would go round forever, so the hub refuses a loop and nothing was applied.</source>
-            <translation type="vanished">Los bytes darían vueltas sin fin, por lo que el hub rechaza un bucle y no se aplicó nada.</translation>
-        </message>
-        <message>
-            <source>The setup format rejected this document</source>
-            <translation type="vanished">El formato de configuración rechazó este documento</translation>
-        </message>
-        <message>
-            <source>Open</source>
-            <translation type="vanished">Abierto</translation>
-        </message>
-        <message>
-            <source>Failed</source>
-            <translation type="vanished">Con error</translation>
-        </message>
-        <message>
-            <source>Closed</source>
-            <translation type="vanished">Cerrado</translation>
         </message>
     </context>
     <context>
@@ -11439,17 +11627,9 @@ Redes: %5</translation>
             <translation>Los programas que abren un nombre fijo como COM3 encuentran el puerto de nuevo en cada ejecución. Automático toma un número libre por encima de los puertos que este PC ya tiene, nunca COM1 ni COM2. Un número necesita el controlador de Studio y su servicio auxiliar, y se usa cuando se crea un solo puerto.</translation>
         </message>
         <message>
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation type="vanished">Los programas que abren un nombre fijo como COM3 encuentran el puerto en cada ejecución. «Automático» toma el número libre más bajo. Un número necesita el controlador de Studio y su servicio auxiliar, y se usa cuando se crea un solo puerto.</translation>
-        </message>
-        <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
             <source>Best available uses the Studio driver or com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
             <translation>«Mejor disponible» usa el controlador de Studio o com0com en Windows, y un pseudoterminal en Linux y macOS. Hasta 32 a la vez. Varios puertos se llaman port-1, port-2 y así sucesivamente.</translation>
-        </message>
-        <message>
-            <source>Best available uses com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
-            <translation type="vanished">Mejor disponible usa com0com en Windows y un pseudoterminal en Linux y macOS. Hasta 32 a la vez. Varios puertos se llaman port-1, port-2 y así sucesivamente.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="377" />
@@ -11554,6 +11734,10 @@ Redes: %5</translation>
             <source> Try a different name or kind, then try again.</source>
             <translation> Pruebe con otro nombre o tipo e inténtelo de nuevo.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>Creando</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11561,10 +11745,6 @@ Redes: %5</translation>
             <location filename="../src/flows/attach_dialog.cpp" line="76" />
             <source>Attach a real device</source>
             <translation>Conectar un dispositivo real</translation>
-        </message>
-        <message>
-            <source>Studio opens the device once. Your programs then open the port Studio creates for them.</source>
-            <translation type="vanished">Studio abre el dispositivo una vez. Sus programas abren después el puerto que Studio crea para ellos.</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="77" />
@@ -11778,14 +11958,6 @@ Redes: %5</translation>
             <translation>Studio mantendrá abierto %1 a %2 baudios. Sus programas no deben abrir %1. Abren el nuevo puerto virtual que Studio crea, y Studio pasa los datos entre ese puerto y %1.</translation>
         </message>
         <message>
-            <source>Studio will open &lt;b&gt;%1&lt;/b&gt; at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio abrirá &lt;b&gt;%1&lt;/b&gt; a %2 baudios y lo mantendrá abierto. Sus programas deben abrir el puerto que Studio crea, no %1.</translation>
-        </message>
-        <message>
-            <source>Studio will open %1 at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studio abrirá %1 a %2 baudios y lo mantendrá abierto. Sus programas deben abrir el puerto que Studio crea, no %1.</translation>
-        </message>
-        <message>
             <location filename="../src/flows/attach_dialog.cpp" line="632" />
             <source>hardware flow control</source>
             <translation>control de flujo por hardware</translation>
@@ -11861,6 +12033,10 @@ Redes: %5</translation>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>Elegir otro</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>Conectando</translation>
         </message>
     </context>
     <context>
@@ -12081,10 +12257,6 @@ Redes: %5</translation>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="568" />
             <source>%1: sent %2, received %3, lost %4, throughput %5.</source>
             <translation>%1: enviado %2, recibido %3, perdido %4, rendimiento %5.</translation>
-        </message>
-        <message>
-            <source>The benchmark command is not available in this build.</source>
-            <translation type="vanished">El comando de la prueba de rendimiento no está disponible en esta compilación.</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +13134,14 @@ Redes: %5</translation>
             <source>Scroll</source>
             <translation>Desplazamiento</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Progreso</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13099,6 +13279,14 @@ Redes: %5</translation>
             <translation>RX %1, TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>Tráfico total</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>Bytes recibidos y enviados en total. La barra de estado muestra la velocidad actual.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>Ningún programa ha abierto %1 todavía. El programa debe abrir exactamente %1; otro puerto no recibirá nada.</translation>
@@ -13107,10 +13295,6 @@ Redes: %5</translation>
             <location filename="../src/panes/inspector_panel.cpp" line="436" />
             <source>Copy name, %1</source>
             <translation>Copiar nombre, %1</translation>
-        </message>
-        <message>
-            <source>No program has opened %1 yet.</source>
-            <translation type="vanished">Ningún programa ha abierto %1 todavía.</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="451" />
@@ -14028,6 +14212,10 @@ Redes: %5</translation>
             <source>Create pair</source>
             <translation>Crear par</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>Creando</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::PairPanel</name>
@@ -14580,10 +14768,6 @@ Redes: %5</translation>
             <translation>Ningún programa ha abierto %1 todavía. En su programa, elija exactamente %1. Este panel se actualiza cuando uno lo abre.</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet. This panel updates when one does.</source>
-            <translation type="vanished">Ningún programa ha abierto %1 todavía. Este panel se actualiza cuando alguno lo haga.</translation>
-        </message>
-        <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="365" />
             <source>Program connected</source>
             <translation>Programa conectado</translation>
@@ -14865,10 +15049,6 @@ Redes: %5</translation>
             <location filename="../src/panes/send_panel.cpp" line="98" />
             <source>Send</source>
             <translation>Enviar</translation>
-        </message>
-        <message>
-            <source>Send to port</source>
-            <translation type="vanished">Enviar al puerto</translation>
         </message>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="81" />
@@ -15177,10 +15357,6 @@ Redes: %5</translation>
             <location filename="../src/dialogs/share_wizard.cpp" line="453" />
             <source>The address of the serial server, using TCP, UDP or RFC 2217.</source>
             <translation>La dirección del servidor serie, mediante TCP, UDP o RFC 2217.</translation>
-        </message>
-        <message>
-            <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are.</source>
-            <translation type="vanished">Sus programas abrirán los puertos que Studio crea, no el propio %1. A continuación elegirá cuántos programas hay.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="483" />
@@ -16266,10 +16442,6 @@ Redes: %5</translation>
             <translation>Mantener Studio abierto</translation>
         </message>
         <message>
-            <source>Undo needs an exact restore, which this build cannot prove.</source>
-            <translation type="vanished">Deshacer requiere una restauración exacta, que esta compilación no puede garantizar.</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="533" />
             <source>&amp;File</source>
             <translation>&amp;Archivo</translation>
@@ -16318,10 +16490,6 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="619" />
             <source>Main toolbar</source>
             <translation>Barra de herramientas principal</translation>
-        </message>
-        <message>
-            <source>Not available in this build.</source>
-            <translation type="vanished">No disponible en esta compilación.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="833" />
@@ -16420,10 +16588,6 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="2058" />
             <source>Remove %1?</source>
             <translation>¿Quitar %1?</translation>
-        </message>
-        <message>
-            <source>The port and its links will be removed. This cannot be undone.</source>
-            <translation type="vanished">El puerto y sus enlaces se quitarán. Esta acción no se puede deshacer.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1963" />
@@ -16637,6 +16801,29 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="2785" />
             <source>Layout reset.</source>
             <translation>Disposición restablecida.</translation>
+        </message>
+        <message>
+            <source>Progress</source>
+            <translation>Progreso</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>Copiar información de diagnóstico</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>compilación entorno informe de error</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>Información de diagnóstico copiada.</translation>
         </message>
     </context>
     <context>
@@ -17074,6 +17261,14 @@ Redes: %5</translation>
             <source>Saved %1.</source>
             <translation>Se guardó %1.</translation>
         </message>
+        <message>
+            <source>Applying</source>
+            <translation>Aplicando</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::WatchDialog</name>
@@ -17271,17 +17466,6 @@ Redes: %5</translation>
             <location filename="../src/advanced/wiring_dialog.cpp" line="169" />
             <source>Faults are only available on fixture ports.</source>
             <translation>Los fallos solo están disponibles en los puertos de dispositivos simulados.</translation>
-        </message>
-    </context>
-    <context>
-        <name>vss::gui::json_validation</name>
-        <message>
-            <source>Valid, version 1</source>
-            <translation type="vanished">Válido, versión 1</translation>
-        </message>
-        <message>
-            <source>Not valid</source>
-            <translation type="vanished">No válido</translation>
         </message>
     </context>
     <context>
@@ -17577,6 +17761,11 @@ Redes: %5</translation>
             <translation>Puerto nuevo</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>Automático</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>Programa, p. ej. PuTTY (opcional)</translation>
@@ -17836,6 +18025,26 @@ Redes: %5</translation>
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio no pudo leer qué números COM reserva Windows, así que elige uno libre al crear el puerto y lo muestra cuando el puerto está listo.</translation>
         </message>
+        <message>
+            <source>Applying</source>
+            <translation>Aplicando</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Creando</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Aplicando el cambio. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>Progreso de la configuración</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::simple::JobGrid</name>
@@ -18086,20 +18295,6 @@ Redes: %5</translation>
             <translation>
                 <numerusform>%n emisor hacia %1</numerusform>
                 <numerusform>%n emisores hacia %1</numerusform>
-            </translation>
-        </message>
-        <message numerus="yes">
-            <source>Line with %n</source>
-            <translation type="vanished">
-                <numerusform>Línea con %n</numerusform>
-                <numerusform>Línea con %n</numerusform>
-            </translation>
-        </message>
-        <message numerus="yes">
-            <source>%n into %1</source>
-            <translation type="vanished">
-                <numerusform>%n hacia %1</numerusform>
-                <numerusform>%n hacia %1</numerusform>
             </translation>
         </message>
         <message numerus="yes">
@@ -18764,6 +18959,151 @@ Redes: %5</translation>
             <source>Set up Virtual Serial Studio</source>
             <translation>Configurar Virtual Serial Studio</translation>
         </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="72" />
+            <source>End A</source>
+            <translation>Extremo A</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="72" />
+            <source>End B</source>
+            <translation>Extremo B</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="74" />
+            <source>Source</source>
+            <translation>Origen</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="75" />
+            <source>Target %1</source>
+            <translation>Destino %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="77" />
+            <source>Target</source>
+            <translation>Destino</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="78" />
+            <source>Source %1</source>
+            <translation>Origen %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="80" />
+            <source>Device</source>
+            <translation>Dispositivo</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="81" />
+            <source>Program %1</source>
+            <translation>Programa %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="83" />
+            <source>Member %1</source>
+            <translation>Miembro %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="85" />
+            <source>From</source>
+            <translation>De</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="85" />
+            <source>To</source>
+            <translation>A</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="87" />
+            <source>Watched</source>
+            <translation>Supervisado</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="87" />
+            <source>Copy</source>
+            <translation>Copiar</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="89" />
+            <source>Fixture %1</source>
+            <translation>Dispositivo simulado %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="90" />
+            <source>Port %1</source>
+            <translation>Puerto %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="99" />
+            <source>Name</source>
+            <translation>Nombre</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="100" />
+            <source>Name %1</source>
+            <translation>Nombre de %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="109" />
+            <source>Add %1</source>
+            <translation>Añadir %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="145" />
+            <source>How many</source>
+            <translation>Cuántos</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="166" />
+            <source>More settings</source>
+            <translation>Más ajustes</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="176" />
+            <source>Baud rate</source>
+            <translation>Velocidad en baudios</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="184" />
+            <source>Framing</source>
+            <translation>Trama</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="207" />
+            <source>Cancel</source>
+            <translation>Cancelar</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="211" />
+            <source>Add</source>
+            <translation>Añadir</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="262" />
+            <source>%1 kind</source>
+            <translation>Tipo de %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="263" />
+            <source>New port</source>
+            <translation>Puerto nuevo</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="264" />
+            <source>New fixture</source>
+            <translation>Nuevo dispositivo simulado</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="265" />
+            <source>Loopback</source>
+            <translation>Bucle de retorno</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="270" />
+            <source>%1 name</source>
+            <translation>Nombre de %1</translation>
+        </message>
     </context>
     <context>
         <name>HalfDuplexFields</name>
@@ -18836,6 +19176,755 @@ Redes: %5</translation>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>No disponible en esta compilación</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>Controles de zoom</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>Alejar</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>Restablecer el zoom al 100 %</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>Acercar</translation>
+        </message>
+    </context>
+    <context>
+        <name>CanvasController</name>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="67" />
+            <source>Delete</source>
+            <translation>Delete</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="67" />
+            <source>Cancel</source>
+            <translation>Cancelar</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="200" />
+            <source>Nothing was added: %1</source>
+            <translation>No se añadió nada: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="205" />
+            <source>Add %1</source>
+            <translation>Añadir %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="209" />
+            <source>Added %1.</source>
+            <translation>Se añadió %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="247" />
+            <source>Could not link the ports: %1</source>
+            <translation>No se pudieron enlazar los puertos: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="254" />
+            <source>Connect ports</source>
+            <translation>Conectar puertos</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="273" />
+            <source>Linked %1.</source>
+            <translation>Se enlazó %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="323" />
+            <source>Could not add and link a new port.</source>
+            <translation>No se pudo añadir y enlazar un puerto nuevo.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="355" />
+            <source>This port can only be opened once.</source>
+            <translation>Este puerto solo se puede abrir una vez.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="356" />
+            <source>Could not duplicate: %1</source>
+            <translation>No se pudo duplicar: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="359" />
+            <source>Duplicate</source>
+            <translation>Duplicar</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="380" />
+            <source>%1 and %2</source>
+            <translation>%1 y %2</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/shell/canvas_controller.cpp" line="386" />
+            <source>%n link(s)</source>
+            <translation>
+                <numerusform>%n enlace</numerusform>
+                <numerusform>%n enlaces</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="407" />
+            <source>Delete %1 and the links on them? Undo brings them back.</source>
+            <translation>¿Eliminar %1 y los enlaces que tienen? Deshacer los recupera.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="409" />
+            <source>Delete %1? Undo brings it back.</source>
+            <translation>¿Eliminar %1? Deshacer lo recupera.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="410" />
+            <source>Delete %1?</source>
+            <translation>¿Eliminar %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="417" />
+            <source>Could not delete: %1</source>
+            <translation>No se pudo eliminar: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="424" />
+            <source>link</source>
+            <translation>enlace</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="425" />
+            <source>%1 ports</source>
+            <translation>%1 puertos</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="428" />
+            <source>Delete %1</source>
+            <translation>Eliminar %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="439" />
+            <source>Recreated %1 as %2 (it was %3).</source>
+            <translation>Se recreó %1 como %2 (era %3).</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="451" />
+            <source>Deleted %1.</source>
+            <translation>Se eliminó %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="488" />
+            <source>Link selected</source>
+            <translation>Enlace seleccionado</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="518" />
+            <source>Could not change the link: %1</source>
+            <translation>No se pudo cambiar el enlace: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="552" />
+            <source>Link settings</source>
+            <translation>Ajustes del enlace</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="584" />
+            <source>Could not reverse the link.</source>
+            <translation>No se pudo invertir el enlace.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="587" />
+            <source>Reverse direction</source>
+            <translation>Invertir dirección</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="617" />
+            <source>Settings for %1</source>
+            <translation>Ajustes de %1</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/shell/canvas_controller.cpp" line="618" />
+            <source>Settings for %n ports</source>
+            <translation>
+                <numerusform>Ajustes de %n puerto</numerusform>
+                <numerusform>Ajustes de %n puertos</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="634" />
+            <source>Settings changed.</source>
+            <translation>Ajustes cambiados.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="650" />
+            <source>Link settings changed.</source>
+            <translation>Ajustes del enlace cambiados.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PaneHeader</name>
+        <message numerus="yes">
+            <location filename="../src/widgets/surfaces.cpp" line="100" />
+            <source>%n item(s)</source>
+            <translation>
+                <numerusform>%n elemento</numerusform>
+                <numerusform>%n elementos</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>PortSettingsDialog</name>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="61" />
+            <source>no flow control</source>
+            <translation>sin control de flujo</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="63" />
+            <source>hardware flow control</source>
+            <translation>control de flujo por hardware</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="65" />
+            <source>software flow control</source>
+            <translation>control de flujo por software</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="137" />
+            <source>Settings for %1</source>
+            <translation>Ajustes de %1</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="138" />
+            <source>Settings for %n ports</source>
+            <translation>
+                <numerusform>Ajustes de %n puerto</numerusform>
+                <numerusform>Ajustes de %n puertos</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="159" />
+            <source>Studio opens the device with these settings.</source>
+            <translation>Studio abre el dispositivo con estos ajustes.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="162" />
+            <source>Studio asks the remote device to use these settings.</source>
+            <translation>Studio pide al dispositivo remoto que use estos ajustes.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="165" />
+            <source>The fixture behaves as a device set to these values.</source>
+            <translation>El dispositivo simulado se comporta como un dispositivo configurado con estos valores.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="168" />
+            <source>A program that opens this port sets its own speed. These are the values saved with the setup.</source>
+            <translation>Un programa que abre este puerto fija su propia velocidad. Estos son los valores guardados con la configuración.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="178" />
+            <source>Program set %1.</source>
+            <translation>El programa fijó %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="185" />
+            <source>A loopback has no line speed. These values are saved with the setup.</source>
+            <translation>Un bucle de retorno no tiene velocidad de línea. Estos valores se guardan con la configuración.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="189" />
+            <source>A network port has no line settings.</source>
+            <translation>Un puerto de red no tiene ajustes de línea.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="203" />
+            <source>Baud rate</source>
+            <translation>Velocidad en baudios</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="211" />
+            <source>Data bits</source>
+            <translation>Bits de datos</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="215" />
+            <source>Parity</source>
+            <translation>Paridad</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="216" />
+            <source>None</source>
+            <translation>Ninguna</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="217" />
+            <source>Odd</source>
+            <translation>Impar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="218" />
+            <source>Even</source>
+            <translation>Par</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="219" />
+            <source>Mark</source>
+            <translation>Marca</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="220" />
+            <source>Space</source>
+            <translation>Espacio</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="222" />
+            <source>Stop bits</source>
+            <translation>Bits de parada</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="230" />
+            <source>Flow control</source>
+            <translation>Control de flujo</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="232" />
+            <source>Hardware (RTS/CTS)</source>
+            <translation>Hardware (RTS/CTS)</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="234" />
+            <source>Software (XON/XOFF)</source>
+            <translation>Software (XON/XOFF)</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="244" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="245" />
+            <source>Wait</source>
+            <translation>Esperar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="248" />
+            <source>Read timeout</source>
+            <translation>Tiempo de espera de lectura</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="249" />
+            <source>Write timeout</source>
+            <translation>Tiempo de espera de escritura</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="283" />
+            <source>Restarting the port drops bytes that are in flight. Programs that have it open keep their handle.</source>
+            <translation>Reiniciar el puerto descarta los bytes en tránsito. Los programas que lo tienen abierto conservan su identificador.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="313" />
+            <source>Cancel</source>
+            <translation>Cancelar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="316" />
+            <source>Apply and restart</source>
+            <translation>Aplicar y reiniciar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="317" />
+            <source>Apply</source>
+            <translation>Aplicar</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="399" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="401" />
+            <source>The baud rate must be a whole number from %1 to %2.</source>
+            <translation>La velocidad en baudios debe ser un número entero de %1 a %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>The port could not take these settings: %1</source>
+            <translation>El puerto no pudo aceptar estos ajustes: %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>StudioTray</name>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="25" />
+            <source>Open Studio</source>
+            <translation>Abrir Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="32" />
+            <source>Start when I sign in</source>
+            <translation>Iniciar al iniciar sesión</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="37" />
+            <source>Stop the ports and quit</source>
+            <translation>Detener los puertos y salir</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="83" />
+            <source>%1 ports, %2 links running</source>
+            <translation>%1 puertos, %2 enlaces en ejecución</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="85" />
+            <source>Virtual Serial Studio: %1</source>
+            <translation>Virtual Serial Studio: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="104" />
+            <source>Not available in this build</source>
+            <translation>No disponible en esta compilación</translation>
+        </message>
+    </context>
+    <context>
+        <name>Toolbox</name>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="62" />
+            <source>Port</source>
+            <translation>Puerto</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="64" />
+            <source>Fixture</source>
+            <translation>Dispositivo simulado</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="66" />
+            <source>Loopback</source>
+            <translation>Bucle de retorno</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="68" />
+            <source>Device</source>
+            <translation>Dispositivo</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="70" />
+            <source>Network</source>
+            <translation>Red</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="72" />
+            <source>Pair</source>
+            <translation>Par</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="74" />
+            <source>Split</source>
+            <translation>Dividir</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="76" />
+            <source>Join</source>
+            <translation>Unir</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="78" />
+            <source>Bus</source>
+            <translation>Bus</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="80" />
+            <source>Switch</source>
+            <translation>Conmutador</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="82" />
+            <source>Redirect</source>
+            <translation>Redirección</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="84" />
+            <source>Monitor</source>
+            <translation>Monitor</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="86" />
+            <source>Share</source>
+            <translation>Compartir</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="88" />
+            <source>Bench</source>
+            <translation>Prueba</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="98" />
+            <source>A virtual port of the best available kind</source>
+            <translation>Un puerto virtual del mejor tipo disponible</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="100" />
+            <source>A mock device</source>
+            <translation>Un dispositivo simulado</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="102" />
+            <source>A port that sends back everything it receives</source>
+            <translation>Un puerto que devuelve todo lo que recibe</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="104" />
+            <source>A real serial device on this computer</source>
+            <translation>Un dispositivo serie real de este equipo</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="106" />
+            <source>A TCP, UDP or RFC 2217 endpoint</source>
+            <translation>Un punto final TCP, UDP o RFC 2217</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="108" />
+            <source>Two ports linked both ways, like a null-modem cable</source>
+            <translation>Dos puertos enlazados en ambos sentidos, como un cable de módem nulo</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="111" />
+            <source>One port feeds several; their replies merge back</source>
+            <translation>Un puerto alimenta a varios; sus respuestas se mezclan de vuelta</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="113" />
+            <source>Several ports send into one, one way</source>
+            <translation>Varios puertos envían a uno, en un solo sentido</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="115" />
+            <source>Several ports on one shared line; each hears all the others</source>
+            <translation>Varios puertos en una línea compartida; cada uno oye a todos los demás</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="118" />
+            <source>Several programs send to one port, one owner at a time</source>
+            <translation>Varios programas envían a un puerto, de uno en uno</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="121" />
+            <source>Bytes from one port go to another, one way</source>
+            <translation>Los bytes de un puerto van a otro, en un solo sentido</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="123" />
+            <source>A passive copy of one port's traffic</source>
+            <translation>Una copia pasiva del tráfico de un puerto</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="125" />
+            <source>A real device given to several programs</source>
+            <translation>Un dispositivo real que se da a varios programas</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="127" />
+            <source>Several fixtures, each paired with its own port</source>
+            <translation>Varios dispositivos simulados, cada uno emparejado con su propio puerto</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="171" />
+            <source>Toolbox</source>
+            <translation>Caja de herramientas</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="173" />
+            <source>Drag a tile onto the canvas, or press Enter on it.</source>
+            <translation>Arrastre una ficha al lienzo, o pulse Intro sobre ella.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="239" />
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="254" />
+            <source>Ports</source>
+            <translation>Puertos</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="257" />
+            <source>Bundles</source>
+            <translation>Paquetes</translation>
+        </message>
+    </context>
+    <context>
+        <name>TopologyView</name>
+        <message numerus="yes">
+            <location filename="../src/topology/topology_view.cpp" line="919" />
+            <source>%n selected: %1</source>
+            <translation>
+                <numerusform>%n seleccionado: %1</numerusform>
+                <numerusform>%n seleccionados: %1</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2363" />
+            <source>Drag a port or bundle from the toolbox, or press Enter on one.</source>
+            <translation>Arrastre un puerto o paquete desde la caja de herramientas, o pulse Intro sobre uno.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2572" />
+            <source>Choose the port to link %1 to, then press Enter. Esc cancels.</source>
+            <translation>Elija el puerto al que enlazar %1 y pulse Intro. Esc cancela.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2704" />
+            <source>Two-way</source>
+            <translation>Bidireccional</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2705" />
+            <source>One way, from %1 to %2</source>
+            <translation>En un solo sentido, de %1 a %2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2706" />
+            <source>Monitor %1 on %2</source>
+            <translation>Monitor de %1 en %2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2727" />
+            <source>Link %1 and %2</source>
+            <translation>Enlazar %1 y %2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2761" />
+            <source>New port here</source>
+            <translation>Puerto nuevo aquí</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2764" />
+            <source>New fixture here</source>
+            <translation>Dispositivo simulado nuevo aquí</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2765" />
+            <source>New loopback here</source>
+            <translation>Bucle de retorno nuevo aquí</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2771" />
+            <source>One way, to the new port</source>
+            <translation>En un solo sentido, al puerto nuevo</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2772" />
+            <source>Monitor on the new port</source>
+            <translation>Monitor en el puerto nuevo</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2812" />
+            <source>Settings...</source>
+            <translation>Ajustes...</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2818" />
+            <source>A network port has no line settings.</source>
+            <translation>Un puerto de red no tiene ajustes de línea.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2827" />
+            <source>Duplicate</source>
+            <translation>Duplicar</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2833" />
+            <source>This port can only be opened once.</source>
+            <translation>Este puerto solo se puede abrir una vez.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2847" />
+            <source>Delete</source>
+            <translation>Delete</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2855" />
+            <source>Link selected</source>
+            <translation>Enlace seleccionado</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2871" />
+            <source>Select exactly two ports.</source>
+            <translation>Seleccione exactamente dos puertos.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2872" />
+            <source>Split from %1</source>
+            <translation>Dividir desde %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2873" />
+            <source>Join into %1</source>
+            <translation>Unir en %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2874" />
+            <source>Bus</source>
+            <translation>Bus</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2875" />
+            <source>Switch on %1</source>
+            <translation>Conmutador en %1</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/topology/topology_view.cpp" line="2898" />
+            <source>Settings for %n ports...</source>
+            <translation>
+                <numerusform>Ajustes de %n puerto...</numerusform>
+                <numerusform>Ajustes de %n puertos...</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2918" />
+            <source>A monitor link has no settings.</source>
+            <translation>Un enlace de monitor no tiene ajustes.</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2922" />
+            <source>Reverse direction</source>
+            <translation>Invertir dirección</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2949" />
+            <source>Add port</source>
+            <translation>Añadir puerto</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2950" />
+            <source>Add fixture</source>
+            <translation>Añadir dispositivo simulado</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2951" />
+            <source>Add loopback</source>
+            <translation>Añadir bucle de retorno</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2952" />
+            <source>Add bundle</source>
+            <translation>Añadir paquete</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2959" />
+            <source>Select all</source>
+            <translation>Seleccionar todo</translation>
         </message>
     </context>
 </TS>

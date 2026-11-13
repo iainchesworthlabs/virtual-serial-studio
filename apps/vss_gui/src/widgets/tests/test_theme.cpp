@@ -6,15 +6,22 @@
 
 #include "test_framework.hpp"
 
+#include "theme/focus_ring_style.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 
+#include <QApplication>
 #include <QColor>
 #include <QDirIterator>
 #include <QFile>
+#include <QFontDatabase>
 #include <QImage>
+#include <QListWidget>
 #include <QRegularExpression>
 #include <QStringList>
+#include <QTableWidget>
+#include <QTreeWidget>
+#include <QWidget>
 
 #include <algorithm>
 #include <cmath>
@@ -65,9 +72,9 @@ TEST_CASE("theme: resolves tokens in both themes")
     REQUIRE(theme.colour_names().size() >= 30);
 
     theme.set_mode(vss::gui::theme_mode::dark);
-    REQUIRE_EQ(theme.colour(QStringLiteral("ink")), QColor(0xEC, 0xED, 0xEF));
+    REQUIRE_EQ(theme.colour(QStringLiteral("ink")), QColor(0xE6, 0xE8, 0xEC));
     REQUIRE_EQ(theme.colour(QStringLiteral("ground")),
-               QColor(0x0E, 0x0F, 0x12));
+               QColor(0x14, 0x16, 0x1A));
     REQUIRE(theme.has_colour(QStringLiteral("accent")));
     REQUIRE(!theme.has_colour(QStringLiteral("not-a-token")));
 }
@@ -303,6 +310,23 @@ TEST_CASE("theme: fonts, metrics, spacing and density")
     theme.set_density(vss::gui::density_mode::comfortable);
 }
 
+TEST_CASE("theme: the bundled fonts are registered and used")
+{
+    auto& theme = vss::gui::Theme::instance();
+    const QStringList families = QFontDatabase::families();
+    REQUIRE(families.contains(QStringLiteral("IBM Plex Mono")));
+    REQUIRE(families.contains(QStringLiteral("Noto Sans Hebrew")));
+    REQUIRE(families.contains(QStringLiteral("Noto Sans Arabic")));
+    // Byte views use the bundled face, so hex columns match on every system.
+    REQUIRE_EQ(theme.font(vss::gui::text_style::data).family(),
+               QStringLiteral("IBM Plex Mono"));
+    // The UI font stays the system font; the Noto faces are glyph fallbacks.
+    const QStringList ui = theme.font(vss::gui::text_style::body).families();
+    REQUIRE(ui.contains(QStringLiteral("Noto Sans Hebrew")));
+    REQUIRE(ui.contains(QStringLiteral("Noto Sans Arabic")));
+    REQUIRE(ui.front() != QStringLiteral("Noto Sans Hebrew"));
+}
+
 TEST_CASE("theme: reduced motion override zeroes the durations")
 {
     auto& theme = vss::gui::Theme::instance();
@@ -314,4 +338,98 @@ TEST_CASE("theme: reduced motion override zeroes the durations")
     qunsetenv("VSS_REDUCE_MOTION");
     // The OS setting may legitimately be on; only the override is asserted.
     REQUIRE(theme.motion_ms(vss::gui::motion_kind::hover) >= 0);
+}
+
+namespace
+{
+
+int focus_pixels(const QImage& image)
+{
+    const QColor ring =
+        vss::gui::Theme::instance().colour(vss::gui::colour_role::focus);
+    int count = 0;
+    for (int y = 0; y < image.height(); ++y)
+    {
+        for (int x = 0; x < image.width(); ++x)
+        {
+            if (image.pixelColor(x, y) == ring)
+                ++count;
+        }
+    }
+    return count;
+}
+
+void save_review(QWidget& view, const char* name, const char* mode)
+{
+    const QByteArray dir = qgetenv("VSS_REVIEW_DIR");
+    if (dir.isEmpty())
+        return;
+    view.grab().save(QStringLiteral("%1/%2-%3.png")
+                         .arg(QString::fromUtf8(dir), QString::fromUtf8(name),
+                              QString::fromUtf8(mode)));
+}
+
+} // namespace
+
+TEST_CASE("theme: item views draw the focus ring on the current item")
+{
+    auto& theme = vss::gui::Theme::instance();
+    for (const auto mode :
+         {vss::gui::theme_mode::light, vss::gui::theme_mode::dark})
+    {
+        theme.set_mode(mode);
+        const char* mode_name =
+            mode == vss::gui::theme_mode::light ? "light" : "dark";
+
+        QListWidget list;
+        for (int row = 0; row < 4; ++row)
+            list.addItem(QStringLiteral("Setup %1").arg(row));
+        list.resize(240, 160);
+        list.show();
+        list.activateWindow();
+        list.setCurrentRow(1);
+        QApplication::processEvents();
+        list.clearFocus();
+        list.setFocus(Qt::TabFocusReason);
+        QApplication::processEvents();
+        REQUIRE(list.hasFocus());
+        REQUIRE(vss::gui::FocusRingStyle::keyboard_focus());
+        REQUIRE(focus_pixels(list.grab().toImage()) > 20);
+        save_review(list, "list", mode_name);
+
+        QTableWidget table(4, 3);
+        for (int row = 0; row < 4; ++row)
+            for (int column = 0; column < 3; ++column)
+                table.setItem(row, column,
+                              new QTableWidgetItem(QStringLiteral("r%1c%2")
+                                                       .arg(row)
+                                                       .arg(column)));
+        table.resize(320, 180);
+        table.show();
+        table.activateWindow();
+        table.setCurrentCell(1, 1);
+        QApplication::processEvents();
+        table.clearFocus();
+        table.setFocus(Qt::TabFocusReason);
+        QApplication::processEvents();
+        REQUIRE(focus_pixels(table.grab().toImage()) > 20);
+        save_review(table, "table", mode_name);
+
+        QTreeWidget tree;
+        tree.setHeaderLabel(QStringLiteral("Name"));
+        for (int row = 0; row < 4; ++row)
+            tree.addTopLevelItem(new QTreeWidgetItem(
+                QStringList{QStringLiteral("Node %1").arg(row)}));
+        tree.resize(240, 160);
+        tree.show();
+        tree.activateWindow();
+        tree.setCurrentItem(tree.topLevelItem(1));
+        QApplication::processEvents();
+        tree.clearFocus();
+        tree.setFocus(Qt::TabFocusReason);
+        QApplication::processEvents();
+        REQUIRE(focus_pixels(tree.grab().toImage()) > 20);
+        save_review(tree, "tree", mode_name);
+    }
+    theme.set_mode(vss::gui::theme_mode::light);
 }
