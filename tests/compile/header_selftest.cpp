@@ -55,6 +55,7 @@
 #include <vss/rules/model.hpp>
 #include <vss/rules/parse.hpp>
 #include <vss/rules/random.hpp>
+#include <vss/rules/scheduler.hpp>
 
 #include <vss/studio/studio.hpp>
 
