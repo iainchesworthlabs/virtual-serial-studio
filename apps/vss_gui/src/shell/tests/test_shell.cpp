@@ -61,13 +61,13 @@ void clear_settings()
     settings.clear();
 }
 
-} // namespace
-
 /// Waits for the ports a window is starting on its worker thread.
 void wait_applied(vss::gui::ShellWindow& window)
 {
     REQUIRE(vss_test::wait_until([&window] { return !window.applying(); }));
 }
+
+} // namespace
 
 TEST_CASE("actions: levels, search and shortcut uniqueness")
 {
