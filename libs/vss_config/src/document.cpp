@@ -358,7 +358,8 @@ std::optional<json::object> binding_params(std::string_view text)
     // The limit is on the compact text, which is what a read gives back.
     if (json::serialize(parsed).size() > max_binding_params_size)
         return std::nullopt;
-    return std::move(parsed.as_object());
+    json::object params = std::move(parsed.as_object());
+    return params;
 }
 
 bool valid_binding(const plugin_binding& binding)
