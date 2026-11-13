@@ -1404,16 +1404,39 @@ bool holds(const std::string& haystack, std::string_view needle)
     return haystack.find(needle) != std::string::npos;
 }
 
+/// The time of a clock a test moves by hand.  The test moves it on its own
+/// thread while the gateway reads it on another.
+class moved_time
+{
+public:
+    moved_time() : ticks_(control::wall_clock::now().time_since_epoch().count())
+    {
+    }
+
+    moved_time& operator+=(control::wall_clock::duration step) noexcept
+    {
+        ticks_.fetch_add(step.count());
+        return *this;
+    }
+
+    control::wall_clock::time_point get() const noexcept
+    {
+        return control::wall_clock::time_point(
+            control::wall_clock::duration(ticks_.load()));
+    }
+
+private:
+    std::atomic<control::wall_clock::rep> ticks_;
+};
+
 /// A clock a test moves by hand, for a gateway.
 struct shared_time
 {
-    std::shared_ptr<control::wall_clock::time_point> now =
-        std::make_shared<control::wall_clock::time_point>(
-            control::wall_clock::now());
+    std::shared_ptr<moved_time> now = std::make_shared<moved_time>();
 
     control::token_store::time_source source() const
     {
-        return [shared = now] { return *shared; };
+        return [shared = now] { return shared->get(); };
     }
 };
 
