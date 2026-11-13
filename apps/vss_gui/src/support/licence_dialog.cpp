@@ -694,7 +694,7 @@ void LicenceDialog::refresh_others(const licence_view& view)
     others_->show();
 }
 
-void LicenceDialog::set_state_note(const std::optional<licence_note>& note)
+void LicenceDialog::set_state_note(const std::optional<licence_banner>& note)
 {
     if (!note)
     {
@@ -717,7 +717,7 @@ void LicenceDialog::set_state_note(const std::optional<licence_note>& note)
     shown_state_note_ = note;
 }
 
-void LicenceDialog::set_import_note(const std::optional<licence_note>& note)
+void LicenceDialog::set_import_note(const std::optional<licence_banner>& note)
 {
     if (!note)
     {

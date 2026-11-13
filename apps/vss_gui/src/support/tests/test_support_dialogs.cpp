@@ -88,14 +88,6 @@ void log_message(support::EventLog& log, const QString& text)
     log.append(event);
 }
 
-QStringList names_of(const QVector<QCheckBox*>& checks)
-{
-    QStringList names;
-    for (const QCheckBox* check : checks)
-        names << check->objectName();
-    return names;
-}
-
 QStringList titles_of(const QVector<QCheckBox*>& checks)
 {
     QStringList titles;
@@ -110,6 +102,17 @@ QStringList file_names(const QListWidget& list)
     for (int row = 0; row < list.count(); ++row)
         names << list.item(row)->text();
     return names;
+}
+
+/// The row whose text is `name`, or -1.
+int row_of(const QListWidget& list, const QString& name)
+{
+    for (int row = 0; row < list.count(); ++row)
+    {
+        if (list.item(row)->text() == name)
+            return row;
+    }
+    return -1;
 }
 
 QStringList file_names(const QVector<support::bundle_file>& files)
@@ -242,7 +245,7 @@ void answer_failure(failure_seen& seen, const QString& press, bool copy_first,
 }
 
 /// Closes the renew dialog that opens while a button is pressed.
-bool renew_dialog_opened(std::function<void()> trigger)
+bool renew_dialog_opened(const std::function<void()>& trigger)
 {
     bool found = false;
     QTimer::singleShot(
@@ -445,7 +448,7 @@ TEST_CASE("support bundle dialog: the preview is the file, the first file is "
     REQUIRE(!dialog.shortened_note()->isVisibleTo(&dialog));
 
     // Selecting another file shows that file.
-    const int log_row = file_names(*list).indexOf(QStringLiteral("log.txt"));
+    const int log_row = row_of(*list, QStringLiteral("log.txt"));
     REQUIRE(log_row > 0);
     list->setCurrentRow(log_row);
     REQUIRE(preview->toPlainText().contains(QStringLiteral("opened")));
@@ -527,7 +530,7 @@ TEST_CASE("support bundle dialog: for every file the preview equals the bytes "
     for (const scenario& step : scenarios)
     {
         step.prepare();
-        const QString path =
+        QString path =
             directory.filePath(QStringLiteral("bundle%1.zip").arg(++number));
         dialog.set_path_picker([path](const QString&) { return path; });
         dialog.set_folder_opener([](const QString&) {});
@@ -592,7 +595,7 @@ TEST_CASE("support bundle dialog: a file over 256 kB is shown shortened and "
     const support::bundle_file* big =
         file_named(dialog, QStringLiteral("log.txt"));
     REQUIRE(big != nullptr);
-    REQUIRE(big->data.size() > support::bundle_preview_limit);
+    REQUIRE(big->data.size() > support::kBundlePreviewLimit);
     const QByteArray whole = big->data;
 
     QListWidget* list = dialog.file_list();
@@ -602,7 +605,7 @@ TEST_CASE("support bundle dialog: a file over 256 kB is shown shortened and "
                QStringLiteral("Preview shortened. The saved file is "
                               "complete."));
 
-    list->setCurrentRow(file_names(*list).indexOf(QStringLiteral("log.txt")));
+    list->setCurrentRow(row_of(*list, QStringLiteral("log.txt")));
     // The list gives the size of the whole file, not of the preview.
     REQUIRE(list->currentItem()
                 ->data(Qt::UserRole + 1)
@@ -611,13 +614,13 @@ TEST_CASE("support bundle dialog: a file over 256 kB is shown shortened and "
     REQUIRE(dialog.shortened_note()->isVisibleTo(&dialog));
     const QByteArray shown = dialog.preview()->toPlainText().toUtf8();
     REQUIRE_EQ(static_cast<qsizetype>(shown.size()),
-               support::bundle_preview_limit);
-    REQUIRE_EQ(shown, whole.left(support::bundle_preview_limit));
+               support::kBundlePreviewLimit);
+    REQUIRE_EQ(shown, whole.left(support::kBundlePreviewLimit));
 
     // The saved file is complete.
     QTemporaryDir directory;
     REQUIRE(directory.isValid());
-    const QString path = directory.filePath(QStringLiteral("big.zip"));
+    QString path = directory.filePath(QStringLiteral("big.zip"));
     dialog.set_path_picker([path](const QString&) { return path; });
     dialog.set_folder_opener([](const QString&) {});
     dialog.save();
@@ -648,12 +651,12 @@ TEST_CASE("support bundle dialog: a long file is cut at a whole character")
         log_message(log, QStringLiteral("é") + line);
     SupportBundleDialog dialog(backend, log);
     QListWidget* list = dialog.file_list();
-    list->setCurrentRow(file_names(*list).indexOf(QStringLiteral("log.txt")));
+    list->setCurrentRow(row_of(*list, QStringLiteral("log.txt")));
     const QString shown = dialog.preview()->toPlainText();
     REQUIRE(!shown.contains(QChar(0xfffd)));
     const QByteArray bytes = shown.toUtf8();
-    REQUIRE(bytes.size() <= support::bundle_preview_limit);
-    REQUIRE(bytes.size() >= support::bundle_preview_limit - 3);
+    REQUIRE(bytes.size() <= support::kBundlePreviewLimit);
+    REQUIRE(bytes.size() >= support::kBundlePreviewLimit - 3);
 }
 
 TEST_CASE("support bundle dialog: the zip is written only where the person "
@@ -664,7 +667,7 @@ TEST_CASE("support bundle dialog: the zip is written only where the person "
     SupportBundleDialog dialog(backend, log);
     QTemporaryDir directory;
     REQUIRE(directory.isValid());
-    const QString chosen = directory.filePath(QStringLiteral("mine.zip"));
+    QString chosen = directory.filePath(QStringLiteral("mine.zip"));
 
     // Cancelling the save dialog writes nothing and keeps the dialog open.
     int asked = 0;
@@ -719,7 +722,7 @@ TEST_CASE("support bundle dialog: the zip is written only where the person "
 
     // A path without an extension gets ".zip".
     SupportBundleDialog second(backend, log);
-    const QString bare = directory.filePath(QStringLiteral("plain"));
+    QString bare = directory.filePath(QStringLiteral("plain"));
     second.set_path_picker([&bare](const QString&) { return bare; });
     second.set_folder_opener([](const QString&) {});
     second.save();
@@ -735,7 +738,7 @@ TEST_CASE("support bundle dialog: a path that cannot be written ends in the "
     SupportBundleDialog dialog(backend, log);
     QTemporaryDir directory;
     REQUIRE(directory.isValid());
-    const QString bad =
+    QString bad =
         directory.filePath(QStringLiteral("no/such/folder/bundle.zip"));
     const QString good = directory.filePath(QStringLiteral("again.zip"));
 

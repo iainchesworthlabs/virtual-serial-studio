@@ -111,8 +111,8 @@ private:
     void refresh_others(const licence_view& view);
     void show_import_failure(const licence_import_result& result,
                              const QString& path);
-    void set_state_note(const std::optional<licence_note>& note);
-    void set_import_note(const std::optional<licence_note>& note);
+    void set_state_note(const std::optional<licence_banner>& note);
+    void set_import_note(const std::optional<licence_banner>& note);
     void set_row_visible(QWidget* field, bool visible);
 
     struct feature_row
@@ -153,7 +153,7 @@ private:
     QPushButton* remove_ = nullptr;
     QPushButton* import_ = nullptr;
     QPushButton* close_ = nullptr;
-    std::optional<licence_note> shown_state_note_;
+    std::optional<licence_banner> shown_state_note_;
 };
 
 } // namespace vss::gui::support

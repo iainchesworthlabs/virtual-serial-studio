@@ -53,10 +53,10 @@ class licence_store
 {
 public:
     /// The extension of a licence file and of a revocation list.
-    static constexpr const char* licence_suffix = "vsslic";
-    static constexpr const char* revocations_suffix = "vssrev";
+    static constexpr const char* kLicenceSuffix = "vsslic";
+    static constexpr const char* kRevocationsSuffix = "vssrev";
     /// No more files than this are read from a folder.
-    static constexpr int max_files = 64;
+    static constexpr int kMaxFiles = 64;
 
     explicit licence_store(licence_store_options options);
 

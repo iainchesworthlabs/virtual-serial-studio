@@ -65,7 +65,7 @@ capabilities with_licences()
 /// REQUIRE, which cannot unwind through the event loop. If no dialog appears
 /// the modal widget is rejected, so the test fails instead of hanging.
 template <class Dialog>
-void when_shown(std::function<void(Dialog&)> handler, int tries = 300)
+void when_shown(const std::function<void(Dialog&)>& handler, int tries = 300)
 {
     QTimer::singleShot(
         10, QApplication::instance(),
@@ -112,7 +112,7 @@ QPushButton* button_named(QWidget& parent, const QString& text)
 /// Records the next "Could not import the licence" dialog, copies its details
 /// when asked, then presses `press`.
 void answer_error(error_seen& seen, const QString& press, bool copy_first,
-                  std::function<void()> then = {})
+                  const std::function<void()>& then = {})
 {
     when_shown<ErrorDialog>(
         [&seen, press, copy_first, then](ErrorDialog& dialog)
@@ -482,11 +482,15 @@ TEST_CASE("licence text: the notices of the main window")
                QStringLiteral("Your licence ended on %1. Official plugins "
                               "switch off in 21 days.")
                    .arg(ends));
-    REQUIRE_EQ(s::notice_for(grace_with_days_left(1))->text,
+    const auto grace_tomorrow = s::notice_for(grace_with_days_left(1));
+    REQUIRE(grace_tomorrow.has_value());
+    REQUIRE_EQ(grace_tomorrow->text,
                QStringLiteral("Your licence ended on %1. Official plugins "
                               "switch off tomorrow.")
                    .arg(ends));
-    REQUIRE_EQ(s::notice_for(grace_with_days_left(0))->text,
+    const auto grace_today = s::notice_for(grace_with_days_left(0));
+    REQUIRE(grace_today.has_value());
+    REQUIRE_EQ(grace_today->text,
                QStringLiteral("Your licence ended on %1. Official plugins "
                               "switch off today.")
                    .arg(ends));

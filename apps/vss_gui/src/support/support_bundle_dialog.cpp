@@ -91,7 +91,7 @@ private:
     QCheckBox* check_ = nullptr;
 };
 
-constexpr int size_role = Qt::UserRole + 1;
+constexpr int kSizeRole = Qt::UserRole + 1;
 
 /// The file name in the fixed font at the left of a row, and its size at the
 /// right in the muted ink. Colours and fonts come from the theme.
@@ -118,7 +118,7 @@ public:
         painter->save();
         painter->setFont(theme.font(text_style::caption));
         painter->setPen(theme.colour(colour_role::ink3));
-        const QString size = index.data(size_role).toString();
+        const QString size = index.data(kSizeRole).toString();
         const int size_width =
             painter->fontMetrics().horizontalAdvance(size) + 12;
         painter->drawText(area, Qt::AlignRight | Qt::AlignVCenter, size);
@@ -727,7 +727,7 @@ void SupportBundleDialog::refresh_list()
         const bundle_file& file = files_.at(index);
         auto* item = new QListWidgetItem(file.name, list_);
         const QString size = size_text(file.data.size());
-        item->setData(size_role, size);
+        item->setData(kSizeRole, size);
         item->setData(Qt::AccessibleTextRole,
                       QStringLiteral("%1, %2").arg(file.name, size));
         if (file.name == keep)
@@ -750,11 +750,11 @@ void SupportBundleDialog::show_file(int index)
     }
     const bundle_file& file = files_.at(index);
     QByteArray shown = file.data;
-    const bool cut = shown.size() > bundle_preview_limit;
+    const bool cut = shown.size() > kBundlePreviewLimit;
     if (cut)
     {
         // Stop at the start of a character, not in the middle of one.
-        qsizetype end = bundle_preview_limit;
+        qsizetype end = kBundlePreviewLimit;
         while (end > 0 &&
                (static_cast<unsigned char>(shown.at(end)) & 0xC0) == 0x80)
             --end;

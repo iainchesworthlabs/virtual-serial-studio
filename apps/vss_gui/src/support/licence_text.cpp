@@ -279,14 +279,14 @@ QString state_sentence(const lic::status& status, const QString& computer_name)
     return invalid_sentence(status.reason, computer_name);
 }
 
-std::optional<licence_note> state_note(const lic::status& status)
+std::optional<licence_banner> state_note(const lic::status& status)
 {
     switch (status.state)
     {
     case lic::state::valid:
         if (!is_trial(status))
             return std::nullopt;
-        return licence_note{
+        return licence_banner{
             licence_note_tone::info,
             QCoreApplication::translate(
                 "LicenceDialog",
@@ -295,7 +295,7 @@ std::optional<licence_note> state_note(const lic::status& status)
                 .arg(expiry_date(status)),
             false};
     case lic::state::expiring:
-        return licence_note{
+        return licence_banner{
             licence_note_tone::warn,
             QCoreApplication::translate(
                 "LicenceDialog",
@@ -304,7 +304,7 @@ std::optional<licence_note> state_note(const lic::status& status)
                 .arg(expiry_date(status)),
             true};
     case lic::state::grace:
-        return licence_note{
+        return licence_banner{
             licence_note_tone::warn,
             QCoreApplication::translate(
                 "LicenceDialog",
@@ -312,7 +312,7 @@ std::optional<licence_note> state_note(const lic::status& status)
                 .arg(expiry_date(status), grace_end_date(status)),
             true};
     case lic::state::expired:
-        return licence_note{
+        return licence_banner{
             licence_note_tone::info,
             QCoreApplication::translate(
                 "LicenceDialog",
@@ -442,13 +442,13 @@ QString not_available_text()
                                        "Not available in this build");
 }
 
-std::optional<licence_note> import_note(const lic::status& status)
+std::optional<licence_banner> import_note(const lic::status& status)
 {
     switch (status.state)
     {
     case lic::state::grace:
     case lic::state::expired:
-        return licence_note{
+        return licence_banner{
             licence_note_tone::warn,
             QCoreApplication::translate(
                 "LicenceImport",
@@ -457,11 +457,11 @@ std::optional<licence_note> import_note(const lic::status& status)
                 .arg(expiry_date(status)),
             false};
     case lic::state::not_yet_valid:
-        return licence_note{licence_note_tone::info,
-                            QCoreApplication::translate(
-                                "LicenceImport", "This licence starts on %1.")
-                                .arg(start_date(status)),
-                            false};
+        return licence_banner{licence_note_tone::info,
+                              QCoreApplication::translate(
+                                  "LicenceImport", "This licence starts on %1.")
+                                  .arg(start_date(status)),
+                              false};
     case lic::state::none:
     case lic::state::valid:
     case lic::state::expiring:

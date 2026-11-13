@@ -53,7 +53,7 @@ std::string_view view_of(const QByteArray& bytes)
     return {bytes.constData(), static_cast<std::size_t>(bytes.size())};
 }
 
-/// The files with `suffix` in `directory`, by name, at most `max_files`.
+/// The files with `suffix` in `directory`, by name, at most `kMaxFiles`.
 QStringList files_in(const QString& directory, const char* suffix)
 {
     if (directory.isEmpty())
@@ -62,7 +62,7 @@ QStringList files_in(const QString& directory, const char* suffix)
     QStringList names =
         folder.entryList({QStringLiteral("*.") + QLatin1String(suffix)},
                          QDir::Files | QDir::Readable, QDir::Name);
-    while (names.size() > licence_store::max_files)
+    while (names.size() > licence_store::kMaxFiles)
         names.removeLast();
     QStringList paths;
     for (const QString& name : names)
@@ -202,7 +202,7 @@ void licence_store::load_revocations()
     for (const QString& directory :
          {options_.machine_directory, options_.user_directory})
     {
-        for (const QString& path : files_in(directory, revocations_suffix))
+        for (const QString& path : files_in(directory, kRevocationsSuffix))
         {
             const auto bytes = read_signed_file(path);
             if (!bytes)
@@ -231,7 +231,7 @@ bool licence_store::refresh()
     std::vector<lic::status> statuses;
     const auto read_folder = [&](const QString& directory, bool machine_wide)
     {
-        for (const QString& path : files_in(directory, licence_suffix))
+        for (const QString& path : files_in(directory, kLicenceSuffix))
         {
             const auto bytes = read_signed_file(path);
             licence_file_view file;
@@ -329,7 +329,7 @@ licence_import_result licence_store::import_file(const QString& path)
     for (const QString& directory :
          {options_.machine_directory, options_.user_directory})
     {
-        for (const QString& installed : files_in(directory, licence_suffix))
+        for (const QString& installed : files_in(directory, kLicenceSuffix))
         {
             const auto other = read_signed_file(installed);
             if (other && *other == *bytes)
@@ -351,12 +351,12 @@ licence_import_result licence_store::import_file(const QString& path)
     const QDir folder(options_.user_directory);
     const QString base = safe_name(result.status.value->licence_id);
     QString target;
-    for (int number = 1; number <= max_files; ++number)
+    for (int number = 1; number <= kMaxFiles; ++number)
     {
         const QString name =
             (number == 1 ? base
                          : base + QLatin1Char('-') + QString::number(number)) +
-            QLatin1Char('.') + QLatin1String(licence_suffix);
+            QLatin1Char('.') + QLatin1String(kLicenceSuffix);
         if (!folder.exists(name))
         {
             target = folder.filePath(name);
@@ -398,7 +398,7 @@ bool licence_store::remove(const QString& file_name)
     // matched against the folder's own listing and never used as a path.
     bool removed = false;
     for (const QString& path :
-         files_in(options_.user_directory, licence_suffix))
+         files_in(options_.user_directory, kLicenceSuffix))
     {
         if (QFileInfo(path).fileName() == file_name)
             removed = QFile::remove(path) || removed;

@@ -25,7 +25,7 @@ namespace lic = vss::license;
 /// "Dismiss" on the notice of a licence that is ending hides it until this
 /// many days before the end. A dismissal is kept with the licence it was
 /// for, so a renewed licence starts clean.
-constexpr int remind_days_before_end = 7;
+constexpr int kRemindDaysBeforeEnd = 7;
 
 QString date_text(const QDate& date)
 {
@@ -175,8 +175,8 @@ void LicenceNotice::dismiss()
         // Hidden until 7 days before the end, then until the last day.
         const int left = status.days_left;
         QDate from;
-        if (left > remind_days_before_end)
-            from = now.addDays(left - remind_days_before_end);
+        if (left > kRemindDaysBeforeEnd)
+            from = now.addDays(left - kRemindDaysBeforeEnd);
         else if (left > 0)
             from = now.addDays(left);
         else

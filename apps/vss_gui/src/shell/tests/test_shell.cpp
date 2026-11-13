@@ -2023,8 +2023,9 @@ TEST_CASE("licence: Help lists Licence after the environment entry, and Search "
     QStringList ids;
     for (QAction* action : help->actions())
         ids << action->objectName();
-    const int environment = ids.indexOf(QStringLiteral("help.environment"));
-    const int licence = ids.indexOf(QStringLiteral("help.licence"));
+    const qsizetype environment =
+        ids.indexOf(QStringLiteral("help.environment"));
+    const qsizetype licence = ids.indexOf(QStringLiteral("help.licence"));
     REQUIRE(environment >= 0);
     REQUIRE_EQ(licence, environment + 1);
     // Support follows Licence, and About comes last.
@@ -2052,6 +2053,9 @@ TEST_CASE("licence: Help lists Licence after the environment entry, and Search "
     clear_settings();
 }
 
+namespace
+{
+
 /// Rejects the Support dialog that opens while `trigger` runs, and says
 /// whether there was one.
 template <class Trigger> bool opens_support_dialog(Trigger&& trigger)
@@ -2074,6 +2078,8 @@ template <class Trigger> bool opens_support_dialog(Trigger&& trigger)
     trigger();
     return found;
 }
+
+} // namespace
 
 TEST_CASE("support: Help lists Support after Licence, and Search finds it")
 {
@@ -2099,8 +2105,8 @@ TEST_CASE("support: Help lists Support after Licence, and Search finds it")
     QStringList ids;
     for (QAction* action : help->actions())
         ids << action->objectName();
-    const int licence = ids.indexOf(QStringLiteral("help.licence"));
-    const int support = ids.indexOf(QStringLiteral("help.support"));
+    const qsizetype licence = ids.indexOf(QStringLiteral("help.licence"));
+    const qsizetype support = ids.indexOf(QStringLiteral("help.support"));
     REQUIRE(licence >= 0);
     REQUIRE_EQ(support, licence + 1);
     REQUIRE_EQ(ids.at(support + 1), QStringLiteral("help.about"));
@@ -2275,7 +2281,7 @@ TEST_CASE("licence notice: one notice for each state of the table")
     backend.set_licence(
         sample::view_of(sample::judge_days_left(sample::annual(), 30)));
     REQUIRE(!hidden(notice));
-    REQUIRE(*notice.shown() == kind::expiring);
+    REQUIRE(notice.shown() == kind::expiring);
     REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::info);
     REQUIRE_EQ(notice.second_button()->text(), QStringLiteral("Dismiss"));
 
@@ -2289,7 +2295,7 @@ TEST_CASE("licence notice: one notice for each state of the table")
 
     // In the grace period: warn, "Licence" and "Remind me tomorrow".
     backend.set_licence(sample::view_of(sample::grace_status()));
-    REQUIRE(*notice.shown() == kind::grace);
+    REQUIRE(notice.shown() == kind::grace);
     REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::warn);
     REQUIRE_EQ(notice.second_button()->text(),
                QStringLiteral("Remind me tomorrow"));
@@ -2297,13 +2303,13 @@ TEST_CASE("licence notice: one notice for each state of the table")
 
     // Ended: info, once.
     backend.set_licence(sample::view_of(sample::expired_status()));
-    REQUIRE(*notice.shown() == kind::expired);
+    REQUIRE(notice.shown() == kind::expired);
     REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::info);
     REQUIRE_EQ(notice.second_button()->text(), QStringLiteral("Dismiss"));
 
     // A wrong date: warn.
     backend.set_licence(sample::view_of(sample::clock_suspect_status()));
-    REQUIRE(*notice.shown() == kind::clock_suspect);
+    REQUIRE(notice.shown() == kind::clock_suspect);
     REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::warn);
     clear_settings();
 }

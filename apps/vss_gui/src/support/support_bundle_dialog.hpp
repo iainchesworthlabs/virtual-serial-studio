@@ -39,7 +39,7 @@ namespace vss::gui::support
 
 /// The most the preview shows of one file. A longer file is shown cut at this
 /// size, and the saved file is still complete.
-inline constexpr qsizetype bundle_preview_limit = 256 * 1024;
+inline constexpr qsizetype kBundlePreviewLimit = qsizetype{256} * 1024;
 
 class SupportBundleDialog final : public QDialog
 {

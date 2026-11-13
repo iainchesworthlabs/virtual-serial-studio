@@ -49,7 +49,7 @@ enum class licence_note_tone
     warn
 };
 
-struct licence_note
+struct licence_banner
 {
     licence_note_tone tone = licence_note_tone::info;
     QString text;
@@ -104,7 +104,7 @@ QString state_sentence(const vss::license::status& status,
                        const QString& computer_name);
 
 /// The note under the summary card, for the states that need one.
-std::optional<licence_note> state_note(const vss::license::status& status);
+std::optional<licence_banner> state_note(const vss::license::status& status);
 
 /// "<n> seats", "1 seat" or "Site licence".
 QString seats_text(int seats);
@@ -133,7 +133,7 @@ QString already_installed_toast();
 QString not_available_text();
 
 /// The banner of a licence that was imported but turns nothing on.
-std::optional<licence_note> import_note(const vss::license::status& status);
+std::optional<licence_banner> import_note(const vss::license::status& status);
 
 /// The body of "Could not import the licence": the sentence for the reason,
 /// or for a file that could not be read.

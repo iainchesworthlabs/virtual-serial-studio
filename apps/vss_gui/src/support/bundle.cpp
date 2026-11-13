@@ -496,7 +496,7 @@ bundle_contents build_bundle(const StudioBackend& backend, const EventLog& log,
         sections.append(entry);
     }
     QJsonObject manifest;
-    manifest.insert(QLatin1String("bundle_format"), bundle_format);
+    manifest.insert(QLatin1String("bundle_format"), kBundleFormat);
     manifest.insert(QLatin1String("created"),
                     created.toUTC().toString(Qt::ISODate));
     manifest.insert(QLatin1String("studio_version"),

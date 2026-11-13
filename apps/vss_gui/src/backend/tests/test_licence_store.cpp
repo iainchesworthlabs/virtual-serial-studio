@@ -189,7 +189,7 @@ TEST_CASE("licence store: a file that is not valid is never copied")
     // Too large to be a licence, and a file that is not there.
     REQUIRE(store
                 .import_file(write_file(f.inbox(), "huge.vsslic",
-                                        QByteArray(70 * 1024, 'x')))
+                                        QByteArray(qsizetype{70} * 1024, 'x')))
                 .outcome == licence_import_outcome::not_valid);
     REQUIRE(
         store.import_file(QDir(f.inbox()).filePath("missing.vsslic")).outcome ==

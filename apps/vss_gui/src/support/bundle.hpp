@@ -28,11 +28,11 @@ namespace vss::gui::support
 
 /// The format of the bundle. It rises only for a change an old reader
 /// cannot ignore.
-inline constexpr int bundle_format = 1;
+inline constexpr int kBundleFormat = 1;
 
 /// The section id and folder of the Pro plugin "Diagnostics and replay".
 /// Studio never writes it.
-inline constexpr const char* reserved_traffic_section = "traffic";
+inline constexpr const char* kReservedTrafficSection = "traffic";
 
 /// What the person ticked. A section is the unit of consent: one row in the
 /// checklist, one group in the preview, one entry in the manifest.
