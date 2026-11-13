@@ -187,7 +187,7 @@ try
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-        QStringLiteral("Virtual Serial Studio - a playground for real, virtual "
+        QStringLiteral("Virtual Serial Studio - a tool for real, virtual "
                        "and networked serial ports."));
     const QCommandLineOption help_option = parser.addHelpOption();
     const QCommandLineOption version_option = parser.addVersionOption();
