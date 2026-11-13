@@ -1450,7 +1450,7 @@ private:
 
     /// Runs kept at once, open ones included.  The oldest ended run goes
     /// when one more begins.
-    static constexpr std::size_t max_runs = 8;
+    static constexpr std::size_t max_runs_ = 8;
 
     static std::string run_id_text(std::uint64_t number)
     {
@@ -1519,7 +1519,7 @@ private:
             // One open run for a principal: the first is ended first.
             refused = api_errc::conflict;
         }
-        else if (runs_.size() >= max_runs)
+        else if (runs_.size() >= max_runs_)
         {
             const auto ended = std::ranges::find_if(
                 runs_, [](const run_state& run) { return !run.open; });
