@@ -227,8 +227,8 @@ TEST_CASE("rules: machine matches a pattern of more than 64 bytes")
         at += take;
     }
     REQUIRE_EQ(got.size(), std::size_t{1});
-    REQUIRE_EQ(got[0].length, std::size_t{130});
-    REQUIRE_EQ(got[0].offset, std::uint64_t{0});
+    REQUIRE_EQ(got.at(0).length, std::size_t{130});
+    REQUIRE_EQ(got.at(0).offset, std::uint64_t{0});
 
     // A pattern with one byte wrong in the middle word does not match.
     pattern[100] = static_cast<byte>(pattern[100] ^ 1U);
