@@ -522,10 +522,10 @@ std::vector<std::vector<std::string>> session_rows(const std::string& output)
 std::optional<std::vector<std::string>> find_session(const std::string& output,
                                                      const std::string& number)
 {
-    for (auto& row : session_rows(output))
+    for (const auto& row : session_rows(output))
     {
         if (row[0] == number)
-            return std::move(row);
+            return row;
     }
     return std::nullopt;
 }
