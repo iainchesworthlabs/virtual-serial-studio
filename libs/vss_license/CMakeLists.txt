@@ -9,6 +9,7 @@
 #
 
 add_library(vss_license
+  src/error.cpp
   src/license.cpp
   src/signed_file.cpp
   src/strict_json.cpp
@@ -24,6 +25,10 @@ target_link_libraries(vss_license
   PRIVATE Vss::BoostJson Vss::Monocypher)
 
 vss_set_warnings(vss_license)
+# boost::system::error_category deliberately has a non-virtual destructor and
+# is meant to be derived from; GCC warns about the base anyway.
+set_source_files_properties(src/error.cpp PROPERTIES
+  COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wno-non-virtual-dtor>")
 vss_enable_coverage(vss_license)
 vss_mark_coverage_subject(vss_license)
 

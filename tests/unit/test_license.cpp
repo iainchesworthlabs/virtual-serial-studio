@@ -33,7 +33,9 @@ namespace
 
 time_point at(int year, unsigned month, unsigned day, int hour = 0)
 {
-    return time_point{sys_days{std::chrono::year{year} / month / day}} +
+    return time_point{
+               sys_days{std::chrono::year{year} / std::chrono::month{month} /
+                        std::chrono::day{day}}} +
            hours{hour};
 }
 
