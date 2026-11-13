@@ -30,6 +30,10 @@ add_library(vss_gui_support STATIC
   firewall_dialog.hpp
   help_contents_dialog.cpp
   help_contents_dialog.hpp
+  licence_dialog.cpp
+  licence_dialog.hpp
+  licence_text.cpp
+  licence_text.hpp
   permission_dialog.cpp
   permission_dialog.hpp
   permission_rows.cpp

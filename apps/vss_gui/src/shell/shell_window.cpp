@@ -39,6 +39,7 @@
 #include "shell/command_palette.hpp"
 #include "shell/format.hpp"
 #include "shell/launcher.hpp"
+#include "shell/licence_notice.hpp"
 #include "shell/port_warnings.hpp"
 #include "shell/setup_group.hpp"
 #include "shell/status_bar.hpp"
@@ -49,11 +50,12 @@
 #include "support/about_dialog.hpp"
 #include "support/build_info.hpp"
 #include "support/diagnostic_bundle_dialog.hpp"
+#include "support/driver_setup_dialog.hpp"
 #include "support/help_contents_dialog.hpp"
+#include "support/licence_dialog.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
-#include "support/driver_setup_dialog.hpp"
 #include "support/setup_check_dialog.hpp"
 #include "support/setup_facts.hpp"
 #include "support/shortcuts_dialog.hpp"
@@ -546,6 +548,9 @@ void ShellWindow::build_actions()
     add(QStringLiteral("help.environment"), tr("Copy diagnostic information"),
         tr("build environment bug report"), QStringLiteral("copy"), {},
         action_level::simple, [this] { copy_environment(); });
+    add(QStringLiteral("help.licence"), tr("Licence..."),
+        tr("licence edition pro community plugins import renew"), {}, {},
+        action_level::simple, [this] { open_licence(); });
     add(QStringLiteral("help.about"), tr("About"),
         tr("version licence copyright"), {}, {}, action_level::simple,
         [this] { open_about(); });
@@ -689,6 +694,7 @@ void ShellWindow::build_menus()
     add(help, QStringLiteral("help.why"));
     add(help, QStringLiteral("help.shortcuts"));
     add(help, QStringLiteral("help.environment"));
+    add(help, QStringLiteral("help.licence"));
     add(help, QStringLiteral("help.about"));
 }
 
@@ -785,6 +791,11 @@ void ShellWindow::build_central()
                              [this] { recreate_lost_ports(); });
     lost_banner_->setVisible(false);
     body_layout->addWidget(lost_banner_);
+    // The licence notice sits below the "Recreate ports" banner.
+    licence_notice_ = new LicenceNotice(backend_, body);
+    connect(licence_notice_, &LicenceNotice::licence_requested, this,
+            [this] { open_licence(); });
+    body_layout->addWidget(licence_notice_);
     central_ = new QStackedWidget(body);
     body_layout->addWidget(central_, 1);
     setCentralWidget(body);
@@ -1303,6 +1314,8 @@ void ShellWindow::build_status()
     setStatusBar(status_);
     connect(status_, &StatusBar::level_requested, this,
             [this](bool advanced) { level_.set_advanced(advanced); });
+    connect(status_, &StatusBar::licence_requested, this,
+            [this] { open_licence(); });
     status_->set_advanced(level_.advanced());
     menuBar()->setFont(Theme::instance().font(text_style::body));
     // One header row: the menus on the left, the action search and the
@@ -2943,6 +2956,12 @@ void ShellWindow::open_about()
     AboutDialog dialog(this);
     connect(&dialog, &AboutDialog::bundle_requested, this,
             &ShellWindow::open_bundle);
+    dialog.exec();
+}
+
+void ShellWindow::open_licence()
+{
+    LicenceDialog dialog(backend_, this);
     dialog.exec();
 }
 

@@ -19,30 +19,35 @@
 #include "shell/format.hpp"
 #include "shell/launcher.hpp"
 #include "shell/level_service.hpp"
+#include "shell/licence_notice.hpp"
 #include "shell/port_warnings.hpp"
 #include "shell/setup_group.hpp"
 #include "shell/shell_window.hpp"
 #include "shell/single_instance.hpp"
+#include "shell/status_bar.hpp"
 #include "shell/studio_tray.hpp"
 #include "shell/undo_service.hpp"
 #include "shell/undo_steps.hpp"
 #include "simple/simple_page.hpp"
 #include "support/account_id.hpp"
+#include "support/licence_dialog.hpp"
 #include "support/running_setup.hpp"
 #include "support/setup_facts.hpp"
+#include "support/tests/licence_samples.hpp"
 
 #include "theme/theme.hpp"
 #include "widgets/dialogs.hpp"
 #include "widgets/notes.hpp"
 #include "widgets/controls.hpp"
 
-#include <QAction>
 #include <QAccessible>
+#include <QAction>
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDockWidget>
 #include <QLabel>
+#include <QLayout>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
@@ -1937,4 +1942,453 @@ TEST_CASE("shell: toolbar icons stay distinct and named when only icons show")
         check_and_shoot(QStringLiteral("icons-") + theme);
     }
     vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
+}
+
+// -- licence: the Help entry, the edition chip and the notices
+// ----------------------
+
+namespace
+{
+
+namespace lic = vss::license;
+namespace sample = vss::gui::test_licence;
+
+vss::gui::capabilities licence_caps()
+{
+    vss::gui::capabilities caps;
+    caps.licences = true;
+    return caps;
+}
+
+/// Rejects the Licence dialog that opens while `trigger` runs, and says
+/// whether there was one.
+template <class Trigger> bool opens_licence_dialog(Trigger&& trigger)
+{
+    bool found = false;
+    QTimer::singleShot(
+        0, QApplication::instance(),
+        [&found]
+        {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+            {
+                if (auto* dialog =
+                        qobject_cast<vss::gui::support::LicenceDialog*>(widget))
+                {
+                    found = true;
+                    dialog->reject();
+                }
+            }
+        });
+    trigger();
+    return found;
+}
+
+QString date_key(const QDate& date)
+{
+    return date.toString(Qt::ISODate);
+}
+
+/// True when the notice would not show if its window did.
+bool hidden(const QWidget& notice)
+{
+    return !notice.isVisibleTo(notice.parentWidget());
+}
+
+QString setting(const char* key)
+{
+    return QSettings().value(QString::fromLatin1(key)).toString();
+}
+
+} // namespace
+
+TEST_CASE("licence: Help lists Licence after the environment entry, and Search "
+          "finds it")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(licence_caps());
+    vss::gui::ShellWindow window(backend);
+    window.show();
+    QApplication::processEvents();
+
+    QMenu* help = nullptr;
+    for (QAction* top : window.menuBar()->actions())
+    {
+        if (top->menu() != nullptr &&
+            top->text().remove(QLatin1Char('&')) == QStringLiteral("Help"))
+            help = top->menu();
+    }
+    REQUIRE(help != nullptr);
+    QStringList ids;
+    for (QAction* action : help->actions())
+        ids << action->objectName();
+    const int environment = ids.indexOf(QStringLiteral("help.environment"));
+    const int licence = ids.indexOf(QStringLiteral("help.licence"));
+    REQUIRE(environment >= 0);
+    REQUIRE_EQ(licence, environment + 1);
+    REQUIRE_EQ(ids.at(licence + 1), QStringLiteral("help.about"));
+
+    auto* action = window.findChild<QAction*>(QStringLiteral("help.licence"));
+    REQUIRE(action != nullptr);
+    REQUIRE_EQ(action->text(), QStringLiteral("Licence..."));
+    REQUIRE(action->shortcut().isEmpty());
+    REQUIRE(action->isEnabled());
+
+    // Search actions finds it as "Licence".
+    auto* registry = window.findChild<vss::gui::ActionRegistry*>();
+    REQUIRE(registry != nullptr);
+    bool found = false;
+    for (QAction* match : registry->search(QStringLiteral("Licence")))
+        found =
+            found || match->data().toString() == QStringLiteral("help.licence");
+    REQUIRE(found);
+    REQUIRE(registry->shortcuts_unique());
+
+    // Choosing it opens the Licence dialog.
+    REQUIRE(opens_licence_dialog([action] { action->trigger(); }));
+    clear_settings();
+}
+
+TEST_CASE("licence: the edition chip shows every state and opens the page")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(licence_caps());
+    vss::gui::ShellWindow window(backend);
+    window.resize(1280, 800);
+    window.show();
+    QApplication::processEvents();
+    auto* chip =
+        window.findChild<vss::gui::EditionChip*>(QStringLiteral("editionChip"));
+    REQUIRE(chip != nullptr);
+    REQUIRE(chip->isVisible());
+
+    using kind = vss::gui::StatusChip::kind;
+    struct row
+    {
+        lic::status status;
+        QString text;
+        kind look;
+    };
+    lic::licence enterprise = sample::annual();
+    enterprise.edition = lic::edition::enterprise;
+    const std::vector<row> rows = {
+        {lic::no_licence(), "Community", kind::neutral},
+        {sample::valid_status(), "Pro", kind::healthy},
+        {sample::judge(enterprise, "2027-03-01T12:00:00Z"), "Enterprise",
+         kind::healthy},
+        {sample::judge_days_left(sample::annual(), 12), "Pro, 12 days left",
+         kind::waiting},
+        {sample::judge_days_left(sample::annual(), 1), "Pro, 1 day left",
+         kind::waiting},
+        {sample::judge_days_left(sample::annual(), 0), "Pro, ends today",
+         kind::waiting},
+        {sample::grace_status(), "Pro, licence ended", kind::waiting},
+        {sample::expired_status(), "Community", kind::waiting},
+        {sample::not_yet_valid_status(), "Community", kind::waiting},
+        {sample::clock_suspect_status(), "Community", kind::waiting},
+        {sample::wrong_computer_status(), "Community", kind::waiting},
+        {sample::unreadable_status(lic::reason::bad_signature), "Community",
+         kind::waiting},
+        {sample::judge(sample::trial(), "2027-03-05T12:00:00Z"), "Pro trial",
+         kind::healthy},
+        {sample::judge_days_left(sample::trial(), 2), "Pro trial, 2 days left",
+         kind::waiting},
+    };
+    for (const row& item : rows)
+    {
+        backend.set_licence(sample::view_of(item.status));
+        REQUIRE_EQ(chip->chip()->text(), item.text);
+        REQUIRE(chip->chip()->get_kind() == item.look);
+        // A button with the accessible name of the spec.
+        REQUIRE_EQ(chip->accessibleName(),
+                   QStringLiteral("Edition: %1. Open the licence page.")
+                       .arg(item.text));
+        REQUIRE(chip->focusPolicy() != Qt::NoFocus);
+        REQUIRE(chip->height() >= 24);
+    }
+
+    // Pressing it opens the Licence page.
+    backend.set_licence({});
+    REQUIRE(opens_licence_dialog([chip] { chip->click(); }));
+    clear_settings();
+}
+
+TEST_CASE("licence: the notice banner sits below the other banners and is no "
+          "dialog")
+{
+    clear_settings();
+    vss::gui::capabilities caps = licence_caps();
+    caps.recreate_ports = true;
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(caps);
+    backend.set_licence(
+        sample::view_of(sample::judge_days_left(sample::annual(), 12)));
+    vss::gui::ShellWindow window(backend);
+    window.resize(1280, 800);
+    window.show();
+    QApplication::processEvents();
+
+    auto* notice = window.licence_notice();
+    REQUIRE(notice != nullptr);
+    REQUIRE(notice->isVisible());
+    REQUIRE(notice->shown().has_value());
+    REQUIRE(qobject_cast<QDialog*>(notice) == nullptr);
+    REQUIRE(!notice->isWindow());
+    REQUIRE_EQ(notice->text(), QStringLiteral("Your licence ends on %1.")
+                                   .arg(sample::date("2027-11-13T00:00:00Z")));
+    REQUIRE(notice->get_kind() == vss::gui::NoteBanner::kind::info);
+    REQUIRE_EQ(notice->action_button()->text(), QStringLiteral("Licence"));
+    REQUIRE_EQ(notice->second_button()->text(), QStringLiteral("Dismiss"));
+
+    // The order down the window: Start again, Recreate ports, the licence.
+    auto* lost = find_lost_banner(window);
+    REQUIRE(lost != nullptr);
+    QLayout* column = window.centralWidget()->layout();
+    REQUIRE(column->indexOf(window.resume_banner()) < column->indexOf(lost));
+    REQUIRE(column->indexOf(lost) < column->indexOf(notice));
+    // With both showing, the licence notice is the lower one.
+    const auto port = backend.create_virtual_port(
+        QStringLiteral("com"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(port.has_value());
+    backend.set_lost_ports({*port});
+    QApplication::processEvents();
+    REQUIRE(lost->isVisible());
+    REQUIRE(notice->isVisible());
+    REQUIRE(lost->mapTo(window.centralWidget(), QPoint(0, 0)).y() <
+            notice->mapTo(window.centralWidget(), QPoint(0, 0)).y());
+
+    // Its "Licence" action opens the page.
+    REQUIRE(
+        opens_licence_dialog([notice] { notice->action_button()->click(); }));
+    clear_settings();
+}
+
+TEST_CASE("licence notice: one notice for each state of the table")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(licence_caps());
+    QWidget host;
+    vss::gui::LicenceNotice notice(backend, &host);
+    const QDate today(2027, 5, 1);
+    notice.set_today([today] { return today; });
+    using kind = vss::gui::support::notice_kind;
+    REQUIRE(hidden(notice));
+
+    // Nothing for Community, valid, not started or not valid.
+    for (const lic::status& status :
+         {lic::no_licence(), sample::valid_status(),
+          sample::not_yet_valid_status(), sample::wrong_computer_status()})
+    {
+        backend.set_licence(sample::view_of(status));
+        REQUIRE(hidden(notice));
+        REQUIRE(!notice.shown().has_value());
+    }
+
+    // Ending soon: info, "Licence" and "Dismiss".
+    backend.set_licence(
+        sample::view_of(sample::judge_days_left(sample::annual(), 30)));
+    REQUIRE(!hidden(notice));
+    REQUIRE(*notice.shown() == kind::expiring);
+    REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::info);
+    REQUIRE_EQ(notice.second_button()->text(), QStringLiteral("Dismiss"));
+
+    // A trial notice comes at 3 days; the library decides, the banner follows.
+    backend.set_licence(sample::view_of(
+        sample::judge(sample::trial(), "2027-03-05T12:00:00Z")));
+    REQUIRE(hidden(notice));
+    backend.set_licence(
+        sample::view_of(sample::judge_days_left(sample::trial(), 3)));
+    REQUIRE(!hidden(notice));
+
+    // In the grace period: warn, "Licence" and "Remind me tomorrow".
+    backend.set_licence(sample::view_of(sample::grace_status()));
+    REQUIRE(*notice.shown() == kind::grace);
+    REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::warn);
+    REQUIRE_EQ(notice.second_button()->text(),
+               QStringLiteral("Remind me tomorrow"));
+    REQUIRE_EQ(notice.action_button()->text(), QStringLiteral("Licence"));
+
+    // Ended: info, once.
+    backend.set_licence(sample::view_of(sample::expired_status()));
+    REQUIRE(*notice.shown() == kind::expired);
+    REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::info);
+    REQUIRE_EQ(notice.second_button()->text(), QStringLiteral("Dismiss"));
+
+    // A wrong date: warn.
+    backend.set_licence(sample::view_of(sample::clock_suspect_status()));
+    REQUIRE(*notice.shown() == kind::clock_suspect);
+    REQUIRE(notice.get_kind() == vss::gui::NoteBanner::kind::warn);
+    clear_settings();
+}
+
+TEST_CASE("licence notice: Dismiss on an ending licence hides it until 7 days "
+          "before the end, then until the last day")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(licence_caps());
+    QWidget host;
+    vss::gui::LicenceNotice notice(backend, &host);
+    QDate today(2027, 10, 24);
+    notice.set_today([&today] { return today; });
+
+    // 20 days left: dismissed until 13 days from now, which is 7 days before
+    // the end.
+    backend.set_licence(
+        sample::view_of(sample::judge_days_left(sample::annual(), 20)));
+    REQUIRE(!hidden(notice));
+    notice.second_button()->click();
+    REQUIRE(hidden(notice));
+    REQUIRE_EQ(setting("licence/expiringShowFrom"),
+               date_key(today.addDays(13)));
+    // The keys hold a date, not a flag, and say which licence they are for.
+    REQUIRE_EQ(setting("licence/expiringFor"),
+               QStringLiteral("VSS-2026-000123"));
+
+    today = today.addDays(12);
+    notice.refresh();
+    REQUIRE(hidden(notice));
+    today = today.addDays(1);
+    notice.refresh();
+    REQUIRE(!hidden(notice));
+
+    // Seven days or fewer left: dismissed until the last day.
+    backend.set_licence(
+        sample::view_of(sample::judge_days_left(sample::annual(), 7)));
+    REQUIRE(!hidden(notice));
+    const QDate dismissed_on = today;
+    notice.second_button()->click();
+    REQUIRE(hidden(notice));
+    REQUIRE_EQ(setting("licence/expiringShowFrom"),
+               date_key(dismissed_on.addDays(7)));
+    today = dismissed_on.addDays(6);
+    notice.refresh();
+    REQUIRE(hidden(notice));
+    today = dismissed_on.addDays(7);
+    notice.refresh();
+    REQUIRE(!hidden(notice));
+
+    // On the last day: dismissed for the rest of it. The licence then moves
+    // to its grace period, which has its own notice.
+    backend.set_licence(
+        sample::view_of(sample::judge_days_left(sample::annual(), 0)));
+    REQUIRE(!hidden(notice));
+    const QDate last_day = today;
+    notice.second_button()->click();
+    REQUIRE(hidden(notice));
+    REQUIRE_EQ(setting("licence/expiringShowFrom"),
+               date_key(last_day.addDays(1)));
+    notice.refresh();
+    REQUIRE(hidden(notice));
+
+    // A renewed licence starts clean.
+    lic::licence renewed = sample::annual();
+    renewed.licence_id = "VSS-2027-000999";
+    backend.set_licence(sample::view_of(sample::judge_days_left(renewed, 20)));
+    REQUIRE(!hidden(notice));
+    clear_settings();
+}
+
+TEST_CASE("licence notice: Remind me tomorrow brings the grace notice back the "
+          "next day")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(licence_caps());
+    QWidget host;
+    vss::gui::LicenceNotice notice(backend, &host);
+    QDate today(2027, 11, 20);
+    notice.set_today([&today] { return today; });
+
+    backend.set_licence(sample::view_of(sample::grace_status()));
+    REQUIRE(!hidden(notice));
+    notice.second_button()->click();
+    REQUIRE(hidden(notice));
+    REQUIRE_EQ(setting("licence/graceRemindFrom"), date_key(today.addDays(1)));
+    // Later the same day it stays away, even after the licence is read again.
+    notice.refresh();
+    REQUIRE(hidden(notice));
+    backend.set_licence(sample::view_of(sample::grace_status()));
+    REQUIRE(hidden(notice));
+    today = today.addDays(1);
+    notice.refresh();
+    REQUIRE(!hidden(notice));
+    clear_settings();
+}
+
+TEST_CASE("licence notice: the ended notice is shown once")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(licence_caps());
+    backend.set_licence(sample::view_of(sample::expired_status()));
+    const QDate today(2028, 2, 2);
+    {
+        // The first start after the grace period shows it, and it stays up
+        // while Studio runs.
+        QWidget host;
+        vss::gui::LicenceNotice notice(backend, &host);
+        notice.set_today([today] { return today; });
+        REQUIRE(!hidden(notice));
+        notice.refresh();
+        REQUIRE(!hidden(notice));
+        // The settings keep the date it was shown, and the licence.
+        REQUIRE(
+            QDate::fromString(setting("licence/expiredShownOn"), Qt::ISODate)
+                .isValid());
+        REQUIRE_EQ(setting("licence/expiredShownFor"),
+                   QStringLiteral("VSS-2026-000123"));
+    }
+    {
+        // The next start does not show it again.
+        QWidget host;
+        vss::gui::LicenceNotice notice(backend, &host);
+        notice.set_today([today] { return today; });
+        REQUIRE(hidden(notice));
+    }
+    // Dismissing it in the run that showed it hides it for good too.
+    clear_settings();
+    {
+        QWidget host;
+        vss::gui::LicenceNotice notice(backend, &host);
+        REQUIRE(!hidden(notice));
+        notice.second_button()->click();
+        REQUIRE(hidden(notice));
+        notice.refresh();
+        REQUIRE(hidden(notice));
+    }
+    // A different licence that ended is news again.
+    lic::licence other = sample::annual();
+    other.licence_id = "VSS-2027-000555";
+    backend.set_licence(
+        sample::view_of(sample::judge(other, "2029-01-01T00:00:00Z")));
+    {
+        QWidget host;
+        vss::gui::LicenceNotice notice(backend, &host);
+        REQUIRE(!hidden(notice));
+    }
+    clear_settings();
+}
+
+TEST_CASE("licence notice: Dismiss on a wrong date hides it for the day")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(licence_caps());
+    backend.set_licence(sample::view_of(sample::clock_suspect_status()));
+    QWidget host;
+    vss::gui::LicenceNotice notice(backend, &host);
+    QDate today(2027, 3, 1);
+    notice.set_today([&today] { return today; });
+    REQUIRE(!hidden(notice));
+    notice.second_button()->click();
+    REQUIRE(hidden(notice));
+    notice.refresh();
+    REQUIRE(hidden(notice));
+    today = today.addDays(1);
+    notice.refresh();
+    REQUIRE(!hidden(notice));
+    clear_settings();
 }
