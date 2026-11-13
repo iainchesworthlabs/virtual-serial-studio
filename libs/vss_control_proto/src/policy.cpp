@@ -67,7 +67,11 @@ constexpr std::array operation_rows{
     operation_info{operation::links_connect, "links.connect",
                    scope::control_ports, true},
     operation_info{operation::ports_send, "ports.send", scope::control_data,
-                   true}};
+                   true},
+    // Waiting for bytes is reading them.  When the request also sends, the
+    // gateway asks for `ports.send` as well, by this same table.
+    operation_info{operation::expect_bytes, "expect.bytes", scope::monitor_data,
+                   false}};
 
 } // namespace
 

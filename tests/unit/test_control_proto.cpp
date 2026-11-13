@@ -127,7 +127,9 @@ constexpr std::array expected_operations{
     expected_row{control::operation::links_connect, "links.connect",
                  control::scope::control_ports},
     expected_row{control::operation::ports_send, "ports.send",
-                 control::scope::control_data}};
+                 control::scope::control_data},
+    expected_row{control::operation::expect_bytes, "expect.bytes",
+                 control::scope::monitor_data}};
 
 } // namespace
 
@@ -580,7 +582,7 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
 
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 17 * 256 * 4
+    // Every operation, every set of scopes, every transport: 18 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -1216,4 +1218,78 @@ TEST_CASE("control proto: an engine error crosses by name and comes back as "
                code(control::api_errc::internal));
     REQUIRE_EQ(control::from_api_error({"forbidden", "", false}),
                code(control::api_errc::forbidden));
+}
+
+// -- waiting for bytes -------------------------------------------------------
+
+TEST_CASE("control proto: an expect.bytes request survives the wire")
+{
+    control::expect_bytes_request plain;
+    plain.port = "p_2";
+    plain.pattern = vss::to_bytes(std::string_view("\x00\xffOK\r\n", 6));
+    const control::request waiting{40, plain};
+    const control::frame wire = control::encode(waiting);
+    // The pattern is hex text in the header; with nothing to send there is
+    // no blob.
+    REQUIRE(wire.header.find("\"pattern\":\"00ff4f4b0d0a\"") !=
+            std::string::npos);
+    REQUIRE(wire.blob.empty());
+    REQUIRE(round_trip(waiting) == waiting);
+
+    control::expect_bytes_request full = plain;
+    full.direction = "tx";
+    full.timeout_ms = 2500;
+    full.send_port = "p_1";
+    full.send = vss::to_bytes("AT\r");
+    const control::request sending{41, full};
+    REQUIRE_EQ(control::encode(sending).blob, full.send);
+    REQUIRE(round_trip(sending) == sending);
+
+    // The time may be left out.
+    const auto bare = control::decode_request(header_frame(
+        R"({"id":1,"op":"expect.bytes","port":"p_1","pattern":"41"})"));
+    REQUIRE(bare);
+    const auto& read = std::get<control::expect_bytes_request>(bare->body);
+    REQUIRE_EQ(read.timeout_ms, control::default_expect_timeout_ms);
+    REQUIRE(read.direction.empty());
+    REQUIRE(read.send_port.empty());
+
+    const control::reply found{5,
+                               control::matched_reply{12, 81234000001ull, 3}};
+    REQUIRE(round_trip(found) == found);
+}
+
+TEST_CASE("control proto: an expect.bytes that is not one is refused")
+{
+    const std::string start = R"({"id":1,"op":"expect.bytes","port":"p_1",)";
+    const std::array bad{
+        std::string(R"({"id":1,"op":"expect.bytes","pattern":"41"})"),
+        start + R"("pattern":65})",
+        // Hex that is not: odd, upper case, not a digit, a separator.
+        start + R"("pattern":"4"})", start + R"("pattern":"4A"})",
+        start + R"("pattern":"zz"})", start + R"("pattern":"41 42"})",
+        start + R"("pattern":"0x41"})",
+        start + R"("pattern":"41","timeout_ms":"1000"})",
+        start + R"("pattern":"41","timeout_ms":-1})",
+        start + R"("pattern":"41","direction":7})",
+        start + R"("pattern":"41","send_port":7})"};
+    for (const std::string& header : bad)
+    {
+        const auto decoded = control::decode_request(header_frame(header));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+    // Bytes with no port to send them to.
+    control::frame stray = header_frame(start + R"("pattern":"41"})");
+    stray.blob = {vss::byte{1}};
+    REQUIRE(!control::decode_request(stray));
+
+    for (
+        const char* const reply :
+        {R"({"id":1,"reply":"matched"})",
+         R"({"id":1,"reply":"matched","offset":1,"mono_ns":2})",
+         R"({"id":1,"reply":"matched","offset":"1","mono_ns":2,"events_lost":0})"})
+    {
+        REQUIRE(!control::decode_reply(header_frame(reply)));
+    }
 }

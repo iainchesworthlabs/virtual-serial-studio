@@ -62,7 +62,8 @@ public:
 
     /// Sends a request and waits for its reply.  An error reply comes back
     /// as the error it carries.
-    result<reply_body> call(request_body body)
+    result<reply_body> call(request_body body,
+                            std::chrono::milliseconds longer = {})
     {
         if (broken_)
             return agent::make_error_code(
@@ -70,7 +71,7 @@ public:
         request asked;
         asked.id = next_id_++;
         asked.body = std::move(body);
-        const auto deadline = steady::now() + options_.timeout;
+        const auto deadline = steady::now() + options_.timeout + longer;
 
         const error_code unsent = send(encode(asked), deadline);
         if (unsent == errc::timeout)
@@ -384,6 +385,18 @@ result<void> client::send(const std::string& port, bytes_view data)
     asking.port = port;
     asking.data.assign(data.begin(), data.end());
     return carried_out(impl_->call(std::move(asking)));
+}
+
+result<matched_reply> client::expect_bytes(const expect_bytes_request& wanted)
+{
+    auto answer =
+        impl_->call(wanted, std::chrono::milliseconds(wanted.timeout_ms));
+    if (!answer)
+        return answer.error();
+    const auto* found = std::get_if<matched_reply>(&*answer);
+    if (found == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return *found;
 }
 
 result<void> client::stop()

@@ -200,7 +200,8 @@ enum class operation
     ports_create,
     ports_remove,
     links_connect,
-    ports_send
+    ports_send,
+    expect_bytes
 };
 
 struct operation_info
