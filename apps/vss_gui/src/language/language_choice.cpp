@@ -277,24 +277,19 @@ language_choice apply_language()
                : choose_language(preferred, available);
     record_language_choice(choice, preferred);
 
+    QTranslator* translator = nullptr;
     if (pseudo)
-    {
-        QCoreApplication::installTranslator(
-            make_pseudo_translator(QCoreApplication::instance()));
-        QGuiApplication::setLayoutDirection(
-            forced == QStringLiteral("pseudo-rtl") ? Qt::RightToLeft
-                                                   : Qt::LeftToRight);
-        return choice;
-    }
+        translator = make_pseudo_translator(QCoreApplication::instance());
+    else if (choice.code != QStringLiteral("en"))
+        translator = make_catalogue_translator(catalogue_path(choice.code),
+                                               QCoreApplication::instance());
+    if (translator != nullptr)
+        QCoreApplication::installTranslator(translator);
 
-    if (choice.code != QStringLiteral("en"))
-    {
-        if (QTranslator* translator = make_catalogue_translator(
-                catalogue_path(choice.code), QCoreApplication::instance()))
-            QCoreApplication::installTranslator(translator);
-    }
-    QGuiApplication::setLayoutDirection(
-        is_right_to_left(choice.code) ? Qt::RightToLeft : Qt::LeftToRight);
+    const bool right_to_left = pseudo ? forced == QStringLiteral("pseudo-rtl")
+                                      : is_right_to_left(choice.code);
+    QGuiApplication::setLayoutDirection(right_to_left ? Qt::RightToLeft
+                                                      : Qt::LeftToRight);
     return choice;
 }
 
