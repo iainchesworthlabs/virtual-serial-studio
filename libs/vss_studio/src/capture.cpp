@@ -681,6 +681,12 @@ struct capture_session::state
     time_point origin{};
     bool closed = false;
 
+    /// The writer, or null when there is none.  Call with `mutex` held.
+    capture_writer* active() noexcept
+    {
+        return writer.has_value() ? &*writer : nullptr;
+    }
+
     void on_event(const endpoint_event& event)
     {
         VSS_PROFILE_ZONE("studio.capture.record");
@@ -774,8 +780,8 @@ void capture_session::stop()
     if (state_->closed)
         return;
     state_->closed = true;
-    if (state_->writer)
-        state_->writer->finish();
+    if (capture_writer* writer = state_->active(); writer != nullptr)
+        writer->finish();
     if (auto* file = dynamic_cast<std::ofstream*>(state_->out.get());
         file != nullptr && file->is_open())
         file->close();
@@ -784,19 +790,22 @@ void capture_session::stop()
 std::uint64_t capture_session::records() const
 {
     std::lock_guard lock(state_->mutex);
-    return state_->writer ? state_->writer->records() : 0;
+    const capture_writer* writer = state_->active();
+    return writer != nullptr ? writer->records() : 0;
 }
 
 std::uint64_t capture_session::bytes() const
 {
     std::lock_guard lock(state_->mutex);
-    return state_->writer ? state_->writer->bytes() : 0;
+    const capture_writer* writer = state_->active();
+    return writer != nullptr ? writer->bytes() : 0;
 }
 
 bool capture_session::good() const
 {
     std::lock_guard lock(state_->mutex);
-    return state_->writer && state_->writer->good();
+    const capture_writer* writer = state_->active();
+    return writer != nullptr && writer->good();
 }
 
 } // namespace vss
