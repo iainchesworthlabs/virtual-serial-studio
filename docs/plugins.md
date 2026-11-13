@@ -652,13 +652,13 @@ Rules for the binding, whatever the plugin's state (the screens are in `screens/
 - When the plugin becomes available, its instances are made again from the bindings, without a prompt.
 - Only the user removes a binding.
 
-**Where the binding is written (decision 13): in the topology file.** In the review the owner agreed to an
-additive change to the schema, so that a setup that is shared says which plugins it needs and where to get them.
-A port or a link may carry a list:
+**Where the binding is written (decision 13): in the topology file.** The owner asked for this additive change to
+the schema, so that a setup that is shared says which plugins it needs and where to get them. A port or a link
+may carry a list:
 
 ```json
 "plugins": [
-  { "id": "com.example.modbus-fixture", "type": "meter", "name": "Modbus fixture",
+  { "id": "com.example.modbus-fixture", "kind": "fixture", "type": "meter", "name": "Modbus fixture",
     "publisher": "Example Ltd", "key_id": "<hex>", "version": "1.2.0",
     "get_it_from": "https://example.com/plugins",
     "params": { "address": 17 }, "on_timeout": "fail_open" }
@@ -667,6 +667,8 @@ A port or a link may carry a list:
 
 - A port has at most one fixture type or one generator, and any number of decoders. A link has any number of
   modifiers and decoders. **The order of the list is the order modifiers are applied in.**
+- `kind` is what the plugin provides there: `fixture`, `generator`, `modifier` or `decoder`. A kind this
+  Studio does not know is kept as it is, so a newer setup still opens.
 - `id` is the plugin's manifest id, which is the identifier. There is no second identifier such as a UUID. For a
   signed plugin `key_id` says whose it was, so that a different plugin with the same id is noticed.
 - `name`, `publisher`, `version` and `get_it_from` are for a person who opens the setup without the plugin.
@@ -675,10 +677,11 @@ A port or a link may carry a list:
 - A `secret` parameter is never written.
 - A reader that does not know the plugin keeps every entry and writes it back as it was read.
 
-This is a change to the schema and to `vss_config`'s parser, which refuses unknown keys today. `vss_core` is not
-touched. The alternative that was not taken is a file beside the setup (`<name>.plugins.json`), which needs no
-schema change but is lost when a person sends only the setup. The running setup that the agent keeps
-(`running-setup.json`) holds the same list.
+This is a change to the schema and to `vss_config`'s reader and writer. `vss_core` is not touched. The key is
+optional and the file's `version` stays 1: the reader has always passed over keys it does not know, so an older
+Studio opens a setup that has the list, and leaves the list out when it saves. The alternative that was not
+taken is a file beside the setup (`<name>.plugins.json`), which needs no schema change but is lost when a
+person sends only the setup. The running setup that the agent keeps (`running-setup.json`) holds the same list.
 
 ### 7.9 Limits per plugin (defaults, set in the host, never raised by a manifest above the host's maximum)
 
@@ -1405,7 +1408,7 @@ The owner went through these on 13 November 2026. Each line says what was decide
 | 10 | Plugin fixtures in the Advanced toolbox | Yes, only while the plugin is installed and on, marked with its name and trust level. A plugin the user switched on that cannot run now keeps its tiles, disabled with the reason; every other unavailable plugin's tiles are hidden |
 | 11 | "Run anyway" for an expired plugin | Offered for a plugin that is not official, until Studio closes |
 | 12 | In-process plugins | Not in the first version. Left open for later; it needs a licence position from the owner first |
-| 13 | Where a setup records its plugins | A list on a port or a link in the topology file, which the owner agreed to in review (section 7.8). No UUID: the manifest id is the identifier. **To be confirmed**, see below |
+| 13 | Where a setup records its plugins | An optional list on a port or a link in the topology file (section 7.8). The owner asked for this schema change. It is additive and the file's version does not change. No UUID: the manifest id is the identifier |
 | 14 | Recording inside the agent | Yes, with `vss::capture`, on a plugin's request, and capture gains nanosecond times |
 | 15 | Bundle sections | Yes: `contributes.bundle_sections` and the `bundle.section` permission |
 | 16 | Who can open a recording | Anyone can read a bundle and look at its traffic with the public reader. Replaying it is the Pro plugin |
@@ -1417,17 +1420,13 @@ The owner went through these on 13 November 2026. Each line says what was decide
 
 **Still open:**
 
-1. **Decision 13 needs one more word from the owner.** In the review the owner said the additive schema change is
-   acceptable, and this page is written that way. A later message, passed on from another session, said the
-   schema change was not asked for and that the file beside the setup should be used. The two disagree. No code
-   that reads or writes the topology schema is written until the owner confirms which.
-2. **Studio installed for one user** (section 5.2): the investigation.
-3. **From the owner, when ready:** the root public key and the first official key list as public files, and how
+1. **Studio installed for one user** (section 5.2): the investigation.
+2. **From the owner, when ready:** the root public key and the first official key list as public files, and how
    long an official plugin's `not_after` runs.
-4. **The order of a rule set and modifiers on one route stage** (section 7.6), to agree with
+3. **The order of a rule set and modifiers on one route stage** (section 7.6), to agree with
    `docs/response-timing.md`.
-5. **Whether licence files use the key list** of section 8.9: the licensing page's decision.
-6. **The screens for decoding and triggers** (section 20.9).
+4. **Whether licence files use the key list** of section 8.9: the licensing page's decision.
+5. **The screens for decoding and triggers** (section 20.9).
 
 ## 18. Order of work after review
 
