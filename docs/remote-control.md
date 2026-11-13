@@ -167,7 +167,7 @@ The peer check is a second line behind the access list, and is the line that mat
 list or the directory (a mistaken `chmod`, a share of the profile).
 
 **The administration endpoint.** Administration (section 5, `admin`) has an endpoint of its own beside the public
-one: `\\.\pipe\vss-control_admin-<user SID>` and `<agent directory>/control_admin.sock`, with the same access
+one: `\\.\pipe\vss-admin-<user SID>` and `<agent directory>/admin.sock`, with the same access
 list, modes and peer check. Studio and `vss_cli control` use it, and nothing else should. A connection to the public
 endpoint can never hold `admin`, whatever its settings or its token say, so a harness adapter or a plugin that is
 tricked into sending an administration request is refused by construction and not by a setting. Under T2 this is not a
@@ -819,6 +819,53 @@ After the owner's review. Each slice is reviewable alone, green alone and tested
 Slices 1 to 3 are what is requested after review. Slice 3's GUI part is the large one. Simple, well-specified work
 (the audit log writer, the rate limiter, the frame tests, CLI plumbing) can be delegated to a smaller model; the protocol, the
 policy check, the token code and the peer-credential code are not delegated.
+
+### What slice 1 built
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Only this user can connect, and the gateway asks the kernel who did | The access list and the modes of both endpoints are read back; `peer()` is asked on every connection before a byte is read, and a test checks what both ends learn | Refusal of a second real user was not run for the gateway itself: the listener that closes another user's connection unseen is the agent's, and its `nobody` test covers it on Linux and macOS. Windows needs a guest with two accounts |
+| Nothing is done before `hello`, and every refusal there looks the same | Every operation, an unknown one and three things that are no request are sent first on both endpoints: each gets the same `unauthenticated` reply and a closed connection. A request sent in one write with a refused `hello` is not run; a second `hello` ends the session | Tokens: slice 2 |
+| One function decides, and `admin` exists only on the administration endpoint | The whole matrix (4 operations x 256 sets of scopes x 4 transports) against a rule written out by hand; a gateway told to give the public endpoint every scope still refuses `endpoint.stop` there | Ceilings for L2 and L3, own-ports rules |
+| A client can slow only itself | Tests for the hello size limit, a wrong length, a silent client, the session and waiting limits, the request allowance, and a client that never reads; a stress case stops the gateway under six busy clients | The request pool has two threads and one agent call can take ten seconds, so two sessions that wait for a hung agent hold up the others' agent requests for that long |
+| The audit log records it and cannot be written by a client | Records for start, stop, each session, each refusal and `endpoint.stop` are checked field by field; a client name that tries to end the line and start a forged one stays text inside one record; the chain verifies after every such test; a flood of refusals writes one record and a count | On Windows an audit directory that already exists is accepted when this user owns it; its access list is not read back |
+| The API is the public one, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
+
+Not built in this slice, and the reason: `vss_cli control` has `status` and `stop` only, because nothing starts
+`vss_gate` on demand yet; the gateway is in this repository and is built with the tools, where the editions page puts
+it in the Pro set, because that split is the licensing work's to make; and SHA-256 comes from Boost.Hash2, which
+raises the oldest Boost that builds this repository from 1.74 to 1.88.
+
+### What slice 2 built
+
+Tokens over the local endpoint: a `hello` may carry a token, and the connection is then the principal `token:<id>`
+with the token's scopes, not the local user.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| A token is made on the receiving side only, and only by administration | `tokens.create`, `tokens.list` and `tokens.revoke` need `admin`, which only the administration endpoint holds; the local user and a token with every scope a token can have are refused all three | Studio's dialog; `vss_cli control token` is the only way to make one |
+| Only a hash is kept | The store's file and every file in the gateway's directory are searched for the secret, the whole token, their upper-case and hex forms and half of the secret after a token's whole life; the system test does the same for the output of every process | Crash dumps |
+| Every way of being wrong looks the same | A wrong secret, an unknown id, two things that are no token, a revoked token, an expired one and a good token on the administration endpoint each get the same reply, byte for byte in its error; the audit log has the reason for each. Each check hashes exactly once, counted | Time measured with a clock: the test counts work, not nanoseconds |
+| The comparison does not stop early | `constant_time_equal` is tested for a difference at every position; that it takes the same time is by construction (no branch on the data), not by measurement | |
+| A secret cannot be printed by accident | `secret_string` has no stream insertion and no conversion to or from text; the test file does not compile if it gains one. `expose()` is the one way out | A reviewer still has to read each `expose(` |
+| Revoking works at once | The sessions of a revoked token are closed by the request that revokes it, without their sending anything; the token is refused afterwards and after a restart | |
+| A token ends | With a clock the test moves: accepted one second before its end, refused at it, a session closed at its next request, and still refused when the clock is set back a day and after a restart | |
+| Guessing is slowed down | After the configured number of failures the source and the token id are refused without a check, for a delay that doubles; the limiter's rules are tested with a clock moved by hand | On the local endpoint every connection is the same source (`local:<user>`), so one program's wrong tokens slow every program's tokens. Connections without a token are not affected |
+| A damaged token file stops the gateway | Five kinds of damage: the store does not open, the gateway does not start, and the file is left as it was | |
+
+Differences from sections 4 and 5 as first written, and why:
+
+- A revoked token's record is kept in the same file until a week after the token would have ended. There is no
+  separate deny list: one file is replaced in one step, so the record and its revocation cannot disagree.
+- `transports` is in a record and checked; a list of source addresses is not, because nothing here listens on a
+  network yet. It comes with L3.
+- A successful check resets the failures of the token's id, not of the source: a caller that holds one good token
+  cannot use it to wipe out the delay it earned guessing another.
+- A `hello` with a token on the administration endpoint is refused: who may use that endpoint is decided by the
+  operating system alone.
+- The copies of a presented token that the gateway can reach are wiped (the decoded request, the frame, the read
+  buffer, the reply that hands out a new token). The copy inside the frame reader's buffer and the one inside the
+  JSON parser are freed without being wiped.
 
 ## 14. Decisions for the owner
 
