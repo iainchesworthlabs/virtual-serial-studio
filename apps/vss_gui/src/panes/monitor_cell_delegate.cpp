@@ -8,13 +8,13 @@
 
 #include <vss/core/profile.hpp>
 
-#include <QFontInfo>
 #include <QFontMetricsF>
 #include <QModelIndex>
 #include <QStringView>
 #include <QStyleOptionViewItem>
 
 #include <algorithm>
+#include <cmath>
 
 namespace vss::gui
 {
@@ -50,6 +50,24 @@ std::string_view MonitorCellDelegate::column_label(int column) noexcept
     }
 }
 
+double MonitorCellDelegate::uniform_advance(const QFont& font)
+{
+    // Measured, not asked of the font: a font that calls itself fixed-width
+    // may lack letters (an emoji font), and Qt then takes them from another
+    // font, where they have many widths.
+    const QFontMetricsF metrics(font);
+    const double advance = metrics.horizontalAdvance(QLatin1Char('0'));
+    if (advance <= 0.0)
+        return 0.0;
+    for (char character = 0x20; character < 0x7f; ++character)
+    {
+        const double other = metrics.horizontalAdvance(QLatin1Char(character));
+        if (std::abs(other - advance) > 0.01)
+            return 0.0;
+    }
+    return advance;
+}
+
 qsizetype MonitorCellDelegate::characters_kept(int width,
                                                double advance) noexcept
 {
@@ -67,10 +85,7 @@ void MonitorCellDelegate::initStyleOption(QStyleOptionViewItem* option,
     {
         font_ = option->font;
         measured_ = true;
-        advance_ =
-            QFontInfo(font_).fixedPitch()
-                ? QFontMetricsF(font_).horizontalAdvance(QLatin1Char('0'))
-                : 0.0;
+        advance_ = uniform_advance(font_);
     }
     if (advance_ <= 0.0)
         return;

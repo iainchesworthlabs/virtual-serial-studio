@@ -20,11 +20,11 @@ namespace vss::gui
 /// Qt lays a cell's whole text out before it cuts it to the cell, and that
 /// costs about 2 microseconds a character: a 256 byte preview is 256
 /// characters as text and 767 as hex, of which a cell shows the first hundred
-/// or so. For the cells of one column, in a font whose characters all have
-/// one width, the delegate hands Qt only as many characters as are sure to
-/// overflow the cell. Qt cuts those where it would have cut the whole text
-/// and draws the same ellipsis, so the cell looks the same. The model, the
-/// tooltip and the accessible text keep the whole text.
+/// or so. For the cells of one column, in a font whose ASCII characters all
+/// have one width, the delegate hands Qt only as many characters as are sure
+/// to overflow the cell. Qt cuts those where it would have cut the whole
+/// text and draws the same ellipsis, so the cell looks the same. The model,
+/// the tooltip and the accessible text keep the whole text.
 class MonitorCellDelegate final : public QStyledItemDelegate
 {
 public:
@@ -37,6 +37,10 @@ public:
 
     /// The zone text of a painted cell: the name of its column.
     static std::string_view column_label(int column) noexcept;
+
+    /// The width of a character of `font` when every printable ASCII
+    /// character has that width, and 0 when they differ.
+    static double uniform_advance(const QFont& font);
 
     /// How many characters of a text are handed to Qt for a cell `width`
     /// pixels wide when every character is `advance` pixels wide: a quarter

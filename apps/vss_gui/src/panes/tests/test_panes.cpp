@@ -48,6 +48,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <thread>
 
 namespace
@@ -521,23 +522,29 @@ TEST_CASE("monitor panel: heavy traffic is added to the table in steps")
 TEST_CASE("monitor: a long preview is drawn as Qt draws the whole text")
 {
     // The cut is only made in a font whose characters all have one width.
-    QFont fixed;
-    bool found = false;
+    // Three fonts: the first with one width, the first the system calls
+    // fixed-width (where only an emoji font is, its letters come from another
+    // font and have many widths), and the application's own.
+    QVector<QFont> fonts;
+    bool one_width = false;
+    bool called_fixed = false;
     for (const QString& family : QFontDatabase::families())
     {
-        if (!QFontDatabase::isFixedPitch(family) ||
-            !QFontDatabase::isSmoothlyScalable(family))
-            continue;
-        fixed = QFont(family);
-        fixed.setPixelSize(13);
-        if (QFontInfo(fixed).fixedPitch())
+        QFont font(family);
+        font.setPixelSize(13);
+        if (!one_width &&
+            vss::gui::MonitorCellDelegate::uniform_advance(font) > 0.0)
         {
-            found = true;
-            break;
+            one_width = true;
+            fonts.push_back(font);
+        }
+        else if (!called_fixed && QFontDatabase::isFixedPitch(family))
+        {
+            called_fixed = true;
+            fonts.push_back(font);
         }
     }
-    if (!found)
-        VSS_SKIP("no fixed-width font on this machine");
+    fonts.push_back(QApplication::font());
 
     QString text;
     QString hex;
@@ -546,15 +553,14 @@ TEST_CASE("monitor: a long preview is drawn as Qt draws the whole text")
         text += QLatin1Char(static_cast<char>('A' + index % 26));
         hex += QStringLiteral("%1 ").arg(index, 2, 16, QLatin1Char('0'));
     }
-    QStandardItemModel model(4, 2);
     const QStringList previews{text, hex, QStringLiteral("short"),
-                               text.left(90) + QChar(0x05e9) + text};
+                               text.left(90) + QChar(0x05e9) + text,
+                               QString(600, QLatin1Char('i'))};
+    QStandardItemModel model(static_cast<int>(previews.size()), 2);
     for (int row = 0; row < previews.size(); ++row)
     {
         model.setItem(row, 0, new QStandardItem(QStringLiteral("12:00:00")));
-        auto* item = new QStandardItem(previews[row]);
-        item->setFont(fixed);
-        model.setItem(row, 1, item);
+        model.setItem(row, 1, new QStandardItem(previews[row]));
     }
 
     QTableView table;
@@ -565,19 +571,32 @@ TEST_CASE("monitor: a long preview is drawn as Qt draws the whole text")
     table.show();
 
     // The picture must be the one Qt's own delegate makes from the whole
-    // text, whatever the width of the cell.
+    // text, whatever the font and the width of the cell.
     vss::gui::MonitorCellDelegate ours(1);
     QStyledItemDelegate plain;
-    for (int width = 180; width <= 2400; width += 37)
+    for (const QFont& font : fonts)
     {
-        table.resize(width, 200);
-        QApplication::processEvents();
-        table.setItemDelegate(&ours);
-        const QImage cut = table.viewport()->grab().toImage();
-        table.setItemDelegate(&plain);
-        const QImage whole = table.viewport()->grab().toImage();
-        REQUIRE(!cut.isNull());
-        REQUIRE(cut == whole);
+        for (int row = 0; row < previews.size(); ++row)
+            model.item(row, 1)->setFont(font);
+        for (int width = 180; width <= 2400; width += 37)
+        {
+            table.resize(width, 200);
+            QApplication::processEvents();
+            table.setItemDelegate(&ours);
+            const QImage cut = table.viewport()->grab().toImage();
+            table.setItemDelegate(&plain);
+            const QImage whole = table.viewport()->grab().toImage();
+            REQUIRE(!cut.isNull());
+            if (cut != whole)
+            {
+                std::printf(
+                    "        differs in %s at width %d, advance %f",
+                    qPrintable(QFontInfo(font).family()), width,
+                    vss::gui::MonitorCellDelegate::uniform_advance(font));
+                std::puts("");
+            }
+            REQUIRE(cut == whole);
+        }
     }
 
     // And it is a cut: far fewer characters than the preview has.
