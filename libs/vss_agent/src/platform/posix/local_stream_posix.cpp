@@ -389,8 +389,8 @@ result<std::string> local_address(local_endpoint endpoint,
 }
 
 result<std::unique_ptr<local_listener>>
-listen_local(const boost::asio::any_io_executor& executor,
-             local_endpoint which, std::string_view instance)
+listen_local(const boost::asio::any_io_executor& executor, local_endpoint which,
+             std::string_view instance)
 {
     const std::filesystem::path directory = runtime_directory();
     if (const error_code failed = ensure_private_directory(directory))
