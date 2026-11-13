@@ -52,8 +52,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="200" />
-            <source>Copy this into a bug report. It answers "which build is this?"</source>
-            <translation>Kopieren Sie dies in einen Fehlerbericht. Es beantwortet die Frage „Welcher Build ist das?“</translation>
+            <source>Copy this into a bug report. It shows which build you are running.</source>
+            <translation>Kopieren Sie dies in einen Fehlerbericht. Es zeigt, welche Version Sie verwenden.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="231" />
@@ -333,8 +333,8 @@
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>Ein simuliertes Gerät, das Sie per Skript steuern können, zum Testen ohne Hardware.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>Ein simuliertes Gerät zum Testen ohne Hardware.</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -532,8 +532,8 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>Ein simuliertes Gerät, das Sie per Skript steuern können, zum Testen ohne Hardware.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>Ein simuliertes Gerät zum Testen ohne Hardware.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -607,8 +607,8 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>Programme, die einen festen Namen wie COM3 öffnen, finden den Port bei jedem Start wieder. Automatisch wählt eine freie Nummer oberhalb der Ports, die dieser PC bereits hat, nie COM1 oder COM2. Eine Nummer erfordert den Studio-Treiber und seinen Hilfsdienst und wird verwendet, wenn ein Port erstellt wird.</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>Ein Programm, das einen festen Namen wie COM3 öffnet, braucht jedes Mal dieselbe Nummer. Automatisch wählt eine freie Nummer oberhalb der Ports, die dieser PC schon hat, nie COM1 oder COM2. Eine feste Nummer braucht den Studio-Treiber und seinen Hilfsdienst und wird verwendet, wenn ein Port erstellt wird.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
@@ -622,13 +622,13 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>Netzwerk-Endpunkte folgen in einem späteren Arbeitspaket. Es wurde nichts erstellt.</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>Netzwerk-Endpunkte sind noch nicht verfügbar. Es wurde nichts erstellt.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>Testgeräte folgen in einem späteren Arbeitspaket. Es wurde nichts erstellt.</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>Testgeräte sind noch nicht verfügbar. Es wurde nichts erstellt.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -1079,8 +1079,8 @@
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>Verknüpfen Sie diese beiden Ports nicht in Studio. Die Daten müssen über das Kabel oder das Treiberpaar laufen, damit die Zählung aussagekräftig ist.</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>Verknüpfen Sie diese Ports nicht in Studio. Die Daten müssen über das Kabel oder das Treiberpaar laufen, damit sie gezählt werden.</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -1328,8 +1328,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="129" />
-            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
-            <translation>Sammelt, was eine helfende Person braucht, um Ihre Konfiguration zu verstehen. Nichts wird irgendwohin gesendet. Sie wählen, wo es gespeichert wird.</translation>
+            <source>Collects your setup, event log and environment details into one file. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>Sammelt Ihre Einrichtung, das Ereignisprotokoll und Angaben zur Umgebung in einer Datei. Es wird nichts gesendet. Sie wählen, wo sie gespeichert wird.</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="145" />
@@ -1398,8 +1398,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="202" />
-            <source>Nothing leaves this PC until you share the file yourself. Look inside the bundle first if you want to check it.</source>
-            <translation>Nichts verlässt diesen PC, bevor Sie die Datei selbst weitergeben. Sehen Sie sich das Paket vorher an, wenn Sie es prüfen möchten.</translation>
+            <source>Nothing is sent. The file is a zip that you can open and read before you share it.</source>
+            <translation>Es wird nichts gesendet. Die Datei ist ein ZIP-Archiv, das Sie vor dem Weitergeben öffnen und lesen können.</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="210" />
@@ -2525,8 +2525,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="60" />
-            <source>Every action is in the menus. Start with these.</source>
-            <translation>Jede Aktion steht in den Menüs. Beginnen Sie hiermit.</translation>
+            <source>These are the most used actions. All actions are in the menus.</source>
+            <translation>Das sind die am häufigsten benutzten Aktionen. Alle Aktionen stehen in den Menüs.</translation>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="77" />
@@ -2889,8 +2889,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>Alles, was Ihr Programm sendet, kommt sofort zu ihm zurück. Ein schneller Test, ob Senden und Empfangen beide funktionieren.</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>Alles, was Ihr Programm sendet, kommt sofort zu ihm zurück. Damit prüfen Sie, ob das Programm senden und empfangen kann.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -2926,8 +2926,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>Sie steht im Handbuch des Geräts. Wenn Text später durcheinander aussieht, liegt es meist daran.</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>Sehen Sie im Handbuch des Geräts nach. Eine falsche Rate zeigt sich meist als unleserlicher Text.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -2993,8 +2993,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>Praktisch, um zu prüfen, ob das Gerät funktioniert, bevor Ihr eigenes Programm bereit ist. Was Sie tippen, geht an das Gerät, und seine Antworten erscheinen hier und in Ihren Programmen.</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>Damit prüfen Sie, ob das Gerät funktioniert, bevor Ihr eigenes Programm fertig ist. Was Sie eingeben, geht an das Gerät, und seine Antworten erscheinen hier und in Ihren Programmen.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -3003,8 +3003,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>Eine Live-Liste dessen, was in jede Richtung gesendet wird, auf der Seite der Einrichtung. Sie schaut nur zu und ändert nichts. Sie können sie auch später einschalten.</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>Zeigt die in jede Richtung gesendeten Daten auf der Seite der Einrichtung an. Die Daten werden nicht verändert. Sie können es später einschalten.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -3511,8 +3511,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>Brauchen Sie Adressen, Fehlereinspeisung oder Port-Besitz? Der &lt;a href="advanced"&gt;erweiterte Modus&lt;/a&gt; fügt sie diesem Fenster hinzu. An Ihrer bisherigen Arbeit ändert sich nichts.</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;Der erweiterte Modus&lt;/a&gt; fügt diesem Fenster Adressen, Fehlerinjektion und Port-Eigentum hinzu. Nichts von dem, was Sie erstellt haben, ändert sich.</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -3591,8 +3591,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="75" />
-            <source>Incoming data lost, too fast</source>
-            <translation>Eingehende Daten gehen verloren, zu schnell</translation>
+            <source>Incoming data lost because it arrived too fast</source>
+            <translation>Eingehende Daten gehen verloren, weil sie zu schnell ankommen</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="77" />
@@ -3621,8 +3621,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="84" />
-            <source>Device vanishes, as if unplugged</source>
-            <translation>Das Gerät verschwindet, als wäre es abgezogen worden</translation>
+            <source>Device disconnects, as if unplugged</source>
+            <translation>Das Gerät trennt sich, als wäre es abgezogen</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="330" />
@@ -4144,8 +4144,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>Der Topologie-JSON-Editor kommt mit WP7.</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>Der JSON-Editor für die Topologie ist noch nicht verfügbar.</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -5234,14 +5234,14 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>Ihr Port „%1“ existiert jetzt in Studio.</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>Der Port „%1“ wurde erstellt. Nur Studio kann ihn öffnen.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>Ihr Port „%1“ existiert jetzt, und andere Programme können ihn öffnen.</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>Der Port „%1“ wurde erstellt. Andere Programme können ihn öffnen.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -5828,8 +5828,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="134" />
-            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check: it says whether your account is missing the serial device group or AppArmor, SELinux or a sandbox is in the way, and shows the command to fix it.</source>
-            <translation>Das System hat dies nicht erlaubt. Es wurde nichts geändert. Öffnen Sie „Extras“, „Einrichtungsprüfung“: Dort steht, ob Ihrem Konto die Gruppe für serielle Geräte fehlt oder ob AppArmor, SELinux oder eine Sandbox im Weg ist, und welcher Befehl das behebt.</translation>
+            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check to see whether the cause is a missing group, AppArmor, SELinux or a sandbox. It shows the command to fix it.</source>
+            <translation>Das System hat dies nicht erlaubt. Es wurde nichts geändert. Öffnen Sie Extras, Einrichtungsprüfung, um zu sehen, ob eine fehlende Gruppe, AppArmor, SELinux oder eine Sandbox die Ursache ist. Dort steht auch der Befehl zur Behebung.</translation>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="69" />
@@ -5963,8 +5963,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>Das Programm, das diesen Port geöffnet hat, dazu bringen, ihn loszulassen.</translation>
+            <source>Make the program release this port.</source>
+            <translation>Das Programm dazu bringen, diesen Port freizugeben.</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -6443,18 +6443,18 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="369" />
-            <source>50 ms, live</source>
-            <translation>50 ms, live</translation>
+            <source>50 ms, most frequent</source>
+            <translation>50 ms, am häufigsten</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="372" />
-            <source>5000 ms, light</source>
-            <translation>5000 ms, sparsam</translation>
+            <source>5000 ms, least frequent</source>
+            <translation>5000 ms, am seltensten</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="375" />
-            <source>How often counters and states are read. Shorter feels live. Longer is lighter on a busy machine.</source>
-            <translation>Wie oft Zähler und Zustände gelesen werden. Kürzer wirkt flüssiger. Länger schont einen ausgelasteten Rechner.</translation>
+            <source>A shorter interval updates more often. A longer interval uses less CPU.</source>
+            <translation>Ein kürzeres Intervall aktualisiert öfter. Ein längeres Intervall belastet die CPU weniger.</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="417" />
@@ -6976,7 +6976,7 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/setup_facts.cpp" line="256" />
-            <source>Carry on without a driver</source>
+            <source>Continue without a driver</source>
             <translation>Ohne Treiber fortfahren</translation>
         </message>
         <message>
@@ -7172,8 +7172,8 @@ Netzwerke: %5</translation>
         <message>
             <location filename="../src/support/setup_check_dialog.cpp" line="225" />
             <location filename="../src/support/setup_facts.cpp" line="475" />
-            <source>All set</source>
-            <translation>Alles bereit</translation>
+            <source>Ready</source>
+            <translation>Bereit</translation>
         </message>
         <message>
             <location filename="../src/support/setup_check_dialog.cpp" line="262" />
@@ -7300,8 +7300,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>Nur Lesezugriff. Nützlich, wenn ein Programm meldet, dass nichts ankommt.</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>Nur lesen. Damit prüfen Sie die Daten, wenn ein Programm meldet, dass nichts ankommt.</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -8050,8 +8050,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>Studio ist unverändert. Prüfen Sie das Gerät und versuchen Sie es erneut.</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>Die Einrichtung ist unverändert. Prüfen Sie das Gerät und versuchen Sie es erneut.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -8065,8 +8065,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio kann höchstens 32 Programme teilen</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio kann ein Gerät mit höchstens 32 Programmen teilen</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -9072,13 +9072,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1 gehört zu einem späteren Arbeitspaket.</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1 kommt mit %2.</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 ist noch nicht verfügbar.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -9403,8 +9398,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="124" />
-            <source>Every action has a menu item. These are the quick ways.</source>
-            <translation>Jede Aktion hat einen Menüeintrag. Dies sind die schnellen Wege.</translation>
+            <source>Shortcuts for the actions in the menus.</source>
+            <translation>Tastenkürzel für die Aktionen in den Menüs.</translation>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="133" />
@@ -9489,8 +9484,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>Es ist noch nichts eingerichtet, daher gibt es keinen Port zum Ansehen. Richten Sie zuerst etwas ein.</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>Es ist noch nichts eingerichtet. Richten Sie zuerst einen Port ein.</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -10921,8 +10916,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="206" />
-            <source>Still stuck? A diagnostic bundle gathers the setup, the log and the environment for whoever helps you. Traffic contents are left out unless you choose to include them.</source>
-            <translation>Immer noch nicht gelöst? Ein Diagnosepaket sammelt Konfiguration, Protokoll und Umgebung für die Person, die Ihnen hilft. Dateninhalte bleiben außen vor, es sei denn, Sie schließen sie ein.</translation>
+            <source>A diagnostic bundle collects the setup, the log and the environment to send to whoever helps you. Traffic contents are left out unless you include them.</source>
+            <translation>Ein Diagnosepaket sammelt die Einrichtung, das Protokoll und die Umgebung, damit Sie sie an Ihren Helfer senden können. Datenverkehr ist nicht enthalten, außer Sie nehmen ihn auf.</translation>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="224" />
@@ -11369,8 +11364,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>Ein simuliertes Gerät, das Sie per Skript steuern können, zum Testen ohne Hardware.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>Ein simuliertes Gerät zum Testen ohne Hardware.</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -11553,8 +11548,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>Ein simuliertes Gerät, das Sie per Skript steuern können, zum Testen ohne Hardware.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>Ein simuliertes Gerät zum Testen ohne Hardware.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -11628,8 +11623,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>Programme, die einen festen Namen wie COM3 öffnen, finden den Port bei jedem Start wieder. Automatisch wählt eine freie Nummer oberhalb der Ports, die dieser PC bereits hat, nie COM1 oder COM2. Eine Nummer erfordert den Studio-Treiber und seinen Hilfsdienst und wird verwendet, wenn ein Port erstellt wird.</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>Ein Programm, das einen festen Namen wie COM3 öffnet, braucht jedes Mal dieselbe Nummer. Automatisch wählt eine freie Nummer oberhalb der Ports, die dieser PC schon hat, nie COM1 oder COM2. Eine feste Nummer braucht den Studio-Treiber und seinen Hilfsdienst und wird verwendet, wenn ein Port erstellt wird.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
@@ -11643,13 +11638,13 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>Netzwerk-Endpunkte folgen in einem späteren Arbeitspaket. Es wurde nichts erstellt.</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>Netzwerk-Endpunkte sind noch nicht verfügbar. Es wurde nichts erstellt.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>Testgeräte folgen in einem späteren Arbeitspaket. Es wurde nichts erstellt.</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>Testgeräte sind noch nicht verfügbar. Es wurde nichts erstellt.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -12082,8 +12077,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>Verknüpfen Sie diese beiden Ports nicht in Studio. Die Daten müssen über das Kabel oder das Treiberpaar laufen, damit die Zählung aussagekräftig ist.</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>Verknüpfen Sie diese Ports nicht in Studio. Die Daten müssen über das Kabel oder das Treiberpaar laufen, damit sie gezählt werden.</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -13444,8 +13439,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>Brauchen Sie Adressen, Fehlereinspeisung oder Port-Besitz? Der &lt;a href="advanced"&gt;erweiterte Modus&lt;/a&gt; fügt sie diesem Fenster hinzu. An Ihrer bisherigen Arbeit ändert sich nichts.</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;Der erweiterte Modus&lt;/a&gt; fügt diesem Fenster Adressen, Fehlerinjektion und Port-Eigentum hinzu. Nichts von dem, was Sie erstellt haben, ändert sich.</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -13886,8 +13881,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>Der Topologie-JSON-Editor kommt mit WP7.</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>Der JSON-Editor für die Topologie ist noch nicht verfügbar.</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -14620,14 +14615,14 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>Ihr Port „%1“ existiert jetzt in Studio.</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>Der Port „%1“ wurde erstellt. Nur Studio kann ihn öffnen.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>Ihr Port „%1“ existiert jetzt, und andere Programme können ihn öffnen.</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>Der Port „%1“ wurde erstellt. Andere Programme können ihn öffnen.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -14874,8 +14869,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>Das Programm, das diesen Port geöffnet hat, dazu bringen, ihn loszulassen.</translation>
+            <source>Make the program release this port.</source>
+            <translation>Das Programm dazu bringen, diesen Port freizugeben.</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -15646,8 +15641,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>Studio ist unverändert. Prüfen Sie das Gerät und versuchen Sie es erneut.</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>Die Einrichtung ist unverändert. Prüfen Sie das Gerät und versuchen Sie es erneut.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -15661,8 +15656,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio kann höchstens 32 Programme teilen</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio kann ein Gerät mit höchstens 32 Programmen teilen</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -16668,13 +16663,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1 gehört zu einem späteren Arbeitspaket.</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1 kommt mit %2.</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 ist noch nicht verfügbar.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -17623,8 +17613,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>Alles, was Ihr Programm sendet, kommt sofort zu ihm zurück. Ein schneller Test, ob Senden und Empfangen beide funktionieren.</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>Alles, was Ihr Programm sendet, kommt sofort zu ihm zurück. Damit prüfen Sie, ob das Programm senden und empfangen kann.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -17660,8 +17650,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>Sie steht im Handbuch des Geräts. Wenn Text später durcheinander aussieht, liegt es meist daran.</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>Sehen Sie im Handbuch des Geräts nach. Eine falsche Rate zeigt sich meist als unleserlicher Text.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -17727,8 +17717,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>Praktisch, um zu prüfen, ob das Gerät funktioniert, bevor Ihr eigenes Programm bereit ist. Was Sie tippen, geht an das Gerät, und seine Antworten erscheinen hier und in Ihren Programmen.</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>Damit prüfen Sie, ob das Gerät funktioniert, bevor Ihr eigenes Programm fertig ist. Was Sie eingeben, geht an das Gerät, und seine Antworten erscheinen hier und in Ihren Programmen.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -17737,8 +17727,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>Eine Live-Liste dessen, was in jede Richtung gesendet wird, auf der Seite der Einrichtung. Sie schaut nur zu und ändert nichts. Sie können sie auch später einschalten.</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>Zeigt die in jede Richtung gesendeten Daten auf der Seite der Einrichtung an. Die Daten werden nicht verändert. Sie können es später einschalten.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -18215,8 +18205,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="390" />
-            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
-            <translation>Tippen Sie an das Gerät und lesen Sie hier seine Antworten, ohne ein weiteres Programm. Gut für eine erste Prüfung, ob es funktioniert.</translation>
+            <source>Type to the device and read its replies here, without another program. Use it to check that the device works.</source>
+            <translation>Tippen Sie an das Gerät und lesen Sie seine Antworten hier, ohne ein anderes Programm. Damit prüfen Sie, ob das Gerät funktioniert.</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="396" />
@@ -18361,8 +18351,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>Nur Lesezugriff. Nützlich, wenn ein Programm meldet, dass nichts ankommt.</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>Nur lesen. Damit prüfen Sie die Daten, wenn ein Programm meldet, dass nichts ankommt.</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -18688,8 +18678,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>Es ist noch nichts eingerichtet, daher gibt es keinen Port zum Ansehen. Richten Sie zuerst etwas ein.</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>Es ist noch nichts eingerichtet. Richten Sie zuerst einen Port ein.</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -18903,8 +18893,8 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="115" />
-            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, now, and not each time you add a port.</source>
-            <translation>Windows erlaubt nur einem Treiber, COM-Ports zu erstellen, die andere Programme öffnen können. Die Einrichtung installiert den Virtual-Serial-Studio-Treiber und einen kleinen Hilfsdienst, der Ports für Sie erstellt, sodass Administratorrechte einmal, jetzt, nötig sind und nicht bei jedem neuen Port.</translation>
+            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, not each time you add a port.</source>
+            <translation>Windows erlaubt nur einem Treiber, COM-Ports zu erstellen, die andere Programme öffnen können. Die Einrichtung installiert den Virtual-Serial-Studio-Treiber und einen kleinen Hilfsdienst, der die Ports für Sie erstellt. Administratorrechte sind deshalb einmal nötig, nicht bei jedem neuen Port.</translation>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="123" />

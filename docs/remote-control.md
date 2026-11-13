@@ -580,8 +580,8 @@ validates the resulting access token. No sign-in page exists in Studio and none 
 | `hello` | none (after auth) | Version, features, the principal's effective scopes |
 | `status` | `monitor` | Edition, uptime, endpoint state, counters |
 | `ports.list`, `ports.get`, `links.list`, `links.get`, `lines.get` | `monitor` | |
-| `events.subscribe` | `monitor` | State, counters, line changes; no bytes |
-| `traffic.subscribe`, `traffic.history` | `monitor.data` | Port filter applies |
+| `events.subscribe`, `events.unsubscribe` | `monitor` | State, counters, line changes, and that bytes moved and how many; no bytes |
+| `traffic.subscribe`, `traffic.unsubscribe`, `traffic.history` | `monitor.data` | The bytes. Port filter applies |
 | `ports.create`, `ports.remove`, `ports.rename`, `ports.settings`, `links.connect`, `links.disconnect`, `lines.set` | `control.ports` | Own ports only, if set |
 | `ports.send`, `scripts.set`, `scripts.clear` | `control.data` | Bytes in the blob; sizes capped |
 | `faults.inject`, `timing.set` | `control.faults` | |
@@ -866,6 +866,52 @@ Differences from sections 4 and 5 as first written, and why:
 - The copies of a presented token that the gateway can reach are wiped (the decoded request, the frame, the read
   buffer, the reply that hands out a new token). The copy inside the frame reader's buffer and the one inside the
   JSON parser are freed without being wiped.
+
+### What slice 3 built
+
+The read-only monitor on the local endpoint: `events.subscribe`, `traffic.subscribe`, their two `unsubscribe`
+operations, and `sessions.list` and `sessions.kick` on the administration endpoint. In the agent: the `read_only`
+flag of agent.md's decision 10, and the engine's time in every event.
+
+A batch, as a client receives it (the bytes are in the frame's blob, in the order of the events):
+
+```
+{"event": "batch", "seq": 12, "revision": 7, "dropped": 0,
+ "time": {"mono_ns": 81234567890, "wall_ms": 1794562200123},
+ "events": [{"kind": "data", "port": "p_2", "name": "b", "direction": "rx", "size": 5, "stored": 5,
+             "mono_ns": 81234000001}]}
+```
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| A monitor learns that bytes moved and is never given them | Every event of an events stream is checked for bytes; `traffic.subscribe` without `monitor.data` is refused and costs only an error. The gateway asks the agent for bytes only on behalf of a session that has the traffic stream, so a monitor's bytes never reach the gateway | That last part is read in the code, not observed: the agent has no counter of which connections asked for bytes |
+| A session that can only look cannot change a port, even if the gateway is wrong about a request | A session whose scopes are `monitor` and `monitor.data` and nothing else connects to the agent with `read_only`, counted at the agent; a session with a control scope and the administration endpoint do not. The agent answers `list` and `subscribe` on such a connection and refuses the five other requests, the one that ends it included | The flag holds a connection to its word, not a user: another program of the same user can connect to the agent without it (agent.md, section 6) |
+| A stream names its ports | Two lists on one connection, one for events and one for bytes: nothing about another port or about no port arrives, and bytes arrive only for the ports of the traffic list. A text that is not a port id costs an error and not the session | A list of ports in the token itself: a token cannot yet be held to some ports |
+| Loss is bounded, and told | A subscriber that stops reading while a port is busy: events are dropped and counted, the session is not closed for it, the batches it reads afterwards are numbered without a gap and one of them says how many were lost. The same with a small allowance and a reader that keeps up | `dropped` counts before the port filter, so it can include events the subscriber would not have been sent. Which events were lost cannot be read back: events have no ring (triggers will, section 9) |
+| Nothing a subscriber does slows a port | The agent's queue and its rule (2048 events, 512 KiB, drop the oldest) are unchanged and tested in the agent; the gateway takes what the agent has sent without waiting and holds at most one turn's batches for a client | A session's requests and its stream share one connection to the agent, so a request the agent takes ten seconds over holds that session's own stream for as long |
+| A stream cannot outlive the right to it | A token that ends while only its stream is running ends the session at the stream's next turn, with a clock the test moves; revoking a token ends its stream; a session kicked from the administration endpoint is closed | |
+| When the agent goes away the session is told | The session with a stream gets `unavailable` and is closed, with `agent_lost` in the audit log; a session without one is told when it asks, stays, and can subscribe once the agent is back | |
+| Times are the engine's | The time of a data event lies between two readings of the steady clock taken round the write; each batch carries the steady clock and the time of day read together | The time of day is a number of milliseconds, not RFC 3339 text. Agent and gateway are on one computer, so they share the steady clock |
+| The user can see who is connected and end it | `sessions.list` gives each session's principal, transport, program, process, what it called itself, its streams and what they carried and lost; `sessions.kick` closes one. Both are refused on the public endpoint whatever the scopes, and both are in the audit log | The status chip and the sessions list in Studio (below) |
+
+Differences from sections 9, 10 and 12 as first written, and why:
+
+- **One stream for each connection.** It has two switches, events and traffic, each with its own list of ports, and
+  one pace: the last subscription says it. Two streams would need two connections to the agent, and the agent takes
+  sixteen.
+- **A stream turns at its pace.** The gateway asks its agent connection for batches once every interval, so an event
+  reaches a subscriber after at most two intervals (10 ms each at the fastest). The agent has no request that ends a
+  stream, so ending both kinds lets the session's agent connection go; the next request makes a new one.
+- **The allowance** is 4 MiB of batches a second for each session. Batches never take more than half of what may
+  wait unread for one client (4 MiB), which leaves the rest for answers: a busy port cannot get its own watcher
+  closed as a slow client.
+- **Not built: `traffic.history`.** It needs pages of the hub's ring from the agent (agent.md, PR 5).
+- **Not built: the status chip and the sessions list in Studio.** Studio does not talk to the gateway yet, and
+  nothing starts `vss_gate` for it (agent.md, PR 6, for the agent). The chip, the dialog and their strings need a
+  spec under `docs/gui-design` first; that is a pull request of its own. Until then `vss_cli control sessions` and
+  `vss_cli control kick` are how a person sees who is connected and ends it.
+- **Engine errors by name**, which slice 1 left on paper, are in: an error event carries `engine.<name>`, and what
+  the operating system said becomes `engine.io_error`, without its number or its text.
 
 ## 14. Decisions for the owner
 

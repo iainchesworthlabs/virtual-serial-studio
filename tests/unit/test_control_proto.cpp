@@ -10,6 +10,7 @@
 // failure (docs/remote-control.md, sections 5, 7 and 15).
 //
 
+#include <vss/agent/proto/error.hpp>
 #include <vss/agent/proto/frame.hpp>
 #include <vss/control/proto/error.hpp>
 #include <vss/control/proto/message.hpp>
@@ -21,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
+#include <limits>
 #include <optional>
 #include <set>
 #include <string>
@@ -105,6 +107,18 @@ constexpr std::array expected_operations{
     expected_row{control::operation::tokens_list, "tokens.list",
                  control::scope::admin},
     expected_row{control::operation::tokens_revoke, "tokens.revoke",
+                 control::scope::admin},
+    expected_row{control::operation::events_subscribe, "events.subscribe",
+                 control::scope::monitor},
+    expected_row{control::operation::events_unsubscribe, "events.unsubscribe",
+                 control::scope::monitor},
+    expected_row{control::operation::traffic_subscribe, "traffic.subscribe",
+                 control::scope::monitor_data},
+    expected_row{control::operation::traffic_unsubscribe, "traffic.unsubscribe",
+                 control::scope::monitor_data},
+    expected_row{control::operation::sessions_list, "sessions.list",
+                 control::scope::admin},
+    expected_row{control::operation::sessions_kick, "sessions.kick",
                  control::scope::admin}};
 
 } // namespace
@@ -544,13 +558,15 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
     REQUIRE(control::info_of(control::operation::tokens_create).mutating);
     REQUIRE(control::info_of(control::operation::tokens_revoke).mutating);
     REQUIRE(!control::info_of(control::operation::tokens_list).mutating);
+    REQUIRE(control::info_of(control::operation::sessions_kick).mutating);
+    REQUIRE(!control::info_of(control::operation::sessions_list).mutating);
     REQUIRE(control::find_operation("ports.remove") == nullptr);
     REQUIRE(control::find_operation("") == nullptr);
 }
 
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 7 * 256 * 4
+    // Every operation, every set of scopes, every transport: 13 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -645,4 +661,425 @@ TEST_CASE("control policy: the cases a person would ask about")
     // Writing without reading is a set like any other: it reads nothing.
     REQUIRE(!may(local, control::scope_set{scope::control_data},
                  control::operation::ports_list));
+}
+
+// -- streams and sessions ----------------------------------------------------
+
+namespace
+{
+
+control::server_message round_trip(const control::event_batch& value)
+{
+    const auto decoded = control::decode_server_message(control::encode(value));
+    REQUIRE(decoded);
+    return *decoded;
+}
+
+control::event_batch sample_batch()
+{
+    control::event_batch batch;
+    batch.seq = 41;
+    batch.revision = 12;
+    batch.dropped = 3;
+    batch.mono_ns = 81234567890ull;
+    batch.wall_ms = 1794562200123ull;
+
+    control::event_entry started;
+    started.kind = "started";
+    started.port = "p_1";
+    started.name = "alpha";
+    started.mono_ns = 81234000000ull;
+    batch.events.push_back(started);
+
+    control::event_entry tapped;
+    tapped.kind = "data";
+    tapped.port = "p_2";
+    tapped.name = "beta";
+    tapped.direction = "rx";
+    tapped.size = 4;
+    tapped.data = vss::to_bytes(std::string_view("\x00\xff\r\n", 4));
+    tapped.mono_ns = 81234000001ull;
+    batch.events.push_back(tapped);
+
+    control::event_entry counted;
+    counted.kind = "data";
+    counted.port = "p_2";
+    counted.direction = "tx";
+    counted.size = 1000000;
+    batch.events.push_back(counted);
+
+    control::event_entry more;
+    more.kind = "data";
+    more.port = "p_3";
+    more.direction = "rx";
+    more.size = 2;
+    more.data = vss::to_bytes("ok");
+    batch.events.push_back(more);
+
+    control::event_entry lines;
+    lines.kind = "lines";
+    lines.port = "p_3";
+    lines.lines = 0x2d;
+    batch.events.push_back(lines);
+
+    control::event_entry failed;
+    failed.kind = "error";
+    failed.port = "p_4";
+    failed.message = "connection refused";
+    failed.error = "engine.io_error";
+    batch.events.push_back(failed);
+
+    // About no port, and in more than ASCII.
+    control::event_entry logged;
+    logged.kind = "log_message";
+    logged.message = "d\xc3\xa9j\xc3\xa0 vu";
+    batch.events.push_back(logged);
+    return batch;
+}
+
+} // namespace
+
+TEST_CASE("control proto: the stream and session requests survive the wire")
+{
+    const control::request events{
+        20, control::events_subscribe_request{{50, {"p_1", "p_22"}}}};
+    REQUIRE(round_trip(events) == events);
+    const control::request traffic{
+        21, control::traffic_subscribe_request{{10000, {}}}};
+    REQUIRE(round_trip(traffic) == traffic);
+    const control::request no_events{22, control::events_unsubscribe_request{}};
+    REQUIRE(round_trip(no_events) == no_events);
+    const control::request no_traffic{23,
+                                      control::traffic_unsubscribe_request{}};
+    REQUIRE(round_trip(no_traffic) == no_traffic);
+    const control::request listing{24, control::sessions_list_request{}};
+    REQUIRE(round_trip(listing) == listing);
+    const control::request kick{25,
+                                control::sessions_kick_request{
+                                    std::numeric_limits<std::uint64_t>::max()}};
+    REQUIRE(round_trip(kick) == kick);
+
+    // The four are different operations on the wire.
+    std::set<std::string> names;
+    for (const control::request& asked :
+         {events, traffic, no_events, no_traffic})
+    {
+        const std::string header = control::encode(asked).header;
+        REQUIRE(names.insert(header.substr(header.find("\"op\""), 28)).second);
+    }
+}
+
+TEST_CASE("control proto: a subscription may leave out its time and its ports")
+{
+    const auto bare = control::decode_request(
+        header_frame(R"({"id":1,"op":"events.subscribe"})"));
+    REQUIRE(bare);
+    const auto& options =
+        std::get<control::events_subscribe_request>(bare->body).options;
+    REQUIRE_EQ(options.interval_ms, control::default_stream_interval_ms);
+    REQUIRE(options.ports.empty());
+
+    const auto timed = control::decode_request(
+        header_frame(R"({"id":1,"op":"traffic.subscribe","interval_ms":20})"));
+    REQUIRE(timed);
+    REQUIRE_EQ(std::get<control::traffic_subscribe_request>(timed->body)
+                   .options.interval_ms,
+               std::uint32_t{20});
+
+    // Whether a text names a port is the gateway's to say: the decoder keeps
+    // it, so the caller gets an error it can read and keeps its connection.
+    const auto odd = control::decode_request(header_frame(
+        R"({"id":1,"op":"events.subscribe","ports":["COM3","p_1"]})"));
+    REQUIRE(odd);
+    REQUIRE_EQ(
+        std::get<control::events_subscribe_request>(odd->body).options.ports,
+        (std::vector<std::string>{"COM3", "p_1"}));
+}
+
+TEST_CASE("control proto: a subscription that is not one is refused")
+{
+    std::string many = R"({"id":1,"op":"traffic.subscribe","ports":[)";
+    for (std::size_t index = 0; index <= control::max_port_filter_size; ++index)
+        many += (index == 0 ? "\"p_" : ",\"p_") + std::to_string(index) + "\"";
+    many += "]}";
+    std::string most = R"({"id":1,"op":"traffic.subscribe","ports":[)";
+    for (std::size_t index = 0; index < control::max_port_filter_size; ++index)
+        most += (index == 0 ? "\"p_" : ",\"p_") + std::to_string(index) + "\"";
+    most += "]}";
+    REQUIRE(control::decode_request(header_frame(most)));
+
+    const std::array bad{
+        many,
+        std::string(R"({"id":1,"op":"events.subscribe","interval_ms":-1})"),
+        std::string(R"({"id":1,"op":"events.subscribe","interval_ms":"20"})"),
+        std::string(
+            R"({"id":1,"op":"events.subscribe","interval_ms":4294967296})"),
+        std::string(R"({"id":1,"op":"events.subscribe","ports":"p_1"})"),
+        std::string(R"({"id":1,"op":"events.subscribe","ports":[1]})"),
+        std::string(R"({"id":1,"op":"events.subscribe","ports":null})"),
+        std::string(R"({"id":1,"op":"sessions.kick"})"),
+        std::string(R"({"id":1,"op":"sessions.kick","session":"3"})"),
+        std::string(R"({"id":1,"op":"sessions.kick","session":-3})")};
+    for (const std::string& header : bad)
+    {
+        const auto decoded = control::decode_request(header_frame(header));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+}
+
+TEST_CASE("control proto: the stream and session replies survive the wire")
+{
+    const control::reply subscribed{
+        9, control::subscribed_reply{
+               10, std::numeric_limits<std::uint64_t>::max()}};
+    REQUIRE(round_trip(subscribed) == subscribed);
+
+    control::sessions_reply listed;
+    control::session_entry watcher;
+    watcher.number = 7;
+    watcher.principal = "token:aaaaaaaaaaaaa";
+    watcher.transport = "local";
+    watcher.client = "pytest 8.3";
+    watcher.program = "/usr/bin/python3";
+    watcher.process = 4242;
+    watcher.opened_ms = 1794562200123ull;
+    watcher.requests = 12;
+    watcher.events = true;
+    watcher.traffic = true;
+    watcher.events_sent = 1000;
+    watcher.bytes_sent = 123456;
+    watcher.events_dropped = 3;
+    listed.sessions.push_back(watcher);
+    listed.sessions.push_back(control::session_entry{});
+    const control::reply sessions{10, listed};
+    REQUIRE(round_trip(sessions) == sessions);
+    const control::reply nobody{11, control::sessions_reply{}};
+    REQUIRE(round_trip(nobody) == nobody);
+
+    for (const char* const bad :
+         {R"({"id":1,"reply":"subscribed"})",
+          R"({"id":1,"reply":"subscribed","interval_ms":10})",
+          R"({"id":1,"reply":"subscribed","interval_ms":"10","next_seq":1})",
+          R"({"id":1,"reply":"sessions"})",
+          R"({"id":1,"reply":"sessions","sessions":[{}]})",
+          R"({"id":1,"reply":"sessions","sessions":[7]})"})
+    {
+        REQUIRE(!control::decode_reply(header_frame(bad)));
+    }
+}
+
+TEST_CASE("control proto: a batch of events survives the wire, bytes and all")
+{
+    const control::event_batch batch = sample_batch();
+    const control::frame wire = control::encode(batch);
+    // The bytes are in the blob, in order, and nowhere in the header.
+    REQUIRE_EQ(wire.blob.size(), std::size_t{6});
+    REQUIRE_EQ(wire.header.find("ok"), std::string::npos);
+    const control::server_message got = round_trip(batch);
+    REQUIRE(std::holds_alternative<control::event_batch>(got));
+    REQUIRE(std::get<control::event_batch>(got) == batch);
+
+    const control::event_batch empty{1, 0, 0, 5, 6, {}};
+    REQUIRE(std::get<control::event_batch>(round_trip(empty)) == empty);
+
+    // A batch is not an answer, and an answer is still read as one.
+    REQUIRE(!control::decode_reply(wire));
+    REQUIRE(!control::decode_request(wire));
+    const control::reply done{3, control::done_reply{}};
+    const auto answer = control::decode_server_message(control::encode(done));
+    REQUIRE(answer);
+    REQUIRE(std::get<control::reply>(*answer) == done);
+}
+
+TEST_CASE("control proto: a field of an event with nothing to say is left out")
+{
+    control::event_batch batch;
+    batch.seq = 1;
+    control::event_entry bare;
+    bare.kind = "stopped";
+    batch.events.push_back(bare);
+    const std::string header = control::encode(batch).header;
+    for (const char* const field :
+         {"\"port\"", "\"name\"", "\"direction\"", "\"size\"", "\"stored\"",
+          "\"lines\"", "\"message\"", "\"error\""})
+    {
+        REQUIRE_EQ(header.find(field), std::string::npos);
+    }
+    REQUIRE(header.find("\"kind\":\"stopped\"") != std::string::npos);
+    REQUIRE(std::get<control::event_batch>(round_trip(batch)) == batch);
+}
+
+TEST_CASE("control proto: a batch that is not one is refused")
+{
+    const std::string time = R"("time":{"mono_ns":1,"wall_ms":2})";
+    const std::string start =
+        R"({"event":"batch","seq":1,"revision":0,"dropped":0,)" + time;
+    REQUIRE(control::decode_server_message(
+        header_frame(start + R"(,"events":[]})")));
+    REQUIRE(control::decode_server_message(
+        header_frame(start + R"(,"events":[{"kind":"x","new_field":[1]}]})")));
+
+    const std::array bad{
+        std::string(R"({"event":"other","seq":1})"),
+        std::string(R"({"event":7})"), std::string(R"({"event":"batch"})"),
+        // No time, a time that is not an object, half a time.
+        std::string(R"({"event":"batch","seq":1,"revision":0,"dropped":0,)"
+                    R"("events":[]})"),
+        std::string(R"({"event":"batch","seq":1,"revision":0,"dropped":0,)"
+                    R"("time":7,"events":[]})"),
+        std::string(R"({"event":"batch","seq":1,"revision":0,"dropped":0,)"
+                    R"("time":{"mono_ns":1},"events":[]})"),
+        start + R"(})", start + R"(,"events":{}})", start + R"(,"events":[7]})",
+        start + R"(,"events":[{}]})", start + R"(,"events":[{"kind":7}]})",
+        start + R"(,"events":[{"kind":"data","size":-1}]})",
+        start + R"(,"events":[{"kind":"data","port":7}]})",
+        start + R"(,"events":[{"kind":"data","lines":4294967296}]})",
+        start + R"(,"events":[{"kind":"data","mono_ns":"1"}]})",
+        // More bytes than were sent.
+        start + R"(,"events":[{"kind":"data","stored":1}]})"};
+    for (const std::string& header : bad)
+    {
+        const auto decoded =
+            control::decode_server_message(header_frame(header));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+
+    // The events use the blob in order and all of it: bytes nobody claims,
+    // and the same bytes claimed twice, are both a mistake.
+    control::frame extra =
+        header_frame(start + R"(,"events":[{"kind":"data","stored":1}]})");
+    extra.blob = {vss::byte{1}, vss::byte{2}};
+    REQUIRE(!control::decode_server_message(extra));
+    control::frame twice =
+        header_frame(start + R"(,"events":[{"kind":"data","stored":2},)"
+                             R"({"kind":"data","stored":2}]})");
+    twice.blob = {vss::byte{1}, vss::byte{2}};
+    REQUIRE(!control::decode_server_message(twice));
+    control::frame exact =
+        header_frame(start + R"(,"events":[{"kind":"data","stored":1},)"
+                             R"({"kind":"data","stored":1}]})");
+    exact.blob = {vss::byte{1}, vss::byte{2}};
+    const auto read = control::decode_server_message(exact);
+    REQUIRE(read);
+    const auto& events = std::get<control::event_batch>(*read).events;
+    REQUIRE_EQ(events.at(0).data, (vss::byte_buffer{vss::byte{1}}));
+    REQUIRE_EQ(events.at(1).data, (vss::byte_buffer{vss::byte{2}}));
+}
+
+TEST_CASE("control proto: a port id is read back only in the form it is "
+          "written")
+{
+    for (const std::uint64_t id :
+         {std::uint64_t{0}, std::uint64_t{1}, std::uint64_t{42},
+          std::numeric_limits<std::uint64_t>::max()})
+    {
+        const auto read = control::parse_port_id(control::port_id_text(id));
+        REQUIRE(read == id);
+    }
+    for (const char* const bad : {"",
+                                  "p",
+                                  "p_",
+                                  "p_-1",
+                                  "p_+1",
+                                  "p_ 1",
+                                  "p_1 ",
+                                  " p_1",
+                                  "P_1",
+                                  "l_1",
+                                  "p_01",
+                                  "p_00",
+                                  "p_1x",
+                                  "p_0x1",
+                                  "p_1.0",
+                                  "p_18446744073709551616",
+                                  "p_99999999999999999999",
+                                  "p_184467440737095516150",
+                                  "1",
+                                  "COM3",
+                                  "p__1",
+                                  "p_\xd9\xa1"})
+    {
+        REQUIRE(!control::parse_port_id(bad).has_value());
+    }
+    using namespace std::string_view_literals;
+    REQUIRE(!control::parse_port_id("p_1\0"sv).has_value());
+}
+
+TEST_CASE("control proto: an engine error has a public name and no number")
+{
+    REQUIRE(control::engine_error_name({}).empty());
+    std::set<std::string> names;
+    for (int value = 1; value <= static_cast<int>(vss::errc::internal); ++value)
+    {
+        const std::string name = control::engine_error_name(
+            vss::make_error_code(static_cast<vss::errc>(value)));
+        REQUIRE_EQ(name.rfind("engine.", 0), std::size_t{0});
+        REQUIRE(name.size() > 7);
+        REQUIRE(names.insert(name).second);
+    }
+    REQUIRE_EQ(
+        control::engine_error_name(vss::make_error_code(vss::errc::not_open)),
+        std::string("engine.not_open"));
+    // What the operating system said does not cross: not its number, not
+    // its text.
+    const std::string system = control::engine_error_name(
+        vss::error_code(5, boost::system::system_category()));
+    REQUIRE_EQ(system, std::string("engine.io_error"));
+    REQUIRE_EQ(control::engine_error_name(agent::make_error_code(
+                   agent::protocol_errc::connection_closed)),
+               std::string("engine.io_error"));
+}
+
+TEST_CASE("control policy: a caller that can only look is told from one that "
+          "can change things")
+{
+    using control::scope;
+    REQUIRE(control::looks_only({}));
+    REQUIRE(control::looks_only(control::role_monitor()));
+    REQUIRE(control::looks_only({scope::monitor, scope::monitor_data}));
+    REQUIRE(control::looks_only({scope::monitor_data}));
+    REQUIRE(!control::looks_only(control::role_control()));
+    REQUIRE(!control::looks_only(control::every_scope()));
+    for (const control::scope_set held : every_scope_set())
+    {
+        bool changes = false;
+        for (const scope value :
+             {scope::control_ports, scope::control_data, scope::control_faults,
+              scope::control_apply, scope::record, scope::admin})
+        {
+            changes = changes || held.contains(value);
+        }
+        REQUIRE_EQ(control::looks_only(held), !changes);
+    }
+
+    // The streams: a monitor gets events, bytes need their own scope, and
+    // who is connected is administration.
+    const auto may = [](control::transport via, control::scope_set scopes,
+                        control::operation wanted)
+    {
+        control::principal caller;
+        caller.id = "local:test";
+        caller.via = via;
+        caller.scopes = scopes;
+        return control::authorise(caller, control::info_of(wanted)).allowed;
+    };
+    const auto local = control::transport::local;
+    REQUIRE(may(local, control::role_monitor(),
+                control::operation::events_subscribe));
+    REQUIRE(!may(local, control::role_monitor(),
+                 control::operation::traffic_subscribe));
+    REQUIRE(may(local, {scope::monitor, scope::monitor_data},
+                control::operation::traffic_subscribe));
+    REQUIRE(!may(local, {scope::monitor_data},
+                 control::operation::events_subscribe));
+    for (const control::operation wanted :
+         {control::operation::sessions_list, control::operation::sessions_kick})
+    {
+        REQUIRE(!may(local, control::every_scope(), wanted));
+        REQUIRE(!may(control::transport::tls, control::every_scope(), wanted));
+        REQUIRE(may(control::transport::local_admin, control::every_scope(),
+                    wanted));
+    }
 }

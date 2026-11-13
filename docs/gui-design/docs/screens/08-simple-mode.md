@@ -44,7 +44,7 @@ Jobs, as tiles (kind tile icon, title, two-line description) in four groups with
 | | **Connect two programs to each other** | Like a null-modem cable between two programs on this PC. What one sends, the other receives. |
 | I have a serial device | **Use my device through a new port** | Your program opens a new port instead of the device. Then you can watch, share or test without changing the program. |
 | | **Share my device with several programs** | A device can normally be open in one program at a time. Here each program gets its own port, and all of them talk to the device. |
-| | **Try my device from this window** | Type to the device and read its replies here, without another program. Good for a first check that it works. |
+| | **Try my device from this window** | Type to the device and read its replies here, without another program. Use it to check that the device works. |
 | | **Let other computers use my device** | Other computers connect to this PC over the network and talk to the device. |
 | Several programs or devices at once | **Put several on one line** | Like an RS-485 line. Everyone hears what the others send, and nobody hears themself. |
 | | **Send several into one** | Everything the senders write arrives at one receiver, in the order it arrives. Nothing goes back. |
@@ -91,14 +91,14 @@ Body:
    this build").
 5. **Let other computers use my device**: "Network port" (1 to 65535, default 4001). Hint: "Other computers connect to
    this PC's address on this port. 4001 is common for serial over the network."
-6. **Fields**: "Device speed (baud rate)" with the hint "The device's manual gives it. If text looks garbled later, this
-   is usually why." and "Other device settings" (the summary, Change opens the settings section). "Name (optional)",
+6. **Fields**: "Device speed (baud rate)" with the hint "Check the device's manual. A wrong rate usually shows as
+   garbled text." and "Other device settings" (the summary, Change opens the settings section). "Name (optional)",
    whose placeholder is the title Studio would give.
 7. **Also** (where the job offers them), as checkboxes with a description each:
-   - "Let me type to <device> from this window": "Handy for checking the device works before your own program is ready.
+   - "Let me type to <device> from this window": "Use it to check that the device works before your own program is ready.
      What you type goes to the device, and its replies show here and in your programs."
-   - "Show me the data going through": "A live list of what is sent each way, on the setup's page. It only looks, so it
-     changes nothing. You can turn it on later too."
+   - "Show me the data going through": "Lists the data sent in each direction on the setup's page. It does not change
+     the data. You can turn it on later."
 8. **Result sentence** (info note), live, per job. For example share: "Everything COM3 sends goes to COM5 (PuTTY) and
    COM6. Whatever any of them sends goes to the device. Your programs open COM5 and COM6, not COM3."
 

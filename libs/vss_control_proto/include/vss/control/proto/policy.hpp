@@ -169,6 +169,16 @@ constexpr scope_set effective_scopes(scope_set granted, transport via,
                                          : allowed.without(scope::admin);
 }
 
+/// True when a caller with these scopes can only look: it holds nothing but
+/// `monitor` and `monitor.data`.  The gateway opens such a caller's
+/// connection to the agent read-only, so the agent refuses a change even if
+/// the gateway were wrong about one.  Written as what is allowed, so a scope
+/// that is added later counts as one that changes things.
+constexpr bool looks_only(scope_set scopes) noexcept
+{
+    return scopes.without(scope::monitor).without(scope::monitor_data).empty();
+}
+
 // -- operations --------------------------------------------------------------
 
 /// Every operation of the API.  An operation that is not here does not exist.
@@ -180,7 +190,13 @@ enum class operation
     endpoint_stop,
     tokens_create,
     tokens_list,
-    tokens_revoke
+    tokens_revoke,
+    events_subscribe,
+    events_unsubscribe,
+    traffic_subscribe,
+    traffic_unsubscribe,
+    sessions_list,
+    sessions_kick
 };
 
 struct operation_info

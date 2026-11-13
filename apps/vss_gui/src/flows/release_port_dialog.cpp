@@ -25,7 +25,7 @@ namespace vss::gui
 ReleasePortDialog::ReleasePortDialog(StudioBackend& backend,
                                      vss::endpoint_id port, QWidget* parent)
     : FlowDialog(tr("Release port"),
-                 tr("Make the program that has this port let go of it."),
+                 tr("Make the program release this port."),
                  parent),
       backend_(backend), port_(port)
 {

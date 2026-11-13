@@ -1,0 +1,17 @@
+{
+ "attach": {
+  "port": 5,
+  "role": "peer"
+ },
+ "seed": "x",
+ "order": 3,
+ "states": [
+  1,
+  2
+ ],
+ "slots": [],
+ "rules": {
+  "a": 1
+ },
+ "timeline": 7
+}
