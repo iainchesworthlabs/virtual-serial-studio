@@ -19,12 +19,16 @@ namespace vss_bench
 /// at once when `due` has passed.  It never spins.
 void precise_wait_until(std::chrono::steady_clock::time_point due);
 
-/// Raises the system timer resolution to 1 ms for its lifetime where the
-/// platform has such a thing, and does nothing elsewhere.
+/// Asks for a system timer resolution of 1 ms where the platform has such a
+/// thing, and gives the request back.  Both do nothing elsewhere.
+void begin_timer_period() noexcept;
+void end_timer_period() noexcept;
+
+/// Holds the 1 ms timer resolution for its lifetime.
 struct timer_period_scope
 {
-    timer_period_scope();
-    ~timer_period_scope();
+    timer_period_scope() noexcept { begin_timer_period(); }
+    ~timer_period_scope() { end_timer_period(); }
 
     timer_period_scope(const timer_period_scope&) = delete;
     timer_period_scope& operator=(const timer_period_scope&) = delete;

@@ -20,9 +20,13 @@ void precise_wait_until(std::chrono::steady_clock::time_point due)
     std::this_thread::sleep_until(due);
 }
 
-timer_period_scope::timer_period_scope() = default;
+void begin_timer_period() noexcept
+{
+}
 
-timer_period_scope::~timer_period_scope() = default;
+void end_timer_period() noexcept
+{
+}
 
 unsigned long current_timer_resolution_100ns()
 {

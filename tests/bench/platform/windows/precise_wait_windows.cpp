@@ -6,7 +6,7 @@
 // The timing benchmark's wait on Windows: a high resolution waitable timer
 // (CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, Windows 10 1803 and later), made
 // once per thread.  Where the system cannot make one the wait falls back to
-// the standard sleep.  timer_period_scope is timeBeginPeriod(1).
+// the standard sleep.  begin_timer_period is timeBeginPeriod(1).
 //
 
 #include "precise_wait.hpp"
@@ -79,12 +79,12 @@ void precise_wait_until(std::chrono::steady_clock::time_point due)
         std::this_thread::sleep_until(due);
 }
 
-timer_period_scope::timer_period_scope()
+void begin_timer_period() noexcept
 {
     timeBeginPeriod(1);
 }
 
-timer_period_scope::~timer_period_scope()
+void end_timer_period() noexcept
 {
     timeEndPeriod(1);
 }
