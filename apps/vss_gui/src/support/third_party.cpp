@@ -43,7 +43,7 @@ QVector<third_party_component> third_party_components()
 {
     QVector<third_party_component> result;
     const QJsonArray array = inventory().value(QLatin1String("components")).toArray();
-    for (const QJsonValue& value : array)
+    for (const auto& value : array)
     {
         const QJsonObject object = value.toObject();
         third_party_component component;
@@ -62,7 +62,7 @@ QVector<third_party_font> third_party_fonts()
 {
     QVector<third_party_font> result;
     const QJsonArray array = inventory().value(QLatin1String("fonts")).toArray();
-    for (const QJsonValue& value : array)
+    for (const auto& value : array)
     {
         const QJsonObject object = value.toObject();
         third_party_font font;
@@ -81,7 +81,7 @@ QStringList third_party_not_shipped()
     QStringList result;
     const QJsonArray array =
         inventory().value(QLatin1String("not_shipped")).toArray();
-    for (const QJsonValue& value : array)
+    for (const auto& value : array)
         result << value.toObject().value(QLatin1String("notice")).toString();
     return result;
 }

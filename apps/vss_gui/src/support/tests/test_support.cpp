@@ -415,7 +415,7 @@ TEST_CASE("support: licences match the bundled components")
         QJsonDocument::fromJson(
             read_repository_file(QStringLiteral("vcpkg.json")).toUtf8())
             .object();
-    for (const QJsonValue& dependency : manifest.value(QLatin1String("dependencies")).toArray())
+    for (const auto& dependency : manifest.value(QLatin1String("dependencies")).toArray())
     {
         const QString package = dependency.isString()
                                     ? dependency.toString()
