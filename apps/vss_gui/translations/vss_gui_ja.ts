@@ -13183,6 +13183,14 @@ Networks: %5</source>
             <translation>RX %1, TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>合計トラフィック</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>受信と送信の合計バイト数です。現在の速度はステータスバーに表示されます。</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>%1 を開いているプログラムはまだありません。プログラムは正確に %1 を開く必要があります。別のポートでは何も受信されません。</translation>

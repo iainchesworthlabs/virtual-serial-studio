@@ -13190,6 +13190,14 @@ Networks: %5</source>
             <translation>RX %1, TX %2</translation>
         </message>
         <message>
+            <source>Total traffic</source>
+            <translation>סך התעבורה</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>סך הבייטים שהתקבלו ונשלחו. שורת המצב מציגה את הקצב הנוכחי.</translation>
+        </message>
+        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
             <source>No program has opened %1 yet. The program has to open exactly %1; a different port will not receive anything.</source>
             <translation>אף תוכנית לא פתחה עדיין את %1. התוכנית צריכה לפתוח בדיוק את %1; יציאה אחרת לא תקבל דבר.</translation>
