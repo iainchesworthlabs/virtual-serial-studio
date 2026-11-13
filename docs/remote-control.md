@@ -932,6 +932,29 @@ Not built here, and why: `links.disconnect`, `ports.rename`, `ports.settings` an
 the agent yet; `idempotency_key` waits for the first operation whose repeat would do harm (a second `ports.create`
 makes a second port, which a caller can see and remove).
 
+### What `expect.bytes` built
+
+The second part of slice 4: a harness waits, inside the gateway, for a pattern on a port, and can have bytes sent
+in the same request. Runs and the JUnit report are a separate change.
+
+```
+{"id": 7, "op": "expect.bytes", "port": "p_2", "pattern": "4f4b0d0a", "timeout_ms": 2000,
+ "send_port": "p_1"}                                  + blob: the bytes to send
+{"id": 7, "reply": "matched", "offset": 6, "mono_ns": 81234000001, "events_lost": 0}
+```
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Nothing is missed between sending and listening | The gateway asks its agent connection for the bytes and then for the send, in that order, on the session's own queue. A pattern that the sent bytes produce is found every time, with how many bytes went by before it | Bytes that went by before the request are not seen: there is no ring to look back in. A stimulus from another connection can only be sent after the wait is known to have started, which that connection cannot see |
+| A pattern cut by a chunk boundary is found | Another session sends the pattern a byte at a time while this one waits | |
+| Waiting is reading, and sending with it is sending | Refused without `monitor.data`; with it and without `control.data` a wait works and a wait that sends is refused before anything is sent, which the ports' counters show | |
+| A wait is bounded and ends cleanly | 1 to 256 bytes, 1 ms to 60 s, one wait at a time for a connection (`conflict` for a second). A pattern that does not come is `timeout` and the session stays; a send the engine refuses ends the wait at once with the engine's error | |
+| It does not change what the client's own stream carries | With an events stream running, the stream goes on in order through a wait and carries no bytes, although the gateway itself was reading them | A wait keeps the pace of a stream the client already has, so its answer can be two of that stream's intervals late |
+| Neither the pattern nor the bytes sent are recorded | One audit record for each wait with the port, the two sizes and how it ended; both texts are searched for in everything the gateway keeps | |
+
+The direction of a pattern (`rx`, the usual, or `tx`) is the engine's: a loopback port reports what is written to
+it as received and sends it on to whatever it is linked to.
+
 ## 14. Decisions for the owner
 
 All twelve were accepted as recommended.
