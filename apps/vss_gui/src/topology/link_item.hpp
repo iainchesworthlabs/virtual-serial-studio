@@ -66,6 +66,12 @@ public:
     void set_in_loop(bool value);
     bool in_loop() const noexcept { return in_loop_; }
 
+    /// Counts up whenever what `paint` draws changes.
+    [[nodiscard]] quint64 revision() const noexcept override
+    {
+        return revision_;
+    }
+
     QRectF boundingRect() const override;
     QPainterPath shape() const override;
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
@@ -82,6 +88,7 @@ private:
     void redraw();
 
     link_data data_;
+    quint64 revision_ = 1;
     link_item_callbacks callbacks_;
     topo_link_placement geometry_;
     QRectF primary_rect_;

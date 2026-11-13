@@ -111,6 +111,12 @@ public:
     QPointF left_handle() const;
     QPointF right_handle() const;
 
+    /// Counts up whenever what `paint` draws changes; a move does not count.
+    [[nodiscard]] quint64 revision() const noexcept override
+    {
+        return revision_;
+    }
+
     QRectF boundingRect() const override;
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                QWidget* widget) override;
@@ -128,6 +134,7 @@ private:
     void redraw();
 
     node_data data_;
+    quint64 revision_ = 1;
     QSizeF size_;
     node_item_callbacks callbacks_;
     bool selected_ = false;

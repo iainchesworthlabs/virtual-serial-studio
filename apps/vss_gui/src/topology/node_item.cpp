@@ -124,7 +124,7 @@ NodeItem::NodeItem(node_data data, const QSizeF& size,
 
 void NodeItem::redraw()
 {
-    content_changed();
+    ++revision_;
     update();
 }
 

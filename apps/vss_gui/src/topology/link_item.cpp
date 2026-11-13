@@ -84,7 +84,7 @@ void LinkItem::set_geometry(const topo_link_placement& geometry)
 
 void LinkItem::redraw()
 {
-    content_changed();
+    ++revision_;
     update();
 }
 
