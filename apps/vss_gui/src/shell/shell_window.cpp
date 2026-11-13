@@ -739,7 +739,9 @@ void ShellWindow::build_toolbar()
                                                   colour_role::ink3, 16),
                     QLineEdit::LeadingPosition)
         ->setText(tr("Search actions"));
-    corner_layout->addWidget(search_);
+    // The menu bar gives its corner widget the whole header row; without a
+    // vertical alignment the layout stretches the children to that height.
+    corner_layout->addWidget(search_, 0, Qt::AlignVCenter);
     connect(search_, &QLineEdit::returnPressed, this,
             [this] { open_palette(); });
     menuBar()->setCornerWidget(corner, Qt::TopRightCorner);
@@ -1280,12 +1282,17 @@ void ShellWindow::build_status()
     menuBar()->setFont(Theme::instance().font(text_style::body));
     // One header row: the menus on the left, the action search and the
     // Simple and Advanced switch on the right.
-    menuBar()->setFixedHeight(
-        Theme::instance().metric(QStringLiteral("header")));
+    const int header = Theme::instance().metric(QStringLiteral("header"));
+    menuBar()->setFixedHeight(header);
     if (QWidget* corner = menuBar()->cornerWidget(Qt::TopRightCorner))
     {
+        // The menu bar sizes a corner widget to its size hint and puts it at
+        // the top, so make the widget as tall as the row and let its layout
+        // centre the children.
+        corner->setFixedHeight(header);
         if (auto* corner_layout = qobject_cast<QHBoxLayout*>(corner->layout()))
-            corner_layout->addWidget(status_->release_level_switch(corner));
+            corner_layout->addWidget(status_->release_level_switch(corner), 0,
+                                     Qt::AlignVCenter);
     }
     toolbar_->setFixedHeight(
         Theme::instance().metric(QStringLiteral("buttonSmall")) + 4);
