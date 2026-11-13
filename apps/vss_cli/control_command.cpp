@@ -43,11 +43,10 @@ control_arguments parse(const std::vector<std::string>& arguments)
     for (std::size_t index = 1; index < arguments.size(); ++index)
     {
         const std::string_view word = arguments[index];
+        // An option this command does not have, or a second action.
         if (word.starts_with(instance_option))
             parsed.instance = word.substr(instance_option.size());
-        else if (word.starts_with("--"))
-            parsed.valid = false;
-        else if (parsed.action.empty())
+        else if (!word.starts_with("--") && parsed.action.empty())
             parsed.action = word;
         else
             parsed.valid = false;

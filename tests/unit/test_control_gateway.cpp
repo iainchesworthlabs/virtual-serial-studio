@@ -772,7 +772,8 @@ TEST_CASE("control gateway: a hello may be small, and what follows may be "
     control::frame large =
         control::encode(control::request{2, control::status_request{}});
     large.header.insert(large.header.size() - 1,
-                        R"(,"pad":")" + std::string(100 * 1024, 'p') + R"(")");
+                        R"(,"pad":")" +
+                            std::string(std::size_t{100} * 1024, 'p') + R"(")");
     REQUIRE(raw.send(wire_of(large)));
     const control::reply answer = read_reply(raw);
     REQUIRE_EQ(answer.id, std::uint64_t{2});
@@ -939,7 +940,7 @@ TEST_CASE("control gateway: requests faster than the allowance are refused "
 TEST_CASE("control gateway: a client whose unread replies pile up is closed")
 {
     control::gateway_options options;
-    options.max_unsent_bytes = 64 * 1024;
+    options.max_unsent_bytes = std::size_t{64} * 1024;
     options.requests_per_second = 1e9;
     options.request_burst = 1e9;
     fixture env(options);
@@ -1205,6 +1206,7 @@ TEST_CASE("control gateway: stress with many sessions and a stop underneath")
     std::atomic<std::uint64_t> answered{0};
     {
         std::vector<joining_thread> workers;
+        workers.reserve(6);
         for (int worker = 0; worker < 6; ++worker)
         {
             workers.emplace_back(
