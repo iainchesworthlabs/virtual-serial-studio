@@ -143,7 +143,15 @@ Generic coverage, so slow work shows up without a hand-placed zone:
   look at the engine (`gui.backend.rebuild`) and the time spent in each signal
   it raises, what the main window does for a change of ports or a batch of
   events, the operating-system probes behind the readiness chip, the canvas
-  layout and link routing, and the Monitor's traffic list.
+  layout and link routing, and the Monitor's traffic list. `gui.bridge.drain`
+  has the number of events of the batch as its text, with `gui.bridge.take`,
+  `gui.bridge.convert`, `gui.bridge.release` and `gui.bridge.emit` inside it.
+  The Monitor takes a batch in `gui.monitor.append_events` and puts the rows in
+  the table in `gui.monitor.commit` (`gui.monitor.trim`,
+  `gui.monitor.remove_rows`, `gui.monitor.insert_rows`); a painted cell is
+  `gui.monitor.paint_cell` with the column as its text, and each read of the
+  model by Qt is `gui.monitor.data`. `tools/tracy_phases.py` lists the cells
+  by column.
 - **`gui.stall_ms`** and **`gui.busy_ms`** (plots, from `support::StallProbe`,
   which runs while the profiler is recording): how late the window's event loop
   ran and how much CPU the window used between two ticks.

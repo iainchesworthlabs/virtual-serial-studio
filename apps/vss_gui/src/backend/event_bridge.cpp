@@ -16,10 +16,13 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cstring>
 #include <deque>
 #include <iterator>
 #include <limits>
 #include <mutex>
+#include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -36,26 +39,49 @@ struct EventBridge::state
     std::atomic<bool> accepting{true};
 };
 
+/// The names of the endpoints as `QString`, so an event of a port whose name
+/// has not changed shares the string of the event before it: no conversion
+/// and no memory of its own.
+struct EventBridge::name_cache
+{
+    struct entry
+    {
+        std::string name;
+        QString text;
+    };
+    std::unordered_map<vss::endpoint_id, entry> names;
+
+    const QString& text(vss::endpoint_id id, const std::string& name)
+    {
+        // Ports come and go; the cache does not need to remember them all.
+        if (names.size() > 1024)
+            names.clear();
+        entry& known = names[id];
+        if (known.name != name || known.text.isNull())
+        {
+            known.name = name;
+            known.text = QString::fromStdString(name);
+        }
+        return known.text;
+    }
+};
+
 namespace
 {
 
-gui_event convert(const vss::endpoint_event& event)
+/// Everything of an event except its bytes.
+gui_event convert(const vss::endpoint_event& event, const QString& name)
 {
     gui_event out;
     out.kind = event.kind;
     out.endpoint = event.endpoint;
-    out.name = QString::fromStdString(event.name);
+    out.name = name;
     out.direction = event.direction;
     out.lines = event.lines;
     out.message = QString::fromStdString(event.message);
     if (event.error)
         out.error = QString::fromStdString(event.error.message());
     out.when = event.when;
-    if (event.data && !event.data->empty())
-    {
-        out.data = QByteArray(reinterpret_cast<const char*>(event.data->data()),
-                              static_cast<qsizetype>(event.data->size()));
-    }
     return out;
 }
 
@@ -67,7 +93,8 @@ EventBridge::EventBridge(vss::hub& hub, QObject* parent)
 }
 
 EventBridge::EventBridge(vss::hub& hub, options settings, QObject* parent)
-    : QObject(parent), hub_(hub), state_(std::make_shared<state>())
+    : QObject(parent), hub_(hub), state_(std::make_shared<state>()),
+      names_(std::make_unique<name_cache>())
 {
     state_->max_events = std::max<std::size_t>(settings.max_events, 1);
     max_batch_ = std::max<std::size_t>(settings.max_batch, 1);
@@ -201,10 +228,11 @@ void EventBridge::continue_draining()
 
 bool EventBridge::deliver(std::size_t limit)
 {
-    VSS_PROFILE_ZONE("gui.bridge.drain");
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.bridge.drain");
     std::deque<vss::endpoint_event> pending;
     bool more = false;
     {
+        VSS_PROFILE_ZONE("gui.bridge.take");
         std::lock_guard lock(state_->mutex);
         if (state_->events.size() <= limit)
         {
@@ -223,13 +251,45 @@ bool EventBridge::deliver(std::size_t limit)
 
     if (pending.empty())
         return false;
+    // The zone's text is the number of events, so a profile gives the cost of
+    // an event as well as of a batch.
+    VSS_PROFILE_ZONE_TEXT(zone, std::to_string(pending.size()));
     VSS_PROFILE_PLOT("gui.bridge.batch_events", pending.size());
     VSS_PROFILE_PLOT("gui.bridge.backlog", more ? state_->events.size() : 0);
 
     event_batch batch;
-    batch.reserve(static_cast<qsizetype>(pending.size()));
-    for (const auto& event : pending)
-        batch.push_back(convert(event));
+    {
+        VSS_PROFILE_ZONE("gui.bridge.convert");
+        // One block for the bytes of the whole batch (see `event_payload`).
+        qsizetype total = 0;
+        for (const auto& event : pending)
+        {
+            if (event.data)
+                total += static_cast<qsizetype>(event.data->size());
+        }
+        QByteArray block(total, Qt::Uninitialized);
+        // Taken once, before any payload shares the block: `data()` on a
+        // shared array would copy it.
+        char* const bytes = block.data();
+        qsizetype offset = 0;
+        batch.reserve(static_cast<qsizetype>(pending.size()));
+        for (const auto& event : pending)
+        {
+            batch.push_back(
+                convert(event, names_->text(event.endpoint, event.name)));
+            if (!event.data || event.data->empty())
+                continue;
+            const auto size = static_cast<qsizetype>(event.data->size());
+            std::memcpy(bytes + offset, event.data->data(), event.data->size());
+            batch.back().data = event_payload(block, offset, size);
+            offset += size;
+        }
+    }
+    {
+        // The engine's copies of the events go here, on the GUI thread.
+        VSS_PROFILE_ZONE("gui.bridge.release");
+        pending.clear();
+    }
 
     {
         VSS_PROFILE_ZONE("gui.bridge.emit");

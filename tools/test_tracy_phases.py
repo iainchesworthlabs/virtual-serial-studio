@@ -37,6 +37,8 @@ CSV = "\n".join(
         "bench.step,bench.cpp,20,10000000,9000000,1,",
         "gui.event,app.cpp,83,11000000,6000000,1,Window / UpdateRequest / main",
         "gui.event,app.cpp,83,12000000,2000000,1,QLabel / Paint / a, b",
+        "gui.monitor.paint_cell,panel.cpp,90,12100000,300000,1,preview",
+        "gui.monitor.paint_cell,panel.cpp,90,12500000,100000,1,time",
         "hub.route,hub.cpp,427,12000000,500000,2,",
     ]
 )
@@ -76,6 +78,12 @@ class tracy_phases_test(unittest.TestCase):
         self.assertIn("`event: Window / UpdateRequest / main` | 1 | 6.00 | 4.00", text)
         self.assertIn("hub.route", text)
         self.assertNotIn("QTimer", text)
+
+    def test_the_monitor_cells_are_split_by_column(self) -> None:
+        code, text = self.run_tool("--phase", "bench.resize")
+        self.assertEqual(code, 0)
+        self.assertIn("`gui.monitor.paint_cell: preview` | 1 | 0.30", text)
+        self.assertIn("`gui.monitor.paint_cell: time` | 1 | 0.10", text)
 
     def test_gui_keeps_the_threads_that_deliver_events(self) -> None:
         code, text = self.run_tool("--gui")

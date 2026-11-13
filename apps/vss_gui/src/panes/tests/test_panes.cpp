@@ -10,6 +10,7 @@
 #include "panes/fixture_behaviour.hpp"
 #include "panes/fixture_panel.hpp"
 #include "panes/inspector_panel.hpp"
+#include "panes/monitor_cell_delegate.hpp"
 #include "panes/monitor_model.hpp"
 #include "panes/monitor_panel.hpp"
 #include "panes/port_delegate.hpp"
@@ -27,8 +28,11 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QElapsedTimer>
+#include <QFontDatabase>
+#include <QFontInfo>
 #include <QGuiApplication>
 #include <QHeaderView>
+#include <QImage>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
@@ -38,6 +42,8 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSpinBox>
+#include <QStandardItemModel>
+#include <QStyledItemDelegate>
 #include <QTableView>
 
 #include <algorithm>
@@ -274,7 +280,8 @@ TEST_CASE("monitor: new traffic is added without resetting the model")
     REQUIRE_EQ(model.rowCount(), 6);
     REQUIRE_EQ(inserted, 6);
     REQUIRE_EQ(resets, resets_after_filter);
-    REQUIRE_EQ(model.row_at(5)->preview, QByteArrayLiteral("z"));
+    REQUIRE_EQ(model.row_at(5)->preview().toByteArray(),
+               QByteArrayLiteral("z"));
 
     // Past the cap the oldest rows leave from the front, and the rows that
     // stay keep their order.
@@ -292,8 +299,11 @@ TEST_CASE("monitor: new traffic is added without resetting the model")
     REQUIRE_EQ(model.rowCount(), vss::gui::MonitorModel::kMaxRows);
     REQUIRE(removed > 0);
     REQUIRE_EQ(resets, resets_before_flood);
-    REQUIRE_EQ(model.row_at(0)->preview, QByteArrayLiteral("0"));
-    REQUIRE_EQ(model.row_at(vss::gui::MonitorModel::kMaxRows - 1)->preview,
+    REQUIRE_EQ(model.row_at(0)->preview().toByteArray(),
+               QByteArrayLiteral("0"));
+    REQUIRE_EQ(model.row_at(vss::gui::MonitorModel::kMaxRows - 1)
+                   ->preview()
+                   .toByteArray(),
                QByteArray::number(vss::gui::MonitorModel::kMaxRows - 1));
 }
 
@@ -388,7 +398,7 @@ TEST_CASE("monitor: the capture export keeps every byte and the event time")
     model.append_drop(QStringLiteral("master"), 5);
 
     // The preview is cut for display; the capture is not.
-    REQUIRE_EQ(model.row_at(0)->preview.size(), 256);
+    REQUIRE_EQ(model.row_at(0)->preview().size(), 256);
     const auto everything = model.export_capture();
     REQUIRE_EQ(everything.records.size(), std::size_t{2});
     REQUIRE_EQ(everything.records[0].data.size(), std::size_t{1000});
@@ -450,6 +460,129 @@ TEST_CASE("monitor panel: Export capture is named and follows the rows")
                     QByteArrayLiteral("x"))});
     QApplication::processEvents();
     REQUIRE(button->isEnabled());
+}
+
+TEST_CASE("monitor panel: heavy traffic is added to the table in steps")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::MonitorPanel panel(backend);
+    panel.resize(900, 240);
+    panel.show();
+    QApplication::processEvents();
+    auto* table = panel.findChild<QTableView*>();
+    REQUIRE(table != nullptr);
+    int insertions = 0;
+    QObject::connect(table->model(), &QAbstractItemModel::rowsInserted,
+                     [&insertions] { ++insertions; });
+
+    // The first batch is shown at once.
+    panel.set_commit_interval(60'000);
+    const vss::gui::event_batch batch{data_event(1, QStringLiteral("terminal"),
+                                                 vss::data_direction::rx,
+                                                 QByteArrayLiteral("x"))};
+    panel.handle_events(batch);
+    REQUIRE_EQ(table->model()->rowCount(), 1);
+    REQUIRE_EQ(insertions, 1);
+
+    // Batches that follow before the interval is over wait, and arrive
+    // together when it is.
+    for (int index = 0; index < 20; ++index)
+        panel.handle_events(batch);
+    QApplication::processEvents();
+    REQUIRE_EQ(table->model()->rowCount(), 1);
+    panel.set_commit_interval(50);
+    QElapsedTimer waited;
+    waited.start();
+    while (table->model()->rowCount() < 21 && waited.elapsed() < 10'000)
+        QApplication::processEvents(QEventLoop::AllEvents, 20);
+    REQUIRE_EQ(table->model()->rowCount(), 21);
+    REQUIRE_EQ(insertions, 2);
+
+    // Pause shows what had arrived before it, and nothing after.
+    panel.set_commit_interval(60'000);
+    panel.handle_events(batch);
+    REQUIRE_EQ(table->model()->rowCount(), 21);
+    QPushButton* pause = nullptr;
+    for (QPushButton* candidate : panel.findChildren<QPushButton*>())
+    {
+        if (candidate->text() == QStringLiteral("Pause") &&
+            candidate->isVisible())
+            pause = candidate;
+    }
+    REQUIRE(pause != nullptr);
+    pause->click();
+    REQUIRE_EQ(table->model()->rowCount(), 22);
+    panel.handle_events(batch);
+    panel.set_commit_interval(0);
+    QApplication::processEvents();
+    REQUIRE_EQ(table->model()->rowCount(), 22);
+}
+
+TEST_CASE("monitor: a long preview is drawn as Qt draws the whole text")
+{
+    // The cut is only made in a font whose characters all have one width.
+    QFont fixed;
+    bool found = false;
+    for (const QString& family : QFontDatabase::families())
+    {
+        if (!QFontDatabase::isFixedPitch(family) ||
+            !QFontDatabase::isSmoothlyScalable(family))
+            continue;
+        fixed = QFont(family);
+        fixed.setPixelSize(13);
+        if (QFontInfo(fixed).fixedPitch())
+        {
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        VSS_SKIP("no fixed-width font on this machine");
+
+    QString text;
+    QString hex;
+    for (int index = 0; index < 256; ++index)
+    {
+        text += QLatin1Char(static_cast<char>('A' + index % 26));
+        hex += QStringLiteral("%1 ").arg(index, 2, 16, QLatin1Char('0'));
+    }
+    QStandardItemModel model(4, 2);
+    const QStringList previews{text, hex, QStringLiteral("short"),
+                               text.left(90) + QChar(0x05e9) + text};
+    for (int row = 0; row < previews.size(); ++row)
+    {
+        model.setItem(row, 0, new QStandardItem(QStringLiteral("12:00:00")));
+        auto* item = new QStandardItem(previews[row]);
+        item->setFont(fixed);
+        model.setItem(row, 1, item);
+    }
+
+    QTableView table;
+    table.setModel(&model);
+    table.setWordWrap(false);
+    table.horizontalHeader()->setStretchLastSection(true);
+    table.setColumnWidth(0, 100);
+    table.show();
+
+    // The picture must be the one Qt's own delegate makes from the whole
+    // text, whatever the width of the cell.
+    vss::gui::MonitorCellDelegate ours(1);
+    QStyledItemDelegate plain;
+    for (int width = 180; width <= 2400; width += 37)
+    {
+        table.resize(width, 200);
+        QApplication::processEvents();
+        table.setItemDelegate(&ours);
+        const QImage cut = table.viewport()->grab().toImage();
+        table.setItemDelegate(&plain);
+        const QImage whole = table.viewport()->grab().toImage();
+        REQUIRE(!cut.isNull());
+        REQUIRE(cut == whole);
+    }
+
+    // And it is a cut: far fewer characters than the preview has.
+    REQUIRE(vss::gui::MonitorCellDelegate::characters_kept(700, 7.0) < 150);
+    REQUIRE(vss::gui::MonitorCellDelegate::characters_kept(700, 7.0) > 100);
 }
 
 TEST_CASE("monitor panel: the controls share the title row when it fits")

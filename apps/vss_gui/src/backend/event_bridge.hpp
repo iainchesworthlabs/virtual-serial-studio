@@ -79,6 +79,7 @@ Q_SIGNALS:
 
 private:
     struct state;
+    struct name_cache;
 
     void drain();
     /// Delivers up to `limit` of the oldest events as one batch.  True when
@@ -88,6 +89,7 @@ private:
 
     vss::hub& hub_;
     std::shared_ptr<state> state_;
+    std::unique_ptr<name_cache> names_;
     QTimer* timer_ = nullptr;
     vss::subscriber_id subscription_ = 0;
     bool running_ = false;

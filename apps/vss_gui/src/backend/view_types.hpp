@@ -16,11 +16,12 @@
 #include <vss/core/types.hpp>
 
 #include <QByteArray>
+#include <QByteArrayView>
 #include <QMetaType>
 #include <QString>
 #include <QStringList>
-#include <QtGlobal>
 #include <QVector>
+#include <QtGlobal>
 
 #include <cstddef>
 #include <cstdint>
@@ -141,8 +142,8 @@ struct link_view
 /// The engine only has the boolean null-modem crossing
 /// (`link_options::emulate_modem_lines`), so `Capabilities::line_matrix` is
 /// false and the real adapter neither reads nor writes this.  The type is the
-/// adapter interface the line matrix dialog is built and tested against; it does
-/// not change the topology JSON schema or `vss_core`.
+/// adapter interface the line matrix dialog is built and tested against; it
+/// does not change the topology JSON schema or `vss_core`.
 struct line_wiring
 {
     bool dtr_to_dsr = true;
@@ -237,6 +238,53 @@ struct setup_facts
     driver_check driver;
 };
 
+/// The bytes of a data event.
+///
+/// The bridge copies the bytes of every event of a batch into one block, and
+/// each event's payload is a part of that block. A block of memory for each
+/// event, taken when the event arrived and given back when the Monitor
+/// dropped its row, was the largest cost of heavy traffic on the GUI thread.
+/// A payload keeps its whole block alive, so whoever keeps one for long
+/// should keep `to_byte_array()` instead.
+class event_payload
+{
+public:
+    event_payload() = default;
+    /// All of `bytes`.
+    // NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
+    event_payload(const QByteArray& bytes) : block_(bytes), size_(bytes.size())
+    {
+    }
+    /// `size` bytes of `block` from `offset`.
+    event_payload(const QByteArray& block, qsizetype offset, qsizetype size)
+        : block_(block), offset_(offset), size_(size)
+    {
+    }
+
+    qsizetype size() const noexcept { return size_; }
+    bool empty() const noexcept { return size_ == 0; }
+    const char* data() const noexcept { return block_.constData() + offset_; }
+    /// The bytes, valid while this payload or a copy of it is alive.
+    QByteArrayView view() const noexcept { return {data(), size_}; }
+    /// The first `count` bytes, or all of them when there are fewer.
+    QByteArrayView first(qsizetype count) const noexcept
+    {
+        return {data(), size_ < count ? size_ : count};
+    }
+    /// The bytes on their own, without the rest of the block.
+    QByteArray to_byte_array() const
+    {
+        if (offset_ == 0 && size_ == block_.size())
+            return block_;
+        return QByteArray(data(), size_);
+    }
+
+private:
+    QByteArray block_;
+    qsizetype offset_ = 0;
+    qsizetype size_ = 0;
+};
+
 /// One selected event from the hub, converted for the GUI thread.
 struct gui_event
 {
@@ -244,7 +292,7 @@ struct gui_event
     vss::endpoint_id endpoint = 0;
     QString name;
     vss::data_direction direction = vss::data_direction::rx;
-    QByteArray data;
+    event_payload data;
     vss::control_lines lines;
     QString message;
     QString error;
