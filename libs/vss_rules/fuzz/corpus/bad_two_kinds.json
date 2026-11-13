@@ -1,0 +1,28 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "rules": [
+  {
+   "name": "r",
+   "when": {
+    "bytes": "01"
+   },
+   "do": [
+    {
+     "mark": "m",
+     "set_state": "x"
+    },
+    {},
+    {
+     "pass": false
+    },
+    {
+     "mark": "m",
+     "fault": "drop"
+    }
+   ]
+  }
+ ]
+}

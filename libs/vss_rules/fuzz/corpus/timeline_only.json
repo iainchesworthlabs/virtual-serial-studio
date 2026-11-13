@@ -1,0 +1,19 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "timeline": [
+  {
+   "at_us": 1,
+   "do": [
+    {
+     "mark": "a"
+    },
+    {
+     "mark": "b"
+    }
+   ]
+  }
+ ]
+}
