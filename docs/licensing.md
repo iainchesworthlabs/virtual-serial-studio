@@ -97,6 +97,7 @@ The payload is UTF-8 JSON:
 | `machines` | Optional list of computer names. Empty means any computer. See [Seats](#seats) |
 | `updates_until` | Optional date for the version window. See [The version window](#the-version-window) |
 | `replaces` | Optional id of the licence this one renews or corrects |
+| `clock_reset` | Optional token that resets the stored time once. See [The clock check](#the-clock-check) |
 | `critical` | Names of fields a verifier must understand. See below |
 
 Rules for reading it:
@@ -160,6 +161,12 @@ Wycheproof Ed25519 vectors (malleable signatures, non-canonical points, small
 order keys) against it, and the envelope parser has a fuzz target next to the
 existing ones.
 
+Monocypher accepts a public key or an `R` that is not in canonical form
+(Wycheproof test 151 is one). The library therefore checks both encodings
+itself before it calls Monocypher: the `y` value must be below 2^255 - 19, and
+the sign bit must be clear when `x` is zero. With that check every Wycheproof
+case gives the expected result.
+
 ### The trust list
 
 Studio and each official plugin carry a list of public keys:
@@ -172,9 +179,17 @@ Studio and each official plugin carry a list of public keys:
 | `not_before`, `not_after` | The window of `issued_at` the key may sign for |
 | `revoked` | Set by a later release. See [Revocation](#revocation) |
 
+Licence keys are in this built-in list only. They are not in the plugin key
+list that `docs/plugins.md` describes, they are not signed by the plugin root
+key, and the two sides share no key. A mistake or a leak on one side then
+cannot touch the other. Revocation is separate in the same way: the
+`revocations` purpose here covers licences and licence keys, and the plugin
+framework has its own purpose and its own file.
+
 The list is a source file chosen by CMake, not by the preprocessor:
-`trusted_keys_release.cpp` for products and `trusted_keys_test.cpp` for the
-test programs only. Until the owner generates the real keys, the release list
+`trusted_keys_release.cpp` in the library. The test key is in a separate
+target, `vss_license_test_keys`, that only the test programs and the test mode
+of `vss_license` link. Until the owner generates the real keys, the release list
 is empty, so every licence is invalid and Studio is the Community edition. That
 is the safe state to ship by accident.
 
@@ -316,9 +331,13 @@ A deterrent only, as decided.
   a dual-boot machine that keeps local time.
 * Nothing is ever locked for good. Correcting the clock clears the state. If
   the stored time is itself wrong, because the clock once ran ahead, the user
-  sends a support bundle and the owner sends a new licence file: a licence
-  with a later `issued_at` than the stored time resets it. That uses the
-  signature that is already there and needs no extra secret.
+  sends a support bundle and the owner sends a new licence file with a
+  `clock_reset` token in it. When Studio imports a verified licence whose
+  token it has not used before, it sets the stored time back to that licence's
+  `issued_at` and remembers the token, so one file works once on a computer.
+  That uses the signature that is already there and needs no extra secret. A
+  later `issued_at` alone cannot do this: the stored time is ahead of the real
+  date, so no honest `issued_at` is later than it.
 
 The stored time is plain settings data. Someone can delete it. That is the
 limit of a deterrent, and the design accepts it.
