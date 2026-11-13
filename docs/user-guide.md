@@ -1015,6 +1015,52 @@ The same file can be replayed without the window:
 vss_cli run topology.json --seconds=60
 ```
 
+### Plugins in a setup file
+
+A port or a link in a setup file may have a list named `plugins`. It records
+what a plugin provides there, so that someone you send the file to can see which
+plugins the setup needs and where to get them. The list is optional. A setup
+without plugins has no such list and is written exactly as before, and the
+file's `version` is still 1.
+
+```json
+{ "name": "meter-17", "kind": "mock",
+  "plugins": [
+    { "id": "com.example.modbus-fixture", "kind": "fixture", "type": "meter",
+      "name": "Modbus fixture", "publisher": "Example Ltd",
+      "key_id": "9f2c41d07a6be835", "version": "1.2.0",
+      "get_it_from": "https://example.com/plugins",
+      "params": { "address": 17 } }
+  ] }
+```
+
+| Member | Meaning |
+|---|---|
+| `id` | The plugin's identifier: lower-case names of letters and digits joined by `.` or `-`, with at least one dot. Needed |
+| `kind` | What the plugin provides here. `fixture` and `generator` belong on a port, and a port has at most one of them. `modifier` belongs on a link. `decoder` may be on either. Needed |
+| `type` | Which of the plugin's types. Needed |
+| `name`, `publisher`, `version` | For a person who opens the setup without the plugin. Plain text |
+| `key_id` | The key a signed plugin was signed with, so that a different plugin with the same `id` is noticed |
+| `get_it_from` | Where to get the plugin. It is shown as text. Studio never opens it |
+| `on_timeout` | For a `modifier`: `fail_open` or `fail_closed` |
+| `params` | The plugin's settings, as one JSON object of at most 64 KiB and 8 levels |
+
+A port or a link may have up to 16 entries. On a link the order of the list is
+the order in which `modifier` entries are applied.
+
+Reading a setup never needs the plugin. An entry for a plugin that is not
+installed, and a `kind` from a newer version of Studio, are read and written
+back as they are. An entry that is malformed (no `id`, a `name` with a control
+character, `params` that is not an object) is an error, like any other mistake
+in the file.
+
+This build does not run plugins. It checks the list when it reads a setup, and
+ignores it when it makes the ports and links. Studio writes a setup from the
+ports and links that are running, and those do not hold the list yet, so a setup
+that is opened and saved again loses it. Keeping it comes with the part of
+Studio that runs plugins. A version of Studio from before this change opens
+such a file, ignores the list, and leaves it out when it saves.
+
 ## When the window is closed
 
 Your ports run on this computer until you quit Studio or open another setup.

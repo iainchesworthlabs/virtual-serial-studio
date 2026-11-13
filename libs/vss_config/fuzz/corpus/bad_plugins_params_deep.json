@@ -1,0 +1,1 @@
+{"version":1,"name":"plugins","ports":[{"name":"device","kind":"mock","plugins":[{"id":"com.example.decoders","kind":"decoder","type":"modbus-rtu","params":{"a":{"a":{"a":{"a":{"a":{"a":{"a":{"a":{"a":{}}}}}}}}}}}]},{"name":"program","kind":"virtual"}],"links":[{"mode":"duplex","sources":["program"],"targets":["device"]}]}

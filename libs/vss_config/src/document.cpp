@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <set>
 #include <sstream>
 
@@ -233,6 +234,258 @@ error_code half_duplex_from_json(const json::object& object, link_entry& link)
     return {};
 }
 
+// -- plugin bindings ---------------------------------------------------------
+//
+// The rules for an id and for a text are the ones a plugin's manifest has
+// (vss_plugin, docs/plugins.md); they are repeated here because this library
+// must read a setup whether or not the plugin code is built.
+
+constexpr std::size_t max_binding_id_length = 128;
+constexpr std::size_t max_binding_local_id_length = 64;
+constexpr std::size_t max_binding_name_length = 100;
+constexpr std::size_t max_binding_version_length = 64;
+constexpr std::size_t max_binding_key_id_length = 128;
+constexpr std::size_t max_binding_address_length = 256;
+
+bool is_lower_or_digit(char c)
+{
+    return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9');
+}
+
+/// Lower-case names of letters and digits joined by `.` or `-`, with at
+/// least one dot.
+bool is_plugin_id(std::string_view text)
+{
+    if (text.size() < 3 || text.size() > max_binding_id_length)
+        return false;
+    bool dot = false;
+    bool after_separator = true;
+    for (const char c : text)
+    {
+        if (is_lower_or_digit(c))
+        {
+            after_separator = false;
+            continue;
+        }
+        if ((c != '.' && c != '-') || after_separator)
+            return false;
+        dot = dot || c == '.';
+        after_separator = true;
+    }
+    return dot && !after_separator;
+}
+
+/// `[a-z][a-z0-9_-]*`, at most 64 characters.
+bool is_local_id(std::string_view text)
+{
+    if (text.empty() || text.size() > max_binding_local_id_length ||
+        text.front() < 'a' || text.front() > 'z')
+        return false;
+    return std::ranges::all_of(text, [](char c) {
+        return is_lower_or_digit(c) || c == '_' || c == '-';
+    });
+}
+
+/// Whether a text may be shown to a person as it is: no control characters,
+/// no line or paragraph separators, no byte order mark and none of the marks
+/// that change the direction of the text around them.
+bool is_clean_text(std::string_view text)
+{
+    const auto byte_at = [&text](std::size_t index) {
+        return index < text.size() ? static_cast<std::uint8_t>(text[index])
+                                   : std::uint8_t{0};
+    };
+    for (std::size_t i = 0; i < text.size(); ++i)
+    {
+        const std::uint8_t first = byte_at(i);
+        const std::uint8_t second = byte_at(i + 1);
+        const std::uint8_t third = byte_at(i + 2);
+        if (first < 0x20 || first == 0x7f)
+            return false;
+        // U+0080 to U+009F, and U+061C.
+        if (first == 0xc2 && second >= 0x80 && second <= 0x9f)
+            return false;
+        if (first == 0xd8 && second == 0x9c)
+            return false;
+        // U+200E, U+200F, U+2028, U+2029, U+202A to U+202E.
+        if (first == 0xe2 && second == 0x80 &&
+            (third == 0x8e || third == 0x8f ||
+             (third >= 0xa8 && third <= 0xae)))
+            return false;
+        // U+2066 to U+2069, and U+FEFF.
+        if (first == 0xe2 && second == 0x81 && third >= 0xa6 && third <= 0xa9)
+            return false;
+        if (first == 0xef && second == 0xbb && third == 0xbf)
+            return false;
+    }
+    return true;
+}
+
+bool is_binding_text(std::string_view text, std::size_t limit)
+{
+    return text.size() <= limit && is_clean_text(text);
+}
+
+std::size_t depth_of(const json::value& value)
+{
+    std::size_t deepest = 0;
+    if (value.is_object())
+    {
+        for (const auto& entry : value.as_object())
+            deepest = std::max(deepest, depth_of(entry.value()));
+        return deepest + 1;
+    }
+    if (value.is_array())
+    {
+        for (const auto& element : value.as_array())
+            deepest = std::max(deepest, depth_of(element));
+        return deepest + 1;
+    }
+    return 0;
+}
+
+/// The parameters of a binding as a JSON object, or nothing when the text is
+/// not one object inside the limits.
+std::optional<json::object> binding_params(std::string_view text)
+{
+    if (text.size() > max_binding_params_size)
+        return std::nullopt;
+    boost::system::error_code ec;
+    json::value parsed = json::parse(text, ec);
+    if (ec || !parsed.is_object() ||
+        depth_of(parsed) > max_binding_params_depth)
+        return std::nullopt;
+    // The limit is on the compact text, which is what a read gives back.
+    if (json::serialize(parsed).size() > max_binding_params_size)
+        return std::nullopt;
+    return std::move(parsed.as_object());
+}
+
+bool valid_binding(const plugin_binding& binding)
+{
+    if (!is_plugin_id(binding.id) || !is_local_id(binding.kind) ||
+        !is_local_id(binding.type))
+        return false;
+    if (!is_binding_text(binding.name, max_binding_name_length) ||
+        !is_binding_text(binding.publisher, max_binding_name_length) ||
+        !is_binding_text(binding.version, max_binding_version_length) ||
+        !is_binding_text(binding.key_id, max_binding_key_id_length) ||
+        !is_binding_text(binding.get_it_from, max_binding_address_length))
+        return false;
+    if (!binding.on_timeout.empty() && binding.on_timeout != "fail_open" &&
+        binding.on_timeout != "fail_closed")
+        return false;
+    return binding.params.empty() || binding_params(binding.params).has_value();
+}
+
+/// Checks the bindings of one port or one link.  `on_port` says which: a
+/// fixture or a generator stands at a port, and at most one of them does; a
+/// modifier sits on a link.  A kind this version does not know is accepted.
+bool valid_bindings(const std::vector<plugin_binding>& bindings, bool on_port)
+{
+    if (bindings.size() > max_plugin_bindings)
+        return false;
+    std::size_t devices = 0;
+    for (const plugin_binding& binding : bindings)
+    {
+        if (!valid_binding(binding))
+            return false;
+        const bool device =
+            binding.kind == "fixture" || binding.kind == "generator";
+        if (device)
+            ++devices;
+        if (on_port ? binding.kind == "modifier" : device)
+            return false;
+    }
+    return devices <= 1;
+}
+
+/// Writes `plugins` only when there are bindings, and in a binding only the
+/// members that are set, so a setup without plugins is the same as before.
+void bindings_to_json(const std::vector<plugin_binding>& bindings,
+                      json::object& object)
+{
+    if (bindings.empty())
+        return;
+    json::array list;
+    for (const plugin_binding& binding : bindings)
+    {
+        json::object entry;
+        entry["id"] = binding.id;
+        entry["kind"] = binding.kind;
+        entry["type"] = binding.type;
+        const auto text = [&entry](std::string_view key,
+                                   const std::string& value) {
+            if (!value.empty())
+                entry[key] = value;
+        };
+        text("name", binding.name);
+        text("publisher", binding.publisher);
+        text("key_id", binding.key_id);
+        text("version", binding.version);
+        text("get_it_from", binding.get_it_from);
+        text("on_timeout", binding.on_timeout);
+        // validate() has passed, so the text is one object.
+        if (auto params = binding_params(binding.params))
+            entry["params"] = std::move(*params);
+        list.push_back(std::move(entry));
+    }
+    object["plugins"] = std::move(list);
+}
+
+/// Reads the `plugins` list of a port or a link.  Unlike the older members,
+/// which fall back to a default, a member of a binding that is there must
+/// have the right type.  The values are checked in validate().
+error_code bindings_from_json(const json::object& object,
+                              std::vector<plugin_binding>& out)
+{
+    const auto* item = object.if_contains("plugins");
+    if (!item)
+        return {};
+    if (!item->is_array() || item->as_array().size() > max_plugin_bindings)
+        return make_error_code(errc::config_error);
+
+    for (const auto& element : item->as_array())
+    {
+        if (!element.is_object())
+            return make_error_code(errc::config_error);
+        const json::object& entry = element.as_object();
+
+        plugin_binding binding;
+        bool well_typed = true;
+        const auto text = [&entry, &well_typed](std::string_view key,
+                                                std::string& value) {
+            const auto* member = entry.if_contains(key);
+            if (!member)
+                return;
+            if (member->is_string())
+                value = std::string(member->as_string());
+            else
+                well_typed = false;
+        };
+        text("id", binding.id);
+        text("kind", binding.kind);
+        text("type", binding.type);
+        text("name", binding.name);
+        text("publisher", binding.publisher);
+        text("key_id", binding.key_id);
+        text("version", binding.version);
+        text("get_it_from", binding.get_it_from);
+        text("on_timeout", binding.on_timeout);
+        if (!well_typed)
+            return make_error_code(errc::config_error);
+
+        if (const auto* params = entry.if_contains("params"))
+        {
+            if (!params->is_object())
+                return make_error_code(errc::config_error);
+            binding.params = json::serialize(*params);
+        }
+        out.push_back(std::move(binding));
+    }
+    return {};
+}
+
 bool contains_kind(std::string_view value)
 {
     for (const char* kind : port_kinds)
@@ -385,6 +638,9 @@ error_code validate(const document& value)
         // The serial settings have their own rules, shared with other code.
         if (const error_code settings_error = vss::validate(port.serial))
             return settings_error;
+
+        if (!valid_bindings(port.plugins, true))
+            return make_error_code(errc::config_error);
     }
 
     // Links: the mode must be known and the delay within its limit, and
@@ -395,6 +651,8 @@ error_code validate(const document& value)
             return make_error_code(errc::config_error);
         if (link.delay_ms > max_link_delay_ms ||
             link.jitter_ms > link.delay_ms)
+            return make_error_code(errc::config_error);
+        if (!valid_bindings(link.plugins, false))
             return make_error_code(errc::config_error);
         // Only a bus is one wire that its members take turns on.
         if (link.half_duplex.enabled &&
@@ -496,6 +754,7 @@ result<std::string> to_json(const document& value, bool pretty)
         object["capture"] = port.capture;
         if (port.com_number != 0)
             object["com_number"] = port.com_number;
+        bindings_to_json(port.plugins, object);
         ports.push_back(std::move(object));
     }
     root["ports"] = std::move(ports);
@@ -515,6 +774,7 @@ result<std::string> to_json(const document& value, bool pretty)
             object["policy"] = to_string(link.policy);
             latency_to_json(link, object);
             half_duplex_to_json(link, object);
+            bindings_to_json(link.plugins, object);
             links.push_back(std::move(object));
             continue;
         }
@@ -529,6 +789,7 @@ result<std::string> to_json(const document& value, bool pretty)
         object["emulate_modem_lines"] = link.emulate_modem_lines;
         object["policy"] = to_string(link.policy);
         latency_to_json(link, object);
+        bindings_to_json(link.plugins, object);
         links.push_back(std::move(object));
     }
     root["links"] = std::move(links);
@@ -600,6 +861,10 @@ result<document> from_json(std::string_view text)
                     return parse_error;
             }
 
+            if (const error_code binding_error =
+                    bindings_from_json(entry, port.plugins))
+                return binding_error;
+
             out.ports.push_back(std::move(port));
         }
     }
@@ -656,6 +921,10 @@ result<document> from_json(std::string_view text)
             if (const error_code line_error =
                     half_duplex_from_json(entry, link))
                 return line_error;
+
+            if (const error_code binding_error =
+                    bindings_from_json(entry, link.plugins))
+                return binding_error;
 
             out.links.push_back(std::move(link));
         }
