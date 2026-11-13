@@ -10,6 +10,7 @@
 //
 
 #include "agent_command.hpp"
+#include "control_command.hpp"
 #include "permissions_command.hpp"
 
 #include <vss/core/profile.hpp>
@@ -215,19 +216,22 @@ void print_usage()
         "\n"
         // First %s: the agent commands, supplied by agent_usage().
         "%s"
-        // Second %s: the permission options, supplied by permissions_usage().
+        // Second %s: the control commands, supplied by control_usage().
+        "%s"
+        // Third %s: the permission options, supplied by permissions_usage().
         "%s"
         "  Common: --verbose, --quiet\n"
         "\n"
         "  Profiling (Tracy; off unless asked, this computer only):\n"
-        // Third %s: the profiling options from vss::profiling::usage().
+        // Fourth %s: the profiling options from vss::profiling::usage().
         "%s"
         "\n"
         // The licence notice is the standard GPL interactive-program text.
         "Virtual Serial Studio is free software under the GNU General Public\n"
         "License, version 3 or later.  This program comes with ABSOLUTELY NO\n"
         "WARRANTY; see LICENSE for details.\n",
-        vss_cli::agent_usage(), vss_cli::permissions_usage(),
+        vss_cli::agent_usage(), vss_cli::control_usage(),
+        vss_cli::permissions_usage(),
         // usage() is a string_view; copy it to get a terminated %s string.
         std::string(vss::profiling::usage()).c_str());
 }
@@ -1567,6 +1571,12 @@ try
         {
             VSS_PROFILE_ZONE("cli.agent");
             return vss_cli::command_agent(
+                std::vector<std::string>(argv + 1, argv + argc));
+        }
+        if (command == "control")
+        {
+            VSS_PROFILE_ZONE("cli.control");
+            return vss_cli::command_control(
                 std::vector<std::string>(argv + 1, argv + argc));
         }
         if (command == "permissions")

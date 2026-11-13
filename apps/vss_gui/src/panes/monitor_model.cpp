@@ -20,43 +20,72 @@
 namespace vss::gui
 {
 
+QByteArrayView traffic_row::preview() const noexcept
+{
+    return data.first(MonitorModel::kPreviewBytes);
+}
+
 MonitorModel::MonitorModel(QObject* parent) : QAbstractTableModel(parent) {}
 
 void MonitorModel::append_events(const event_batch& events)
+{
+    queue_events(events);
+    commit_queued();
+}
+
+void MonitorModel::queue_events(const event_batch& events)
 {
     VSS_PROFILE_ZONE("gui.monitor.append_events");
     if (paused_)
         return;
 
-    const std::size_t before = rows_.size();
+    // One reading of the clock for the batch: its rows reached the GUI
+    // together, and reading the wall clock for each row was most of the cost
+    // of adding one.
+    QDateTime now;
     for (const gui_event& event : events)
     {
-        if (event.kind != vss::event_kind::data || event.data.isEmpty())
+        if (event.kind != vss::event_kind::data || event.data.empty())
             continue;
+        if (!now.isValid())
+            now = QDateTime::currentDateTime();
         traffic_row row;
-        row.time = QDateTime::currentDateTime();
+        row.time = now;
         row.endpoint = event.endpoint;
         row.port = event.name;
         row.direction = event.direction == vss::data_direction::tx
                             ? traffic_direction::tx
                             : traffic_direction::rx;
         row.bytes = static_cast<std::uint64_t>(event.data.size());
-        row.preview = event.data.left(kPreviewBytes);
         row.data = event.data;
         row.when = event.when;
+        queued_.push_back(std::move(row));
+    }
+}
+
+void MonitorModel::commit_queued()
+{
+    if (queued_.empty())
+        return;
+    VSS_PROFILE_ZONE("gui.monitor.commit");
+    const std::size_t before = rows_.size();
+    for (traffic_row& row : queued_)
+    {
         retained_bytes_ += row.data.size();
         rows_.push_back(std::move(row));
     }
-    if (rows_.size() == before)
-        return;
-
+    queued_.clear();
     VSS_PROFILE_PLOT("gui.monitor.rows", rows_.size());
     commit_appended(before);
 }
 
 void MonitorModel::commit_appended(std::size_t before)
 {
-    const std::size_t removed = trim();
+    std::size_t removed = 0;
+    {
+        VSS_PROFILE_ZONE("gui.monitor.trim");
+        removed = trim();
+    }
 
     // Rows trimmed from the front take their visible entries with them; the
     // entries are indexes into `rows_`, in ascending order.
@@ -66,6 +95,7 @@ void MonitorModel::commit_appended(std::size_t before)
         ++leaving;
     if (leaving > 0)
     {
+        VSS_PROFILE_ZONE("gui.monitor.remove_rows");
         beginRemoveRows({}, 0, static_cast<int>(leaving) - 1);
         visible_.remove(0, leaving);
         endRemoveRows();
@@ -85,6 +115,7 @@ void MonitorModel::commit_appended(std::size_t before)
     }
     if (arriving.isEmpty())
         return;
+    VSS_PROFILE_ZONE("gui.monitor.insert_rows");
     const int first = static_cast<int>(visible_.size());
     beginInsertRows({}, first, first + static_cast<int>(arriving.size()) - 1);
     visible_ += arriving;
@@ -96,6 +127,8 @@ void MonitorModel::append_drop(const QString& port, std::uint64_t bytes,
 {
     if (paused_ || bytes == 0)
         return;
+    // Rows still waiting are older than this one.
+    commit_queued();
     traffic_row row;
     row.time = QDateTime::currentDateTime();
     row.port = port;
@@ -111,6 +144,7 @@ void MonitorModel::append_drop(const QString& port, std::uint64_t bytes,
 void MonitorModel::clear()
 {
     beginResetModel();
+    queued_.clear();
     rows_.clear();
     retained_bytes_ = 0;
     visible_.clear();
@@ -237,6 +271,7 @@ int MonitorModel::columnCount(const QModelIndex& parent) const
 
 QVariant MonitorModel::data(const QModelIndex& index, int item_role) const
 {
+    VSS_PROFILE_ZONE("gui.monitor.data");
     if (!index.isValid() || index.row() < 0 || index.row() >= rowCount())
         return {};
     const traffic_row& row =
@@ -354,10 +389,10 @@ QString MonitorModel::preview_for(const traffic_row& row) const
         return row.bus ? tr("not carried by the bus")
                        : tr("not the owner, not forwarded");
     }
-    return hex_ ? hex_preview(row.preview) : ascii_preview(row.preview);
+    return hex_ ? hex_preview(row.preview()) : ascii_preview(row.preview());
 }
 
-QString MonitorModel::ascii_preview(const QByteArray& data)
+QString MonitorModel::ascii_preview(QByteArrayView data)
 {
     QString text;
     text.reserve(data.size());
@@ -376,7 +411,7 @@ QString MonitorModel::ascii_preview(const QByteArray& data)
     return text;
 }
 
-QString MonitorModel::hex_preview(const QByteArray& data)
+QString MonitorModel::hex_preview(QByteArrayView data)
 {
     static const char* digits = "0123456789ABCDEF";
     QString text;
@@ -421,7 +456,7 @@ capture_export MonitorModel::export_capture() const
     bool have_origin = false;
     for (const traffic_row& row : rows_)
     {
-        if (!matches(row) || row.dropped || row.data.isEmpty() ||
+        if (!matches(row) || row.dropped || row.data.empty() ||
             row.when == vss::time_point{})
             continue;
         if (!have_origin || row.when < origin)
@@ -445,7 +480,7 @@ capture_export MonitorModel::export_capture() const
 
     for (const traffic_row& row : rows_)
     {
-        if (!matches(row) || row.dropped || row.data.isEmpty() ||
+        if (!matches(row) || row.dropped || row.data.empty() ||
             row.when == vss::time_point{})
             continue;
         vss::capture_record record;
@@ -457,10 +492,9 @@ capture_export MonitorModel::export_capture() const
         record.direction = row.direction == traffic_direction::tx
                                ? vss::data_direction::tx
                                : vss::data_direction::rx;
-        record.data.assign(
-            reinterpret_cast<const vss::byte*>(row.data.constData()),
-            reinterpret_cast<const vss::byte*>(row.data.constData()) +
-                row.data.size());
+        record.data.assign(reinterpret_cast<const vss::byte*>(row.data.data()),
+                           reinterpret_cast<const vss::byte*>(row.data.data()) +
+                               row.data.size());
         out.records.push_back(std::move(record));
     }
     std::stable_sort(

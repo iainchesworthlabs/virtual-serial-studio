@@ -1,0 +1,98 @@
+{
+ "tag": "v0.1.0-rc.3",
+ "prerelease": true,
+ "published_at": "2026-11-12T11:18:55Z",
+ "html_url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/tag/v0.1.0-rc.3",
+ "assets": [
+  {
+   "name": "SHA512SUMS",
+   "size": 1286,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/SHA512SUMS"
+  },
+  {
+   "name": "SHA512SUMS.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/SHA512SUMS.asc"
+  },
+  {
+   "name": "sbom.spdx.json",
+   "size": 268167,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/sbom.spdx.json"
+  },
+  {
+   "name": "sbom.spdx.json.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/sbom.spdx.json.asc"
+  },
+  {
+   "name": "virtual-serial-studio-0.1.0-0.rc.3.x86_64.rpm",
+   "size": 25733138,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-0.1.0-0.rc.3.x86_64.rpm"
+  },
+  {
+   "name": "virtual-serial-studio-0.1.0-0.rc.3.x86_64.rpm.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-0.1.0-0.rc.3.x86_64.rpm.asc"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-linux-x86_64.tar.gz",
+   "size": 35055472,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-linux-x86_64.tar.gz"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-linux-x86_64.tar.gz.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-linux-x86_64.tar.gz.asc"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-macos-arm64.dmg",
+   "size": 26494106,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-macos-arm64.dmg"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-macos-arm64.dmg.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-macos-arm64.dmg.asc"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-macos-arm64.tar.gz",
+   "size": 26490478,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-macos-arm64.tar.gz"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-macos-arm64.tar.gz.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-macos-arm64.tar.gz.asc"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.exe",
+   "size": 43944512,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.exe"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.exe.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.exe.asc"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.zip",
+   "size": 51383250,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.zip"
+  },
+  {
+   "name": "virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.zip.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio-v0.1.0-rc.3-windows-x86_64-testsigned.zip.asc"
+  },
+  {
+   "name": "virtual-serial-studio_0.1.0.rc.3-1_amd64.deb",
+   "size": 34640916,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio_0.1.0.rc.3-1_amd64.deb"
+  },
+  {
+   "name": "virtual-serial-studio_0.1.0.rc.3-1_amd64.deb.asc",
+   "size": 228,
+   "url": "https://github.com/iainchesworthlabs/virtual-serial-studio/releases/download/v0.1.0-rc.3/virtual-serial-studio_0.1.0.rc.3-1_amd64.deb.asc"
+  }
+ ]
+}

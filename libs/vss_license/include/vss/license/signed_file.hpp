@@ -32,7 +32,7 @@ namespace vss::license::signed_file
 {
 
 /// A file larger than this is refused before it is parsed.
-inline constexpr std::size_t max_file_size = 64 * 1024;
+inline constexpr std::size_t max_file_size = std::size_t{64} * 1024;
 
 /// The envelope format this version reads and writes.
 inline constexpr int current_format = 1;

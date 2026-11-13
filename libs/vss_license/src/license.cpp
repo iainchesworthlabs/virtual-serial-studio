@@ -163,7 +163,10 @@ result<json::object> payload_object(std::span<const std::uint8_t> payload)
     {
         return errc::malformed;
     }
-    return std::move(document->get_object());
+    // The object is taken out of the document, which is not a local of its
+    // own type, so it is moved into one and that is returned.
+    json::object object = std::move(document->get_object());
+    return object;
 }
 
 std::span<const std::uint8_t> as_bytes(std::string_view text)
@@ -602,8 +605,8 @@ read_revocations(std::string_view file_text,
     return list;
 }
 
-const revocation_list& newer(const revocation_list& current,
-                             const revocation_list& candidate)
+revocation_list newer(const revocation_list& current,
+                      const revocation_list& candidate)
 {
     return candidate.sequence > current.sequence ? candidate : current;
 }
