@@ -23,7 +23,7 @@ Mockups: Workspace, Advanced, Compact, CanvasEditor. Implemented with `QGraphics
 ### Resizing the window
 The view is either automatic or manual. It is automatic when it opens and after Fit or Tidy layout. It becomes manual as soon as the user zooms (wheel, keys), scrolls, or moves a node.
 - Automatic: a resize re-fits, so the whole diagram stays in view and follows the window. Below 500px of width the nodes switch to the compact 120 by 48 size and the layout is recomputed.
-- Manual: a resize keeps the zoom and the point at the centre of the view, so nothing jumps and the window shows more or less of the diagram. If the window is left showing none of the diagram, the diagram is brought back to the centre.
+- Manual: a resize keeps the zoom and the point at the centre of the view, so nothing jumps and the window shows more or less of the diagram. The point is remembered as the user last left it, so resizing larger and smaller and back never drifts. If the window is left showing none of the diagram, the diagram is brought back to the centre.
 - Adding or removing a port in manual mode leaves the view alone, except that a new node is scrolled into view.
 
 Why: re-fitting on every resize is what people expect until they have taken control, and it is wrong after, because it throws away the zoom and position they chose.
