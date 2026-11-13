@@ -167,7 +167,7 @@ void FlowDialog::set_primary_text(const QString& text)
 QString FlowDialog::setting_up_text()
 {
     return tr("Setting up. Windows installs each new port, which can take up "
-              "to 20 seconds.");
+              "to a minute.");
 }
 
 void FlowDialog::done(int result)

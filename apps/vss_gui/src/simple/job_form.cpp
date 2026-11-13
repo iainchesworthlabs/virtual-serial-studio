@@ -1505,9 +1505,9 @@ void JobForm::set_busy(bool busy)
         create_->setEnabled(false);
         busy_label_->setText(
             editing() ? tr("Applying the change. Windows installs each new "
-                           "port, which can take up to 20 seconds.")
+                           "port, which can take up to a minute.")
                       : tr("Setting up. Windows installs each new port, which "
-                           "can take up to 20 seconds."));
+                           "can take up to a minute."));
         busy_label_->setAccessibleName(busy_label_->text());
         announce_name_change(busy_label_);
     }

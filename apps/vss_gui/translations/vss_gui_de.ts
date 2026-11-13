@@ -12975,8 +12975,8 @@ Netzwerke: %5</translation>
             <translation>Fortschritt</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
         </message>
     </context>
     <context>
@@ -16663,8 +16663,8 @@ Netzwerke: %5</translation>
             <translation>Fortschritt</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
         </message>
     </context>
     <context>
@@ -17107,8 +17107,8 @@ Netzwerke: %5</translation>
             <translation>Wird angewendet</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
         </message>
     </context>
     <context>
@@ -17881,12 +17881,12 @@ Netzwerke: %5</translation>
             <translation>Wird erstellt</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Die Änderung wird angewendet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Die Änderung wird angewendet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu 20 Sekunden dauern.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Wird eingerichtet. Windows installiert jeden neuen Port, das kann bis zu einer Minute dauern.</translation>
         </message>
         <message>
             <source>Setting up progress</source>

@@ -12968,8 +12968,8 @@ Networks: %5</source>
             <translation>进度</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
         </message>
     </context>
     <context>
@@ -16652,8 +16652,8 @@ Networks: %5</source>
             <translation>进度</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
         </message>
     </context>
     <context>
@@ -17096,8 +17096,8 @@ Networks: %5</source>
             <translation>正在应用</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
         </message>
     </context>
     <context>
@@ -17869,12 +17869,12 @@ Networks: %5</source>
             <translation>正在创建</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>正在应用更改。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在应用更改。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
         </message>
         <message>
             <source>Setting up progress</source>

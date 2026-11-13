@@ -12975,8 +12975,8 @@ Redes: %5</translation>
             <translation>Progreso</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
         </message>
     </context>
     <context>
@@ -16663,8 +16663,8 @@ Redes: %5</translation>
             <translation>Progreso</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
         </message>
     </context>
     <context>
@@ -17107,8 +17107,8 @@ Redes: %5</translation>
             <translation>Aplicando</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
         </message>
     </context>
     <context>
@@ -17881,12 +17881,12 @@ Redes: %5</translation>
             <translation>Creando</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Aplicando el cambio. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Aplicando el cambio. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta 20 segundos.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>Configurando. Windows instala cada puerto nuevo, lo que puede tardar hasta un minuto.</translation>
         </message>
         <message>
             <source>Setting up progress</source>

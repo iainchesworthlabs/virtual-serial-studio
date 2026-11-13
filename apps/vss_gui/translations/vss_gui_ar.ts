@@ -13003,8 +13003,8 @@ Networks: %5</source>
             <translation>التقدم</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
         </message>
     </context>
     <context>
@@ -16707,8 +16707,8 @@ Networks: %5</source>
             <translation>التقدم</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
         </message>
     </context>
     <context>
@@ -17151,8 +17151,8 @@ Networks: %5</source>
             <translation>جارٍ التطبيق</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
         </message>
     </context>
     <context>
@@ -17929,12 +17929,12 @@ Networks: %5</source>
             <translation>جارٍ الإنشاء</translation>
         </message>
         <message>
-            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>جارٍ تطبيق التغيير. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ تطبيق التغيير. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
         </message>
         <message>
-            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
-            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى 20 ثانية.</translation>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
         </message>
         <message>
             <source>Setting up progress</source>
