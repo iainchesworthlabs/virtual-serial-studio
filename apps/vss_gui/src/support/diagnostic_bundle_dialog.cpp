@@ -303,7 +303,7 @@ void DiagnosticBundleDialog::build()
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* copy = make_dialog_button(
-        QCoreApplication::translate("Bundle", "Copy environment only"), "quiet",
+        QCoreApplication::translate("Bundle", "Copy diagnostic information"), "quiet",
         footer);
     copy->setAutoDefault(false);
     connect(copy, &QPushButton::clicked, this,
@@ -438,9 +438,10 @@ void DiagnosticBundleDialog::save()
 
 void DiagnosticBundleDialog::copy_environment()
 {
-    QGuiApplication::clipboard()->setText(environment_report());
+    QGuiApplication::clipboard()->setText(diagnostic_report());
     ToastManager::instance().show(
-        this, QCoreApplication::translate("Bundle", "Environment copied."));
+        this,
+        QCoreApplication::translate("Bundle", "Diagnostic information copied."));
 }
 
 } // namespace vss::gui::support

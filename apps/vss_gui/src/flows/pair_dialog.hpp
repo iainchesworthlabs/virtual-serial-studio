@@ -38,8 +38,11 @@ Q_SIGNALS:
 
 private:
     void create_pair();
+    void show_error(const flow_error& error);
 
+    StudioBackend& backend_;
     PairPanel* panel_ = nullptr;
+
     std::optional<pair_outcome> outcome_;
 };
 

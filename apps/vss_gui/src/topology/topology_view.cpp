@@ -6,6 +6,10 @@
 
 #include "topology/topology_view.hpp"
 
+#include "theme/focus_ring_style.hpp"
+#include "theme/icon_provider.hpp"
+#include "rendering/gpu_canvas.hpp"
+#include "rendering/render_state.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
 #include "topology/link_item.hpp"
@@ -25,22 +29,29 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QElapsedTimer>
 #include <QFocusEvent>
 #include <QFontMetricsF>
+#include <QFrame>
 #include <QGraphicsPathItem>
 #include <QGraphicsRectItem>
 #include <QGraphicsScene>
+#include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QNativeGestureEvent>
+#include <QPaintEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPen>
 #include <QResizeEvent>
 #include <QRubberBand>
 #include <QScrollBar>
 #include <QSet>
+#include <QToolButton>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -51,12 +62,34 @@ namespace vss::gui::topology
 {
 namespace
 {
+/// A tool button that paints the 2 px keyboard focus ring, which a QSS-styled
+/// QToolButton does not draw by itself.
+class ZoomButton final : public QToolButton
+{
+public:
+    using QToolButton::QToolButton;
+
+protected:
+    void paintEvent(QPaintEvent* event) override
+    {
+        QToolButton::paintEvent(event);
+        if (!hasFocus() || !FocusRingStyle::keyboard_focus())
+            return;
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(
+            QPen(Theme::instance().colour(colour_role::focus), 2.0));
+        painter.drawRoundedRect(QRectF(rect()).adjusted(2, 2, -2, -2), 4, 4);
+    }
+};
+
 
 /// The central column is about this wide at the 960 by 640 minimum window,
 /// where the design asks for the compact 120 by 48 nodes.
 constexpr int kCompactWidth = 500;
 constexpr qreal kMinZoom = 0.25;
-constexpr qreal kMaxZoom = 2.0;
+constexpr qreal kMaxZoom = 4.0;
 constexpr qreal kFitMaxZoom = 1.25;
 constexpr qreal kFitMargin = 24.0;
 constexpr qreal kZoomStep = 1.25;
@@ -147,27 +180,169 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
     hint_->setProperty("muted", true);
     hint_->setAttribute(Qt::WA_TransparentForMouseEvents, true);
 
+    // The zoom controls sit in the bottom-right corner of the canvas.
+    zoom_bar_ = new QFrame(viewport());
+    zoom_bar_->setObjectName(QStringLiteral("topologyZoomBar"));
+    zoom_bar_->setAccessibleName(tr("Zoom controls"));
+    zoom_bar_->setAttribute(Qt::WA_StyledBackground, true);
+    auto* zoom_layout = new QHBoxLayout(zoom_bar_);
+    zoom_layout->setContentsMargins(2, 2, 2, 2);
+    zoom_layout->setSpacing(0);
+    const auto make_zoom_button = [this, zoom_layout](const QString& name,
+                                                       const QString& tip)
+    {
+        auto* button = new ZoomButton(zoom_bar_);
+        button->setObjectName(name);
+        button->setAccessibleName(tip);
+        button->setToolTip(tip);
+        button->setFocusPolicy(Qt::StrongFocus);
+        button->setAutoRaise(true);
+        zoom_layout->addWidget(button);
+        return button;
+    };
+    zoom_out_button_ =
+        make_zoom_button(QStringLiteral("topologyZoomOut"), tr("Zoom out"));
+    zoom_reset_button_ = make_zoom_button(QStringLiteral("topologyZoomReset"),
+                                          tr("Reset zoom to 100%"));
+    zoom_reset_button_->setFont(Theme::instance().font(text_style::data));
+    zoom_in_button_ =
+        make_zoom_button(QStringLiteral("topologyZoomIn"), tr("Zoom in"));
+    connect(zoom_out_button_, &QToolButton::clicked, this,
+            [this] { zoom_out(); });
+    connect(zoom_reset_button_, &QToolButton::clicked, this,
+            [this] { reset_zoom(); });
+    connect(zoom_in_button_, &QToolButton::clicked, this,
+            [this] { zoom_in(); });
     viewport()->installEventFilter(this);
     // A scroll bar action comes from the user (a drag, a click, a key); the
     // view's own moves do not trigger it.  Either one ends automatic fitting.
-    connect(horizontalScrollBar(), &QAbstractSlider::actionTriggered, this,
-            [this](int) { mark_manual_view(); });
-    connect(verticalScrollBar(), &QAbstractSlider::actionTriggered, this,
-            [this](int) { mark_manual_view(); });
+    // Wherever the scroll bars end up, outside a resize, is where the user
+    // left the view: remember its centre for the next resize.
+    for (QScrollBar* bar : {horizontalScrollBar(), verticalScrollBar()})
+    {
+        connect(bar, &QAbstractSlider::actionTriggered, this,
+                [this](int) { mark_manual_view(); });
+        connect(bar, &QAbstractSlider::valueChanged, this,
+                [this](int) { remember_centre(); });
+    }
     connect(&Theme::instance(), &Theme::theme_changed, this,
             [this]
             {
                 empty_->setFont(Theme::instance().font(text_style::body));
                 hint_->setFont(Theme::instance().font(text_style::caption));
+                update_zoom_controls();
+                apply_gpu_style();
                 scene_->update();
                 viewport()->update();
                 update_overlays();
             });
+    update_zoom_controls();
     update_accessibility();
     update_overlays();
+    if (rendering::current().active == rendering::renderer::hardware)
+        enable_gpu();
 }
 
 TopologyView::~TopologyView() = default;
+
+void TopologyView::enable_gpu()
+{
+    if (gpu_ != nullptr)
+        return;
+    gpu_ = new rendering::GpuCanvas(*this);
+    apply_gpu_style();
+    gpu_->lower();
+    gpu_->show();
+    // The canvas draws the whole frame itself, so the view never repaints its
+    // viewport for a change in the scene: the canvas hears of the change from
+    // the scene (`GpuCanvas::scene_changed`) and of a scroll from
+    // `scrollContentsBy`. A viewport repaint would redraw the overlay widgets
+    // and upload the viewport's part of the window to the GPU again for every
+    // frame of the canvas, which cost more than the frame itself
+    // (docs/gui-design/docs/12-render-profiling.md).
+    setViewportUpdateMode(QGraphicsView::NoViewportUpdate);
+    connect(gpu_, &rendering::GpuCanvas::device_ready, this,
+            [this](const rendering::gpu_report& report)
+            {
+                if (!rendering::confirm_gpu(report))
+                    disable_gpu();
+            });
+    connect(gpu_, &rendering::GpuCanvas::device_lost, this,
+            [this](const QString& reason)
+            {
+                rendering::report_gpu_failure(reason);
+                disable_gpu();
+            });
+    connect(&rendering::render_events::instance(),
+            &rendering::render_events::fell_back, this,
+            [this](const QString&) { disable_gpu(); });
+}
+
+void TopologyView::disable_gpu()
+{
+    if (gpu_ == nullptr)
+        return;
+    // Not deleted here: this runs from the canvas's own signals.
+    gpu_->hide();
+    gpu_->disconnect(this);
+    gpu_->deleteLater();
+    gpu_ = nullptr;
+    setViewportUpdateMode(QGraphicsView::BoundingRectViewportUpdate);
+    viewport()->update();
+}
+
+void TopologyView::apply_gpu_style()
+{
+    if (gpu_ == nullptr)
+        return;
+    const Theme& theme = Theme::instance();
+    rendering::GpuCanvas::style style;
+    style.ground = theme.colour(colour_role::sunken);
+    style.dots = theme.colour(colour_role::line2);
+    gpu_->set_style(style);
+    gpu_->invalidate_all();
+}
+
+void TopologyView::paintEvent(QPaintEvent* event)
+{
+    VSS_PROFILE_ZONE("gui.render.view");
+    if (gpu_ != nullptr)
+    {
+        // The GPU canvas covers the viewport and draws the frame.
+        gpu_->update();
+        return;
+    }
+    QElapsedTimer timer;
+    timer.start();
+    QGraphicsView::paintEvent(event);
+    software_paint_ms_ = static_cast<double>(timer.nsecsElapsed()) / 1e6;
+}
+
+void TopologyView::request_frame()
+{
+    if (gpu_ != nullptr)
+        gpu_->update();
+    else
+        viewport()->update();
+}
+
+void TopologyView::scrollContentsBy(int dx, int dy)
+{
+    QGraphicsView::scrollContentsBy(dx, dy);
+    // With the GPU canvas the view does not update its viewport itself.
+    if (gpu_ != nullptr)
+        gpu_->update();
+}
+
+double TopologyView::last_paint_ms() const noexcept
+{
+    return gpu_ != nullptr ? gpu_->last_paint_ms() : software_paint_ms_;
+}
+
+double TopologyView::last_gpu_ms() const noexcept
+{
+    return gpu_ != nullptr ? gpu_->last_gpu_ms() : 0.0;
+}
 
 void TopologyView::set_capabilities(const capabilities& caps)
 {
@@ -222,6 +397,7 @@ void TopologyView::set_topology(const std::vector<port_view>& ports,
     {
         resetTransform();
         auto_fit_ = true;
+        update_zoom_controls();
         user_arranged_ = false;
     }
     else if (auto_fit_)
@@ -666,6 +842,7 @@ void TopologyView::apply_positions(bool refresh_scene_rect)
 
 void TopologyView::update_scene_rect()
 {
+    VSS_PROFILE_ZONE("gui.topology.update_scene_rect");
     QRectF content;
     for (const auto& placement : layout_.nodes)
     {
@@ -705,6 +882,7 @@ void TopologyView::update_scene_rect()
 
 void TopologyView::update_overlays()
 {
+    VSS_PROFILE_ZONE("gui.topology.update_overlays");
     const bool has_ports = !ports_.empty();
     const int view_width = std::max(1, viewport()->width());
     const int view_height = std::max(1, viewport()->height());
@@ -715,8 +893,15 @@ void TopologyView::update_overlays()
     empty_->move((view_width - empty_->width()) / 2,
                  (view_height - empty_->height()) / 2);
 
+    zoom_bar_->setVisible(has_ports);
+    zoom_bar_->adjustSize();
+    zoom_bar_->move(
+        view_width - zoom_bar_->width() - static_cast<int>(kNoteMargin),
+        view_height - zoom_bar_->height() - static_cast<int>(kNoteMargin));
+
+    // The hint gives way to the zoom controls when the canvas is narrow.
     hint_->adjustSize();
-    hint_->setVisible(view_width > hint_->width() + 24);
+    hint_->setVisible(view_width > hint_->width() + zoom_bar_->width() + 48);
     hint_->move(static_cast<int>(kNoteMargin),
                 view_height - hint_->height() - static_cast<int>(kNoteMargin));
 
@@ -735,6 +920,7 @@ void TopologyView::update_overlays()
 
     empty_->raise();
     hint_->raise();
+    zoom_bar_->raise();
     if (loop_note_ != nullptr)
         loop_note_->raise();
 }
@@ -967,6 +1153,16 @@ bool TopologyView::focusNextPrevChild(bool next)
 
 bool TopologyView::event(QEvent* event)
 {
+    if (event->type() == QEvent::Resize)
+    {
+        // Everything the scroll bars do while the window changes size is
+        // Qt's layout, not the user: it never replaces the remembered centre.
+        resizing_ = true;
+        const bool handled = QGraphicsView::event(event);
+        resizing_ = false;
+        return handled;
+    }
+
     // The window's Remove shortcut (Delete) removes one port at a time and
     // knows nothing of the canvas selection or its Undo step. On the editing
     // canvas, claim Delete first so the canvas deletes what is selected.
@@ -1166,6 +1362,14 @@ void TopologyView::keyPressEvent(QKeyEvent* event)
         if (control)
         {
             fit_content();
+            event->accept();
+            return;
+        }
+        break;
+    case Qt::Key_1:
+        if (control)
+        {
+            reset_zoom();
             event->accept();
             return;
         }
@@ -1494,6 +1698,10 @@ void TopologyView::dropEvent(QDropEvent* event)
 
 void TopologyView::resizeEvent(QResizeEvent* event)
 {
+    VSS_PROFILE_ZONE("gui.topology.resize");
+    // Qt lays the new viewport over the old scroll bars before this runs, so
+    // the centre cannot be read back here; `view_centre_` holds the scene
+    // point the user was looking at.
     QGraphicsView::resizeEvent(event);
 
     const bool compact_now = viewport()->width() < kCompactWidth;
@@ -1517,14 +1725,38 @@ void TopologyView::resizeEvent(QResizeEvent* event)
         keep_content_in_view();
 }
 
+void TopologyView::remember_centre()
+{
+    if (resizing_)
+        return;
+    view_centre_ = mapToScene(viewport()->rect().center());
+}
+
 void TopologyView::keep_content_in_view()
 {
     internal_scroll_ = true;
+    // Qt has already laid the new viewport over the old scene rect, which can
+    // have moved the centre.  Cover the area that will be visible around the
+    // remembered centre, then put the centre back, so repeated resizes never
+    // drift.
+    const qreal scale_factor = std::max(transform().m11(), 1e-6);
+    // The whole widget, not the viewport: the viewport grows when a scroll bar
+    // goes away, and a scene smaller than the viewport is re-centred by Qt.
+    const QSizeF size((width() + 2) / scale_factor,
+                      (height() + 2) / scale_factor);
+    const QRectF wanted(
+        view_centre_ - QPointF(size.width(), size.height()) / 2.0, size);
     update_scene_rect();
+    setSceneRect(sceneRect().united(wanted));
+    centerOn(view_centre_);
+
     const QRectF visible = mapToScene(viewport()->rect()).boundingRect();
     const QRectF content = scene_->itemsBoundingRect();
     if (!content.isNull() && !visible.intersects(content))
+    {
         centerOn(content.center());
+        view_centre_ = content.center();
+    }
     internal_scroll_ = false;
 }
 
@@ -1560,8 +1792,8 @@ void TopologyView::wheelEvent(QWheelEvent* event)
         const int delta = event->angleDelta().y();
         if (delta != 0)
         {
-            scale_by(std::pow(1.0015, static_cast<qreal>(delta)),
-                     QGraphicsView::AnchorUnderMouse, true);
+            zoom_at(std::pow(1.0015, static_cast<qreal>(delta)),
+                    event->position().toPoint());
         }
         event->accept();
         return;
@@ -1587,7 +1819,7 @@ void TopologyView::drawBackground(QPainter* painter, const QRectF& rect)
     if (transform().m11() * kGrid < 6.0)
         return;
     painter->setPen(QPen(theme.colour(colour_role::line2), 1.5, Qt::SolidLine,
-                         Qt::RoundCap));
+                         Qt::FlatCap));
     const qreal left = std::floor(rect.left() / kGrid) * kGrid;
     const qreal top = std::floor(rect.top() / kGrid) * kGrid;
     const int columns = static_cast<int>((rect.right() - left) / kGrid) + 1;
@@ -1604,6 +1836,17 @@ void TopologyView::drawBackground(QPainter* painter, const QRectF& rect)
 
 bool TopologyView::eventFilter(QObject* watched, QEvent* event)
 {
+    // A trackpad pinch (macOS, and Windows precision touchpads where Qt
+    // reports it) zooms about the fingers.
+    if (watched == viewport() && event->type() == QEvent::NativeGesture)
+    {
+        const auto* gesture = static_cast<QNativeGestureEvent*>(event);
+        if (gesture->gestureType() == Qt::ZoomNativeGesture)
+        {
+            zoom_at(1.0 + gesture->value(), gesture->position().toPoint());
+            return true;
+        }
+    }
     if (watched == viewport() && event->type() == QEvent::ContextMenu)
     {
         auto* context = static_cast<QContextMenuEvent*>(event);
@@ -1832,10 +2075,12 @@ void TopologyView::tidy_layout()
 
 void TopologyView::fit_content()
 {
+    VSS_PROFILE_ZONE("gui.topology.fit_content");
     if (ports_.empty())
     {
         resetTransform();
         auto_fit_ = true;
+        update_zoom_controls();
         return;
     }
 
@@ -1866,36 +2111,94 @@ void TopologyView::fit_content()
     internal_scroll_ = false;
     fitting_ = false;
     auto_fit_ = true;
+    remember_centre();
+    update_zoom_controls();
 }
 
-void TopologyView::scale_by(qreal factor, QGraphicsView::ViewportAnchor anchor,
-                            bool user_action)
+qreal TopologyView::min_zoom() noexcept
+{
+    return kMinZoom;
+}
+
+qreal TopologyView::max_zoom() noexcept
+{
+    return kMaxZoom;
+}
+
+void TopologyView::zoom_at(qreal factor, const QPoint& view_point)
 {
     const qreal current = transform().m11();
-    if (current <= 0.0)
+    if (current <= 0.0 || factor <= 0.0)
         return;
     const qreal target = std::clamp(current * factor, kMinZoom, kMaxZoom);
     if (qFuzzyCompare(current, target))
         return;
 
+    // Keep the scene point under `view_point` where it is, whatever the
+    // pointer is doing, so the buttons and the tests behave like the wheel.
     const QGraphicsView::ViewportAnchor previous = transformationAnchor();
-    setTransformationAnchor(anchor);
+    setTransformationAnchor(QGraphicsView::NoAnchor);
+    internal_scroll_ = true;
+    auto_fit_ = false;
+    // The scene must cover the area that will be visible once the point is
+    // held where it is, or the scroll bars cannot hold it (a diagram smaller
+    // than the window has no room to scroll).
+    const QPointF before = mapToScene(view_point);
+    const QPointF top_left = before - QPointF(view_point) / target;
+    const QRectF wanted(top_left, QSizeF(viewport()->width() / target,
+                                         viewport()->height() / target));
     scale(target / current, target / current);
+    setSceneRect(sceneRect().united(wanted));
+    centerOn(wanted.center());
+    internal_scroll_ = false;
     setTransformationAnchor(previous);
-    if (user_action)
-        auto_fit_ = false;
+    remember_centre();
+    update_zoom_controls();
 }
 
 void TopologyView::zoom_in()
 {
-    scale_by(kZoomStep, QGraphicsView::AnchorViewCenter, true);
+    zoom_at(kZoomStep, viewport()->rect().center());
 }
 
 void TopologyView::zoom_out()
 {
-    scale_by(1.0 / kZoomStep, QGraphicsView::AnchorViewCenter, true);
+    zoom_at(1.0 / kZoomStep, viewport()->rect().center());
 }
 
+void TopologyView::reset_zoom()
+{
+    const qreal current = transform().m11();
+    if (current > 0.0)
+        zoom_at(1.0 / current, viewport()->rect().center());
+}
+
+void TopologyView::update_zoom_controls()
+{
+    if (zoom_bar_ == nullptr)
+        return;
+    const Theme& theme = Theme::instance();
+    IconProvider& icons = IconProvider::instance();
+    zoom_out_button_->setIcon(
+        icons.icon(QStringLiteral("minus"), colour_role::ink2, 16));
+    zoom_in_button_->setIcon(
+        icons.icon(QStringLiteral("add"), colour_role::ink2, 16));
+
+    const qreal current = zoom();
+    zoom_out_button_->setEnabled(current > kMinZoom + 1e-6);
+    zoom_in_button_->setEnabled(current < kMaxZoom - 1e-6);
+    zoom_reset_button_->setFont(theme.font(text_style::data));
+    // Wide enough for the widest reading, so the bar does not change size
+    // while zooming.
+    const QFontMetrics metrics(zoom_reset_button_->font());
+    zoom_reset_button_->setMinimumWidth(
+        metrics.horizontalAdvance(QStringLiteral("400%")) + 16);
+    zoom_reset_button_->setText(
+        QString::number(static_cast<int>(std::lround(current * 100.0))) +
+        QLatin1Char('%'));
+    zoom_bar_->adjustSize();
+    update_overlays();
+}
 qreal TopologyView::zoom() const
 {
     return transform().m11();
@@ -1926,6 +2229,8 @@ void TopologyView::centre_on_links(const QVector<vss::link_id>& ids)
     centerOn(bounds.center());
     fitting_ = false;
     auto_fit_ = false;
+    remember_centre();
+    update_zoom_controls();
 }
 
 bool TopologyView::show_loop_note()

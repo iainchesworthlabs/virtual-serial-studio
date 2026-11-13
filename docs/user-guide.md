@@ -1352,13 +1352,19 @@ registry on Windows, a configuration file on Linux and macOS).
 ![The Create a diagnostic bundle dialog with five choices; Traffic contents is off by default](images/diagnostic-bundle-light.png)
 
 - **Help → Keyboard shortcuts** lists every shortcut; **Help → Copy
-  environment** copies the build details for a bug report.
+  diagnostic information** copies the build information and the environment for
+  a bug report.
 - **Help → About** shows the application icon, the version and the licence
-  at the top, and has four tabs: About (the GPLv3 notice and a link to the
-  source code),
-  Environment (commit, branch, build, compiler, Qt, operating system and the
-  language chosen), Licences (Qt, Boost, Boost.VirtualSerial, Tracy and the
-  optional com0com driver) and Fonts (none are bundled).
+  at the top, and has five tabs: About (the GPLv3 notice and a link to the
+  source code), Build information (the version, Git tag, commit, branch,
+  whether the tree was modified, CI build number, build time, build type,
+  compiler, and the Qt and Boost it was built with), Environment (operating
+  system, architecture, Qt running, display and the language chosen), Licences
+  (the components this build contains: Qt, Boost, Boost.VirtualSerial and, in a
+  build with profiling, Tracy) and Fonts (none are bundled). The version reads
+  like `v0.1.0-rc.3+build.123-abc1234`: the release, the CI run number and the
+  short commit. Each of the two data tabs has a button that copies it, and
+  **Copy diagnostic information** copies both.
 
 The application is available in nine languages (English, French, Spanish,
 German, Hebrew, Yiddish, Japanese, Simplified Chinese and Arabic). It follows

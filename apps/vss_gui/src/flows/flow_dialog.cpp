@@ -15,6 +15,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QScreen>
 #include <QScrollArea>
@@ -161,6 +162,92 @@ void FlowDialog::set_primary_text(const QString& text)
         return;
     primary_->setText(text);
     primary_->setAccessibleName(text);
+}
+
+QString FlowDialog::setting_up_text()
+{
+    return tr("Setting up. Windows installs each new port, which can take up "
+              "to a minute.");
+}
+
+void FlowDialog::done(int result)
+{
+    // The worker reports to this dialog, so it stays until the answer is in.
+    if (work_.busy())
+        return;
+    QDialog::done(result);
+}
+
+bool FlowDialog::run_in_background(std::function<void()> work,
+                                   std::function<void()> finished,
+                                   const QString& primary_text,
+                                   const QString& status_text)
+{
+    if (work_.busy())
+        return false;
+
+    if (busy_row_ == nullptr)
+    {
+        // Outside the scrolling body, so it stays in view and is not greyed
+        // out with the fields.
+        busy_row_ = new QWidget(this);
+        busy_row_->setObjectName(QStringLiteral("flowBusy"));
+        auto* row = new QVBoxLayout(busy_row_);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->setSpacing(6);
+        auto* bar = new QProgressBar(busy_row_);
+        bar->setRange(0, 0);
+        bar->setTextVisible(false);
+        bar->setAccessibleName(tr("Progress"));
+        row->addWidget(bar);
+        busy_label_ = new QLabel(busy_row_);
+        busy_label_->setObjectName(QStringLiteral("flowBusyText"));
+        busy_label_->setFont(Theme::instance().font(text_style::body));
+        busy_label_->setWordWrap(true);
+        row->addWidget(busy_label_);
+        busy_row_->setVisible(false);
+        auto* outer = static_cast<QVBoxLayout*>(layout());
+        outer->insertWidget(outer->indexOf(scroll_) + 1, busy_row_);
+    }
+
+    footer_state_.clear();
+    for (int index = 0; index < footer_layout_->count(); ++index)
+    {
+        auto* button =
+            qobject_cast<QPushButton*>(footer_layout_->itemAt(index)->widget());
+        if (button == nullptr)
+            continue;
+        footer_state_.push_back({button, button->isEnabled()});
+        button->setEnabled(false);
+    }
+    body_->setEnabled(false);
+    if (primary_ != nullptr)
+    {
+        idle_primary_text_ = primary_->text();
+        set_primary_text(primary_text);
+    }
+    busy_label_->setText(status_text);
+    busy_label_->setAccessibleName(status_text);
+    busy_row_->setVisible(true);
+    announce_name_change(busy_label_);
+
+    return work_.start(std::move(work),
+                       [this, finished = std::move(finished)]
+                       {
+                           end_busy();
+                           finished();
+                       });
+}
+
+void FlowDialog::end_busy()
+{
+    for (const auto& [button, enabled] : footer_state_)
+        button->setEnabled(enabled);
+    footer_state_.clear();
+    body_->setEnabled(true);
+    if (primary_ != nullptr)
+        set_primary_text(idle_primary_text_);
+    busy_row_->setVisible(false);
 }
 
 void FlowDialog::set_primary_enabled(bool enabled)

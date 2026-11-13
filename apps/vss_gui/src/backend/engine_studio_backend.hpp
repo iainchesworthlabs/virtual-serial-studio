@@ -9,7 +9,10 @@
 
 #include "backend/studio_backend.hpp"
 
+#include <chrono>
+#include <map>
 #include <memory>
+#include <mutex>
 #include <vector>
 
 class QTimer;
@@ -68,8 +71,8 @@ public:
     std::vector<vss::endpoint_id> lost_ports() const override;
     vss::result<std::size_t> recreate_lost_ports() override;
 
-    std::vector<port_view> ports() const override { return ports_; }
-    std::vector<link_view> links() const override { return links_; }
+    std::vector<port_view> ports() const override;
+    std::vector<link_view> links() const override;
     std::vector<device_view> devices() const override;
     std::optional<std::vector<unsigned>> reserved_com_numbers() const override
     {
@@ -173,6 +176,15 @@ private:
     /// platform cannot tell.
     QTimer* peer_timer_ = nullptr;
     bool rebuild_scheduled_ = false;
+    /// Guards `ports_` and `links_`: a job that runs off the GUI thread (making
+    /// a port installs a device and takes seconds) rebuilds them too.
+    mutable std::mutex snapshot_mutex_;
+    /// COM numbers of driver ports this window removed, and when.  Windows
+    /// takes about half a minute to finish removing a device and the number
+    /// counts as taken until then, so a port made straight afterwards waits
+    /// for it instead of taking another number.
+    std::mutex removed_mutex_;
+    std::map<unsigned, std::chrono::steady_clock::time_point> removed_numbers_;
     std::vector<port_view> ports_;
     std::vector<link_view> links_;
 };

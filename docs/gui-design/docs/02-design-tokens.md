@@ -7,30 +7,30 @@ Authoritative values: `tokens/tokens.json`. This page explains how to use them i
 
 | Token | Role | Light | Dark |
 |---|---|---|---|
-| ground | Window background behind the panes | #ECEEF1 | #0E0F12 |
-| panel | Panes, dialogs, cards, fields | #FFFFFF | #18191D |
-| sunken | Grouped sections, canvas, read-only fields | #F4F5F7 | #121316 |
-| fill / fillHover | Secondary buttons, segment tracks, neutral chips, menu rows under the pointer | #EEF0F3 / #E4E7EB | #26282D / #2F3137 |
-| hover / pressed | Row and ghost button under the pointer, and while pressed | #F3F4F6 / #E4E7EB | #1F2125 / #2F3137 |
-| line | Pane borders and dividers (decorative) | #E2E5E9 | #27292E |
-| line2 | Field and card borders, scrollbar thumbs | #CDD2D9 | #3A3D44 |
-| control | Check box and radio edges, field hover (3:1 rule) | #808996 | #7C828C |
-| ink / ink2 / ink3 | Text: primary, secondary, caption | #14171C / #4A515C / #646C79 | #ECEDEF / #B3B8C0 / #8C929C |
+| ground | Window background behind the panes | #ECEEF1 | #14161A |
+| panel | Panes, dialogs, cards, fields | #FFFFFF | #22252B |
+| sunken | Grouped sections, canvas, read-only fields | #F4F5F7 | #1A1D22 |
+| fill / fillHover | Secondary buttons, segment tracks, neutral chips, menu rows under the pointer | #EEF0F3 / #E4E7EB | #2D3139 / #363B44 |
+| hover / pressed | Row and ghost button under the pointer, and while pressed | #F3F4F6 / #E4E7EB | #2A2E35 / #3A3F49 |
+| line | Pane borders and dividers (decorative) | #E2E5E9 | #343944 |
+| line2 | Field and card borders, scrollbar thumbs | #CDD2D9 | #454A55 |
+| control | Check box and radio edges, field hover (3:1 rule) | #808996 | #8A909B |
+| ink / ink2 / ink3 | Text: primary, secondary, caption | #14171C / #4A515C / #646C79 | #E6E8EC / #B4B9C2 / #979DA8 |
 | accent / accentHover | Primary fill, checked controls, selection edge; primary hover | #2160E0 / #1A52C4 | #2F6AE6 / #2558C9 |
-| accentStrong / accentText | Accent text, links and accent icons | #1A52C4 / #1D56C9 | #8AB4FF / #8AB4FF |
-| accentSoft / accentLine | Selection fill and its edge, RX tag | #E8EFFD / #B9CDF6 | #1B2742 / #2D4A80 |
-| violet / violetSoft | TX tag, fixture tiles and chips | #6941C6 / #EDE9FB | #B9A4FF / #272042 |
-| ok, okSoft, okLine | Healthy | #17744B ... | #4CC38A ... |
-| amber, amberSoft, amberLine | Attention | #9A5806 ... | #F0B14A ... |
-| bad, badSoft, badLine | Failure | #C4321F ... | #FF7A6B ... |
-| focus | Focus ring | #2160E0 | #8AB4FF |
+| accentStrong / accentText | Accent text, links and accent icons | #1A52C4 / #1D56C9 | #9BBCF7 / #9BBCF7 |
+| accentSoft / accentLine | Selection fill and its edge, RX tag | #E8EFFD / #B9CDF6 | #232F4A / #3D5A9C |
+| violet / violetSoft | TX tag, fixture tiles and chips | #6941C6 / #EDE9FB | #B7A8F0 / #2B2644 |
+| ok, okSoft, okLine | Healthy | #17744B ... | #5BC694 ... |
+| amber, amberSoft, amberLine | Attention | #9A5806 ... | #E8B260 ... |
+| bad, badSoft, badLine | Failure | #C4321F ... | #F28B7E ... |
+| focus | Focus ring | #2160E0 | #9BBCF7 |
 | onAccent, onDanger | Label on accent and danger fills | #FFFFFF | #FFFFFF, #2A0905 |
 
 Run `python3 tools/check_contrast.py` after any colour change. It must report `FAILURES: 0`.
 
 ## Typography
-- Never bundle fonts and never set a font family. Use `QFontDatabase::systemFont(QFontDatabase::GeneralFont)` and `QFontDatabase::systemFont(QFontDatabase::FixedFont)` for data, paths, addresses and payloads.
-- Windows: keep Segoe UI for text. Qt 6 draws Segoe UI Variable at the wrong weight through DirectWrite (every regular label comes out semi-bold), so do not select it. Use Consolas for the fixed font when present (the Qt default is Courier New). Both ship with the OS, nothing is bundled. See design-deviations.
+- Never set a font family outside `Theme`. Text uses `QFontDatabase::systemFont(QFontDatabase::GeneralFont)`. Data, paths, addresses and payloads use the bundled IBM Plex Mono (`assets/fonts`, registered by `Theme`), so byte columns line up on every platform. Noto Sans Hebrew and Noto Sans Arabic are bundled too and are tried after the system font for glyphs it lacks. No other font is bundled. See design-deviations.
+- Windows: keep Segoe UI for text. Qt 6 draws Segoe UI Variable at the wrong weight through DirectWrite (every regular label comes out semi-bold), so do not select it. The fixed font is the bundled IBM Plex Mono, not Consolas or the Qt default (Courier New). See design-deviations.
 - Request the unhinted outline (`QFont::PreferNoHinting`) and `QFont::PreferAntialias`, and set `Qt::HighDpiScaleFactorRoundingPolicy::PassThrough` before the `QApplication` is built, so 125 and 150 percent displays are not rounded and resampled.
 - Every style lands on a whole number of logical pixels (body 13, caption, label and group 12, large and heading 14, subtitle 16, title 20, display 28, port name 44). A fractional size such as 11.08 px is the cause of soft, uneven text. Convert to points with the screen's logical DPI so Qt gets the same whole pixel size back.
 - Implement the scale as ratios of the system font's size (never below the 13px design body) so OS text size is honoured: caption and label 0.923, body 1.0, body large 1.077, subtitle 1.231, title 1.538, display 2.0, port name 3.385 (fixed font, weight 500), data 0.923 (fixed font). Weights: labels, headings, group labels, titles and display 600, button 500. Group labels are upper case with 6 percent extra tracking, set in `Theme::font(text_style::group)`.
