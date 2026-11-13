@@ -413,7 +413,7 @@ TEST_CASE("plugin verify: a revocation list that is not understood is refused")
     {
         many += i == 0 ? "\"k\"" : ",\"k\"";
     }
-    many += "]";
+    many += ']';
     require_revocations_refused(with(many), "more than 4096 entries");
 
     std::string large = with(R"("key_ids": [])");
