@@ -99,6 +99,12 @@ constexpr std::array expected_operations{
     expected_row{control::operation::ports_list, "ports.list",
                  control::scope::monitor},
     expected_row{control::operation::endpoint_stop, "endpoint.stop",
+                 control::scope::admin},
+    expected_row{control::operation::tokens_create, "tokens.create",
+                 control::scope::admin},
+    expected_row{control::operation::tokens_list, "tokens.list",
+                 control::scope::admin},
+    expected_row{control::operation::tokens_revoke, "tokens.revoke",
                  control::scope::admin}};
 
 } // namespace
@@ -115,6 +121,79 @@ TEST_CASE("control proto: every request survives the wire")
     REQUIRE(round_trip(list) == list);
     const control::request stop{10, control::endpoint_stop_request{}};
     REQUIRE(round_trip(stop) == stop);
+
+    control::hello_request with_token{1, "rig"};
+    with_token.token = control::secret_string(std::string_view(
+        "vsst1_aaaaaaaaaaaaa_"
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"));
+    const control::request tokened{11, with_token};
+    REQUIRE(round_trip(tokened) == tokened);
+    const control::request create{
+        12, control::tokens_create_request{
+                "Lab rig 3", {"monitor", "monitor.data"}, 86400}};
+    REQUIRE(round_trip(create) == create);
+    const control::request listing{13, control::tokens_list_request{}};
+    REQUIRE(round_trip(listing) == listing);
+    const control::request revoke{
+        14, control::tokens_revoke_request{"aaaaaaaaaaaaa"}};
+    REQUIRE(round_trip(revoke) == revoke);
+}
+
+TEST_CASE("control proto: a hello's token is text of a token's size at most")
+{
+    const auto with = [](const std::string& token)
+    {
+        return control::decode_request(header_frame(
+            R"({"id":1,"op":"hello","api":1,"token":)" + token + "}"));
+    };
+    const auto good = with("\"" + std::string(72, 'a') + "\"");
+    REQUIRE(good);
+    const auto* hello = std::get_if<control::hello_request>(&good->body);
+    REQUIRE(hello != nullptr);
+    REQUIRE_EQ(hello->token.size(), std::size_t{72});
+    // No token and an empty one are the same: none.
+    const auto none = with("\"\"");
+    REQUIRE(none);
+    REQUIRE(std::get<control::hello_request>(none->body).token.empty());
+
+    REQUIRE(!with("\"" + std::string(control::max_token_text_size + 1, 'a') +
+                  "\""));
+    REQUIRE(!with("12345"));
+    REQUIRE(!with("null"));
+    REQUIRE(!with("[\"a\"]"));
+}
+
+TEST_CASE("control proto: the token replies survive the wire")
+{
+    control::token_entry entry;
+    entry.id = "aaaaaaaaaaaaa";
+    entry.label = "Lab rig 3";
+    entry.scopes = {"monitor"};
+    entry.transports = {"local"};
+    entry.created_ms = 1'800'000'000'000;
+    entry.expires_ms = 1'802'592'000'000;
+    entry.last_used_ms = 0;
+
+    control::token_created_reply created;
+    created.token = control::secret_string(std::string_view("vsst1_x_y"));
+    created.entry = entry;
+    const control::reply made{5, created};
+    REQUIRE(round_trip(made) == made);
+
+    control::token_entry used = entry;
+    used.id = "bbbbbbbbbbbbb";
+    used.last_used_ms = 1'800'000'100'000;
+    used.revoked = true;
+    control::tokens_reply listed;
+    listed.tokens = {entry, used};
+    const control::reply list{6, listed};
+    REQUIRE(round_trip(list) == list);
+
+    // A token reply without its entry, or a list entry short of a field.
+    REQUIRE(!control::decode_reply(
+        header_frame(R"({"id":1,"reply":"token","token":"t"})")));
+    REQUIRE(!control::decode_reply(header_frame(
+        R"({"id":1,"reply":"tokens","tokens":[{"id":"a","label":"b"}]})")));
 }
 
 TEST_CASE("control proto: every reply survives the wire")
@@ -206,7 +285,7 @@ TEST_CASE("control proto: a request that is not one is refused")
 
 TEST_CASE("control proto: an operation that does not exist is unsupported")
 {
-    for (const char* name : {"ports.create", "tokens.create", "HELLO", "",
+    for (const char* name : {"ports.create", "tokens.forge", "HELLO", "",
                              "status ", "endpoint.enable"})
     {
         const auto decoded = control::decode_request(
@@ -459,15 +538,19 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
             REQUIRE(row.required.has_value());
         }
     }
-    // What stops the gateway is recorded each time.
+    // What stops the gateway or changes who may connect is recorded each
+    // time.
     REQUIRE(control::info_of(control::operation::endpoint_stop).mutating);
+    REQUIRE(control::info_of(control::operation::tokens_create).mutating);
+    REQUIRE(control::info_of(control::operation::tokens_revoke).mutating);
+    REQUIRE(!control::info_of(control::operation::tokens_list).mutating);
     REQUIRE(control::find_operation("ports.remove") == nullptr);
     REQUIRE(control::find_operation("") == nullptr);
 }
 
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 4 * 256 * 4
+    // Every operation, every set of scopes, every transport: 7 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -545,6 +628,16 @@ TEST_CASE("control policy: the cases a person would ask about")
     // The administration endpoint may.
     REQUIRE(
         may(admin, control::every_scope(), control::operation::endpoint_stop));
+    // Tokens are administration: no scope a token or the public endpoint
+    // can hold reaches them.
+    for (const control::operation wanted :
+         {control::operation::tokens_create, control::operation::tokens_list,
+          control::operation::tokens_revoke})
+    {
+        REQUIRE(!may(local, control::every_scope(), wanted));
+        REQUIRE(!may(control::transport::tls, control::every_scope(), wanted));
+        REQUIRE(may(admin, control::every_scope(), wanted));
+    }
     // No scopes at all: nothing but hello.
     REQUIRE(!may(local, {}, control::operation::status));
     REQUIRE(!may(local, {}, control::operation::ports_list));

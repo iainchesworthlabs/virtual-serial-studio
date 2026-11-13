@@ -38,6 +38,11 @@ constexpr std::array operation_rows{
     operation_info{operation::status, "status", scope::monitor, false},
     operation_info{operation::ports_list, "ports.list", scope::monitor, false},
     operation_info{operation::endpoint_stop, "endpoint.stop", scope::admin,
+                   true},
+    operation_info{operation::tokens_create, "tokens.create", scope::admin,
+                   true},
+    operation_info{operation::tokens_list, "tokens.list", scope::admin, false},
+    operation_info{operation::tokens_revoke, "tokens.revoke", scope::admin,
                    true}};
 
 } // namespace

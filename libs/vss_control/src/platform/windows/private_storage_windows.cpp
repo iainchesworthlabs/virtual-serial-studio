@@ -19,9 +19,15 @@
 //              inherited by child processes.  A new file takes the access list
 //              of its directory.  A directory or a reparse point in place of
 //              the file is refused.
+//   replace    the whole file: written to `<path>.tmp`, which nobody else can
+//              open while it is written, flushed, and moved over the target
+//              with MoveFileExW; the temporary file is removed when anything
+//              fails.  Reading opens the file shared for reading only, and a
+//              directory or a reparse point is refused.
+//   random     BCryptGenRandom with the system-preferred generator.
 //
-// This file needs shell32 (SHGetKnownFolderPath), ole32 (CoTaskMemFree) and
-// advapi32 (the security functions).
+// This file needs shell32 (SHGetKnownFolderPath), ole32 (CoTaskMemFree),
+// advapi32 (the security functions) and bcrypt (BCryptGenRandom).
 //
 
 #include "platform/private_storage_platform.hpp"
@@ -29,12 +35,15 @@
 #include <windows.h>
 
 #include <aclapi.h>
+#include <bcrypt.h>
 #include <sddl.h>
 #include <shlobj.h>
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -161,6 +170,59 @@ error_code check_existing_directory(const std::filesystem::path& directory,
     return make_error_code(errc::permission_denied);
 }
 
+/// Writes all of `bytes` to a handle, in pieces that `WriteFile` takes.
+error_code write_all(HANDLE handle, std::string_view bytes)
+{
+    constexpr std::size_t longest_write = std::size_t{1} << 20;
+    std::size_t done = 0;
+    while (done < bytes.size())
+    {
+        const std::size_t left = bytes.size() - done;
+        const DWORD count =
+            static_cast<DWORD>(left < longest_write ? left : longest_write);
+        DWORD written = 0;
+        if (::WriteFile(handle, bytes.data() + done, count, &written,
+                        nullptr) == 0)
+            return system_error(::GetLastError());
+        if (written == 0)
+            return make_error_code(errc::io_error);
+        done += written;
+    }
+    return {};
+}
+
+/// Makes `temporary` (emptying it when it exists), writes `bytes` and flushes
+/// them to the disk.  Nobody else can open the file meanwhile.  The file is
+/// closed when this returns.
+error_code write_temporary_file(const std::wstring& temporary,
+                                std::string_view bytes)
+{
+    // FILE_READ_ATTRIBUTES lets the handle be asked what it is, below.
+    handle_owner handle(::CreateFileW(
+        temporary.c_str(), GENERIC_WRITE | FILE_READ_ATTRIBUTES, 0, nullptr,
+        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT,
+        nullptr));
+    if (handle.get() == INVALID_HANDLE_VALUE)
+    {
+        const DWORD failed = ::GetLastError();
+        static_cast<void>(handle.release());
+        return system_error(failed);
+    }
+
+    BY_HANDLE_FILE_INFORMATION information{};
+    if (::GetFileInformationByHandle(handle.get(), &information) == 0)
+        return system_error(::GetLastError());
+    if ((information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
+        (information.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+        return make_error_code(errc::permission_denied);
+
+    if (const error_code failed = write_all(handle.get(), bytes))
+        return failed;
+    if (::FlushFileBuffers(handle.get()) == 0)
+        return system_error(::GetLastError());
+    return {};
+}
+
 class windows_file final : public private_file
 {
 public:
@@ -168,22 +230,7 @@ public:
 
     error_code append(std::string_view bytes) override
     {
-        constexpr std::size_t longest_write = std::size_t{1} << 20;
-        std::size_t done = 0;
-        while (done < bytes.size())
-        {
-            const std::size_t left = bytes.size() - done;
-            const DWORD count =
-                static_cast<DWORD>(left < longest_write ? left : longest_write);
-            DWORD written = 0;
-            if (::WriteFile(handle_.get(), bytes.data() + done, count, &written,
-                            nullptr) == 0)
-                return system_error(::GetLastError());
-            if (written == 0)
-                return make_error_code(errc::io_error);
-            done += written;
-        }
-        return {};
+        return write_all(handle_.get(), bytes);
     }
 
 private:
@@ -271,6 +318,100 @@ open_private_append(const std::filesystem::path& path)
 
     return std::unique_ptr<private_file>(
         std::make_unique<windows_file>(std::move(handle)));
+}
+
+error_code write_private_file(const std::filesystem::path& path,
+                              std::string_view bytes)
+{
+    std::filesystem::path temporary = path;
+    temporary += ".tmp";
+    const std::wstring temporary_text = temporary.wstring();
+    const std::wstring path_text = path.wstring();
+
+    error_code failed = write_temporary_file(temporary_text, bytes);
+    // The handle is closed by now, so the file can be moved.  A reader that has
+    // the target open without sharing for deletion makes the move fail, and
+    // the old content stays.
+    if (!failed &&
+        ::MoveFileExW(temporary_text.c_str(), path_text.c_str(),
+                      MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) == 0)
+        failed = system_error(::GetLastError());
+    // Whatever went wrong, no half-written file is left beside the target.
+    if (failed)
+        static_cast<void>(::DeleteFileW(temporary_text.c_str()));
+    return failed;
+}
+
+result<std::string> read_private_file(const std::filesystem::path& path,
+                                      std::size_t limit)
+{
+    const std::wstring text = path.wstring();
+    handle_owner handle(::CreateFileW(
+        text.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+    if (handle.get() == INVALID_HANDLE_VALUE)
+    {
+        const DWORD failed = ::GetLastError();
+        static_cast<void>(handle.release());
+        if (failed == ERROR_FILE_NOT_FOUND || failed == ERROR_PATH_NOT_FOUND)
+            return make_error_code(errc::not_found);
+        // A directory cannot be opened as a file, and says so this way.
+        if (failed == ERROR_ACCESS_DENIED)
+            return make_error_code(errc::permission_denied);
+        return system_error(failed);
+    }
+
+    BY_HANDLE_FILE_INFORMATION information{};
+    if (::GetFileInformationByHandle(handle.get(), &information) == 0)
+        return system_error(::GetLastError());
+    if ((information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
+        (information.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+        return make_error_code(errc::permission_denied);
+
+    LARGE_INTEGER size{};
+    if (::GetFileSizeEx(handle.get(), &size) == 0)
+        return system_error(::GetLastError());
+    if (size.QuadPart < 0 ||
+        static_cast<unsigned long long>(size.QuadPart) > limit)
+        return make_error_code(errc::invalid_argument);
+
+    // The file may grow after it was measured, so the limit is kept while
+    // reading too.
+    constexpr std::size_t chunk_size = std::size_t{64} * 1024;
+    std::string content;
+    for (;;)
+    {
+        const std::size_t used = content.size();
+        content.resize(used + chunk_size);
+        DWORD got = 0;
+        if (::ReadFile(handle.get(), content.data() + used,
+                       static_cast<DWORD>(chunk_size), &got, nullptr) == 0)
+            return system_error(::GetLastError());
+        content.resize(used + got);
+        if (got == 0)
+            return content;
+        if (content.size() > limit)
+            return make_error_code(errc::invalid_argument);
+    }
+}
+
+error_code random_bytes(std::span<std::uint8_t> out)
+{
+    // One request is limited to a ULONG; a megabyte at a time is plenty.
+    constexpr std::size_t longest_request = std::size_t{1} << 20;
+    std::size_t done = 0;
+    while (done < out.size())
+    {
+        const std::size_t left = out.size() - done;
+        const ULONG count =
+            static_cast<ULONG>(left < longest_request ? left : longest_request);
+        const NTSTATUS status = ::BCryptGenRandom(
+            nullptr, out.data() + done, count, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+        if (status < 0)
+            return make_error_code(errc::io_error);
+        done += count;
+    }
+    return {};
 }
 
 } // namespace vss::control::platform

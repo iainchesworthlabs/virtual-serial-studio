@@ -137,6 +137,13 @@ class Checker
 public:
     explicit Checker(QStringList& failures) : failures_(failures) {}
 
+    void use(theme_mode mode)
+    {
+        mode_ = mode;
+        Theme::instance().set_mode(mode);
+        QApplication::processEvents();
+    }
+
     void run(QWidget& root, const QString& label)
     {
         root.show();
@@ -144,19 +151,13 @@ public:
         // window, and then nothing can take focus.
         root.activateWindow();
         QApplication::processEvents();
-        Theme::instance().set_mode(theme_mode::light);
-        QApplication::processEvents();
-        check_tree(root, label);
-        const bool capture = !qEnvironmentVariable("VSS_QA_SHOTS").isEmpty();
-        if (capture)
-            grab(root, label + QStringLiteral("-light"));
-        Theme::instance().set_mode(theme_mode::dark);
-        QApplication::processEvents();
-        check_tree(root, label + QStringLiteral(" (dark)"));
-        if (capture)
-            grab(root, label + QStringLiteral("-dark"));
-        Theme::instance().set_mode(theme_mode::light);
-        QApplication::processEvents();
+        const bool dark = mode_ == theme_mode::dark;
+        check_tree(root, dark ? label + QStringLiteral(" (dark)") : label);
+        if (!qEnvironmentVariable("VSS_QA_SHOTS").isEmpty())
+        {
+            grab(root, label + (dark ? QStringLiteral("-dark")
+                                     : QStringLiteral("-light")));
+        }
     }
 
     void compact(QWidget& root, const QString& label)
@@ -166,13 +167,9 @@ public:
         const QSize original = root.size();
         root.resize(960, 640);
         QApplication::processEvents();
-        Theme::instance().set_mode(theme_mode::light);
-        QApplication::processEvents();
-        grab(root, label + QStringLiteral("-compact-light"));
-        Theme::instance().set_mode(theme_mode::dark);
-        QApplication::processEvents();
-        grab(root, label + QStringLiteral("-compact-dark"));
-        Theme::instance().set_mode(theme_mode::light);
+        grab(root, label + (mode_ == theme_mode::dark
+                                ? QStringLiteral("-compact-dark")
+                                : QStringLiteral("-compact-light")));
         root.resize(original);
         QApplication::processEvents();
     }
@@ -286,6 +283,7 @@ private:
     }
 
     QStringList& failures_;
+    theme_mode mode_ = theme_mode::light;
 };
 
 void configure_fake(FakeStudioBackend& backend)
@@ -313,141 +311,157 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
     // Every failure from every check is appended to one list for the caller.
     Checker checker(failures);
 
-    // The real main window is checked when one was given; the dialogs below
-    // are always built against a fake backend.
-    if (main_window != nullptr)
+    // Every window is walked once in the light theme and once in the dark
+    // one.  Switching the theme restyles every live widget, which is by far
+    // the slowest step of the walk, so it happens twice in all and not twice
+    // for each window.  Each pass builds its own fake backend because some
+    // of the dialogs change it.
+    for (const theme_mode mode : {theme_mode::light, theme_mode::dark})
     {
-        checker.run(*main_window, QStringLiteral("main-window"));
-        checker.compact(*main_window, QStringLiteral("main-window"));
-    }
-
-    // No real driver or hub is touched. The fake gets two virtual ports to
-    // link and a mock port to act as a fixture.
-    FakeStudioBackend backend;
-    configure_fake(backend);
-    const auto alpha = backend.create_virtual_port(
-        QStringLiteral("alpha"), vss::virtual_port_kind::pty, true);
-    const auto beta = backend.create_virtual_port(
-        QStringLiteral("beta"), vss::virtual_port_kind::pty, true);
-    const auto fixture = backend.create_mock_port(QStringLiteral("fixture"), {},
-                                                  QStringLiteral("scripted"));
-    // Without these ports most dialogs cannot be built, so report it and stop.
-    if (!alpha || !beta || !fixture)
-    {
-        failures << QStringLiteral(
-            "the accessibility fixture could not be built");
-        return failures;
-    }
-
-    {
-        // One dialog per block so each is destroyed before the next is built.
-        // Each is only shown, never run modally, so this cannot block.
-        AddPortDialog dialog(backend, true);
-        checker.run(dialog, QStringLiteral("add-port"));
-    }
-    {
-        PortReadyDialog dialog(backend, *alpha, QStringLiteral("auto"), true);
-        checker.run(dialog, QStringLiteral("port-ready"));
-    }
-    {
-        PairDialog dialog(backend, true);
-        checker.run(dialog, QStringLiteral("pair"));
-    }
-    {
-        AttachDialog dialog(backend, true);
-        checker.run(dialog, QStringLiteral("attach"));
-    }
-    {
-        WatchDialog dialog(backend, *alpha);
-        checker.run(dialog, QStringLiteral("watch"));
-    }
-    {
-        RenameDialog dialog(backend, *alpha);
-        checker.run(dialog, QStringLiteral("rename"));
-    }
-    {
-        ConnectPortsDialog dialog(backend, *alpha, true);
-        checker.run(dialog, QStringLiteral("connect-ports"));
-    }
-    {
-        // Walk the wizard page by page, stopping if a step is refused.
-        ShareWizard dialog(backend, true);
-        checker.run(dialog, QStringLiteral("share-step1"));
-        if (dialog.next())
+        checker.use(mode);
+        // The real main window is checked when one was given; the dialogs below
+        // are always built against a fake backend.
+        if (main_window != nullptr)
         {
-            checker.run(dialog, QStringLiteral("share-step2"));
-            if (dialog.share())
-                checker.run(dialog, QStringLiteral("share-step3"));
+            checker.run(*main_window, QStringLiteral("main-window"));
+            checker.compact(*main_window, QStringLiteral("main-window"));
+        }
+
+        // No real driver or hub is touched. The fake gets two virtual ports to
+        // link and a mock port to act as a fixture.
+        FakeStudioBackend backend;
+        configure_fake(backend);
+        const auto alpha = backend.create_virtual_port(
+            QStringLiteral("alpha"), vss::virtual_port_kind::pty, true);
+        const auto beta = backend.create_virtual_port(
+            QStringLiteral("beta"), vss::virtual_port_kind::pty, true);
+        const auto fixture = backend.create_mock_port(
+            QStringLiteral("fixture"), {}, QStringLiteral("scripted"));
+        // Without these ports most dialogs cannot be built, so report it and
+        // stop.
+        if (!alpha || !beta || !fixture)
+        {
+            failures << QStringLiteral(
+                "the accessibility fixture could not be built");
+            return failures;
+        }
+
+        {
+            // One dialog per block so each is destroyed before the next is
+            // built. Each is only shown, never run modally, so this cannot
+            // block.
+            AddPortDialog dialog(backend, true);
+            checker.run(dialog, QStringLiteral("add-port"));
+        }
+        {
+            PortReadyDialog dialog(backend, *alpha, QStringLiteral("auto"),
+                                   true);
+            checker.run(dialog, QStringLiteral("port-ready"));
+        }
+        {
+            PairDialog dialog(backend, true);
+            checker.run(dialog, QStringLiteral("pair"));
+        }
+        {
+            AttachDialog dialog(backend, true);
+            checker.run(dialog, QStringLiteral("attach"));
+        }
+        {
+            WatchDialog dialog(backend, *alpha);
+            checker.run(dialog, QStringLiteral("watch"));
+        }
+        {
+            RenameDialog dialog(backend, *alpha);
+            checker.run(dialog, QStringLiteral("rename"));
+        }
+        {
+            ConnectPortsDialog dialog(backend, *alpha, true);
+            checker.run(dialog, QStringLiteral("connect-ports"));
+        }
+        {
+            // Walk the wizard page by page, stopping if a step is refused.
+            ShareWizard dialog(backend, true);
+            checker.run(dialog, QStringLiteral("share-step1"));
+            if (dialog.next())
+            {
+                checker.run(dialog, QStringLiteral("share-step2"));
+                if (dialog.share())
+                    checker.run(dialog, QStringLiteral("share-step3"));
+            }
+        }
+        {
+            NetworkEndpointDialog dialog(backend, true, *alpha);
+            checker.run(dialog, QStringLiteral("network-endpoint"));
+        }
+        {
+            TemplatesDialog dialog(backend);
+            checker.run(dialog, QStringLiteral("templates"));
+        }
+        {
+            AddFixtureDialog dialog(backend, *alpha);
+            checker.run(dialog, QStringLiteral("add-fixture"));
+        }
+        {
+            WiringDialog dialog(backend, *fixture);
+            checker.run(dialog, QStringLiteral("wiring"));
+        }
+        {
+            BenchmarkDialog dialog(backend);
+            checker.run(dialog, QStringLiteral("benchmark"));
+        }
+        {
+            ExportCommandDialog dialog(backend, QStringLiteral("setup.json"));
+            checker.run(dialog, QStringLiteral("export-command"));
+        }
+        {
+            // Dialogs from the support area follow: setup, troubleshooting, the
+            // event log, settings, about, shortcuts and help.
+            support::SetupCheckDialog dialog(backend);
+            checker.run(dialog, QStringLiteral("setup-check"));
+        }
+        {
+            support::TroubleshootDialog dialog(backend, *alpha);
+            checker.run(dialog, QStringLiteral("troubleshoot"));
+        }
+        {
+            support::EventLog log;
+            support::DiagnosticBundleDialog dialog(backend, log);
+            checker.run(dialog, QStringLiteral("diagnostic-bundle"));
+        }
+        {
+            support::SettingsDialog dialog(backend,
+                                           support::load_ui_settings());
+            checker.run(dialog, QStringLiteral("settings"));
+        }
+        {
+            support::AboutDialog dialog;
+            checker.run(dialog, QStringLiteral("about"));
+        }
+        {
+            support::ShortcutsDialog dialog(shortcut_entries(registry));
+            checker.run(dialog, QStringLiteral("shortcuts"));
+        }
+        {
+            support::HelpContentsDialog dialog;
+            checker.run(dialog, QStringLiteral("help-contents"));
+        }
+        {
+            // The generic confirm and error dialogs are checked with sample
+            // text.
+            ConfirmDialog dialog(
+                QStringLiteral("Remove port"), QStringLiteral("Remove alpha?"),
+                QStringLiteral("Remove"), QStringLiteral("Cancel"), true);
+            checker.run(dialog, QStringLiteral("confirm"));
+        }
+        {
+            ErrorDialog dialog(QStringLiteral("Could not open COM3"),
+                               QStringLiteral("The device is in use."),
+                               QStringLiteral("access denied"));
+            checker.run(dialog, QStringLiteral("error"));
         }
     }
-    {
-        NetworkEndpointDialog dialog(backend, true, *alpha);
-        checker.run(dialog, QStringLiteral("network-endpoint"));
-    }
-    {
-        TemplatesDialog dialog(backend);
-        checker.run(dialog, QStringLiteral("templates"));
-    }
-    {
-        AddFixtureDialog dialog(backend, *alpha);
-        checker.run(dialog, QStringLiteral("add-fixture"));
-    }
-    {
-        WiringDialog dialog(backend, *fixture);
-        checker.run(dialog, QStringLiteral("wiring"));
-    }
-    {
-        BenchmarkDialog dialog(backend);
-        checker.run(dialog, QStringLiteral("benchmark"));
-    }
-    {
-        ExportCommandDialog dialog(backend, QStringLiteral("setup.json"));
-        checker.run(dialog, QStringLiteral("export-command"));
-    }
-    {
-        // Dialogs from the support area follow: setup, troubleshooting, the
-        // event log, settings, about, shortcuts and help.
-        support::SetupCheckDialog dialog(backend);
-        checker.run(dialog, QStringLiteral("setup-check"));
-    }
-    {
-        support::TroubleshootDialog dialog(backend, *alpha);
-        checker.run(dialog, QStringLiteral("troubleshoot"));
-    }
-    {
-        support::EventLog log;
-        support::DiagnosticBundleDialog dialog(backend, log);
-        checker.run(dialog, QStringLiteral("diagnostic-bundle"));
-    }
-    {
-        support::SettingsDialog dialog(backend, support::load_ui_settings());
-        checker.run(dialog, QStringLiteral("settings"));
-    }
-    {
-        support::AboutDialog dialog;
-        checker.run(dialog, QStringLiteral("about"));
-    }
-    {
-        support::ShortcutsDialog dialog(shortcut_entries(registry));
-        checker.run(dialog, QStringLiteral("shortcuts"));
-    }
-    {
-        support::HelpContentsDialog dialog;
-        checker.run(dialog, QStringLiteral("help-contents"));
-    }
-    {
-        // The generic confirm and error dialogs are checked with sample text.
-        ConfirmDialog dialog(
-            QStringLiteral("Remove port"), QStringLiteral("Remove alpha?"),
-            QStringLiteral("Remove"), QStringLiteral("Cancel"), true);
-        checker.run(dialog, QStringLiteral("confirm"));
-    }
-    {
-        ErrorDialog dialog(QStringLiteral("Could not open COM3"),
-                           QStringLiteral("The device is in use."),
-                           QStringLiteral("access denied"));
-        checker.run(dialog, QStringLiteral("error"));
-    }
+    Theme::instance().set_mode(theme_mode::light);
+    QApplication::processEvents();
 
     return failures;
 }

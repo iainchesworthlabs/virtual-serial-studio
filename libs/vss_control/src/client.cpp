@@ -101,6 +101,10 @@ public:
         }
     }
 
+    /// Wipes the token the options came with.  Called once the hello is
+    /// answered: after that the client has no use for it and keeps none.
+    void forget_token() { options_.token = secret_string(); }
+
     hello_reply hello;
     std::string last_message;
 
@@ -227,7 +231,9 @@ result<std::unique_ptr<client>> client::connect(const client_options& options)
     hello_request greeting;
     greeting.api = api_version;
     greeting.client = options.name;
+    greeting.token = options.token;
     auto answer = state->call(std::move(greeting));
+    state->forget_token();
     if (!answer)
         return answer.error();
     auto* welcome = std::get_if<hello_reply>(&*answer);
@@ -269,6 +275,47 @@ result<ports_reply> client::list_ports()
 result<void> client::stop()
 {
     auto answer = impl_->call(endpoint_stop_request{});
+    if (!answer)
+        return answer.error();
+    if (!std::holds_alternative<done_reply>(*answer))
+        return make_error_code(api_errc::invalid_argument);
+    return {};
+}
+
+result<token_created_reply>
+client::create_token(const std::string& label,
+                     const std::vector<std::string>& scopes,
+                     std::uint64_t life_s)
+{
+    tokens_create_request asking;
+    asking.label = label;
+    asking.scopes = scopes;
+    asking.life_s = life_s;
+    auto answer = impl_->call(std::move(asking));
+    if (!answer)
+        return answer.error();
+    auto* created = std::get_if<token_created_reply>(&*answer);
+    if (created == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(*created);
+}
+
+result<tokens_reply> client::list_tokens()
+{
+    auto answer = impl_->call(tokens_list_request{});
+    if (!answer)
+        return answer.error();
+    auto* listed = std::get_if<tokens_reply>(&*answer);
+    if (listed == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(*listed);
+}
+
+result<void> client::revoke_token(const std::string& id)
+{
+    tokens_revoke_request asking;
+    asking.id = id;
+    auto answer = impl_->call(std::move(asking));
     if (!answer)
         return answer.error();
     if (!std::holds_alternative<done_reply>(*answer))

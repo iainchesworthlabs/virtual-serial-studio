@@ -22,6 +22,9 @@
 #include <vss/control/client.hpp>
 #include <vss/control/gateway.hpp>
 #include <vss/control/proto/message.hpp>
+#include <vss/control/proto/secret.hpp>
+#include <vss/control/proto/token.hpp>
+#include <vss/control/token_store.hpp>
 #include <vss/core/bytes.hpp>
 #include <vss/studio/studio.hpp>
 
@@ -40,6 +43,7 @@
 #include <filesystem>
 #include <fstream>
 #include <functional>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <random>
@@ -635,7 +639,12 @@ TEST_CASE("control gateway: before hello every request is refused the same "
         wire_of(control::request{1, control::ports_list_request{}}),
         wire_of(control::request{1, control::endpoint_stop_request{}}),
         // An operation that does not exist: the caller does not learn that.
-        wire_of_header(R"({"id":1,"op":"tokens.create"})"),
+        wire_of_header(R"({"id":1,"op":"tokens.forge"})"),
+        // Operations that exist, and that only administration may use.
+        wire_of_header(R"({"id":1,"op":"tokens.list"})"),
+        wire_of_header(
+            R"({"id":1,"op":"tokens.create","label":"x","scopes":["monitor"],)"
+            R"("life_s":0})"),
         // Not a request at all.
         wire_of_header(R"({"hello":true})"), wire_of_header("[]"),
         // A hello with no version.
@@ -1322,4 +1331,503 @@ TEST_CASE("control transport: each end learns from the system who the other "
     REQUIRE_EQ(client->process_id, server->process_id);
     REQUIRE(!client->program.empty());
     REQUIRE_EQ(client->program, server->program);
+}
+
+// -- tokens ------------------------------------------------------------------
+
+namespace
+{
+
+/// A token made through the administration endpoint, as a person would.
+control::token_created_reply make_token(fixture& env, control::scope_set scopes,
+                                        std::uint64_t life_s = 0)
+{
+    auto admin = env.connect(true, "token maker");
+    auto made =
+        admin->create_token("test token", control::scope_names(scopes), life_s);
+    REQUIRE(made);
+    return std::move(*made);
+}
+
+/// Connects to the public endpoint as a token.
+vss::result<std::unique_ptr<control::client>>
+connect_with(fixture& env, const control::secret_string& token)
+{
+    control::client_options options;
+    options.instance = env.instance.name();
+    options.name = "token client";
+    options.token = token;
+    return control::client::connect(options);
+}
+
+vss::byte_buffer hello_with(const control::secret_string& token)
+{
+    control::hello_request greeting;
+    greeting.client = "raw token";
+    greeting.token = token;
+    return wire_of(control::request{1, greeting});
+}
+
+/// The token with its last character changed: the right id, a wrong secret.
+control::secret_string wrong_secret(const control::secret_string& token)
+{
+    std::string text(token.expose());
+    text.back() = text.back() == 'a' ? 'b' : 'a';
+    return control::secret_string(text);
+}
+
+/// The token with the first character of its id changed: no such token.
+control::secret_string wrong_id(const control::secret_string& token)
+{
+    std::string text(token.expose());
+    char& first = text[control::token_prefix.size() + 1];
+    first = first == 'a' ? 'b' : 'a';
+    return control::secret_string(text);
+}
+
+/// The bytes of every file in the gateway's directory.
+std::string everything_kept(const std::filesystem::path& directory)
+{
+    std::string out;
+    for (const auto& entry : std::filesystem::directory_iterator(directory))
+    {
+        std::ifstream file(entry.path(), std::ios::binary);
+        out.append(std::istreambuf_iterator<char>(file),
+                   std::istreambuf_iterator<char>());
+        out.push_back('\n');
+    }
+    return out;
+}
+
+bool holds(const std::string& haystack, std::string_view needle)
+{
+    return haystack.find(needle) != std::string::npos;
+}
+
+/// A clock a test moves by hand, for a gateway.
+struct shared_time
+{
+    std::shared_ptr<control::wall_clock::time_point> now =
+        std::make_shared<control::wall_clock::time_point>(
+            control::wall_clock::now());
+
+    control::token_store::time_source source() const
+    {
+        return [shared = now] { return *shared; };
+    }
+};
+
+} // namespace
+
+TEST_CASE("control gateway: a token is its own principal with its own scopes")
+{
+    fixture env;
+    REQUIRE(env.backend->app.create_virtual_port(
+        "tokened", vss::virtual_port_kind::loopback));
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+    REQUIRE(control::parse_token(made.token).has_value());
+    REQUIRE(made.entry.scopes == std::vector<std::string>{"monitor"});
+    REQUIRE(made.entry.transports == std::vector<std::string>{"local"});
+    REQUIRE(!made.entry.revoked);
+    REQUIRE(made.entry.expires_ms > made.entry.created_ms);
+
+    auto connected = connect_with(env, made.token);
+    REQUIRE(connected);
+    control::client& client = **connected;
+    REQUIRE_EQ(client.gateway().principal, "token:" + made.entry.id);
+    REQUIRE(client.gateway().scopes == std::vector<std::string>{"monitor"});
+    const auto listed = client.list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{1});
+
+    // A token that may record and nothing else is a principal that cannot
+    // read the ports: its scopes are its own, not the local user's.
+    const control::token_created_reply narrow =
+        make_token(env, control::scope_set{control::scope::record});
+    auto limited = connect_with(env, narrow.token);
+    REQUIRE(limited);
+    REQUIRE((*limited)->gateway().scopes == std::vector<std::string>{"record"});
+    const auto refused = (*limited)->list_ports();
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), code(control::api_errc::forbidden));
+
+    const auto opened =
+        records_of(audit_records(env.audit_directory), "session.opened");
+    bool seen = false;
+    for (const json::object& record : opened)
+    {
+        if (text_of(record, "principal") == "token:" + made.entry.id)
+            seen = true;
+    }
+    REQUIRE(seen);
+}
+
+TEST_CASE("control gateway: the endpoint's ceiling cuts a token down")
+{
+    control::gateway_options options;
+    options.local_ceiling = control::role_monitor();
+    fixture env(options);
+    const control::token_created_reply made =
+        make_token(env, control::role_control());
+    auto connected = connect_with(env, made.token);
+    REQUIRE(connected);
+    REQUIRE((*connected)->gateway().scopes ==
+            std::vector<std::string>{"monitor"});
+}
+
+TEST_CASE("control gateway: tokens are made, listed and revoked on the "
+          "administration endpoint only")
+{
+    fixture env;
+    const control::token_created_reply made =
+        make_token(env, control::role_control_apply());
+
+    // The local user on the public endpoint, and a token with every scope a
+    // token can have.
+    auto local = env.connect();
+    auto tokened = connect_with(env, made.token);
+    REQUIRE(tokened);
+    for (control::client* client : {local.get(), tokened->get()})
+    {
+        const auto created = client->create_token("sneaky", {"monitor"});
+        REQUIRE(!created);
+        REQUIRE_EQ(created.error(), code(control::api_errc::forbidden));
+        const auto listed = client->list_tokens();
+        REQUIRE(!listed);
+        REQUIRE_EQ(listed.error(), code(control::api_errc::forbidden));
+        const auto revoked = client->revoke_token(made.entry.id);
+        REQUIRE(!revoked);
+        REQUIRE_EQ(revoked.error(), code(control::api_errc::forbidden));
+    }
+    REQUIRE_EQ(env.gate.counters().forbidden, std::uint64_t{6});
+
+    // Nothing came of it: one token, still good.
+    auto admin = env.connect(true);
+    const auto listed = admin->list_tokens();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->tokens.size(), std::size_t{1});
+    REQUIRE_EQ(listed->tokens[0].id, made.entry.id);
+    REQUIRE(!listed->tokens[0].revoked);
+    REQUIRE(listed->tokens[0].last_used_ms != 0);
+    REQUIRE((*tokened)->status());
+}
+
+TEST_CASE("control gateway: no token holds admin, and a bad request makes no "
+          "token")
+{
+    fixture env;
+    auto admin = env.connect(true);
+    const auto invalid = [&](const std::vector<std::string>& scopes,
+                             std::uint64_t life_s, const std::string& label)
+    {
+        const auto made = admin->create_token(label, scopes, life_s);
+        return !made &&
+               made.error() == code(control::api_errc::invalid_argument);
+    };
+    REQUIRE(invalid({"admin"}, 0, "x"));
+    REQUIRE(invalid({"monitor", "admin"}, 0, "x"));
+    REQUIRE(invalid({"monitor", "root"}, 0, "x"));
+    REQUIRE(invalid({}, 0, "x"));
+    REQUIRE(invalid({"monitor"}, 366ULL * 24 * 3600, "x"));
+    REQUIRE(invalid({"monitor"}, 0, std::string(200, 'x')));
+    const auto listed = admin->list_tokens();
+    REQUIRE(listed);
+    REQUIRE(listed->tokens.empty());
+
+    const auto missing = admin->revoke_token("aaaaaaaaaaaaa");
+    REQUIRE(!missing);
+    REQUIRE_EQ(missing.error(), code(control::api_errc::not_found));
+
+    // Each attempt is in the audit log with how it ended.
+    const auto operations =
+        records_of(audit_records(env.audit_directory), "operation");
+    REQUIRE_EQ(operations.size(), std::size_t{7});
+    REQUIRE_EQ(text_of(operations[0], "operation"),
+               std::string("tokens.create"));
+    REQUIRE_EQ(text_of(operations[0], "outcome"),
+               std::string("invalid_argument"));
+    REQUIRE_EQ(text_of(operations[6], "outcome"), std::string("not_found"));
+}
+
+TEST_CASE("control gateway: every wrong token gets the same answer, and the "
+          "audit log knows why")
+{
+    const shared_time time;
+    control::gateway_options options;
+    options.clock = time.source();
+    options.audit_burst_period = 0ms;
+    // Enough free failures that none of these is slowed down.
+    options.auth_limits.free_failures = 100;
+    options.auth_limits.global_per_second = 1000;
+    fixture env(options);
+
+    const control::token_created_reply good =
+        make_token(env, control::role_monitor());
+    const control::token_created_reply revoked =
+        make_token(env, control::role_monitor());
+    const control::token_created_reply ended =
+        make_token(env, control::role_monitor(), 60);
+    REQUIRE(env.connect(true)->revoke_token(revoked.entry.id));
+    *time.now += std::chrono::seconds(120);
+
+    struct attempt
+    {
+        control::secret_string token;
+        bool admin;
+        std::string reason;
+    };
+    const std::vector<attempt> attempts{
+        {wrong_secret(good.token), false, "wrong_secret"},
+        {wrong_id(good.token), false, "unknown"},
+        {control::secret_string(std::string_view("not-a-token")), false,
+         "malformed"},
+        {control::secret_string(std::string(control::token_size, 'a')), false,
+         "malformed"},
+        {revoked.token, false, "revoked"},
+        {ended.token, false, "expired"},
+        // A good token, on the endpoint that takes none.
+        {good.token, true, "token_on_admin_endpoint"}};
+
+    const control::api_error expected =
+        control::to_api_error(control::api_errc::unauthenticated);
+    for (const attempt& tried : attempts)
+    {
+        raw_client raw(env.instance.name(), tried.admin);
+        REQUIRE(raw.send(hello_with(tried.token)));
+        const auto received = raw.read_frame();
+        REQUIRE(received.has_value());
+        // The reply does not hold what was presented.
+        REQUIRE(!holds(received->header, tried.token.expose()));
+        const auto answer = control::decode_reply(*received);
+        REQUIRE(answer);
+        REQUIRE_EQ(answer->id, std::uint64_t{1});
+        // The same code, the same words, every time.
+        REQUIRE(error_of(*answer) == expected);
+        REQUIRE(raw.wait_closed());
+    }
+    REQUIRE_EQ(env.gate.counters().auth_failures, attempts.size());
+    REQUIRE(wait_until([&] { return env.gate.counters().connections == 0; }));
+
+    const auto failed =
+        records_of(audit_records(env.audit_directory), "auth.failed");
+    REQUIRE_EQ(failed.size(), attempts.size());
+    for (std::size_t index = 0; index < attempts.size(); ++index)
+    {
+        REQUIRE_EQ(text_of(failed[index], "reason"), attempts[index].reason);
+    }
+    // The id of a token is public and is recorded; the rest of it is not.
+    REQUIRE_EQ(text_of(failed[0], "token"), good.entry.id);
+    REQUIRE_EQ(text_of(failed[2], "token"), std::string());
+
+    // The good token still works where it belongs.
+    REQUIRE(connect_with(env, good.token));
+}
+
+TEST_CASE("control gateway: wrong tokens slow down whoever presents them")
+{
+    control::gateway_options options;
+    options.auth_limits.free_failures = 3;
+    options.auth_limits.first_delay = 400ms;
+    fixture env(options);
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+
+    for (int index = 0; index < 3; ++index)
+    {
+        const auto refused = connect_with(env, wrong_secret(made.token));
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(control::api_errc::unauthenticated));
+    }
+    // The third failure started a delay.  Until it has passed even the right
+    // token is refused, and with the same answer.
+    const auto slowed = connect_with(env, made.token);
+    REQUIRE(!slowed);
+    REQUIRE_EQ(slowed.error(), code(control::api_errc::unauthenticated));
+    const auto failed =
+        records_of(audit_records(env.audit_directory), "auth.failed");
+    REQUIRE(!failed.empty());
+
+    // A connection without a token is not part of this.
+    REQUIRE(env.connect()->status());
+
+    // Trying while slowed down is not a failure, so the delay ends.
+    REQUIRE(
+        wait_until([&] { return connect_with(env, made.token).has_value(); }));
+}
+
+TEST_CASE("control gateway: revoking a token closes its sessions at once")
+{
+    fixture env;
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+    const control::token_created_reply other =
+        make_token(env, control::role_monitor());
+
+    raw_client session(env.instance.name());
+    REQUIRE(session.send(hello_with(made.token)));
+    const control::reply welcome = read_reply(session);
+    REQUIRE(std::holds_alternative<control::hello_reply>(welcome.body));
+    auto bystander = connect_with(env, other.token);
+    REQUIRE(bystander);
+
+    auto admin = env.connect(true);
+    REQUIRE(admin->revoke_token(made.entry.id));
+    // Without the session sending anything more.
+    REQUIRE(session.wait_closed());
+
+    const auto again = connect_with(env, made.token);
+    REQUIRE(!again);
+    REQUIRE_EQ(again.error(), code(control::api_errc::unauthenticated));
+    // Another token's session is not touched.
+    REQUIRE((*bystander)->status());
+
+    const auto listed = admin->list_tokens();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->tokens.size(), std::size_t{2});
+    REQUIRE(listed->tokens[0].revoked);
+    REQUIRE(!listed->tokens[1].revoked);
+
+    const auto operations =
+        records_of(audit_records(env.audit_directory), "operation");
+    REQUIRE_EQ(text_of(operations.back(), "operation"),
+               std::string("tokens.revoke"));
+    REQUIRE_EQ(text_of(operations.back(), "token"), made.entry.id);
+    REQUIRE_EQ(number_of(operations.back(), "sessions_closed"),
+               std::uint64_t{1});
+}
+
+TEST_CASE("control gateway: a token that ends, ends its session at the next "
+          "request")
+{
+    const shared_time time;
+    control::gateway_options options;
+    options.clock = time.source();
+    fixture env(options);
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor(), 60);
+
+    auto connected = connect_with(env, made.token);
+    REQUIRE(connected);
+    REQUIRE((*connected)->status());
+
+    *time.now += std::chrono::seconds(61);
+    const auto after = (*connected)->status();
+    REQUIRE(!after);
+    REQUIRE_EQ(after.error(), code(control::api_errc::unauthenticated));
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+
+    const auto closed =
+        records_of(audit_records(env.audit_directory), "session.closed");
+    REQUIRE_EQ(text_of(closed.back(), "reason"), std::string("token_expired"));
+}
+
+TEST_CASE("control gateway: tokens and revocations outlive the gateway")
+{
+    fixture env;
+    const control::token_created_reply kept =
+        make_token(env, control::role_monitor());
+    const control::token_created_reply gone =
+        make_token(env, control::role_monitor());
+    REQUIRE(env.connect(true)->revoke_token(gone.entry.id));
+    env.gate.stop();
+
+    control::gateway next(env.prepared({}));
+    REQUIRE(next.start());
+    REQUIRE(connect_with(env, kept.token));
+    const auto refused = connect_with(env, gone.token);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), code(control::api_errc::unauthenticated));
+}
+
+TEST_CASE("control gateway: a gateway whose token file cannot be trusted "
+          "does not start, and leaves the file alone")
+{
+    const scoped_instance instance;
+    const vss_test_support::scratch_directory scratch;
+    control::gateway_options options;
+    options.instance = instance.name();
+    options.audit_directory = scratch.path() / "audit";
+    {
+        control::gateway first(options);
+        REQUIRE(first.start());
+    }
+    const std::filesystem::path file = options.audit_directory / "tokens.json";
+    {
+        std::ofstream damaged(file, std::ios::binary | std::ios::trunc);
+        damaged << "{\"version\":1,\"tokens\":";
+    }
+    control::gateway second(options);
+    REQUIRE(!second.start());
+    std::ifstream kept(file, std::ios::binary);
+    const std::string text{std::istreambuf_iterator<char>(kept),
+                           std::istreambuf_iterator<char>()};
+    REQUIRE_EQ(text, std::string("{\"version\":1,\"tokens\":"));
+}
+
+TEST_CASE("control gateway: no token is written anywhere the gateway keeps "
+          "things")
+{
+    control::gateway_options options;
+    options.audit_burst_period = 0ms;
+    fixture env(options);
+    // The whole life of a token: made, used, presented wrongly, used for
+    // what it may not do, revoked, presented again.
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+    const auto parts = control::parse_token(made.token);
+    REQUIRE(parts.has_value());
+    const control::secret_string wrong = wrong_secret(made.token);
+    {
+        auto connected = connect_with(env, made.token);
+        REQUIRE(connected);
+        REQUIRE((*connected)->status());
+        REQUIRE(!(*connected)->stop());
+        REQUIRE(!connect_with(env, wrong));
+        REQUIRE(env.connect(true)->revoke_token(made.entry.id));
+        REQUIRE(!connect_with(env, made.token));
+    }
+    env.gate.stop();
+
+    const std::string kept = everything_kept(env.audit_directory);
+    // The log did record all of it, under the token's public id.
+    REQUIRE(holds(kept, "\"event\":\"auth.failed\""));
+    REQUIRE(holds(kept, "\"event\":\"session.opened\""));
+    REQUIRE(holds(kept, "tokens.revoke"));
+    REQUIRE(holds(kept, made.entry.id));
+
+    const auto hex = [](std::string_view text)
+    {
+        constexpr std::string_view digits = "0123456789abcdef";
+        std::string out;
+        for (const char letter : text)
+        {
+            const auto value = static_cast<unsigned char>(letter);
+            out.push_back(digits[static_cast<std::size_t>(value >> 4)]);
+            out.push_back(digits[static_cast<std::size_t>(value & 0x0fu)]);
+        }
+        return out;
+    };
+    const auto upper = [](std::string_view text)
+    {
+        std::string out(text);
+        for (char& letter : out)
+        {
+            if (letter >= 'a' && letter <= 'z')
+                letter = static_cast<char>(letter - 'a' + 'A');
+        }
+        return out;
+    };
+    for (const control::secret_string* secret :
+         {&parts->secret, &made.token, &wrong})
+    {
+        const std::string_view text = secret->expose();
+        REQUIRE(!holds(kept, text));
+        REQUIRE(!holds(kept, upper(text)));
+        REQUIRE(!holds(kept, hex(text)));
+        // Not even the half of it.
+        REQUIRE(!holds(kept, text.substr(text.size() - 26)));
+    }
+    REQUIRE(!holds(kept, "vsst1_"));
+    require_intact(env.audit_directory);
 }

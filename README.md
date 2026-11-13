@@ -1,14 +1,14 @@
 # Virtual Serial Studio
 
-**A playground for real, virtual and networked serial ports.**
+**A tool for real, virtual and networked serial ports.**
 
 Virtual Serial Studio opens one serial port and gives it to as many applications
 as you like. It splits a device across several virtual ports, merges several
 publishers into one, redirects traffic, bridges a COM port to TCP, RFC 2217 or
 UDP, drives the modem control lines, and records everything it sees. It is
 built on [Boost.Asio](https://boost.org/libs/asio) and on
-[Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial), the drop-in serial stream
-abstraction that makes the transport replaceable.
+[Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial), the serial stream
+abstraction that lets the transport be replaced.
 
 [![CI](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/ci.yml)
 [![Fuzz](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/fuzz.yml/badge.svg?branch=develop)](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/fuzz.yml)
@@ -27,7 +27,7 @@ abstraction that makes the transport replaceable.
 | Merge several writers into one device | `join` two or more publishers into one target |
 | Give an application its own serial port | Pseudo terminal on Linux/macOS; on Windows the first-party `vsscom` driver, or a com0com pair when the driver is not installed |
 | Replace com0com | The Windows driver is described in [docs/windows-com-driver.md](docs/windows-com-driver.md); its kernel-mode package is not signed yet, so Windows loads it only with test signing on |
-| Bridge a device to the network | `tcp://`, `udp://` and `rfc2217://` endpoints are first-class ports; `tcp-listen://`, `udp-listen://` and `rfc2217-listen://` wait for other computers to connect |
+| Bridge a device to the network | `tcp://`, `udp://` and `rfc2217://` endpoints are ports like any other; `tcp-listen://`, `udp-listen://` and `rfc2217-listen://` wait for other computers to connect |
 | Test RS-232 control lines | DTR/RTS/BREAK are drivable, CTS/DSR/DCD/RI are reported, a null-modem link crosses them |
 | Watch traffic without disturbing it | One-way `monitor` links and a bounded traffic ring buffer |
 | Put several programs on one multi-drop line | A `bus` link: each port hears every other and never itself, with a `join` to a listen-only tap |
@@ -101,6 +101,7 @@ vss_agent &                         # keep ports after the command that made the
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
 vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
+vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
 ```
 
 Run `vss_cli --help` for the full list.

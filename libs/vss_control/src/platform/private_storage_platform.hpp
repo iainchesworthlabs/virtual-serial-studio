@@ -15,8 +15,11 @@
 #include <vss/core/error.hpp>
 
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <span>
+#include <string>
 #include <string_view>
 
 namespace vss::control::platform
@@ -58,5 +61,27 @@ public:
 /// processes; a new file takes the access list of its private directory.
 result<std::unique_ptr<private_file>>
 open_private_append(const std::filesystem::path& path);
+
+/// Replaces the whole of `path` with `bytes`, so that a reader sees the old
+/// content or the new and never a part of either: the bytes go to a new file
+/// beside it (`<path>.tmp`, made private as `open_private_append` makes a
+/// file, and emptied first when one was left behind), are flushed to the
+/// disk, and the new file is then renamed over `path` in one step.  The
+/// directory must exist; `ensure_private_directory` makes it.
+error_code write_private_file(const std::filesystem::path& path,
+                              std::string_view bytes);
+
+/// The whole of `path`.  `errc::not_found` when there is no such file,
+/// `errc::permission_denied` when it is not a regular file private to this
+/// user (the rules of `open_private_append`, checked on the open file), and
+/// `errc::invalid_argument` when it is longer than `limit` bytes.
+result<std::string> read_private_file(const std::filesystem::path& path,
+                                      std::size_t limit);
+
+/// Fills `out` from the operating system's source of random numbers for
+/// keys: `BCryptGenRandom` with the system-preferred generator on Windows,
+/// `getrandom` on Linux, `getentropy` on macOS.  An error when the system
+/// gives none; nothing weaker is ever used instead.
+error_code random_bytes(std::span<std::uint8_t> out);
 
 } // namespace vss::control::platform

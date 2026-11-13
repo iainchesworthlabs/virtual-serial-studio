@@ -1,6 +1,6 @@
 # Virtual Serial Studio
 
-A playground for real, virtual and networked serial ports. It opens one serial
+A tool for real, virtual and networked serial ports. It opens one serial
 port and gives it to as many applications as you like, splits a device across
 virtual ports, merges publishers, bridges a port to TCP, RFC 2217 or UDP,
 drives the modem control lines and records the traffic. It is built on

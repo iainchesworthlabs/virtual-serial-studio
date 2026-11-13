@@ -9,7 +9,10 @@
 add_library(vss_control_core
   src/audit_log.cpp
   src/client.cpp
-  src/gateway.cpp)
+  src/failure_limiter.cpp
+  src/gateway.cpp
+  src/token_file.cpp
+  src/token_store.cpp)
 add_library(Vss::control_core ALIAS vss_control_core)
 
 target_include_directories(vss_control_core PUBLIC
@@ -32,7 +35,7 @@ if(UNIX)
 endif()
 
 if(WIN32)
-  target_link_libraries(vss_control_core PRIVATE advapi32 shell32 ole32)
+  target_link_libraries(vss_control_core PRIVATE advapi32 bcrypt shell32 ole32)
 endif()
 
 vss_set_warnings(vss_control_core)

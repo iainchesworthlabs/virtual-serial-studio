@@ -42,6 +42,7 @@ void print_usage()
         "\n"
         "  vss_gate [--instance=<name>] [--agent-instance=<name>]\n"
         "           [--local-role=monitor|control] [--audit-dir=<path>]\n"
+        "           [--token-file=<path>]\n"
         "      Serve the control API to this user's programs over a pipe or\n"
         "      socket that only this user can open.  Nothing listens on the\n"
         "      network.  It needs a running `vss_agent`, which owns the\n"
@@ -52,6 +53,9 @@ void print_usage()
         "      --instance names a separate one and --agent-instance the agent\n"
         "      it serves (letters, digits, _ and -), which the tests use.\n"
         "      --audit-dir keeps the audit log in another directory.\n"
+        "      --token-file names the file that holds the records of the\n"
+        "      tokens (their hashes, never the tokens); by default it is\n"
+        "      tokens.json beside the audit log.\n"
         "\n"
         "  vss_gate --version\n"
         "\n"
@@ -108,6 +112,7 @@ try
         constexpr std::string_view agent_option = "--agent-instance=";
         constexpr std::string_view role_option = "--local-role=";
         constexpr std::string_view audit_option = "--audit-dir=";
+        constexpr std::string_view token_option = "--token-file=";
         if (argument == "--help" || argument == "-h")
         {
             print_usage();
@@ -151,6 +156,11 @@ try
         if (argument.starts_with(audit_option))
         {
             options.audit_directory = argument.substr(audit_option.size());
+            continue;
+        }
+        if (argument.starts_with(token_option))
+        {
+            options.token_file = argument.substr(token_option.size());
             continue;
         }
         std::fprintf(stderr, "vss_gate: unknown option %s\n", argv[index]);

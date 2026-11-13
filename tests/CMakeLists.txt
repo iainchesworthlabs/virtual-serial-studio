@@ -11,8 +11,11 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_bytes.cpp
   unit/test_control_audit.cpp
   unit/test_control_gateway.cpp
+  unit/test_control_limiter.cpp
   unit/test_control_lines.cpp
   unit/test_control_proto.cpp
+  unit/test_control_token.cpp
+  unit/test_control_token_file.cpp
   unit/test_document.cpp
   unit/test_driver_setup.cpp
   unit/test_endpoint.cpp
@@ -31,6 +34,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_sources_stress.cpp
   unit/test_hub_targets.cpp
   unit/test_hub_targets_stress.cpp
+  unit/test_hub_timers.cpp
   unit/test_hub_topology.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
@@ -66,7 +70,8 @@ if(WIN32)
     unit/platform/windows/test_driver_client_windows.cpp
     unit/platform/windows/test_helper_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
-    unit/platform/windows/test_ports_windows.cpp)
+    unit/platform/windows/test_ports_windows.cpp
+    unit/platform/windows/test_timer_period_windows.cpp)
 elseif(UNIX)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/platform/posix/test_ports_posix.cpp
     unit/platform/posix/test_agent_transport_posix.cpp
@@ -79,6 +84,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/framework
   ${CMAKE_CURRENT_SOURCE_DIR}/support
+  # The private headers of the control library, for the tests of its files.
+  ${PROJECT_SOURCE_DIR}/libs/vss_control/src
   # replay_inputs.hpp and perf_common.hpp, which test_tool_paths.cpp exercises.
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
