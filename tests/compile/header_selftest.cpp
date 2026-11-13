@@ -39,6 +39,9 @@
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/manifest.hpp>
+#include <vss/plugin/policy.hpp>
+#include <vss/plugin/revocations.hpp>
+#include <vss/plugin/verify.hpp>
 
 #include <vss/studio/studio.hpp>
 

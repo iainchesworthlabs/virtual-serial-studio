@@ -20,6 +20,7 @@
 
 #include <array>
 #include <chrono>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -107,6 +108,13 @@ struct plugin_version
 };
 
 std::string to_string(const plugin_version& value);
+
+/// Which of two versions is the earlier, by the rules of Semantic
+/// Versioning: the numbers first; then a version with a pre-release comes
+/// before the same version without one; and two pre-releases are compared
+/// part by part, a number before a word and fewer parts before more.
+std::strong_ordering compare(const plugin_version& left,
+                             const plugin_version& right) noexcept;
 
 /// A version of the plugin API.
 struct api_version

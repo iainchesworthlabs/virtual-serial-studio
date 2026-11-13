@@ -14,6 +14,8 @@
 
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/manifest.hpp>
+#include <vss/plugin/policy.hpp>
+#include <vss/plugin/revocations.hpp>
 
 #include <cstddef>
 #include <cstdint>
@@ -152,6 +154,56 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
     {
         require_safe_path(text);
         require(plugin::fold_path(text).size() == text.size());
+    }
+
+    // The same bytes as a policy and as a revocation list.  Both readers
+    // either refuse with a reason or return something inside the limits,
+    // and say the same when asked again.
+    detail.clear();
+    const auto rules = plugin::parse_policy(text, &detail);
+    if (rules.has_value())
+    {
+        require(detail.empty());
+        require(size <= plugin::max_policy_size);
+        require(rules->allow_keys.size() <= plugin::max_policy_keys);
+        require(rules->deny_plugins.size() <= plugin::max_policy_plugins);
+        for (const std::string& key : rules->allow_keys)
+        {
+            require(plugin::is_key_id(key));
+        }
+        const auto again = plugin::parse_policy(text);
+        require(again.has_value() && *again == *rules);
+    }
+    else
+    {
+        require(!detail.empty());
+        require(plugin::parse_policy(text).has_error());
+    }
+
+    detail.clear();
+    const auto revoked = plugin::parse_revocations(text, &detail);
+    if (revoked.has_value())
+    {
+        require(detail.empty());
+        require(size <= plugin::max_revocations_size);
+        require(revoked->serial >= 1);
+        require(revoked->serial <= plugin::max_revocations_serial);
+        require(revoked->issued_at.ok());
+        require(revoked->key_ids.size() <= plugin::max_revoked_entries);
+        require(revoked->plugin_hashes.size() <=
+                plugin::max_revoked_entries);
+        require(revoked->plugins.size() <= plugin::max_revoked_entries);
+        for (const plugin::revoked_plugin& entry : revoked->plugins)
+        {
+            require(revoked->revokes_plugin(entry.id, entry.max_version));
+        }
+        const auto again = plugin::parse_revocations(text);
+        require(again.has_value() && *again == *revoked);
+    }
+    else
+    {
+        require(!detail.empty());
+        require(plugin::parse_revocations(text).has_error());
     }
     return 0;
 }

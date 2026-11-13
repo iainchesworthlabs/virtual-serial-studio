@@ -9,7 +9,7 @@ crashes in `regressions/`.
 | `libs/vss_config/fuzz/fuzz_topology.cpp` | A saved topology (JSON). It must be rejected or accepted without a crash, and the text written for an accepted one must read back and write again unchanged |
 | `libs/vss_ports/fuzz/fuzz_endpoint_uri.cpp` | An endpoint URI such as `tcp://host:4001` or `serial://COM3?baud=9600` |
 | `libs/vss_agent_proto/fuzz/fuzz_agent_frame.cpp` | The bytes of a connection to the agent: frames, requests, replies and event batches. They must be refused or accepted without a crash, read the same whole or in pieces, and what decodes must encode and decode again to the same value |
-| `libs/vss_plugin/fuzz/fuzz_plugin_manifest.cpp` | The manifest of a plugin (`plugin.json`), and a path inside a plugin. A manifest must be refused or accepted without a crash; an accepted one is inside every limit, reads the same a second time and names only paths that stay inside the plugin |
+| `libs/vss_plugin/fuzz/fuzz_plugin_manifest.cpp` | The manifest of a plugin (`plugin.json`), and a path inside a plugin. A manifest must be refused or accepted without a crash; an accepted one is inside every limit, reads the same a second time and names only paths that stay inside the plugin. The same bytes are also read as an administrator's policy and as a revocation list, which must be refused with a reason or be inside their limits |
 
 ## Where it runs
 
