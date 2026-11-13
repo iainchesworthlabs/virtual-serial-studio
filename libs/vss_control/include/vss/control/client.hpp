@@ -99,6 +99,18 @@ public:
     /// call itself waits for the request's time on top of the usual limit.
     result<matched_reply> expect_bytes(const expect_bytes_request& wanted);
 
+    /// Begins a named run for this principal; the reply has its id.
+    /// `api_errc::conflict` while one is open.
+    result<run_reply> begin_run(const std::string& name);
+    /// Ends the open run and gives its counts.  `api_errc::not_found` when
+    /// none is open.
+    result<run_reply> end_run();
+    /// Adds a check of the harness's own to the open run.  `outcome` is
+    /// `passed`, `failed`, `error` or `skipped`.
+    result<void> record_in_run(const runs_record_request& noted);
+    /// A run as a JUnit XML document; an empty id means the latest.
+    result<std::string> report_junit(const std::string& run = {});
+
     /// Starts the stream of what happens to the ports, without bytes, or
     /// changes its ports and its pace.  The reply says the pace the gateway
     /// took and the number of the next batch.

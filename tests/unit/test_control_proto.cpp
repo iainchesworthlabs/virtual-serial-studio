@@ -129,7 +129,15 @@ constexpr std::array expected_operations{
     expected_row{control::operation::ports_send, "ports.send",
                  control::scope::control_data},
     expected_row{control::operation::expect_bytes, "expect.bytes",
-                 control::scope::monitor_data}};
+                 control::scope::monitor_data},
+    expected_row{control::operation::runs_begin, "runs.begin",
+                 control::scope::monitor},
+    expected_row{control::operation::runs_end, "runs.end",
+                 control::scope::monitor},
+    expected_row{control::operation::runs_record, "runs.record",
+                 control::scope::monitor},
+    expected_row{control::operation::report_junit, "report.junit",
+                 control::scope::monitor}};
 
 } // namespace
 
@@ -582,7 +590,7 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
 
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 18 * 256 * 4
+    // Every operation, every set of scopes, every transport: 22 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -1292,4 +1300,68 @@ TEST_CASE("control proto: an expect.bytes that is not one is refused")
     {
         REQUIRE(!control::decode_reply(header_frame(reply)));
     }
+}
+
+// -- runs --------------------------------------------------------------------
+
+TEST_CASE("control proto: the run requests and replies survive the wire")
+{
+    const control::request begin{50, control::runs_begin_request{"smoke"}};
+    REQUIRE(round_trip(begin) == begin);
+    const control::request end{51, control::runs_end_request{}};
+    REQUIRE(round_trip(end) == end);
+    const control::request note{
+        52, control::runs_record_request{"fuse blown", "failed",
+                                         "no reply to \"AT\"", 1250}};
+    REQUIRE(round_trip(note) == note);
+    const control::request latest{53, control::report_junit_request{}};
+    REQUIRE(round_trip(latest) == latest);
+    const control::request named{54, control::report_junit_request{"r_3"}};
+    REQUIRE(round_trip(named) == named);
+
+    control::expect_bytes_request labelled;
+    labelled.port = "p_1";
+    labelled.pattern = vss::to_bytes("x");
+    labelled.label = "banner arrives";
+    const control::request waiting{55, labelled};
+    REQUIRE(round_trip(waiting) == waiting);
+
+    // A record may leave its message and its time out.
+    const auto bare = control::decode_request(header_frame(
+        R"({"id":1,"op":"runs.record","name":"a","outcome":"passed"})"));
+    REQUIRE(bare);
+
+    const control::reply run{
+        6, control::run_reply{"r_3", "smoke", false, 5, 1, 1, 1, 61000}};
+    REQUIRE(round_trip(run) == run);
+    // A report is long, and is not cut or changed on the way.
+    control::report_reply report;
+    report.xml = "<?xml version=\"1.0\"?>\n<testsuites>" +
+                 std::string(200000, 'x') + "\xc3\xa9</testsuites>\n";
+    const control::reply document{7, report};
+    REQUIRE(round_trip(document) == document);
+
+    for (
+        const char* const bad :
+        {R"({"id":1,"op":"runs.begin"})",
+         R"({"id":1,"op":"runs.begin","name":7})",
+         R"({"id":1,"op":"runs.record","name":"a"})",
+         R"({"id":1,"op":"runs.record","name":"a","outcome":"passed","duration_ms":"1"})",
+         R"({"id":1,"op":"report.junit","run":3})"})
+    {
+        const auto decoded = control::decode_request(header_frame(bad));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+    for (const char* const bad :
+         {R"({"id":1,"reply":"run","run":"r_1","name":"a","open":true})",
+          R"({"id":1,"reply":"report"})",
+          R"({"id":1,"reply":"report","xml":7})"})
+    {
+        REQUIRE(!control::decode_reply(header_frame(bad)));
+    }
+    control::report_reply too_long;
+    too_long.xml.assign(control::max_report_size + 1, 'x');
+    REQUIRE(
+        !control::decode_reply(control::encode(control::reply{8, too_long})));
 }

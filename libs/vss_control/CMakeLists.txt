@@ -11,6 +11,8 @@ add_library(vss_control_core
   src/client.cpp
   src/failure_limiter.cpp
   src/gateway.cpp
+  src/junit.cpp
+  src/junit.cpp
   src/token_file.cpp
   src/token_store.cpp)
 add_library(Vss::control_core ALIAS vss_control_core)

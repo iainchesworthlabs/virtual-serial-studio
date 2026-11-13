@@ -71,6 +71,13 @@ constexpr std::array operation_rows{
     // Waiting for bytes is reading them.  When the request also sends, the
     // gateway asks for `ports.send` as well, by this same table.
     operation_info{operation::expect_bytes, "expect.bytes", scope::monitor_data,
+                   false},
+    // A run changes nothing of the ports: it is a list the gateway keeps of
+    // what a harness checked, so a caller that may look may keep one.
+    operation_info{operation::runs_begin, "runs.begin", scope::monitor, true},
+    operation_info{operation::runs_end, "runs.end", scope::monitor, true},
+    operation_info{operation::runs_record, "runs.record", scope::monitor, true},
+    operation_info{operation::report_junit, "report.junit", scope::monitor,
                    false}};
 
 } // namespace

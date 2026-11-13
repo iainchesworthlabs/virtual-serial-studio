@@ -3294,3 +3294,281 @@ TEST_CASE("control gateway: neither the pattern nor the bytes sent are in "
     REQUIRE(!holds(kept, "STIMULUS-9a7c"));
     require_intact(env.audit_directory);
 }
+
+// -- runs --------------------------------------------------------------------
+
+namespace
+{
+
+std::size_t pieces_of(std::string_view text, std::string_view piece)
+{
+    std::size_t count = 0;
+    for (std::size_t at = text.find(piece); at != std::string_view::npos;
+         at = text.find(piece, at + piece.size()))
+        ++count;
+    return count;
+}
+
+} // namespace
+
+TEST_CASE("control gateway: a run notes how each wait ended, and reports it")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "harness");
+    const made_pair pair(*driver);
+    const auto& features = driver->gateway().features;
+    REQUIRE(std::ranges::find(features, "runs") != features.end());
+
+    const auto begun = driver->begin_run("smoke test");
+    REQUIRE(begun);
+    REQUIRE(begun->open);
+    REQUIRE_EQ(begun->name, std::string("smoke test"));
+    REQUIRE_EQ(begun->run.rfind("r_", 0), std::size_t{0});
+    REQUIRE_EQ(begun->tests, std::uint64_t{0});
+
+    control::expect_bytes_request good = expecting(pair.right, "OK");
+    good.send_port = pair.left;
+    good.send = vss::to_bytes("OK");
+    good.label = "the device answers";
+    REQUIRE(driver->expect_bytes(good));
+
+    control::expect_bytes_request late = expecting(pair.right, "NEVER", 100);
+    late.send_port = pair.left;
+    late.send = vss::to_bytes("no");
+    REQUIRE(!driver->expect_bytes(late));
+
+    control::expect_bytes_request broken = expecting(pair.right, "x");
+    broken.send_port = "p_999999";
+    broken.send = vss::to_bytes("x");
+    broken.label = "send to nowhere";
+    REQUIRE(!driver->expect_bytes(broken));
+
+    REQUIRE(
+        driver->record_in_run({"visual check", "skipped", "nobody looked", 0}));
+    REQUIRE(driver->record_in_run({"voltage", "passed", "", 40}));
+
+    // A report of a run that is still open.
+    const auto early = driver->report_junit();
+    REQUIRE(early);
+    REQUIRE_EQ(pieces_of(*early, "<testcase"), std::size_t{5});
+
+    const auto ended = driver->end_run();
+    REQUIRE(ended);
+    REQUIRE(!ended->open);
+    REQUIRE_EQ(ended->run, begun->run);
+    REQUIRE_EQ(ended->tests, std::uint64_t{5});
+    REQUIRE_EQ(ended->failures, std::uint64_t{1});
+    REQUIRE_EQ(ended->errors, std::uint64_t{1});
+    REQUIRE_EQ(ended->skipped, std::uint64_t{1});
+
+    const auto report = driver->report_junit(begun->run);
+    REQUIRE(report);
+    const std::string& xml = *report;
+    REQUIRE(xml.find("<testsuite name=\"smoke test\" tests=\"5\" "
+                     "failures=\"1\" errors=\"1\" skipped=\"1\"") !=
+            std::string::npos);
+    REQUIRE(xml.find("<testcase name=\"the device answers\" "
+                     "classname=\"smoke test\"") != std::string::npos);
+    // A wait without a label is named after its port.
+    REQUIRE(xml.find("<testcase name=\"expect " + pair.right + "\"") !=
+            std::string::npos);
+    REQUIRE(xml.find("<failure message=\"the bytes did not arrive within "
+                     "100 ms\"/>") != std::string::npos);
+    REQUIRE(xml.find("<error message=\"engine.not_found\"/>") !=
+            std::string::npos);
+    REQUIRE(xml.find("<skipped message=\"nobody looked\"/>") !=
+            std::string::npos);
+    REQUIRE_EQ(pieces_of(xml, "<testcase"), std::size_t{5});
+
+    // After the end nothing more is noted, and the report stays.
+    REQUIRE(driver->expect_bytes(good));
+    const auto no_run = driver->record_in_run({"late", "passed", "", 0});
+    REQUIRE(!no_run);
+    REQUIRE_EQ(no_run.error(), code(control::api_errc::not_found));
+    const auto again = driver->end_run();
+    REQUIRE(!again);
+    REQUIRE_EQ(again.error(), code(control::api_errc::not_found));
+    const auto same = driver->report_junit();
+    REQUIRE(same);
+    REQUIRE_EQ(*same, xml);
+
+    const auto records = audit_records(env.audit_directory);
+    const auto started = records_of(records, "run.started");
+    const auto finished = records_of(records, "run.ended");
+    REQUIRE_EQ(started.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(started.front(), "name"), std::string("smoke test"));
+    REQUIRE_EQ(text_of(started.front(), "run"), begun->run);
+    REQUIRE_EQ(finished.size(), std::size_t{1});
+    REQUIRE_EQ(number_of(finished.front(), "tests"), std::uint64_t{5});
+    REQUIRE_EQ(number_of(finished.front(), "failures"), std::uint64_t{1});
+    require_intact(env.audit_directory);
+}
+
+TEST_CASE("control gateway: a run belongs to a principal, across "
+          "connections, and to nobody else")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    const control::token_created_reply other =
+        make_token(env, control::role_monitor());
+
+    // The local user begins a run on one connection and fills and ends it
+    // on others, as a harness does that connects for each step.
+    {
+        auto first = env.connect(false, "step 1");
+        REQUIRE(first->begin_run("in steps"));
+    }
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+    {
+        auto second = env.connect(false, "step 2");
+        REQUIRE(second->record_in_run({"step two", "passed", "", 5}));
+        // One open run for a principal.
+        const auto twice = second->begin_run("another");
+        REQUIRE(!twice);
+        REQUIRE_EQ(twice.error(), code(control::api_errc::conflict));
+    }
+    auto third = env.connect(false, "step 3");
+    const auto ended = third->end_run();
+    REQUIRE(ended);
+    REQUIRE_EQ(ended->tests, std::uint64_t{1});
+
+    // A token is another principal: it sees no run, cannot end or fill
+    // this one, and cannot read its report, by id or as "the latest".
+    auto connected = connect_with(env, other.token);
+    REQUIRE(connected);
+    auto& stranger = **connected;
+    for (const std::string& run : {std::string(), ended->run})
+    {
+        const auto peeked = stranger.report_junit(run);
+        REQUIRE(!peeked);
+        REQUIRE_EQ(peeked.error(), code(control::api_errc::not_found));
+    }
+    const auto ended_twice = stranger.end_run();
+    REQUIRE(!ended_twice);
+    REQUIRE_EQ(ended_twice.error(), code(control::api_errc::not_found));
+    // It may keep a run of its own, with its own number.
+    const auto own = stranger.begin_run("the token's");
+    REQUIRE(own);
+    REQUIRE(own->run != ended->run);
+    const auto own_report = stranger.report_junit();
+    REQUIRE(own_report);
+    REQUIRE(own_report->find("the token&apos;s") != std::string::npos);
+    REQUIRE_EQ(own_report->find("in steps"), std::string::npos);
+
+    // The administration endpoint reads any run by its id.
+    auto admin = env.connect(true);
+    const auto read = admin->report_junit(ended->run);
+    REQUIRE(read);
+    REQUIRE(read->find("name=\"in steps\"") != std::string::npos);
+}
+
+TEST_CASE("control gateway: what a harness calls its checks cannot change "
+          "the report or the audit log")
+{
+    fixture env;
+    auto harness = env.connect(false, "harness");
+    const std::string attack =
+        "\"/></testsuite><testsuite name=\"forged\">\n{\"event\":\"forged\"}";
+    REQUIRE(harness->begin_run(attack));
+    REQUIRE(harness->record_in_run({attack, "failed", attack, 1}));
+    const auto ended = harness->end_run();
+    REQUIRE(ended);
+    const auto report = harness->report_junit();
+    REQUIRE(report);
+    // One suite, one case, one failure, and the forged text only as text.
+    REQUIRE_EQ(pieces_of(*report, "<testsuite "), std::size_t{1});
+    REQUIRE_EQ(pieces_of(*report, "</testsuite>"), std::size_t{1});
+    REQUIRE_EQ(pieces_of(*report, "<testcase"), std::size_t{1});
+    REQUIRE_EQ(pieces_of(*report, "<"), std::size_t{8});
+    REQUIRE(report->find("&quot;/&gt;&lt;/testsuite&gt;") != std::string::npos);
+    // The audit log has one line for each record, none of them the
+    // client's, and still verifies.
+    REQUIRE(records_of(audit_records(env.audit_directory), "forged").empty());
+    REQUIRE_EQ(
+        records_of(audit_records(env.audit_directory), "run.started").size(),
+        std::size_t{1});
+    require_intact(env.audit_directory);
+}
+
+TEST_CASE("control gateway: a run has limits, and a wrong record costs only "
+          "an error")
+{
+    fixture env;
+    auto harness = env.connect();
+    const auto invalid = code(control::api_errc::invalid_argument);
+
+    const auto unnamed = harness->begin_run("");
+    REQUIRE(!unnamed);
+    REQUIRE_EQ(unnamed.error(), invalid);
+    const auto long_name =
+        harness->begin_run(std::string(control::max_run_name_size + 1, 'n'));
+    REQUIRE(!long_name);
+    REQUIRE_EQ(long_name.error(), invalid);
+    const auto nothing = harness->report_junit();
+    REQUIRE(!nothing);
+    REQUIRE_EQ(nothing.error(), code(control::api_errc::not_found));
+    REQUIRE(!harness->report_junit("r_999"));
+    REQUIRE(!harness->report_junit("not a run"));
+
+    REQUIRE(harness->begin_run(std::string(control::max_run_name_size, 'n')));
+    for (const control::runs_record_request& bad :
+         {control::runs_record_request{"a", "PASSED", "", 0},
+          control::runs_record_request{"a", "ok", "", 0},
+          control::runs_record_request{"a", "", "", 0},
+          control::runs_record_request{"", "passed", "", 0},
+          control::runs_record_request{
+              std::string(control::max_run_name_size + 1, 'c'), "passed", "",
+              0},
+          control::runs_record_request{
+              "a", "failed",
+              std::string(control::max_case_message_size + 1, 'm'), 0}})
+    {
+        const auto refused = harness->record_in_run(bad);
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), invalid);
+    }
+    // A run keeps so many checks and says so for one more.  The requests go
+    // slowly enough to stay inside the session's allowance.
+    control::gateway_options roomy;
+    roomy.requests_per_second = 1e9;
+    roomy.request_burst = 1e9;
+    fixture big(roomy);
+    auto filler = big.connect();
+    REQUIRE(filler->begin_run("full"));
+    for (std::size_t index = 0; index < control::max_run_cases; ++index)
+        REQUIRE(filler->record_in_run({"c", "passed", "", 0}));
+    const auto over = filler->record_in_run({"c", "passed", "", 0});
+    REQUIRE(!over);
+    REQUIRE_EQ(over.error(), code(control::api_errc::limit_exceeded));
+    const auto full = filler->end_run();
+    REQUIRE(full);
+    REQUIRE_EQ(full->tests, std::uint64_t{control::max_run_cases});
+    const auto report = filler->report_junit();
+    REQUIRE(report);
+    REQUIRE(report->size() <= control::max_report_size);
+
+    REQUIRE(harness->status());
+}
+
+TEST_CASE("control gateway: only so many runs are kept, and an open one is "
+          "never the one to go")
+{
+    fixture env;
+    auto harness = env.connect();
+    std::vector<std::string> ids;
+    ids.reserve(10);
+    for (int index = 0; index < 10; ++index)
+    {
+        const auto begun = harness->begin_run("run " + std::to_string(index));
+        REQUIRE(begun);
+        ids.push_back(begun->run);
+        REQUIRE(harness->end_run());
+    }
+    // The two oldest went to make room; the eight newest can be read.
+    REQUIRE(!harness->report_junit(ids[0]));
+    REQUIRE(!harness->report_junit(ids[1]));
+    for (std::size_t index = 2; index < ids.size(); ++index)
+        REQUIRE(harness->report_junit(ids[index]));
+    const auto latest = harness->report_junit();
+    REQUIRE(latest);
+    REQUIRE(latest->find("name=\"run 9\"") != std::string::npos);
+}

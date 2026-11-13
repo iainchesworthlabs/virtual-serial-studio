@@ -11,6 +11,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_bytes.cpp
   unit/test_control_audit.cpp
   unit/test_control_gateway.cpp
+  unit/test_control_junit.cpp
   unit/test_control_limiter.cpp
   unit/test_control_lines.cpp
   unit/test_control_proto.cpp
