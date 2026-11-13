@@ -17925,6 +17925,11 @@ Networks: %5</source>
             <translation>منفذ جديد</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>تلقائي</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>البرنامج، مثل PuTTY (اختياري)</translation>

@@ -17870,6 +17870,11 @@ Networks: %5</source>
             <translation>新串口</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>自动</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>程序，例如 PuTTY（可选）</translation>

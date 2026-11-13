@@ -17881,6 +17881,11 @@ Netzwerke: %5</translation>
             <translation>Neuer Port</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>Automatisch</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>Programm, z. B. PuTTY (optional)</translation>
