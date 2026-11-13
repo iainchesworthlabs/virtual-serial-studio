@@ -22,8 +22,15 @@
 //   2. `admit` asks the kernel who connected and closes anyone else unseen;
 //   3. until `hello` a frame may have 4 KiB, the only request is `hello`,
 //      and the connection has five seconds;
-//   4. `hello` makes the principal, once; nothing changes it afterwards;
-//   5. every later request passes the rate limit and then `authorise`.
+//   4. `hello` makes the principal, once; nothing changes it afterwards.
+//      With a token the principal is the token, and every way a token can
+//      be wrong gets the same answer;
+//   5. every later request of a token session first asks whether the token
+//      still stands, then passes the rate limit and then `authorise`.
+//
+// A token is in this file only as a `secret_string` on its way to the token
+// store, and as the bytes of the one reply that hands a new token to the
+// person who made it.  It is never given to the audit log.
 //
 
 #include <vss/control/gateway.hpp>
@@ -33,6 +40,8 @@
 #include <vss/agent/proto/error.hpp>
 #include <vss/agent/proto/frame.hpp>
 #include <vss/control/audit_log.hpp>
+#include <vss/control/proto/secret.hpp>
+#include <vss/control/proto/token.hpp>
 #include <vss/core/types.hpp>
 
 #include <boost/asio/executor_work_guard.hpp>
@@ -77,6 +86,9 @@ struct outgoing
     byte_buffer bytes;
     /// Runs on the client thread once the bytes are written.
     std::function<void()> after;
+    /// The bytes hold a token: they are wiped when they have been written,
+    /// or when the session ends first.
+    bool secret = false;
 };
 
 /// Counts the audit records of one kind that were left out because the one
@@ -100,6 +112,20 @@ struct session
           reader(max_hello_frame_size), read_buffer(read_buffer_size)
     {
     }
+
+    ~session()
+    {
+        // A reply with a token in it that was never written.
+        for (outgoing& item : unsent)
+        {
+            if (item.secret)
+                secure_wipe(reinterpret_cast<char*>(item.bytes.data()),
+                            item.bytes.size());
+        }
+    }
+
+    session(const session&) = delete;
+    session& operator=(const session&) = delete;
 
     std::unique_ptr<agent::local_stream> stream;
     const transport via;
@@ -128,6 +154,9 @@ struct session
 
     /// Set by `hello`, once, and never changed.
     std::optional<principal> who;
+    /// The id of the token this session was opened with; empty for a
+    /// session of the local user.
+    std::string token_id;
 
     /// The requests this session may still send now.
     double tokens = 0.0;
@@ -246,10 +275,19 @@ public:
                 return directory.error();
             where.directory = *directory;
         }
+        // No token file that can be trusted, no gateway either: it is never
+        // replaced by an empty one, which would bring revoked tokens back.
+        std::filesystem::path token_file = options_.token_file;
+        if (token_file.empty())
+            token_file = where.directory / "tokens.json";
         auto opened = audit_log::open(std::move(where));
         if (!opened)
             return opened.error();
+        auto tokens = token_store::open(std::move(token_file), options_.clock);
+        if (!tokens)
+            return tokens.error();
         audit_ = std::move(*opened);
+        tokens_ = std::move(*tokens);
 
         doors_[0].listener = std::move(*listening);
         doors_[0].via = transport::local;
@@ -359,6 +397,7 @@ public:
         out.refused_busy = refused_busy_.load();
         out.protocol_errors = protocol_errors_.load();
         out.handshake_timeouts = handshake_timeouts_.load();
+        out.auth_failures = auth_failures_.load();
         out.forbidden = forbidden_.load();
         out.rate_limited = rate_limited_.load();
         out.slow_clients_closed = slow_clients_closed_.load();
@@ -522,10 +561,22 @@ private:
                                   "bad_frame");
                 return;
             }
-            const std::optional<frame> ready = std::move(*next);
+            std::optional<frame> ready = std::move(*next);
             if (!ready)
                 break;
+            const bool may_hold_token = !client->who.has_value();
             handle_frame(client, *ready);
+            if (may_hold_token)
+            {
+                // A `hello` may have carried a token.  The copies this
+                // function can reach are wiped; the one the token store was
+                // given is wiped by its own type.
+                secure_wipe(ready->header.data(), ready->header.size());
+                if (!client->reading)
+                    secure_wipe(
+                        reinterpret_cast<char*>(client->read_buffer.data()),
+                        client->read_buffer.size());
+            }
         }
         if (!client->closed && !client->leaving && !client->reading &&
             client->pending < options_.max_pending_requests)
@@ -599,6 +650,19 @@ private:
                               "second_hello");
             return;
         }
+        if (!client->token_id.empty())
+        {
+            // A token that was revoked or has ended stops working at the
+            // next request, not at the next connection.
+            const token_check standing = tokens_->standing(client->token_id);
+            if (standing != token_check::accepted)
+            {
+                client->close_reason =
+                    "token_" + std::string(token_check_name(standing));
+                fail(client, asked.id, api_errc::unauthenticated);
+                return;
+            }
+        }
         if (!take_token(*client))
         {
             rate_limited_.fetch_add(1);
@@ -626,6 +690,26 @@ private:
             return;
         }
 
+        if (const auto* making =
+                std::get_if<tokens_create_request>(&asked.body))
+        {
+            create_token(client, asked.id, *making);
+            return;
+        }
+        if (std::holds_alternative<tokens_list_request>(asked.body))
+        {
+            tokens_reply listed;
+            for (const token_record& record : tokens_->list())
+                listed.tokens.push_back(entry_of(record));
+            send_reply(client, reply{asked.id, std::move(listed)});
+            return;
+        }
+        if (const auto* revoking =
+                std::get_if<tokens_revoke_request>(&asked.body))
+        {
+            revoke_token(client, asked.id, *revoking);
+            return;
+        }
         if (wanted.id == operation::endpoint_stop)
         {
             audit_->record("operation", {{"session", client->number},
@@ -669,13 +753,28 @@ private:
         }
 
         principal made;
-        made.id = "local:" + client->peer.user;
-        made.via = client->via;
-        made.scopes =
-            client->via == transport::local_admin
-                ? effective_scopes(every_scope(), transport::local_admin,
-                                   every_scope())
-                : local_scopes();
+        if (hello.token.empty())
+        {
+            made.id = "local:" + client->peer.user;
+            made.via = client->via;
+            made.scopes =
+                client->via == transport::local_admin
+                    ? effective_scopes(every_scope(), transport::local_admin,
+                                       every_scope())
+                    : local_scopes();
+        }
+        else
+        {
+            auto authenticated = authenticate(*client, hello.token);
+            if (!authenticated)
+            {
+                // One answer for every way a token can be wrong.
+                refuse_connection(client, id, api_errc::unauthenticated,
+                                  "auth_failed");
+                return;
+            }
+            made = std::move(*authenticated);
+        }
 
         if (!has_room_for(made))
         {
@@ -706,6 +805,193 @@ private:
                         {"program", client->peer.program},
                         {"client", hello.client}});
         send_reply(client, reply{id, std::move(welcome)});
+    }
+
+    /// Checks the token a `hello` carried.  Nothing when it is refused; why
+    /// is written to the audit log and told to nobody else.
+    std::optional<principal> authenticate(session& client,
+                                          const secret_string& token)
+    {
+        const auto now = steady::now();
+        const std::string source = "local:" + client.peer.user;
+        std::string token_id;
+        std::string_view reason;
+        if (client.via == transport::local_admin)
+        {
+            // The administration endpoint takes no token: who may use it is
+            // decided by the operating system alone.
+            reason = "token_on_admin_endpoint";
+        }
+        else
+        {
+            if (const auto parts = parse_token(token))
+                token_id = parts->id;
+            const std::string token_key = "token:" + token_id;
+            if (!limiter_.allowed(source, now) ||
+                (!token_id.empty() && !limiter_.allowed(token_key, now)))
+            {
+                // Not checked at all: a caller that is being slowed down
+                // learns nothing from trying meanwhile.
+                reason = "backoff";
+            }
+            else
+            {
+                const token_verdict verdict =
+                    tokens_->verify(token, client.via);
+                if (verdict.outcome == token_check::accepted)
+                {
+                    limiter_.succeeded(token_key);
+                    client.token_id = verdict.id;
+                    principal made;
+                    made.id = "token:" + verdict.id;
+                    made.via = client.via;
+                    made.scopes = effective_scopes(verdict.scopes, client.via,
+                                                   options_.local_ceiling);
+                    return made;
+                }
+                reason = token_check_name(verdict.outcome);
+                limiter_.failed(source, now);
+                // An id no token has counts against the source only, so
+                // guessing ids cannot fill the table of keys.
+                if (verdict.outcome != token_check::malformed &&
+                    verdict.outcome != token_check::unknown)
+                    limiter_.failed(token_key, now);
+            }
+        }
+        auth_failures_.fetch_add(1);
+        record_burst(auth_burst_, "auth.failed",
+                     {{"transport", transport_name(client.via)},
+                      {"reason", reason},
+                      {"token", token_id},
+                      {"process", client.peer.process_id},
+                      {"program", client.peer.program}});
+        return std::nullopt;
+    }
+
+    static std::uint64_t milliseconds_of(wall_clock::time_point when)
+    {
+        const auto since =
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                when.time_since_epoch());
+        return since.count() < 0 ? 0
+                                 : static_cast<std::uint64_t>(since.count());
+    }
+
+    static token_entry entry_of(const token_record& record)
+    {
+        token_entry out;
+        out.id = record.id;
+        out.label = record.label;
+        out.scopes = scope_names(record.scopes);
+        for (const transport via : record.transports)
+            out.transports.emplace_back(transport_name(via));
+        out.created_ms = milliseconds_of(record.created);
+        out.expires_ms = milliseconds_of(record.expires);
+        out.last_used_ms =
+            record.last_used ? milliseconds_of(*record.last_used) : 0;
+        out.revoked = record.revoked;
+        return out;
+    }
+
+    /// `tokens.create`: makes a token and sends it, once, to whoever asked on
+    /// the administration endpoint.
+    void create_token(const session_ptr& client, std::uint64_t id,
+                      const tokens_create_request& wanted)
+    {
+        api_errc refused = api_errc::success;
+        token_request asked;
+        asked.label = wanted.label;
+        for (const std::string& name : wanted.scopes)
+        {
+            const auto parsed = parse_scope(name);
+            if (!parsed)
+                refused = api_errc::invalid_argument;
+            else
+                asked.scopes = asked.scopes | scope_set{*parsed};
+        }
+        const auto longest = static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::seconds>(longest_token_life)
+                .count());
+        if (wanted.life_s > longest)
+            refused = api_errc::invalid_argument;
+        else if (wanted.life_s != 0)
+            asked.life = std::chrono::seconds(
+                static_cast<std::chrono::seconds::rep>(wanted.life_s));
+
+        result<new_token> made = make_error_code(errc::invalid_argument);
+        if (refused == api_errc::success)
+        {
+            made = tokens_->create(asked);
+            if (!made)
+            {
+                if (made.error() == errc::invalid_argument)
+                    refused = api_errc::invalid_argument;
+                else if (made.error() == errc::queue_full)
+                    refused = api_errc::limit_exceeded;
+                else
+                    refused = api_errc::internal;
+            }
+        }
+        audit_->record(
+            "operation",
+            {{"session", client->number},
+             {"principal", client->who->id},
+             {"operation", info_of(operation::tokens_create).name},
+             {"token", made ? made->record.id : std::string()},
+             {"label", wanted.label},
+             {"scopes", joined(scope_names(asked.scopes))},
+             {"outcome", refused == api_errc::success ? std::string_view("ok")
+                                                      : code_name(refused)}});
+        if (refused != api_errc::success)
+        {
+            send_reply(client, error_reply_for(id, refused));
+            return;
+        }
+        token_created_reply answer;
+        answer.entry = entry_of(made->record);
+        answer.token = std::move(made->token);
+        send_reply(client, reply{id, std::move(answer)}, {}, true);
+    }
+
+    /// `tokens.revoke`: the token stops working, and the sessions that were
+    /// opened with it are closed now.
+    void revoke_token(const session_ptr& client, std::uint64_t id,
+                      const tokens_revoke_request& wanted)
+    {
+        const auto revoked = tokens_->revoke(wanted.id);
+        const bool unknown = !revoked && revoked.error() == errc::not_found;
+        std::uint64_t closed = 0;
+        if (!unknown)
+        {
+            // Also when the file could not be written: the token is revoked
+            // for as long as this gateway runs, and its sessions end.
+            const std::vector<session_ptr> all(sessions_.begin(),
+                                               sessions_.end());
+            for (const session_ptr& other : all)
+            {
+                if (other->token_id == wanted.id)
+                {
+                    close(other, "token_revoked");
+                    ++closed;
+                }
+            }
+        }
+        const api_errc outcome = revoked   ? api_errc::success
+                                 : unknown ? api_errc::not_found
+                                           : api_errc::internal;
+        audit_->record(
+            "operation",
+            {{"session", client->number},
+             {"principal", client->who->id},
+             {"operation", info_of(operation::tokens_revoke).name},
+             {"token", valid_token_id(wanted.id) ? wanted.id : std::string()},
+             {"sessions_closed", closed},
+             {"outcome", outcome == api_errc::success ? std::string_view("ok")
+                                                      : code_name(outcome)}});
+        if (outcome == api_errc::success)
+            send_reply(client, reply{id, done_reply{}});
+        else
+            send_reply(client, error_reply_for(id, outcome));
     }
 
     /// True when one more session of `candidate` fits its endpoint.
@@ -784,9 +1070,12 @@ private:
     }
 
     void send_reply(const session_ptr& client, const reply& answer,
-                    std::function<void()> after = {})
+                    std::function<void()> after = {}, bool secret = false)
     {
-        auto bytes = agent::encode_frame(encode(answer));
+        frame encoded = encode(answer);
+        auto bytes = agent::encode_frame(encoded);
+        if (secret)
+            secure_wipe(encoded.header.data(), encoded.header.size());
         if (!bytes)
             bytes = agent::encode_frame(
                 encode(error_reply_for(answer.id, api_errc::internal)));
@@ -795,7 +1084,7 @@ private:
             close(client, "internal_error");
             return;
         }
-        enqueue(client, outgoing{std::move(*bytes), std::move(after)});
+        enqueue(client, outgoing{std::move(*bytes), std::move(after), secret});
     }
 
     /// Sends an error and closes the connection once it is written.
@@ -854,6 +1143,9 @@ private:
                     client->unsent.pop_front();
                     client->unsent_bytes -= sent.bytes.size();
                     client->write_offset = 0;
+                    if (sent.secret)
+                        secure_wipe(reinterpret_cast<char*>(sent.bytes.data()),
+                                    sent.bytes.size());
                     if (sent.after)
                         sent.after();
                 }
@@ -985,6 +1277,7 @@ private:
     std::unique_ptr<boost::asio::thread_pool> pool_;
     /// Written from the client thread; its own lock makes that safe.
     std::unique_ptr<audit_log> audit_;
+    std::unique_ptr<token_store> tokens_;
     steady::time_point started_at_;
 
     // The client thread only.
@@ -992,6 +1285,8 @@ private:
     std::unordered_set<session_ptr> sessions_;
     std::uint64_t last_session_ = 0;
     audit_burst refused_burst_;
+    audit_burst auth_burst_;
+    failure_limiter limiter_{options_.auth_limits};
     audit_burst rejected_burst_;
     bool stopping_ = false;
 
@@ -1008,6 +1303,7 @@ private:
     std::atomic<std::uint64_t> refused_busy_{0};
     std::atomic<std::uint64_t> protocol_errors_{0};
     std::atomic<std::uint64_t> handshake_timeouts_{0};
+    std::atomic<std::uint64_t> auth_failures_{0};
     std::atomic<std::uint64_t> forbidden_{0};
     std::atomic<std::uint64_t> rate_limited_{0};
     std::atomic<std::uint64_t> slow_clients_closed_{0};

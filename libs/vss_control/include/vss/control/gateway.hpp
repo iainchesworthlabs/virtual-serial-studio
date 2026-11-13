@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <vss/control/failure_limiter.hpp>
 #include <vss/control/proto/message.hpp>
 #include <vss/control/proto/policy.hpp>
+#include <vss/control/token_store.hpp>
 #include <vss/core/error.hpp>
 
 #include <chrono>
@@ -61,6 +63,16 @@ struct gateway_options
 
     /// Where the audit log is kept; empty for `default_audit_directory()`.
     std::filesystem::path audit_directory;
+    /// The file of the token records; empty for `tokens.json` in the audit
+    /// directory.  A gateway whose token file cannot be read does not start.
+    std::filesystem::path token_file;
+    /// The most a token may do on the public local endpoint, whatever its
+    /// own scopes say.
+    scope_set local_ceiling = every_scope();
+    /// How wrong tokens slow down whoever presents them.
+    failure_limits auth_limits;
+    /// The time the token store goes by; empty for the system clock.
+    token_store::time_source clock;
     /// The shortest time between two audit records of the same kind of
     /// refusal from the same source.  The ones between are counted and the
     /// count is written with the next, so a flood cannot fill the log.
@@ -77,6 +89,8 @@ struct gateway_counters
     std::uint64_t refused_busy = 0;
     std::uint64_t protocol_errors = 0;
     std::uint64_t handshake_timeouts = 0;
+    /// Tokens that were presented and refused, for any reason.
+    std::uint64_t auth_failures = 0;
     std::uint64_t forbidden = 0;
     std::uint64_t rate_limited = 0;
     std::uint64_t slow_clients_closed = 0;

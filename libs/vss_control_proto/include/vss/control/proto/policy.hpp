@@ -177,7 +177,10 @@ enum class operation
     hello,
     status,
     ports_list,
-    endpoint_stop
+    endpoint_stop,
+    tokens_create,
+    tokens_list,
+    tokens_revoke
 };
 
 struct operation_info

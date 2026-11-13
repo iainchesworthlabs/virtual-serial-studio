@@ -9,7 +9,9 @@
 add_library(vss_control_proto
   src/error.cpp
   src/message.cpp
-  src/policy.cpp)
+  src/policy.cpp
+  src/secret.cpp
+  src/token.cpp)
 add_library(Vss::control_proto ALIAS vss_control_proto)
 
 target_include_directories(vss_control_proto PUBLIC

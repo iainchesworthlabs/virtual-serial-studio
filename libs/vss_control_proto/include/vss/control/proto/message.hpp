@@ -23,6 +23,7 @@
 #include <vss/agent/proto/frame.hpp>
 #include <vss/control/proto/error.hpp>
 #include <vss/control/proto/policy.hpp>
+#include <vss/control/proto/secret.hpp>
 #include <vss/core/error.hpp>
 
 #include <cstddef>
@@ -42,6 +43,8 @@ inline constexpr std::uint32_t api_version = 1;
 
 // -- limits ------------------------------------------------------------------
 
+/// The longest token a `hello` may carry, in bytes.  A real one is shorter.
+inline constexpr std::size_t max_token_text_size = 128;
 /// The most bytes a frame may have before the connection has said `hello`.
 inline constexpr std::size_t max_hello_frame_size = 4096;
 /// The longest name, path or other text in a message, in bytes.
@@ -59,6 +62,9 @@ struct hello_request
     std::uint32_t api = api_version;
     /// The program that connects, for the audit log (`pytest 8.3`).
     std::string client;
+    /// A token, for a connection that wants to be the token and not the
+    /// local user.  Empty for none.
+    secret_string token{};
 
     friend bool operator==(const hello_request&,
                            const hello_request&) = default;
@@ -86,8 +92,39 @@ struct endpoint_stop_request
                            const endpoint_stop_request&) = default;
 };
 
-using request_body = std::variant<hello_request, status_request,
-                                  ports_list_request, endpoint_stop_request>;
+/// Asks for a new token.  Only the administration endpoint may.
+struct tokens_create_request
+{
+    /// What the person calls it: "Lab rig 3".
+    std::string label;
+    /// The names of the scopes it holds.  `admin` is refused.
+    std::vector<std::string> scopes;
+    /// How long it lives, in seconds; 0 for the usual 30 days.
+    std::uint64_t life_s = 0;
+
+    friend bool operator==(const tokens_create_request&,
+                           const tokens_create_request&) = default;
+};
+
+struct tokens_list_request
+{
+    friend bool operator==(const tokens_list_request&,
+                           const tokens_list_request&) = default;
+};
+
+/// Revokes the token with this id and closes its sessions.
+struct tokens_revoke_request
+{
+    std::string id;
+
+    friend bool operator==(const tokens_revoke_request&,
+                           const tokens_revoke_request&) = default;
+};
+
+using request_body =
+    std::variant<hello_request, status_request, ports_list_request,
+                 endpoint_stop_request, tokens_create_request,
+                 tokens_list_request, tokens_revoke_request>;
 
 struct request
 {
@@ -175,6 +212,41 @@ struct ports_reply
     friend bool operator==(const ports_reply&, const ports_reply&) = default;
 };
 
+/// What the gateway keeps about a token.  Times are milliseconds since
+/// 1970-01-01 UTC.
+struct token_entry
+{
+    std::string id;
+    std::string label;
+    std::vector<std::string> scopes;
+    std::vector<std::string> transports;
+    std::uint64_t created_ms = 0;
+    std::uint64_t expires_ms = 0;
+    /// 0 when it was never used.
+    std::uint64_t last_used_ms = 0;
+    bool revoked = false;
+
+    friend bool operator==(const token_entry&, const token_entry&) = default;
+};
+
+/// A token that was just made.  This reply is the one time the token itself
+/// is sent; the gateway does not keep it.
+struct token_created_reply
+{
+    secret_string token{};
+    token_entry entry;
+
+    friend bool operator==(const token_created_reply&,
+                           const token_created_reply&) = default;
+};
+
+struct tokens_reply
+{
+    std::vector<token_entry> tokens;
+
+    friend bool operator==(const tokens_reply&, const tokens_reply&) = default;
+};
+
 struct error_reply
 {
     api_error error;
@@ -182,8 +254,9 @@ struct error_reply
     friend bool operator==(const error_reply&, const error_reply&) = default;
 };
 
-using reply_body = std::variant<done_reply, hello_reply, status_reply,
-                                ports_reply, error_reply>;
+using reply_body =
+    std::variant<done_reply, hello_reply, status_reply, ports_reply,
+                 token_created_reply, tokens_reply, error_reply>;
 
 struct reply
 {

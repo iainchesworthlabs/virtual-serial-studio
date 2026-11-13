@@ -233,6 +233,21 @@ struct request_writer
     {
         header["api"] = body.api;
         header["client"] = clean_text(body.client);
+        // Sent as it is: a token is ASCII, and one that is not is refused by
+        // the gateway, not repaired here.
+        if (!body.token.empty())
+            header["token"] = body.token.expose();
+    }
+    void operator()(const tokens_create_request& body) const
+    {
+        header["label"] = clean_text(body.label);
+        header["scopes"] = text_list(body.scopes);
+        header["life_s"] = body.life_s;
+    }
+    void operator()(const tokens_list_request&) const {}
+    void operator()(const tokens_revoke_request& body) const
+    {
+        header["token_id"] = clean_text(body.id);
     }
     void operator()(const status_request&) const {}
     void operator()(const ports_list_request&) const {}
@@ -249,6 +264,32 @@ result<request_body> read_request_body(operation wanted,
         hello_request body;
         if (!read_u32(header, "api", body.api) ||
             !read_optional_text(header, "client", body.client))
+            return malformed();
+        if (const json::value* const token = header.if_contains("token"))
+        {
+            if (!token->is_string() ||
+                token->get_string().size() > max_token_text_size)
+                return malformed();
+            body.token = secret_string(std::string_view(
+                token->get_string().data(), token->get_string().size()));
+        }
+        return request_body{std::move(body)};
+    }
+    case operation::tokens_create:
+    {
+        tokens_create_request body;
+        if (!read_text(header, "label", body.label) ||
+            !read_text_list(header, "scopes", body.scopes) ||
+            !read_u64(header, "life_s", body.life_s))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::tokens_list:
+        return request_body{tokens_list_request{}};
+    case operation::tokens_revoke:
+    {
+        tokens_revoke_request body;
+        if (!read_text(header, "token_id", body.id))
             return malformed();
         return request_body{std::move(body)};
     }
@@ -316,9 +357,58 @@ bool read_link(const json::value& item, link_entry& out)
            read_u64(object, "bytes", out.bytes);
 }
 
+json::object write_token(const token_entry& token)
+{
+    json::object out;
+    out["id"] = clean_text(token.id);
+    out["label"] = clean_text(token.label);
+    out["scopes"] = text_list(token.scopes);
+    out["transports"] = text_list(token.transports);
+    out["created_ms"] = token.created_ms;
+    out["expires_ms"] = token.expires_ms;
+    out["last_used_ms"] = token.last_used_ms;
+    out["revoked"] = token.revoked;
+    return out;
+}
+
+bool read_token(const json::value& item, token_entry& out)
+{
+    if (!item.is_object())
+        return false;
+    const json::object& object = item.get_object();
+    return read_text(object, "id", out.id) &&
+           read_text(object, "label", out.label) &&
+           read_text_list(object, "scopes", out.scopes) &&
+           read_text_list(object, "transports", out.transports) &&
+           read_u64(object, "created_ms", out.created_ms) &&
+           read_u64(object, "expires_ms", out.expires_ms) &&
+           read_u64(object, "last_used_ms", out.last_used_ms) &&
+           read_bool(object, "revoked", out.revoked);
+}
+
 struct reply_writer
 {
     json::object& header;
+
+    void operator()(const token_created_reply& body) const
+    {
+        header["reply"] = "token";
+        header["token"] = body.token.expose();
+        header["entry"] = write_token(body.entry);
+    }
+
+    void operator()(const tokens_reply& body) const
+    {
+        header["reply"] = "tokens";
+        json::array tokens;
+        for (const token_entry& token : body.tokens)
+        {
+            if (tokens.size() == max_list_size)
+                break;
+            tokens.emplace_back(write_token(token));
+        }
+        header["tokens"] = std::move(tokens);
+    }
 
     void operator()(const done_reply&) const { header["reply"] = "done"; }
 
@@ -428,6 +518,37 @@ result<reply_body> read_ports_reply(const json::object& header)
     return reply_body{std::move(body)};
 }
 
+result<reply_body> read_token_created_reply(const json::object& header)
+{
+    token_created_reply body;
+    const json::value* const token = header.if_contains("token");
+    const json::value* const entry = header.if_contains("entry");
+    if (token == nullptr || !token->is_string() ||
+        token->get_string().size() > max_token_text_size || entry == nullptr ||
+        !read_token(*entry, body.entry))
+        return malformed();
+    body.token = secret_string(std::string_view(token->get_string().data(),
+                                                token->get_string().size()));
+    return reply_body{std::move(body)};
+}
+
+result<reply_body> read_tokens_reply(const json::object& header)
+{
+    tokens_reply body;
+    const json::array* const tokens = read_array(header, "tokens");
+    if (tokens == nullptr)
+        return malformed();
+    body.tokens.reserve(tokens->size());
+    for (const json::value& item : *tokens)
+    {
+        token_entry token;
+        if (!read_token(item, token))
+            return malformed();
+        body.tokens.push_back(std::move(token));
+    }
+    return reply_body{std::move(body)};
+}
+
 result<reply_body> read_error_reply(const json::object& header)
 {
     error_reply body;
@@ -461,6 +582,18 @@ operation operation_of(const request_body& body) noexcept
         operation operator()(const endpoint_stop_request&) const noexcept
         {
             return operation::endpoint_stop;
+        }
+        operation operator()(const tokens_create_request&) const noexcept
+        {
+            return operation::tokens_create;
+        }
+        operation operator()(const tokens_list_request&) const noexcept
+        {
+            return operation::tokens_list;
+        }
+        operation operator()(const tokens_revoke_request&) const noexcept
+        {
+            return operation::tokens_revoke;
         }
     };
     return std::visit(visitor{}, body);
@@ -530,6 +663,10 @@ result<reply> decode_reply(const frame& value)
         body = read_status_reply(*header);
     else if (kind == "ports")
         body = read_ports_reply(*header);
+    else if (kind == "token")
+        body = read_token_created_reply(*header);
+    else if (kind == "tokens")
+        body = read_tokens_reply(*header);
     else if (kind == "error")
         body = read_error_reply(*header);
     if (!body)

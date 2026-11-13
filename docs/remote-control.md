@@ -762,6 +762,37 @@ Not built in this slice, and the reason: `vss_cli control` has `status` and `sto
 it in the Pro set, because that split is the licensing work's to make; and SHA-256 comes from Boost.Hash2, which
 raises the oldest Boost that builds this repository from 1.74 to 1.88.
 
+### What slice 2 built
+
+Tokens over the local endpoint: a `hello` may carry a token, and the connection is then the principal `token:<id>`
+with the token's scopes, not the local user.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| A token is made on the receiving side only, and only by administration | `tokens.create`, `tokens.list` and `tokens.revoke` need `admin`, which only the administration endpoint holds; the local user and a token with every scope a token can have are refused all three | Studio's dialog; `vss_cli control token` is the only way to make one |
+| Only a hash is kept | The store's file and every file in the gateway's directory are searched for the secret, the whole token, their upper-case and hex forms and half of the secret after a token's whole life; the system test does the same for the output of every process | Crash dumps |
+| Every way of being wrong looks the same | A wrong secret, an unknown id, two things that are no token, a revoked token, an expired one and a good token on the administration endpoint each get the same reply, byte for byte in its error; the audit log has the reason for each. Each check hashes exactly once, counted | Time measured with a clock: the test counts work, not nanoseconds |
+| The comparison does not stop early | `constant_time_equal` is tested for a difference at every position; that it takes the same time is by construction (no branch on the data), not by measurement | |
+| A secret cannot be printed by accident | `secret_string` has no stream insertion and no conversion to or from text; the test file does not compile if it gains one. `expose()` is the one way out | A reviewer still has to read each `expose(` |
+| Revoking works at once | The sessions of a revoked token are closed by the request that revokes it, without their sending anything; the token is refused afterwards and after a restart | |
+| A token ends | With a clock the test moves: accepted one second before its end, refused at it, a session closed at its next request, and still refused when the clock is set back a day and after a restart | |
+| Guessing is slowed down | After the configured number of failures the source and the token id are refused without a check, for a delay that doubles; the limiter's rules are tested with a clock moved by hand | On the local endpoint every connection is the same source (`local:<user>`), so one program's wrong tokens slow every program's tokens. Connections without a token are not affected |
+| A damaged token file stops the gateway | Five kinds of damage: the store does not open, the gateway does not start, and the file is left as it was | |
+
+Differences from sections 4 and 5 as first written, and why:
+
+- A revoked token's record is kept in the same file until a week after the token would have ended. There is no
+  separate deny list: one file is replaced in one step, so the record and its revocation cannot disagree.
+- `transports` is in a record and checked; a list of source addresses is not, because nothing here listens on a
+  network yet. It comes with L3.
+- A successful check resets the failures of the token's id, not of the source: a caller that holds one good token
+  cannot use it to wipe out the delay it earned guessing another.
+- A `hello` with a token on the administration endpoint is refused: who may use that endpoint is decided by the
+  operating system alone.
+- The copies of a presented token that the gateway can reach are wiped (the decoded request, the frame, the read
+  buffer, the reply that hands out a new token). The copy inside the frame reader's buffer and the one inside the
+  JSON parser are freed without being wiped.
+
 ## 14. Decisions for the owner
 
 All twelve were accepted as recommended.

@@ -22,12 +22,15 @@
 #include <vss/control/client.hpp>
 #include <vss/control/proto/error.hpp>
 #include <vss/control/proto/message.hpp>
+#include <vss/control/proto/secret.hpp>
+#include <vss/control/proto/token.hpp>
 
 #include "child_process.hpp"
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
 
 #include <chrono>
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -36,6 +39,7 @@
 #include <random>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -172,6 +176,12 @@ public:
         return audit_dir_;
     }
     child_process& child() noexcept { return child_; }
+    /// The scratch directory that holds the audit directory; a test keeps
+    /// its own files here, outside the audit log.
+    const std::filesystem::path& scratch_dir() const noexcept
+    {
+        return scratch_.path();
+    }
 
 private:
     std::string instance_;
@@ -238,6 +248,148 @@ find_port(const vss::control::ports_reply& listed, const std::string& name)
             return &port;
     }
     return nullptr;
+}
+
+/// Fails the test, with the output, unless the command ended with `expected`.
+void require_exit(const cli_result& outcome, int expected, const char* what)
+{
+    if (outcome.code == expected)
+        return;
+    throw vss_test::failure(std::string(what) + " did not exit with " +
+                            std::to_string(expected) +
+                            "; output: " + outcome.output);
+}
+
+/// The first line of `output` that is a token.
+std::optional<std::string> find_token(const std::string& output)
+{
+    std::istringstream lines(output);
+    std::string line;
+    while (std::getline(lines, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+            line.pop_back();
+        if (line.size() == vss::control::token_size &&
+            vss::control::parse_token(vss::control::secret_string(line)))
+            return line;
+    }
+    return std::nullopt;
+}
+
+/// The public id of a token.  Fails the test for text that is no token.
+std::string id_of(const std::string& token)
+{
+    const auto parts =
+        vss::control::parse_token(vss::control::secret_string(token));
+    if (!parts)
+        throw vss_test::failure("text that should be a token is not one");
+    return parts->id;
+}
+
+void write_text(const std::filesystem::path& path, const std::string& text)
+{
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    stream << text;
+    stream.close();
+    if (!stream)
+    {
+        throw vss_test::failure("cannot write the file " + path.string());
+    }
+}
+
+/// `vss_cli control token create` with a label and a role; returns the token
+/// it printed.
+std::string create_token(const std::string& instance, const std::string& label,
+                         const std::string& role)
+{
+    const auto made =
+        run_cli("control", instance,
+                {"token", "create", "--label=" + label, "--role=" + role});
+    require_exit(made, 0, "vss_cli control token create");
+    const auto token = find_token(made.output);
+    if (!token)
+    {
+        throw vss_test::failure("token create printed no token; output: " +
+                                made.output);
+    }
+    return *token;
+}
+
+/// A text that must not hold a secret, and what the secret looks like in it.
+struct needle
+{
+    const char* kind;
+    std::string text;
+};
+
+/// The bytes of `text` as hex digits.
+std::string hex_of(const std::string& text, bool upper_case)
+{
+    const std::string_view digits =
+        upper_case ? "0123456789ABCDEF" : "0123456789abcdef";
+    std::string out;
+    for (const char letter : text)
+    {
+        const auto byte = static_cast<unsigned char>(letter);
+        out += digits[static_cast<std::size_t>(byte >> 4)];
+        out += digits[static_cast<std::size_t>(byte & 0x0fU)];
+    }
+    return out;
+}
+
+std::string upper_of(const std::string& text)
+{
+    std::string out = text;
+    for (char& letter : out)
+    {
+        if (letter >= 'a' && letter <= 'z')
+            letter = static_cast<char>(letter - 'a' + 'A');
+    }
+    return out;
+}
+
+/// The forms in which a token or its secret could leak.
+std::vector<needle> needles_for(const std::string& token)
+{
+    const std::string secret =
+        token.substr(token.size() - vss::control::token_secret_size);
+    return {{"the whole token", token},
+            {"the secret", secret},
+            {"the secret in upper case", upper_of(secret)},
+            {"the secret in hex", hex_of(secret, false)},
+            {"the secret in upper case hex", hex_of(secret, true)}};
+}
+
+/// Fails the test, naming `where` and the form but not the secret, when
+/// `text` holds any of the needles.
+void require_absent(const std::vector<needle>& needles, const std::string& text,
+                    const std::string& where)
+{
+    for (const needle& form : needles)
+    {
+        if (contains(text, form.text))
+        {
+            throw vss_test::failure(where + " holds " + form.kind);
+        }
+    }
+}
+
+/// Reads every file under `directory` in binary and requires that none holds
+/// a needle.  Returns how many files it looked at.
+std::size_t require_files_free_of(const std::filesystem::path& directory,
+                                  const std::vector<needle>& needles)
+{
+    std::size_t looked_at = 0;
+    for (const auto& item :
+         std::filesystem::recursive_directory_iterator(directory))
+    {
+        if (!item.is_regular_file())
+            continue;
+        ++looked_at;
+        require_absent(needles, read_text(item.path()),
+                       "the file " + item.path().filename().string());
+    }
+    return looked_at;
 }
 
 } // namespace
@@ -380,4 +532,201 @@ TEST_CASE("system control: the audit log verifies after a run")
     const std::string text = read_text(file);
     REQUIRE(contains(text, "\"event\":\"session.opened\""));
     REQUIRE(contains(text, "\"event\":\"gateway.stopped\""));
+}
+
+TEST_CASE("system control: a token is made, listed and used")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const auto made =
+        run_cli("control", instance,
+                {"token", "create", "--label=rig", "--role=monitor"});
+    require_exit(made, 0, "vss_cli control token create");
+    REQUIRE(contains(made.output, "Token "));
+    REQUIRE(contains(made.output, "created for \"rig\""));
+    REQUIRE(contains(made.output, "Scopes: monitor"));
+    REQUIRE(contains(made.output, "Expires: "));
+    REQUIRE(contains(made.output, "only time"));
+    const auto token = find_token(made.output);
+    REQUIRE(token.has_value());
+    REQUIRE(token->starts_with("vsst1_"));
+    REQUIRE_EQ(token->size(), vss::control::token_size);
+    const std::string id = id_of(*token);
+    REQUIRE(contains(made.output, "Token " + id + " created"));
+
+    const auto listed = run_cli("control", instance, {"token", "list"});
+    require_exit(listed, 0, "vss_cli control token list");
+    REQUIRE(contains(listed.output, id));
+    REQUIRE(contains(listed.output, "rig"));
+    REQUIRE(contains(listed.output, "monitor"));
+    REQUIRE(contains(listed.output, "active"));
+
+    const std::filesystem::path file = gate.scratch_dir() / "rig.token";
+    write_text(file, *token + "\n");
+    const auto status = run_cli("control", instance,
+                                {"status", "--token-file=" + file.string()});
+    require_exit(status, 0, "vss_cli control status --token-file");
+    REQUIRE(contains(status.output, "You are: token:" + id));
+    REQUIRE(contains(status.output, "You may: monitor"));
+}
+
+TEST_CASE("system control: a revoked token is refused")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const std::string token = create_token(instance, "short-lived", "monitor");
+    const std::string id = id_of(token);
+    const std::filesystem::path file = gate.scratch_dir() / "revoked.token";
+    write_text(file, token + "\n");
+    const std::string token_option = "--token-file=" + file.string();
+
+    require_exit(run_cli("control", instance, {"status", token_option}), 0,
+                 "vss_cli control status with the new token");
+
+    const auto revoked = run_cli("control", instance, {"token", "revoke", id});
+    require_exit(revoked, 0, "vss_cli control token revoke");
+    REQUIRE(contains(revoked.output, "Token " + id + " revoked"));
+
+    const auto refused = run_cli("control", instance, {"status", token_option});
+    require_exit(refused, 1, "vss_cli control status with a revoked token");
+    REQUIRE(!contains(refused.output, "You are:"));
+
+    const auto listed = run_cli("control", instance, {"token", "list"});
+    require_exit(listed, 0, "vss_cli control token list");
+    REQUIRE(contains(listed.output, id));
+    REQUIRE(contains(listed.output, "revoked"));
+
+    const auto unknown =
+        run_cli("control", instance, {"token", "revoke", "aaaaaaaaaaaaa"});
+    require_exit(unknown, 1, "vss_cli control token revoke of an unknown id");
+    REQUIRE(contains(unknown.output, "no token has that id"));
+}
+
+TEST_CASE("system control: token create refuses a bad command line")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const std::vector<std::vector<std::string>> unusable{
+        {"token", "create", "--label=x", "--role=admin"},
+        {"token", "create", "--label=x", "--role=monitor", "--scope=monitor"},
+        {"token", "create", "--label=x"},
+        {"token", "create", "--role=monitor"},
+        {"token", "create", "--label=x", "--role=monitor", "--days=0"},
+        {"token", "create", "--label=x", "--role=monitor", "--days=366"},
+        {"token", "create", "--label=x", "--role=monitor", "--days=ten"}};
+    for (const auto& words : unusable)
+    {
+        const auto outcome = run_cli("control", instance, words);
+        require_exit(outcome, 2, "vss_cli control token create");
+        REQUIRE(contains(outcome.output, "vss_cli control token create"));
+    }
+
+    // A scope that the gateway never hands out is its refusal, not a usage
+    // error.
+    const auto admin = run_cli(
+        "control", instance, {"token", "create", "--label=x", "--scope=admin"});
+    require_exit(admin, 1, "vss_cli control token create --scope=admin");
+    REQUIRE(!find_token(admin.output).has_value());
+}
+
+TEST_CASE("system control: a token written to a file is not shown")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const std::filesystem::path file = gate.scratch_dir() / "out.token";
+    const auto made = run_cli("control", instance,
+                              {"token", "create", "--label=filed",
+                               "--scope=monitor,monitor.data", "--days=7",
+                               "--out=" + file.string()});
+    require_exit(made, 0, "vss_cli control token create --out");
+    REQUIRE(contains(made.output, "Token written to"));
+    REQUIRE(!contains(made.output, "vsst1_"));
+    REQUIRE(!contains(made.output, "only time"));
+
+    const std::string text = read_text(file);
+    REQUIRE_EQ(text.size(), vss::control::token_size + 1);
+    REQUIRE(text.ends_with("\n"));
+    const std::string token = text.substr(0, vss::control::token_size);
+    const std::string id = id_of(token);
+
+    // The file holds the real token: it opens a session.
+    const auto status = run_cli("control", instance,
+                                {"status", "--token-file=" + file.string()});
+    require_exit(status, 0, "vss_cli control status --token-file");
+    REQUIRE(contains(status.output, "You are: token:" + id));
+    REQUIRE(contains(status.output, "monitor.data"));
+}
+
+TEST_CASE("system control: no log, output or file holds a token")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+
+    // What every command but the one that makes the token printed.
+    std::vector<std::pair<std::string, std::string>> printed;
+    const auto run_and_keep =
+        [&printed, &instance](const std::string& what,
+                              const std::vector<std::string>& words,
+                              int expected)
+    {
+        const auto outcome = run_cli("control", instance, words);
+        require_exit(outcome, expected, what.c_str());
+        printed.emplace_back(what, outcome.output);
+    };
+
+    const std::string token = create_token(instance, "canary", "control");
+    const std::string id = id_of(token);
+    const std::filesystem::path good_file = gate.scratch_dir() / "good.token";
+    write_text(good_file, token + "\n");
+
+    // The same token but for its last character, which is changed to
+    // another one of the alphabet.
+    std::string wrong = token;
+    wrong.back() = wrong.back() == 'a' ? 'b' : 'a';
+    const std::filesystem::path wrong_file = gate.scratch_dir() / "wrong.token";
+    write_text(wrong_file, wrong + "\n");
+
+    run_and_keep("status with the token",
+                 {"status", "--token-file=" + good_file.string()}, 0);
+    run_and_keep("status with a wrong token",
+                 {"status", "--token-file=" + wrong_file.string()}, 1);
+    run_and_keep("list", {"token", "list"}, 0);
+    run_and_keep("revoke", {"token", "revoke", id}, 0);
+    run_and_keep("status with the revoked token",
+                 {"status", "--token-file=" + good_file.string()}, 1);
+    run_and_keep("stop", {"stop"}, 0);
+
+    REQUIRE(gate.child().wait(long_limit) == 0);
+    const std::string gate_output = gate.child().read_all(5000ms);
+    agent.child().request_stop();
+    if (!agent.child().wait(long_limit).has_value())
+    {
+        agent.child().kill();
+    }
+    const std::string agent_output = agent.child().read_all(5000ms);
+
+    const std::vector<needle> needles = needles_for(token);
+    for (const auto& [what, text] : printed)
+    {
+        require_absent(needles, text, "the output of " + what);
+    }
+    require_absent(needles, gate_output, "the output of the gateway");
+    require_absent(needles, agent_output, "the output of the agent");
+
+    // No file the gateway keeps holds it either: the audit log has its id
+    // and the token file a hash.
+    const std::size_t looked_at =
+        require_files_free_of(gate.audit_dir(), needles);
+    REQUIRE(looked_at >= 2U);
+
+    // The log that was searched is one that recorded the events.
+    const std::string audit = read_text(gate.audit_dir() / "audit.jsonl");
+    REQUIRE(contains(audit, "\"event\":\"auth.failed\""));
+    REQUIRE(contains(audit, id));
+    REQUIRE(contains(read_text(gate.audit_dir() / "tokens.json"), id));
 }

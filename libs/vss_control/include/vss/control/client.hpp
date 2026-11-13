@@ -7,11 +7,14 @@
 #pragma once
 
 #include <vss/control/proto/message.hpp>
+#include <vss/control/proto/secret.hpp>
 #include <vss/core/error.hpp>
 
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace vss::control
 {
@@ -24,6 +27,9 @@ struct client_options
     std::string name = "client";
     /// Connect to the administration endpoint instead of the public one.
     bool admin = false;
+    /// A token to connect as; empty to connect as the local user.  The
+    /// administration endpoint takes none.
+    secret_string token;
     /// How long one request may take before the connection is given up.
     std::chrono::milliseconds timeout{10000};
 };
@@ -57,6 +63,20 @@ public:
     /// Asks the gateway to close every session and exit.  Only a connection
     /// to the administration endpoint may.
     result<void> stop();
+
+    /// Makes a token with these scope names that lives `life_s` seconds (0
+    /// for the usual 30 days).  The reply holds the token itself, this once.
+    /// Only a connection to the administration endpoint may.
+    result<token_created_reply>
+    create_token(const std::string& label,
+                 const std::vector<std::string>& scopes,
+                 std::uint64_t life_s = 0);
+    /// The records of every token, revoked ones included.  Administration
+    /// endpoint only.
+    result<tokens_reply> list_tokens();
+    /// Revokes a token and closes its sessions.  `api_errc::not_found` for
+    /// an id no token has.  Administration endpoint only.
+    result<void> revoke_token(const std::string& id);
 
     /// The message of the last error the gateway sent, in its words.
     const std::string& last_error_message() const noexcept;

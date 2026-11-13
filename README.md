@@ -101,6 +101,7 @@ vss_agent &                         # keep ports after the command that made the
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
 vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
+vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
 ```
 
 Run `vss_cli --help` for the full list.

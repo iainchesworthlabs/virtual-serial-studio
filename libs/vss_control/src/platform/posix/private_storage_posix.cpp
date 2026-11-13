@@ -14,6 +14,10 @@
 //              not a regular file, belongs to someone else or is open to group
 //              or others is refused.  A link in place of the file is not
 //              followed.
+//   replace    the whole file: written to `<path>.tmp` (O_TRUNC, mode 0600, the
+//              same checks), flushed with fsync and renamed over the target;
+//              the temporary file is removed when anything fails.  Reading
+//              uses the same open flags and the same checks on the descriptor.
 //
 
 #include "platform/private_storage_platform.hpp"
@@ -25,6 +29,7 @@
 
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -91,6 +96,67 @@ error_code check_private_directory(const std::filesystem::path& directory)
     return {};
 }
 
+/// Writes all of `bytes` to a descriptor, again after a signal and after a
+/// short write.
+error_code write_all(int descriptor, std::string_view bytes)
+{
+    std::size_t done = 0;
+    while (done < bytes.size())
+    {
+        const ssize_t written =
+            ::write(descriptor, bytes.data() + done, bytes.size() - done);
+        if (written < 0)
+        {
+            const int failed = errno;
+            if (failed == EINTR)
+                continue;
+            return system_error(failed);
+        }
+        if (written == 0)
+            return make_error_code(errc::io_error);
+        done += static_cast<std::size_t>(written);
+    }
+    return {};
+}
+
+/// Says whether an open file is a regular file of this user that nobody else
+/// can read or change.
+error_code check_private_file(const struct stat& info)
+{
+    if (!S_ISREG(info.st_mode))
+        return make_error_code(errc::permission_denied);
+    if (info.st_uid != ::geteuid())
+        return make_error_code(errc::permission_denied);
+    if ((info.st_mode & (S_IRWXG | S_IRWXO)) != 0)
+        return make_error_code(errc::permission_denied);
+    return {};
+}
+
+/// Makes `temporary` (emptying it when it exists), writes `bytes` and flushes
+/// them to the disk.  The file is closed when this returns.
+error_code write_temporary_file(const std::string& temporary,
+                                std::string_view bytes)
+{
+    const descriptor_owner descriptor(
+        ::open(temporary.c_str(),
+               O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NOFOLLOW,
+               S_IRUSR | S_IWUSR));
+    if (descriptor.get() < 0)
+        return system_error(errno);
+
+    struct stat info{};
+    if (::fstat(descriptor.get(), &info) != 0)
+        return system_error(errno);
+    if (const error_code refused = check_private_file(info))
+        return refused;
+
+    if (const error_code failed = write_all(descriptor.get(), bytes))
+        return failed;
+    if (::fsync(descriptor.get()) != 0)
+        return system_error(errno);
+    return {};
+}
+
 class posix_file final : public private_file
 {
 public:
@@ -101,23 +167,7 @@ public:
 
     error_code append(std::string_view bytes) override
     {
-        std::size_t done = 0;
-        while (done < bytes.size())
-        {
-            const ssize_t written = ::write(
-                descriptor_.get(), bytes.data() + done, bytes.size() - done);
-            if (written < 0)
-            {
-                const int failed = errno;
-                if (failed == EINTR)
-                    continue;
-                return system_error(failed);
-            }
-            if (written == 0)
-                return make_error_code(errc::io_error);
-            done += static_cast<std::size_t>(written);
-        }
-        return {};
+        return write_all(descriptor_.get(), bytes);
     }
 
 private:
@@ -157,15 +207,83 @@ open_private_append(const std::filesystem::path& path)
     struct stat info{};
     if (::fstat(descriptor.get(), &info) != 0)
         return system_error(errno);
-    if (!S_ISREG(info.st_mode))
-        return make_error_code(errc::permission_denied);
-    if (info.st_uid != ::geteuid())
-        return make_error_code(errc::permission_denied);
-    if ((info.st_mode & (S_IRWXG | S_IRWXO)) != 0)
-        return make_error_code(errc::permission_denied);
+    if (const error_code refused = check_private_file(info))
+        return refused;
 
     return std::unique_ptr<private_file>(
         std::make_unique<posix_file>(std::move(descriptor)));
+}
+
+error_code write_private_file(const std::filesystem::path& path,
+                              std::string_view bytes)
+{
+    std::filesystem::path temporary = path;
+    temporary += ".tmp";
+    const std::string temporary_text = temporary.string();
+    const std::string path_text = path.string();
+
+    error_code failed = write_temporary_file(temporary_text, bytes);
+    if (!failed && ::rename(temporary_text.c_str(), path_text.c_str()) != 0)
+        failed = system_error(errno);
+    // Whatever went wrong, no half-written file is left beside the target.  If
+    // the temporary name was a link, the link is removed and not what it
+    // points to.
+    if (failed)
+        static_cast<void>(::unlink(temporary_text.c_str()));
+    return failed;
+}
+
+result<std::string> read_private_file(const std::filesystem::path& path,
+                                      std::size_t limit)
+{
+    const std::string text = path.string();
+    const descriptor_owner descriptor(
+        ::open(text.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
+    if (descriptor.get() < 0)
+    {
+        const int failed = errno;
+        if (failed == ENOENT)
+            return make_error_code(errc::not_found);
+        // O_NOFOLLOW refuses a link with ELOOP.
+        if (failed == ELOOP)
+            return make_error_code(errc::permission_denied);
+        return system_error(failed);
+    }
+
+    struct stat info{};
+    if (::fstat(descriptor.get(), &info) != 0)
+        return system_error(errno);
+    if (const error_code refused = check_private_file(info))
+        return refused;
+    if (info.st_size < 0 || static_cast<std::uintmax_t>(info.st_size) > limit)
+        return make_error_code(errc::invalid_argument);
+
+    // The file may grow after it was measured, so the limit is kept while
+    // reading too.
+    constexpr std::size_t chunk_size = 64 * 1024;
+    std::string content;
+    for (;;)
+    {
+        const std::size_t used = content.size();
+        content.resize(used + chunk_size);
+        const ssize_t got =
+            ::read(descriptor.get(), content.data() + used, chunk_size);
+        if (got < 0)
+        {
+            const int failed = errno;
+            if (failed == EINTR)
+            {
+                content.resize(used);
+                continue;
+            }
+            return system_error(failed);
+        }
+        content.resize(used + static_cast<std::size_t>(got));
+        if (got == 0)
+            return content;
+        if (content.size() > limit)
+            return make_error_code(errc::invalid_argument);
+    }
 }
 
 } // namespace vss::control::platform
