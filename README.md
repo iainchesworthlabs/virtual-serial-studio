@@ -235,6 +235,7 @@ libs/vss_agent       the agent's local transport, server and client
 third_party          Monocypher, vendored unchanged (Ed25519)
 apps/vss_cli         headless command line
 apps/vss_agent       keeps ports running without the window (a first slice)
+apps/vss_license     reads, checks and issues licence files; the owner's tool, not installed
 apps/vss_gui         Qt 6 desktop application
 tests/               in-tree framework, unit and system suites
 perf/                performance suite and floors
