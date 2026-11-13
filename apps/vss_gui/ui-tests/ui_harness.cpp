@@ -1507,7 +1507,7 @@ void deliver_traffic(Session& session, vss::endpoint_id port,
     if (const auto view = session.backend().port(port))
         event.name = view->name;
     event.direction = direction;
-    event.data = bytes;
+    event.data = event_payload(bytes);
     event.when = vss::clock_type::now();
     event_batch batch;
     batch.append(event);

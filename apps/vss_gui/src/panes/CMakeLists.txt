@@ -11,6 +11,8 @@ add_library(vss_gui_panes STATIC
   format.hpp
   inspector_panel.cpp
   inspector_panel.hpp
+  monitor_cell_delegate.cpp
+  monitor_cell_delegate.hpp
   monitor_model.cpp
   monitor_model.hpp
   monitor_panel.cpp

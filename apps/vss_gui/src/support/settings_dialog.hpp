@@ -54,6 +54,7 @@ private:
     void apply_density();
     void apply_refresh();
     void sync_profiling();
+    void sync_render_status();
     void persist();
 
     StudioBackend& backend_;
@@ -72,6 +73,9 @@ private:
     Switch* sign_in_ = nullptr;
     QSlider* refresh_ = nullptr;
     QLabel* refresh_value_ = nullptr;
+    SegmentedControl* render_ = nullptr;
+    QLabel* render_status_ = nullptr;
+    bool render_changed_ = false;
     Switch* profiling_ = nullptr;
     Switch* profiling_remote_ = nullptr;
     QLabel* profiling_status_ = nullptr;

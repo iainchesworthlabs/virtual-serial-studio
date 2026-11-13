@@ -10,6 +10,9 @@
 #include <QString>
 #include <QStringList>
 
+class QObject;
+class QTranslator;
+
 namespace vss::gui
 {
 
@@ -46,6 +49,23 @@ struct language_choice
 /// True for the languages written right to left: Hebrew, Yiddish and Arabic.
 [[nodiscard]] bool is_right_to_left(const QString& code);
 
+/// Loads a compiled catalogue (.qm) as a translator that also answers for a
+/// qualified context. Qt asks for the class name with its namespaces
+/// (`vss::gui::topology::Toolbox`) while `lupdate` writes, and the catalogues
+/// hold, the class name alone (`Toolbox`); this looks for the exact context
+/// first and then for the part after the last `::`. Returns null when the file
+/// cannot be loaded. The translator is owned by `parent`.
+[[nodiscard]] QTranslator* make_catalogue_translator(const QString& path,
+                                                     QObject* parent);
+
+/// A source text as the pseudo-language shows it: every letter accented, 30
+/// percent longer, in brackets so a clipped end is easy to see. Placeholders
+/// (`%1`, `%n`, `%L1`), markup in `<...>` and the `&` of a mnemonic stay as
+/// they are, so the text is still correct. It exists to find text that is not
+/// in `tr()` (it stays plain English), text that clips when it grows, and
+/// text that is glued together.
+[[nodiscard]] QString pseudo_localise(const QString& source);
+
 /// Remembers the choice made at start-up and what the system offered, for the
 /// About window.
 void record_language_choice(const language_choice& choice,
@@ -55,7 +75,8 @@ void record_language_choice(const language_choice& choice,
 [[nodiscard]] QString language_choice_description();
 
 /// Chooses the language from the system's preferences (or from the
-/// VSS_LANGUAGE environment variable, which names one language), installs its
+/// VSS_LANGUAGE environment variable, which names one language, or `pseudo`
+/// or `pseudo-rtl` for the test languages of `pseudo_localise`), installs its
 /// catalogue and sets the layout direction. Call it once, after the
 /// QApplication exists and before any window is built.
 language_choice apply_language();

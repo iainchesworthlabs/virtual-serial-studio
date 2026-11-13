@@ -143,6 +143,11 @@ void paint_chip(QPainter* painter, const QRect& rect, const QString& text,
 
 PortDelegate::PortDelegate(QObject* parent) : QStyledItemDelegate(parent) {}
 
+int PortDelegate::state_chip_width(const QString& text)
+{
+    return chip_width(text);
+}
+
 void PortDelegate::set_compact(bool compact)
 {
     compact_ = compact;
@@ -300,9 +305,36 @@ QSize PortDelegate::sizeHint(const QStyleOptionViewItem& option,
                              const QModelIndex& index) const
 {
     Q_UNUSED(option);
-    Q_UNUSED(index);
     if (table_)
-        return QSize(120, 44);
+    {
+        // The width is what a double click on a header divider fits to: the
+        // widest this column's cell paints, with the padding paint() uses.
+        const QString text = index.data(Qt::DisplayRole).toString();
+        switch (index.column())
+        {
+        case 0:
+        {
+            const Theme& theme = Theme::instance();
+            QFont name_font = theme.font(text_style::body);
+            name_font.setWeight(QFont::DemiBold);
+            const QString name = index.data(PortModel::name_role).toString();
+            const QString path = index.data(PortModel::path_role).toString();
+            return QSize(
+                std::max(QFontMetrics(name_font).horizontalAdvance(name) + 24,
+                         QFontMetrics(theme.font(text_style::data))
+                                 .horizontalAdvance(path) +
+                             24 + 4 + 24),
+                44);
+        }
+        case 1:
+            return QSize(chip_width(text) + 12, 44);
+        default:
+            return QSize(QFontMetrics(Theme::instance().font(text_style::data))
+                                 .horizontalAdvance(text) +
+                             14,
+                         44);
+        }
+    }
     return QSize(240, compact_ ? 58 : 78);
 }
 

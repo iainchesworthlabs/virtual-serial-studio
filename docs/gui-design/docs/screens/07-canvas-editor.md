@@ -153,7 +153,7 @@ Deleting a port is undone by making it again with the same name, kind, settings,
 | Arrow keys, Shift+arrow | Move the selection 8 px, 32 px |
 | Ctrl+Z, Ctrl+Y | Undo, redo |
 | Shift+F10, menu key | The menu for the focused item, or the canvas menu |
-| Ctrl+0, Ctrl+plus, Ctrl+minus | Fit, zoom in, zoom out |
+| Ctrl+0, Ctrl+1, Ctrl+plus, Ctrl+minus | Fit, 100 percent, zoom in, zoom out |
 
 The canvas menu (empty canvas) gains, before Tidy layout and Fit: Add port, Add fixture, Add loopback, Add bundle (submenu of the bundle tiles) and Select all. There is no Paste: ports have no clipboard format.
 

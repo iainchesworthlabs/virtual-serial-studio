@@ -1,0 +1,71 @@
+<!--
+title: Licence
+description: Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. The Pro parts will be under commercial terms. Draft text.
+-->
+<section class="band pane" aria-labelledby="page-title">
+<div class="prose">
+<h1 id="page-title">Licence</h1>
+<p class="draft">DRAFT: not yet reviewed by a solicitor</p>
+<div class="note warn">
+<p>This page is a plain-language summary and is a draft. It is not legal advice and it is not the licence. Where this page and a licence text differ, the licence text is the one that counts. The commercial terms described here do not exist yet.</p>
+</div>
+
+<h2 id="layers">Which licence covers what</h2>
+</div>
+<div class="table-wrap">
+<table>
+<caption class="visually-hidden">The licence of each part</caption>
+<thead><tr><th scope="col">Part</th><th scope="col">Licence</th><th scope="col">Edition</th></tr></thead>
+<tbody>
+<tr><th scope="row">Studio, <code>vss_cli</code> and the test-signed Windows driver</th><td>GNU General Public License, version 3 or later</td><td>Community, and the base of every edition</td></tr>
+<tr><th scope="row">Boost.VirtualSerial, the engine</th><td>Boost Software License today. It is planned to move to the GPL, version 3 or later.</td><td>Every edition</td></tr>
+<tr><th scope="row">The plugin protocol and its documentation</th><td>Documented and free to implement</td><td>Every edition</td></tr>
+<tr><th scope="row">The Windows driver binary signed through Microsoft</th><td>Commercial terms. Its source is the same GPL source.</td><td>Pro and Enterprise</td></tr>
+<tr><th scope="row">Official plugins and licence files</th><td>Commercial terms</td><td>Pro and Enterprise</td></tr>
+<tr><th scope="row">Third-party plugins</th><td>Whatever their author chooses</td><td>Not ours</td></tr>
+</tbody>
+</table>
+</div>
+<div class="prose">
+<h2 id="gpl">The Community edition and the GPL</h2>
+<p>The Community edition is free software. In short, and subject to the licence itself:</p>
+<ul>
+<li><strong>You may use it for any purpose,</strong> at home or at work, on as many computers as you like. The GPL does not forbid commercial use.</li>
+<li><strong>You may read, build and change the source.</strong></li>
+<li><strong>You may pass on copies,</strong> changed or not. If you do, you must pass on the same freedoms: give the recipient the source of your version under the GPL, and keep the notices.</li>
+<li><strong>There is no warranty.</strong> The program is provided as it is, to the extent the law allows.</li>
+</ul>
+<p>Programs that only talk to Studio through a serial port, a network endpoint or the plugin protocol are separate programs. Using Studio does not put your own software, your test scripts or your captured data under the GPL.</p>
+<p><a href="https://www.gnu.org/licenses/gpl-3.0.html">Read the GNU General Public License, version 3, at gnu.org</a>. The full text is also in the file <code>LICENSE</code> in the <a href="{{repo_url}}">repository</a> and in the About dialog of the application.</p>
+
+<h2 id="third-party">Software from others</h2>
+<p>Studio is built with Qt, Boost and other components, each under its own licence. They are listed in <code>THIRD_PARTY_NOTICES.md</code> in the repository and on the Licences tab of the About dialog. No fonts are bundled.</p>
+
+<h2 id="commercial">The Pro and Enterprise parts</h2>
+<p>Pro and Enterprise are in development. When they are released, the official plugins, the licence files and the Windows driver binary that is signed through Microsoft will be supplied under commercial terms, which will be published here. The intended outline is:</p>
+<ul>
+<li><strong>Pro</strong> is an annual licence for each seat. A seat is your computer, plus one other computer that you monitor.</li>
+<li><strong>Enterprise</strong> is a site licence with a support agreement, on a term agreed with the customer.</li>
+<li><strong>A trial</strong> is 14 days with every Pro feature.</li>
+<li><strong>When a licence ends,</strong> the Pro parts stop after a period of grace and Studio continues as the Community edition. Your ports, setups and files stay yours and stay usable.</li>
+<li><strong>A licence is checked offline.</strong> No activation server is involved and no information about you or your use is sent to us.</li>
+</ul>
+<p>The commercial terms apply only to the Pro parts. They do not take away any right the GPL gives you in the Community edition.</p>
+
+<h2 id="marks">Names and marks</h2>
+<p>The GPL covers the code. It does not give permission to use the name Virtual Serial Studio or its icon to present a changed version as the official one. If you publish a changed version, please give it a name of its own.</p>
+
+<h2 id="site">This website</h2>
+<p>The source of this website is in the same repository as the program and under the same licence.</p>
+
+<h2 id="open">Points for the solicitor</h2>
+<ul>
+<li>The wording of the commercial licence, the support terms and the trial terms.</li>
+<li>Copyright in code that was produced with the help of machine assistance.</li>
+<li>The GPL, version 3, clause on installation information for consumer devices, as it applies to a signed driver.</li>
+<li>The effect of relicensing the engine on the releases already published under the Boost licence.</li>
+<li>The paragraph on names and marks above, and whether a trade mark should be registered.</li>
+<li>The paragraph above on separate programs and the plugin protocol.</li>
+</ul>
+</div>
+</section>

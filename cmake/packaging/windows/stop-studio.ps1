@@ -137,7 +137,7 @@ function Get-DataFolders
         if ($null -eq $entry) { continue }
         $userFolder = [string]$entry.GetValue('ProfileImagePath', '')
         $entry.Close()
-        if ($userFolder) { $found += (Join-Path $userFolder 'AppData\Roaming\Virtual Serial Studio\Virtual Serial Studio') }
+        if ($userFolder) { $found += (Join-Path $userFolder 'AppData\Roaming\iainchesworthlabs\Virtual Serial Studio') }
     }
     $list.Close()
     return $found

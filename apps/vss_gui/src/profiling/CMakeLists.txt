@@ -11,7 +11,9 @@ add_library(vss_gui_profiling STATIC
   profiled_application.cpp
   profiled_application.hpp
   profiling_controller.cpp
-  profiling_controller.hpp)
+  profiling_controller.hpp
+  stall_watchdog.cpp
+  stall_watchdog.hpp)
 
 target_include_directories(vss_gui_profiling PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
