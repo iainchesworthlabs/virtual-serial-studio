@@ -1070,7 +1070,7 @@ parser), so a misspelling is found. Duplicate keys are errors. Strings have leng
 | `requires.api`, `capabilities`, `edition`, `runtime` | Section 7.2, 6.6, 8.7, 8.3 |
 | `run` | One executable, a fixed argument list, the platforms it supports. No shell string. A missing platform means the plugin is not offered on this one |
 | `permissions` | Section 9.1; unknown names are errors |
-| `extension_points` | One or more. `kind` is one of `generator`, `fixture`, `modifier`, `adapter`. `timing` as in 6.4 (`modifier` requires `class` of `inline` or `async`; others default to `async`, `rules` allowed for `generator` and `fixture`) |
+| `extension_points` | One or more. `kind` is one of `generator`, `fixture`, `modifier`, `adapter`, and `decoder` if decision 17 is taken (section 20.6; `async` only). `timing` as in 6.4 (`modifier` requires `class` of `inline` or `async`; others default to `async`, `rules` allowed for `generator` and `fixture`) |
 | `parameters` | Section 7.8. Ids unique within the extension point. Defaults must satisfy the constraints |
 | `files` | Required for signed plugins; ignored for unsigned (the verifier measures) |
 | `labels`, `description` | Plain text; per-language maps |
@@ -1257,6 +1257,20 @@ recovery is bounded.
     `bundle.section` permission, shown in Studio's own bundle dialog.
 16. **Who can open a recording.** The format is open and documented. Proposed: reading a bundle and looking at its
     traffic is possible with the public reader; replaying it is the Pro plugin.
+17. **Decoders as a fifth kind of extension point** (section 20.6): `kind: decoder`, always `async`, needing
+    `traffic.tap`. `editions.md` names four kinds, so this adds to a decision already made. (Recommended: yes.)
+18. **The decode stream in the agent** (section 20.4): one item for each engine chunk, with engine times and
+    offsets, never slowing the traffic, with loss marked in place. It is built with the capture of decision 14
+    and needs the event times of `docs/response-timing.md`. It also needs the `bus_fault` value, link and time
+    in the agent protocol's event record, which is an addition to `vss_agent_proto` and not to `vss_core`.
+19. **Triggers** (section 20.7): a public record format, published by decoders, stamped, limited, stored and
+    counted by the agent, carried in the agent protocol and not as a `vss_core` event kind. Engine actions on a
+    trigger are off by default and need the optional permissions (section 20.8).
+20. **The protocol description format** (section 20.5): public, in this repository, with a conformance corpus,
+    and `vss_cli protocol check` for a description's own corpus.
+21. **Community and Pro for decoding** (section 20.2): Community keeps bytes, text, times and gains a basic
+    framing view drawn by Studio; descriptions, decoders, anomaly detection, triggers and harness delivery are
+    Pro; the formats are public in both.
 
 ## 18. Order of work after review
 
@@ -1271,7 +1285,9 @@ Small vertical slices, each with its tests, each a pull request:
 3. **The first extension point: generators.** They have the simplest contract (credit flow, one direction, no byte
    path), and they exercise the instance lifecycle, parameters, permissions, the Plugins page and the failure
    states. The replay half of the worked example of section 19 is a generator, so it is the first real plugin to
-   run against the API. Fixtures with engine rules follow, then modifiers, then adapters.
+   run against the API. Fixtures with engine rules follow, then modifiers, then adapters. The decode stream,
+   decoders and triggers of section 20 come after the capture in the agent, which they share a path with, and
+   after the event times of `docs/response-timing.md`.
 
 Slice 1 takes its signature check from `vss::signed_file` (section 8.2). If the licensing work has not merged that
 part, slice 1 is the manifest parser, the layout checks, the hashing, the trust store and the policy, and the
@@ -1468,3 +1484,347 @@ paths inside the zip follow the layout rules of section 5.3, and the reader has 
 
 The four extension points were otherwise enough: the plugin is a generator, a fixture type and two bundle sections,
 with read-only proxy calls. It needs no behaviour modifier and is never in the path of the data.
+
+## 20. Worked example: the Protocol decoding and triggers plugin
+
+The owner chose this as the second plugin to frame the API with. It is an official Pro plugin for people who use
+Studio as automated test equipment. As in section 19, this section says what the plugin does, derives what the API
+must offer, and lists what the earlier sections lacked.
+
+### 20.1 What it does
+
+1. **Describe.** The user writes down their serial protocol as data: how a frame starts and ends, where its length
+   is, what its fields are, which message types exist and how the check value is worked out (section 20.5).
+2. **Decode.** The plugin reads the traffic of a link or a port and turns the bytes into frames and fields. It only
+   reads. Nothing is held, changed or delayed, so the devices talk as they always do and run their own recovery.
+3. **Detect.** The plugin compares what it decoded with the description and reports what does not fit:
+
+   | Anomaly | Found by | From what |
+   |---|---|---|
+   | Framing error | Plugin | A start with no end, a frame over its longest length, bytes between frames. Also a line error (parity, framing, overrun, break) that the engine reported at that time |
+   | Unknown message type, unknown field value | Plugin | A type the description does not list; a value outside a field's listed values or range |
+   | Check value mismatch | Plugin | The check value worked out over the described range against the one in the frame. Reported with the field, the range covered, and the expected and actual values |
+   | Length mismatch | Plugin | The length field against the bytes that arrived before the end marker, the gap or the next start |
+   | Timeout, missing reply | Plugin, on the engine's time | A request whose described reply did not start within its time (section 20.3) |
+   | Out of sequence | Plugin | A reply with no request, a second request before a reply, a sequence counter that skipped or repeated |
+   | Bus contention | **Engine** | The half-duplex bus's `bus_fault` event: `overlap`, `too_soon`, `line_held`, `transmitter_off`, `overrun`. The plugin adds the frames that were on the wire |
+
+4. **Trigger.** Each detection becomes a trigger: one event with a time on the run's one clock and the decoded
+   context. What a trigger then does is the user's choice (section 20.8): it is logged, it reaches the test
+   harness, it can keep a recording of the traffic around it, and it can make the engine do something.
+
+A check value mismatch says which field holds the check value and what it should have been. It cannot say which
+data byte is wrong, because a check value does not say that. When a `bus_fault` covers the same bytes, the trigger
+says so (`cause`), and that is the only case where the damaged bytes are known.
+
+### 20.2 Community and Pro
+
+Proposed split. The Community user is the hobbyist who is working out what a device says. The Pro user tests a
+device against a protocol they already know.
+
+| | Community (Studio itself) | Pro (this plugin) |
+|---|---|---|
+| Bytes as hex and as text, direction, timestamps, search | Yes, as today | The same view |
+| The engine's own events in the log: line changes, line errors, `bus_fault` | Yes, as today | Also joined to the frames they touched |
+| **A basic framing view**: the traffic view starts a new row at a silence the user sets, at a byte the user sets (for example `0A`), or every n bytes | Yes. It is a way of showing bytes. It marks nothing as right or wrong | The description's framing replaces it for a place that has one |
+| Protocol descriptions: fields, message types, check values | No | Yes |
+| Decoders for protocols a description cannot express | No | Yes; Modbus RTU, Modbus ASCII and NMEA 0183 come with the plugin |
+| Anomaly detection | No | Yes |
+| Triggers, delivery to a harness, a recording kept on a trigger, an engine action on a trigger | No | Yes |
+| The description format, the corpus format and the trigger format | Public and documented | The same formats |
+
+The formats are public in both editions, so that anyone can write a description, share it and build tools on it.
+What is Pro is the program that decodes with them inside Studio. The basic framing view is drawn by Studio and
+needs no plugin, no permission and no engine change beyond the chunk times of section 20.3.
+
+### 20.3 What runs in the engine, and what in the plugin
+
+The rule is: **what needs the clock is the engine's; what needs only the bytes is the plugin's.**
+
+| Part | Where | Why |
+|---|---|---|
+| The time of every chunk, line change and fault, on the run's one clock | Engine | `docs/response-timing.md`, "One clock": the read time is taken once, before routing. A plugin's clock is not the engine's |
+| First and last byte times of a chunk on a half-duplex bus | Engine | Only the bus has a line rate, so only it has byte times (`bus_line`) |
+| Contention | Engine | The bus already decides it and publishes `bus_fault`. The plugin never works out an overlap from timestamps |
+| Keeping chunks apart and in order, and saying when some were lost | Agent | Section 20.4, the decode stream |
+| Splitting the bytes into frames by markers, a length field or a delimiter | Plugin | It needs only the bytes |
+| **Splitting by a time gap, to observe** | Plugin, from the engine's chunk times | Each chunk arrives with its time and is never joined to another, so the silence between two chunks is a subtraction of two engine times. The plugin's own speed does not enter into it |
+| **Splitting by a time gap, to act within the turn-around** | Engine, as a rule | A reaction that must come inside a frame gap cannot wait for a plugin. It is a rule with `gap_us` (`docs/response-timing.md`, "What a rule matches"), which the engine matches and times. Section 20.8 |
+| Fields, message types, check values, lengths, sequence | Plugin | Bytes only, and the list of check values a protocol may need is longer than the engine's closed list |
+| Deciding a timeout | Plugin, on engine time | The decode stream carries the engine's time forward when nothing happens (a `time` item at least every 10 ms while a decoder waits for a reply). The trigger's `when_ns` is the request's end plus the allowed time, which is exact. It is published up to one `time` item later |
+| Stamping, limiting and storing triggers; delivering them | Agent | Section 20.7 |
+| Keeping the traffic around a trigger | Agent | The capture ring of section 19 |
+| Any action on the traffic | Engine, by the existing operations and rules | Section 20.8 |
+
+Said plainly, two limits:
+
+- **A gap the program did not make cannot be seen.** A virtual port hands over a whole write at once. Two frames
+  that a program wrote in one write have no silence between them, whatever the baud rate says, and on a real UART
+  they would have had none either. Gap framing on a virtual port shows the program's writes; on a half-duplex bus
+  with a line rate it shows wire times.
+- **Detection is after the fact.** A trigger is published after the bytes have been delivered, later by the decode
+  stream's delay and the plugin's own work: milliseconds, not microseconds. Its `when_ns` is still the engine's
+  time of the bytes it is about.
+
+So no new framing code is asked of the engine for this plugin. It needs the chunk times that
+`docs/response-timing.md` already plans, and the decode stream below.
+
+### 20.4 What the API must offer
+
+| Need | API | Kind | Permission | In this design |
+|---|---|---|---|---|
+| **Read the traffic of chosen places, in order, with times, without ever slowing it** | The decode stream: `decoder.data` items (below) | **New** stream from the agent | `traffic.tap` | **New.** The tap of section 7.7 may drop without saying where and joins chunks; a decoder would report anomalies that are not there |
+| Line changes, line errors, `bus_fault`, rule firings, in the same order as the bytes | Items of the same stream | The same | `traffic.tap` (it already implies the events of its places) | **New** |
+| The engine's time while nothing happens | `time` items | The same | none | **New** |
+| A protocol description the user chose | A `path` parameter, read access to that one file | Parameter | `fs.read` | Sections 7.8 and 9.1 |
+| **Decoders that are code**, from this plugin or another | Extension point kind `decoder` (section 20.6) | **New** extension point | `traffic.tap` | **New.** Decision 17 |
+| Show decoded frames in the traffic view | `decoder.frame`: a summary and fields, drawn by Studio | Plugin message | none beyond the above | **New.** The plugin draws nothing |
+| **Publish a trigger** | `trigger.publish` (section 20.7) | Plugin message | none beyond the above: a decoder may always report | **New.** Decision 19 |
+| **Deliver triggers to a harness** | Triggers are records in the agent's event stream; `triggers.query` and `trigger_stats` for a harness that asks afterwards | Agent operations, through the proxy for an adapter | `ports.read` for the trigger, `traffic.tap` to see its bytes | **New** |
+| Keep the traffic around a trigger | `capture.start {ring, snapshot_on, before_s, after_s}`: the agent cuts the ring itself when a trigger passes | Engine-side operation | `traffic.tap` | **Change** to section 19.4: `snapshot_on`. No plugin talks to another plugin |
+| Act on a trigger | The existing operations: `fault`, `lines`, a write, `rules.set`, a slot | Proxy calls, rules | `faults`, `ports.write` (both optional) | Sections 7.5 and 7.7. Section 20.8 |
+| React inside the turn-around | A rule set made from the description | Rules | `faults` or `ports.write` | `docs/response-timing.md`. Section 20.8 |
+| Add the triggers of a run to a support bundle | A bundle section `triggers` | Bundle section | `bundle.section` | Section 19.5, reused |
+
+**The decode stream.** It is the tap made exact. For each place the decoder was given, the agent sends items in the
+order the engine saw them:
+
+| Item | Carries |
+|---|---|
+| `data` | `place`, `direction`, `offset` (the count of bytes at that place and direction before this chunk), `t_ns`, `end_ns` (on a half-duplex bus: when the last byte left the wire), the bytes. One engine chunk is one item; chunks are never joined |
+| `line` | `place`, `t_ns`, the lines and which changed |
+| `line_error` | `place`, `t_ns`, the kind |
+| `bus_fault` | `link`, the sender, `t_ns`, the `bus_fault` value, the `offset` and length of the sender's chunk |
+| `rule` | A rule fired at the place: its event as `docs/response-timing.md` defines it |
+| `time` | `t_ns`: the engine's time now |
+| `lost` | `place`, `direction`, `from_offset`, `bytes`, `from_ns`, `to_ns`: the decoder was too slow and this much was not sent |
+
+- **It never slows the traffic.** The agent keeps what the plugin has not yet taken in a queue of fixed size (4 MiB
+  by default for an instance). When it is full, the oldest items are dropped and one `lost` item takes their place.
+  There is no back-pressure on a port.
+- **Loss is in the stream, at the place it happened.** A decoder that reads a `lost` item forgets the frame it was
+  in, starts again at the next frame start, and publishes a `decoder_lost` trigger. It must not report a framing,
+  length or timeout anomaly across a loss. A harness can therefore tell a clean run from one where detection had a
+  hole, as a run whose harness died is marked incomplete.
+- **Offsets tie everything together.** A frame is `place`, `direction`, `offset` and `length`, so a trigger points
+  at exact bytes of a recording made by the capture of section 19, without matching by content.
+- **Flow.** The plugin acknowledges items (`decoder.ack {seq}`), and the host sends at most 256 KiB that is not
+  acknowledged.
+- The traffic chip of `screens/10-plugins.md` ("Reading data") shows for as long as a decoder reads.
+
+**Two gaps in what exists today**, to be closed by the agent work and not by `vss_core`:
+
+- The agent protocol's `event_record` has the kind `bus_fault` and the engine's sentence, but not the `fault` value,
+  the link or a time. The decode stream needs all three. This is an addition to `vss_agent_proto`; `vss_core`'s
+  event already has them. Until the agent carries them the capability `events_bus_fault_detail` is absent, and a
+  contention trigger then has the kind `contention`, the engine's sentence and no sub-kind. It says "detail not
+  available in this build" and is never guessed from the bytes.
+- Events have no time in the agent protocol at all. `docs/response-timing.md` ("One clock") gives every event a
+  time since the run's origin; the decode stream depends on that and adds nothing of its own.
+
+### 20.5 The protocol description: an open format
+
+A description is one JSON file. It is data and not code, so it needs no signature and no sandbox to share. It is
+still a file from someone else: it is read with limits, unknown keys are errors, and its reader has a fuzz harness
+(section 16).
+
+```json
+{
+  "protocol_format": 1,
+  "id": "com.example.meter-bus",
+  "name": "Meter bus",
+  "version": "1.2.0",
+  "byte_order": "big",
+  "framing": {
+    "start": "02", "end": "03",
+    "length": { "at": 2, "size": 1, "counts": "payload", "add": 0 },
+    "gap_us": 1750, "max_length": 260
+  },
+  "check": { "algorithm": "crc16", "poly": "8005", "init": "FFFF", "reflect": true, "xor_out": "0000",
+             "covers": [1, -4], "at": -3, "byte_order": "little" },
+  "header": [
+    { "name": "address", "type": "u8", "range": [1, 247] },
+    { "name": "length", "type": "u8" },
+    { "name": "type", "type": "u8" },
+    { "name": "counter", "type": "u8" }
+  ],
+  "type_field": "type",
+  "sequence": { "field": "counter", "step": 1, "wraps_after": 255, "per": "address" },
+  "messages": [
+    { "name": "read request", "type": 3, "from": "controller",
+      "fields": [ { "name": "register", "type": "u16" }, { "name": "count", "type": "u16", "range": [1, 125] } ],
+      "reply": { "one_of": ["read reply", "error reply"], "within_us": 100000, "same": ["address", "counter"] } },
+    { "name": "read reply", "type": 3, "from": "device",
+      "fields": [ { "name": "size", "type": "u8" }, { "name": "values", "type": "bytes", "length": "size" } ] },
+    { "name": "error reply", "type": 131, "from": "device",
+      "fields": [ { "name": "code", "type": "u8",
+                    "values": { "1": "bad function", "2": "bad address", "3": "bad value" }, "strict": true } ] }
+  ],
+  "unknown_type": "anomaly"
+}
+```
+
+| Part | What it can say |
+|---|---|
+| `framing` | Any of: a start marker, an end marker, an escape byte for markers inside the data, a length field (where, how wide, what it counts, a constant to add), a delimiter, a fixed length, a silence (`gap_us`) before a frame or after it. `max_length` is required |
+| `check` | A named value (`crc16_modbus`, `crc16_ccitt`, `sum8`, `xor8`, `lrc`: the names `docs/response-timing.md` uses, with the same results) or a CRC by its parameters (width 8, 16 or 32, polynomial, start value, reflection, final xor); the range it covers; where it is; its byte order. For a text protocol: the value as two or four hex characters |
+| Fields | `u8` to `u64`, `i8` to `i64`, `f32`, `f64`, `bcd`, `ascii`, `bytes`, and `bits` (named parts of one integer). A length is a number, another field, or `rest`. A field may list `values` with names, a `range`, and `strict` (a value outside them is an anomaly) |
+| `messages` | A name, how it is recognised (the type field's value, and who sends it where the protocol has a controller), its fields, and the reply it expects: which messages, within how long, and which fields must be the same |
+| `sequence` | A counter field, its step and where it wraps, counted for each address or for the whole place |
+| `unknown_type` | `anomaly` or `ignore` |
+
+What it cannot say, on purpose: loops, arithmetic, conditions on field values beyond the message type, or state
+beyond request and reply and one counter. The reader builds tables from it, and decoding a frame takes a number of
+steps fixed by the frame's length. A protocol that needs more is a decoder in code (section 20.6). Limits: 256 KiB
+of JSON, depth 16, 256 messages, 64 fields in a message, a frame of at most 64 KiB.
+
+- **Versioned.** `protocol_format` rises only for a change an old reader cannot ignore. A reader refuses a higher
+  number and says so. `version` is the author's own, for people.
+- **A test corpus travels with it.** Beside `protocol.json`, a folder `corpus/` holds cases. A case is a recording
+  in the format of section 19.6 and an `expected.jsonl`: the frames and the triggers a correct reader produces from
+  it, one JSON object on a line, in order. `vss_cli protocol check <folder>` runs every case and prints the first
+  difference. So a description can be reviewed, shared and changed with evidence, and a second implementation of
+  the format can be held to the first.
+- **The format has its own corpus**, in this repository: descriptions that must be refused with a given reason,
+  and cases for each framing kind, each field type and each check value. It is the conformance test for any reader.
+- **Decoding a recording is the same as decoding live.** A decoder is a function of its stream, and the stream of a
+  recording is the recording. The corpus check, a harness that looks at a finished run, and support reading a
+  bundle all use that. Nothing is opened and no port exists.
+
+### 20.6 Decoders in code
+
+Some protocols do not fit a description: Modbus RTU (frames told apart only by silence and by what the function
+code implies), Modbus ASCII and NMEA 0183 (text with a check value in hex and optional parts), and many in-house
+binary protocols. For them a plugin contributes a **decoder**, a fifth kind of extension point.
+
+```json
+{ "kind": "decoder", "id": "modbus-rtu", "name": { "en": "Modbus RTU" },
+  "timing": { "class": "async" },
+  "parameters": [ { "id": "silence", "type": "duration", "default": "1750us" } ] }
+```
+
+| Message | From | Content |
+|---|---|---|
+| `decoder.create` | host | `instance`, the places and their settings (rate, format, whether a bus), `params` |
+| `decoder.data` | host | `seq` and a list of the items of section 20.4, with the bytes as one blob |
+| `decoder.ack` | plugin | `seq` |
+| `decoder.frame` | plugin | `place`, `direction`, `offset`, `length`, `t_start_ns`, `t_end_ns`, a message name, a summary of at most 200 characters, and up to 64 fields as `{name, offset, length, value}`. Optional, rate limited, and dropped first when the plugin is over its limits |
+| `trigger.publish` | plugin | Section 20.7 |
+| `decoder.stop` | host | |
+
+Rules:
+
+- A decoder's timing class is `async` and nothing else. It is never in the path of the data and the engine never
+  waits for it.
+- It needs `traffic.tap`, on the places the user gave it and no others.
+- A decoder that crashes or is stopped costs the decoding and nothing else: the traffic is untouched, the traffic
+  view falls back to bytes, a `decoder_lost` trigger is published by the host, and the instance shows its state.
+- **What a decoder says about traffic is untrusted twice**: the plugin wrote it, and the device under test chose
+  the bytes. Names and summaries are plain text with the manifest's text rules (no control characters, no direction
+  marks, a length limit). Studio draws field values from their bytes where the type is known. Nothing is markup.
+- The declarative reader of section 20.5 is itself a decoder of the official plugin, with one parameter: the
+  description file. So descriptions and coded decoders produce the same frames and the same triggers, and the rest
+  of Studio does not know which one is running.
+
+### 20.7 The trigger
+
+A trigger is one record. The format is public and versioned with the plugin API.
+
+```json
+{
+  "id": 4127,
+  "kind": "check",
+  "when_ns": 18204113250,
+  "place": "bus-1", "direction": "rx", "sender": "meter-17",
+  "protocol": { "id": "com.example.meter-bus", "version": "1.2.0" },
+  "frame": { "offset": 48213, "length": 10, "t_start_ns": 18203200000, "t_end_ns": 18204113250,
+             "message": "read reply" },
+  "field": { "name": "check", "offset": 7, "length": 2 },
+  "expected": "3A91", "actual": "3A90",
+  "covers": [1, 6],
+  "cause": { "bus_fault": "overlap", "event": 9912 },
+  "request": { "offset": 48205, "length": 8, "t_end_ns": 18201000000 },
+  "text": "Check value is 3A90, expected 3A91.",
+  "from": { "plugin": "com.virtualserialstudio.protocol", "instance": 3 }
+}
+```
+
+- `kind` is from a closed list: `framing`, `unknown_type`, `unknown_value`, `check`, `length`, `timeout`,
+  `sequence`, `contention`, `line_error`, `decoder_lost`, and `custom` with a `code` the manifest declared.
+- **The host stamps it.** `id` (a count for the run), `from`, and the time it was published are the agent's. A
+  `when_ns` later than the engine's time now, or a frame at an offset the place has not reached, is refused. A
+  plugin cannot publish a trigger for a place it was not given.
+- **The bytes are not in it.** A trigger names its frame by offset. A subscriber with `traffic.tap` may ask for the
+  bytes (`triggers.query` with `bytes`), up to 4 KiB a frame, for as long as the agent's ring has them; a
+  subscriber with only `ports.read` gets the record without `expected`, `actual` or bytes. So "which tests failed"
+  can be read by a tool that may not read traffic.
+- **Limits.** 200 triggers a second for an instance, as a budget that refills. Over it the agent counts them
+  (`suppressed`) and publishes one `trigger_storm` record a second. The agent keeps the last 10 000 triggers of a
+  run. `trigger_stats` gives the count for each kind and place at any time, exact whatever was dropped, as
+  `rule_stats` does for rules.
+- **They are the agent's records, not `vss_core` events.** A trigger is made outside the hub, so it travels in the
+  agent protocol's event stream as its own record and `vss::event_kind` does not change.
+
+### 20.8 What a trigger does
+
+The user or the harness chooses, for each kind of trigger. The plugin does not choose for them.
+
+| | What happens | Who does it | Timing |
+|---|---|---|---|
+| **(a) Log** | Always. The trigger is in the event log, in the run's log and in any capture that is running, at its `when_ns` | Agent | |
+| **(b) Reach the harness** | A harness adapter, or a client of the control API, subscribes to triggers or asks afterwards (`triggers.query {since, kinds, places}`, `trigger_stats`). A test asserts "no triggers", "exactly one `timeout` on bus-1", or waits for one with a time limit | Agent, through the proxy of section 7.7. How the control API is reached from outside is the remote-control work | Batched like every event; the times inside are exact |
+| **(c) Keep the traffic** | A capture ring is running (`capture.start` with `ring`, section 19.4). With `snapshot_on: {kinds, places}`, `before_s` and `after_s`, the agent cuts that span out of the ring into a kept recording when a matching trigger passes, and names the trigger in the recording's index. That recording is what the Diagnostics and replay plugin packs and replays | Agent. The two plugins never talk to each other; either may start the ring | The span is exact because the ring was already recording |
+| **(d) An engine action** | Off unless the user turns it on. Two forms, below | Engine | Below |
+
+**(d) in two forms**, which is the boundary with `docs/response-timing.md`. That page owns the rules, their clock
+and their guarantees, and nothing here changes it.
+
+1. **After the fact.** On a trigger the plugin calls an existing operation: raise a fault, set a line, write
+   bytes, fill a slot, switch a rule on or off (`update_rules`). This is tier T2 of section 6: the action comes
+   after the trigger was decided, milliseconds after the bytes, and that delay is the plugin's and is not promised.
+   It suits "after the first bad check value, drop the device's carrier" and does not suit "answer this frame".
+2. **Armed.** For a reaction that must be exact, the plugin does not react; it prepares. It installs a rule set
+   made from the description (the fixed start of a message as `bytes`, the frame's silence as `gap_us`, the action
+   with its delay), switched off. A trigger switches it on, and the **next** matching frame is matched and
+   answered by the engine, with the engine's timing and its lateness reported. This is "staying one step ahead"
+   of that page, used for faults. What the description can express and a fixed-length pattern cannot (a length
+   inside the frame) stays detection only, until that page's rule language has bounded variable-length patterns,
+   which is its decision 6.
+
+Either form needs `faults` or `ports.write`, which this plugin asks for as optional. Without them it is read-only
+and (d) is not offered.
+
+**A trigger must not feed itself.** An action that damages traffic causes anomalies, which cause triggers. So
+actions from triggers have a budget of their own (10 a second for an instance; over it the actions stop, the
+detection goes on and the instance says so), and a trigger whose frame overlaps a fault the same instance asked
+for carries `cause: {"own_action": id}`, so that a rule of the user's can leave it out.
+
+**Permissions of this plugin**, as the user sees them in the decision dialog:
+
+| Sentence | Needed | Note |
+|---|---|---|
+| "See your ports and links, their state and their counters." | Yes | |
+| **"Read the data that passes through the ports and links you use it on."** | Yes | The read-traffic permission. An amber row, never granted silently |
+| "Read files in a folder you choose." | Yes | The description file and its corpus |
+| "Add a section to a support bundle. You see it and choose whether to include it." | Optional | The `triggers` section |
+| "Raise faults on the ports you use it on." | Optional | For (d) |
+| "Send data from the ports you use it on." | Optional | For (d) |
+
+It asks for no network permission and no `modifier.inline`. It is never in the path of the data.
+
+### 20.9 What this example changed in the design
+
+| Gap | Where it is now |
+|---|---|
+| The tap could drop without saying where, and joined chunks | The decode stream: one item for each chunk, engine times, offsets, `lost` in place (20.4). Decision 18 |
+| Nothing let a plugin interpret traffic for Studio | The `decoder` extension point (20.6). Decision 17 |
+| A plugin could report only a status and a log line | The trigger record, with limits, storage and counters in the agent (20.7). Decision 19 |
+| A recording could not be kept because of something that happened | `snapshot_on` in `capture.start` (20.8) |
+| The agent's `bus_fault` event had no value, link or time | An addition to `vss_agent_proto`, behind `events_bus_fault_detail` (20.4) |
+| A plugin had no time source but its own clock | `time` items on the engine's clock (20.3) |
+| No shared way to write a protocol down | The description format and its corpus (20.5). Decision 20 |
+| What Community gets | The basic framing view, in Studio (20.2). Decision 21 |
+
+Not designed here, and needed before any of it is built in the window: the screens. Where decoded frames show in
+the traffic view, the list of triggers, the choices of section 20.8 and their strings need a screen specification
+beside `screens/10-plugins.md`.
