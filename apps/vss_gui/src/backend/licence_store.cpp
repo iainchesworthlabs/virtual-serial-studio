@@ -152,7 +152,7 @@ lic::context licence_store::context(lic::time_point now) const
     where.build_time = options_.build_time;
     where.computer_name = options_.computer_name.toStdString();
     where.keys = options_.keys;
-    where.revocations = have_revocations_ ? &revocations_ : nullptr;
+    where.revocations = &revocations_;
     return where;
 }
 
@@ -196,9 +196,10 @@ void licence_store::save_clock() const
 
 void licence_store::load_revocations()
 {
-    // The list with the highest sequence number wins, wherever it is.
-    have_revocations_ = false;
-    revocations_ = {};
+    // The list with the highest sequence number wins, wherever it is. The
+    // one built into this release is the starting point; a signed list in a
+    // licence folder replaces it only when its number is higher.
+    revocations_ = lic::builtin_revocations();
     for (const QString& directory :
          {options_.machine_directory, options_.user_directory})
     {
@@ -211,11 +212,7 @@ void licence_store::load_revocations()
                 lic::read_revocations(view_of(*bytes), options_.keys);
             if (!list)
                 continue;
-            if (!have_revocations_)
-                revocations_ = *list;
-            else
-                revocations_ = lic::newer(revocations_, *list);
-            have_revocations_ = true;
+            revocations_ = lic::newer(revocations_, *list);
         }
     }
 }
