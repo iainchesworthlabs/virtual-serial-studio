@@ -105,13 +105,14 @@ public:
     /// Writes the running setup now.  `stopped` records a Quit.
     void save_running_now(bool stopped = false);
 
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
     StudioTray* tray() const noexcept { return tray_; }
     NoteBanner* resume_banner() const noexcept { return resume_banner_; }
 
 protected:
     void closeEvent(QCloseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
-    bool eventFilter(QObject* watched, QEvent* event) override;
     void showEvent(QShowEvent* event) override;
 
 private:
