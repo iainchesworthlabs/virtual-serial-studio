@@ -207,6 +207,7 @@ private:
     void open_shortcuts();
     void open_about();
     void open_licence();
+    void open_support();
     void open_help_contents();
     void open_bundle();
     void copy_environment();

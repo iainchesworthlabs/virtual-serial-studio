@@ -33,6 +33,7 @@
 #include "support/licence_dialog.hpp"
 #include "support/running_setup.hpp"
 #include "support/setup_facts.hpp"
+#include "support/support_dialog.hpp"
 #include "support/tests/licence_samples.hpp"
 
 #include "theme/theme.hpp"
@@ -2026,7 +2027,9 @@ TEST_CASE("licence: Help lists Licence after the environment entry, and Search "
     const int licence = ids.indexOf(QStringLiteral("help.licence"));
     REQUIRE(environment >= 0);
     REQUIRE_EQ(licence, environment + 1);
-    REQUIRE_EQ(ids.at(licence + 1), QStringLiteral("help.about"));
+    // Support follows Licence, and About comes last.
+    REQUIRE_EQ(ids.at(licence + 1), QStringLiteral("help.support"));
+    REQUIRE_EQ(ids.at(licence + 2), QStringLiteral("help.about"));
 
     auto* action = window.findChild<QAction*>(QStringLiteral("help.licence"));
     REQUIRE(action != nullptr);
@@ -2046,6 +2049,88 @@ TEST_CASE("licence: Help lists Licence after the environment entry, and Search "
 
     // Choosing it opens the Licence dialog.
     REQUIRE(opens_licence_dialog([action] { action->trigger(); }));
+    clear_settings();
+}
+
+/// Rejects the Support dialog that opens while `trigger` runs, and says
+/// whether there was one.
+template <class Trigger> bool opens_support_dialog(Trigger&& trigger)
+{
+    bool found = false;
+    QTimer::singleShot(
+        0, QApplication::instance(),
+        [&found]
+        {
+            for (QWidget* widget : QApplication::topLevelWidgets())
+            {
+                if (auto* dialog =
+                        qobject_cast<vss::gui::support::SupportDialog*>(widget))
+                {
+                    found = true;
+                    dialog->reject();
+                }
+            }
+        });
+    trigger();
+    return found;
+}
+
+TEST_CASE("support: Help lists Support after Licence, and Search finds it")
+{
+    clear_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    window.show();
+    QApplication::processEvents();
+
+    QMenu* help = nullptr;
+    QMenu* file = nullptr;
+    for (QAction* top : window.menuBar()->actions())
+    {
+        if (top->menu() == nullptr)
+            continue;
+        const QString title = top->text().remove(QLatin1Char('&'));
+        if (title == QStringLiteral("Help"))
+            help = top->menu();
+        if (title == QStringLiteral("File"))
+            file = top->menu();
+    }
+    REQUIRE(help != nullptr);
+    QStringList ids;
+    for (QAction* action : help->actions())
+        ids << action->objectName();
+    const int licence = ids.indexOf(QStringLiteral("help.licence"));
+    const int support = ids.indexOf(QStringLiteral("help.support"));
+    REQUIRE(licence >= 0);
+    REQUIRE_EQ(support, licence + 1);
+    REQUIRE_EQ(ids.at(support + 1), QStringLiteral("help.about"));
+
+    auto* action = window.findChild<QAction*>(QStringLiteral("help.support"));
+    REQUIRE(action != nullptr);
+    REQUIRE_EQ(action->text(), QStringLiteral("Support..."));
+    REQUIRE(action->shortcut().isEmpty());
+    REQUIRE(action->isEnabled());
+
+    // Search actions finds it as "Support".
+    auto* registry = window.findChild<vss::gui::ActionRegistry*>();
+    REQUIRE(registry != nullptr);
+    bool found = false;
+    for (QAction* match : registry->search(QStringLiteral("Support")))
+        found =
+            found || match->data().toString() == QStringLiteral("help.support");
+    REQUIRE(found);
+    REQUIRE(registry->shortcuts_unique());
+
+    // The File menu names the support bundle, not a diagnostic bundle.
+    REQUIRE(file != nullptr);
+    auto* bundle = window.findChild<QAction*>(QStringLiteral("file.bundle"));
+    REQUIRE(bundle != nullptr);
+    REQUIRE_EQ(bundle->text(), QStringLiteral("Support bundle"));
+    for (QAction* match : registry->search(QStringLiteral("diagnostic")))
+        REQUIRE(match->data().toString() != QStringLiteral("file.bundle"));
+
+    // Choosing it opens the Support dialog.
+    REQUIRE(opens_support_dialog([action] { action->trigger(); }));
     clear_settings();
 }
 

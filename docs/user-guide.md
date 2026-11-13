@@ -1345,11 +1345,21 @@ registry on Windows, a configuration file on Linux and macOS).
 
 ![The Why is nothing arriving dialog: the port is open, it has no link, and the later checks are not yet run](images/troubleshoot-light.png)
 
-- **File → Diagnostic bundle** saves a ZIP with the setup, the event log, the
-  environment and the port counters. Traffic contents are left out unless you
-  tick them. Nothing is sent anywhere; you choose where to save the file.
-
-![The Create a diagnostic bundle dialog with five choices; Traffic contents is off by default](images/diagnostic-bundle-light.png)
+- **File → Support bundle** saves a ZIP named `vss-support-<date>.zip` with
+  the version and environment, the driver state, the setup, the event log, the
+  port counters and the serial ports on this computer, and the licence number,
+  edition, term and state when a licence is installed. The bytes your ports
+  sent and received are never included, and passwords, the path of your home
+  folder, your computer and user names, device serial numbers and the licence
+  file are left out. Two amber choices, off until you turn them on, add the
+  licensee name and this computer's name. The right side of the dialog shows
+  each file exactly as it will be saved. Nothing is sent anywhere; you choose
+  where to save the file.
+- **Help → Support...** says where to get help for your edition, what to write
+  before you ask, and has the **Create support bundle** button and a **Copy**
+  button for the version, edition, licence number and operating system. It
+  copies addresses to the clipboard and does not open a web page or a mail
+  program.
 
 - **Help → Keyboard shortcuts** lists every shortcut; **Help → Copy
   diagnostic information** copies the build information and the environment for

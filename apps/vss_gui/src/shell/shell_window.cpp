@@ -49,7 +49,6 @@
 #include "simple/simple_page.hpp"
 #include "support/about_dialog.hpp"
 #include "support/build_info.hpp"
-#include "support/diagnostic_bundle_dialog.hpp"
 #include "support/driver_setup_dialog.hpp"
 #include "support/help_contents_dialog.hpp"
 #include "support/licence_dialog.hpp"
@@ -60,6 +59,8 @@
 #include "support/setup_facts.hpp"
 #include "support/shortcuts_dialog.hpp"
 #include "support/sign_in_start.hpp"
+#include "support/support_bundle_dialog.hpp"
+#include "support/support_dialog.hpp"
 #include "support/troubleshoot_dialog.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -260,8 +261,8 @@ void ShellWindow::build_actions()
     add(QStringLiteral("file.exportCommand"), tr("Export as command"),
         tr("cli command"), {}, {}, action_level::advanced,
         [this] { open_export_command(); });
-    add(QStringLiteral("file.bundle"), tr("Diagnostic bundle"),
-        tr("support zip"), QStringLiteral("export"), {}, action_level::simple,
+    add(QStringLiteral("file.bundle"), tr("Support bundle"), tr("support zip"),
+        QStringLiteral("export"), {}, action_level::simple,
         [this] { open_bundle(); });
     add(QStringLiteral("file.quit"), tr("Quit"), tr("exit"), {},
         QKeySequence::Quit, action_level::simple,
@@ -551,6 +552,9 @@ void ShellWindow::build_actions()
     add(QStringLiteral("help.licence"), tr("Licence..."),
         tr("licence edition pro community plugins import renew"), {}, {},
         action_level::simple, [this] { open_licence(); });
+    add(QStringLiteral("help.support"), tr("Support..."),
+        tr("support help contact bundle address issues"), {}, {},
+        action_level::simple, [this] { open_support(); });
     add(QStringLiteral("help.about"), tr("About"),
         tr("version licence copyright"), {}, {}, action_level::simple,
         [this] { open_about(); });
@@ -695,6 +699,7 @@ void ShellWindow::build_menus()
     add(help, QStringLiteral("help.shortcuts"));
     add(help, QStringLiteral("help.environment"));
     add(help, QStringLiteral("help.licence"));
+    add(help, QStringLiteral("help.support"));
     add(help, QStringLiteral("help.about"));
 }
 
@@ -2953,7 +2958,7 @@ void ShellWindow::open_shortcuts()
 
 void ShellWindow::open_about()
 {
-    AboutDialog dialog(this);
+    AboutDialog dialog(backend_, this);
     connect(&dialog, &AboutDialog::bundle_requested, this,
             &ShellWindow::open_bundle);
     dialog.exec();
@@ -2962,6 +2967,18 @@ void ShellWindow::open_about()
 void ShellWindow::open_licence()
 {
     LicenceDialog dialog(backend_, this);
+    dialog.exec();
+}
+
+void ShellWindow::open_support()
+{
+    SupportDialog dialog(backend_, this);
+    connect(&dialog, &SupportDialog::bundle_requested, this,
+            &ShellWindow::open_bundle);
+    connect(&dialog, &SupportDialog::help_requested, this,
+            &ShellWindow::open_help_contents);
+    connect(&dialog, &SupportDialog::troubleshoot_requested, this,
+            &ShellWindow::open_troubleshoot);
     dialog.exec();
 }
 
@@ -2990,7 +3007,7 @@ void ShellWindow::open_help_contents()
 
 void ShellWindow::open_bundle()
 {
-    DiagnosticBundleDialog dialog(backend_, support_log_, this);
+    SupportBundleDialog dialog(backend_, support_log_, this);
     dialog.exec();
 }
 

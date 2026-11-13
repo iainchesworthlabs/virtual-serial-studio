@@ -204,13 +204,13 @@ void TroubleshootDialog::build()
     try_layout->addLayout(buttons);
     body_layout->addWidget(try_card);
 
-    // A closing hint that points at the diagnostic bundle in the footer.
+    // A closing hint that points at the support bundle in the footer.
     auto* muted = new QLabel(
         QCoreApplication::translate(
             "Troubleshoot",
-            "Still stuck? A diagnostic bundle gathers the setup, the log and "
-            "the environment for whoever helps you. Traffic contents are left "
-            "out unless you choose to include them."),
+            "Still stuck? A support bundle gathers the setup, the log and the "
+            "environment for whoever helps you. The bytes your ports sent and "
+            "received are never included."),
         body);
     muted->setFont(Theme::instance().font(text_style::caption));
     muted->setProperty("muted", true);
@@ -223,13 +223,13 @@ void TroubleshootDialog::build()
     scroll->setWidget(body);
     outer->addWidget(scroll, 1);
 
-    // Footer: the diagnostic bundle request on the left, then Close as the
+    // Footer: the support bundle request on the left, then Close as the
     // default. The dialog only signals the request; the caller opens the
     // bundle dialog.
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* bundle = make_dialog_button(
-        QCoreApplication::translate("Troubleshoot", "Create diagnostic bundle"),
+        QCoreApplication::translate("Troubleshoot", "Create support bundle"),
         "quiet", footer);
     bundle->setAutoDefault(false);
     connect(bundle, &QPushButton::clicked, this,

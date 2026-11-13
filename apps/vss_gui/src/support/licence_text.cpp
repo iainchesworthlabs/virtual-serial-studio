@@ -88,6 +88,18 @@ QString support_address()
     return QStringLiteral("support@virtual-serial-studio.invalid");
 }
 
+QString documents_address()
+{
+    return QStringLiteral(
+        "https://iainchesworthlabs.github.io/virtual-serial-studio/");
+}
+
+QString issues_address()
+{
+    return QStringLiteral(
+        "https://github.com/iainchesworthlabs/virtual-serial-studio/issues");
+}
+
 QDate licence_local_date(lic::time_point value)
 {
     const auto seconds = std::chrono::duration_cast<std::chrono::seconds>(

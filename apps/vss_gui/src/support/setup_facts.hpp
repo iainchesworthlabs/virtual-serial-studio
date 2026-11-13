@@ -155,6 +155,10 @@ bool open_com0com_project_page();
 QString dialout_add_command();
 bool open_system_accessibility_settings();
 
+/// Shows a folder of this computer in the system's file manager ("Show in
+/// folder"). A local path only: nothing is fetched and no browser is used.
+bool open_folder(const QString& folder);
+
 /// Relaunches the current executable elevated.  Windows only; returns false
 /// with `error` set otherwise or when the user cancels the UAC prompt.
 bool relaunch_as_administrator(QString* error = nullptr);

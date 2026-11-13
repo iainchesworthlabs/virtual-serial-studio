@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # The support and system surfaces: setup check, troubleshooting, the
-# diagnostic bundle, settings, About, keyboard shortcuts and the help index.
+# support bundle, settings, About, keyboard shortcuts and the help index.
 #
 
 add_library(vss_gui_support STATIC
@@ -18,8 +18,6 @@ add_library(vss_gui_support STATIC
   check_row.cpp
   check_row.hpp
   console.hpp
-  diagnostic_bundle_dialog.cpp
-  diagnostic_bundle_dialog.hpp
   driver_setup_dialog.cpp
   driver_setup_dialog.hpp
   elevated_step.cpp
@@ -56,6 +54,10 @@ add_library(vss_gui_support STATIC
   stall_probe.cpp
   stall_probe.hpp
   shortcuts_dialog.hpp
+  support_bundle_dialog.cpp
+  support_bundle_dialog.hpp
+  support_dialog.cpp
+  support_dialog.hpp
   troubleshoot.cpp
   troubleshoot.hpp
   troubleshoot_dialog.cpp

@@ -35,7 +35,7 @@ several sources."
 
 - Reads counters, control lines and the traffic log.
 - Wants raw addresses, fixtures, the topology JSON and reproducible commands.
-- Uses **Advanced** plus `vss_cli --verbose`, the diagnostic bundle and the
+- Uses **Advanced** plus `vss_cli --verbose`, the support bundle and the
   Tracy profiling build.
 
 The levels are therefore not "basic" and "pro" feature sets; they are two
@@ -181,8 +181,8 @@ watcher can be removed when finished. It never drives modem lines.
 
 Select a port: the Inspector shows state, counters and control lines. **Help →
 Why is nothing arriving?** walks the steps from device to program. **Tools →
-Setup check** reports what the PC needs. **File → Diagnostic bundle** gathers
-the setup, log and environment, with traffic contents off unless chosen.
+Setup check** reports what the PC needs. **File → Support bundle** gathers
+the setup, log and environment; it never holds the bytes the ports carried.
 **About → Environment** gives the build.
 
 ## Human factors decisions

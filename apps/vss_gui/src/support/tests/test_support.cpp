@@ -5,13 +5,13 @@
 //
 
 #include "test_framework.hpp"
+#include "zip_reader.hpp"
 
 #include "backend/fake_studio_backend.hpp"
 #include "support/about_dialog.hpp"
 #include "support/build_info.hpp"
 #include "support/bundle.hpp"
 #include "support/check_row.hpp"
-#include "support/diagnostic_bundle_dialog.hpp"
 #include "support/event_log.hpp"
 #include "support/help_contents_dialog.hpp"
 #include "support/redact.hpp"
@@ -20,6 +20,7 @@
 #include "support/setup_check_dialog.hpp"
 #include "support/setup_facts.hpp"
 #include "support/shortcuts_dialog.hpp"
+#include "support/support_bundle_dialog.hpp"
 #include "support/third_party.hpp"
 #include "support/troubleshoot.hpp"
 #include "support/troubleshoot_dialog.hpp"
@@ -198,69 +199,9 @@ vss::gui::port_view make_port(vss::endpoint_id id, const QString& name,
     return port;
 }
 
-std::uint16_t read_u16(const QByteArray& data, int offset)
-{
-    return static_cast<std::uint16_t>(
-        static_cast<unsigned char>(data.at(offset)) |
-        (static_cast<unsigned char>(data.at(offset + 1)) << 8));
-}
-
-std::uint32_t read_u32(const QByteArray& data, int offset)
-{
-    return static_cast<std::uint32_t>(
-        static_cast<unsigned char>(data.at(offset)) |
-        (static_cast<unsigned char>(data.at(offset + 1)) << 8) |
-        (static_cast<unsigned char>(data.at(offset + 2)) << 16) |
-        (static_cast<unsigned char>(data.at(offset + 3)) << 24));
-}
-
-struct zip_entry
-{
-    QString name;
-    QByteArray data;
-};
-
-/// A tiny independent reader, so the test proves the archive structure the
-/// same way a ZIP tool walks the central directory.
-QVector<zip_entry> read_zip(const QByteArray& archive)
-{
-    QVector<zip_entry> entries;
-    int eocd = -1;
-    for (int offset = static_cast<int>(archive.size()) - 22; offset >= 0;
-         --offset)
-    {
-        if (read_u32(archive, offset) == 0x06054b50U)
-        {
-            eocd = offset;
-            break;
-        }
-    }
-    if (eocd < 0)
-        return entries;
-    const int count = read_u16(archive, eocd + 10);
-    int cursor = static_cast<int>(read_u32(archive, eocd + 16));
-    for (int index = 0; index < count; ++index)
-    {
-        if (read_u32(archive, cursor) != 0x02014b50U)
-            break;
-        const int name_length = read_u16(archive, cursor + 28);
-        const int extra_length = read_u16(archive, cursor + 30);
-        const int comment_length = read_u16(archive, cursor + 32);
-        const int local_offset =
-            static_cast<int>(read_u32(archive, cursor + 42));
-        const QString name =
-            QString::fromUtf8(archive.mid(cursor + 46, name_length));
-
-        const int local_name = read_u16(archive, local_offset + 26);
-        const int local_extra = read_u16(archive, local_offset + 28);
-        const int size = static_cast<int>(read_u32(archive, local_offset + 18));
-        const int data_offset = local_offset + 30 + local_name + local_extra;
-        entries.push_back({name, archive.mid(data_offset, size)});
-
-        cursor += 46 + name_length + extra_length + comment_length;
-    }
-    return entries;
-}
+using vss::gui::test_zip::read_u32;
+using vss::gui::test_zip::read_zip;
+using vss::gui::test_zip::zip_entry;
 
 } // namespace
 
@@ -463,7 +404,8 @@ TEST_CASE("support: licences match the bundled components")
     // that has the profiler.
     REQUIRE_EQ(support::bundled_components(false).size(), all.size() - 1);
     REQUIRE_EQ(support::bundled_components(true).size(), all.size());
-    support::AboutDialog dialog;
+    FakeStudioBackend backend;
+    support::AboutDialog dialog(backend);
     QTabWidget* tabs = dialog.tabs();
     QWidget* licences = tabs->widget(3);
     QStringList shown;
@@ -1010,11 +952,12 @@ TEST_CASE("support: settings persist and apply immediately")
     clear_settings();
 }
 
-TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
+TEST_CASE("support: the support bundle has no traffic row and writes no "
+          "traffic file")
 {
     clear_settings();
-    // Arrange: one loopback port that has carried "hello", so the traffic
-    // file has something to show.
+    // Arrange: one loopback port that has carried "hello", so there is
+    // payload that must stay out of the bundle.
     FakeStudioBackend backend;
     const auto terminal = backend.create_virtual_port(
         QStringLiteral("terminal"), vss::virtual_port_kind::loopback, true);
@@ -1035,124 +978,82 @@ TEST_CASE("support: diagnostic bundle contents honour the traffic opt-in")
     secret.message = QStringLiteral("token=abc123");
     log.append(secret);
 
-    // By default traffic is off, so the bundle holds four files in a fixed
-    // order.
-    support::bundle_selection selection;
-    REQUIRE_EQ(selection.file_count(), 4);
-    QVector<support::bundle_file> files =
-        support::build_bundle_files(backend, log, selection);
-    REQUIRE_EQ(files.size(), 4);
-    REQUIRE_EQ(files.at(0).name, QStringLiteral("setup.json"));
-    REQUIRE_EQ(files.at(1).name, QStringLiteral("log.txt"));
-    REQUIRE_EQ(files.at(2).name, QStringLiteral("environment.txt"));
+    // The default bundle: the manifest, then the six sections without a
+    // licence, in the order the spec lists them.
+    const support::bundle_selection selection;
+    const QVector<support::bundle_file> files =
+        support::build_bundle(backend, log, selection).files();
+    REQUIRE_EQ(files.size(), 7);
+    REQUIRE_EQ(files.at(0).name, QStringLiteral("manifest.json"));
+    REQUIRE_EQ(files.at(1).name, QStringLiteral("environment.txt"));
+    REQUIRE_EQ(files.at(2).name, QStringLiteral("driver.txt"));
+    REQUIRE_EQ(files.at(3).name, QStringLiteral("setup.json"));
+    REQUIRE_EQ(files.at(4).name, QStringLiteral("log.txt"));
+    REQUIRE_EQ(files.at(5).name, QStringLiteral("counters.csv"));
+    REQUIRE_EQ(files.at(6).name, QStringLiteral("serial-ports.txt"));
     // environment.txt holds the build information and the environment.
-    REQUIRE(files.at(2).data.contains("Git revision:"));
-    REQUIRE(files.at(2).data.contains("Operating system:"));
-    REQUIRE_EQ(files.at(3).name, QStringLiteral("counters.csv"));
-
-    // Check each file's content: the setup is valid JSON with the one port,
-    // the counters are CSV, and the log keeps "opened" but not the secret.
+    REQUIRE(files.at(1).data.contains("Git revision:"));
+    REQUIRE(files.at(1).data.contains("Operating system:"));
+    REQUIRE(files.at(1).data.contains("Short revision:"));
     QJsonParseError parse_error{};
     const QJsonDocument setup =
-        QJsonDocument::fromJson(files.at(0).data, &parse_error);
+        QJsonDocument::fromJson(files.at(3).data, &parse_error);
     REQUIRE_EQ(parse_error.error, QJsonParseError::NoError);
     REQUIRE_EQ(setup.object().value(QStringLiteral("ports")).toArray().size(),
                1);
-    REQUIRE(files.at(3).data.contains("terminal"));
-    REQUIRE(files.at(3).data.contains("name,path,state"));
-    REQUIRE(files.at(1).data.contains("opened"));
-    REQUIRE(!files.at(1).data.contains("abc123"));
-    REQUIRE(files.at(2).data.contains("Short revision:"));
+    REQUIRE(files.at(5).data.contains("terminal"));
+    REQUIRE(files.at(5).data.contains("name,path,state"));
+    REQUIRE(files.at(4).data.contains("opened"));
+    REQUIRE(!files.at(4).data.contains("abc123"));
+    for (const support::bundle_file& file : files)
+    {
+        REQUIRE(!file.name.startsWith(QStringLiteral("traffic")));
+        REQUIRE(!file.data.contains("hello"));
+    }
 
-    // Opting in to traffic adds a fifth file, placed after the others.
-    selection.traffic = true;
-    REQUIRE_EQ(selection.file_count(), 5);
-    files = support::build_bundle_files(backend, log, selection);
-    REQUIRE_EQ(files.size(), 5);
-    REQUIRE_EQ(files.at(4).name, QStringLiteral("traffic.txt"));
-    REQUIRE(files.at(4).data.contains("hello"));
-    REQUIRE(files.at(4).data.contains("TX"));
-
-    // The dialog starts from the same defaults, and ticking the traffic box
-    // moves the file count both ways.
-    support::DiagnosticBundleDialog dialog(backend, log);
+    // The dialog has no Traffic contents row and its count is that of the
+    // files above.
+    support::SupportBundleDialog dialog(backend, log);
     REQUIRE(dialog.available());
-    REQUIRE_EQ(dialog.selected_file_count(), 4);
-    REQUIRE(dialog.bundle_name().startsWith(QStringLiteral("vss-bundle-")));
-    auto* traffic =
-        dialog.findChild<QCheckBox*>(QStringLiteral("bundleTraffic"));
-    REQUIRE(traffic != nullptr);
-    REQUIRE(!traffic->isChecked());
-    traffic->setChecked(true);
-    REQUIRE_EQ(dialog.selected_file_count(), 5);
-    traffic->setChecked(false);
-    REQUIRE_EQ(dialog.selected_file_count(), 4);
+    REQUIRE_EQ(dialog.selected_file_count(), 7);
+    REQUIRE(dialog.bundle_name().startsWith(QStringLiteral("vss-support-")));
+    REQUIRE(dialog.findChild<QCheckBox*>(QStringLiteral("bundleTraffic")) ==
+            nullptr);
+    for (QLabel* label : dialog.findChildren<QLabel*>())
+        REQUIRE(!label->text().contains(QStringLiteral("Traffic")));
     check_accessible(dialog);
 
-    // Write real zip files and read them back: the archive must match the
-    // checkbox state, with no traffic file unless it was chosen.
+    // Write a real zip file and read it back: the archive holds the same
+    // seven files, and no traffic file or payload.
     QTemporaryDir directory;
     REQUIRE(directory.isValid());
-    const QString plain_path = directory.filePath(QStringLiteral("plain.zip"));
+    const QString path = directory.filePath(QStringLiteral("plain.zip"));
     QString error;
-    REQUIRE(dialog.write_bundle(plain_path, &error));
+    REQUIRE(dialog.write_bundle(path, &error));
     REQUIRE(error.isEmpty());
-    QFile plain(plain_path);
-    REQUIRE(plain.open(QIODevice::ReadOnly));
-    const QVector<zip_entry> plain_entries = read_zip(plain.readAll());
-    plain.close();
-    REQUIRE_EQ(plain_entries.size(), 4);
-    for (const zip_entry& entry : plain_entries)
-        REQUIRE_NE(entry.name, QStringLiteral("traffic.txt"));
-
-    // Same dialog, traffic opted in this time.
-    traffic->setChecked(true);
-    const QString traffic_path =
-        directory.filePath(QStringLiteral("traffic.zip"));
-    REQUIRE(dialog.write_bundle(traffic_path, &error));
-    QFile with_traffic(traffic_path);
-    REQUIRE(with_traffic.open(QIODevice::ReadOnly));
-    const QVector<zip_entry> traffic_entries = read_zip(with_traffic.readAll());
-    with_traffic.close();
-    REQUIRE_EQ(traffic_entries.size(), 5);
-    bool saw_traffic = false;
-    for (const zip_entry& entry : traffic_entries)
+    QFile archive(path);
+    REQUIRE(archive.open(QIODevice::ReadOnly));
+    const QVector<zip_entry> entries = read_zip(archive.readAll());
+    archive.close();
+    REQUIRE_EQ(entries.size(), 7);
+    for (const zip_entry& entry : entries)
     {
-        if (entry.name == QStringLiteral("traffic.txt"))
-            saw_traffic = true;
+        REQUIRE(!entry.name.startsWith(QStringLiteral("traffic")));
+        REQUIRE_NE(entry.name, QStringLiteral("traffic.txt"));
+        REQUIRE(!entry.data.contains("hello"));
     }
-    REQUIRE(saw_traffic);
 
     // A backend without diagnostics support: the dialog reports itself
     // unavailable and Save is disabled.
     vss::gui::capabilities caps;
     caps.diagnostics = false;
     backend.set_capabilities(caps);
-    support::DiagnosticBundleDialog unavailable(backend, log);
+    support::SupportBundleDialog unavailable(backend, log);
     REQUIRE(!unavailable.available());
     auto* save =
         unavailable.findChild<QPushButton*>(QStringLiteral("saveBundle"));
     REQUIRE(save != nullptr);
     REQUIRE(!save->isEnabled());
-}
-
-TEST_CASE("support: traffic redaction covers the ascii preview")
-{
-    std::vector<vss::gui::traffic_view> traffic;
-    vss::gui::traffic_view record;
-    record.endpoint = 1;
-    record.name = QStringLiteral("terminal");
-    record.direction = vss::data_direction::tx;
-    record.data = QByteArrayLiteral("password=swordfish");
-    traffic.push_back(record);
-    const QString rendered = support::render_traffic(traffic);
-    REQUIRE(rendered.contains(QStringLiteral("TX")));
-    REQUIRE(!rendered.contains(QStringLiteral("swordfish")));
-    REQUIRE(rendered.contains(QStringLiteral("[redacted]")));
-
-    const std::vector<vss::gui::traffic_view> empty;
-    REQUIRE(support::render_traffic(empty).contains(
-        QStringLiteral("No traffic recorded.")));
 }
 
 TEST_CASE("support: confirm dialog keeps the safe choice and cancels safely")
@@ -1238,7 +1139,8 @@ TEST_CASE("support: shortcuts are generated, filtered and cross-platform")
 
 TEST_CASE("support: About reports the build and environment and copies them")
 {
-    support::AboutDialog dialog;
+    FakeStudioBackend backend;
+    support::AboutDialog dialog(backend);
     QTabWidget* tabs = dialog.tabs();
     REQUIRE(tabs != nullptr);
     REQUIRE_EQ(tabs->count(), 5);

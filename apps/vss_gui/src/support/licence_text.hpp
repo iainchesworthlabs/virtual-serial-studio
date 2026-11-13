@@ -62,6 +62,13 @@ struct licence_note
 /// before the first licence is issued.
 QString support_address();
 
+/// Where the documents are published. Studio copies it to the clipboard and
+/// never opens it. Like `support_address`, the one place to change it.
+QString documents_address();
+
+/// Where issues are opened.
+QString issues_address();
+
 /// A date in the user's locale, long form, in local time ("13 November
 /// 2027").
 QString licence_date(vss::license::time_point value);
