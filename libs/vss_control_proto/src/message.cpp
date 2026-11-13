@@ -272,6 +272,25 @@ struct request_writer
     {
         header["session"] = body.session;
     }
+    void operator()(const ports_create_request& body) const
+    {
+        header["name"] = clean_text(body.name);
+        header["kind"] = clean_text(body.kind);
+    }
+    void operator()(const ports_remove_request& body) const
+    {
+        header["port"] = clean_text(body.port);
+    }
+    void operator()(const links_connect_request& body) const
+    {
+        header["first"] = clean_text(body.first);
+        header["second"] = clean_text(body.second);
+        header["one_way"] = body.one_way;
+    }
+    void operator()(const ports_send_request& body) const
+    {
+        header["port"] = clean_text(body.port);
+    }
 };
 
 /// Both fields may be left out.  A list of ports that is too long, or holds
@@ -359,6 +378,40 @@ result<request_body> read_request_body(operation wanted,
         if (!read_u64(header, "session", body.session))
             return malformed();
         return request_body{body};
+    }
+    case operation::ports_create:
+    {
+        ports_create_request body;
+        if (!read_text(header, "name", body.name) ||
+            !read_optional_text(header, "kind", body.kind))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::ports_remove:
+    {
+        ports_remove_request body;
+        if (!read_text(header, "port", body.port))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::links_connect:
+    {
+        links_connect_request body;
+        if (!read_text(header, "first", body.first) ||
+            !read_text(header, "second", body.second))
+            return malformed();
+        if (header.contains("one_way") &&
+            !read_bool(header, "one_way", body.one_way))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::ports_send:
+    {
+        // The bytes are put in by `decode_request`, which has the frame.
+        ports_send_request body;
+        if (!read_text(header, "port", body.port))
+            return malformed();
+        return request_body{std::move(body)};
     }
     }
     return make_error_code(api_errc::unsupported);
@@ -489,6 +542,12 @@ bool read_session(const json::value& item, session_entry& out)
 struct reply_writer
 {
     json::object& header;
+
+    void operator()(const created_reply& body) const
+    {
+        header["reply"] = "created";
+        header["created"] = clean_text(body.id);
+    }
 
     void operator()(const subscribed_reply& body) const
     {
@@ -813,6 +872,13 @@ result<reply_body> read_reply_body(const json::object& header,
         return read_tokens_reply(header);
     if (kind == "subscribed")
         return read_subscribed_reply(header);
+    if (kind == "created")
+    {
+        created_reply body;
+        if (!read_text(header, "created", body.id))
+            return malformed();
+        return reply_body{std::move(body)};
+    }
     if (kind == "sessions")
         return read_sessions_reply(header);
     if (kind == "error")
@@ -878,6 +944,22 @@ operation operation_of(const request_body& body)
         {
             return operation::sessions_kick;
         }
+        operation operator()(const ports_create_request&) const noexcept
+        {
+            return operation::ports_create;
+        }
+        operation operator()(const ports_remove_request&) const noexcept
+        {
+            return operation::ports_remove;
+        }
+        operation operator()(const links_connect_request&) const noexcept
+        {
+            return operation::links_connect;
+        }
+        operation operator()(const ports_send_request&) const noexcept
+        {
+            return operation::ports_send;
+        }
     };
     return std::visit(visitor{}, body);
 }
@@ -890,6 +972,8 @@ frame encode(const request& value)
     std::visit(request_writer{header}, value.body);
     frame out;
     out.header = json::serialize(header);
+    if (const auto* sending = std::get_if<ports_send_request>(&value.body))
+        out.blob = sending->data;
     return out;
 }
 
@@ -940,12 +1024,14 @@ result<request> decode_request(const frame& value)
     const operation_info* const wanted = find_operation(name);
     if (wanted == nullptr)
         return make_error_code(api_errc::unsupported);
-    // No request of this version carries bytes.
-    if (!value.blob.empty())
+    // Only `ports.send` carries bytes; a blob anywhere else is a mistake.
+    if (wanted->id != operation::ports_send && !value.blob.empty())
         return malformed();
     auto body = read_request_body(wanted->id, *header);
     if (!body)
         return body.error();
+    if (auto* sending = std::get_if<ports_send_request>(&*body))
+        sending->data = value.blob;
     out.body = std::move(*body);
     return out;
 }

@@ -60,6 +60,20 @@ public:
 
     result<status_reply> status();
     result<ports_reply> list_ports();
+
+    /// Makes a port in the agent and gives its id (`p_3`).  It needs
+    /// `control.ports`.  An error of the engine arrives as the engine's own
+    /// code (`vss::errc`).
+    result<std::string> create_port(const std::string& name,
+                                    const std::string& kind = {});
+    result<void> remove_port(const std::string& port);
+    /// Links two ports, both ways or from `first` to `second` only, and
+    /// gives the link's id (`l_2`).
+    result<std::string> connect_ports(const std::string& first,
+                                      const std::string& second, bool one_way);
+    /// Writes bytes to a port.  It needs `control.data`, and takes
+    /// `max_send_size` bytes at most.
+    result<void> send(const std::string& port, bytes_view data);
     /// Asks the gateway to close every session and exit.  Only a connection
     /// to the administration endpoint may.
     result<void> stop();

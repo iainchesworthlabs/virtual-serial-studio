@@ -119,7 +119,15 @@ constexpr std::array expected_operations{
     expected_row{control::operation::sessions_list, "sessions.list",
                  control::scope::admin},
     expected_row{control::operation::sessions_kick, "sessions.kick",
-                 control::scope::admin}};
+                 control::scope::admin},
+    expected_row{control::operation::ports_create, "ports.create",
+                 control::scope::control_ports},
+    expected_row{control::operation::ports_remove, "ports.remove",
+                 control::scope::control_ports},
+    expected_row{control::operation::links_connect, "links.connect",
+                 control::scope::control_ports},
+    expected_row{control::operation::ports_send, "ports.send",
+                 control::scope::control_data}};
 
 } // namespace
 
@@ -299,7 +307,7 @@ TEST_CASE("control proto: a request that is not one is refused")
 
 TEST_CASE("control proto: an operation that does not exist is unsupported")
 {
-    for (const char* name : {"ports.create", "tokens.forge", "HELLO", "",
+    for (const char* name : {"ports.rename", "tokens.forge", "HELLO", "",
                              "status ", "endpoint.enable"})
     {
         const auto decoded = control::decode_request(
@@ -560,13 +568,19 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
     REQUIRE(!control::info_of(control::operation::tokens_list).mutating);
     REQUIRE(control::info_of(control::operation::sessions_kick).mutating);
     REQUIRE(!control::info_of(control::operation::sessions_list).mutating);
-    REQUIRE(control::find_operation("ports.remove") == nullptr);
+    for (const control::operation changing :
+         {control::operation::ports_create, control::operation::ports_remove,
+          control::operation::links_connect, control::operation::ports_send})
+    {
+        REQUIRE(control::info_of(changing).mutating);
+    }
+    REQUIRE(control::find_operation("ports.rename") == nullptr);
     REQUIRE(control::find_operation("") == nullptr);
 }
 
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 13 * 256 * 4
+    // Every operation, every set of scopes, every transport: 17 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -1082,4 +1096,124 @@ TEST_CASE("control policy: a caller that can only look is told from one that "
         REQUIRE(may(control::transport::local_admin, control::every_scope(),
                     wanted));
     }
+}
+
+// -- what changes the ports --------------------------------------------------
+
+TEST_CASE("control proto: the requests that change ports survive the wire")
+{
+    const control::request create{30,
+                                  control::ports_create_request{"rig", "pty"}};
+    REQUIRE(round_trip(create) == create);
+    const control::request plain{31, control::ports_create_request{"rig", ""}};
+    REQUIRE(round_trip(plain) == plain);
+    const control::request remove{32, control::ports_remove_request{"p_7"}};
+    REQUIRE(round_trip(remove) == remove);
+    const control::request link{
+        33, control::links_connect_request{"p_1", "p_2", true}};
+    REQUIRE(round_trip(link) == link);
+
+    control::ports_send_request sending;
+    sending.port = "p_1";
+    sending.data = vss::to_bytes(std::string_view("\x00\xff\r\n{\"", 6));
+    const control::request send{34, sending};
+    const control::frame wire = control::encode(send);
+    // The bytes are the blob and are not in the header.
+    REQUIRE_EQ(wire.blob, sending.data);
+    REQUIRE_EQ(wire.header.find("data"), std::string::npos);
+    REQUIRE(round_trip(send) == send);
+
+    // The fields that may be left out.
+    const auto bare = control::decode_request(
+        header_frame(R"({"id":1,"op":"ports.create","name":"a"})"));
+    REQUIRE(bare);
+    REQUIRE(std::get<control::ports_create_request>(bare->body).kind.empty());
+    const auto both_ways = control::decode_request(header_frame(
+        R"({"id":1,"op":"links.connect","first":"p_1","second":"p_2"})"));
+    REQUIRE(both_ways);
+    REQUIRE(!std::get<control::links_connect_request>(both_ways->body).one_way);
+
+    // More bytes than a send may have are still read, so that the gateway
+    // can say `limit_exceeded` and the caller keeps its connection.
+    control::ports_send_request large;
+    large.port = "p_1";
+    large.data.assign(control::max_send_size + 1, vss::byte{0x55});
+    const control::request too_much{35, large};
+    REQUIRE(round_trip(too_much) == too_much);
+}
+
+TEST_CASE("control proto: only a send carries bytes, and a change that is "
+          "not one is refused")
+{
+    for (const control::request& asked :
+         {control::request{1, control::ports_create_request{"a", ""}},
+          control::request{1, control::ports_remove_request{"p_1"}},
+          control::request{1, control::links_connect_request{"p_1", "p_2"}},
+          control::request{1, control::status_request{}}})
+    {
+        control::frame carried = control::encode(asked);
+        carried.blob = {vss::byte{1}};
+        const auto decoded = control::decode_request(carried);
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+
+    const std::array bad{
+        std::string(R"({"id":1,"op":"ports.create"})"),
+        std::string(R"({"id":1,"op":"ports.create","name":7})"),
+        std::string(R"({"id":1,"op":"ports.create","name":"a","kind":7})"),
+        std::string(R"({"id":1,"op":"ports.remove"})"),
+        std::string(R"({"id":1,"op":"ports.remove","port":3})"),
+        std::string(R"({"id":1,"op":"links.connect","first":"p_1"})"),
+        std::string(
+            R"({"id":1,"op":"links.connect","first":"p_1","second":2})"),
+        std::string(R"({"id":1,"op":"links.connect","first":"p_1",)"
+                    R"("second":"p_2","one_way":"yes"})"),
+        std::string(R"({"id":1,"op":"ports.send"})"),
+        std::string(R"({"id":1,"op":"ports.send","port":null})")};
+    for (const std::string& header : bad)
+    {
+        const auto decoded = control::decode_request(header_frame(header));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+}
+
+TEST_CASE("control proto: an engine error crosses by name and comes back as "
+          "the engine's own code")
+{
+    const control::reply made{4, control::created_reply{"p_12"}};
+    REQUIRE(round_trip(made) == made);
+    REQUIRE(
+        !control::decode_reply(header_frame(R"({"id":1,"reply":"created"})")));
+    REQUIRE(!control::decode_reply(
+        header_frame(R"({"id":1,"reply":"created","created":7})")));
+
+    for (int value = 1; value <= static_cast<int>(vss::errc::internal); ++value)
+    {
+        const vss::error_code engine =
+            vss::make_error_code(static_cast<vss::errc>(value));
+        const control::api_error wire = control::engine_api_error(engine);
+        REQUIRE_EQ(wire.code, control::engine_error_name(engine));
+        REQUIRE(!wire.retryable);
+        // The message is the gateway's and the same for every engine error.
+        REQUIRE_EQ(wire.message, control::engine_api_error(
+                                     vss::make_error_code(vss::errc::not_found))
+                                     .message);
+        const control::reply refused{9, control::error_reply{wire}};
+        REQUIRE(round_trip(refused) == refused);
+        REQUIRE_EQ(control::from_api_error(wire), engine);
+    }
+    // What the operating system said is an I/O error of the engine.
+    const control::api_error system = control::engine_api_error(
+        vss::error_code(5, boost::system::system_category()));
+    REQUIRE_EQ(control::from_api_error(system),
+               vss::make_error_code(vss::errc::io_error));
+    // A name nobody knows, of either family.
+    REQUIRE_EQ(control::from_api_error({"engine.surprise", "", false}),
+               code(control::api_errc::internal));
+    REQUIRE_EQ(control::from_api_error({"engine.", "", false}),
+               code(control::api_errc::internal));
+    REQUIRE_EQ(control::from_api_error({"forbidden", "", false}),
+               code(control::api_errc::forbidden));
 }

@@ -104,6 +104,8 @@ vss_cli control status              # who you are to the gateway and what you ma
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
+vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
+vss_cli control send p_1 --hex=00ff0a   # send bytes to a port, two hex digits for each byte (scope control.data)
 ```
 
 Run `vss_cli --help` for the full list.
