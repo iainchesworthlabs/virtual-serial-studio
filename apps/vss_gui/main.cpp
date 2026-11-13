@@ -8,11 +8,16 @@
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
+#include "profiling/stall_watchdog.hpp"
+#include "rendering/render_state.hpp"
 #include "shell/shell_window.hpp"
 #include "shell/single_instance.hpp"
 #include "shell/studio_tray.hpp"
+#include "support/app_identity.hpp"
+#include "support/build_info.hpp"
 #include "support/console.hpp"
 #include "support/running_setup.hpp"
+#include "support/settings.hpp"
 #include "support/stall_probe.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -112,13 +117,63 @@ try
                          started.error().message().c_str());
         }
     }
-    QApplication::setApplicationName(QStringLiteral("Virtual Serial Studio"));
+    vss::gui::support::apply_application_identity();
     QApplication::setApplicationDisplayName(
-        QStringLiteral("Virtual Serial Studio"));
-    QApplication::setApplicationVersion(QStringLiteral(VSS_GUI_VERSION));
-    QApplication::setOrganizationName(QStringLiteral("Virtual Serial Studio"));
+        vss::gui::support::application_name());
+    QApplication::setApplicationVersion(
+        vss::gui::support::current_version_string());
     QApplication::setOrganizationDomain(
         QStringLiteral("virtualserial.example"));
+    // Settings, Performance, Profiling is remembered here, as soon as the
+    // settings store has its name. An explicit --no-profile or VSS_PROFILE=0
+    // wins over it, and so do the unattended runs.
+    if (!profile.enable && !selftest && !screenshot)
+    {
+        bool declined =
+            qEnvironmentVariable("VSS_PROFILE") == QLatin1String("0");
+        for (int index = 1; index < argc; ++index)
+            declined = declined ||
+                       std::strcmp(argv[index], "--no-profile") == 0;
+        if (!declined &&
+            vss::gui::support::load_ui_settings().profile_on_start)
+        {
+            auto remembered = profile;
+            remembered.enable = true;
+            const auto started = vss::profiling::start(remembered);
+            if (started)
+            {
+                std::fprintf(stderr, "%s\n",
+                             vss::profiling::describe(*started).c_str());
+                VSS_PROFILE_MESSAGE("gui.startup");
+            }
+        }
+    }
+    // How the canvas is drawn: GPU or CPU. The command line (--render=auto,
+    // hardware or software) wins over VSS_RENDER, which wins over the saved
+    // setting. The GPU is confirmed later, when the canvas has a device; if it
+    // has none the canvas falls back to the CPU and says so.
+    {
+        QString render_argument;
+        for (int index = 1; index < argc; ++index)
+        {
+            if (std::strncmp(argv[index], "--render=", 9) == 0)
+                render_argument = QString::fromLocal8Bit(argv[index] + 9);
+        }
+        vss::gui::rendering::initialise(
+            vss::gui::support::load_ui_settings().render_mode,
+            qEnvironmentVariable("VSS_RENDER"), render_argument);
+        // Qt only asks the graphics device for GPU timings when it is told
+        // to when the device is made, at the first window. So the GPU zone
+        // (gui.gpu.frame) appears when the profiler is already recording by
+        // then; started later from Settings, the CPU zones record and the GPU
+        // zone needs a restart. Timings only; nothing leaves this computer.
+        if (vss::profiling::current().current ==
+                vss::profiling::state::recording &&
+            !qEnvironmentVariableIsSet("QSG_RHI_PROFILE"))
+        {
+            qputenv("QSG_RHI_PROFILE", QByteArrayLiteral("1"));
+        }
+    }
     // The icon of every window and of the taskbar or dock entry, from the Qt
     // resource. The desktop file name lets a Linux desktop pair the window with
     // the icon in the hicolor theme that vss_gui.desktop names.
@@ -376,6 +431,10 @@ try
             window.show();
             VSS_PROFILE_MESSAGE("gui.window_shown");
         }
+        // Writes a line to stalls.log in the local data folder when the
+        // window stops answering for two seconds, naming the event it was
+        // inside. Local only; see docs/profiling.md.
+        const vss::gui::StallWatchdog stall_watchdog;
         const int exit_code = application.exec();
         VSS_PROFILE_MESSAGE("gui.shutdown");
         return exit_code;

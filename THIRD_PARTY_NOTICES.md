@@ -13,7 +13,7 @@ redistributing the combined application under GPL-3.0-or-later.
 | [Boost](https://boost.org) | 1.92 headers | Boost Software License 1.0 | Asio, System, JSON |
 | [Qt](https://qt.io) | 6.10.3 | LGPL-3.0-only OR GPL-3.0-only OR commercial | The GUI; linked dynamically |
 | [Monocypher](https://monocypher.org) | 4.0.2 | BSD-2-Clause OR CC0-1.0 | Vendored unchanged in `third_party/monocypher`; the Ed25519 signature check behind licence files (`libs/vss_license`) |
-| [Tracy](https://github.com/wolfpld/tracy) | 0.14.1 (vcpkg) | BSD-3-Clause | Optional profiling client, compiled in only with `VSS_TRACY=ON`, built from an overlay of the vcpkg port (`cmake/vcpkg-ports/tracy`, MIT, adds the manual-lifetime and no-broadcast features); the capture and CSV tools are built from source in CI |
+| [Tracy](https://github.com/wolfpld/tracy) | 0.14.1 (vcpkg) | BSD-3-Clause | Optional profiling client, compiled in when the build finds the vcpkg package (`VSS_TRACY`, on by default in vcpkg builds; the release packages are not built with vcpkg, so they do not contain it), built from an overlay of the vcpkg port (`cmake/vcpkg-ports/tracy`, MIT, adds the manual-lifetime and no-broadcast features); the capture and CSV tools are built from source in CI |
 
 BSL-1.0 is a permissive licence whose only requirement is to keep the
 copyright notice; it may be combined with GPLv3 code. Qt is linked dynamically,
@@ -41,6 +41,11 @@ relicensed by this project:
 | `tools/test_changelog.py` | BSL-1.0 |
 | `tools/pty_loopback.py` | BSL-1.0 |
 | `changelog.d/README.md` | BSL-1.0 |
+
+The table above is the component list of the program. `third_party.json` holds the same list in
+machine-readable form and is what the **About, Licences** tab shows (Tracy only in a build that has the
+profiler); a unit test fails when the two disagree or when a vcpkg dependency is missing. A component that is
+not in the package does not belong in that table; it goes under "Optional external components".
 
 The BSL-1.0 text is kept at [LICENSES/BSL-1.0.txt](LICENSES/BSL-1.0.txt).
 

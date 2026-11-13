@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>تم نسخ معلومات البيئة.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>معلومات البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>نسخ معلومات البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>تم نسخ معلومات البناء.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>انسخ هذا في تقرير الخلل. فهو يجيب عن سؤال «على ماذا يعمل هذا؟»</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>الإصدار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>وسم Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>مراجعة Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>المراجعة المختصرة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>شجرة العمل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>الفرع</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>رقم البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>وقت البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>نوع البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>المترجم</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>إصدار Qt عند البناء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>نظام التشغيل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>المعمارية</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>النواة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>إصدار Qt عند التشغيل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>ملحق المنصة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>الشاشة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>اللغة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>التنميط</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>يُشحن مع Studio في شكل مكتبات مشتركة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>موجود لأن هذا البناء يتضمن دعم التنميط.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>رخصة الخطوط المفتوحة SIL، الإصدار 1.1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>المُصيِّر</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1485,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>تم نسخ معلومات البيئة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
         </message>
     </context>
     <context>
@@ -5937,6 +6092,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>تعذر بدء نظام الرسوميات (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>لم يُذكر سبب</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>جهاز الرسوميات الوحيد الذي عُثر عليه هو معالج عرض برمجي (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>الأجهزة (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>الأجهزة (GPU): %1، %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>البرمجيات (CPU)، بسبب: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>البرمجيات (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>توقف جهاز الرسوميات عن العمل.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>لم يتم إنشاء جهاز رسوميات</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6262,8 +6456,40 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>لمعرفة سبب بطء Studio. يسجّل الأزمنة فقط ولا يرسل شيئًا حتى توصل محلل Tracy بالعنوان أعلاه. يُغلق مرة أخرى في كل مرة يبدأ فيها Studio.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>لمعرفة سبب بطء Studio. يسجّل الأزمنة فقط ولا يرسل شيئًا إلى أي مكان: يستمع Studio على هذا الحاسوب فقط، ولا يظهر مخطط زمني إلا عندما تشغّل محلل Tracy هنا وتوصله بالعنوان أعلاه. يتذكّر Studio هذا المفتاح ويسجّل مجددًا عند بدء تشغيله في المرة التالية. السماح لحواسيب أخرى بالاتصال يتطلب إعادة التشغيل.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>العرض</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>تلقائي</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>الأجهزة (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>البرمجيات (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>وضع الأجهزة يرسم اللوحة على بطاقة الرسوميات، فتبقى سلسة مع المنافذ الكثيرة. وضع البرمجيات يرسمها على المعالج. الوضع التلقائي يستخدم بطاقة الرسوميات عند وجود بطاقة صالحة للاستخدام.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>الرسم الحالي: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>أعد تشغيل Studio لاستخدام هذا الاختيار.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>تم تعيين VSS_RENDER أو ‎--render، لذلك يتجاوز هذا الاختيار.</translation>
         </message>
     </context>
     <context>
@@ -8939,6 +9165,25 @@ Networks: %5</source>
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>تم إعداد Virtual Serial Studio. يمكن للبرامج الأخرى فتح المنافذ الجديدة.</translation>
         </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>تُرسم اللوحة على المعالج: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>بناء بيئة تقرير خلل</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11582,6 +11827,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> جرّب اسماً أو نوعاً آخر، ثم أعد المحاولة.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11889,6 +12138,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>اختيار آخر</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>جارٍ التوصيل</translation>
         </message>
     </context>
     <context>
@@ -12990,6 +13243,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>تمرير</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>التقدم</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13125,6 +13386,14 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="417" />
             <source>RX %1, TX %2</source>
             <translation>RX %1، TX %2</translation>
+        </message>
+        <message>
+            <source>Total traffic</source>
+            <translation>إجمالي حركة البيانات</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>إجمالي البايتات المستلمة والمرسلة. يعرض شريط الحالة المعدل الحالي.</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
@@ -14055,6 +14324,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>إنشاء الزوج</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
         </message>
     </context>
     <context>
@@ -16682,6 +16955,29 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>أُعيد ضبط التخطيط.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>التقدم</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>نسخ معلومات التشخيص</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>بناء بيئة تقرير خلل</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>تم نسخ معلومات التشخيص.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17117,6 +17413,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>تم حفظ %1.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>جارٍ التطبيق</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
         </message>
     </context>
     <context>
@@ -17883,6 +18187,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>جارٍ التطبيق</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ تطبيق التغيير. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>تقدم الإعداد</translation>
         </message>
     </context>
     <context>

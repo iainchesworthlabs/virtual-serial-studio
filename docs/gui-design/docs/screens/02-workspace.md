@@ -17,7 +17,7 @@ The same group appears in both menus, after Inspect: "Send bytes" (shows the Sen
 
 ## Inspector
 Header "Inspector" and the port name.
-- Simple: State (chip), Path (mono with copy), Traffic ("RX 0 B, TX 1.2 kB"). When waiting: "No program has opened COM7 yet. The program has to open exactly COM7; a different port will not receive anything.", a quiet small button "Copy name" (copies the path, toast "COM7 copied.") and the link "Why is nothing arriving?" (opens the troubleshoot dialog). "Control lines" label and six read-only chips in a 3 by 2 grid: DTR, RTS, CTS, DSR, DCD, RI, each "<name> on" (ok, filled) or "<name> off" (hollow).
+- Simple: State (chip), Path (mono with a CopyButton that copies the path and shows the toast "COM7 copied."), Total traffic ("RX 0 B, TX 1.2 kB", cumulative bytes; tooltip "Bytes received and sent in total. The status bar shows the current rate."). Every row of the form is 28 high. When waiting: "No program has opened COM7 yet. The program has to open exactly COM7; a different port will not receive anything.", and the link "Why is nothing arriving?" (opens the troubleshoot dialog). "Control lines" label and six read-only chips in a 3 by 2 grid: DTR, RTS, CTS, DSR, DCD, RI, each "<name> on" (ok, filled) or "<name> off" (hollow).
 - Advanced: also Serial ("115200 8N1, no flow control") for real devices. DTR and RTS become Switches ("DTR on", "RTS off"), a "Break" button, input chips CTS, DSR, DCD, RI, and a link "Open line matrix and faults".
 - Virtual ports accept the operations and report their own state. Unsupported operations are disabled with a tooltip, never silent.
 - Advanced, mock fixture only: a card "What this fixture does" between the line controls and the link. Checkbox "Echo received bytes" (disabled with "Not available in this build" without `Capabilities::fixture_echo`). Combo "Generator kind": Text line (default), Fixed pattern, Counter, Random bytes. Text field "Line" (text, sent with CRLF; placeholder "Text, sent with CRLF") or "Pattern" (hex; placeholder "Hex, such as 55 AA"); "Bytes each time" (1 to 256) for Counter and Random bytes; "Rate" (1 to 50 "per second"). Primary button "Start generator", which reads "Stop generator" while it runs. Status line: "Not running.", "Generating, <size> sent from this fixture." or "Stopped after <size>.". Errors: "The pattern needs pairs of hex digits, such as 55 AA.", "Type the line to send." and "The generator stopped: <reason>" (toast). The generator and the repeat are bound to the fixture they started on, whatever is selected later.
@@ -28,14 +28,14 @@ Header "Send". A line "Sending from: <name> (<path>)" (or "Sending from: no port
 ## Monitor
 Tabs: "Monitor". Advanced also "Log" and "Topology JSON".
 - Toolbar: Pause, Clear, checkboxes Hex and Follow (Follow default on), right aligned "All ports". Space pauses and resumes when the table has focus.
-- Advanced filter row: port combo (All ports), checkboxes RX, TX, Dropped, search field "Search payload" (Ctrl+F), segmented ASCII or Hex, Export (saves the visible rows as text).
+- Advanced controls: port combo (All ports), checkboxes RX, TX, Dropped, search field "Search payload" (Ctrl+F), segmented ASCII or Hex, then right aligned Pause, Clear, Follow, Export (saves the visible rows as text) and Export capture. They sit on the pane's title row, after "Monitor", like the Add port button in the Ports header. When the row is too narrow or the text too large for all of them, they move to a row of their own under the title, never clipped.
 - Columns: Time (HH:MM:SS.mmm), Port, Direction (DirectionBadge), Bytes (right aligned), Preview (fixed font). ASCII mode shows `\r` and `\n` as escapes and other non-printables as a dot. Hex mode shows `48 65 6C 6C 6F`.
 - DROP rows add the muted `bad` text "not the owner, not forwarded".
 - Performance: a bounded ring (default 10,000 rows, a named constant). Updates are batched per refresh interval and inserted on the GUI thread. Never create per-row widgets. Pause stops appending, traffic still flows and is counted.
 - Empty state: "No traffic yet. Send some bytes, or open the port in a program."
 
 ## Status bar
-Left: "Ports 4", "Links 1", "RX 38 B/s", "TX 114 B/s", "Hub running". Advanced adds a warn chip "214 B dropped, not owner" when relevant. Right: readiness chip and the Simple or Advanced segmented switch (24 high).
+Left: "Ports 4", "Links 1", "RX 38 B/s", "TX 114 B/s", "Hub running". Advanced adds a warn chip "214 B dropped, not owner" when relevant. Right: readiness chip and the Simple or Advanced segmented switch (24 high). If the canvas has to go back from the graphics card to the processor while Studio runs, the status bar shows "The canvas is drawn on the processor: <reason>" for ten seconds and the Log gets the same line.
 
 ## Threading
 Engine callbacks run on hub threads. Marshal everything to the GUI thread with queued connections, coalesce by the refresh interval (default 250 ms, range 50 to 5000), and never block the GUI thread on the engine. Subscribers must capture state that outlives the hub, see `docs/architecture.md` in the repo.

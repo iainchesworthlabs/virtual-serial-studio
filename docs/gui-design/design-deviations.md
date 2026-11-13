@@ -684,9 +684,18 @@ because it does not stop port creation.
 
 ### About and licence copy
 
-The Environment tab and `environment.txt` add a "Boost" row, because the task
-asks for the Boost version as well as Qt, and the mockup's row list does not
-forbid it. The Licences tab summarises each licence (component, licence name,
+RC3 feedback changed the About design. The single Environment tab became two,
+Build information (version, tag, revision, branch, working tree, build number,
+build time, build type, compiler, Qt and Boost built with) and Environment
+(operating system, architecture, kernel, Qt running, platform plugin, display,
+language, profiling), each with its own copy button, and the footer button
+became "Copy diagnostic information", which copies both and is what
+`environment.txt` in the diagnostic bundle holds. The header shows one full
+version string. The Licences tab lists only what a build contains, read from
+`third_party.json`: the com0com driver is installed separately by the user and
+is no longer listed, and Tracy appears only in a build that has the profiler. The
+Fonts tab is read from the same file (`fonts`), so adding a bundled font is one entry there; with
+none, it keeps the text the spec has. The Licences tab summarises each licence (component, licence name,
 one line of context) instead of embedding the full licence texts; the
 product's own GPLv3 notice and warranty disclaimer are in the About tab, and
 no font is bundled. The standard GPLv3 "This program is free software..."
@@ -1115,6 +1124,8 @@ lines applied. The numbers are the rows of the design review.
   700 pixels high, and topology nodes shrink below 500 pixels of view width.
 - **Toolbar labels (10).** The toolbar uses the menu wording: "Attach real
   device", "Connect ports", "Remove port", "Mock fixture", "Share a device".
+- **Remove icons (10).** Remove port and Remove setup have their own icons so
+  they stay apart when the toolbar shows icons only.
 - **Readiness chip (12, 19).** A third state, "Setup not checked", is shown by
   builds that cannot run the setup check. The launcher strip has matching
   variants: "Setup needs attention. New ports may not be usable by other
@@ -1188,4 +1199,19 @@ lines applied. The numbers are the rows of the design review.
 - **Waiting for program.** The Inspector, the Port ready dialog and the
   troubleshoot row say that the program has to open exactly this port, because a
   program that was set up with another COM name opens nothing of ours. The
-  Inspector adds a "Copy name" button to the waiting note.
+  Inspector copies the path with the button beside it, not a second button.
+
+## Busy feedback while ports are made
+
+The bundle has no busy pattern for a slow engine call; the nearest are the
+com-number dialog's "Changing" primary label and the benchmark's progress bar.
+Making a port on Windows installs a device and takes up to a minute, so the
+job form, the Add a port, Connect two programs and Attach dialogs (through
+`FlowDialog::run_in_background`), the JSON editor's Apply and the window's
+open-setup, template and restore paths run it on a worker thread
+(`BackgroundWork`) and show: the primary button relabelled "Creating",
+"Attaching" or "Applying", an indeterminate `QProgressBar` (styled by the
+existing token rule) and one sentence, "Setting up. Windows installs each new
+port, which can take up to a minute." Cancel, Back and the fields are
+disabled meanwhile, and the dialogs and the main window refuse to close until
+the worker has reported. The strings are new and not in the specs.

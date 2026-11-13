@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>已复制环境信息。</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>构建信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>复制构建信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>已复制构建信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>请将此内容复制到错误报告中。它回答的是“这在什么环境中运行？”</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Git 标签</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Git 修订</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>短修订</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>工作树</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>分支</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>构建编号</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>构建时间</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>构建类型</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>编译器</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>构建所用的 Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>操作系统</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>架构</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>内核</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>运行时的 Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>平台插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>显示</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>语言</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>性能分析</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>作为共享库随 Studio 一起提供。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>此构建包含性能分析支持，因此包含该组件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>SIL 开放字体许可证第 1.1 版。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>渲染器</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1485,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>已复制环境信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
         </message>
     </context>
     <context>
@@ -5927,6 +6082,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>无法启动图形系统（%1）。</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>未给出原因</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>找到的唯一图形设备是软件渲染器（%1）。</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>硬件（GPU）</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>硬件（GPU）：%1、%2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>软件（CPU），原因：%1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>软件（CPU）</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>图形设备已停止工作。</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>未创建图形设备</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6247,8 +6441,40 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>用于查明 Studio 变慢的原因。它只记录耗时，在你将 Tracy 分析器连接到上方地址之前不会发送任何内容。每次启动 Studio 时它都会重新关闭。</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>用于查明 Studio 变慢的原因。它只记录耗时，不会向任何地方发送内容：Studio 只在这台计算机上监听，只有当你在这里启动 Tracy 分析器并将其连接到上方地址时才会出现时间线。Studio 会记住此开关，并在下次启动时再次记录。允许其他计算机连接需要重启。</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>渲染</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>自动</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>硬件（GPU）</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>软件（CPU）</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>硬件在显卡上绘制画布，端口很多时也能保持流畅。软件在处理器上绘制画布。自动在有可用显卡时使用显卡。</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>当前绘制方式：%1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>请重新启动 Studio 以使用此选择。</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>已设置 VSS_RENDER 或 --render，因此它会覆盖此选择。</translation>
         </message>
     </context>
     <context>
@@ -8909,6 +9135,25 @@ Networks: %5</source>
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio 已设置完成。其他程序可以打开新建的端口。</translation>
         </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>画布在处理器上绘制：%1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>构建 环境 错误报告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11547,6 +11792,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation>请更换名称或类型，然后重试。</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11854,6 +12103,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>选择其他设备</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>正在连接</translation>
         </message>
     </context>
     <context>
@@ -12955,6 +13208,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>滚动</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>进度</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13090,6 +13351,14 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="417" />
             <source>RX %1, TX %2</source>
             <translation>RX %1，TX %2</translation>
+        </message>
+        <message>
+            <source>Total traffic</source>
+            <translation>总流量</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>接收和发送的总字节数。状态栏显示当前速率。</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
@@ -14020,6 +14289,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>创建串口对</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
         </message>
     </context>
     <context>
@@ -16627,6 +16900,29 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>已重置布局。</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>进度</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>构建 环境 错误报告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17062,6 +17358,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>已保存 %1。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>正在应用</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
         </message>
     </context>
     <context>
@@ -17823,6 +18127,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio 无法读取 Windows 保留了哪些 COM 编号，因此会在创建端口时选择一个空闲编号，并在端口就绪时显示。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>正在应用</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在应用更改。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 1 分钟。</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>设置进度</translation>
         </message>
     </context>
     <context>

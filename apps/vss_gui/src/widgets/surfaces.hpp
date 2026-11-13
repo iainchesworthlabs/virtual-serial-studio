@@ -41,12 +41,21 @@ public:
     /// Adds a widget straight after the title and count, on the left.
     void add_leading(QWidget* widget);
 
+    /// Puts `widget` after the title and count and gives it all the spare
+    /// width, or removes the fill widget when `widget` is null.  The caller
+    /// owns the widget and re-parents it when it takes it out.
+    void set_fill(QWidget* widget);
+
+    /// Width taken by the margins, title and count badge.
+    int lead_width() const;
+
     QLabel* title_label() const noexcept { return title_; }
 
 private:
     void apply_theme();
 
     QHBoxLayout* layout_ = nullptr;
+    QWidget* fill_ = nullptr;
     QLabel* title_ = nullptr;
     QLabel* count_ = nullptr;
     int leading_index_ = 2;

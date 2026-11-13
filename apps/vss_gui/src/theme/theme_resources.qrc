@@ -33,6 +33,8 @@
     <file alias="icons/pause.svg">resources/icons/pause.svg</file>
     <file alias="icons/refresh.svg">resources/icons/refresh.svg</file>
     <file alias="icons/remove.svg">resources/icons/remove.svg</file>
+    <file alias="icons/remove-port.svg">resources/icons/remove-port.svg</file>
+    <file alias="icons/remove-setup.svg">resources/icons/remove-setup.svg</file>
     <file alias="icons/run.svg">resources/icons/run.svg</file>
     <file alias="icons/save.svg">resources/icons/save.svg</file>
     <file alias="icons/search.svg">resources/icons/search.svg</file>
