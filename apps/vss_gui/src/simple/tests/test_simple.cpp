@@ -1322,4 +1322,21 @@ TEST_CASE("simple: pictures for a person to review")
     page.open_job(job::port);
     settle();
     page.grab().save(folder + QStringLiteral("/4-port-form.png"));
+
+    // The setups list in both themes and at 200 percent text, with keyboard
+    // focus on the list so the focus ring shows.
+    page.refresh();
+    page.list()->setFocus(Qt::TabFocusReason);
+    settle();
+    Theme::instance().set_mode(theme_mode::dark);
+    settle();
+    page.grab().save(folder + QStringLiteral("/5-list-dark.png"));
+    vss_test::scale_text(&page, 2.0);
+    settle();
+    page.resize(1500, 1000);
+    settle();
+    page.grab().save(folder + QStringLiteral("/6-list-dark-200.png"));
+    Theme::instance().set_mode(theme_mode::light);
+    settle();
+    page.grab().save(folder + QStringLiteral("/7-list-light-200.png"));
 }
