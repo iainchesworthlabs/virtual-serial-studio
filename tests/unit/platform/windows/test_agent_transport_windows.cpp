@@ -139,11 +139,15 @@ TEST_CASE("agent transport: the pipe is named for the user and the instance")
     REQUIRE(to_wide(address) == expected);
 }
 
-TEST_CASE("agent transport: the pipe is open to this user alone")
+namespace
+{
+
+/// The pipe of `endpoint` lets this user in and nobody else.
+void require_private_pipe(agent::local_endpoint endpoint)
 {
     const std::string instance = unique_instance_name();
     boost::asio::io_context io;
-    auto listener = agent::listen_local(io.get_executor(), instance);
+    auto listener = agent::listen_local(io.get_executor(), endpoint, instance);
     REQUIRE(listener);
 
     // What another program would see: open the pipe as a client, with the
@@ -190,6 +194,38 @@ TEST_CASE("agent transport: the pipe is open to this user alone")
     REQUIRE(::GetSecurityDescriptorControl(descriptor, &control, &revision) !=
             0);
     REQUIRE((control & SE_DACL_PROTECTED) != 0);
+}
+
+} // namespace
+
+TEST_CASE("agent transport: the pipe is open to this user alone")
+{
+    require_private_pipe(agent::local_endpoint::agent);
+}
+
+TEST_CASE("control transport: both pipes of the gateway are open to this "
+          "user alone")
+{
+    require_private_pipe(agent::local_endpoint::control);
+    require_private_pipe(agent::local_endpoint::control_admin);
+}
+
+TEST_CASE("control transport: the pipes are named for the endpoint, the user "
+          "and the instance")
+{
+    const std::string instance = unique_instance_name();
+    const auto user = current_user();
+    const std::wstring sid = sid_text(sid_of(user));
+    const auto control =
+        agent::local_address(agent::local_endpoint::control, instance);
+    const auto admin =
+        agent::local_address(agent::local_endpoint::control_admin, instance);
+    REQUIRE(control);
+    REQUIRE(admin);
+    REQUIRE(to_wide(*control) == L"\\\\.\\pipe\\vss-control-" + sid + L"-" +
+                                     to_wide(instance));
+    REQUIRE(to_wide(*admin) == L"\\\\.\\pipe\\vss-control_admin-" + sid +
+                                   L"-" + to_wide(instance));
 }
 
 TEST_CASE("agent transport: a second listener on a name in use is refused")

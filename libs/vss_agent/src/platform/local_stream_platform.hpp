@@ -22,14 +22,32 @@ namespace vss::agent::platform
 
 // Each takes an instance name that `valid_instance_name` accepted.
 
-result<std::string> local_address(std::string_view instance);
+result<std::string> local_address(local_endpoint endpoint,
+                                  std::string_view instance);
+
+/// The word for `endpoint` in a pipe name or a file name.  No instance name
+/// can turn one endpoint's address into another's: an instance name is added
+/// after a `-`, and none of these words is another one followed by `-`.
+constexpr std::string_view endpoint_word(local_endpoint endpoint) noexcept
+{
+    switch (endpoint)
+    {
+    case local_endpoint::agent:
+        return "agent";
+    case local_endpoint::control:
+        return "control";
+    case local_endpoint::control_admin:
+        return "control_admin";
+    }
+    return "agent";
+}
 
 result<std::unique_ptr<local_listener>>
 listen_local(const boost::asio::any_io_executor& executor,
-             std::string_view instance);
+             local_endpoint endpoint, std::string_view instance);
 
 result<std::unique_ptr<local_stream>>
 connect_local(const boost::asio::any_io_executor& executor,
-              std::string_view instance);
+              local_endpoint endpoint, std::string_view instance);
 
 } // namespace vss::agent::platform

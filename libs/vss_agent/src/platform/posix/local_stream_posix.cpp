@@ -13,7 +13,8 @@
 //              else or is open to others is refused.  The uid is in the name
 //              of the fallback only, so that another user's directory in a
 //              shared /tmp cannot keep this user out.
-//   socket     agent.sock, mode 0600, or agent-<instance>.sock
+//   socket     agent.sock, mode 0600, or agent-<instance>.sock; the gateway's
+//              two endpoints are control.sock and control_admin.sock
 //   lock       agent.lock or agent-<instance>.lock, held with flock for as
 //              long as the listener lives: this is the rule that only one
 //              agent runs.  A crash drops the lock, so a socket file left by
@@ -115,11 +116,13 @@ std::filesystem::path runtime_directory()
             std::to_string(static_cast<std::uint32_t>(::geteuid())));
 }
 
-/// `agent<extension>` or `agent-<instance><extension>` in `directory`.
+/// `agent<extension>` or `agent-<instance><extension>` in `directory`, with
+/// the word of the endpoint in place of `agent` for the others.
 std::string file_path(const std::filesystem::path& directory,
-                      std::string_view instance, std::string_view extension)
+                      local_endpoint endpoint, std::string_view instance,
+                      std::string_view extension)
 {
-    std::string name = "agent";
+    std::string name(endpoint_word(endpoint));
     if (!instance.empty())
     {
         name += '-';
@@ -204,6 +207,20 @@ public:
     {
         boost::system::error_code ignored;
         socket_.close(ignored);
+    }
+
+    result<peer_identity> peer() override
+    {
+        const int descriptor = socket_.native_handle();
+        const auto user = peer_user(descriptor);
+        if (!user)
+            return user.error();
+        peer_identity out;
+        out.user = std::to_string(*user);
+        out.same_user = *user == static_cast<std::uint32_t>(::geteuid());
+        out.process_id = peer_process(descriptor);
+        out.program = process_program(out.process_id);
+        return out;
     }
 
 private:
@@ -365,24 +382,26 @@ result<descriptor_owner> take_lock(const std::string& path)
 
 } // namespace
 
-result<std::string> local_address(std::string_view instance)
+result<std::string> local_address(local_endpoint endpoint,
+                                  std::string_view instance)
 {
-    return file_path(runtime_directory(), instance, ".sock");
+    return file_path(runtime_directory(), endpoint, instance, ".sock");
 }
 
 result<std::unique_ptr<local_listener>>
 listen_local(const boost::asio::any_io_executor& executor,
-             std::string_view instance)
+             local_endpoint endpoint, std::string_view instance)
 {
     const std::filesystem::path directory = runtime_directory();
     if (const error_code failed = ensure_private_directory(directory))
         return failed;
 
-    std::string socket_path = file_path(directory, instance, ".sock");
+    std::string socket_path =
+        file_path(directory, endpoint, instance, ".sock");
     if (socket_path.size() > longest_socket_path)
         return make_error_code(errc::invalid_argument);
 
-    auto lock = take_lock(file_path(directory, instance, ".lock"));
+    auto lock = take_lock(file_path(directory, endpoint, instance, ".lock"));
     if (!lock)
         return lock.error();
 
@@ -399,7 +418,7 @@ listen_local(const boost::asio::any_io_executor& executor,
 
 result<std::unique_ptr<local_stream>>
 connect_local(const boost::asio::any_io_executor& executor,
-              std::string_view instance)
+              local_endpoint endpoint, std::string_view instance)
 {
     const std::filesystem::path directory = runtime_directory();
     if (const error_code checked = check_private_directory(directory))
@@ -410,7 +429,8 @@ connect_local(const boost::asio::any_io_executor& executor,
         return make_error_code(protocol_errc::not_same_user);
     }
 
-    const std::string socket_path = file_path(directory, instance, ".sock");
+    const std::string socket_path =
+        file_path(directory, endpoint, instance, ".sock");
     if (socket_path.size() > longest_socket_path)
         return make_error_code(errc::invalid_argument);
 

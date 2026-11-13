@@ -6,7 +6,9 @@
 // The agent's transport on Windows: a named pipe that only the user who runs
 // the agent can open.
 //
-//   name     \\.\pipe\vss-agent-<SID of the user>[-<instance>]
+//   name     \\.\pipe\vss-agent-<SID of the user>[-<instance>], with
+//            `control` or `control_admin` in place of `agent` for the
+//            gateway's two endpoints
 //   access   D:P(A;;GA;;;<SID>): the user and nobody else, not even
 //            administrators or SYSTEM, and nothing inherited
 //   remote   PIPE_REJECT_REMOTE_CLIENTS: this computer only
@@ -30,6 +32,7 @@
 
 #include <sddl.h>
 
+#include <exception>
 #include <memory>
 #include <string>
 #include <utility>
@@ -120,12 +123,18 @@ result<std::wstring> own_sid_text()
     return std::wstring(raw);
 }
 
-result<std::wstring> pipe_name(std::string_view instance)
+result<std::wstring> pipe_name(local_endpoint endpoint,
+                               std::string_view instance)
 {
     const auto sid = own_sid_text();
     if (!sid)
         return sid.error();
-    std::wstring name = L"\\\\.\\pipe\\vss-agent-" + *sid;
+    std::wstring name = L"\\\\.\\pipe\\vss-";
+    // The word of an endpoint is ASCII.
+    for (const char letter : endpoint_word(endpoint))
+        name += static_cast<wchar_t>(letter);
+    name += L'-';
+    name += *sid;
     if (!instance.empty())
     {
         name += L'-';
@@ -134,6 +143,60 @@ result<std::wstring> pipe_name(std::string_view instance)
             name += static_cast<wchar_t>(letter);
     }
     return name;
+}
+
+/// The SID in `user` as text; empty when it cannot be written.
+std::string sid_text(const std::vector<unsigned char>& user)
+{
+    LPWSTR raw = nullptr;
+    if (::ConvertSidToStringSidW(sid_of(user), &raw) == 0)
+        return {};
+    const local_owner text(raw);
+    return to_utf8(raw);
+}
+
+/// The path of the program that process `process` runs; empty when it cannot
+/// be read.  For a log only: the number may belong to another process by now.
+std::string process_program(DWORD process)
+{
+    if (process == 0)
+        return {};
+    const handle_owner opened(
+        ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process));
+    if (!opened)
+        return {};
+    constexpr std::size_t longest_path = 32768;
+    std::wstring path(longest_path, L'\0');
+    DWORD size = static_cast<DWORD>(path.size());
+    if (::QueryFullProcessImageNameW(opened.get(), 0, path.data(), &size) == 0)
+        return {};
+    path.resize(size);
+    return to_utf8(path);
+}
+
+/// The user who opened the client end of the pipe behind `pipe`, read from
+/// the security context Windows recorded when the client opened it.  The
+/// thread acts as the client only for the one call that reads the token, and
+/// a client opens the pipe at identification level, so even that moment
+/// gives this process nothing but the client's name.
+result<std::vector<unsigned char>> client_user(HANDLE pipe)
+{
+    if (::ImpersonateNamedPipeClient(pipe) == 0)
+        return system_error(::GetLastError());
+    HANDLE raw = nullptr;
+    const BOOL opened =
+        ::OpenThreadToken(::GetCurrentThread(), TOKEN_QUERY, TRUE, &raw);
+    const DWORD failed = ::GetLastError();
+    // A thread that cannot stop acting as someone else must not run on.
+    if (::RevertToSelf() == 0)
+        std::terminate();
+    if (opened == 0)
+        return system_error(failed);
+    const handle_owner token(raw);
+    auto user = token_user(token.get());
+    if (user.empty())
+        return make_error_code(errc::permission_denied);
+    return user;
 }
 
 /// True when the process that serves the pipe behind `pipe` runs as the user
@@ -188,8 +251,10 @@ result<handle_owner> open_client(const std::wstring& name)
 class pipe_stream final : public local_stream
 {
 public:
-    explicit pipe_stream(const boost::asio::any_io_executor& executor)
-        : handle_(executor)
+    /// `server_end` says which end of the pipe this is: the one a listener
+    /// made, or the one a client opened.
+    pipe_stream(const boost::asio::any_io_executor& executor, bool server_end)
+        : handle_(executor), server_end_(server_end)
     {
     }
 
@@ -223,8 +288,47 @@ public:
         handle_.close(ignored);
     }
 
+    result<peer_identity> peer() override
+    {
+        const HANDLE pipe = handle_.native_handle();
+        const auto ours = process_user(::GetCurrentProcess());
+        if (ours.empty())
+            return system_error(::GetLastError());
+
+        peer_identity out;
+        ULONG process = 0;
+        std::vector<unsigned char> theirs;
+        if (server_end_)
+        {
+            auto user = client_user(pipe);
+            if (!user)
+                return user.error();
+            theirs = std::move(*user);
+            if (::GetNamedPipeClientProcessId(pipe, &process) == 0)
+                process = 0;
+        }
+        else
+        {
+            if (::GetNamedPipeServerProcessId(pipe, &process) == 0)
+                return system_error(::GetLastError());
+            const handle_owner server(::OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION, FALSE, process));
+            if (!server)
+                return system_error(::GetLastError());
+            theirs = process_user(server.get());
+            if (theirs.empty())
+                return make_error_code(errc::permission_denied);
+        }
+        out.user = sid_text(theirs);
+        out.same_user = ::EqualSid(sid_of(theirs), sid_of(ours)) != 0;
+        out.process_id = process;
+        out.program = process_program(process);
+        return out;
+    }
+
 private:
     boost::asio::windows::stream_handle handle_;
+    const bool server_end_;
 };
 
 /// What the listener and an accept that is still waiting share, so the
@@ -260,7 +364,7 @@ result<std::unique_ptr<pipe_stream>> make_instance(const listener_state& state,
         static_cast<void>(pipe.release());
         return system_error(::GetLastError());
     }
-    auto stream = std::make_unique<pipe_stream>(state.executor);
+    auto stream = std::make_unique<pipe_stream>(state.executor, true);
     if (const error_code failed = stream->adopt(std::move(pipe)))
         return failed;
     return stream;
@@ -354,9 +458,10 @@ private:
 
 } // namespace
 
-result<std::string> local_address(std::string_view instance)
+result<std::string> local_address(local_endpoint endpoint,
+                                  std::string_view instance)
 {
-    const auto name = pipe_name(instance);
+    const auto name = pipe_name(endpoint, instance);
     if (!name)
         return name.error();
     return to_utf8(*name);
@@ -364,10 +469,10 @@ result<std::string> local_address(std::string_view instance)
 
 result<std::unique_ptr<local_listener>>
 listen_local(const boost::asio::any_io_executor& executor,
-             std::string_view instance)
+             local_endpoint endpoint, std::string_view instance)
 {
     const auto sid = own_sid_text();
-    const auto name = pipe_name(instance);
+    const auto name = pipe_name(endpoint, instance);
     if (!sid || !name)
         return sid ? name.error() : sid.error();
 
@@ -403,9 +508,9 @@ listen_local(const boost::asio::any_io_executor& executor,
 
 result<std::unique_ptr<local_stream>>
 connect_local(const boost::asio::any_io_executor& executor,
-              std::string_view instance)
+              local_endpoint endpoint, std::string_view instance)
 {
-    const auto name = pipe_name(instance);
+    const auto name = pipe_name(endpoint, instance);
     if (!name)
         return name.error();
     auto pipe = open_client(*name);
@@ -413,7 +518,7 @@ connect_local(const boost::asio::any_io_executor& executor,
         return pipe.error();
     if (!served_by_own_user(pipe->get()))
         return make_error_code(protocol_errc::not_same_user);
-    auto stream = std::make_unique<pipe_stream>(executor);
+    auto stream = std::make_unique<pipe_stream>(executor, false);
     if (const error_code failed = stream->adopt(std::move(*pipe)))
         return failed;
     return std::unique_ptr<local_stream>(std::move(stream));
