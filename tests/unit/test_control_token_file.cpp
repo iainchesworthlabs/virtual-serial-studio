@@ -52,8 +52,8 @@ control::token_digest digest_of(unsigned seed)
 {
     control::token_digest digest{};
     for (std::size_t position = 0; position < digest.size(); ++position)
-        digest[position] =
-            static_cast<std::uint8_t>((seed * 31 + position * 7) & 0xffu);
+        digest[position] = static_cast<std::uint8_t>(
+            (std::size_t{seed} * 31 + position * 7) & 0xffu);
     return digest;
 }
 
@@ -231,8 +231,7 @@ TEST_CASE("control token file: three records save and load back equal")
 
     // The fields that the comparison could hide behind a default.
     REQUIRE(!loaded->tokens[0].last_used.has_value());
-    REQUIRE(loaded->tokens[1].last_used.has_value());
-    REQUIRE(*loaded->tokens[1].last_used == at(1794600000456));
+    REQUIRE(loaded->tokens[1].last_used == at(1794600000456));
     REQUIRE(!loaded->tokens[1].revoked);
     REQUIRE(loaded->tokens[2].revoked);
     REQUIRE_EQ(loaded->tokens[2].label,
@@ -359,13 +358,13 @@ TEST_CASE("control token file: a document that is not JSON is refused")
     const auto file = scratch.path() / "state" / "tokens.json";
     save_good(file, three_records());
 
-    const std::string cases[] = {
-        "this is not json", "{\"version\": 1,", "[]", "null", "42", "\"text\"",
-        // Text after the document.
-        read_file(file) + " x",
-        // Nested deeper than a token file ever is.
-        "{\"version\":1,\"latest_seen\":0,\"tokens\":[],"
-        "\"extra\":[[[[[[[[[[1]]]]]]]]]]}"};
+    // Nested deeper than a token file ever is.
+    const std::string deep = std::string("{\"version\":1,\"latest_seen\":0,") +
+                             "\"tokens\":[],\"extra\":[[[[[[[[[[1]]]]]]]]]]}";
+    const std::string cases[] = {"this is not json", "{\"version\": 1,", "[]",
+                                 "null", "42", "\"text\"",
+                                 // Text after the document.
+                                 read_file(file) + " x", deep};
     for (const std::string& text : cases)
     {
         overwrite_file(file, text);

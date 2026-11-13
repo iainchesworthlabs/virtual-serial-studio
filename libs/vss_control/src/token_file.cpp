@@ -40,7 +40,7 @@ namespace json = boost::json;
 namespace
 {
 
-constexpr std::size_t max_file_size = 4 * 1024 * 1024;
+constexpr std::size_t max_file_size = std::size_t{4} * 1024 * 1024;
 constexpr std::size_t max_depth = 8;
 constexpr std::uint64_t file_version = 1;
 constexpr std::size_t digest_text_size = 2 * std::tuple_size_v<token_digest>;

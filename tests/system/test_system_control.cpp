@@ -864,7 +864,7 @@ TEST_CASE("system control: a token written to a file is not shown")
 
     const std::string text = read_text(file);
     REQUIRE_EQ(text.size(), vss::control::token_size + 1);
-    REQUIRE(text.ends_with("\n"));
+    REQUIRE(text.ends_with('\n'));
     const std::string token = text.substr(0, vss::control::token_size);
     const std::string id = id_of(token);
 

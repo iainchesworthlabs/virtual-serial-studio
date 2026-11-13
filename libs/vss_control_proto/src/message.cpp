@@ -822,7 +822,7 @@ result<reply_body> read_reply_body(const json::object& header,
 
 } // namespace
 
-operation operation_of(const request_body& body) noexcept
+operation operation_of(const request_body& body)
 {
     struct visitor
     {
@@ -993,12 +993,13 @@ std::uint64_t peek_request_id(const frame& value) noexcept
         std::uint64_t id = 0;
         if (header && read_u64(*header, "id", id))
             return id;
+        return 0;
     }
     catch (...)
     {
         // Out of memory while looking: the caller answers with id 0.
+        return 0;
     }
-    return 0;
 }
 
 std::string port_id_text(std::uint64_t endpoint)

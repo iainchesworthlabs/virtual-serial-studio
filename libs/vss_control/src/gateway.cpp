@@ -165,6 +165,19 @@ struct session
     /// session of the local user.
     std::string token_id;
 
+    /// Who the session is, for the audit log.  Empty before `hello`.
+    const std::string& principal_id() const noexcept
+    {
+        static const std::string nobody;
+        return who ? who->id : nobody;
+    }
+
+    /// What the session may do.  Nothing before `hello`.
+    scope_set scopes() const noexcept
+    {
+        return who ? who->scopes : scope_set{};
+    }
+
     /// The requests this session may still send now.
     double tokens = 0.0;
     steady::time_point refilled;
@@ -352,7 +365,7 @@ public:
         work_.emplace(io_.get_executor());
         for (door& entrance : doors_)
         {
-            entrance.retry.emplace(io_);
+            entrance.retry = std::make_unique<boost::asio::steady_timer>(io_);
             accept_next(entrance);
         }
         io_thread_ = std::thread([this] { run_client_thread(); });
@@ -462,7 +475,7 @@ private:
     {
         std::unique_ptr<agent::local_listener> listener;
         transport via = transport::local;
-        std::optional<boost::asio::steady_timer> retry;
+        std::unique_ptr<boost::asio::steady_timer> retry;
     };
 
     /// What the public endpoint grants.  `admin` cannot be configured in.
@@ -719,9 +732,9 @@ private:
         if (!take_token(*client))
         {
             rate_limited_.fetch_add(1);
-            record_burst(
-                client->rate_burst, "request.rate_limited",
-                {{"session", client->number}, {"principal", client->who->id}});
+            record_burst(client->rate_burst, "request.rate_limited",
+                         {{"session", client->number},
+                          {"principal", client->principal_id()}});
             send_reply(client,
                        error_reply_for(asked.id, api_errc::limit_exceeded));
             return;
@@ -735,7 +748,7 @@ private:
             record_burst(
                 client->forbidden_burst, "request.forbidden",
                 {{"session", client->number},
-                 {"principal", client->who->id},
+                 {"principal", client->principal_id()},
                  {"operation", wanted.name},
                  {"missing", allowed.missing ? scope_name(*allowed.missing)
                                              : std::string_view()}});
@@ -795,7 +808,7 @@ private:
         if (wanted.id == operation::endpoint_stop)
         {
             audit_->record("operation", {{"session", client->number},
-                                         {"principal", client->who->id},
+                                         {"principal", client->principal_id()},
                                          {"operation", wanted.name},
                                          {"outcome", "ok"}});
             // The gateway stops once the client has its answer.
@@ -876,13 +889,13 @@ private:
         hello_reply welcome;
         welcome.api = api_version;
         welcome.version = gateway_version();
-        welcome.principal = client->who->id;
-        welcome.scopes = scope_names(client->who->scopes);
+        welcome.principal = client->principal_id();
+        welcome.scopes = scope_names(client->scopes());
         welcome.features = {"ports.read", "events", "traffic"};
 
         audit_->record("session.opened",
                        {{"session", client->number},
-                        {"principal", client->who->id},
+                        {"principal", client->principal_id()},
                         {"transport", transport_name(client->via)},
                         {"scopes", joined(welcome.scopes)},
                         {"process", client->peer.process_id},
@@ -1019,7 +1032,7 @@ private:
         audit_->record(
             "operation",
             {{"session", client->number},
-             {"principal", client->who->id},
+             {"principal", client->principal_id()},
              {"operation", info_of(operation::tokens_create).name},
              {"token", made ? made->record.id : std::string()},
              {"label", wanted.label},
@@ -1066,7 +1079,7 @@ private:
         audit_->record(
             "operation",
             {{"session", client->number},
-             {"principal", client->who->id},
+             {"principal", client->principal_id()},
              {"operation", info_of(operation::tokens_revoke).name},
              {"token", valid_token_id(wanted.id) ? wanted.id : std::string()},
              {"sessions_closed", closed},
@@ -1502,7 +1515,7 @@ private:
             if (!other->who || other->who->via != candidate.via)
                 continue;
             ++on_endpoint;
-            if (other->who->id == candidate.id)
+            if (other->principal_id() == candidate.id)
                 ++of_principal;
         }
         if (candidate.via == transport::local_admin)
@@ -1543,7 +1556,7 @@ private:
         fields.emplace_back("suppressed", burst.suppressed);
         burst.last = now;
         burst.suppressed = 0;
-        audit_->record(event, std::move(fields));
+        audit_->record(event, fields);
     }
 
     /// Notes a connection that ended before it became a session.
@@ -1674,7 +1687,7 @@ private:
             audit_->record(
                 "session.closed",
                 {{"session", client->number},
-                 {"principal", client->who->id},
+                 {"principal", client->principal_id()},
                  {"reason",
                   reason.empty() ? std::string_view("closed") : reason},
                  {"forbidden_unrecorded", client->forbidden_burst.suppressed},

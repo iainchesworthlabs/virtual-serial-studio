@@ -213,7 +213,7 @@ struct request
 };
 
 /// The operation a request asks for.
-operation operation_of(const request_body& body) noexcept;
+operation operation_of(const request_body& body);
 
 // -- replies -----------------------------------------------------------------
 
