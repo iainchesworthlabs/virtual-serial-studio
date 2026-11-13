@@ -304,7 +304,7 @@ std::optional<std::string> read_last_line(const std::filesystem::path& file,
     if (size <= 0)
         return std::nullopt;
 
-    constexpr std::streamoff chunk = 64 * 1024;
+    constexpr std::streamoff chunk = std::streamoff{64} * 1024;
     std::string tail;
     std::streamoff start = size;
     while (start > 0)
@@ -345,8 +345,8 @@ std::size_t rotated_index(const std::string& name)
     if (name.size() <= prefix.size() + suffix.size() ||
         !name.starts_with(prefix) || !name.ends_with(suffix))
         return 0;
-    const std::string_view digits(name.data() + prefix.size(),
-                                  name.size() - prefix.size() - suffix.size());
+    const std::string_view digits = std::string_view(name).substr(
+        prefix.size(), name.size() - prefix.size() - suffix.size());
     if (digits.size() > 9)
         return 0;
     std::size_t value = 0;
@@ -568,7 +568,7 @@ result<std::unique_ptr<audit_log>> audit_log::open(audit_options options)
 }
 
 void audit_log::record(std::string_view event,
-                       std::vector<audit_field> fields) noexcept
+                       const std::vector<audit_field>& fields) noexcept
 {
     try
     {
@@ -708,7 +708,10 @@ result<audit_verdict> verify_audit_log(const std::filesystem::path& directory)
 
             std::uint64_t number = 0;
             static_cast<void>(read_u64(*object, "seq", number));
-            const std::string_view prev = *view_text(*object, "prev");
+            // `record_problem` has said that it is there and is a text.
+            const auto prev_text = view_text(*object, "prev");
+            const std::string_view prev =
+                prev_text ? *prev_text : std::string_view();
             if (have_previous)
             {
                 if (number != previous_seq + 1)

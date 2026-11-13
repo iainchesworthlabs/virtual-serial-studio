@@ -98,7 +98,7 @@ public:
     /// gateway.  `fields` may not use the keys `seq`, `time`, `event` and
     /// `prev`; one that does is dropped.
     void record(std::string_view event,
-                std::vector<audit_field> fields = {}) noexcept;
+                const std::vector<audit_field>& fields = {}) noexcept;
 
     /// Records that could not be written since the log was opened.
     std::uint64_t failed_records() const noexcept;

@@ -567,14 +567,15 @@ TEST_CASE("control policy: the whole matrix of caller and operation")
                 const control::decision got =
                     control::authorise(caller, wanted);
 
+                const std::optional<control::scope> needed = expected.required;
                 bool should = false;
-                if (!expected.required)
+                if (!needed.has_value())
                     should = true;
-                else if (*expected.required == control::scope::admin)
+                else if (needed.value() == control::scope::admin)
                     should = via == control::transport::local_admin &&
                              held.contains(control::scope::admin);
                 else
-                    should = held.contains(*expected.required);
+                    should = held.contains(needed.value());
 
                 REQUIRE_EQ(got.allowed, should);
                 if (should)

@@ -290,7 +290,7 @@ public:
 
     result<peer_identity> peer() override
     {
-        const HANDLE pipe = handle_.native_handle();
+        HANDLE pipe = handle_.native_handle();
         const auto ours = process_user(::GetCurrentProcess());
         if (ours.empty())
             return system_error(::GetLastError());
