@@ -7,6 +7,7 @@
 
 add_library(vss_plugin
   src/error.cpp
+  src/hash.cpp
   src/manifest.cpp)
 add_library(Vss::plugin ALIAS vss_plugin)
 

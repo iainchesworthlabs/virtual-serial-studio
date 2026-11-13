@@ -81,6 +81,8 @@ public:
             return "the plugin could not be started";
         case plugin_errc::quarantined:
             return "the plugin failed too often and was stopped";
+        case plugin_errc::reserved_id:
+            return "the plugin's id is kept for official plugins";
         }
         return "unknown plugin error";
     }
@@ -161,6 +163,8 @@ std::string_view to_string(plugin_errc value) noexcept
         return "start_failed";
     case plugin_errc::quarantined:
         return "quarantined";
+    case plugin_errc::reserved_id:
+        return "reserved_id";
     }
     return "unknown";
 }

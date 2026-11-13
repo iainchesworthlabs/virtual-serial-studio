@@ -36,6 +36,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_permissions.cpp
   unit/test_permissions_linux.cpp
   unit/test_permissions_macos.cpp
+  unit/test_plugin_hash.cpp
   unit/test_plugin_manifest.cpp
   unit/test_profiling.cpp
   unit/test_serial_settings.cpp

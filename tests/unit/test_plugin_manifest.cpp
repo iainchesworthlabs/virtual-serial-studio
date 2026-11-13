@@ -2739,9 +2739,10 @@ TEST_CASE("plugin manifest: plugin_errc has names and messages")
     REQUIRE_EQ(to_string(plugin_errc::signature_invalid),
                "signature_invalid");
     REQUIRE_EQ(to_string(plugin_errc::quarantined), "quarantined");
+    REQUIRE_EQ(to_string(plugin_errc::reserved_id), "reserved_id");
 
     for (int value = static_cast<int>(plugin_errc::success);
-         value <= static_cast<int>(plugin_errc::quarantined); ++value)
+         value <= static_cast<int>(plugin_errc::reserved_id); ++value)
     {
         const plugin_errc code = static_cast<plugin_errc>(value);
         REQUIRE(!plugin_category().message(value).empty());
