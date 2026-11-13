@@ -6,6 +6,7 @@
 add_subdirectory(vss_core)
 add_subdirectory(vss_ports)
 add_subdirectory(vss_config)
+add_subdirectory(vss_license)
 add_subdirectory(vss_studio)
 add_subdirectory(vss_testkit)
 add_subdirectory(vss_agent_proto)
