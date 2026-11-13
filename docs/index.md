@@ -20,6 +20,7 @@ drives the modem control lines and records the traffic. It is built on
 | See what is tested where | [Platforms](platforms.md) and [Virtual machine testing](vm-testing.md) |
 | Make a release | [Releasing](releasing.md) |
 | Contribute | [Contributing](contributing.md) |
+| See the editions and licensing proposal | [Editions](editions.md) |
 
 The program is free software under the GNU General Public License, version 3
 or later.
