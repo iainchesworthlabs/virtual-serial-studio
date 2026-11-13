@@ -116,6 +116,12 @@ private:
     QTranslator inner_;
 };
 
+/// The application owns it through its Qt parent.
+QTranslator* make_pseudo_translator(QObject* parent)
+{
+    return new pseudo_translator(parent);
+}
+
 QString catalogue_path(const QString& code)
 {
     return QStringLiteral(":/i18n/vss_gui_%1.qm").arg(code);
@@ -274,7 +280,7 @@ language_choice apply_language()
     if (pseudo)
     {
         QCoreApplication::installTranslator(
-            new pseudo_translator(QCoreApplication::instance()));
+            make_pseudo_translator(QCoreApplication::instance()));
         QGuiApplication::setLayoutDirection(
             forced == QStringLiteral("pseudo-rtl") ? Qt::RightToLeft
                                                    : Qt::LeftToRight);
