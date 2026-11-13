@@ -1,1 +1,1 @@
-**Remove port and Remove setup have different icons.** When the Advanced canvas bar shrinks to icons only, Remove port now shows a port with a minus and Remove setup shows a stack with a cross, so the two can be told apart.
+**Remove port and Remove setup have different icons, and the canvas tool row works from the keyboard.** When the Advanced canvas bar shrinks to icons only, Remove port now shows a port with a minus and Remove setup shows a stack with a cross, so the two can be told apart. The buttons on the row can now be reached with Tab and show the focus ring.
