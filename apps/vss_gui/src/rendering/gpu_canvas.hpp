@@ -61,6 +61,9 @@ public:
 
     void set_style(const style& value);
 
+    /// Keeps the canvas the size of the view's viewport.
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
     /// Drops every item texture, so each item is drawn again (theme change).
     void invalidate_all();
 
@@ -86,7 +89,6 @@ protected:
     void paint(QCanvasPainter* painter) override;
     void graphicsResourcesInvalidated() override;
     void render(QRhiCommandBuffer* cb) override;
-    bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
     struct entry

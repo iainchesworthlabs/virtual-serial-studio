@@ -34,12 +34,13 @@
 #include <QElapsedTimer>
 #include <QScrollBar>
 #include <QSettings>
-#include <QStringList>
 #include <QString>
+#include <QStringList>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <exception>
 #include <vector>
 
 namespace
@@ -106,6 +107,7 @@ void report(const char* name, const figures& value)
 } // namespace
 
 int main(int argc, char** argv)
+try
 {
     QString render;
     int pairs = 4;
@@ -118,7 +120,8 @@ int main(int argc, char** argv)
         if (std::strncmp(argv[index], "--render=", 9) == 0)
             render = QString::fromLocal8Bit(argv[index] + 9);
         else if (std::strncmp(argv[index], "--ports=", 8) == 0)
-            pairs = std::max(1, std::atoi(argv[index] + 8));
+            pairs =
+                std::max(1, QString::fromLocal8Bit(argv[index] + 8).toInt());
         else if (std::strncmp(argv[index], "--size=", 7) == 0)
         {
             const QStringList parts =
@@ -132,7 +135,7 @@ int main(int argc, char** argv)
         else if (std::strncmp(argv[index], "--grab=", 7) == 0)
             grab_path = QString::fromLocal8Bit(argv[index] + 7);
         else if (std::strncmp(argv[index], "--hold=", 7) == 0)
-            hold = std::atoi(argv[index] + 7);
+            hold = QString::fromLocal8Bit(argv[index] + 7).toInt();
     }
 
     // --profile, --profile=PORT and --profile-wait=S start Tracy as the
@@ -233,4 +236,14 @@ int main(int argc, char** argv)
                                          window_height * 3 / 10 * along / 40);
                              }));
     return 0;
+}
+catch (const std::exception& error)
+{
+    std::fprintf(stderr, "error: %s\n", error.what());
+    return 2;
+}
+catch (...)
+{
+    std::fputs("error: unknown exception\n", stderr);
+    return 2;
 }
