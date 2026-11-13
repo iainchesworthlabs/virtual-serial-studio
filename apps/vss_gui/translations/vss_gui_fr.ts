@@ -17761,6 +17761,11 @@ Réseaux : %5</translation>
             <translation>Nouveau port</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>Automatique</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>Programme, p. ex. PuTTY (facultatif)</translation>

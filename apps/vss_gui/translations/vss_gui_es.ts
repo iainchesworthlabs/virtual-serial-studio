@@ -17761,6 +17761,11 @@ Redes: %5</translation>
             <translation>Puerto nuevo</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>Automático</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>Programa, p. ej. PuTTY (opcional)</translation>

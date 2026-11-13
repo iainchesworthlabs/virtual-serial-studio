@@ -1,0 +1,1 @@
+**The Simple view's COM number starts on Automatic.** A new port in the Simple view no longer starts on the next free COM number above every number Windows has kept. It starts on Automatic, which takes back a number this computer has had before, so the numbers in a setup stay put and the port is quick to make. The list still offers the free numbers if you want a particular one.

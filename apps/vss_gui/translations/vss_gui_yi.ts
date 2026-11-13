@@ -17761,6 +17761,11 @@ Networks: %5</source>
             <translation>נײַער פּאָרט</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>אויטאָמאַטיש</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>פּראָגראַם, למשל PuTTY (אָפּציאָנעל)</translation>

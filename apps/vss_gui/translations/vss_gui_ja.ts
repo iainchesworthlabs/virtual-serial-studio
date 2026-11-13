@@ -17750,6 +17750,11 @@ Networks: %5</source>
             <translation>新しいポート</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>自動</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>プログラム(例: PuTTY、省略可)</translation>
