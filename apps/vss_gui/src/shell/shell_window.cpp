@@ -1015,6 +1015,9 @@ void ShellWindow::build_docks()
     monitor_dock_ = make_pane_dock(QStringLiteral("monitorDock"), tr("Monitor"),
                                    monitor_panel_, &monitor_header_);
 
+    // The Monitor controls share the pane's title row while it is wide enough.
+    monitor_panel_->attach_header(monitor_header_);
+
     // The Ports pane carries its own Add port button.
     if (QAction* add = registry_.action(QStringLiteral("ports.add")))
     {

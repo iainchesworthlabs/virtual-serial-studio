@@ -18,6 +18,7 @@
 #include "panes/selection_service.hpp"
 #include "panes/send_panel.hpp"
 #include "widgets/port_menu.hpp"
+#include "widgets/surfaces.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -448,6 +449,48 @@ TEST_CASE("monitor panel: Export capture is named and follows the rows")
                     QByteArrayLiteral("x"))});
     QApplication::processEvents();
     REQUIRE(button->isEnabled());
+}
+
+TEST_CASE("monitor panel: the controls share the title row when it fits")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::Pane pane(QStringLiteral("Monitor"));
+    auto* panel = new vss::gui::MonitorPanel(backend);
+    pane.set_body(panel);
+    panel->attach_header(pane.header());
+    panel->set_advanced(true);
+    pane.resize(1400, 260);
+    pane.show();
+    QApplication::processEvents();
+
+    QPushButton* button = nullptr;
+    for (QPushButton* candidate : pane.findChildren<QPushButton*>())
+    {
+        if (candidate->text() == QStringLiteral("Export capture"))
+            button = candidate;
+    }
+    REQUIRE(button != nullptr);
+    // Wide: the controls are inside the header, on the title's row.
+    REQUIRE(panel->controls_in_header());
+    REQUIRE(pane.header()->isAncestorOf(button));
+    REQUIRE(button->isVisible());
+
+    // Narrow: they drop to a row under it, and stay visible and whole.
+    pane.resize(500, 260);
+    QApplication::processEvents();
+    REQUIRE(!panel->controls_in_header());
+    REQUIRE(!pane.header()->isAncestorOf(button));
+    REQUIRE(button->isVisible());
+    REQUIRE(button->geometry().right() <= panel->width());
+
+    // Back to wide, and Simple mode takes them out of the header again.
+    pane.resize(1400, 260);
+    QApplication::processEvents();
+    REQUIRE(panel->controls_in_header());
+    panel->set_advanced(false);
+    QApplication::processEvents();
+    REQUIRE(!panel->controls_in_header());
+    REQUIRE(!button->isVisible());
 }
 
 TEST_CASE("monitor: a bus fault is logged with the engine's sentence")
