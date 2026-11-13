@@ -1,0 +1,42 @@
+{
+  "comment": "The components shipped in, or compiled into, a Virtual Serial Studio build. The About window's Licences tab is built from this file, and the 'Linked or built against' table in THIRD_PARTY_NOTICES.md must list the same components (the test 'support: licences match the bundled components' checks both). A component that is not shipped does not belong in components; it goes in not_shipped.",
+  "components": [
+    {
+      "notice": "Qt",
+      "name": "Qt 6",
+      "spdx": "LGPL-3.0-only OR GPL-3.0-only",
+      "shipped": "The release packages carry the Qt libraries and plug-ins beside the program (qt_generate_deploy_app_script in apps/vss_gui/CMakeLists.txt).",
+      "condition": ""
+    },
+    {
+      "notice": "Boost",
+      "name": "Boost",
+      "spdx": "BSL-1.0",
+      "shipped": "Header-only libraries (Asio, System, JSON) compiled into every program.",
+      "condition": ""
+    },
+    {
+      "notice": "Boost.VirtualSerial",
+      "name": "Boost.VirtualSerial",
+      "spdx": "BSL-1.0",
+      "shipped": "Header-only library compiled into every program.",
+      "condition": ""
+    },
+    {
+      "notice": "Tracy",
+      "name": "Tracy",
+      "spdx": "BSD-3-Clause",
+      "vcpkg": "tracy",
+      "shipped": "Compiled in only when the build finds the vcpkg package. The release packages are not built with vcpkg, so they do not contain it.",
+      "condition": "profiling"
+    }
+  ],
+  "fonts": [],
+  "fonts_comment": "Font families shipped with the program, one object each: family, version, spdx (the licence id), licence_text (path of the licence text from the repository root) and url (where the font comes from). The About window's Fonts tab lists them; with none, it says no fonts are bundled.",
+  "not_shipped": [
+    {
+      "notice": "com0com",
+      "reason": "An optional Windows driver the user installs separately. Nothing of it is in the packages."
+    }
+  ]
+}

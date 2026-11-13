@@ -10,6 +10,7 @@ add_library(vss_gui_backend STATIC
   engine_studio_backend.cpp
   fake_studio_backend.cpp
   event_bridge.cpp
+  background_work.cpp
   share_edit.cpp
   canvas_edit.cpp
   com_numbers.cpp
@@ -18,6 +19,7 @@ add_library(vss_gui_backend STATIC
   engine_studio_backend.hpp
   fake_studio_backend.hpp
   event_bridge.hpp
+  background_work.hpp
   share_edit.hpp
   canvas_edit.hpp
   com_numbers.hpp
@@ -48,6 +50,7 @@ if(VSS_BUILD_TESTS)
     tests/main.cpp
     tests/test_fake_backend.cpp
     tests/test_event_bridge.cpp
+    tests/test_background_work.cpp
     tests/test_share_edit.cpp
     tests/test_canvas_edit.cpp
     tests/test_com_numbers.cpp

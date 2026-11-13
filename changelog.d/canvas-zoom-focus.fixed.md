@@ -1,0 +1,1 @@
+**The canvas zoom buttons show a focus ring when you Tab to them, and their names are translated.** Tabbing to Zoom out, the zoom reading or Zoom in now draws the same 2 px ring as other buttons, and the zoom controls' names and tooltips are available in every language the app ships.

@@ -1,10 +1,15 @@
 site_name: Virtual Serial Studio
-site_description: A playground for real, virtual and networked serial ports
+site_description: A tool for real, virtual and networked serial ports
 repo_url: https://github.com/iainchesworthlabs/virtual-serial-studio
+site_url: https://virtual-serial-studio.com/docs/
 docs_dir: docs
+# Not the default "site": that name is too close to website/, the product site.
+site_dir: build/docs
 strict: true
 theme:
   name: material
+  # The system font: the published site loads nothing from another host.
+  font: false
   features:
     - navigation.sections
     - content.code.copy
@@ -29,9 +34,11 @@ nav:
       - Application icon: app-icon.md
       - Contributing: contributing.md
       - Editions and licensing (proposal): editions.md
+      - Licensing (design): licensing.md
   - How it works:
       - Architecture: architecture.md
       - The per-user agent: agent.md
+      - Remote control and monitoring (proposal): remote-control.md
       - Response timing rules (design): response-timing.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md

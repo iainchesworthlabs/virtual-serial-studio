@@ -54,6 +54,10 @@ runs:
     - name: Set up Qt
       if: inputs.qt == 'true'
       uses: iainchesworthlabs/icl-common-infra/actions/setup-qt@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+      with:
+        # The GUI draws its canvas with Qt Canvas Painter, an add-on module
+        # (apps/vss_gui/src/rendering).
+        modules: qtcanvaspainter
 
     # makensis builds the Windows installer (cmake/packaging/VssPackage-windows.cmake). Chocolatey is on the hosted Windows
     # runners; the version comes from the pin and the installed copy is checked against it. PATH is not changed: CPack

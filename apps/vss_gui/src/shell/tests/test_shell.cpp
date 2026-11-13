@@ -34,14 +34,18 @@
 #include "theme/theme.hpp"
 #include "widgets/dialogs.hpp"
 #include "widgets/notes.hpp"
+#include "widgets/controls.hpp"
 
 #include <QAction>
+#include <QAccessible>
 #include <QApplication>
 #include <QCoreApplication>
 #include <QDir>
 #include <QDockWidget>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
+#include <QMenuBar>
 #include <QPushButton>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -49,6 +53,7 @@
 #include <QToolBar>
 #include <QToolButton>
 
+#include <chrono>
 #include <cmath>
 
 namespace
@@ -58,6 +63,12 @@ void clear_settings()
 {
     QSettings settings;
     settings.clear();
+}
+
+/// Waits for the ports a window is starting on its worker thread.
+void wait_applied(vss::gui::ShellWindow& window)
+{
+    REQUIRE(vss_test::wait_until([&window] { return !window.applying(); }));
 }
 
 } // namespace
@@ -318,6 +329,62 @@ TEST_CASE("palette: renders a review screenshot in both themes")
         QDir(directory).filePath(QStringLiteral("palette-dark.png"))));
     vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
     palette.close();
+}
+
+TEST_CASE("shell: the search and the level switch are centred in the header")
+{
+    clear_settings();
+    const QFont original = QApplication::font();
+    const QString directory = QDir(QCoreApplication::applicationDirPath())
+                                  .filePath(QStringLiteral("../gui-shots"));
+    REQUIRE(QDir().mkpath(directory));
+    for (const double scale : {1.0, 1.5, 2.0})
+    {
+        QFont font = original;
+        font.setPointSizeF(original.pointSizeF() * scale);
+        QApplication::setFont(font);
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::ShellWindow window(backend);
+        window.resize(1280, 800);
+        window.show();
+        QApplication::processEvents();
+
+        QMenuBar* bar = window.menuBar();
+        QWidget* corner = bar->cornerWidget(Qt::TopRightCorner);
+        REQUIRE(corner != nullptr);
+        auto* search = corner->findChild<QLineEdit*>();
+        auto* level = corner->findChild<vss::gui::SegmentedControl*>();
+        REQUIRE(search != nullptr);
+        REQUIRE(level != nullptr);
+        if (scale == 1.0)
+        {
+            for (const auto mode : {vss::gui::theme_mode::light,
+                                    vss::gui::theme_mode::dark})
+            {
+                vss::gui::Theme::instance().set_mode(mode);
+                QApplication::processEvents();
+                const bool dark = mode == vss::gui::theme_mode::dark;
+                REQUIRE(bar->grab().save(QDir(directory).filePath(
+                    dark ? QStringLiteral("header-dark.png")
+                         : QStringLiteral("header-light.png"))));
+            }
+            vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
+        }
+        for (QWidget* child : {static_cast<QWidget*>(search),
+                               static_cast<QWidget*>(level)})
+        {
+            const QRect box(child->mapTo(bar, QPoint(0, 0)), child->size());
+            REQUIRE(box.top() > 0);
+            REQUIRE(box.bottom() < bar->height() - 1);
+            REQUIRE(box.height() >= 24);
+            // Centred to within a pixel of rounding.
+            REQUIRE(std::abs(box.top() - (bar->height() - 1 - box.bottom())) <=
+                    1);
+            REQUIRE(box.height() < bar->height());
+        }
+        window.close();
+    }
+    QApplication::setFont(original);
 }
 
 TEST_CASE("shell: every toolbar action has a name and a unique shortcut")
@@ -1468,6 +1535,7 @@ TEST_CASE("background: the ports that ran before a restart start again")
     vss::gui::FakeStudioBackend backend;
     vss::gui::ShellWindow window(backend);
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(window.background_enabled());
     REQUIRE(backend.ports().size() == 2);
@@ -1489,6 +1557,7 @@ TEST_CASE("background: a hidden start with nothing to run has no reason to "
         vss::gui::FakeStudioBackend backend;
         vss::gui::ShellWindow window(backend);
         window.enable_background(running_file(directory), false);
+        wait_applied(window);
         QApplication::processEvents();
         REQUIRE(!window.needed_in_background());
     }
@@ -1499,10 +1568,32 @@ TEST_CASE("background: a hidden start with nothing to run has no reason to "
         vss::gui::FakeStudioBackend backend;
         vss::gui::ShellWindow window(backend);
         window.enable_background(running_file(directory), false);
+        wait_applied(window);
         QApplication::processEvents();
         REQUIRE(backend.ports().empty());
         REQUIRE(!window.needed_in_background());
     }
+    clear_settings();
+}
+
+TEST_CASE("background: a hidden start stays while the ports are being started")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_running(running_file(directory), false);
+
+    vss::gui::FakeStudioBackend backend;
+    backend.set_create_delay(std::chrono::milliseconds(200));
+    vss::gui::ShellWindow window(backend);
+    window.enable_background(running_file(directory), false);
+    // Installing the ports takes seconds on Windows and runs off the GUI
+    // thread.  `vss_gui --background` asks this straight away, and quitting
+    // on "no ports yet" would throw the restore away.
+    REQUIRE(window.applying());
+    REQUIRE(window.needed_in_background());
+    wait_applied(window);
+    REQUIRE(backend.ports().size() == 2);
+    REQUIRE(window.needed_in_background());
     clear_settings();
 }
 
@@ -1517,6 +1608,7 @@ TEST_CASE("background: a hidden start stays when the ports could not start")
     vss::gui::ShellWindow window(backend);
     // Not shown: this is what `vss_gui --background` does at sign-in.
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     // Quitting now would take the notification with it, and nobody would
@@ -1526,6 +1618,7 @@ TEST_CASE("background: a hidden start stays when the ports could not start")
     // Start again from the banner works, and then the ports are the reason.
     REQUIRE(window.resume_banner()->action_button() != nullptr);
     window.resume_banner()->action_button()->click();
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().size() == 2);
     REQUIRE(window.needed_in_background());
@@ -1542,6 +1635,7 @@ TEST_CASE("background: after a Quit Studio offers to start the ports again")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     auto* banner = window.resume_banner();
@@ -1554,6 +1648,7 @@ TEST_CASE("background: after a Quit Studio offers to start the ports again")
 
     REQUIRE(banner->action_button() != nullptr);
     banner->action_button()->click();
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().size() == 2);
     REQUIRE(!banner->isVisible());
@@ -1571,6 +1666,7 @@ TEST_CASE("background: a setup that cannot start is offered again")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     REQUIRE(window.resume_banner()->isVisible());
@@ -1616,6 +1712,7 @@ TEST_CASE("background: Quit asks before it stops the ports")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
 
     remove_probe probe;
@@ -1697,4 +1794,147 @@ TEST_CASE("shell: a transfer rate is formatted for any double")
     REQUIRE(vss::gui::format_rate(2048.0).endsWith(QStringLiteral("/s")));
     REQUIRE(vss::gui::format_rate(7.7e20).endsWith(QStringLiteral("/s")));
     REQUIRE(vss::gui::format_rate(1.0e300).endsWith(QStringLiteral("/s")));
+}
+
+namespace
+{
+
+/// The toolbar that holds the given action, or null.
+QToolBar* toolbar_of(QWidget& window, QAction* action)
+{
+    for (auto* toolbar : window.findChildren<QToolBar*>())
+    {
+        if (toolbar->actions().contains(action))
+            return toolbar;
+    }
+    return nullptr;
+}
+
+bool same_pixels(const QIcon& a, const QIcon& b)
+{
+    return a.pixmap(32, 32).toImage() == b.pixmap(32, 32).toImage();
+}
+
+} // namespace
+
+TEST_CASE("shell: toolbar icons stay distinct and named when only icons show")
+{
+    clear_settings();
+    setup_fixture fixture;
+    vss::gui::ShellWindow window(fixture.backend);
+    window.resize(1280, 800);
+    window.show();
+    QApplication::processEvents();
+
+    window.findChild<QAction*>(QStringLiteral("view.advanced"))->trigger();
+    QApplication::processEvents();
+    const QStringList ids{
+        QStringLiteral("ports.attach"),
+        QStringLiteral("topology.connect"),
+        QStringLiteral("ports.mock"),
+        QStringLiteral("topology.shareToolbar"),
+        QStringLiteral("topology.fit"),
+        QStringLiteral("ports.remove"),
+        QStringLiteral("topology.removeSetup")};
+    QVector<QAction*> actions;
+    for (const auto& id : ids)
+    {
+        auto* action = window.findChild<QAction*>(id);
+        REQUIRE(action != nullptr);
+        REQUIRE(!action->icon().isNull());
+        actions.push_back(action);
+    }
+    // No two buttons on the bar share a picture.
+    for (qsizetype i = 0; i < actions.size(); ++i)
+    {
+        for (qsizetype j = i + 1; j < actions.size(); ++j)
+            REQUIRE(!same_pixels(actions[i]->icon(), actions[j]->icon()));
+    }
+
+    auto* toolbar = toolbar_of(window, actions.front());
+    REQUIRE(toolbar != nullptr);
+
+    const QString directory = QDir(QCoreApplication::applicationDirPath())
+                                  .filePath(QStringLiteral("../gui-shots"));
+    REQUIRE(QDir().mkpath(directory));
+
+    const auto check_and_shoot = [&](const QString& tag)
+    {
+        for (QAction* action : actions)
+        {
+            auto* button =
+                qobject_cast<QToolButton*>(toolbar->widgetForAction(action));
+            REQUIRE(button != nullptr);
+            REQUIRE_EQ(button->text().remove(QLatin1Char('&')),
+                       action->text().remove(QLatin1Char('&')));
+            REQUIRE(!action->toolTip().isEmpty());
+            REQUIRE_EQ(action->toolTip().left(action->text().size()),
+                       action->text());
+            REQUIRE(button->isVisible());
+            REQUIRE(button->width() >= 24);
+            REQUIRE(button->height() >= 24);
+            REQUIRE(button->focusPolicy() != Qt::NoFocus);
+            const QAccessibleInterface* access =
+                QAccessible::queryAccessibleInterface(button);
+            REQUIRE(access != nullptr);
+            REQUIRE_EQ(access->text(QAccessible::Name).remove(QLatin1Char('&')),
+                       action->text().remove(QLatin1Char('&')));
+            REQUIRE(access->role() == QAccessible::Button);
+        }
+        // Grab the window and cut the bar out, so it has the window's own
+        // background in both themes, and enlarge it for a person to read.
+        const auto shoot = [&](const QString& name)
+        {
+            QApplication::processEvents();
+            const QRect bar(toolbar->mapTo(&window, QPoint(0, 0)),
+                            toolbar->size());
+            const QPixmap shot = window.grab().copy(bar);
+            REQUIRE(shot.scaled(shot.size() * 3, Qt::IgnoreAspectRatio,
+                                Qt::FastTransformation)
+                        .save(QDir(directory).filePath(
+                            QStringLiteral("toolbar-%1.png").arg(name))));
+            return shot.toImage();
+        };
+        auto* first = toolbar->widgetForAction(actions.front());
+        REQUIRE(first != nullptr);
+        first->clearFocus();
+        const QImage plain = shoot(tag);
+
+        // A keyboard focus draws a ring around the button.
+        first->setFocus(Qt::TabFocusReason);
+        REQUIRE(first->hasFocus());
+        const QImage focused = shoot(tag + QStringLiteral("-focus"));
+        const QRect first_rect(first->mapTo(&window, QPoint(0, 0)),
+                               first->size());
+        const QRect in_bar = first_rect.translated(
+            -toolbar->mapTo(&window, QPoint(0, 0)));
+        REQUIRE(plain.copy(in_bar) != focused.copy(in_bar));
+        first->clearFocus();
+
+        // A disabled bar draws every icon in the disabled colour.
+        for (QAction* action : actions)
+            action->setEnabled(false);
+        const QImage disabled = shoot(tag + QStringLiteral("-disabled"));
+        REQUIRE(disabled != plain);
+        for (QAction* action : actions)
+            action->setEnabled(true);
+    };
+
+    for (const bool dark : {false, true})
+    {
+        vss::gui::Theme::instance().set_mode(
+            dark ? vss::gui::theme_mode::dark : vss::gui::theme_mode::light);
+        const QString theme = dark ? QStringLiteral("dark")
+                                   : QStringLiteral("light");
+        window.resize(2000, 900);
+        QApplication::processEvents();
+        REQUIRE(toolbar->toolButtonStyle() == Qt::ToolButtonTextBesideIcon);
+        check_and_shoot(QStringLiteral("wide-") + theme);
+
+        window.resize(900, 600);
+        QApplication::processEvents();
+        REQUIRE(toolbar->toolButtonStyle() == Qt::ToolButtonIconOnly);
+        check_and_shoot(QStringLiteral("icons-") + theme);
+    }
+    vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
 }

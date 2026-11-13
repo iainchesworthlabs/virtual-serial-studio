@@ -51,6 +51,13 @@ struct hub_options
     /// what overlaps and what does not is written in the test and does not
     /// depend on how fast the machine ran it.  Called from any thread.
     std::function<time_point()> clock;
+    /// Ask the system to time this process's timers to about a millisecond
+    /// while the hub runs.  It matters on Windows, where a timer otherwise
+    /// fires on a 15.6 ms tick and a link's `delay_ms` of 1 takes about 15;
+    /// elsewhere timers are already that fine and nothing is asked.  The
+    /// request is made by start() and given back by join().  It costs some
+    /// power, so a host that only watches traffic may turn it off.
+    bool fine_timers = true;
 };
 
 /// The topology engine.
@@ -471,6 +478,9 @@ private:
     std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>
         work_;
     std::vector<std::thread> threads_;
+    /// The request for fine timers (`hub_options::fine_timers`), held from
+    /// start() to join().  Its type is the platform layer's.
+    std::shared_ptr<void> timer_period_;
     std::atomic<bool> running_{false};
     // Shutdowns in flight, from remove_endpoint() and stop(). The io_context is
     // stopped only once stop() has been called and this reaches zero.

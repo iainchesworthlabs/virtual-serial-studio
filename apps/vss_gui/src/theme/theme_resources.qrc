@@ -4,6 +4,11 @@
     <file alias="tokens/tokens.json">resources/tokens.json</file>
     <file alias="tokens/style.qss.in">resources/style.qss.in</file>
     <file alias="app/vss_gui.svg">../../assets/icon/vss_gui.svg</file>
+    <file alias="fonts/IBMPlexMono-Regular.ttf">../../assets/fonts/IBMPlexMono-Regular.ttf</file>
+    <file alias="fonts/NotoSansArabic-Regular.ttf">../../assets/fonts/NotoSansArabic-Regular.ttf</file>
+    <file alias="fonts/NotoSansArabic-Bold.ttf">../../assets/fonts/NotoSansArabic-Bold.ttf</file>
+    <file alias="fonts/NotoSansHebrew-Regular.ttf">../../assets/fonts/NotoSansHebrew-Regular.ttf</file>
+    <file alias="fonts/NotoSansHebrew-SemiBold.ttf">../../assets/fonts/NotoSansHebrew-SemiBold.ttf</file>
     <file alias="icons/port.svg">resources/icons/port.svg</file>
     <file alias="icons/loopback.svg">resources/icons/loopback.svg</file>
     <file alias="icons/network.svg">resources/icons/network.svg</file>
@@ -24,6 +29,7 @@
     <file alias="icons/export.svg">resources/icons/export.svg</file>
     <file alias="icons/fault.svg">resources/icons/fault.svg</file>
     <file alias="icons/fit.svg">resources/icons/fit.svg</file>
+    <file alias="icons/minus.svg">resources/icons/minus.svg</file>
     <file alias="icons/fixture.svg">resources/icons/fixture.svg</file>
     <file alias="icons/info.svg">resources/icons/info.svg</file>
     <file alias="icons/more.svg">resources/icons/more.svg</file>
@@ -32,6 +38,8 @@
     <file alias="icons/pause.svg">resources/icons/pause.svg</file>
     <file alias="icons/refresh.svg">resources/icons/refresh.svg</file>
     <file alias="icons/remove.svg">resources/icons/remove.svg</file>
+    <file alias="icons/remove-port.svg">resources/icons/remove-port.svg</file>
+    <file alias="icons/remove-setup.svg">resources/icons/remove-setup.svg</file>
     <file alias="icons/run.svg">resources/icons/run.svg</file>
     <file alias="icons/save.svg">resources/icons/save.svg</file>
     <file alias="icons/search.svg">resources/icons/search.svg</file>
