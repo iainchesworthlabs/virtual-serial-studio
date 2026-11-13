@@ -92,6 +92,13 @@ public:
     /// an id no token has.  Administration endpoint only.
     result<void> revoke_token(const std::string& id);
 
+    /// Waits in the gateway for a pattern on a port, after sending bytes
+    /// when the request names a port to send to.  It needs `monitor.data`,
+    /// and `control.data` to send.  `api_errc::timeout` when the pattern did
+    /// not come in the request's time; the connection stays usable.  The
+    /// call itself waits for the request's time on top of the usual limit.
+    result<matched_reply> expect_bytes(const expect_bytes_request& wanted);
+
     /// Starts the stream of what happens to the ports, without bytes, or
     /// changes its ports and its pace.  The reply says the pace the gateway
     /// took and the number of the next batch.

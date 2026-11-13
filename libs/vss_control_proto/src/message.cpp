@@ -223,6 +223,47 @@ const json::array* read_array(const json::object& object,
     return &item->get_array();
 }
 
+/// Bytes as lower-case hex text, and back.  A pattern is short, so it goes
+/// in the header and leaves the blob to the bytes that are sent.
+std::string to_hex_text(const byte_buffer& bytes)
+{
+    constexpr std::string_view digits = "0123456789abcdef";
+    std::string out;
+    out.reserve(bytes.size() * 2);
+    for (const byte value : bytes)
+    {
+        const auto number = static_cast<unsigned>(value);
+        out.push_back(digits[(number >> 4) & 0xfu]);
+        out.push_back(digits[number & 0xfu]);
+    }
+    return out;
+}
+
+bool from_hex_text(std::string_view text, byte_buffer& out)
+{
+    const auto digit = [](char value) -> int
+    {
+        if (value >= '0' && value <= '9')
+            return value - '0';
+        if (value >= 'a' && value <= 'f')
+            return value - 'a' + 10;
+        return -1;
+    };
+    if (text.size() % 2 != 0)
+        return false;
+    out.clear();
+    out.reserve(text.size() / 2);
+    for (std::size_t index = 0; index < text.size(); index += 2)
+    {
+        const int high = digit(text[index]);
+        const int low = digit(text[index + 1]);
+        if (high < 0 || low < 0)
+            return false;
+        out.push_back(static_cast<byte>((high << 4) | low));
+    }
+    return true;
+}
+
 // -- requests ----------------------------------------------------------------
 
 struct request_writer
@@ -290,6 +331,16 @@ struct request_writer
     void operator()(const ports_send_request& body) const
     {
         header["port"] = clean_text(body.port);
+    }
+    void operator()(const expect_bytes_request& body) const
+    {
+        header["port"] = clean_text(body.port);
+        header["pattern"] = to_hex_text(body.pattern);
+        if (!body.direction.empty())
+            header["direction"] = clean_text(body.direction);
+        header["timeout_ms"] = body.timeout_ms;
+        if (!body.send_port.empty())
+            header["send_port"] = clean_text(body.send_port);
     }
 };
 
@@ -402,6 +453,24 @@ result<request_body> read_request_body(operation wanted,
             return malformed();
         if (header.contains("one_way") &&
             !read_bool(header, "one_way", body.one_way))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::expect_bytes:
+    {
+        // The bytes to send are put in by `decode_request`.  Whether the
+        // numbers and the direction are ones the gateway takes is for the
+        // gateway to say, with an error the caller can read.
+        expect_bytes_request body;
+        std::string pattern;
+        if (!read_text(header, "port", body.port) ||
+            !read_text(header, "pattern", pattern) ||
+            !from_hex_text(pattern, body.pattern) ||
+            !read_optional_text(header, "direction", body.direction) ||
+            !read_optional_text(header, "send_port", body.send_port))
+            return malformed();
+        if (header.contains("timeout_ms") &&
+            !read_u32(header, "timeout_ms", body.timeout_ms))
             return malformed();
         return request_body{std::move(body)};
     }
@@ -542,6 +611,14 @@ bool read_session(const json::value& item, session_entry& out)
 struct reply_writer
 {
     json::object& header;
+
+    void operator()(const matched_reply& body) const
+    {
+        header["reply"] = "matched";
+        header["offset"] = body.offset;
+        header["mono_ns"] = body.mono_ns;
+        header["events_lost"] = body.events_lost;
+    }
 
     void operator()(const created_reply& body) const
     {
@@ -872,6 +949,15 @@ result<reply_body> read_reply_body(const json::object& header,
         return read_tokens_reply(header);
     if (kind == "subscribed")
         return read_subscribed_reply(header);
+    if (kind == "matched")
+    {
+        matched_reply body;
+        if (!read_u64(header, "offset", body.offset) ||
+            !read_u64(header, "mono_ns", body.mono_ns) ||
+            !read_u64(header, "events_lost", body.events_lost))
+            return malformed();
+        return reply_body{body};
+    }
     if (kind == "created")
     {
         created_reply body;
@@ -960,6 +1046,10 @@ operation operation_of(const request_body& body)
         {
             return operation::ports_send;
         }
+        operation operator()(const expect_bytes_request&) const noexcept
+        {
+            return operation::expect_bytes;
+        }
     };
     return std::visit(visitor{}, body);
 }
@@ -974,6 +1064,8 @@ frame encode(const request& value)
     out.header = json::serialize(header);
     if (const auto* sending = std::get_if<ports_send_request>(&value.body))
         out.blob = sending->data;
+    if (const auto* waiting = std::get_if<expect_bytes_request>(&value.body))
+        out.blob = waiting->send;
     return out;
 }
 
@@ -1024,14 +1116,23 @@ result<request> decode_request(const frame& value)
     const operation_info* const wanted = find_operation(name);
     if (wanted == nullptr)
         return make_error_code(api_errc::unsupported);
-    // Only `ports.send` carries bytes; a blob anywhere else is a mistake.
-    if (wanted->id != operation::ports_send && !value.blob.empty())
+    // Only the two requests that send carry bytes; a blob anywhere else is
+    // a mistake.
+    if (wanted->id != operation::ports_send &&
+        wanted->id != operation::expect_bytes && !value.blob.empty())
         return malformed();
     auto body = read_request_body(wanted->id, *header);
     if (!body)
         return body.error();
     if (auto* sending = std::get_if<ports_send_request>(&*body))
         sending->data = value.blob;
+    if (auto* waiting = std::get_if<expect_bytes_request>(&*body))
+    {
+        // Bytes with no port to send them to are a mistake too.
+        if (waiting->send_port.empty() && !value.blob.empty())
+            return malformed();
+        waiting->send = value.blob;
+    }
     out.body = std::move(*body);
     return out;
 }
