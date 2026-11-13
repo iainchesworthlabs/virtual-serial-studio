@@ -2,7 +2,7 @@
 
 This note explains how the pieces fit and, more importantly, why the pieces
 that look odd are the way they are. The threading rules and the shutdown order
-are not incidental; both were written after a real failure.
+were each written after a failure.
 
 ## Layers
 
@@ -340,6 +340,16 @@ delay, or the call fails with `invalid_argument`. `monitor` takes no options and
 has no delay. Removing a route drops whatever its line still holds, and so does
 changing the delay of the link (see *Changing the options of a link*).
 
+A chunk is never written before its delay has passed. How long after depends on
+the system's timers. Windows looks at its timers once in 15.6 ms unless a
+process asks for more, which made a `delay_ms` of 1 take about 15 ms. A hub
+therefore asks for a 1 ms timer period from `start()` to `join()`
+(`hub_options::fine_timers`, on by default), and a delay is then late by about
+a millisecond or less. Linux and macOS need no request. Windows 11 may stop
+honouring the request for a program whose windows are all minimised or covered,
+so a delay in Studio's own window can go back to the 15.6 ms tick while the
+window cannot be seen; the agent has no window and is not affected.
+
 ### The shared bus
 
 A bus is the one link that is a broadcast domain rather than a set of
@@ -546,7 +556,7 @@ the rest keep the model and report it through events.
 
 A loopback transport is a loopback *plug*: what you write comes back on the
 receive side. That makes it a useful demo device and a good test double, and it
-means two loopback devices wired duplex are an echo chamber. This is a property
+means two loopback devices wired duplex send each other's data back and forth. This is a property
 of the device, not a routing bug. Use a one-way link (`redirect` or `monitor`)
 when the point is observation rather than full duplex.
 

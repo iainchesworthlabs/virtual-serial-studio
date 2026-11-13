@@ -10,13 +10,17 @@
 #include "panes/fixture_behaviour.hpp"
 #include "panes/fixture_panel.hpp"
 #include "panes/inspector_panel.hpp"
+#include "panes/monitor_cell_delegate.hpp"
 #include "panes/monitor_model.hpp"
 #include "panes/monitor_panel.hpp"
+#include "panes/port_delegate.hpp"
 #include "panes/port_model.hpp"
 #include "panes/ports_panel.hpp"
 #include "panes/selection_service.hpp"
 #include "panes/send_panel.hpp"
+#include "widgets/notes.hpp"
 #include "widgets/port_menu.hpp"
+#include "widgets/surfaces.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -24,7 +28,12 @@
 #include <QClipboard>
 #include <QComboBox>
 #include <QElapsedTimer>
+#include <QFontDatabase>
+#include <QFontInfo>
 #include <QGuiApplication>
+#include <QHeaderView>
+#include <QImage>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
@@ -33,10 +42,13 @@
 #include <QPushButton>
 #include <QSettings>
 #include <QSpinBox>
+#include <QStandardItemModel>
+#include <QStyledItemDelegate>
 #include <QTableView>
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 #include <thread>
 
 namespace
@@ -51,7 +63,7 @@ vss::gui::gui_event data_event(vss::endpoint_id id, const QString& name,
     event.endpoint = id;
     event.name = name;
     event.direction = direction;
-    event.data = data;
+    event.data = vss::gui::event_payload(data);
     return event;
 }
 
@@ -269,7 +281,8 @@ TEST_CASE("monitor: new traffic is added without resetting the model")
     REQUIRE_EQ(model.rowCount(), 6);
     REQUIRE_EQ(inserted, 6);
     REQUIRE_EQ(resets, resets_after_filter);
-    REQUIRE_EQ(model.row_at(5)->preview, QByteArrayLiteral("z"));
+    REQUIRE_EQ(model.row_at(5)->preview().toByteArray(),
+               QByteArrayLiteral("z"));
 
     // Past the cap the oldest rows leave from the front, and the rows that
     // stay keep their order.
@@ -287,8 +300,11 @@ TEST_CASE("monitor: new traffic is added without resetting the model")
     REQUIRE_EQ(model.rowCount(), vss::gui::MonitorModel::kMaxRows);
     REQUIRE(removed > 0);
     REQUIRE_EQ(resets, resets_before_flood);
-    REQUIRE_EQ(model.row_at(0)->preview, QByteArrayLiteral("0"));
-    REQUIRE_EQ(model.row_at(vss::gui::MonitorModel::kMaxRows - 1)->preview,
+    REQUIRE_EQ(model.row_at(0)->preview().toByteArray(),
+               QByteArrayLiteral("0"));
+    REQUIRE_EQ(model.row_at(vss::gui::MonitorModel::kMaxRows - 1)
+                   ->preview()
+                   .toByteArray(),
                QByteArray::number(vss::gui::MonitorModel::kMaxRows - 1));
 }
 
@@ -383,7 +399,7 @@ TEST_CASE("monitor: the capture export keeps every byte and the event time")
     model.append_drop(QStringLiteral("master"), 5);
 
     // The preview is cut for display; the capture is not.
-    REQUIRE_EQ(model.row_at(0)->preview.size(), 256);
+    REQUIRE_EQ(model.row_at(0)->preview().size(), 256);
     const auto everything = model.export_capture();
     REQUIRE_EQ(everything.records.size(), std::size_t{2});
     REQUIRE_EQ(everything.records[0].data.size(), std::size_t{1000});
@@ -445,6 +461,194 @@ TEST_CASE("monitor panel: Export capture is named and follows the rows")
                     QByteArrayLiteral("x"))});
     QApplication::processEvents();
     REQUIRE(button->isEnabled());
+}
+
+TEST_CASE("monitor panel: heavy traffic is added to the table in steps")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::MonitorPanel panel(backend);
+    panel.resize(900, 240);
+    panel.show();
+    QApplication::processEvents();
+    auto* table = panel.findChild<QTableView*>();
+    REQUIRE(table != nullptr);
+    int insertions = 0;
+    QObject::connect(table->model(), &QAbstractItemModel::rowsInserted,
+                     [&insertions] { ++insertions; });
+
+    // The first batch is shown at once.
+    panel.set_commit_interval(60'000);
+    const vss::gui::event_batch batch{data_event(1, QStringLiteral("terminal"),
+                                                 vss::data_direction::rx,
+                                                 QByteArrayLiteral("x"))};
+    panel.handle_events(batch);
+    REQUIRE_EQ(table->model()->rowCount(), 1);
+    REQUIRE_EQ(insertions, 1);
+
+    // Batches that follow before the interval is over wait, and arrive
+    // together when it is.
+    for (int index = 0; index < 20; ++index)
+        panel.handle_events(batch);
+    QApplication::processEvents();
+    REQUIRE_EQ(table->model()->rowCount(), 1);
+    panel.set_commit_interval(50);
+    QElapsedTimer waited;
+    waited.start();
+    while (table->model()->rowCount() < 21 && waited.elapsed() < 10'000)
+        QApplication::processEvents(QEventLoop::AllEvents, 20);
+    REQUIRE_EQ(table->model()->rowCount(), 21);
+    REQUIRE_EQ(insertions, 2);
+
+    // Pause shows what had arrived before it, and nothing after.
+    panel.set_commit_interval(60'000);
+    panel.handle_events(batch);
+    REQUIRE_EQ(table->model()->rowCount(), 21);
+    QPushButton* pause = nullptr;
+    for (QPushButton* candidate : panel.findChildren<QPushButton*>())
+    {
+        if (candidate->text() == QStringLiteral("Pause") &&
+            candidate->isVisible())
+            pause = candidate;
+    }
+    REQUIRE(pause != nullptr);
+    pause->click();
+    REQUIRE_EQ(table->model()->rowCount(), 22);
+    panel.handle_events(batch);
+    panel.set_commit_interval(0);
+    QApplication::processEvents();
+    REQUIRE_EQ(table->model()->rowCount(), 22);
+}
+
+TEST_CASE("monitor: a long preview is drawn as Qt draws the whole text")
+{
+    // The cut is only made in a font whose characters all have one width.
+    // Three fonts: the first with one width, the first the system calls
+    // fixed-width (where only an emoji font is, its letters come from another
+    // font and have many widths), and the application's own.
+    QVector<QFont> fonts;
+    bool one_width = false;
+    bool called_fixed = false;
+    for (const QString& family : QFontDatabase::families())
+    {
+        QFont font(family);
+        font.setPixelSize(13);
+        if (!one_width &&
+            vss::gui::MonitorCellDelegate::uniform_advance(font) > 0.0)
+        {
+            one_width = true;
+            fonts.push_back(font);
+        }
+        else if (!called_fixed && QFontDatabase::isFixedPitch(family))
+        {
+            called_fixed = true;
+            fonts.push_back(font);
+        }
+    }
+    fonts.push_back(QApplication::font());
+
+    QString text;
+    QString hex;
+    for (int index = 0; index < 256; ++index)
+    {
+        text += QLatin1Char(static_cast<char>('A' + index % 26));
+        hex += QStringLiteral("%1 ").arg(index, 2, 16, QLatin1Char('0'));
+    }
+    const QStringList previews{text,
+                               hex,
+                               QStringLiteral("short"),
+                               text.left(90) + QChar(0x05e9) + text,
+                               text.left(90) + QChar(0x4e2d) + text,
+                               text.left(90) + QChar(0x0e01) + text,
+                               text.left(90) + QChar(0x0915) + text,
+                               QString(600, QLatin1Char('i'))};
+    QStandardItemModel model(static_cast<int>(previews.size()), 2);
+    for (int row = 0; row < previews.size(); ++row)
+    {
+        model.setItem(row, 0, new QStandardItem(QStringLiteral("12:00:00")));
+        model.setItem(row, 1, new QStandardItem(previews[row]));
+    }
+
+    QTableView table;
+    table.setModel(&model);
+    table.setWordWrap(false);
+    table.horizontalHeader()->setStretchLastSection(true);
+    table.setColumnWidth(0, 100);
+    table.show();
+
+    // The picture must be the one Qt's own delegate makes from the whole
+    // text, whatever the font and the width of the cell.
+    vss::gui::MonitorCellDelegate ours(1);
+    QStyledItemDelegate plain;
+    for (const QFont& font : fonts)
+    {
+        for (int row = 0; row < previews.size(); ++row)
+            model.item(row, 1)->setFont(font);
+        for (int width = 180; width <= 2400; width += 37)
+        {
+            table.resize(width, 200);
+            QApplication::processEvents();
+            table.setItemDelegate(&ours);
+            const QImage cut = table.viewport()->grab().toImage();
+            table.setItemDelegate(&plain);
+            const QImage whole = table.viewport()->grab().toImage();
+            REQUIRE(!cut.isNull());
+            if (cut != whole)
+            {
+                std::printf(
+                    "        differs in %s at width %d, advance %f",
+                    qPrintable(QFontInfo(font).family()), width,
+                    vss::gui::MonitorCellDelegate::uniform_advance(font));
+                std::puts("");
+            }
+            REQUIRE(cut == whole);
+        }
+    }
+
+    // And it is a cut: far fewer characters than the preview has.
+    REQUIRE(vss::gui::MonitorCellDelegate::characters_kept(700, 7.0) < 150);
+    REQUIRE(vss::gui::MonitorCellDelegate::characters_kept(700, 7.0) > 100);
+}
+
+TEST_CASE("monitor panel: the controls share the title row when it fits")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::Pane pane(QStringLiteral("Monitor"));
+    auto* panel = new vss::gui::MonitorPanel(backend);
+    pane.set_body(panel);
+    panel->attach_header(pane.header());
+    panel->set_advanced(true);
+    pane.resize(1400, 260);
+    pane.show();
+    QApplication::processEvents();
+
+    QPushButton* button = nullptr;
+    for (QPushButton* candidate : pane.findChildren<QPushButton*>())
+    {
+        if (candidate->text() == QStringLiteral("Export capture"))
+            button = candidate;
+    }
+    REQUIRE(button != nullptr);
+    // Wide: the controls are inside the header, on the title's row.
+    REQUIRE(panel->controls_in_header());
+    REQUIRE(pane.header()->isAncestorOf(button));
+    REQUIRE(button->isVisible());
+
+    // Narrow: they drop to a row under it, and stay visible and whole.
+    pane.resize(500, 260);
+    QApplication::processEvents();
+    REQUIRE(!panel->controls_in_header());
+    REQUIRE(!pane.header()->isAncestorOf(button));
+    REQUIRE(button->isVisible());
+    REQUIRE(button->geometry().right() <= panel->width());
+
+    // Back to wide, and Simple mode takes them out of the header again.
+    pane.resize(1400, 260);
+    QApplication::processEvents();
+    REQUIRE(panel->controls_in_header());
+    panel->set_advanced(false);
+    QApplication::processEvents();
+    REQUIRE(!panel->controls_in_header());
+    REQUIRE(!button->isVisible());
 }
 
 TEST_CASE("monitor: a bus fault is logged with the engine's sentence")
@@ -544,6 +748,80 @@ TEST_CASE("ports panel: selection stays in sync with the service")
     REQUIRE_EQ(table->model()->rowCount(), 2);
 }
 
+TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
+{
+    QSettings().remove(QStringLiteral("ui/portsColumnWidths"));
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("one"),
+                                     vss::virtual_port_kind::pty, true)
+                .has_value());
+    {
+        vss::gui::PortsPanel panel(backend, selection);
+        panel.resize(640, 300);
+        panel.set_advanced(true);
+        panel.show();
+        QApplication::processEvents();
+        QTableView* table = panel.table();
+        QHeaderView* header = table->horizontalHeader();
+        REQUIRE(table != nullptr);
+
+        // Every column is user-resizable; the last takes the spare width.
+        for (int column = 0; column < 4; ++column)
+            REQUIRE_EQ(header->sectionResizeMode(column),
+                       QHeaderView::Interactive);
+        REQUIRE(header->stretchLastSection());
+        REQUIRE(!header->sectionsMovable());
+        REQUIRE_EQ(header->minimumSectionSize(),
+                   vss::gui::PortsPanel::kMinimumColumnWidth);
+        int total = 0;
+        for (int column = 0; column < header->count(); ++column)
+            total += header->sectionSize(column);
+        REQUIRE_EQ(total, table->viewport()->width());
+
+        // The State chip's longest text fits at the default width.
+        REQUIRE(header->sectionSize(1) >=
+                vss::gui::PortDelegate::state_chip_width(
+                    vss::gui::PortModel::tr("Waiting for program")));
+
+        // A drag changes one column and leaves the others alone.
+        const int rx_before = header->sectionSize(2);
+        header->resizeSection(1, 220);
+        REQUIRE_EQ(header->sectionSize(1), 220);
+        REQUIRE_EQ(header->sectionSize(2), rx_before);
+
+        // Keyboard: Right selects the column, Ctrl+Alt+Right widens it.
+        table->setFocus();
+        table->setCurrentIndex(table->model()->index(0, 2));
+        QKeyEvent widen(QEvent::KeyPress, Qt::Key_Right,
+                        Qt::ControlModifier | Qt::AltModifier);
+        QApplication::sendEvent(table, &widen);
+        REQUIRE_EQ(header->sectionSize(2), rx_before + 16);
+        QKeyEvent narrow(QEvent::KeyPress, Qt::Key_Left,
+                         Qt::ControlModifier | Qt::AltModifier);
+        for (int i = 0; i < 20; ++i)
+            QApplication::sendEvent(table, &narrow);
+        REQUIRE_EQ(header->sectionSize(2),
+                   vss::gui::PortsPanel::kMinimumColumnWidth);
+        header->resizeSection(2, 200);
+        QKeyEvent fit(QEvent::KeyPress, Qt::Key_0,
+                      Qt::ControlModifier | Qt::AltModifier);
+        QApplication::sendEvent(table, &fit);
+        REQUIRE(header->sectionSize(2) < 200);
+        REQUIRE(header->sectionSize(2) >=
+                vss::gui::PortsPanel::kMinimumColumnWidth);
+
+        panel.save_column_widths();
+    }
+
+    // A new panel starts with the saved widths.
+    vss::gui::PortsPanel again(backend, selection);
+    again.set_advanced(true);
+    REQUIRE_EQ(again.table()->horizontalHeader()->sectionSize(1), 220);
+    QSettings().remove(QStringLiteral("ui/portsColumnWidths"));
+}
+
 TEST_CASE("ports panel: ports another program made are named, not shown")
 {
     vss::gui::FakeStudioBackend backend;
@@ -608,6 +886,21 @@ TEST_CASE("monitor panel: exact empty state and no row widgets")
     REQUIRE(!panel.findChildren<QComboBox*>().isEmpty());
 }
 
+namespace
+{
+
+QPushButton* find_text_button(QWidget& parent, const QString& text)
+{
+    for (QPushButton* button : parent.findChildren<QPushButton*>())
+    {
+        if (button->text() == text)
+            return button;
+    }
+    return nullptr;
+}
+
+} // namespace
+
 TEST_CASE("inspector: waiting sentence and control line chips")
 {
     vss::gui::FakeStudioBackend backend;
@@ -627,7 +920,8 @@ TEST_CASE("inspector: waiting sentence and control line chips")
     }
     REQUIRE(waiting);
 
-    // The waiting note names the exact port and offers to copy it.
+    // The waiting note names the exact port. The path has one copy button,
+    // and the old "Copy name" button is gone.
     bool names_port = false;
     for (QLabel* label : panel.findChildren<QLabel*>())
     {
@@ -635,15 +929,23 @@ TEST_CASE("inspector: waiting sentence and control line chips")
             names_port = true;
     }
     REQUIRE(names_port);
-    auto* copy_name =
-        panel.findChild<QPushButton*>(QStringLiteral("inspectorCopyName"));
-    REQUIRE(copy_name != nullptr);
-    REQUIRE(!copy_name->isHidden());
-    REQUIRE(
-        copy_name->accessibleName().startsWith(QStringLiteral("Copy name")));
-    copy_name->click();
-    REQUIRE_EQ(QGuiApplication::clipboard()->text(),
+    REQUIRE(panel.findChild<QPushButton*>(
+                QStringLiteral("inspectorCopyName")) == nullptr);
+    REQUIRE(find_text_button(panel, QStringLiteral("Copy name")) == nullptr);
+    auto* copy_path = panel.findChild<vss::gui::CopyButton*>();
+    REQUIRE(copy_path != nullptr);
+    REQUIRE(!copy_path->accessibleName().isEmpty());
+    REQUIRE_EQ(copy_path->copy_text(),
                vss_test::require_value(backend.port(*id)).path);
+
+    // The traffic row says that it shows totals.
+    bool total = false;
+    for (QLabel* label : panel.findChildren<QLabel*>())
+    {
+        if (label->text() == QStringLiteral("Total traffic"))
+            total = true;
+    }
+    REQUIRE(total);
 
     bool has_dtr = false;
     for (QLabel* label : panel.findChildren<QLabel*>())

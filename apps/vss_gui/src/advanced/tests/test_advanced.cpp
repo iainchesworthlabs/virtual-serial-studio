@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include "qt_wait.hpp"
 #include "test_framework.hpp"
 
 #include "advanced/add_fixture_dialog.hpp"
@@ -877,6 +878,10 @@ TEST_CASE("json editor: apply only when valid and dirty")
     REQUIRE(editor.can_apply());
     REQUIRE(editor.apply_button()->isEnabled());
     REQUIRE(editor.apply());
+    REQUIRE(editor.busy());
+    REQUIRE(!editor.apply_button()->isEnabled());
+    REQUIRE(!editor.apply());
+    REQUIRE(vss_test::wait_until([&editor] { return !editor.busy(); }));
     REQUIRE_EQ(backend.ports().size(), std::size_t{2});
     REQUIRE(!editor.is_dirty());
 
@@ -920,7 +925,7 @@ TEST_CASE("event log: state changes and local events, not traffic")
     gui_event data;
     data.kind = vss::event_kind::data;
     data.name = QStringLiteral("terminal");
-    data.data = QByteArrayLiteral("hello");
+    data.data = vss::gui::event_payload(QByteArrayLiteral("hello"));
     batch.push_back(data);
 
     log.append(batch);

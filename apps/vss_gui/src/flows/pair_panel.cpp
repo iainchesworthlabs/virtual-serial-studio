@@ -591,6 +591,17 @@ bool PairPanel::validate()
 std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
 {
     VSS_PROFILE_ZONE("gui.flows.pair_panel.create");
+    const auto request = prepare_pair(error);
+    if (!request)
+        return std::nullopt;
+    auto outcome = run_pair(*request, error);
+    if (outcome)
+        backend_.refresh();
+    return outcome;
+}
+
+std::optional<pair_request> PairPanel::prepare_pair(flow_error* error)
+{
     // Start with no error, and stop early if the entered names are not valid.
     if (error != nullptr)
         *error = {};
@@ -616,8 +627,21 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
+    pair_request request;
+    request.base = pair_name_->text().trimmed();
+    // Standard null-modem wiring emulates the modem lines; so does a missing
+    // wiring selector.
+    request.emulate_modem_lines =
+        wiring_ == nullptr || wiring_->currentData().toBool();
+    return request;
+}
+
+std::optional<pair_outcome> PairPanel::run_pair(const pair_request& request,
+                                                flow_error* error)
+{
+    VSS_PROFILE_ZONE("gui.flows.pair_panel.run");
     // The pair is two ports named after the pair name, then linked together.
-    const QString base = pair_name_->text().trimmed();
+    const QString& base = request.base;
     const auto first =
         backend_.create_auto_port(base + QStringLiteral("-a"), true);
     if (!first)
@@ -677,11 +701,8 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
-    // Standard null-modem wiring emulates the modem lines; so does a missing
-    // wiring selector.
     vss::link_options options;
-    options.emulate_modem_lines =
-        wiring_ == nullptr || wiring_->currentData().toBool();
+    options.emulate_modem_lines = request.emulate_modem_lines;
     const auto linked = backend_.connect_ports(*first, *second, options);
     // If linking fails, remove both ports so the failure leaves no change.
     if (!linked)
@@ -700,7 +721,7 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
         return std::nullopt;
     }
 
-    // Report the new ports and link, then refresh the backend's view of them.
+    // Report the new ports and link.
     pair_outcome outcome;
     outcome.first = *first;
     outcome.second = *second;
@@ -709,7 +730,6 @@ std::optional<pair_outcome> PairPanel::create_pair(flow_error* error)
                                     : base + QStringLiteral("-a");
     outcome.second_path = second_view ? port_display_name(*second_view)
                                       : base + QStringLiteral("-b");
-    backend_.refresh();
     return outcome;
 }
 

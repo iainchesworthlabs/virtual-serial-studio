@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_GUI_SUPPORT_BUILD_INFO_HPP
-#define VSS_GUI_SUPPORT_BUILD_INFO_HPP
+#pragma once
 
 #include <QString>
 #include <QVector>
@@ -13,51 +12,84 @@
 namespace vss::gui::support
 {
 
-/// One labelled line in the Environment tab and in `environment.txt`.
+/// One labelled line in the Build information and Environment tabs and in the
+/// reports.  The label is the English text; the tabs translate it.
 struct environment_row
 {
     QString label;
     QString value;
 };
 
-/// The committed build identity and the platform versions the About window
-/// and the diagnostic bundle report.  Values come from compile definitions at
-/// configure time and from Qt at run time; anything the build cannot know is
-/// "unknown" rather than a guess.
+/// Which build this is, and what it runs on.  The build part comes from the
+/// file the build system generates before every build (build_stamp.hpp), the
+/// environment part from Qt and the operating system at run time.  Anything
+/// not known is empty or "unknown", never a guess.
 struct build_info
 {
-    QString version;
-    QString commit;
+    // Build information.
+    QString version; ///< Semantic version, for example "0.1.0-rc.3".
+    QString tag;     ///< The git tag, empty when the build saw none.
+    int commits_since_tag = 0;
+    QString commit;      ///< Short revision.
+    QString commit_full; ///< Full revision.
     QString branch;
-    QString build_date;
+    bool dirty = false;
+    QString build_number; ///< The CI run number, empty outside CI.
+    QString build_time;   ///< UTC, ISO 8601.
     QString build_type;
     QString compiler;
-    QString qt_runtime;
     QString qt_build;
     QString boost;
+
+    // Environment.
+    QString qt_runtime;
     QString operating_system;
     QString architecture;
     QString kernel;
-    /// The language chosen at start-up and the languages the system offered.
+    QString platform_plugin;
+    QString display;
     QString profiling;
+    /// What draws the canvas now: hardware (GPU) or software (CPU).
+    QString renderer;
+    /// The language chosen at start-up and the languages the system offered.
     QString language;
+
+    /// The single version string, for example
+    /// "v0.1.0-rc.3+build.6083-3de4617".
+    QString full_version() const;
 };
 
-/// The build this binary was produced from.
+/// "v<version>+build.<number>-<commit>", the way the other Iain Chesworth
+/// Labs applications write it.  The build number part is left out when there
+/// is none, the commit part when it is unknown, and "-dirty" follows the
+/// commit when the tree differed from it.
+QString compose_version(const QString& version, const QString& build_number,
+                        const QString& commit, bool dirty);
+
+/// The full version string of this binary, without gathering anything else.
+QString current_version_string();
+
+/// The build this binary was produced from, on the machine it runs on.
 build_info current_build_info();
 
-/// The rows the design lists for the Environment tab, plus Boost (the report
-/// names every linked first-party and third-party component).
+/// The rows of the Build information tab.
+QVector<environment_row> build_information_rows(const build_info& info);
+
+/// The rows of the Environment tab.
 QVector<environment_row> environment_rows(const build_info& info);
 
-/// The plain-text environment block behind "Copy environment" and
-/// `environment.txt`.  It contains build and platform facts only, never the
-/// process environment, so it cannot leak a secret.
+/// "Copy build information": plain text for a bug report.
+QString build_information_report(const build_info& info);
+
+/// "Copy environment": platform facts only, never the process environment, so
+/// it cannot leak a secret.
 QString environment_report(const build_info& info);
 
+/// "Copy diagnostic information", and `environment.txt` in the diagnostic
+/// bundle: both reports together.
+QString diagnostic_report(const build_info& info);
+
 /// Convenience overload using current_build_info().
-QString environment_report();
+QString diagnostic_report();
 
 } // namespace vss::gui::support
-
-#endif // VSS_GUI_SUPPORT_BUILD_INFO_HPP

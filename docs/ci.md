@@ -33,7 +33,7 @@ was cancelled or was skipped.
 |---|---|---|
 | `fuzz.yml` | Push to `develop`, every night | Fuzzes each target for 60 seconds, or 10 minutes at night; see [Fuzzing](fuzzing.md) |
 | `release.yml` | A `v*` tag, every Monday, on request | Builds the packages and publishes them for a tag; see [Releasing](releasing.md) |
-| `docs.yml` | A pull request that changes the docs, a push to `develop` or `main` | Checks the presets and badges against the repository and builds this site with `mkdocs build --strict`; from `main` it also publishes the site to GitHub Pages. The push to `develop` gives the branch a status of its own |
+| `docs.yml` | A pull request that changes the docs, a push to `develop` or `main` | Checks the presets and badges against the repository and builds this site with `mkdocs build --strict`. A change under `website/` also builds the product website with `tools/site_build.py` and checks its links, that it loads nothing from another host, and its accessibility rules with `tools/site_check.py`. From `main` it publishes both to GitHub Pages: the website at the root and this site under `docs/`. The push to `develop` gives the branch a status of its own |
 | `cache-hygiene.yml` | After a CI run on `develop`, a closed pull request, on request | Deletes Actions caches that nothing can restore any more, to keep the repository within its cache quota |
 | `dependabot-auto-merge.yml` | Dependabot pull requests | Turns on auto-merge for minor and patch updates of actions |
 

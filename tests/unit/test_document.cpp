@@ -759,3 +759,451 @@ TEST_CASE("document: a half-duplex bus in a hand written file")
     value.links[0].half_duplex.bit_rate = min_bus_bit_rate - 1;
     REQUIRE(validate(value) == make_error_code(errc::config_error));
 }
+
+// -- plugin bindings ---------------------------------------------------------
+
+namespace {
+
+plugin_binding fixture_binding()
+{
+    plugin_binding binding;
+    binding.id = "com.example.modbus-fixture";
+    binding.kind = "fixture";
+    binding.type = "meter";
+    binding.name = "Modbus fixture";
+    binding.publisher = "Example Ltd";
+    binding.key_id = "9f2c41d07a6be835";
+    binding.version = "1.2.0";
+    binding.get_it_from = "https://example.com/plugins";
+    binding.params = R"({"address":17,"registers":[1,2,3],"label":"A"})";
+    return binding;
+}
+
+plugin_binding modifier_binding(const std::string& type)
+{
+    plugin_binding binding;
+    binding.id = "com.example.line-noise";
+    binding.kind = "modifier";
+    binding.type = type;
+    binding.on_timeout = "fail_closed";
+    return binding;
+}
+
+plugin_binding decoder_binding()
+{
+    plugin_binding binding;
+    binding.id = "com.example.decoders";
+    binding.kind = "decoder";
+    binding.type = "modbus-rtu";
+    return binding;
+}
+
+/// A fixture `device`, a port `program` and a duplex link between them, with
+/// a binding on each.
+document bound_document()
+{
+    document value;
+    value.name = "with plugins";
+
+    port_entry device;
+    device.name = "device";
+    device.kind = "mock";
+    device.plugins = {fixture_binding(), decoder_binding()};
+    value.ports.push_back(device);
+
+    port_entry program;
+    program.name = "program";
+    value.ports.push_back(program);
+
+    link_entry link;
+    link.sources = {"program"};
+    link.targets = {"device"};
+    link.plugins = {modifier_binding("drop"), modifier_binding("delay"),
+                    decoder_binding()};
+    value.links.push_back(link);
+    return value;
+}
+
+/// A setup with one port whose `plugins` member is the given JSON text.
+result<document> parse_port_plugins(const std::string& plugins)
+{
+    return from_json(R"({"version":1,"ports":[{"name":"a","kind":"mock",)"
+                     R"("plugins":)" +
+                     plugins + "}]}");
+}
+
+void expect_port_plugins_refused(const std::string& plugins)
+{
+    const auto parsed = parse_port_plugins(plugins);
+    REQUIRE(!parsed);
+    REQUIRE(parsed.error() == make_error_code(errc::config_error));
+}
+
+/// One binding with `member` added to the required three.
+std::string binding_with(const std::string& member)
+{
+    return R"([{"id":"com.example.x","kind":"fixture","type":"t",)" + member +
+           "}]";
+}
+
+} // namespace
+
+TEST_CASE("document: plugin bindings round trip on a port and on a link")
+{
+    const document original = bound_document();
+    REQUIRE(!validate(original));
+
+    for (const bool pretty : {true, false})
+    {
+        const auto text = to_json(original, pretty);
+        REQUIRE(text);
+        const auto parsed = from_json(*text);
+        REQUIRE(parsed);
+        REQUIRE(*parsed == original);
+
+        // Written again, the text is the same.
+        const auto again = to_json(*parsed, pretty);
+        REQUIRE(again);
+        REQUIRE_EQ(*again, *text);
+    }
+
+    // The order of the list is kept: it is the order modifiers apply in.
+    const auto parsed = from_json(*to_json(original));
+    REQUIRE(parsed);
+    REQUIRE_EQ(parsed->links[0].plugins.size(), std::size_t{3});
+    REQUIRE_EQ(parsed->links[0].plugins[0].type, std::string("drop"));
+    REQUIRE_EQ(parsed->links[0].plugins[1].type, std::string("delay"));
+    REQUIRE_EQ(parsed->links[0].plugins[2].kind, std::string("decoder"));
+}
+
+TEST_CASE("document: a binding is written with only the members that are set")
+{
+    const auto text = to_json(bound_document(), false);
+    REQUIRE(text);
+    // The version is still 1.
+    REQUIRE(text->find("\"version\":1") != std::string::npos);
+
+    // The whole fixture binding, in the order the members are written.
+    REQUIRE(text->find(
+                R"("plugins":[{"id":"com.example.modbus-fixture",)"
+                R"("kind":"fixture","type":"meter","name":"Modbus fixture",)"
+                R"("publisher":"Example Ltd","key_id":"9f2c41d07a6be835",)"
+                R"("version":"1.2.0",)"
+                R"("get_it_from":"https://example.com/plugins",)"
+                R"("params":{"address":17,"registers":[1,2,3],"label":"A"}},)"
+                R"({"id":"com.example.decoders","kind":"decoder",)"
+                R"("type":"modbus-rtu"}])") != std::string::npos);
+    // A modifier with nothing but its choice on a timeout.
+    REQUIRE(text->find(R"({"id":"com.example.line-noise","kind":"modifier",)"
+                       R"("type":"drop","on_timeout":"fail_closed"})") !=
+            std::string::npos);
+}
+
+TEST_CASE("document: a setup without plugins is written exactly as before")
+{
+    const auto text = to_json(sample_document(), false);
+    REQUIRE(text);
+    REQUIRE(text->find("plugins") == std::string::npos);
+
+    // An empty list in a file reads as no bindings and is not written back.
+    const auto parsed = parse_port_plugins("[]");
+    REQUIRE(parsed);
+    REQUIRE(parsed->ports[0].plugins.empty());
+    const auto written = to_json(*parsed, false);
+    REQUIRE(written);
+    REQUIRE(written->find("plugins") == std::string::npos);
+}
+
+TEST_CASE("document: a file from before plugin bindings reads as it did")
+{
+    const std::string old_file =
+        R"({"version":1,"name":"old","ports":[{"name":"a","kind":"virtual"},)"
+        R"({"name":"b","kind":"virtual"}],"links":[{"mode":"duplex",)"
+        R"("sources":["a"],"targets":["b"]}]})";
+    const auto parsed = from_json(old_file);
+    REQUIRE(parsed);
+    REQUIRE(parsed->ports[0].plugins.empty());
+    REQUIRE(parsed->ports[1].plugins.empty());
+    REQUIRE(parsed->links[0].plugins.empty());
+}
+
+TEST_CASE("document: a binding in a hand written file needs three members")
+{
+    const auto parsed = parse_port_plugins(
+        R"([{"id":"com.example.x","kind":"fixture","type":"t"}])");
+    REQUIRE(parsed);
+    REQUIRE_EQ(parsed->ports[0].plugins.size(), std::size_t{1});
+    const plugin_binding& binding = parsed->ports[0].plugins[0];
+    REQUIRE_EQ(binding.id, std::string("com.example.x"));
+    REQUIRE(binding.name.empty());
+    REQUIRE(binding.on_timeout.empty());
+    REQUIRE(binding.params.empty());
+
+    expect_port_plugins_refused(R"([{"kind":"fixture","type":"t"}])");
+    expect_port_plugins_refused(R"([{"id":"com.example.x","type":"t"}])");
+    expect_port_plugins_refused(R"([{"id":"com.example.x","kind":"fixture"}])");
+    expect_port_plugins_refused("[{}]");
+}
+
+TEST_CASE("document: a plugin the reader does not know is kept")
+{
+    // Nothing here is looked up: the id, the type and the parameters of a
+    // plugin that is not installed are read and written back.
+    const std::string plugins =
+        R"([{"id":"org.unknown.thing","kind":"fixture","type":"gadget",)"
+        R"("params":{"mode":"x","deep":{"list":[true,null,15,"s"]}}}])";
+    const auto parsed = parse_port_plugins(plugins);
+    REQUIRE(parsed);
+    const auto text = to_json(*parsed, false);
+    REQUIRE(text);
+    REQUIRE(text->find(plugins.substr(1, plugins.size() - 2)) !=
+            std::string::npos);
+
+    // A kind from a newer version is kept too, on a port or on a link.
+    const auto newer = parse_port_plugins(
+        R"([{"id":"org.unknown.thing","kind":"recorder","type":"t"}])");
+    REQUIRE(newer);
+    REQUIRE_EQ(newer->ports[0].plugins[0].kind, std::string("recorder"));
+    document on_link = bound_document();
+    on_link.links[0].plugins[2].kind = "recorder";
+    REQUIRE(!validate(on_link));
+}
+
+TEST_CASE("document: the members of a binding are type checked")
+{
+    expect_port_plugins_refused("{}");
+    expect_port_plugins_refused("\"com.example.x\"");
+    expect_port_plugins_refused("[1]");
+    expect_port_plugins_refused(R"(["com.example.x"])");
+    expect_port_plugins_refused(R"([{"id":7,"kind":"fixture","type":"t"}])");
+    expect_port_plugins_refused(
+        R"([{"id":"com.example.x","kind":null,"type":"t"}])");
+    for (const char* member :
+         {R"("name":1)", R"("publisher":[])", R"("key_id":{})",
+          R"("version":1.2)", R"("get_it_from":false)", R"("on_timeout":0)",
+          R"("params":"{}")", R"("params":[1])", R"("params":null)"})
+    {
+        expect_port_plugins_refused(binding_with(member));
+    }
+
+    // A member the format does not have is passed over, as elsewhere in the
+    // file.
+    REQUIRE(parse_port_plugins(binding_with(R"("colour":"red")")));
+}
+
+TEST_CASE("document: the id, kind and type of a binding are checked")
+{
+    const auto with = [](const char* id, const char* kind, const char* type)
+    {
+        document value = bound_document();
+        value.ports[0].plugins.resize(1);
+        value.ports[0].plugins[0].id = id;
+        value.ports[0].plugins[0].kind = kind;
+        value.ports[0].plugins[0].type = type;
+        return validate(value);
+    };
+    REQUIRE(!with("com.example.x", "fixture", "t"));
+    REQUIRE(!with("a.b", "fixture", "t9_x-y"));
+    REQUIRE(!with((std::string(126, 'a') + ".b").c_str(), "fixture", "t"));
+
+    for (const char* id : {"", "ab", "nodots", "Com.Example.X", "com..x",
+                           ".com.x", "com.x.", "com.x-", "com.ex ample",
+                           "com.example/x", "com.ex\xc3\xa4mple.x"})
+    {
+        REQUIRE(with(id, "fixture", "t") ==
+                make_error_code(errc::config_error));
+    }
+    REQUIRE(with((std::string(127, 'a') + ".b").c_str(), "fixture", "t") ==
+            make_error_code(errc::config_error));
+
+    for (const char* local : {"", "9t", "T", "a b", "a.b", "-a"})
+    {
+        REQUIRE(with("com.example.x", "fixture", local) ==
+                make_error_code(errc::config_error));
+        REQUIRE(with("com.example.x", local, "t") ==
+                make_error_code(errc::config_error));
+    }
+    const std::string long_id(65, 'a');
+    REQUIRE(with("com.example.x", "fixture", long_id.c_str()) ==
+            make_error_code(errc::config_error));
+    REQUIRE(!with("com.example.x", "fixture", long_id.substr(1).c_str()));
+}
+
+TEST_CASE("document: the texts of a binding are plain and have limits")
+{
+    const auto with = [](std::string plugin_binding::* member,
+                         const std::string& text)
+    {
+        document value = bound_document();
+        value.ports[0].plugins[0].*member = text;
+        return validate(value);
+    };
+    const error_code refused = make_error_code(errc::config_error);
+
+    REQUIRE(!with(&plugin_binding::name, std::string(100, 'n')));
+    REQUIRE(with(&plugin_binding::name, std::string(101, 'n')) == refused);
+    REQUIRE(!with(&plugin_binding::publisher, std::string(100, 'p')));
+    REQUIRE(with(&plugin_binding::publisher, std::string(101, 'p')) ==
+            refused);
+    REQUIRE(!with(&plugin_binding::version, std::string(64, '1')));
+    REQUIRE(with(&plugin_binding::version, std::string(65, '1')) == refused);
+    REQUIRE(!with(&plugin_binding::key_id, std::string(128, 'f')));
+    REQUIRE(with(&plugin_binding::key_id, std::string(129, 'f')) == refused);
+    REQUIRE(!with(&plugin_binding::get_it_from, std::string(256, 'u')));
+    REQUIRE(with(&plugin_binding::get_it_from, std::string(257, 'u')) ==
+            refused);
+
+    // Letters of any language are fine.
+    REQUIRE(!with(&plugin_binding::name, "Z\xc3\xa4hler f\xc3\xbcr Modbus"));
+
+    // A control character, a line separator, a byte order mark or a mark
+    // that changes the direction of the text is not.  The two marks that
+    // open a run are closed again, so that this file itself reads in order.
+    for (const char* bad :
+         {"two\nlines", "tab\there", "bell\x07", "del\x7f", "c1\xc2\x85x",
+          "alm\xd8\x9cx", "lrm\xe2\x80\x8ex", "ls\xe2\x80\xa8x",
+          "rlo\xe2\x80\xaegpj.exe\xe2\x80\xac",
+          "iso\xe2\x81\xa6x\xe2\x81\xa9", "\xef\xbb\xbfmark"})
+    {
+        REQUIRE(with(&plugin_binding::name, bad) == refused);
+        REQUIRE(with(&plugin_binding::publisher, bad) == refused);
+        REQUIRE(with(&plugin_binding::get_it_from, bad) == refused);
+    }
+}
+
+TEST_CASE("document: what a binding does on a timeout is one of two words")
+{
+    document value = bound_document();
+    for (const char* word : {"", "fail_open", "fail_closed"})
+    {
+        value.links[0].plugins[0].on_timeout = word;
+        REQUIRE(!validate(value));
+    }
+    for (const char* word : {"open", "FAIL_OPEN", "fail_open "})
+    {
+        value.links[0].plugins[0].on_timeout = word;
+        REQUIRE(validate(value) == make_error_code(errc::config_error));
+    }
+}
+
+TEST_CASE("document: the parameters of a binding are one object with limits")
+{
+    const error_code refused = make_error_code(errc::config_error);
+    const auto with = [](const std::string& params)
+    {
+        document value = bound_document();
+        value.ports[0].plugins[0].params = params;
+        return validate(value);
+    };
+    REQUIRE(!with(""));
+    REQUIRE(!with("{}"));
+    REQUIRE(!with(R"({ "spaced" : 1 })"));
+    for (const char* bad : {"[]", "1", "null", "\"text\"", "{", "{} {}"})
+    {
+        REQUIRE(with(bad) == refused);
+    }
+
+    // Eight levels are the most: the object itself is the first.
+    const auto nested = [](std::size_t levels)
+    {
+        std::string text = "{}";
+        for (std::size_t i = 1; i < levels; ++i)
+        {
+            text.insert(0, R"({"a":)");
+            text += '}';
+        }
+        return text;
+    };
+    REQUIRE(!with(nested(max_binding_params_depth)));
+    REQUIRE(with(nested(max_binding_params_depth + 1)) == refused);
+    REQUIRE(parse_port_plugins(
+        binding_with("\"params\":" + nested(max_binding_params_depth))));
+    expect_port_plugins_refused(
+        binding_with("\"params\":" + nested(max_binding_params_depth + 1)));
+
+    // The size limit is on the compact text.
+    const std::string frame = R"({"v":""})";
+    const std::string fits =
+        R"({"v":")" +
+        std::string(max_binding_params_size - frame.size(), 'x') + "\"}";
+    REQUIRE_EQ(fits.size(), max_binding_params_size);
+    REQUIRE(!with(fits));
+    REQUIRE(with(R"({"v":")" +
+                 std::string(max_binding_params_size - frame.size() + 1, 'x') +
+                 "\"}") == refused);
+
+    // A document built in code with spaced parameters is written compact,
+    // and reads back as the compact text.
+    document value = bound_document();
+    value.ports[0].plugins[0].params = R"({ "spaced" : 1 })";
+    const auto text = to_json(value, false);
+    REQUIRE(text);
+    const auto parsed = from_json(*text);
+    REQUIRE(parsed);
+    REQUIRE_EQ(parsed->ports[0].plugins[0].params,
+               std::string(R"({"spaced":1})"));
+}
+
+TEST_CASE("document: which bindings a port and a link may have")
+{
+    const error_code refused = make_error_code(errc::config_error);
+
+    // One device at a port: a fixture or a generator, not two.
+    document two = bound_document();
+    plugin_binding generator = fixture_binding();
+    generator.kind = "generator";
+    two.ports[0].plugins.push_back(generator);
+    REQUIRE(validate(two) == refused);
+    two.ports[0].plugins = {generator, decoder_binding(), decoder_binding()};
+    REQUIRE(!validate(two));
+
+    // A modifier sits on a link, never at a port.
+    document modifier_on_port = bound_document();
+    modifier_on_port.ports[1].plugins = {modifier_binding("drop")};
+    REQUIRE(validate(modifier_on_port) == refused);
+
+    // A fixture or a generator stands at a port, never on a link.
+    document device_on_link = bound_document();
+    device_on_link.links[0].plugins = {fixture_binding()};
+    REQUIRE(validate(device_on_link) == refused);
+    device_on_link.links[0].plugins = {generator};
+    REQUIRE(validate(device_on_link) == refused);
+
+    // A bus may have bindings like any other link.
+    document bus = bus_document();
+    bus.links[0].plugins = {decoder_binding(), modifier_binding("noise")};
+    REQUIRE(!validate(bus));
+    const auto text = to_json(bus, false);
+    REQUIRE(text);
+    const auto parsed = from_json(*text);
+    REQUIRE(parsed);
+    REQUIRE(*parsed == bus);
+
+    // Sixteen at one place are the most, in code and in a file.
+    document many = bound_document();
+    many.links[0].plugins.assign(max_plugin_bindings, decoder_binding());
+    REQUIRE(!validate(many));
+    many.links[0].plugins.push_back(decoder_binding());
+    REQUIRE(validate(many) == refused);
+
+    std::string list = "[";
+    for (std::size_t i = 0; i <= max_plugin_bindings; ++i)
+    {
+        list += i == 0 ? "" : ",";
+        list += R"({"id":"com.example.x","kind":"decoder","type":"t"})";
+    }
+    expect_port_plugins_refused(list + "]");
+}
+
+TEST_CASE("document: bindings are saved to a file and loaded from it")
+{
+    const auto path = std::filesystem::temp_directory_path() /
+                      "vss_test_document_plugins.json";
+    const document original = bound_document();
+    REQUIRE(save_file(path.string(), original));
+    const auto loaded = load_file(path.string());
+    std::error_code ignored;
+    std::filesystem::remove(path, ignored);
+    REQUIRE(loaded);
+    REQUIRE(*loaded == original);
+}
