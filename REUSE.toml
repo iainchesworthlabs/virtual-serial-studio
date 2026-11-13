@@ -29,3 +29,10 @@ path = "tests/data/wycheproof/**"
 precedence = "override"
 SPDX-FileCopyrightText = "Google LLC and the Wycheproof contributors"
 SPDX-License-Identifier = "Apache-2.0"
+
+# The bundled fonts and their licence texts (apps/vss_gui/assets/fonts/README.md says where each comes from).
+[[annotations]]
+path = "apps/vss_gui/assets/fonts/**"
+precedence = "override"
+SPDX-FileCopyrightText = "The Noto Project Authors; IBM Corp."
+SPDX-License-Identifier = "OFL-1.1"

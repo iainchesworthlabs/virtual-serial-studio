@@ -55,7 +55,9 @@ The specs are in `docs/gui-design/`. Specs, tokens and the HTML mockups are text
 `grab()` PNG for a person to review, and do not commit it.
 
 - Use design tokens only. No literal colours, font families or font sizes outside the `Theme` module. Icons come from
-  `IconProvider`. No fonts are bundled and none may be added.
+  `IconProvider`. The only fonts in the repository are the OFL
+  faces in `apps/vss_gui/assets/fonts/` (Noto Sans Hebrew and Arabic, IBM Plex Mono), registered by `Theme`; do not add
+  others without the owner's say.
 - Copy strings exactly from the specs and wrap them in `tr()`.
 - Every widget has an accessible name and role, is reachable by keyboard, shows a visible focus ring, works in both
   themes, has targets of at least 24 px and works at 200 percent text.
