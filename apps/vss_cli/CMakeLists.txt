@@ -3,9 +3,11 @@
 # vss_cli - headless access to the same studio the GUI drives.
 #
 
-add_executable(vss_cli main.cpp agent_command.cpp permissions_command.cpp)
+add_executable(vss_cli main.cpp agent_command.cpp control_command.cpp
+  permissions_command.cpp)
 target_compile_features(vss_cli PRIVATE cxx_std_23)
-target_link_libraries(vss_cli PRIVATE Vss::studio Vss::agent_core vss_testkit)
+target_link_libraries(vss_cli PRIVATE Vss::studio Vss::agent_core
+  Vss::control_core vss_testkit)
 vss_set_warnings(vss_cli)
 
 # The program's icon in Explorer, and its own description, in the Windows

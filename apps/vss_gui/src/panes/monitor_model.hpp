@@ -13,6 +13,7 @@
 
 #include <QAbstractTableModel>
 #include <QByteArray>
+#include <QByteArrayView>
 #include <QDateTime>
 #include <QString>
 #include <QVector>
@@ -40,10 +41,9 @@ struct traffic_row
     QString port;
     traffic_direction direction = traffic_direction::rx;
     std::uint64_t bytes = 0;
-    QByteArray preview;
     /// Every byte of the chunk, not only the preview.  The capture export
     /// writes these.
-    QByteArray data;
+    event_payload data;
     /// The engine's event time (a steady clock), unlike #time, which is the
     /// wall clock when the batch reached the GUI.
     vss::time_point when{};
@@ -51,6 +51,9 @@ struct traffic_row
     /// A dropped row of a bus: a bus has no owner, so its bytes were not
     /// carried (RTS low, or too far ahead of the line rate).
     bool bus = false;
+
+    /// The bytes the table shows: the first 256.  Valid while the row is.
+    QByteArrayView preview() const noexcept;
 };
 
 /// The rows a capture export writes, with the wall clock at their offset zero.
@@ -84,7 +87,16 @@ public:
 
     explicit MonitorModel(QObject* parent = nullptr);
 
+    /// Adds the traffic of a batch to the table: `queue_events` and
+    /// `commit_queued` in one step.
     void append_events(const event_batch& events);
+    /// Takes the traffic of a batch without telling the views.  The rows get
+    /// the time of this call.  Nothing is taken while paused.
+    void queue_events(const event_batch& events);
+    /// Puts the queued rows in the table, as one insertion.  A view lays out
+    /// and paints once for however many batches were queued.
+    void commit_queued();
+    bool has_queued() const noexcept { return !queued_.empty(); }
     /// `bus` says the link is a shared bus, whose drops are not owner drops.
     void append_drop(const QString& port, std::uint64_t bytes,
                      bool bus = false);
@@ -113,8 +125,8 @@ public:
     /// time, as capture records.  Offsets run from the first of those rows.
     capture_export export_capture() const;
 
-    static QString ascii_preview(const QByteArray& data);
-    static QString hex_preview(const QByteArray& data);
+    static QString ascii_preview(QByteArrayView data);
+    static QString hex_preview(QByteArrayView data);
 
 private:
     void append_row(traffic_row row);
@@ -130,6 +142,7 @@ private:
     void commit_appended(std::size_t before);
 
     std::deque<traffic_row> rows_;
+    std::vector<traffic_row> queued_;
     qint64 retained_bytes_ = 0;
     QVector<int> visible_;
     vss::endpoint_id port_filter_ = 0;

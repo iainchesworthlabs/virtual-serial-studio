@@ -1,0 +1,55 @@
+<!--
+title: Downloads
+description: Download Virtual Serial Studio for Windows, Linux and macOS. Every file is signed and has a SHA-512 checksum.
+-->
+<section class="band pane" aria-labelledby="page-title">
+<div class="head">
+<h1 id="page-title">Download Virtual Serial Studio</h1>
+<p class="lead">The Community edition, free under the GPL. The files are kept on GitHub Releases, and each link below goes straight to the file.</p>
+</div>
+<dl class="rows" id="get">
+<div><dt>Version</dt><dd><span class="mono">{{release_tag}}</span> <span class="chip warn hollow">{{release_kind}}</span></dd></div>
+<div><dt>Published</dt><dd>{{release_date}}</dd></div>
+<div><dt>Release notes</dt><dd><a href="{{release_url}}">Notes for {{release_tag}} on GitHub</a></dd></div>
+</dl>
+<div class="note warn">
+<p><strong>Check the label beside the version.</strong> A pre-release is for trying out and for finding faults. Do not rely on one for work that matters, and please <a href="support.html">tell us what breaks</a>.</p>
+</div>
+</section>
+
+<section class="band pane" aria-label="Files">
+{{downloads}}
+</section>
+
+<section class="band plain" aria-labelledby="notes-title">
+<div class="head">
+<h2 id="notes-title">Before you install</h2>
+</div>
+<dl class="rows">
+<div><dt>Windows</dt><dd>Windows 10 or 11, 64-bit. The installer carries Studio's own COM port driver, which is test-signed: Windows accepts it only on a machine where the Iain Chesworth Labs certificate authority has been installed. On any other machine the installer skips the driver and installs the rest, and Studio still shares real devices, bridges to the network and monitors. A driver signed through Microsoft is part of the Pro edition, which is in development.</dd></div>
+<div><dt>Linux</dt><dd>x86-64. Use the package for your distribution, or the archive on any other. Virtual ports are pseudo terminals, so no driver is needed. Your account needs permission to open a real serial port, and the user guide says how to grant it.</dd></div>
+<div><dt>macOS</dt><dd>Apple silicon. Open the disk image and drag Studio to Applications. The app is not yet signed or notarised by Apple, so macOS will ask you to confirm before it opens. Virtual ports are pseudo terminals, so no driver is needed.</dd></div>
+<div><dt>Build it yourself</dt><dd>The source of the application, the command line tool and the driver is in the <a href="{{repo_url}}">repository on GitHub</a>, with instructions for each system in the documentation.</dd></div>
+</dl>
+</section>
+
+<section class="band pane" aria-labelledby="verify">
+<div class="head">
+<h2 id="verify">Verifying a download</h2>
+<p class="lead">Each file has a detached OpenPGP signature beside it, ending <code>.asc</code>. <code>SHA512SUMS</code> lists a checksum for every file and is signed as well.</p>
+</div>
+<ol class="steps">
+<li><span><strong>Get the release key.</strong> Download <a href="signing-key.asc">the public key from this site</a> and import it. Then compare its fingerprint with the one below and with the one in <code>SECURITY.md</code> in the repository. A key that arrives with a download proves nothing by itself.</span></li>
+<li><span><strong>Verify the signature.</strong> Put the file and its <code>.asc</code> in the same folder and ask GnuPG to check them.</span></li>
+<li><span><strong>Or verify the checksums.</strong> Verify <code>SHA512SUMS</code> with its signature, then check your file against it.</span></li>
+</ol>
+<pre aria-label="Commands that verify a download"><code>gpg --import signing-key.asc
+gpg --fingerprint FD13CB8CAC8316648CD974D08149254C41894DBE
+gpg --verify FILE.asc FILE
+
+gpg --verify SHA512SUMS.asc SHA512SUMS
+sha512sum --check --ignore-missing SHA512SUMS</code></pre>
+<p>The release key is <span class="mono">Iain Chesworth Labs Releases</span>, Ed25519, with the fingerprint <span class="mono">FD13 CB8C AC83 1664 8CD9 74D0 8149 254C 4189 4DBE</span>. Each file also has a GitHub build-provenance attestation.</p>
+<p class="quiet">Put the name of the file you downloaded in place of <code>FILE</code>. On Windows, <code>certutil -hashfile FILE SHA512</code> prints a checksum to compare by eye.</p>
+<p><a href="{{release_url}}">Every file of this release, and earlier releases, on GitHub</a></p>
+</section>

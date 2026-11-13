@@ -378,11 +378,15 @@ void JobForm::fix_com_numbers()
         {
             if (end.what != end_plan::kind::program || end.existing != 0)
                 continue;
-            const auto free = free_com_numbers(&end, kLastGuiComNumber);
-            if (end.com_number != 0 && std::find(free.begin(), free.end(),
-                                                 end.com_number) != free.end())
+            // Automatic stays Automatic; a chosen number that is now taken
+            // falls back to it.
+            if (end.com_number == 0)
                 continue;
-            end.com_number = free.empty() ? 0 : free.front();
+            const auto free = free_com_numbers(&end, kLastGuiComNumber);
+            if (std::find(free.begin(), free.end(), end.com_number) !=
+                free.end())
+                continue;
+            end.com_number = 0;
         }
     }
 }
@@ -432,9 +436,9 @@ end_plan JobForm::new_program()
     refresh_reserved();
     if (com_numbers_shown())
     {
-        const auto free = free_com_numbers(nullptr);
-        if (!free.empty())
-            end.com_number = free.front();
+        // Automatic: the backend takes back a number this PC has had, so a
+        // setup keeps its COM numbers and a new port is quick to make.
+        end.com_number = 0;
     }
     return end;
 }
@@ -911,6 +915,7 @@ QWidget* JobForm::program_row(bool second, int index)
         auto* com = new QComboBox(row);
         com->setObjectName(QStringLiteral("jobFormPort"));
         com->setAccessibleName(tr("Port name"));
+        com->addItem(tr("Automatic"), 0u);
         for (const unsigned number : free_com_numbers(&end))
             com->addItem(QStringLiteral("COM%1").arg(number), number);
         com->setCurrentIndex(std::max(0, com->findData(end.com_number)));

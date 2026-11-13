@@ -15,6 +15,7 @@ row for every event the GUI delivered. This script reads the unwrapped export
 instead, so it can
 
 - split `gui.event` by its text (receiver class / event type / object name),
+  and `gui.monitor.paint_cell` by its text (the column),
 - give each zone its self time (its time less the zones inside it), which is
   where the time inside Qt shows up: the self time of the top-level window's
   `UpdateRequest` and `Expose` events is the compose and present of the window,
@@ -39,6 +40,10 @@ DEFAULT_PHASES = (
     "bench.repaint,bench.pan,bench.resize,bench.move,bench.idle,bench.traffic"
 )
 
+# Zones whose text names a kind worth a row of its own: the Monitor's painted
+# cells carry their column.
+SPLIT_BY_TEXT = frozenset({"gui.monitor.paint_cell"})
+
 
 @dataclass
 class instance:
@@ -57,6 +62,8 @@ class instance:
     def key(self) -> str:
         if self.name == "gui.event" and self.text:
             return "event: " + self.text
+        if self.name in SPLIT_BY_TEXT and self.text:
+            return self.name + ": " + self.text
         return self.name
 
 

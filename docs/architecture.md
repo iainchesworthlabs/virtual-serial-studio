@@ -2,7 +2,7 @@
 
 This note explains how the pieces fit and, more importantly, why the pieces
 that look odd are the way they are. The threading rules and the shutdown order
-are not incidental; both were written after a real failure.
+were each written after a failure.
 
 ## Layers
 
@@ -327,6 +327,33 @@ What a change does to traffic:
   its receiver just after the call, as with `remove_target` and
   `set_link_wiring`; the next change corrects it.
 
+### The hub's clock, the read time and the read stage
+
+The hub has one clock, `hub::now()`: the steady clock unless
+`hub_options::clock` replaces it. Every time the hub reports and every time it
+acts on is read there: an event's `when`, a link's delay, a half-duplex bus.
+(An endpoint's `stats().last_activity` is the steady clock's, as before.)
+
+An endpoint reads the clock once for each chunk it reads, before the chunk is
+routed. That **read time** is the chunk's time for the half-duplex line, for a
+`bus_fault` event and for the data event's `when`, so the three agree and none
+includes the time routing took.
+
+`endpoint::set_read_stage` puts a `read_stage` on an endpoint. It is called on
+the endpoint's strand with each chunk and its read time, before the chunk is
+routed and before its event is published. It is the place where response rules
+will watch a port. The stage is a plain member
+used only on the strand, so an endpoint with no stage pays one test of a null
+pointer for each read. A stage is replaced on the strand too, which is between
+two chunks: the old stage has seen every chunk before the change and the new one
+sees every chunk after, with none lost and none shown twice. A stage must not
+block, because it holds up every byte of the port for as long as it takes.
+
+A delay line reads the hub's clock as well. On the steady clock it waits for the
+exact time with a timer. On a clock a test moves by hand a timer cannot wait, so
+a line that holds something looks at the clock every millisecond, as the wire of
+a half-duplex bus does.
+
 ### Link delay
 
 `connect`, `split`, `join`, `redirect` and `bus` take `link_options` with
@@ -339,6 +366,16 @@ delay is at most one minute (`max_link_delay_ms`) and the jitter at most the
 delay, or the call fails with `invalid_argument`. `monitor` takes no options and
 has no delay. Removing a route drops whatever its line still holds, and so does
 changing the delay of the link (see *Changing the options of a link*).
+
+A chunk is never written before its delay has passed. How long after depends on
+the system's timers. Windows looks at its timers once in 15.6 ms unless a
+process asks for more, which made a `delay_ms` of 1 take about 15 ms. A hub
+therefore asks for a 1 ms timer period from `start()` to `join()`
+(`hub_options::fine_timers`, on by default), and a delay is then late by about
+a millisecond or less. Linux and macOS need no request. Windows 11 may stop
+honouring the request for a program whose windows are all minimised or covered,
+so a delay in Studio's own window can go back to the 15.6 ms tick while the
+window cannot be seen; the agent has no window and is not affected.
 
 ### The shared bus
 
@@ -546,7 +583,7 @@ the rest keep the model and report it through events.
 
 A loopback transport is a loopback *plug*: what you write comes back on the
 receive side. That makes it a useful demo device and a good test double, and it
-means two loopback devices wired duplex are an echo chamber. This is a property
+means two loopback devices wired duplex send each other's data back and forth. This is a property
 of the device, not a routing bug. Use a one-way link (`redirect` or `monitor`)
 when the point is observation rather than full duplex.
 

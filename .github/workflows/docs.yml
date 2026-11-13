@@ -7,7 +7,9 @@ name: Docs
 # in the README shows it) and a change that breaks the docs without touching a
 # docs path is caught on the trunk. A push to main, which the release workflow
 # makes when it moves main to a release, builds the site again and publishes it
-# to GitHub Pages. The repository's Pages build type must be "GitHub Actions".
+# to GitHub Pages, under docs/, with the website (website/, built by
+# tools/site_build.py) at the root. The repository's Pages build type must be
+# "GitHub Actions".
 
 on:
   pull_request:
@@ -19,9 +21,19 @@ on:
       - "README.md"
       - "CMakePresets.json"
       - "tools/check_docs.py"
+      - "website/**"
+      - "tools/site_build.py"
+      - "tools/site_check.py"
+      - "tools/test_site_build.py"
+      - "tools/test_site_check.py"
+      - "apps/vss_gui/src/theme/resources/tokens.json"
+      - "apps/vss_gui/assets/icon/**"
       - ".github/workflows/docs.yml"
   push:
     branches: [develop, main]
+  # Run by hand on main to publish again, for example after a release has been
+  # published, so that the downloads page lists its files.
+  workflow_dispatch:
 
 permissions: {}
 
@@ -50,14 +62,61 @@ jobs:
       contents: read
     uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
 
+  website:
+    name: Build and check the website
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Test the site tools
+        run: python3 -m unittest discover -s tools -p "test_site_*.py"
+      - name: Build the website
+        run: python3 tools/site_build.py
+      - name: Check links, outside resources and accessibility
+        run: python3 tools/site_check.py
+
+  # The published site is the website at the root and the MkDocs documentation
+  # under docs/. The downloads page is made from the newest GitHub release,
+  # read here, at build time: a visitor's browser never asks GitHub for it.
   publish:
     name: Build site for Pages
     if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     permissions:
       contents: read
-    uses: iainchesworthlabs/icl-common-infra/.github/workflows/docs.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
-    with:
-      upload: true
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements/docs.txt
+      - name: Install the docs tooling
+        run: python3 -m pip install --quiet -r requirements/docs.txt
+      - name: Build the website
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python3 tools/site_build.py --refresh-release --out build/pages
+      - name: Check the website
+        run: python3 tools/site_check.py build/pages
+      - name: Build the documentation
+        run: mkdocs build --strict --site-dir build/pages/docs
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: build/pages
 
   deploy:
     name: Deploy site

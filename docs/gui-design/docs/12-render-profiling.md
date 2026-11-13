@@ -190,7 +190,7 @@ Not done. Each is a choice with a cost.
 
 | Option | What it would give | Cost and risk |
 |---|---|---|
-| **A. Make the Monitor cheaper under traffic** (below: its table is the largest cost on the GUI thread, then `append_events` and the bridge) | Up to half of the GUI thread's time under heavy traffic | Medium. Needs its own profile of the Monitor's model and row painting first; this profile only shows that the time is there |
+| **A. Make the Monitor cheaper under traffic** | **Done**, see "The Monitor under heavy traffic" below: a batch of events costs the GUI thread about a fifth of what it did | |
 | **B. Make a theme change cheaper** (below: 0.3 to 0.5 s with the window frozen) | The worst single stall found | Medium to large: it is Qt reading the application style sheet again for every widget. Smaller style sheets per widget class, or palette roles instead of style rules, both touch the whole theme |
 | **C. Start the graphics device later** (show the first frame from the CPU and switch when the device is ready) | 220 to 250 ms off the first frame with the GPU | Medium: the window changes from CPU to GPU composition after it is shown, which Qt does by making the window's surface again; a visible flash is likely |
 | **D. Give the canvas its own native window** (`WA_NativeWindow`, or a `QWindow` in `createWindowContainer`), so the rest of the window stays on the CPU flush | Little now: with the copying swap chain the GPU's flush is no dearer than the CPU's. It would matter again where no such swap chain exists (other platforms, not measured) | Medium to large. The overlays on the canvas (hint, zoom bar, empty-state text, loop note, rubber band) are widgets drawn over it; over a native window they must become native windows, which lose their see-through backgrounds, or be drawn by the canvas |
@@ -224,9 +224,9 @@ figures are of the GUI thread over 4 s.
 | # | Where | Zone | Cost | Worst single | Whose |
 |---|---|---|---|---|---|
 | 1 | A theme change | `gui.theme.apply` | 308 ms mean with the window frozen | 484 ms | Qt, reading the style sheet again for every widget: 70 % is inside `setStyleSheet`, the rest is `StyleChange` and `PaletteChange` events, the dearest to scroll areas (1.7 ms each). The size of our style sheet decides it |
-| 2 | The Monitor under traffic | `QWidget / Paint / qt_scrollarea_viewport` (the table) | 1150 to 1300 ms: 30 % of the thread, 2.1 ms a paint | 13 ms | Qt's table painting, calling our model's `data` |
-| 3 | The Monitor under traffic | `gui.monitor.append_events` | 520 to 700 ms (13 to 17 %) | 12 ms | Ours |
-| 4 | Events from the engine | `gui.bridge.drain` self | 520 to 680 ms (13 to 17 %) | 44 ms | Ours |
+| 2 | The Monitor under traffic | `QWidget / Paint / qt_scrollarea_viewport` (the table) | 1150 to 1300 ms: 30 % of the thread, 2.1 ms a paint | 13 ms | Qt's table painting, calling our model's `data`. **Made cheaper**, see "The Monitor under heavy traffic" |
+| 3 | The Monitor under traffic | `gui.monitor.append_events` | 520 to 700 ms (13 to 17 %) | 12 ms | Ours. **Made cheaper**, see "The Monitor under heavy traffic" |
+| 4 | Events from the engine | `gui.bridge.drain` self | 520 to 680 ms (13 to 17 %) | 44 ms | Ours. **Made cheaper**, see "The Monitor under heavy traffic" |
 | 5 | Start-up with the GPU | first frames | 220 to 250 ms more than software | 61 ms | Qt and the graphics driver |
 | 6 | The setup check | `ports.permissions.observe_windows` | 20 ms a call on the GUI thread, three times at start-up | 30 ms | Ours (an operating-system query; 56 % of the journey tests' trace) |
 | 7 | A resize step | every widget repaints | 11 to 14 ms a step | 29 ms | Qt, with ours inside: `gui.paint.port_row` 0.9 ms a step and, in software, `gui.paint.node` 1.4 ms a step |
@@ -237,6 +237,51 @@ figures are of the GUI thread over 4 s.
 Events over their budget (`gui.slow_event`; the budget is 16 ms for painting) in the final build, bench only: in
 software none over 30 ms; with the GPU two at start-up (the first canvas frame and the first canvas resize, 50 to 57
 ms each, each reported once per widget above it) and none after.
+
+### The Monitor under heavy traffic
+
+Hotspots 2 to 4 were profiled on their own and made cheaper. The traffic phase of the bench in software, small window
+(`--render=software --size=1280x800 --ports=4`), three runs before and three after, GUI thread over 4 s.
+
+The event bridge hands the window batches of 256 events while it has a backlog, and pauses for twice as long as a batch
+took, so the window is never busy for more than about a third of the time on the bridge's account. In every run, before
+and after, every batch was full: the engine makes events faster than the window takes them and the bridge drops the
+oldest. A cheaper batch therefore means more batches in the 4 s, and the totals have to be read with the number of
+batches. The cost of a batch is the figure to compare.
+
+| | Before | After |
+|---|---|---|
+| Batches of 256 events handled in 4 s | 369 to 519 | 1261 to 1365 |
+| GUI thread working | 70 to 75 % | 40 to 58 % |
+| Longest time away from the event loop | 32 to 65 ms | 5 to 20 ms |
+| Table paint (`QWidget / Paint / qt_scrollarea_viewport`), total | 1251 to 1477 ms | 228 to 404 ms |
+| Table paint, for each batch | 2.4 to 3.9 ms | 0.18 to 0.32 ms |
+| Table paint, each (number of paints) | 2.2 to 3.5 ms (414 to 569) | 1.5 to 2.2 ms (151 to 180) |
+| Adding rows (`gui.monitor.append_events`; after, with `gui.monitor.commit`), total | 715 to 742 ms | 239 to 275 ms |
+| Adding rows, for each batch | 1.4 to 2.0 ms | 0.19 to 0.22 ms |
+| The bridge's own time (`gui.bridge.drain` less `gui.bridge.emit`), total | 599 to 702 ms | 787 to 886 ms |
+| The bridge's own time, for each batch | 1.4 to 1.7 ms | 0.62 to 0.67 ms |
+
+The bridge's total went up because it handled three times the events.
+
+What the time was, found with zones added for it (`gui.monitor.paint_cell` with the column as its text,
+`gui.monitor.data`, `gui.bridge.take`, `gui.bridge.convert`, `gui.bridge.release`, and for a while one zone for each
+row and each step of a row):
+
+| Found | Measured | Changed |
+|---|---|---|
+| The table was painted once for every batch: 100 to 140 times a second, and with 256 new rows a batch every paint showed rows nobody had seen and nobody would see again | One paint 2.2 to 3.5 ms | `MonitorPanel` puts new rows in the table at most once every 33 ms (`kCommitIntervalMs`). Rows that arrive slower than that are shown as they arrive. Pause, Export and Export capture show what has arrived first |
+| A paint is cheap in the model and dear in Qt. The model's `data` is 0.5 microseconds a call (about 6 calls for each cell). Qt's drawing of a cell is 30 to 90 microseconds, plus about 2 microseconds for each character of its text, visible or not: a 256 character preview cell is 560 microseconds, 8 times the Time cell. Only 2.6 rows are visible in the small window | Preview cell 560, Time 92, Port 59, Bytes 57, Direction 32 microseconds | `MonitorCellDelegate` hands Qt only the start of a long preview when the ASCII characters of the font all measure one width: a quarter more characters than fill the cell, plus 16. Qt cuts that where it would have cut the whole text. Preview cell 320 to 330 microseconds as text in a cell of this width; more is saved as hex (767 characters) and in a narrow cell |
+| Each row read the wall clock | 3.5 microseconds a row, 485 ms in 4 s: two thirds of `append_events` | One reading for a batch |
+| Each event got a block of memory for its bytes in the bridge and one for its port name, and gave them back when the Monitor dropped its row. Under this traffic a block of this size costs 1.9 microseconds to get, 1.35 to fill and 1.6 to give back; the name costs 0.14 | Bytes 3.6 microseconds an event in `gui.bridge.convert`; dropping old rows 0.4 ms a batch at first, 2.1 microseconds a row once rows arrived faster | The bridge copies the bytes of a batch into one block and each event has a part of it (`event_payload`); the Monitor's rows keep the block alive. Port names are shared between events (`EventBridge::name_cache`). Dropping a row is now 0.6 microseconds |
+| Rows were already added as one insertion for a batch, and the model's signals are cheap | `beginInsertRows` to `endInsertRows` 5 microseconds, removing 256 rows from the front 26 microseconds | Nothing |
+
+What is left for a batch of 256 events, after: `gui.bridge.convert` 0.55 to 0.58 ms (reading the engine's events and
+copying their bytes, 2.2 microseconds an event, most of it waiting for memory the engine's threads wrote), dropping old
+rows 0.15 ms, the Monitor's share of a paint 0.2 to 0.3 ms, the support log 0.14 ms, taking the events from the queue
+0.05 ms. Copying the bytes on the engine's thread when the event is made, while they are in that processor's cache,
+would take most of `convert` off the GUI thread; it means more work under the bridge's lock on the hub's dispatcher
+and was not tried.
 
 ## How to repeat it
 
@@ -263,5 +308,16 @@ one of the costs that were removed. The bench prints the display's refresh rate 
 - The traffic phase in the small window with the final build, zone by zone (the traces of those runs were overwritten
   by the large-window runs); the step times and the bench's own figures above are from the final build.
 - The real application driven by hand, and long runs (memory growth, hours of traffic).
+- The Monitor's changes in a tall Monitor pane, in Hex, with a filter or a search set, with Follow off, and with the
+  canvas drawn on the GPU: the bench has the small window, 2.6 rows visible, text previews, no filter and Follow on.
+  The cost of a painted cell is for each cell, so a pane with 20 rows visible pays about 8 times as much for a paint.
+- Whether the cut preview is the same picture in every font: the test compares it with Qt's own drawing of the whole
+  text at 61 widths in three fonts of the machine (the first whose ASCII characters all measure one width, the first
+  the system calls fixed-width, and the application's). The cut is made only when the text is all ASCII and the
+  font's ASCII characters measure one width. A character of another font anywhere in the text, even in the part that
+  is cut off, moves the line Qt draws (the Linux runners and then a test on Windows showed it), so such text is left
+  whole. In any other font the cell costs what it did.
+- Why a block of memory is so dear on the GUI thread under this traffic (the heap shared with the engine's threads, or
+  memory out of the cache): the profile shows where, not why.
 - The `gui.gpu.frame` zone was checked to appear when asked for (2029 zones in a bench run with `--gpu-timing`, 7 to
   1083 microseconds, median 35) and not otherwise; its place on the timeline is approximate, as `11-rendering.md` says.

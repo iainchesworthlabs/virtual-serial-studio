@@ -378,8 +378,11 @@ clients are not ordered against each other. **[paper]**
   and is not proposed.
 - **A read-only tap** is `subscribe` with `data`: copies of the bytes the hub publishes for each port, in both
   directions, at the cost described in section 4. It cannot disturb the port. "Read-only" is what the client does,
-  not something the agent enforces between programs of one user; a `read_only` flag in `hello`, after which the
-  agent refuses that connection's changes, is cheap and is decision 10. **[paper]**
+  not something the agent enforces between programs of one user. A `hello` may say `read_only`: the agent then
+  answers `list` and `subscribe` on that connection and refuses everything else with `permission_denied`, and its
+  reply says the flag back (decision 10). The control gateway asks for it for every session that may only monitor
+  (remote-control.md). It holds a connection to its word, not a user: another program of the same user can still
+  connect without it. **[slice]**
 
 ## 7. Threading
 
@@ -473,7 +476,7 @@ land in any order after 1.
 | 7 | Stable links for pseudo terminals in the agent | (a) always on, named after the port; (b) as today, off | (a): a path that survives a restart is the point of the agent | Low |
 | 8 | An agent with no ports and no clients | (a) exits after a minute; (b) stays | (a) | Low |
 | 9 | Another session of the same user | (a) may connect: one agent for each user; (b) one agent for each logon session | (a). Driver ports are machine-wide and counted by user | Low on a personal computer; on a shared server with one account, (a) means its sessions share ports, which is also what they share in the driver |
-| 10 | A `read_only` flag for a connection | (a) add it; (b) leave "read-only" to the client | (a), in PR 5 | Low |
+| 10 | A `read_only` flag for a connection | (a) add it; (b) leave "read-only" to the client | (a). Built with the control gateway's monitor slice | Low |
 | 11 | Windows installer stops other users' agents by ending them | (a) yes, the running setup brings the ports back; (b) refuse to upgrade while any agent runs | (a) | Medium: (a) interrupts another signed-in user's ports during an upgrade; (b) can block an upgrade on a shared computer |
 | 12 | The library layout of the slice | (a) `vss_agent_proto` (wire format, no I/O) and `vss_agent` (transport, server and client together); (b) a separate client library that does not link the studio | (a) now; split when a client appears that should not link the studio | Low |
 

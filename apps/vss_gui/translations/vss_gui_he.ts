@@ -17751,6 +17751,11 @@ Networks: %5</source>
             <translation>יציאה חדשה</translation>
         </message>
         <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>אוטומטי</translation>
+        </message>
+        <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
             <source>Program, e.g. PuTTY (optional)</source>
             <translation>תוכנית, למשל PuTTY (אופציונלי)</translation>

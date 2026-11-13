@@ -1307,7 +1307,7 @@ TEST_CASE("support: event log keeps events, not payloads")
     data.kind = vss::event_kind::data;
     data.name = QStringLiteral("terminal");
     data.direction = vss::data_direction::rx;
-    data.data = QByteArrayLiteral("secretpayload");
+    data.data = vss::gui::event_payload(QByteArrayLiteral("secretpayload"));
     log.append(data);
     REQUIRE(log.text().contains(QStringLiteral("RX")));
     REQUIRE(log.text().contains(QStringLiteral("13 bytes")));

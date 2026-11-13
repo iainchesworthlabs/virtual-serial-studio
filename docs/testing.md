@@ -54,7 +54,8 @@ of every selected case.
   `gui_support`, `gui_dialogs`, `gui_flows`), and the UI suite described
   [below](#the-ui-suite). They exist only when Qt was found and run on
   `QT_QPA_PLATFORM=offscreen`.
-* **Fuzz replays** — `fuzz_topology`, `fuzz_endpoint_uri` and `fuzz_agent_frame`
+* **Fuzz replays** — `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame` and
+  `fuzz_plugin_manifest`, `fuzz_rule_set`, `fuzz_control_message` and `fuzz_licence`
   replay the corpora once per build; see [Fuzzing](fuzzing.md).
 * **Tools** — `headers` (every public header compiles on its own),
   `matrix_tools` (the Python under `tools/matrix`), the `vm_*` tests (the
@@ -301,8 +302,8 @@ line.
 
 ## Fuzzing
 
-The topology and endpoint URI parsers and the decoder of the agent's protocol are
-fuzzed. Their corpora are replayed by
+The topology and endpoint URI parsers and the decoders of the agent's protocol
+and of the control API are fuzzed. Their corpora are replayed by
 CTest in every build; see [Fuzzing](fuzzing.md) for the libFuzzer targets and
 where CI runs them.
 

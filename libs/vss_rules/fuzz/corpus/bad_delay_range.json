@@ -1,0 +1,42 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "rules": [
+  {
+   "name": "r",
+   "when": {
+    "bytes": "01"
+   },
+   "do": [
+    {
+     "mark": "m",
+     "delay": {
+      "uniform": {
+       "min_us": 900,
+       "max_us": 100
+      }
+     }
+    },
+    {
+     "mark": "n",
+     "delay": {
+      "fixed_us": 61000000
+     }
+    },
+    {
+     "mark": "o",
+     "delay": {
+      "normal": {
+       "mean_us": 5,
+       "sd_us": 1,
+       "min_us": 9,
+       "max_us": 1000
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
