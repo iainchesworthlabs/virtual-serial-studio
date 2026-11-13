@@ -5,6 +5,7 @@
 //
 
 #include "backend/engine_studio_backend.hpp"
+#include "backend/licence_store.hpp"
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
@@ -25,6 +26,7 @@
 
 #include <vss/core/profile.hpp>
 #include <vss/core/profiling.hpp>
+#include <vss/license/license.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <QAction>
@@ -43,6 +45,7 @@
 #include <exception>
 #include <memory>
 #include <thread>
+#include <utility>
 
 namespace
 {
@@ -132,10 +135,9 @@ try
         bool declined =
             qEnvironmentVariable("VSS_PROFILE") == QLatin1String("0");
         for (int index = 1; index < argc; ++index)
-            declined = declined ||
-                       std::strcmp(argv[index], "--no-profile") == 0;
-        if (!declined &&
-            vss::gui::support::load_ui_settings().profile_on_start)
+            declined =
+                declined || std::strcmp(argv[index], "--no-profile") == 0;
+        if (!declined && vss::gui::support::load_ui_settings().profile_on_start)
         {
             auto remembered = profile;
             remembered.enable = true;
@@ -252,13 +254,12 @@ try
         }
         if (parser.isSet(version_option))
         {
-            std::fprintf(stdout, "%s %s\n",
-                         QCoreApplication::applicationName()
-                             .toLocal8Bit()
-                             .constData(),
-                         QCoreApplication::applicationVersion()
-                             .toLocal8Bit()
-                             .constData());
+            std::fprintf(
+                stdout, "%s %s\n",
+                QCoreApplication::applicationName().toLocal8Bit().constData(),
+                QCoreApplication::applicationVersion()
+                    .toLocal8Bit()
+                    .constData());
             std::fflush(stdout);
             return 0;
         }
@@ -301,6 +302,19 @@ try
         vss::studio_options options;
         auto studio = std::make_unique<vss::studio>(options);
         vss::gui::EngineStudioBackend backend(*studio);
+        {
+            // The licence files on this computer. They are read from disk
+            // and checked here; nothing is fetched or sent.
+            vss::gui::licence_store_options licences =
+                vss::gui::default_licence_store_options();
+            const auto built =
+                vss::license::parse_time(vss::gui::support::current_build_info()
+                                             .build_time.toStdString());
+            if (built)
+                licences.build_time = *built;
+            backend.set_licence_store(
+                std::make_unique<vss::gui::licence_store>(std::move(licences)));
+        }
         if (parser.isSet(screenshot_option))
         {
             // Review images must be repeatable regardless of the user's saved

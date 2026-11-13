@@ -23,6 +23,13 @@
       "condition": ""
     },
     {
+      "notice": "Monocypher",
+      "name": "Monocypher",
+      "spdx": "BSD-2-Clause OR CC0-1.0",
+      "shipped": "Two C files kept unchanged in third_party/monocypher and compiled into the program. They check the signature of a licence file.",
+      "condition": ""
+    },
+    {
       "notice": "Tracy",
       "name": "Tracy",
       "spdx": "BSD-3-Clause",

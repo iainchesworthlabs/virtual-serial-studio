@@ -8,6 +8,7 @@
 #define VSS_GUI_BACKEND_STUDIO_BACKEND_HPP
 
 #include "backend/capabilities.hpp"
+#include "backend/licence_view.hpp"
 #include "backend/view_types.hpp"
 
 #include <vss/config/document.hpp>
@@ -344,6 +345,31 @@ public:
     /// True while the fixture echoes.
     virtual bool echo(vss::endpoint_id /*id*/) const { return false; }
 
+    // -- licence (capability: licences) -------------------------------------
+
+    /// The licence Studio is using and the other files it found. The default
+    /// is no licence: the Community edition.
+    virtual licence_view licence() const { return {}; }
+
+    /// Whether the licence in use turns `feature` on, and why not. The
+    /// feature names are those of `docs/licensing.md`, such as
+    /// `plugins.official`. A screen shows a Pro control disabled with the
+    /// reason; it never works the answer out itself.
+    virtual vss::license::entitlement entitlement(const QString& feature) const;
+
+    /// Checks a licence file and, when it is one Studio accepts, copies it
+    /// to the user's licence folder. Emits `licence_changed` when the
+    /// licence in use changed. The default is `unsupported`.
+    virtual licence_import_result import_licence(const QString& /*path*/)
+    {
+        return {};
+    }
+
+    /// Removes a licence file of the user's by its
+    /// `licence_file_view::file_name`. A file an administrator installed is
+    /// never removed. Returns true when a file was removed.
+    virtual bool remove_licence(const QString& /*file_name*/) { return false; }
+
     // -- documents ---------------------------------------------------------
 
     virtual vss::config::document snapshot() const = 0;
@@ -386,6 +412,8 @@ Q_SIGNALS:
     void lines_changed(vss::endpoint_id id);
     /// One coalesced batch of engine events, on the GUI thread.
     void batch_ready(const vss::gui::event_batch& events);
+    /// The licence in use, or the list of licence files, changed.
+    void licence_changed();
 };
 
 } // namespace vss::gui

@@ -316,6 +316,11 @@
             <source>Renderer</source>
             <translation>מעבד גרפי</translation>
         </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>BSD 2-Clause License, or Creative Commons Zero, version 1.0.</source>
+            <translation>BSD 2-Clause License, או Creative Commons Zero, גרסה 1.0.</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>

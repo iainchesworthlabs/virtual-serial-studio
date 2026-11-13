@@ -316,6 +316,11 @@
             <source>Renderer</source>
             <translation>المُصيِّر</translation>
         </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>BSD 2-Clause License, or Creative Commons Zero, version 1.0.</source>
+            <translation>رخصة BSD ذات البندين، أو Creative Commons Zero، الإصدار 1.0.</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>

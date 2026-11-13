@@ -316,6 +316,11 @@
             <source>Renderer</source>
             <translation>渲染器</translation>
         </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>BSD 2-Clause License, or Creative Commons Zero, version 1.0.</source>
+            <translation>BSD 双条款许可证，或 Creative Commons Zero 1.0 版。</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
