@@ -746,6 +746,22 @@ Slices 1 to 3 are what is requested after review. Slice 3's GUI part is the larg
 (the audit log writer, the rate limiter, the frame tests, CLI plumbing) can be delegated to a smaller model; the protocol, the
 policy check, the token code and the peer-credential code are not delegated.
 
+### What slice 1 built
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Only this user can connect, and the gateway asks the kernel who did | The access list and the modes of both endpoints are read back; `peer()` is asked on every connection before a byte is read, and a test checks what both ends learn | Refusal of a second real user was not run for the gateway itself: the listener that closes another user's connection unseen is the agent's, and its `nobody` test covers it on Linux and macOS. Windows needs a guest with two accounts |
+| Nothing is done before `hello`, and every refusal there looks the same | Every operation, an unknown one and three things that are no request are sent first on both endpoints: each gets the same `unauthenticated` reply and a closed connection. A request sent in one write with a refused `hello` is not run; a second `hello` ends the session | Tokens: slice 2 |
+| One function decides, and `admin` exists only on the administration endpoint | The whole matrix (4 operations x 256 sets of scopes x 4 transports) against a rule written out by hand; a gateway told to give the public endpoint every scope still refuses `endpoint.stop` there | Ceilings for L2 and L3, own-ports rules |
+| A client can slow only itself | Tests for the hello size limit, a wrong length, a silent client, the session and waiting limits, the request allowance, and a client that never reads; a stress case stops the gateway under six busy clients | The request pool has two threads and one agent call can take ten seconds, so two sessions that wait for a hung agent hold up the others' agent requests for that long |
+| The audit log records it and cannot be written by a client | Records for start, stop, each session, each refusal and `endpoint.stop` are checked field by field; a client name that tries to end the line and start a forged one stays text inside one record; the chain verifies after every such test; a flood of refusals writes one record and a count | On Windows an audit directory that already exists is accepted when this user owns it; its access list is not read back |
+| The API is the public one, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
+
+Not built in this slice, and the reason: `vss_cli control` has `status` and `stop` only, because nothing starts
+`vss_gate` on demand yet; the gateway is in this repository and is built with the tools, where the editions page puts
+it in the Pro set, because that split is the licensing work's to make; and SHA-256 comes from Boost.Hash2, which
+raises the oldest Boost that builds this repository from 1.74 to 1.88.
+
 ## 14. Decisions for the owner
 
 All twelve were accepted as recommended.
