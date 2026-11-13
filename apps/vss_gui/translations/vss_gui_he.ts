@@ -6250,8 +6250,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>לבירור הסיבה לאיטיות של Studio. מתעד זמנים בלבד ואינו שולח דבר עד שתחבר את הפרופיילר Tracy לכתובת שלמעלה. הוא כבוי שוב בכל הפעלה של Studio.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>לבירור הסיבה לאיטיות של Studio. מתעד זמנים בלבד ואינו שולח דבר לשום מקום: Studio מאזין במחשב הזה בלבד, וציר זמן מופיע רק כשאתה מפעיל כאן את הפרופיילר Tracy ומחבר אותו לכתובת שלמעלה. Studio זוכר את המתג הזה ומתעד שוב בהפעלה הבאה. כדי לאפשר למחשבים אחרים להתחבר נדרשת הפעלה מחדש.</translation>
         </message>
     </context>
     <context>
@@ -11554,6 +11554,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> נסו שם או סוג אחר, ואז נסו שוב.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>יוצר</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +11865,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>בחירת אחר</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>מחבר</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +12970,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>גלילה</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>התקדמות</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14035,6 +14051,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>יצירת זוג</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>יוצר</translation>
         </message>
     </context>
     <context>
@@ -16646,6 +16666,14 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>הפריסה אופסה.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>התקדמות</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17081,6 +17109,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 נשמר.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>מחיל</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
         </message>
     </context>
     <context>
@@ -17843,6 +17879,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio לא הצליח לקרוא אילו מספרי COM Windows שומר, ולכן הוא בוחר מספר פנוי בעת יצירת היציאה ומציג אותו כשהיציאה מוכנה.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>מחיל</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>יוצר</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>מחיל את השינוי. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד 20 שניות.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>התקדמות ההגדרה</translation>
         </message>
     </context>
     <context>
@@ -18844,6 +18900,29 @@ Networks: %5</source>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>לא זמין בגרסה זו</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>פקדי זום</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>הקטנה</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>איפוס הזום ל-100%</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>הגדלה</translation>
         </message>
     </context>
 </TS>

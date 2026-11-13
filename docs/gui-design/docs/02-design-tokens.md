@@ -7,23 +7,23 @@ Authoritative values: `tokens/tokens.json`. This page explains how to use them i
 
 | Token | Role | Light | Dark |
 |---|---|---|---|
-| ground | Window background behind the panes | #ECEEF1 | #0E0F12 |
-| panel | Panes, dialogs, cards, fields | #FFFFFF | #18191D |
-| sunken | Grouped sections, canvas, read-only fields | #F4F5F7 | #121316 |
-| fill / fillHover | Secondary buttons, segment tracks, neutral chips, menu rows under the pointer | #EEF0F3 / #E4E7EB | #26282D / #2F3137 |
-| hover / pressed | Row and ghost button under the pointer, and while pressed | #F3F4F6 / #E4E7EB | #1F2125 / #2F3137 |
-| line | Pane borders and dividers (decorative) | #E2E5E9 | #27292E |
-| line2 | Field and card borders, scrollbar thumbs | #CDD2D9 | #3A3D44 |
-| control | Check box and radio edges, field hover (3:1 rule) | #808996 | #7C828C |
-| ink / ink2 / ink3 | Text: primary, secondary, caption | #14171C / #4A515C / #646C79 | #ECEDEF / #B3B8C0 / #8C929C |
+| ground | Window background behind the panes | #ECEEF1 | #14161A |
+| panel | Panes, dialogs, cards, fields | #FFFFFF | #22252B |
+| sunken | Grouped sections, canvas, read-only fields | #F4F5F7 | #1A1D22 |
+| fill / fillHover | Secondary buttons, segment tracks, neutral chips, menu rows under the pointer | #EEF0F3 / #E4E7EB | #2D3139 / #363B44 |
+| hover / pressed | Row and ghost button under the pointer, and while pressed | #F3F4F6 / #E4E7EB | #2A2E35 / #3A3F49 |
+| line | Pane borders and dividers (decorative) | #E2E5E9 | #343944 |
+| line2 | Field and card borders, scrollbar thumbs | #CDD2D9 | #454A55 |
+| control | Check box and radio edges, field hover (3:1 rule) | #808996 | #8A909B |
+| ink / ink2 / ink3 | Text: primary, secondary, caption | #14171C / #4A515C / #646C79 | #E6E8EC / #B4B9C2 / #979DA8 |
 | accent / accentHover | Primary fill, checked controls, selection edge; primary hover | #2160E0 / #1A52C4 | #2F6AE6 / #2558C9 |
-| accentStrong / accentText | Accent text, links and accent icons | #1A52C4 / #1D56C9 | #8AB4FF / #8AB4FF |
-| accentSoft / accentLine | Selection fill and its edge, RX tag | #E8EFFD / #B9CDF6 | #1B2742 / #2D4A80 |
-| violet / violetSoft | TX tag, fixture tiles and chips | #6941C6 / #EDE9FB | #B9A4FF / #272042 |
-| ok, okSoft, okLine | Healthy | #17744B ... | #4CC38A ... |
-| amber, amberSoft, amberLine | Attention | #9A5806 ... | #F0B14A ... |
-| bad, badSoft, badLine | Failure | #C4321F ... | #FF7A6B ... |
-| focus | Focus ring | #2160E0 | #8AB4FF |
+| accentStrong / accentText | Accent text, links and accent icons | #1A52C4 / #1D56C9 | #9BBCF7 / #9BBCF7 |
+| accentSoft / accentLine | Selection fill and its edge, RX tag | #E8EFFD / #B9CDF6 | #232F4A / #3D5A9C |
+| violet / violetSoft | TX tag, fixture tiles and chips | #6941C6 / #EDE9FB | #B7A8F0 / #2B2644 |
+| ok, okSoft, okLine | Healthy | #17744B ... | #5BC694 ... |
+| amber, amberSoft, amberLine | Attention | #9A5806 ... | #E8B260 ... |
+| bad, badSoft, badLine | Failure | #C4321F ... | #F28B7E ... |
+| focus | Focus ring | #2160E0 | #9BBCF7 |
 | onAccent, onDanger | Label on accent and danger fills | #FFFFFF | #FFFFFF, #2A0905 |
 
 Run `python3 tools/check_contrast.py` after any colour change. It must report `FAILURES: 0`.

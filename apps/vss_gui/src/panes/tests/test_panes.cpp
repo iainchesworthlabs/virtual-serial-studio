@@ -12,12 +12,14 @@
 #include "panes/inspector_panel.hpp"
 #include "panes/monitor_model.hpp"
 #include "panes/monitor_panel.hpp"
+#include "panes/port_delegate.hpp"
 #include "panes/port_model.hpp"
 #include "panes/ports_panel.hpp"
 #include "panes/selection_service.hpp"
 #include "panes/send_panel.hpp"
 #include "widgets/notes.hpp"
 #include "widgets/port_menu.hpp"
+#include "widgets/surfaces.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -26,6 +28,8 @@
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QGuiApplication>
+#include <QHeaderView>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
@@ -448,6 +452,48 @@ TEST_CASE("monitor panel: Export capture is named and follows the rows")
     REQUIRE(button->isEnabled());
 }
 
+TEST_CASE("monitor panel: the controls share the title row when it fits")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::Pane pane(QStringLiteral("Monitor"));
+    auto* panel = new vss::gui::MonitorPanel(backend);
+    pane.set_body(panel);
+    panel->attach_header(pane.header());
+    panel->set_advanced(true);
+    pane.resize(1400, 260);
+    pane.show();
+    QApplication::processEvents();
+
+    QPushButton* button = nullptr;
+    for (QPushButton* candidate : pane.findChildren<QPushButton*>())
+    {
+        if (candidate->text() == QStringLiteral("Export capture"))
+            button = candidate;
+    }
+    REQUIRE(button != nullptr);
+    // Wide: the controls are inside the header, on the title's row.
+    REQUIRE(panel->controls_in_header());
+    REQUIRE(pane.header()->isAncestorOf(button));
+    REQUIRE(button->isVisible());
+
+    // Narrow: they drop to a row under it, and stay visible and whole.
+    pane.resize(500, 260);
+    QApplication::processEvents();
+    REQUIRE(!panel->controls_in_header());
+    REQUIRE(!pane.header()->isAncestorOf(button));
+    REQUIRE(button->isVisible());
+    REQUIRE(button->geometry().right() <= panel->width());
+
+    // Back to wide, and Simple mode takes them out of the header again.
+    pane.resize(1400, 260);
+    QApplication::processEvents();
+    REQUIRE(panel->controls_in_header());
+    panel->set_advanced(false);
+    QApplication::processEvents();
+    REQUIRE(!panel->controls_in_header());
+    REQUIRE(!button->isVisible());
+}
+
 TEST_CASE("monitor: a bus fault is logged with the engine's sentence")
 {
     vss::gui::FakeStudioBackend backend;
@@ -543,6 +589,80 @@ TEST_CASE("ports panel: selection stays in sync with the service")
     auto* table = panel.findChild<QTableView*>();
     REQUIRE(table != nullptr);
     REQUIRE_EQ(table->model()->rowCount(), 2);
+}
+
+TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
+{
+    QSettings().remove(QStringLiteral("ui/portsColumnWidths"));
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("one"),
+                                     vss::virtual_port_kind::pty, true)
+                .has_value());
+    {
+        vss::gui::PortsPanel panel(backend, selection);
+        panel.resize(640, 300);
+        panel.set_advanced(true);
+        panel.show();
+        QApplication::processEvents();
+        QTableView* table = panel.table();
+        QHeaderView* header = table->horizontalHeader();
+        REQUIRE(table != nullptr);
+
+        // Every column is user-resizable; the last takes the spare width.
+        for (int column = 0; column < 4; ++column)
+            REQUIRE_EQ(header->sectionResizeMode(column),
+                       QHeaderView::Interactive);
+        REQUIRE(header->stretchLastSection());
+        REQUIRE(!header->sectionsMovable());
+        REQUIRE_EQ(header->minimumSectionSize(),
+                   vss::gui::PortsPanel::kMinimumColumnWidth);
+        int total = 0;
+        for (int column = 0; column < header->count(); ++column)
+            total += header->sectionSize(column);
+        REQUIRE_EQ(total, table->viewport()->width());
+
+        // The State chip's longest text fits at the default width.
+        REQUIRE(header->sectionSize(1) >=
+                vss::gui::PortDelegate::state_chip_width(
+                    vss::gui::PortModel::tr("Waiting for program")));
+
+        // A drag changes one column and leaves the others alone.
+        const int rx_before = header->sectionSize(2);
+        header->resizeSection(1, 220);
+        REQUIRE_EQ(header->sectionSize(1), 220);
+        REQUIRE_EQ(header->sectionSize(2), rx_before);
+
+        // Keyboard: Right selects the column, Ctrl+Alt+Right widens it.
+        table->setFocus();
+        table->setCurrentIndex(table->model()->index(0, 2));
+        QKeyEvent widen(QEvent::KeyPress, Qt::Key_Right,
+                        Qt::ControlModifier | Qt::AltModifier);
+        QApplication::sendEvent(table, &widen);
+        REQUIRE_EQ(header->sectionSize(2), rx_before + 16);
+        QKeyEvent narrow(QEvent::KeyPress, Qt::Key_Left,
+                         Qt::ControlModifier | Qt::AltModifier);
+        for (int i = 0; i < 20; ++i)
+            QApplication::sendEvent(table, &narrow);
+        REQUIRE_EQ(header->sectionSize(2),
+                   vss::gui::PortsPanel::kMinimumColumnWidth);
+        header->resizeSection(2, 200);
+        QKeyEvent fit(QEvent::KeyPress, Qt::Key_0,
+                      Qt::ControlModifier | Qt::AltModifier);
+        QApplication::sendEvent(table, &fit);
+        REQUIRE(header->sectionSize(2) < 200);
+        REQUIRE(header->sectionSize(2) >=
+                vss::gui::PortsPanel::kMinimumColumnWidth);
+
+        panel.save_column_widths();
+    }
+
+    // A new panel starts with the saved widths.
+    vss::gui::PortsPanel again(backend, selection);
+    again.set_advanced(true);
+    REQUIRE_EQ(again.table()->horizontalHeader()->sectionSize(1), 220);
+    QSettings().remove(QStringLiteral("ui/portsColumnWidths"));
 }
 
 TEST_CASE("ports panel: ports another program made are named, not shown")

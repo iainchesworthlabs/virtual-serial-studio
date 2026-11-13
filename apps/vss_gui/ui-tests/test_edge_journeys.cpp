@@ -188,6 +188,7 @@ TEST_CASE("edge: a failing backend is reported and the next try works")
     auto* form = st::open_job(s, job::pair);
     s.fake().fail_next(vss::make_error_code(vss::errc::invalid_argument));
     click(form->create_button());
+    wait_for("the failed build", [&] { return !form->busy(); });
     s.settle();
     st::require_counts(s, {0, 0});
     REQUIRE(s.simple_page()->form() != nullptr);
@@ -325,8 +326,14 @@ TEST_CASE("edge: rapid clicking does not break the window")
     auto* form = s.simple_page()->form();
     QPointer<simple::JobForm> guard(form);
     click(form->create_button());
-    if (guard != nullptr && form->create_button()->isVisible())
-        click(form->create_button());
+    // While the ports are being made Create is disabled, and Enter or a
+    // second submit starts nothing.
+    if (guard != nullptr && guard->busy())
+    {
+        REQUIRE(!form->create_button()->isEnabled());
+        REQUIRE(!guard->submit());
+    }
+    wait_for("the build", [&] { return guard.isNull() || !guard->busy(); });
     s.settle();
     st::require_counts(s, {2, 1});
     s.step(QStringLiteral("switch mode ten times"));

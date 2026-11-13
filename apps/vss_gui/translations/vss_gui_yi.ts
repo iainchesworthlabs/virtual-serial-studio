@@ -6250,8 +6250,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>כּדי צו פֿאַרשטיין פֿאַרוואָס Studio איז לאַנגזאַם. עס רעקאָרדירט נאָר צײַטן און שיקט גאָרנישט ביז דו פֿאַרבינדסט דעם Tracy־פּראָפֿילער צו דער אַדרעס אויבן. עס איז ווידער אויס יעדעס מאָל ווען Studio הייבט זיך אָן.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>כּדי צו פֿאַרשטיין פֿאַרוואָס Studio איז לאַנגזאַם. עס רעקאָרדירט נאָר צײַטן און שיקט גאָרנישט אין קיין אָרט: Studio הערט זיך נאָר אויף דעם קאָמפּיוטער, און אַ צײַט־שורה דערשײַנט נאָר ווען דו הייבסט דאָ אָן דעם Tracy־פּראָפֿילער און פֿאַרבינדסט אים צו דער אַדרעס אויבן. Studio געדענקט דעם שאַלטער און רעקאָרדירט ווידער דעם נאָכגענדיקן מאָל ווען עס הייבט זיך אָן. צו דערלויבן אַנדערע קאָמפּיוטערס זיך צו פֿאַרבינדן דאַרף מען ריסטאַרטן.</translation>
         </message>
     </context>
     <context>
@@ -11554,6 +11554,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> פּרובירט אַן אַנדער נאָמען אָדער סאָרט, און פּרובירט נאָך אַ מאָל.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +11865,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>קלײַבט אויס אַן אַנדערן</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>פֿאַרבינדט</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +12970,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>ראָלן</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>פּראָגרעס</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14035,6 +14051,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>באַשאַפֿן פּאָר</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
         </message>
     </context>
     <context>
@@ -16646,6 +16666,14 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>דער אויסלייג איז צוריקגעשטעלט.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>פּראָגרעס</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17081,6 +17109,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 איז אָפּגעהיט.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>אָנווענדט</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
         </message>
     </context>
     <context>
@@ -17843,6 +17879,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio האָט נישט געקענט לייענען וועלכע COM־נומערן Windows האַלט, דעריבער קלײַבט עס אויס אַ פֿרײַען ווען דער פּאָרט ווערט באַשאַפֿן און ווײַזט אים ווען דער פּאָרט איז גרייט.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>אָנווענדט</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>שאַפֿט</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>װענדט אָן די ענדערונג. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>שטעלט אײַן. Windows אינסטאַלירט יעדן נײַעם פּאָרט, װאָס קען נעמען ביז 20 סעקונדעס.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>פּראָגרעס פֿון דער אײַנשטעלונג</translation>
         </message>
     </context>
     <context>
@@ -18844,6 +18900,29 @@ Networks: %5</source>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>זום קאנטראלן</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>אפקלענערן</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>צוריקשטעלן דעם זום צו 100%</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>פארגרעסערן</translation>
         </message>
     </context>
 </TS>

@@ -525,8 +525,11 @@ void SettingsDialog::build()
         QCoreApplication::translate(
             "Settings",
             "For finding out why Studio is slow. It records timings only and "
-            "sends nothing until you connect the Tracy profiler to the address "
-            "above. It is off again each time Studio starts."),
+            "sends nothing anywhere: Studio listens on this computer only, and "
+            "a timeline appears only when you start the Tracy profiler here "
+            "and connect it to the address above. Studio remembers this switch "
+            "and records again the next time it starts. Letting other "
+            "computers connect takes a restart."),
         profiling_holder));
     performance_layout->addWidget(profiling_holder);
     performance_layout->addStretch(1);
@@ -603,6 +606,11 @@ void SettingsDialog::build()
                     controller.enable(profiling_remote_->isChecked());
                 else
                     controller.disable();
+                // Remembered, so Studio records again from its next start.
+                settings_.profile_on_start =
+                    controller.status().current ==
+                    vss::profiling::state::recording;
+                persist();
                 sync_profiling();
             });
     connect(&profiling, &ProfilingController::changed, this,
@@ -727,6 +735,12 @@ void SettingsDialog::persist()
 void SettingsDialog::reset_to_defaults()
 {
     settings_ = default_ui_settings();
+    // The profiling switch reports what the profiler is doing now, and a
+    // reset must not stop a recording in progress, so the choice for the next
+    // start keeps following it.
+    settings_.profile_on_start =
+        ProfilingController::instance().status().current ==
+        vss::profiling::state::recording;
     {
         const QSignalBlocker block_advanced(advanced_);
         const QSignalBlocker block_baud(baud_);

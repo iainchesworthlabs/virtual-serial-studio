@@ -24,6 +24,7 @@
     <file alias="icons/export.svg">resources/icons/export.svg</file>
     <file alias="icons/fault.svg">resources/icons/fault.svg</file>
     <file alias="icons/fit.svg">resources/icons/fit.svg</file>
+    <file alias="icons/minus.svg">resources/icons/minus.svg</file>
     <file alias="icons/fixture.svg">resources/icons/fixture.svg</file>
     <file alias="icons/info.svg">resources/icons/info.svg</file>
     <file alias="icons/more.svg">resources/icons/more.svg</file>

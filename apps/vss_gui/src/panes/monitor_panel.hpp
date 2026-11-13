@@ -19,17 +19,20 @@
 class QCheckBox;
 class QComboBox;
 class QLabel;
+class QHBoxLayout;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
 class QStackedWidget;
 class QTabWidget;
 class QTableView;
+class QVBoxLayout;
 
 namespace vss::gui
 {
 
 class MonitorModel;
+class PaneHeader;
 class SegmentedControl;
 
 /// Monitor dock: bounded traffic table, Advanced filters and Log/JSON tabs.
@@ -48,6 +51,15 @@ public:
     void refresh_ports();
     void handle_events(const event_batch& events);
 
+    /// Lets the Advanced controls share the pane's title row. They sit there
+    /// while the row is wide enough for all of them, and drop to a row of
+    /// their own under it when it is not.
+    void attach_header(PaneHeader* header);
+    /// True while the Advanced controls are in the title row.
+    bool controls_in_header() const noexcept { return in_header_; }
+
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
 Q_SIGNALS:
     void port_selected(vss::endpoint_id id);
     void status_message(const QString& message);
@@ -64,8 +76,13 @@ private:
     void export_visible();
     void export_capture();
     void follow_if_enabled();
+    void place_controls();
 
     StudioBackend& backend_;
+    PaneHeader* header_ = nullptr;
+    QVBoxLayout* page_layout_ = nullptr;
+    QHBoxLayout* advanced_layout_ = nullptr;
+    bool in_header_ = false;
     MonitorModel* model_ = nullptr;
     QTabWidget* tabs_ = nullptr;
     QWidget* monitor_page_ = nullptr;

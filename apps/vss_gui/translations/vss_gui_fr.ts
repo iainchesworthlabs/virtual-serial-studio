@@ -6250,8 +6250,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>Sert à comprendre pourquoi Studio est lent. Il n'enregistre que des durées et n'envoie rien tant que vous n'avez pas connecté le profileur Tracy à l'adresse ci-dessus. Il est de nouveau désactivé à chaque démarrage de Studio.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>Sert à comprendre pourquoi Studio est lent. Il n'enregistre que des durées et n'envoie rien nulle part : Studio n'écoute que sur cet ordinateur, et une chronologie n'apparaît que si vous lancez ici le profileur Tracy et le connectez à l'adresse ci-dessus. Studio retient ce réglage et enregistre de nouveau au prochain démarrage. Autoriser d'autres ordinateurs à se connecter demande un redémarrage.</translation>
         </message>
     </context>
     <context>
@@ -11554,6 +11554,10 @@ Réseaux : %5</translation>
             <source> Try a different name or kind, then try again.</source>
             <translation> Essayez un autre nom ou type, puis réessayez.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>Création</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +11865,10 @@ Réseaux : %5</translation>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>En choisir un autre</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>Connexion</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +12970,14 @@ Réseaux : %5</translation>
             <source>Scroll</source>
             <translation>Défiler</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Progression</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14035,6 +14051,10 @@ Réseaux : %5</translation>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>Créer la paire</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Création</translation>
         </message>
     </context>
     <context>
@@ -16646,6 +16666,14 @@ Réseaux : %5</translation>
             <source>Layout reset.</source>
             <translation>Disposition réinitialisée.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>Progression</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17081,6 +17109,14 @@ Réseaux : %5</translation>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 enregistré.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Application</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
         </message>
     </context>
     <context>
@@ -17843,6 +17879,26 @@ Réseaux : %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio n'a pas pu lire quels numéros COM Windows conserve ; il en choisit donc un libre à la création du port et l'affiche quand le port est prêt.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>Application</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>Création</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Application de la modification. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>Configuration en cours. Windows installe chaque nouveau port, ce qui peut prendre jusqu’à 20 secondes.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>Progression de la configuration</translation>
         </message>
     </context>
     <context>
@@ -18844,6 +18900,29 @@ Réseaux : %5</translation>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>Non disponible dans cette version</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>Commandes de zoom</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>Zoom arrière</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>Rétablir le zoom à 100 %</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>Zoom avant</translation>
         </message>
     </context>
 </TS>

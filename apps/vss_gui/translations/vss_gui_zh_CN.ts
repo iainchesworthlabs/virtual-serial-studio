@@ -6247,8 +6247,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>用于查明 Studio 变慢的原因。它只记录耗时，在你将 Tracy 分析器连接到上方地址之前不会发送任何内容。每次启动 Studio 时它都会重新关闭。</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>用于查明 Studio 变慢的原因。它只记录耗时，不会向任何地方发送内容：Studio 只在这台计算机上监听，只有当你在这里启动 Tracy 分析器并将其连接到上方地址时才会出现时间线。Studio 会记住此开关，并在下次启动时再次记录。允许其他计算机连接需要重启。</translation>
         </message>
     </context>
     <context>
@@ -11547,6 +11547,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation>请更换名称或类型，然后重试。</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11854,6 +11858,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>选择其他设备</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>正在连接</translation>
         </message>
     </context>
     <context>
@@ -12955,6 +12963,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>滚动</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>进度</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -14028,6 +14044,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>创建串口对</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
         </message>
     </context>
     <context>
@@ -16635,6 +16655,14 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>已重置布局。</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>进度</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17070,6 +17098,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>已保存 %1。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>正在应用</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
         </message>
     </context>
     <context>
@@ -17831,6 +17867,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio 无法读取 Windows 保留了哪些 COM 编号，因此会在创建端口时选择一个空闲编号，并在端口就绪时显示。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>正在应用</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>正在创建</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在应用更改。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to 20 seconds.</source>
+            <translation>正在设置。Windows 会安装每个新端口，最多可能需要 20 秒。</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>设置进度</translation>
         </message>
     </context>
     <context>
@@ -18824,6 +18880,29 @@ Networks: %5</source>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>此版本不可用</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>缩放控件</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>缩小</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>将缩放重置为 100%</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>放大</translation>
         </message>
     </context>
 </TS>
