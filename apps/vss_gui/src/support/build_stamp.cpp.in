@@ -1,0 +1,31 @@
+//
+// Copyright (c) 2026 Virtual Serial Studio contributors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Generated from build_stamp.cpp.in by cmake/VssBuildStamp.cmake. Do not edit.
+//
+
+#include "support/build_stamp.hpp"
+
+namespace vss::gui::support
+{
+
+const build_stamp& generated_build_stamp() noexcept
+{
+    static const build_stamp stamp{
+        "@VSS_STAMP_version@",
+        "@VSS_STAMP_tag_text@",
+        @VSS_STAMP_distance@,
+        "@VSS_STAMP_commit@",
+        "@VSS_STAMP_commit_full@",
+        "@VSS_STAMP_branch@",
+        @VSS_STAMP_dirty@,
+        "@VSS_STAMP_build_number@",
+        "@VSS_STAMP_build_time@",
+        "@VSS_STAMP_build_type@",
+        "@VSS_STAMP_compiler@"};
+    return stamp;
+}
+
+} // namespace vss::gui::support

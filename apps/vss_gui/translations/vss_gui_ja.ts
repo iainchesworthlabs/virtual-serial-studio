@@ -171,6 +171,141 @@
             <source>Environment copied.</source>
             <translation>環境情報をコピーしました。</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>ビルド情報</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>ビルド情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>ビルド情報をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>バグ報告に貼り付けてください。「何の上で動いているか」がわかります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>バージョン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Git タグ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Git リビジョン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>短いリビジョン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>作業ツリー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>ブランチ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>ビルド番号</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>ビルド日時</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>ビルドの種類</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>コンパイラ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>ビルド時の Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>オペレーティングシステム</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>アーキテクチャ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>カーネル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>実行時の Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>プラットフォームプラグイン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>ディスプレイ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>言語</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>プロファイリング</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>共有ライブラリとして Studio に同梱されています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>このビルドにはプロファイリング対応が含まれているため、同梱されています。</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1475,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>環境情報をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
         </message>
     </context>
     <context>
@@ -8908,6 +9053,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio のセットアップが完了しました。新しいポートを他のプログラムから開けます。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>ビルド 環境 バグ報告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
         </message>
     </context>
     <context>
@@ -16626,6 +16786,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2785" />
             <source>Layout reset.</source>
             <translation>レイアウトをリセットしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>診断情報をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>ビルド 環境 バグ報告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>診断情報をコピーしました。</translation>
         </message>
     </context>
     <context>

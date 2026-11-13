@@ -12,6 +12,7 @@ add_library(vss_gui_support STATIC
   app_identity.hpp
   build_info.cpp
   build_info.hpp
+  build_stamp.hpp
   bundle.cpp
   bundle.hpp
   check_row.cpp
@@ -55,6 +56,9 @@ add_library(vss_gui_support STATIC
   troubleshoot.hpp
   troubleshoot_dialog.cpp
   troubleshoot_dialog.hpp
+  third_party.cpp
+  third_party.hpp
+  third_party.qrc
   zip_writer.cpp
   zip_writer.hpp)
 
@@ -78,13 +82,10 @@ endif()
 
 target_compile_features(vss_gui_support PUBLIC cxx_std_23)
 target_compile_definitions(vss_gui_support PRIVATE QT_NO_KEYWORDS)
-target_compile_definitions(vss_gui_support PUBLIC
-  VSS_GIT_COMMIT="${VSS_GIT_COMMIT}"
-  VSS_GIT_BRANCH="${VSS_GIT_BRANCH}"
-  VSS_BUILD_DATE="${VSS_BUILD_DATE}"
-  VSS_BUILD_TYPE="${VSS_BUILD_TYPE}"
-  VSS_COMPILER="${VSS_COMPILER}"
-  VSS_GUI_VERSION="${PROJECT_VERSION}")
+# The build identity, stamped before every build.
+vss_add_build_info(vss_gui_support
+  TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/build_stamp.cpp.in
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build_stamp.cpp)
 set_target_properties(vss_gui_support PROPERTIES AUTOMOC ON)
 vss_set_warnings(vss_gui_support)
 

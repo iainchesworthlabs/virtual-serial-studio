@@ -171,6 +171,141 @@
             <source>Environment copied.</source>
             <translation>די סבֿיבֿה איז אָפּגעקאָפּירט.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>בילד אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>קאפּירן בילד אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>בילד אינפֿאָרמאַציע קאפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>קאָפּירט דאָס אין אַ באַריכט וועגן אַ טעות. עס ענטפֿערט אויף "אויף וואָס לויפֿט דאָס?"</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Git טאַג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Git רעוויזיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>קורצע רעוויזיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>אַרבעטס־בוים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>צווייג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>בילד נומער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>געבילד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>בילד טיפּ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>קאָמפּיילער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>Qt בײַם בילדן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>אָפּעראַציע־סיסטעם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>אַרכיטעקטור</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>קערנעל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>Qt בײַם לויפֿן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>פּלאַטפֿאָרמע־פּלאַג־אין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>אויסשטעלונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>שפּראַך</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>פּראָפֿילירונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>ווערט געשיקט מיט Studio ווי געמיינזאַמע ביבליאָטעקן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>פֿאַרהאַנען ווײַל דער בילד כולל'ט פּראָפֿילירונג־שטיצע.</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1475,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>די סבֿיבֿה איז אָפּגעקאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
         </message>
     </context>
     <context>
@@ -8914,6 +9059,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio איז אײַנגעשטעלט. אַנדערע פּראָגראַמען קענען עפֿענען נײַע פּאָרטן.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>בילד סביבה טעות באַריכט</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
         </message>
     </context>
     <context>
@@ -16637,6 +16797,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2785" />
             <source>Layout reset.</source>
             <translation>דער אויסלייג איז צוריקגעשטעלט.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>קאפּירן דיאַגנאָסטיק אינפֿאָרמאַציע</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>בילד סביבה טעות באַריכט</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>דיאַגנאָסטיק אינפֿאָרמאַציע קאפּירט.</translation>
         </message>
     </context>
     <context>

@@ -540,8 +540,8 @@ void ShellWindow::build_actions()
         [this] { open_troubleshoot(); });
     add(QStringLiteral("help.shortcuts"), tr("Keyboard shortcuts"), tr("keys"),
         {}, {}, action_level::simple, [this] { open_shortcuts(); });
-    add(QStringLiteral("help.environment"), tr("Copy environment"),
-        tr("build bug report"), QStringLiteral("copy"), {},
+    add(QStringLiteral("help.environment"), tr("Copy diagnostic information"),
+        tr("build environment bug report"), QStringLiteral("copy"), {},
         action_level::simple, [this] { copy_environment(); });
     add(QStringLiteral("help.about"), tr("About"),
         tr("version licence copyright"), {}, {}, action_level::simple,
@@ -2869,8 +2869,8 @@ void ShellWindow::open_bundle()
 
 void ShellWindow::copy_environment()
 {
-    QGuiApplication::clipboard()->setText(environment_report());
-    ToastManager::instance().show(this, tr("Environment copied."));
+    QGuiApplication::clipboard()->setText(diagnostic_report());
+    ToastManager::instance().show(this, tr("Diagnostic information copied."));
 }
 
 void ShellWindow::new_document()

@@ -17,8 +17,8 @@ class QTabWidget;
 namespace vss::gui::support
 {
 
-/// About: the version and GPLv3 notice, the copyable environment, the
-/// component licences and the font statement.
+/// About: the version and GPLv3 notice, the copyable build information and
+/// environment, the component licences and the font statement.
 class AboutDialog final : public QDialog
 {
     Q_OBJECT
@@ -29,8 +29,10 @@ public:
     /// Where the source of this program is published.
     static QString source_url();
 
-    /// The exact block "Copy environment" puts on the clipboard.
+    /// The exact blocks the copy buttons put on the clipboard.
+    QString build_information_text() const;
     QString environment_text() const;
+    QString diagnostic_text() const;
     QTabWidget* tabs() const noexcept { return tabs_; }
 
 Q_SIGNALS:
@@ -38,7 +40,12 @@ Q_SIGNALS:
 
 private:
     void build();
+    void copy_build_information();
     void copy_environment();
+    void copy_diagnostic_information();
+    QWidget* rows_page(const QString& intro,
+                       const QVector<environment_row>& rows,
+                       const QString& copy_text, void (AboutDialog::*copy)());
 
     build_info info_;
     QTabWidget* tabs_ = nullptr;

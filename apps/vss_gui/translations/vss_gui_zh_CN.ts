@@ -171,6 +171,141 @@
             <source>Environment copied.</source>
             <translation>已复制环境信息。</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>构建信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>复制构建信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>已复制构建信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>请将此内容复制到错误报告中。它回答的是“这在什么环境中运行？”</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>Git 标签</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>Git 修订</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>短修订</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>工作树</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>分支</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>构建编号</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>构建时间</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>构建类型</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>编译器</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>构建所用的 Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>操作系统</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>架构</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>内核</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>运行时的 Qt</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>平台插件</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>显示</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>语言</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>性能分析</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>作为共享库随 Studio 一起提供。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>此构建包含性能分析支持，因此包含该组件。</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1475,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>已复制环境信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
         </message>
     </context>
     <context>
@@ -8908,6 +9053,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio 已设置完成。其他程序可以打开新建的端口。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>构建 环境 错误报告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
         </message>
     </context>
     <context>
@@ -16626,6 +16786,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2785" />
             <source>Layout reset.</source>
             <translation>已重置布局。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>复制诊断信息</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>构建 环境 错误报告</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>已复制诊断信息。</translation>
         </message>
     </context>
     <context>
