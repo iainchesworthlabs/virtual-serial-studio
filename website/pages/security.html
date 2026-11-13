@@ -1,0 +1,54 @@
+<!--
+title: Security policy
+description: How to report a vulnerability in Virtual Serial Studio in private, what counts, what to expect, and how releases are signed.
+-->
+<section class="band pane" aria-labelledby="page-title">
+<div class="prose">
+<p class="eyebrow">Security policy</p>
+<h1 id="page-title">Report a vulnerability in private</h1>
+<p class="lead">Please do not report a security problem as a public issue or pull request. Use GitHub's private vulnerability reporting, which opens an advisory that only you and the maintainer can see.</p>
+<div class="actions">
+<a class="btn primary" href="{{repo_url}}/security/advisories/new">Report a vulnerability on GitHub</a>
+</div>
+<p>If you cannot use that form, open an ordinary issue that says only that you have a security matter, with no details, and the maintainer will reply there to arrange a private channel.</p>
+<p>The policy that binds us is the file <code>SECURITY.md</code> in the <a href="{{repo_url}}">repository</a>. This page is a summary of it.</p>
+
+<h2 id="helps">What helps most</h2>
+<ul>
+<li><strong>What is affected:</strong> the version, from the About dialog or <code>vss_gui --version</code>, the operating system, and whether it is the application, <code>vss_cli</code> or a release file.</li>
+<li><strong>How to reproduce it:</strong> the smallest setup file, command line or byte stream that shows it.</li>
+<li><strong>What someone could do with it.</strong></li>
+</ul>
+<p>Please do not attach traffic captured from equipment that is not yours.</p>
+
+<h2 id="scope">What counts</h2>
+<p>Studio opens serial ports, creates virtual ones, and can bridge a port to TCP, RFC 2217 or UDP. So these count:</p>
+<ul>
+<li>a crash, a hang, an out-of-bounds read or another memory-safety fault that crafted bytes can cause, from a network endpoint or from a setup file;</li>
+<li>a network endpoint that accepts a peer the user did not ask it to, or that exposes a port the user did not share;</li>
+<li>anything that lets one program read or write another program's virtual port without being given it;</li>
+<li>a flaw in the Windows COM port driver, in the build and workflow files, or in what the release process publishes;</li>
+<li>a flaw in this website.</li>
+</ul>
+<p>The bridges do not authenticate or encrypt. Plain TCP, RFC 2217 and UDP have neither, and a hostile network is outside what they defend against. A report that depends only on that describes a limit of the protocol.</p>
+
+<h2 id="expect">What to expect</h2>
+<p>Studio is maintained by one person, so there is no guaranteed response time and no promised date for a fix. A report is read and acknowledged in the advisory. One that is confirmed is fixed and published with the next release. Please allow time for a fix to ship before you publish details. The advisory is where that is agreed.</p>
+<p>Studio is before version 1.0. Only the newest release receives fixes.</p>
+
+<h2 id="signed">Signed releases</h2>
+<p>Every release file is listed in <code>SHA512SUMS</code>, has a detached OpenPGP signature and a GitHub build-provenance attestation, and each release holds an SPDX software bill of materials. The release key is:</p>
+<pre aria-label="The release signing key"><code>Iain Chesworth Labs Releases
+Ed25519, created 2026-10-22, expires 2028-10-21
+FD13 CB8C AC83 1664 8CD9  74D0 8149 254C 4189 4DBE</code></pre>
+<p>A key without this fingerprint did not sign a release of this project. If you are shown one that claims to, please report it. <a href="downloads.html#verify">How to verify a download</a>.</p>
+
+<h2 id="design">How the product limits risk</h2>
+<ul>
+<li>Nothing listens on the network until you create an endpoint, and you choose the address and who may connect.</li>
+<li>The application has no telemetry and makes no connection of its own.</li>
+<li>Plugins, when they arrive, run in a separate process, and an unsigned plugin loads only after you confirm.</li>
+<li>The remote control endpoint, when it arrives, is off by default and local only when first turned on.</li>
+</ul>
+</div>
+</section>

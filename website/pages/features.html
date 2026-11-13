@@ -1,0 +1,224 @@
+<!--
+title: Features
+description: What Virtual Serial Studio does: virtual ports, sharing one device between programs, a traffic monitor, network bridges, control lines, faults, and a command line tool.
+-->
+<section class="band pane" aria-labelledby="page-title">
+<div class="head">
+<p class="eyebrow">Features</p>
+<h1 id="page-title">Everything here is in the free Community edition</h1>
+<p class="lead">One window with two levels. Simple is a page of jobs for the person who needs a port now. Advanced is a diagram, with the panes an integrator or a diagnostician needs. Both show the same studio, and switching never changes what you have built.</p>
+</div>
+<div class="note warn wide">
+<p><strong>About the pictures.</strong> Each dashed frame below marks where a picture of the application will go. The pictures are made by the application itself, drawing its own window off screen in the light and the dark theme, so they always match the build you download. They are not on this page yet.</p>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-simple">
+<div class="feature">
+<div class="words">
+<p class="eyebrow">Simple mode</p>
+<h2 id="f-simple">A port where there is none</h2>
+<p>Simple mode opens with your setups and a page of jobs. A job is a short form with sensible defaults, and the result is a port with a name you can type into your program.</p>
+<ul>
+<li>A virtual port, or a linked pair so that two programs talk to each other.</li>
+<li>On Windows, a COM port from Studio's own driver, with the COM number you choose. Old programs that only offer COM1 to COM4 can have one of those.</li>
+<li>On Linux and macOS, a pseudo terminal with a stable name.</li>
+<li>&ldquo;Type to&rdquo; and &ldquo;Data going through&rdquo; on each setup's page, so you can test a port without another program.</li>
+</ul>
+</div>
+<figure class="shot">
+<div class="frame" role="img" aria-label="Placeholder for a picture of Simple mode">
+<span class="chip warn hollow">Picture to come</span>
+<span>The window at the Simple level: the list of your setups on the left and the page of jobs on the right, in the light theme.</span>
+<code>shot: simple-jobs</code>
+</div>
+<figcaption>Simple mode: your setups and the jobs.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-share">
+<div class="feature flip">
+<div class="words">
+<p class="eyebrow">Share and merge</p>
+<h2 id="f-share">One device, several programs</h2>
+<p>The operating system lets one program open a serial port. Studio opens the device and gives each program its own port, so the maker's tool, your logger and your own script can run side by side.</p>
+<ul>
+<li>Split one device to several listeners, or join several publishers into one device.</li>
+<li>Choose the owner: the one program allowed to write. Bytes from the others are counted and dropped, and the Monitor shows it.</li>
+<li>Put several programs on a shared bus with a silent tap, and model RS-422 and half-duplex RS-485 lines.</li>
+<li>See which program is on the other side of a port, where the system can tell.</li>
+</ul>
+</div>
+<figure class="shot">
+<div class="frame" role="img" aria-label="Placeholder for a picture of sharing a device">
+<span class="chip warn hollow">Picture to come</span>
+<span>The Advanced diagram with one real device split to three virtual ports, and the page that says the ports are ready with their names.</span>
+<code>shot: share-device</code>
+</div>
+<figcaption>One real device shared with three programs.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-watch">
+<div class="feature">
+<div class="words">
+<p class="eyebrow">Monitor and capture</p>
+<h2 id="f-watch">Watch the wire without disturbing it</h2>
+<p>A watcher is a read-only copy of a port. It never transmits and never drives a control line, so the device and its program cannot tell that it is there.</p>
+<ul>
+<li>A row for each transfer: time, port, direction, byte count and a preview as text or hex.</li>
+<li>Pause, follow, filter by port and direction, and search the payload.</li>
+<li>Export a capture as <code>.cap</code>, <code>.csv</code> or <code>.jsonl</code>. A capture holds every byte with the time the engine moved it, on one clock for every port.</li>
+<li>Send exact bytes as text or hex, once or on a repeat, and keep the sends you use often.</li>
+</ul>
+</div>
+<figure class="shot">
+<div class="frame" role="img" aria-label="Placeholder for a picture of the Monitor">
+<span class="chip warn hollow">Picture to come</span>
+<span>The Monitor pane with traffic in hex, the RX and TX tags, the port filter and the Send panel beside it.</span>
+<code>shot: monitor-hex</code>
+</div>
+<figcaption>The Monitor and the Send panel.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-diagram">
+<div class="feature flip">
+<div class="words">
+<p class="eyebrow">Advanced mode</p>
+<h2 id="f-diagram">Build the rig on a diagram</h2>
+<p>Advanced mode is a canvas with a toolbox. Drag ports on, draw the links, and read the state of every port and link where it sits.</p>
+<ul>
+<li>Ports, Inspector, Send and Monitor panes that you can arrange, and a command palette that finds any action.</li>
+<li>Undo and redo for the edits you make on the diagram.</li>
+<li>Counters for bytes and drops, the state of every control line, and the raw address of each port.</li>
+<li>A throughput benchmark that reports what was sent, received and lost.</li>
+</ul>
+</div>
+<figure class="shot">
+<div class="frame" role="img" aria-label="Placeholder for a picture of Advanced mode">
+<span class="chip warn hollow">Picture to come</span>
+<span>The Advanced level in the dark theme: the toolbox, a diagram of five ports and their links, and the Inspector showing one link.</span>
+<code>shot: advanced-diagram-dark</code>
+</div>
+<figcaption>Advanced mode, in the dark theme.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-network">
+<div class="feature">
+<div class="words">
+<p class="eyebrow">Network</p>
+<h2 id="f-network">Put a device on the network</h2>
+<p>A network endpoint is a port like any other, so it can be shared, watched and linked in the same way.</p>
+<ul>
+<li>TCP, RFC 2217 and UDP, as a server that listens or a client that connects.</li>
+<li>Bring a device that is plugged into another computer onto your diagram.</li>
+<li>Control lines and break from an RFC 2217 client are passed on.</li>
+<li>You choose the address to listen on and who may connect. Nothing listens until you make an endpoint.</li>
+</ul>
+<p>These protocols carry no encryption and no login of their own. The user guide explains how to keep an endpoint safe.</p>
+</div>
+<figure class="shot">
+<div class="frame" role="img" aria-label="Placeholder for a picture of the network endpoint dialog">
+<span class="chip warn hollow">Picture to come</span>
+<span>The Network endpoint dialog with the protocol, the address, and the sentence that says who will be able to connect.</span>
+<code>shot: network-endpoint</code>
+</div>
+<figcaption>Making a network endpoint.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-faults">
+<div class="feature flip">
+<div class="words">
+<p class="eyebrow">Test without hardware</p>
+<h2 id="f-faults">Make the device misbehave</h2>
+<p>Most serial bugs are in what happens when the other end is slow, silent or wrong. Studio lets you produce those conditions by hand.</p>
+<ul>
+<li>A mock fixture stands in for a device: it echoes, or generates text, a fixed pattern, a counter or random bytes at the rate you set.</li>
+<li>Delay and jitter on a link.</li>
+<li>DTR, RTS, CTS, DSR, DCD and RI: see them, drive them, and choose how a link wires them.</li>
+<li>Inject a parity error, a framing error, an overrun, a break, a hang-up or a disconnect, and see how your program copes.</li>
+</ul>
+<p>Setting these from a test harness during a run, with exact repeatability, is what the <a href="plugins.html">Pro plugins</a> add.</p>
+</div>
+<figure class="shot">
+<div class="frame" role="img" aria-label="Placeholder for a picture of faults and control lines">
+<span class="chip warn hollow">Picture to come</span>
+<span>A mock fixture selected on the diagram, with the control line switches and the fault tiles in the Inspector.</span>
+<code>shot: fixture-faults</code>
+</div>
+<figcaption>Control lines and faults on a mock fixture.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-cli">
+<div class="feature">
+<div class="words">
+<p class="eyebrow">Save, replay, script</p>
+<h2 id="f-cli">Run it without the window</h2>
+<p>A setup is a JSON file that you can save, open, share and start from a template. Export as command turns it into a line for <code>vss_cli</code>, which does the same work on a machine with no display.</p>
+<ul>
+<li><code>capture</code> records every byte to a file until you stop it.</li>
+<li><code>play</code> writes a capture back into a port at the recorded pace, faster, slower or in a loop.</li>
+<li><code>respond</code> makes a port answer like a device from a script of rules, with a delay, jitter and a seed.</li>
+<li>Close the window and the ports stay up. Studio waits in the notification area until you quit it.</li>
+</ul>
+</div>
+<div>
+<pre aria-label="Examples of vss_cli commands"><code>vss_cli share serial://COM3 --listeners=3
+vss_cli capture --uri=serial://COM5 --out run.jsonl
+vss_cli play bus.cap --uri=serial://COM6 --speed=2
+vss_cli respond device.json --uri=serial://COM7
+vss_cli bridge serial://COM3 tcp-listen://0.0.0.0:4001</code></pre>
+</div>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="f-help">
+<div class="feature flip">
+<div class="words">
+<p class="eyebrow">When it does not work</p>
+<h2 id="f-help">It tells you why</h2>
+<p>Serial ports fail quietly. Studio is built to say what is wrong in plain words.</p>
+<ul>
+<li>Setup check lists what this machine needs and what is missing, with a fix for each.</li>
+<li>&ldquo;Why is nothing arriving?&rdquo; walks the path from one port to the other and names the break.</li>
+<li>A diagnostic bundle is a ZIP with the setup, the event log, the environment and the port counters. The contents of your traffic stay out unless you tick them. You save it and you send it. Nothing is sent for you.</li>
+</ul>
+</div>
+<figure class="shot">
+<div class="frame" role="img" aria-label="Placeholder for a picture of the troubleshooter">
+<span class="chip warn hollow">Picture to come</span>
+<span>The &ldquo;Why is nothing arriving?&rdquo; dialog: one group of checks, each with a tile in the colour of its state and a sentence.</span>
+<code>shot: troubleshoot</code>
+</div>
+<figcaption>The troubleshooter names the break in the path.</figcaption>
+</figure>
+</div>
+</section>
+
+<section class="band plain" aria-labelledby="f-also">
+<div class="head">
+<h2 id="f-also">Also in every edition</h2>
+</div>
+<dl class="rows">
+<div><dt>Three systems</dt><dd>Windows 10 and 11, Linux (packages for Debian, Ubuntu, Fedora and RHEL, and an archive) and macOS on Apple silicon. Built and tested on all three every night.</dd></div>
+<div><dt>Light and dark</dt><dd>Both themes meet WCAG 2.2 AA contrast. Follow the system or choose one. Text size, high contrast and reduced motion follow your system.</dd></div>
+<div><dt>Keyboard and screen readers</dt><dd>Every control is reachable by keyboard and has an accessible name and role. State is never shown by colour alone.</dd></div>
+<div><dt>Nine languages</dt><dd>The window follows the language of the system, including right-to-left languages.</dd></div>
+<div><dt>Known limits</dt><dd>The user guide has a section called &ldquo;What this build cannot do&rdquo;. Read it before you rely on a feature for work that matters.</dd></div>
+</dl>
+<div class="actions">
+<a class="btn primary" href="downloads.html">Download</a>
+<a class="btn" href="docs/user-guide/">Read the user guide</a>
+<a class="btn ghost" href="editions.html">Compare the editions</a>
+</div>
+</section>

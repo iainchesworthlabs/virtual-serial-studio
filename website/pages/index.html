@@ -1,0 +1,137 @@
+<!--
+title: Virtual Serial Studio: real, virtual and networked serial ports
+description: Share one serial port between programs, make virtual ports, bridge them to the network and watch every byte. Free software for Windows, Linux and macOS.
+-->
+<section class="band pane" aria-labelledby="hero-title">
+<div class="hero">
+<div class="words">
+<p class="eyebrow">Real, virtual and networked serial ports</p>
+<h1 id="hero-title">See what is on the wire. Then decide what goes on it.</h1>
+<p class="lead">Virtual Serial Studio opens one serial port and gives it to as many programs as you like. It makes virtual ports, links them, bridges them to the network, drives the control lines and records every byte with its time.</p>
+<div class="actions">
+<a class="btn primary" href="downloads.html">Download for Windows, Linux or macOS</a>
+<a class="btn" href="features.html">See what it does</a>
+</div>
+<p class="quiet">Free software under the GPL. No account, no activation and no telemetry.</p>
+</div>
+<figure class="wire" aria-label="A drawing of the Monitor pane. A program sends AT and ATI through a watched port, and the device answers OK and its name.">
+<div class="wire-head"><span>Monitor</span><span class="route">COM3 &rarr; modem-monitor</span><span class="chip ok">Following</span></div>
+<ol>
+<li><time>12:04:31.118</time><span class="dir tx">TX</span><span class="bytes">41 54 0D</span><span class="text">AT.</span></li>
+<li><time>12:04:31.131</time><span class="dir">RX</span><span class="bytes">0D 0A 4F 4B 0D 0A</span><span class="text">..OK..</span></li>
+<li><time>12:04:32.402</time><span class="dir tx">TX</span><span class="bytes">41 54 49 0D</span><span class="text">ATI.</span></li>
+<li><time>12:04:32.419</time><span class="dir">RX</span><span class="bytes">0D 0A 56 53 53 2D 44 45 4D 4F 0D 0A</span><span class="text">..VSS-DEMO..</span></li>
+<li><time>12:04:32.420</time><span class="dir">RX</span><span class="bytes">0D 0A 4F 4B 0D 0A</span><span class="text">..OK..</span></li>
+</ol>
+<div class="wire-foot"><span>5 transfers</span><span>31 bytes</span><span>one clock for every port</span></div>
+</figure>
+</div>
+</section>
+
+<section class="band plain" aria-labelledby="who-title">
+<div class="head">
+<p class="eyebrow">Who it is for</p>
+<h2 id="who-title">Two kinds of bench</h2>
+<p class="lead">The same program serves both. Which edition you want depends on whether a person or a test harness is driving it.</p>
+</div>
+<div class="grid two audience">
+<article class="card on-ground">
+<div class="top"><span class="tile real"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="5" width="11" height="6" rx="1"/><path d="M5 5V3M8 5V3M11 5V3"/></svg></span><span class="chip ok">Community, free</span></div>
+<h3>You have a device and a serial port</h3>
+<p class="said">&ldquo;What is this thing actually saying?&rdquo;</p>
+<p>For the hobbyist and the reverse engineer. Plug the hardware in, and watch and record what crosses the wire while the maker's own program is still talking to it.</p>
+<ul>
+<li>Share one real device between the vendor's tool and your own script, at the same time.</li>
+<li>Read the traffic as hex or text, with a timestamp on every transfer, and save it as a capture.</li>
+<li>Stand in for either side: send exact bytes, replay a capture, or script the replies.</li>
+<li>Work in Simple mode, where a port is one short form, or in Advanced mode on a diagram.</li>
+</ul>
+<p>The Community edition is complete for this job. Nothing in it is a trial and nothing is held back to make you upgrade.</p>
+<p class="more"><a href="downloads.html">Download the Community edition</a></p>
+</article>
+<article class="card on-ground">
+<div class="top"><span class="tile fixture"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l7 5-7 5z"/></svg></span><span class="chip violet hollow">Pro and Enterprise, in development</span></div>
+<h3>You run a test lab</h3>
+<p class="said">&ldquo;Run that again, exactly, a thousand times.&rdquo;</p>
+<p>For teams that use Studio as automated test equipment: scripted rigs that drive devices and programs from the lab's own harness, in the lab's own language.</p>
+<ul>
+<li>Create ports, link them, send and expect bytes from Python and pytest, C#, Java, Node.js, LabVIEW, TestStand or Robot Framework.</li>
+<li>Decide how a simulated device answers and when: delay, jitter and scripted replies, set during a run.</li>
+<li>Inject faults on cue, with a seeded source so a failing run can be repeated exactly.</li>
+<li>A Windows driver signed through Microsoft, reports for your CI system, and support.</li>
+</ul>
+<p>Pro is an annual licence for each seat. Enterprise is a site licence with a support agreement.</p>
+<p class="more"><a href="editions.html">Compare the editions</a></p>
+</article>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="jobs-title">
+<div class="head">
+<p class="eyebrow">What it does</p>
+<h2 id="jobs-title">The jobs people bring to it</h2>
+</div>
+<div class="grid">
+<article class="card">
+<span class="tile"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="4.5" width="11" height="7" rx="2"/><path d="M5.5 8h.01M8 8h.01M10.5 8h.01"/></svg></span>
+<h3>&ldquo;My program needs a COM port and this PC has none.&rdquo;</h3>
+<p>Make a virtual port, or a linked pair so that two programs can talk to each other. On Windows it is a real COM port with the number you choose. On Linux and macOS it is a pseudo terminal with a stable name.</p>
+</article>
+<article class="card">
+<span class="tile real"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 8h4M6 8l6-4M6 8h6M6 8l6 4"/></svg></span>
+<h3>&ldquo;Let three programs use my one device.&rdquo;</h3>
+<p>A serial port can be opened once. Studio opens it and hands each program a port of its own. Choose who may write, add a listener that can never transmit, or merge several publishers into one device.</p>
+</article>
+<article class="card">
+<span class="tile"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8s2.5-4.5 6.5-4.5S14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg></span>
+<h3>&ldquo;What is actually going over the wire?&rdquo;</h3>
+<p>The Monitor shows every transfer with its time, port, direction and bytes, as text or hex. Filter it, search it, and export a capture that holds every byte against a single clock.</p>
+</article>
+<article class="card">
+<span class="tile net"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="5.5"/><path d="M2.5 8h11M8 2.5c2.2 2.2 2.2 8.8 0 11M8 2.5c-2.2 2.2-2.2 8.8 0 11"/></svg></span>
+<h3>&ldquo;Put this device on the network.&rdquo;</h3>
+<p>Bridge a port to TCP, RFC 2217 or UDP, as a server or a client, and bring a device from another computer onto the same diagram. You choose who may connect.</p>
+</article>
+<article class="card">
+<span class="tile fixture"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 2L4 9h4l-1 5 5-7H8l1-5z"/></svg></span>
+<h3>&ldquo;Make the device misbehave.&rdquo;</h3>
+<p>Test software with no hardware. A mock fixture answers like a device. Add delay and jitter to a link, drive DTR, RTS and the other control lines, send a break, and inject faults.</p>
+</article>
+<article class="card">
+<span class="tile"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l7 5-7 5z"/></svg></span>
+<h3>&ldquo;Save this rig and run it without the window.&rdquo;</h3>
+<p>A setup is a JSON file. Open it again, start from a template, or export it as a command for <code>vss_cli</code>, which captures, replays and answers from a script on a machine with no display.</p>
+</article>
+</div>
+<p><a href="features.html">Every feature, with pictures</a></p>
+</section>
+
+<section class="band plain" aria-labelledby="trust-title">
+<div class="head">
+<p class="eyebrow">On your bench, not ours</p>
+<h2 id="trust-title">It keeps itself to itself</h2>
+</div>
+<dl class="rows">
+<div><dt>No telemetry, no analytics</dt><dd>Studio sends nothing about you or your ports to anyone. It opens a network connection only for an endpoint that you make.</dd></div>
+<div><dt>No account and no activation server</dt><dd>The Community edition needs neither. A Pro licence will be a file that Studio checks offline, so a lab machine with no internet connection works.</dd></div>
+<div><dt>Source you can read and build</dt><dd>The application, the command line tool and the driver are published under the GPL, version 3 or later. <a href="licence.html">What the licence means for you</a>.</dd></div>
+<div><dt>Releases you can check</dt><dd>Every file has a detached signature and a SHA-512 checksum, and each release carries a software bill of materials. <a href="downloads.html#verify">How to verify a download</a>.</dd></div>
+<div><dt>Honest about its limits</dt><dd>A control the engine cannot back is shown disabled and says why. It never pretends. The user guide lists what the current build cannot do.</dd></div>
+<div><dt>Usable by everyone</dt><dd>Every control has a name and a role, works from the keyboard, shows where the focus is, and works in light and dark themes and at 200 percent text.</dd></div>
+</dl>
+</section>
+
+<section class="band pane" aria-labelledby="start-title">
+<div class="head">
+<h2 id="start-title">A port in three steps</h2>
+</div>
+<ol class="steps">
+<li><span><strong>Download and install.</strong> Pick the file for your system on the downloads page. The current build is {{release_tag}}, a {{release_kind}} of {{release_date}}.</span></li>
+<li><span><strong>Choose a job.</strong> Simple mode opens with a page of jobs, such as &ldquo;I need a serial port&rdquo; and &ldquo;Share a device&rdquo;. Each is a short form with defaults.</span></li>
+<li><span><strong>Open the port in your program.</strong> Studio shows the name to use, such as <code>COM7</code> or <code>/dev/pts/1</code>.</span></li>
+</ol>
+<div class="actions">
+<a class="btn primary" href="downloads.html">Go to the downloads</a>
+<a class="btn" href="documentation.html">Read the documentation</a>
+</div>
+</section>

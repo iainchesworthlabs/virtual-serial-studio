@@ -1,0 +1,111 @@
+<!--
+title: Plugins and integrations
+description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, Java, Node.js, LabVIEW, TestStand and Robot Framework, with remote control, response timing and fault injection.
+-->
+<section class="band pane" aria-labelledby="page-title">
+<div class="head">
+<p class="eyebrow">Plugins and integrations</p>
+<h1 id="page-title">Your test harness, your language, our ports</h1>
+<p class="lead">A plugin connects Studio to something else: a test framework that drives it, a computer that watches it, or a simulated device that answers through it. The official plugins are the Pro edition.</p>
+<p><span class="chip info hollow">In development</span></p>
+</div>
+<div class="note warn">
+<p>The plugins on this page are being built and none can be downloaded yet. The page describes what the first version will contain. Details may change.</p>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="bind-title">
+<div class="head">
+<h2 id="bind-title">Bindings for the tools a lab already has</h2>
+<p class="lead">Each binding does the same things: create ports, link them, send and expect bytes, inject faults and read the event log. All of them are in the first version.</p>
+</div>
+<div class="table-wrap">
+<table>
+<caption class="visually-hidden">Language and framework bindings</caption>
+<thead><tr><th scope="col">Binding</th><th scope="col">What it gives you</th></tr></thead>
+<tbody>
+<tr><th scope="row">Python and pytest</th><td>A library, and a pytest plugin with fixtures for ports and links, so a test asks for a rig and gets one.</td></tr>
+<tr><th scope="row">C and C++</th><td>A stable C interface. Every other binding wraps it, so a lab can bind a language of its own.</td></tr>
+<tr><th scope="row">C# and .NET</th><td>A library for .NET test projects.</td></tr>
+<tr><th scope="row">Java</th><td>A library for JVM test projects.</td></tr>
+<tr><th scope="row">Node.js</th><td>A package for JavaScript and TypeScript tests.</td></tr>
+<tr><th scope="row">Robot Framework</th><td>The same operations as keywords, for tests written as readable tables.</td></tr>
+<tr><th scope="row">LabVIEW and TestStand</th><td>Wrappers for lab test rigs and their sequences.</td></tr>
+<tr><th scope="row">Reports</th><td>JUnit XML and a plain log of each run, for a CI system to collect.</td></tr>
+</tbody>
+</table>
+</div>
+</section>
+
+<section class="band plain" aria-labelledby="timing-title">
+<div class="head">
+<h2 id="timing-title">Decide how the device answers, and when</h2>
+<p class="lead">A test is only as good as the conditions it can create. These can be set and changed by the harness while a run is in progress.</p>
+</div>
+<div class="grid">
+<article class="card on-ground">
+<h3>Response timing</h3>
+<p>A delay or jitter on a reply, fixed or drawn from a distribution. Slow a simulated device to the speed of the real instrument, or past your program's timeout.</p>
+</article>
+<article class="card on-ground">
+<h3>Scripted replies</h3>
+<p>When this pattern arrives, answer with that, after this long, a given number of times or in a set order.</p>
+</article>
+<article class="card on-ground">
+<h3>Faults on cue</h3>
+<p>Drop, corrupt, truncate or duplicate a reply. Raise a line error, or drop a control line at the moment you choose.</p>
+</article>
+<article class="card on-ground">
+<h3>Runs that repeat</h3>
+<p>A deterministic mode with a seeded random source, so a failing run can be repeated exactly.</p>
+</article>
+<article class="card on-ground">
+<h3>One clock</h3>
+<p>A timestamp on everything the harness sees, from a single clock, so events on different ports can be put in order.</p>
+</article>
+<article class="card on-ground">
+<h3>Exact where it must be</h3>
+<p>Timing that has to be exact, such as RS-485 turnaround, is carried out by the engine and not by a plugin, so a plugin never sits in a microsecond path.</p>
+</article>
+</div>
+</section>
+
+<section class="band pane" aria-labelledby="remote-title">
+<div class="head">
+<h2 id="remote-title">Remote control and remote monitoring</h2>
+<p class="lead">Run Studio from a CI machine or a rig controller, and watch a running Studio from one other computer. The control endpoint is off until you turn it on, and each step up needs more setup than the last.</p>
+</div>
+<ol class="steps">
+<li><span><strong>Local only, the default.</strong> A local socket that only programs on the same computer and account can reach.</span></li>
+<li><span><strong>Token.</strong> You make a token on the receiving side and give it to the sending side. A token can be revoked and can be limited to certain actions.</span></li>
+<li><span><strong>Administrator control.</strong> OAuth 2.0 and OpenID Connect with an external identity provider, and the client credentials grant for unattended rigs, for sites that manage access centrally.</span></li>
+</ol>
+</section>
+
+<section class="band plain" aria-labelledby="trust-title">
+<div class="head">
+<h2 id="trust-title">How plugins are kept safe</h2>
+<p class="lead">A plugin runs in a process of its own. If it crashes it cannot take Studio down, its permissions can be limited, and its code never runs inside the window.</p>
+</div>
+<div class="table-wrap">
+<table>
+<caption class="visually-hidden">Kinds of plugin and what Studio shows for each</caption>
+<thead><tr><th scope="col">Kind of plugin</th><th scope="col">Loads</th><th scope="col">What you see</th></tr></thead>
+<tbody>
+<tr><th scope="row">Official, signed by us</th><td>Yes, with a Pro or Enterprise licence</td><td>A Virtual Serial Studio badge</td></tr>
+<tr><th scope="row">Third-party, signed by its author</th><td>After you trust that author</td><td>The author's name and &ldquo;not verified by Virtual Serial Studio&rdquo;</td></tr>
+<tr><th scope="row">Third-party, unsigned</th><td>After you confirm</td><td>&ldquo;Unofficial plugin. It can do anything Studio can.&rdquo;</td></tr>
+</tbody>
+</table>
+</div>
+<dl class="rows">
+<div><dt>A changed plugin asks again</dt><dd>Your decision to trust a plugin is tied to the exact file. If the file changes, Studio asks you again.</dd></div>
+<div><dt>Official only, if you want</dt><dd>An administrator can set a policy that allows only official plugins.</dd></div>
+<div><dt>Write your own</dt><dd>The plugin protocol is documented and free to use in every edition. A plugin declares what it extends, its settings and its permissions in a manifest, and its author chooses its licence. We do not support third-party plugins.</dd></div>
+<div><dt>What a plugin can extend</dt><dd>Generators that put bytes or traffic patterns onto a port, fixture types that answer like a real instrument or modem, behaviour modifiers that delay, corrupt, filter or rewrite traffic on a link, and adapters that let other tools drive Studio.</dd></div>
+</dl>
+<div class="actions">
+<a class="btn primary" href="editions.html">See the editions</a>
+<a class="btn" href="support.html#sales">Tell us which binding you need</a>
+</div>
+</section>
