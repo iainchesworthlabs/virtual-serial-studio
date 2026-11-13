@@ -12,6 +12,12 @@
 namespace vss::platform
 {
 
+/// Asks the system for a 1 ms timer period.  False where none is needed, and
+/// where the system refused.  Every true answer is paid for with one
+/// #end_timer_period.
+[[nodiscard]] bool begin_timer_period() noexcept;
+void end_timer_period() noexcept;
+
 /// While one of these exists, a timer of this process fires within about a
 /// millisecond of its time.
 ///
@@ -23,8 +29,12 @@ namespace vss::platform
 class timer_period
 {
 public:
-    timer_period() noexcept;
-    ~timer_period();
+    timer_period() noexcept : held_(begin_timer_period()) {}
+    ~timer_period()
+    {
+        if (held_)
+            end_timer_period();
+    }
 
     timer_period(const timer_period&) = delete;
     timer_period& operator=(const timer_period&) = delete;
@@ -34,7 +44,7 @@ public:
     [[nodiscard]] bool held() const noexcept { return held_; }
 
 private:
-    bool held_ = false;
+    const bool held_;
 };
 
 } // namespace vss::platform

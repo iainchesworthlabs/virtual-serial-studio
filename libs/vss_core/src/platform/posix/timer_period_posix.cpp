@@ -11,8 +11,13 @@ namespace vss::platform
 
 // Linux and macOS time a sleeping thread to well under a millisecond with no
 // request from the process.
-timer_period::timer_period() noexcept = default;
+bool begin_timer_period() noexcept
+{
+    return false;
+}
 
-timer_period::~timer_period() = default;
+void end_timer_period() noexcept
+{
+}
 
 } // namespace vss::platform

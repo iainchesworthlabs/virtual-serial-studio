@@ -21,16 +21,15 @@ constexpr UINT period_ms = 1;
 
 } // namespace
 
-timer_period::timer_period() noexcept
-    : held_(::timeBeginPeriod(period_ms) == TIMERR_NOERROR)
+bool begin_timer_period() noexcept
 {
+    return ::timeBeginPeriod(period_ms) == TIMERR_NOERROR;
 }
 
-timer_period::~timer_period()
+void end_timer_period() noexcept
 {
-    // Every request is given back with the period it asked for.
-    if (held_)
-        ::timeEndPeriod(period_ms);
+    // A request is given back with the period it asked for.
+    ::timeEndPeriod(period_ms);
 }
 
 } // namespace vss::platform
