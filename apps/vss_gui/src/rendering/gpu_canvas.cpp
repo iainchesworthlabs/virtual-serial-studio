@@ -6,6 +6,8 @@
 
 #include "rendering/gpu_canvas.hpp"
 
+#include "rendering/content_revision.hpp"
+
 #include <vss/core/profile.hpp>
 
 #include <QCanvasImagePattern>
@@ -104,7 +106,13 @@ void GpuCanvas::scene_changed(const QList<QRectF>& regions)
     VSS_PROFILE_ZONE("gui.render.sync");
     for (auto it = cache_.begin(); it != cache_.end();)
     {
+        // An item that reports its own revision is checked when it is drawn.
         bool hit = false;
+        if (it->revision != 0)
+        {
+            ++it;
+            continue;
+        }
         for (const QRectF& region : regions)
         {
             if (region.intersects(it->scene))
@@ -173,6 +181,22 @@ void GpuCanvas::render(QRhiCommandBuffer* cb)
         if (profiler_.recording())
             profiler_.frame_done(seconds);
     }
+}
+
+void GpuCanvas::initialize(QRhiCommandBuffer* cb)
+{
+    // Runs again whenever the colour buffer is made again (every step of a
+    // resize).
+    VSS_PROFILE_ZONE("gui.render.init");
+    QCanvasPainterWidget::initialize(cb);
+}
+
+void GpuCanvas::paintEvent(QPaintEvent* event)
+{
+    // The whole of the widget's frame: Qt's buffers and offscreen frame as
+    // well as `render`.
+    VSS_PROFILE_ZONE("gui.render.widget");
+    QCanvasPainterWidget::paintEvent(event);
 }
 
 bool GpuCanvas::eventFilter(QObject* watched, QEvent* event)
@@ -310,9 +334,11 @@ void GpuCanvas::draw_items(QCanvasPainter& painter, const QTransform& to_view,
         qreal scale = zoom * pixel_ratio;
         scale = std::min({scale, kMaxTexture / local.width(),
                           kMaxTexture / local.height()});
+        const auto* reports = dynamic_cast<const content_revision*>(item);
+        const quint64 revision = reports != nullptr ? reports->revision() : 0;
         auto found = cache_.find(item);
         const bool have = found != cache_.end() && !found->image.isNull() &&
-                          found->local == local;
+                          found->local == local && found->revision == revision;
         const qreal ratio = have ? scale / found->scale : 0.0;
         const bool exact = have && std::abs(ratio - 1.0) < 1e-6;
         const bool close = have && !sharpen_ &&
@@ -328,6 +354,7 @@ void GpuCanvas::draw_items(QCanvasPainter& painter, const QTransform& to_view,
             made.local = local;
             made.scene = item->mapRectToScene(local);
             made.scale = scale;
+            made.revision = revision;
             made.image = painter.addImage(
                 rasterise(*item, scale),
                 QCanvasPainter::ImageFlag::Premultiplied);

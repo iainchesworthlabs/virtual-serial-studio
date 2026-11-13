@@ -1,5 +1,5 @@
 site_name: Virtual Serial Studio
-site_description: A playground for real, virtual and networked serial ports
+site_description: A tool for real, virtual and networked serial ports
 repo_url: https://github.com/iainchesworthlabs/virtual-serial-studio
 docs_dir: docs
 strict: true
@@ -28,9 +28,11 @@ nav:
       - Languages: i18n.md
       - Application icon: app-icon.md
       - Contributing: contributing.md
+      - Editions and licensing (proposal): editions.md
   - How it works:
       - Architecture: architecture.md
       - The per-user agent: agent.md
+      - Remote control and monitoring (proposal): remote-control.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md
       - Platforms: platforms.md

@@ -567,7 +567,16 @@ void MonitorPanel::handle_events(const event_batch& events)
             continue;
         append_log(event);
     }
-    update_actions();
+    // New rows change only whether there is anything to export. The rest of
+    // `update_actions` sets the Pause button's icon, and Qt repaints a button
+    // and lays its row out again whenever an icon is set, changed or not:
+    // that was a relayout of the bar and a repaint of its controls for every
+    // batch of traffic.
+    const bool any_rows = model_->rowCount() > 0;
+    if (export_ != nullptr)
+        export_->setEnabled(any_rows);
+    if (export_capture_ != nullptr)
+        export_capture_->setEnabled(any_rows);
     update_empty();
     follow_if_enabled();
 }
