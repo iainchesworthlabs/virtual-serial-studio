@@ -153,12 +153,13 @@ Two columns. Left, the checklist "Include"; right, the preview.
 | "Serial ports on this computer" | `serial-ports.txt` | on | One line for each real serial port: name, description, vendor and product ids, and driver. See below |
 | "Licence" | `licence.txt` | on when a licence is installed; the row is absent otherwise | Licence number, edition, term and state. Not the licence file |
 | "Licensee name" | in `licence.txt` | off | Amber row: "The name your licence was issued to. Turn this on if you are writing to support about the licence itself." |
-| "Traffic contents" | `traffic.txt` | off | Amber row, as today: "The actual bytes sent and received. They may include passwords or personal data." Chip "Off by default" |
 
 What is always left out or changed, stated in a muted block under the checklist with the heading "Always left out":
-"Passwords, tokens and keys are replaced with [redacted]. The path of your home folder is shortened to ~. The name of this computer and your user name are not included. Serial numbers of devices are not included. The licence file itself is never included."
+"The bytes your ports sent and received are never included. Passwords, tokens and keys are replaced with [redacted]. The path of your home folder is shortened to ~. The name of this computer and your user name are not included. Serial numbers of devices are not included. The licence file itself is never included."
 
 The computer name is needed when the question is about a licence that names computers. Then one more off-by-default amber row appears, only when the installed licence names computers: "This computer's name", "Needed when a licence names computers."
+
+**No traffic.** The support bundle never holds payload bytes. The off-by-default "Traffic contents" row of the old diagnostic bundle is removed, with `render_traffic` and `traffic.txt`. Recording traffic and packing it for replay belongs to the Pro plugin "Diagnostics and replay" (the plugin framework's design), which extends this bundle's format as described under "Bundle format" below.
 
 **Serial ports.** The list comes from `StudioBackend::devices()`: path, description and hardware id (vendor and product). Virtual devices are listed and marked "virtual". The serial number part of a hardware id is removed. The driver name is not something the backend reports today, so the column reads "not known" until a platform probe supplies it (a new `capabilities` flag, `device_driver_names`, false in every backend for now). Never a guessed driver.
 
@@ -168,9 +169,16 @@ Info NoteBanner at the bottom of the left column: "Nothing leaves this computer 
 
 Footer: left, the file name `vss-support-<date>.zip` in the fixed font and "<n> files" (`%n`). Buttons "Copy environment only" (quiet), Cancel, "Save bundle" (primary; opens the native save dialog). After saving: toast "Saved <file name>." with the action "Show in folder".
 
+**Bundle format.** One zip, written by `StoredZipWriter`, built so that a plugin can add to it without a second format.
+- `manifest.json` at the root, written first: `{ "bundle_format": 1, "created": "<UTC time>", "studio_version": "<version>", "sections": [ ... ] }`. Each section is `{ "id": "environment", "title": "Version and environment", "files": ["environment.txt"], "sensitive": false, "added_by": "studio" }`. The ids of the sections above are `environment`, `driver`, `setup`, `log`, `counters`, `serial-ports` and `licence`.
+- A section is the unit of consent: one row in the checklist, one group in the preview, one entry in the manifest. A section the user left out has no entry and no files. A reader ignores sections it does not know.
+- Studio's own files stay at the root, as today. A plugin's section puts its files in a folder named after its section id. The id `traffic` and the folder `traffic/` are reserved for the Diagnostics and replay plugin and Studio never writes them.
+- A section a plugin adds appears in the same checklist and the same preview. It is marked `"sensitive": true`, drawn as an amber row, off by default, and it names the plugin ("Added by <plugin name>"). Nothing reaches the zip without its row ticked and its preview available.
+- `bundle_format` rises only for a change an old reader cannot ignore.
+
 Failure: title "Could not save the bundle", body "Studio could not write to that folder. Choose another place, such as your Documents folder." Buttons "Copy details" (quiet), "Choose another place" (primary), Cancel.
 
-Acceptance: with every amber row off, a test proves the bundle holds no computer name, user name, home path, device serial number, licensee name or licence file, using a backend seeded with marker values; the preview text equals the bytes written for every file; the zip is written only where the user chose; the dialog makes no network call; the checklist, file list and preview are reachable in that order by keyboard, and the preview view has the accessible name "Preview of <file name>".
+Acceptance: with every amber row off, a test proves the bundle holds no computer name, payload bytes, user name, home path, device serial number, licensee name or licence file, using a backend seeded with marker values; the preview text equals the bytes written for every file; `manifest.json` lists exactly the sections that were ticked; the zip is written only where the user chose; the dialog makes no network call; the checklist, file list and preview are reachable in that order by keyboard, and the preview view has the accessible name "Preview of <file name>".
 
 ## Accessibility notes for all of the above
 Chips carry text and dot shape. State changes (import result, a banner appearing) are polite live regions and are announced once. Every dialog sets initial focus on its safest control: Close on Licence and Support, the checklist on the bundle, Cancel on "Remove this licence?". All work in both themes from tokens only, with icons from `IconProvider`.

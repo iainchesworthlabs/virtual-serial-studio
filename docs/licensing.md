@@ -562,4 +562,7 @@ the owner's to create. This repository gives them the tool and this page.
    ends keeps running until it is stopped. Agreed, or should it stop at once?
 9. **One bundle or two.** The screen spec extends the existing diagnostic
    bundle and renames it "support bundle" everywhere, in place of adding a
-   second bundle. Agreed?
+   second bundle. It holds no traffic, so the off-by-default "Traffic contents"
+   option that the diagnostic bundle has today is removed from the Community
+   edition, and recording traffic for replay becomes the Pro plugin's job. The
+   bundle gains a manifest of sections so that plugin can add its own. Agreed?
