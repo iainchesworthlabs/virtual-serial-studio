@@ -976,8 +976,7 @@ TEST_CASE("control proto: a port id is read back only in the form it is "
           std::numeric_limits<std::uint64_t>::max()})
     {
         const auto read = control::parse_port_id(control::port_id_text(id));
-        REQUIRE(read.has_value());
-        REQUIRE_EQ(*read, id);
+        REQUIRE(read == id);
     }
     for (const char* const bad : {"",
                                   "p",

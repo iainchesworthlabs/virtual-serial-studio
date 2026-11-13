@@ -1145,6 +1145,7 @@ private:
         else
         {
             std::vector<endpoint_id> ports;
+            ports.reserve(options->ports.size());
             for (const std::string& text : options->ports)
             {
                 const auto port = parse_port_id(text);
@@ -1216,10 +1217,11 @@ private:
         const std::string_view kind = traffic ? "traffic" : "events";
         if (!starting)
         {
-            audit_->record("stream.stopped", {{"session", client->number},
-                                              {"principal", client->who->id},
-                                              {"stream", kind},
-                                              {"reason", "unsubscribed"}});
+            audit_->record("stream.stopped",
+                           {{"session", client->number},
+                            {"principal", client->principal_id()},
+                            {"stream", kind},
+                            {"reason", "unsubscribed"}});
             if (!client->streaming())
                 client->poll_timer.cancel();
             send_reply(client, reply{id, done_reply{}});
@@ -1227,7 +1229,7 @@ private:
         }
         audit_->record("stream.started",
                        {{"session", client->number},
-                        {"principal", client->who->id},
+                        {"principal", client->principal_id()},
                         {"stream", kind},
                         {"ports", joined_ports(traffic ? client->traffic_ports
                                                        : client->event_ports)},
@@ -1305,6 +1307,7 @@ private:
             note_dropped(*client, batch.dropped);
             event_batch out;
             out.revision = batch.revision;
+            out.events.reserve(batch.events.size());
             for (agent::event_record& event : batch.events)
             {
                 if (auto entry = select(*client, event))
@@ -1454,13 +1457,14 @@ private:
     void list_sessions(const session_ptr& client, std::uint64_t id)
     {
         sessions_reply answer;
+        answer.sessions.reserve(sessions_.size());
         for (const session_ptr& other : sessions_)
         {
             if (!other->who)
                 continue;
             session_entry entry;
             entry.number = other->number;
-            entry.principal = other->who->id;
+            entry.principal = other->principal_id();
             entry.transport = transport_name(other->via);
             entry.client = other->client_name;
             entry.program = other->peer.program;
@@ -1490,7 +1494,7 @@ private:
         }
         audit_->record("operation",
                        {{"session", client->number},
-                        {"principal", client->who->id},
+                        {"principal", client->principal_id()},
                         {"operation", info_of(operation::sessions_kick).name},
                         {"target", wanted.session},
                         {"outcome", target ? std::string_view("ok")
@@ -1714,7 +1718,7 @@ private:
             how.name = "vss_gate";
             how.timeout = options_.agent_timeout;
             // `who` was set once, before any request reached the pool.
-            how.read_only = looks_only(client.who->scopes);
+            how.read_only = looks_only(client.scopes());
             auto connected = agent::client::connect(how);
             if (!connected)
                 return nullptr;
@@ -1764,50 +1768,46 @@ private:
         return false;
     }
 
-    /// One turn of a stream: what the agent has sent is taken without
-    /// waiting and handed to the client thread.
-    void poll_agent(const session_ptr& client) noexcept
+    /// What the agent has sent on this session's connection, taken without
+    /// waiting.  `lost` when the connection is gone or was never asked for
+    /// the stream.
+    static bool take_batches(session& client,
+                             std::vector<agent::event_batch>& batches)
+    {
+        if (!client.agent || !client.upstream)
+            return false;
+        batches.reserve(batches_per_poll);
+        for (int taken = 0; taken < batches_per_poll; ++taken)
+        {
+            auto next = client.agent->next_events(std::chrono::milliseconds(0));
+            if (!next)
+                return next.error() == make_error_code(errc::timeout);
+            batches.push_back(std::move(*next));
+        }
+        return true;
+    }
+
+    /// One turn of a stream, handed to the client thread.  Out of memory
+    /// here ends the stream as a lost agent does; when even that cannot be
+    /// said, the exception leaves the pool's thread and the program ends.
+    void poll_agent(const session_ptr& client)
     {
         std::vector<agent::event_batch> batches;
         bool lost = false;
         try
         {
-            if (!client->agent || !client->upstream)
-            {
-                lost = true;
-            }
-            else
-            {
-                for (int taken = 0; taken < batches_per_poll; ++taken)
-                {
-                    auto next = client->agent->next_events(
-                        std::chrono::milliseconds(0));
-                    if (!next)
-                    {
-                        lost = next.error() != make_error_code(errc::timeout);
-                        break;
-                    }
-                    batches.push_back(std::move(*next));
-                }
-            }
-            if (lost)
-                drop_agent(*client);
-            boost::asio::post(io_, [this, client, batches = std::move(batches),
-                                    lost]() mutable
-                              { polled(client, batches, lost); });
+            lost = !take_batches(*client, batches);
         }
         catch (const std::exception&)
         {
-            // Out of memory.  The client thread is told with what little can
-            // be told; if that fails too the program cannot go on.
-            drop_agent(*client);
-            boost::asio::post(io_,
-                              [this, client]
-                              {
-                                  std::vector<agent::event_batch> none;
-                                  polled(client, none, true);
-                              });
+            batches.clear();
+            lost = true;
         }
+        if (lost)
+            drop_agent(*client);
+        boost::asio::post(
+            io_, [this, client, batches = std::move(batches), lost]() mutable
+            { polled(client, batches, lost); });
     }
 
     reply run(session& client, const request& asked,

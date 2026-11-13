@@ -2380,8 +2380,7 @@ TEST_CASE("control gateway: when the agent goes away a stream's session is "
         if (!batch)
             ended = batch.error();
     }
-    REQUIRE(ended.has_value());
-    REQUIRE_EQ(*ended, code(control::api_errc::unavailable));
+    REQUIRE(ended == code(control::api_errc::unavailable));
     REQUIRE(wait_until([&] { return env.gate.counters().sessions == 1; }));
     REQUIRE_EQ(env.gate.counters().agent_lost, std::uint64_t{1});
     REQUIRE_EQ(env.gate.counters().streams, std::uint64_t{0});
@@ -2428,8 +2427,7 @@ TEST_CASE("control gateway: a token that ends, ends its stream without "
         if (!batch)
             ended = batch.error();
     }
-    REQUIRE(ended.has_value());
-    REQUIRE_EQ(*ended, code(control::api_errc::unauthenticated));
+    REQUIRE(ended == code(control::api_errc::unauthenticated));
     REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
     const auto closed =
         records_of(audit_records(env.audit_directory), "session.closed");
@@ -2558,6 +2556,7 @@ TEST_CASE("control gateway: stress with busy streams and a stop underneath")
     std::atomic<std::uint64_t> batches{0};
     {
         std::vector<joining_thread> readers;
+        readers.reserve(4);
         for (int index = 0; index < 4; ++index)
         {
             readers.emplace_back(
