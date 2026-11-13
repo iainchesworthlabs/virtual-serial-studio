@@ -3129,7 +3129,7 @@ TEST_CASE("control gateway: an expect.bytes that asks for what it may not "
     fixture env(with_local_scopes(control::role_control()));
     auto driver = env.connect();
     const made_pair pair(*driver);
-    const auto refused_with = [&](control::expect_bytes_request wanted)
+    const auto refused_with = [&](const control::expect_bytes_request& wanted)
     {
         const auto answer = driver->expect_bytes(wanted);
         REQUIRE(!answer);
