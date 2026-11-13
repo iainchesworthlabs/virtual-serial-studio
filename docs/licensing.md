@@ -3,8 +3,8 @@
 This page is the design for licence files: their format, how Studio checks
 them, what happens when one expires, and how the owner issues and tracks them.
 It follows the decisions in [Editions, licensing and plugins](editions.md).
-Nothing here is built yet. The owner reviews this page before any code is
-written, and the questions at the end need the owner's answer.
+The owner has reviewed it, and the decisions are recorded at the end. The code
+follows in separate pull requests.
 
 The screens are specified in
 `docs/gui-design/docs/screens/09-licence-and-support.md`.
@@ -153,7 +153,7 @@ by Cure53 in 2020), using its Ed25519 functions. The alternative is libsodium
 through vcpkg. Monocypher is preferred because Studio only verifies, the
 project today has one vcpkg dependency (Tracy) and takes Boost from a download,
 and a new shared library would have to be packaged and signed on three
-systems. The choice is question 5 below.
+systems. The owner chose Monocypher.
 
 Whichever is used, the tests run the RFC 8032 test vectors and the Project
 Wycheproof Ed25519 vectors (malleable signatures, non-canonical points, small
@@ -435,8 +435,8 @@ command line, where it would appear in the process list and the shell history.
 The tool never prints key material and has no network code.
 
 The editions page puts "licence verification and issuing tools" in the private
-`virtual-serial-studio-pro` repository. This design proposes a different
-split, which is question 4 below: the code is public, because Studio must
+`virtual-serial-studio-pro` repository. This design uses a different
+split, which the owner accepted: the code is public, because Studio must
 verify and the security rests on the key and not on the code being hidden, and
 what stays private is the key, the customer records, the ledger and the
 signing workflow.
@@ -512,7 +512,7 @@ the branch protection and the approval are part of the key's protection. The
 stronger arrangement is a hardware token that never releases the key, with the
 owner signing by hand on their own computer. `vss_license issue --key-file`
 already allows local signing, and adding a token later changes no file format.
-This is question 6.
+The owner chose the environment secret to start with.
 
 ### If things go wrong
 
@@ -527,8 +527,7 @@ This is question 6.
 ## What is built, and in what order
 
 Each step is its own small pull request with tests in the project's own
-framework. Nothing starts until the owner has reviewed this page.
-
+framework. 
 1. `vss::signed_file` and `vss::license`, with the RFC 8032 and Wycheproof
    vectors, a table test of every state, and a fuzz target for the parser.
 2. `vss_license` (`inspect`, `verify`, `issue`, `revocations`, `keygen`), with
@@ -540,29 +539,26 @@ framework. Nothing starts until the owner has reviewed this page.
 The private repository, its workflow, the environment and the real keys are
 the owner's to create. This repository gives them the tool and this page.
 
-## Questions for the owner
+## Decisions
 
-1. **Seats.** Is the recommendation right: Pro counted by the terms with the
-   licensee named in the file, Enterprise with optional computer names, and no
-   hardware fingerprint?
-2. **Version window.** Is the recommendation right: the field exists, Annual
-   licences do not set it, and Enterprise agreements may?
+The owner accepted the recommendations of this page on 13 November 2026:
+
+1. **Seats.** Pro is counted by the terms, with the licensee named in the
+   file. Enterprise may name computers. No hardware fingerprint.
+2. **Version window.** The `updates_until` field exists. Annual licences do not
+   set it, and Enterprise agreements may.
 3. **Trials.** Issued by the owner only, one for each organisation, with no
-   grace period. Agreed?
+   grace period.
 4. **Where the code lives.** The library and `vss_license`, including `issue`,
-   in this public repository, and the keys, records and signing workflow in
-   the private one. The editions page says the tools are private. Which?
-5. **The Ed25519 implementation.** Vendored Monocypher, or libsodium through
-   vcpkg?
-6. **The signing key.** A secret of an approval-gated environment, as
-   described, or a hardware token with signing by hand?
-7. **Machine names.** Is a computer name with a trailing `*` enough for the
-   sites that ask for a hard limit?
+   are in this public repository. The keys, the records and the signing
+   workflow are private. This replaces the line of the editions page that puts
+   the tools in the private repository.
+5. **The Ed25519 implementation.** Vendored Monocypher.
+6. **The signing key.** A secret of an approval-gated environment. A hardware
+   token can replace it later with no change to the file format.
+7. **Machine names.** A computer name, with a trailing `*` to match a prefix.
 8. **The running plugin rule.** A plugin that is running when the grace period
-   ends keeps running until it is stopped. Agreed, or should it stop at once?
-9. **One bundle or two.** The screen spec extends the existing diagnostic
-   bundle and renames it "support bundle" everywhere, in place of adding a
-   second bundle. It holds no traffic, so the off-by-default "Traffic contents"
-   option that the diagnostic bundle has today is removed from the Community
-   edition, and recording traffic for replay becomes the Pro plugin's job. The
-   bundle gains a manifest of sections so that plugin can add its own. Agreed?
+   ends keeps running until it is stopped.
+9. **One bundle.** The diagnostic bundle becomes the support bundle. It holds
+   no traffic, so the "Traffic contents" option is removed, and it gains a
+   manifest of sections that the Pro replay plugin extends.

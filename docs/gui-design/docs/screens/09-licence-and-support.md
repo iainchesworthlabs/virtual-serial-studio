@@ -1,6 +1,6 @@
 # Screens 09: licence and support
 
-No mockups yet. The design behind these screens is `docs/licensing.md`; it is under review, and nothing here is built until the owner has agreed it. Dialog anatomy, components and voice are as in screens 01 and `07-copy-deck.md`. Every string below is wrapped in `tr()` with the context named in its section. `<...>` is a value filled at run time. Dates use the user's locale in its long form ("13 November 2027") and are local time.
+No mockups yet. The design behind these screens is `docs/licensing.md`; the owner has accepted it. Dialog anatomy, components and voice are as in screens 01 and `07-copy-deck.md`. Every string below is wrapped in `tr()` with the context named in its section. `<...>` is a value filled at run time. Dates use the user's locale in its long form ("13 November 2027") and are local time.
 
 The words: **licence** is the noun and **license** the verb, as in the copy deck. The editions are written "Community", "Pro" and "Enterprise". "Official plugins" is the name of what a licence turns on. Never "activate", "register" or "unlock": there is no activation, and the copy must not suggest one.
 
