@@ -1,0 +1,157 @@
+//
+// Copyright (c) 2026 Virtual Serial Studio contributors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Fuzz harness for the manifest of a plugin. A manifest is written by
+// someone else and is read before anything about the plugin is trusted, so
+// the reader must refuse bad input with an error and never crash. What it
+// accepts must be inside every limit the header promises, must read the same
+// a second time, and must name only paths that stay inside the plugin. The
+// input is also given to the path check as a path, because a manifest that
+// reaches the path check is rare among random bytes.
+//
+
+#include <vss/plugin/error.hpp>
+#include <vss/plugin/manifest.hpp>
+
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <string>
+#include <string_view>
+#include <vector>
+
+namespace
+{
+
+namespace plugin = vss::plugin;
+
+/// A property did not hold: stop, so the fuzzer keeps the input.
+void require(bool holds)
+{
+    if (!holds)
+    {
+        std::abort();
+    }
+}
+
+/// What `check_relative_path` promises about a path it accepts.
+void require_safe_path(std::string_view path)
+{
+    require(!path.empty());
+    require(path.size() <= plugin::max_path_length);
+    require(path.front() != '/');
+    require(path.find('\\') == std::string_view::npos);
+    require(path.find(':') == std::string_view::npos);
+    require(path.find("//") == std::string_view::npos);
+    require(path.back() != '/');
+    std::string_view rest = path;
+    while (true)
+    {
+        const std::size_t slash = rest.find('/');
+        const std::string_view name = rest.substr(0, slash);
+        require(name != "." && name != "..");
+        if (slash == std::string_view::npos)
+        {
+            break;
+        }
+        rest.remove_prefix(slash + 1);
+    }
+    for (const char c : path)
+    {
+        require(c >= 0x20 && c <= 0x7e);
+    }
+}
+
+void require_parameters(const std::vector<plugin::parameter>& parameters)
+{
+    require(parameters.size() <= plugin::max_parameters);
+    for (const plugin::parameter& item : parameters)
+    {
+        require(!item.id.empty());
+        require(!item.label.empty());
+        require(item.choices.size() <= plugin::max_choices);
+        require(item.max_length <= plugin::max_text_parameter_length);
+    }
+}
+
+void require_inside_limits(const plugin::manifest& value)
+{
+    require(value.id.size() >= 3 && value.id.size() <= plugin::max_id_length);
+    require(!value.name.empty());
+    require(value.name.size() <= plugin::max_name_length);
+    require(value.description.size() <= plugin::max_description_length);
+    require(!value.run.platforms.empty());
+    require(value.run.args.size() <= plugin::max_arguments);
+    require_safe_path(value.run.executable);
+    require(value.permissions.size() <= plugin::max_permissions);
+    require(value.extension_points.size() <= plugin::max_extension_points);
+    require(value.bundle_sections.size() <= plugin::max_bundle_sections);
+    require(!value.extension_points.empty() ||
+            !value.bundle_sections.empty());
+    require(value.files.size() <= plugin::max_files);
+    for (const plugin::extension_point& point : value.extension_points)
+    {
+        require(point.max_instances >= 1);
+        require(point.max_instances <= plugin::max_instances);
+        require_parameters(point.parameters);
+        if (point.timing.type == plugin::timing_class::in_line)
+        {
+            require(point.timing.budget_us >= plugin::min_budget_us);
+            require(point.timing.budget_us <= plugin::max_budget_us);
+            require(value.find(plugin::permission::modifier_inline) !=
+                    nullptr);
+        }
+    }
+    for (const plugin::bundle_section& section : value.bundle_sections)
+    {
+        require_parameters(section.parameters);
+    }
+    for (const plugin::file_entry& file : value.files)
+    {
+        require_safe_path(file.path);
+    }
+}
+
+} // namespace
+
+// libFuzzer looks for exactly this name.
+// NOLINTNEXTLINE(readability-identifier-naming)
+extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
+                                      std::size_t size)
+{
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+    const std::string_view text(reinterpret_cast<const char*>(data), size);
+
+    std::string detail;
+    const auto first = plugin::parse_manifest(text, &detail);
+    if (first.has_value())
+    {
+        require(detail.empty());
+        require_inside_limits(*first);
+        const auto second = plugin::parse_manifest(text);
+        require(second.has_value());
+        require(*first == *second);
+    }
+    else
+    {
+        require(!detail.empty());
+        require(first.error().category() == plugin::plugin_category());
+        const auto second = plugin::parse_manifest(text);
+        require(second.has_error());
+        require(second.error() == first.error());
+    }
+    if (size > plugin::max_manifest_size)
+    {
+        require(first.has_error());
+        require(first.error() == plugin::plugin_errc::manifest_too_large);
+    }
+
+    if (!plugin::check_relative_path(text).has_value())
+    {
+        require_safe_path(text);
+        require(plugin::fold_path(text).size() == text.size());
+    }
+    return 0;
+}

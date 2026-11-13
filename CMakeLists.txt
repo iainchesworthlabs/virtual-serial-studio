@@ -14,6 +14,7 @@
 #   libs/vss_testkit     reusable fakes for downstream tests
 #   libs/vss_agent_proto the wire protocol of the per-user agent
 #   libs/vss_agent       the agent's local transport, server and client
+#   libs/vss_plugin      plugin manifests and the checks made before a plugin runs
 #   apps/                command line tool and Qt 6 GUI
 #   tests/               unit, system and integration suites
 #   perf/                throughput and latency floors

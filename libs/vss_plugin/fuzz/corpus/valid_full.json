@@ -1,0 +1,86 @@
+{
+  "manifest_version": 1,
+  "id": "com.example.full-plugin",
+  "name": "Full plugin",
+  "version": "2.10.3-rc.1",
+  "author": { "name": "Example Ltd", "url": "https://example.com/about" },
+  "description": "Does everything a manifest can say.",
+  "license": "Apache-2.0",
+  "not_after": "2027-12-31",
+  "released": "2026-11-13",
+  "requires": {
+    "api": { "min": "1.2", "max": "1.4" },
+    "capabilities": ["engine_rules", "engine_faults"],
+    "edition": "pro",
+    "runtime": ["python3", "dotnet-8.0"]
+  },
+  "run": {
+    "executable": "bin/full",
+    "args": ["--stdio-channel", "--verbose"],
+    "platforms": ["windows-x64", "linux-x64", "macos-arm64"]
+  },
+  "permissions": [
+    { "name": "ports.read", "reason": "To see its port." },
+    { "name": "modifier.inline", "required": true,
+      "reason": "To change bytes on a link." },
+    { "name": "net.listen", "reason": "Serves a status page.",
+      "scope": ["127.0.0.1:8080", "[::1]:8080"] },
+    { "name": "bundle.section", "required": false }
+  ],
+  "extension_points": [
+    {
+      "kind": "modifier",
+      "id": "byte-editor",
+      "name": { "en": "Byte editor", "de": "Byte-Editor" },
+      "description": "Changes bytes on a link.",
+      "timing": { "class": "inline", "budget_us": 500,
+                  "on_timeout": "fail_closed" },
+      "max_instances": 4,
+      "parameters": [
+        { "id": "invert", "type": "bool", "default": false,
+          "label": "Invert" },
+        { "id": "offset", "type": "int", "min": -100, "max": 100,
+          "step": 5, "default": -10, "unit": "ms", "label": "Offset",
+          "help": "Shifts the reply." },
+        { "id": "gain", "type": "number", "min": 0.5, "max": 2.5,
+          "step": 0.25, "default": 1.5, "unit": "x",
+          "label": { "en": "Gain", "de": "Verstaerkung" } },
+        { "id": "mode", "type": "enum", "default": "slow", "label": "Mode",
+          "options": [ { "value": "fast", "label": "Fast" },
+                       { "value": "slow", "label": "Slow" } ] },
+        { "id": "prefix", "type": "string", "max_length": 8,
+          "default": "abc", "label": "Prefix" },
+        { "id": "frame", "type": "bytes", "max_length": 16,
+          "default": "02 31 03", "label": "Frame" },
+        { "id": "delay", "type": "duration", "min": "0us", "max": "1s",
+          "default": "3ms", "label": "Delay" },
+        { "id": "serial", "type": "port", "label": "Serial port" },
+        { "id": "wire", "type": "link", "label": "Link" },
+        { "id": "folder", "type": "path", "kind": "directory",
+          "access": "write", "must_exist": true, "label": "Log folder" },
+        { "id": "token", "type": "secret", "max_length": 64,
+          "label": "Token" }
+      ]
+    },
+    { "kind": "generator", "id": "pulse", "name": "Pulse" },
+    { "kind": "adapter", "id": "bridge", "name": "Bridge",
+      "timing": { "class": "async" } }
+  ],
+  "contributes": {
+    "bundle_sections": [
+      { "id": "state", "title": "Plugin state", "sensitive": false,
+        "parameters": [
+          { "id": "depth", "type": "int", "default": 2, "label": "Depth" }
+        ] },
+      { "id": "traces", "title": { "en": "Traces", "de": "Spuren" } }
+    ]
+  },
+  "files": [
+    { "path": "bin/full", "size": 1234,
+      "sha512": "ABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABABAB" },
+    { "path": "lib/data.bin", "size": 0,
+      "sha512": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" },
+    { "path": "README.txt", "size": 42,
+      "sha512": "abababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababababab" }
+  ]
+}
