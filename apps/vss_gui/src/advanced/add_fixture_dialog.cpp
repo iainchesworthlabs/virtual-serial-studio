@@ -55,7 +55,7 @@ void AddFixtureDialog::build()
     layout->setSpacing(14);
     layout->addWidget(make_header(
         tr("Add a mock fixture"),
-        tr("A pretend device you can script, for testing without hardware."),
+        tr("A simulated device for testing without hardware."),
         this, true, {}));
 
     // Name and baud rate share one row; the name column takes the spare width.

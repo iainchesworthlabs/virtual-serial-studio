@@ -52,8 +52,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="200" />
-            <source>Copy this into a bug report. It answers "which build is this?"</source>
-            <translation>バグ報告に貼り付けてください。「どのビルドか」がわかります。</translation>
+            <source>Copy this into a bug report. It shows which build you are running.</source>
+            <translation>バグ報告に貼り付けてください。使用中のビルドが分かります。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="231" />
@@ -333,8 +333,8 @@
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>スクリプトで動かせる疑似デバイスです。ハードウェアなしでテストできます。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>ハードウェアなしでテストするための模擬デバイス。</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -532,8 +532,8 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>スクリプトで動かせる疑似デバイスです。ハードウェアなしでテストできます。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>ハードウェアなしでテストするための模擬デバイス。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -607,21 +607,13 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>COM3 のような固定名を開くプログラムは、実行のたびに同じポートを見つけられます。自動の場合、このPCにすでにあるポートより大きい空き番号が選ばれ、COM1 と COM2 は使われません。番号の指定には Studio ドライバーとそのヘルパーサービスが必要で、ポートを1つ作成するときに使われます。</translation>
-        </message>
-        <message>
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation type="vanished">COM3 のような固定名を開くプログラムは、実行のたびにポートを見つけられます。「自動」は空いている最小の番号を使います。番号の指定には Studio ドライバーとそのヘルパーサービスが必要で、ポートを 1 つ作るときに使われます。</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>COM3 のような固定の名前を開くプログラムは、毎回同じ番号が必要です。「自動」は、この PC に既にあるポートより大きい空き番号を選び、COM1 と COM2 は選びません。番号を指定するには Studio ドライバーとそのヘルパーサービスが必要で、ポートを 1 つ作成するときに使われます。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
             <source>Best available uses the Studio driver or com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
             <translation>「最適なものを使う」は、Windows では Studio ドライバーまたは com0com を、Linux と macOS では疑似端末を使います。同時に最大 32 個まで作れます。複数のポートは port-1、port-2 のように名前が付きます。</translation>
-        </message>
-        <message>
-            <source>Best available uses com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
-            <translation type="vanished">最適なものを自動選択では、Windowsではcom0com、LinuxとmacOSでは疑似端末を使います。一度に最大32個まで作成できます。複数のポートには port-1、port-2 のような名前が付きます。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="377" />
@@ -630,13 +622,13 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>ネットワークエンドポイントは今後のワークパッケージで提供されます。何も作成されていません。</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>ネットワークエンドポイントはまだ利用できません。何も作成されていません。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>モックフィクスチャは今後のワークパッケージで提供されます。何も作成されていません。</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>模擬フィクスチャはまだ利用できません。何も作成されていません。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -751,10 +743,6 @@
             <location filename="../src/flows/attach_dialog.cpp" line="76" />
             <source>Attach a real device</source>
             <translation>実デバイスを接続</translation>
-        </message>
-        <message>
-            <source>Studio opens the device once. Your programs then open the port Studio creates for them.</source>
-            <translation type="vanished">Studioはデバイスを一度だけ開きます。プログラムは、Studioが作成したポートを開きます。</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="77" />
@@ -968,14 +956,6 @@
             <translation>Studio は %1 を %2 ボーで開いたままにします。プログラムは %1 を開かないでください。Studio が作成する新しい仮想ポートを開き、Studio がそのポートと %1 の間でデータを受け渡します。</translation>
         </message>
         <message>
-            <source>Studio will open &lt;b&gt;%1&lt;/b&gt; at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studioは&lt;b&gt;%1&lt;/b&gt;を%2ボーで開き、開いたままにします。プログラムはStudioが作成したポートを開いてください。%1は開かないでください。</translation>
-        </message>
-        <message>
-            <source>Studio will open %1 at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studioは%1を%2ボーで開き、開いたままにします。プログラムはStudioが作成したポートを開いてください。%1は開かないでください。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/attach_dialog.cpp" line="632" />
             <source>hardware flow control</source>
             <translation>ハードウェアフロー制御</translation>
@@ -1099,8 +1079,8 @@
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>この2つのポートをStudioでリンクしないでください。データはケーブルまたはドライバーのペアを通る必要があり、そうしないと件数に意味がありません。</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>これらのポートを Studio 内でリンクしないでください。データはケーブルまたはドライバーのペアを通らないと、カウントされません。</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -1280,10 +1260,6 @@
             <source>%1: sent %2, received %3, lost %4, throughput %5.</source>
             <translation>%1: 送信 %2、受信 %3、損失 %4、スループット %5。</translation>
         </message>
-        <message>
-            <source>The benchmark command is not available in this build.</source>
-            <translation type="vanished">このビルドではベンチマークコマンドは利用できません。</translation>
-        </message>
     </context>
     <context>
         <name>Bundle</name>
@@ -1352,8 +1328,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="129" />
-            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
-            <translation>ヘルプを依頼する相手がセットアップを把握するために必要な情報を集めます。何も送信されません。保存先はご自身で選びます。</translation>
+            <source>Collects your setup, event log and environment details into one file. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>セットアップ、イベントログ、環境の詳細を 1 つのファイルにまとめます。どこにも送信されません。保存先は自分で選びます。</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="145" />
@@ -1422,8 +1398,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="202" />
-            <source>Nothing leaves this PC until you share the file yourself. Look inside the bundle first if you want to check it.</source>
-            <translation>ご自身でファイルを共有するまで、このPCから外部へは何も送信されません。確認したい場合は、先にバンドルの中身をご覧ください。</translation>
+            <source>Nothing is sent. The file is a zip that you can open and read before you share it.</source>
+            <translation>何も送信されません。ファイルは zip で、共有する前に開いて内容を確認できます。</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="210" />
@@ -2549,8 +2525,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="60" />
-            <source>Every action is in the menus. Start with these.</source>
-            <translation>すべての操作はメニューにあります。まずはこちらから始めましょう。</translation>
+            <source>These are the most used actions. All actions are in the menus.</source>
+            <translation>よく使う操作です。すべての操作はメニューにあります。</translation>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="77" />
@@ -2758,10 +2734,6 @@ Networks: %5</source>
             <translation>名前をコピー、%1</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet.</source>
-            <translation type="vanished">%1を開いたプログラムはまだありません。</translation>
-        </message>
-        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="451" />
             <location filename="../src/panes/inspector_panel.cpp" line="457" />
             <source>Not available in this build</source>
@@ -2917,8 +2889,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>プログラムが送信したものは、すぐにそのままプログラムに戻ります。送信と受信の両方が動くかを手早く確かめられます。</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>プログラムが送ったデータはすぐにそのプログラムへ戻ります。プログラムが送受信できるかを確認するときに使います。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -2954,8 +2926,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>デバイスの説明書に書かれています。あとで文字化けする場合は、たいていこれが原因です。</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>デバイスのマニュアルで確認してください。速度が違うと、通常は文字化けします。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -3021,8 +2993,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>プログラムの準備ができる前に、デバイスが動くかを確かめるのに便利です。入力した内容はデバイスに送られ、デバイスからの返信はこことプログラムに表示されます。</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>自分のプログラムが用意できる前に、デバイスが動作するかを確認するときに使います。入力した内容はデバイスに送られ、その応答はこことプログラムに表示されます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -3031,8 +3003,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>各方向に送られた内容のリアルタイムの一覧を、設定のページに表示します。見るだけなので、何も変わりません。あとから有効にすることもできます。</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>セットアップのページに、各方向に送られたデータを一覧表示します。データは変更されません。あとからオンにすることもできます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -3323,6 +3295,11 @@ Networks: %5</source>
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
         </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1577" />
+            <source>Copy details</source>
+            <translation>詳細をコピー</translation>
+        </message>
     </context>
     <context>
         <name>JobGrid</name>
@@ -3533,8 +3510,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>アドレス、障害注入、ポートの所有権が必要ですか? &lt;a href="advanced"&gt;高度モード&lt;/a&gt;にすると、このウィンドウにそれらが追加されます。作成済みの内容は変わりません。</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;高度モード&lt;/a&gt;では、このウィンドウにアドレス、障害の注入、ポートの所有権が追加されます。作成済みの内容は変わりません。</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -3613,8 +3590,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="75" />
-            <source>Incoming data lost, too fast</source>
-            <translation>速すぎて受信データが失われました</translation>
+            <source>Incoming data lost because it arrived too fast</source>
+            <translation>データが速すぎて届かず、受信データが失われる</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="77" />
@@ -3643,8 +3620,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="84" />
-            <source>Device vanishes, as if unplugged</source>
-            <translation>取り外されたかのようにデバイスが消えます</translation>
+            <source>Device disconnects, as if unplugged</source>
+            <translation>デバイスが、抜かれたかのように切断される</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="330" />
@@ -3912,6 +3889,71 @@ Networks: %5</source>
             <source>Applying changes the link where it is and keeps its ports. Bytes it still holds for its delay are discarded when the delay changes.</source>
             <translation>適用すると、リンクはそのまま変更され、ポートも保たれます。遅延のためにリンクがまだ保持しているバイトは、遅延を変更すると破棄されます。</translation>
         </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="34" />
+            <source>Settings for %1</source>
+            <translation>%1の設定</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="59" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="62" />
+            <source>Delay</source>
+            <translation>遅延</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="64" />
+            <source>Jitter</source>
+            <translation>ジッター</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="67" />
+            <source>Every byte arrives this much later.</source>
+            <translation>すべてのバイトがこの時間だけ遅れて届きます。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="70" />
+            <source>Each delay varies by up to this much. No more than the delay.</source>
+            <translation>それぞれの遅延がこの時間までの範囲で変わります。遅延以下にしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="77" />
+            <source>If two write at once</source>
+            <translation>2つが同時に書き込むとき</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="78" />
+            <source>Mix them</source>
+            <translation>混ぜる</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="80" />
+            <source>One owner at a time</source>
+            <translation>一度に所有者は1つ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="89" />
+            <source>Emulate modem lines</source>
+            <translation>モデム制御線をエミュレート</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="110" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="113" />
+            <source>Apply</source>
+            <translation>適用</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/link_settings_dialog.cpp" line="175" />
+            <source>The jitter can be no more than the delay.</source>
+            <translation>ジッターは遅延より大きくできません。</translation>
+        </message>
     </context>
     <context>
         <name>MonitorModel</name>
@@ -4101,8 +4143,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>トポロジーJSONエディターはWP7で提供されます。</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>トポロジー JSON エディターはまだ利用できません。</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -5190,14 +5232,14 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>ポート「%1」がStudio内に作成されました。</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>ポート「%1」を作成しました。開けるのは Studio だけです。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>ポート「%1」が作成され、他のプログラムから開けます。</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>ポート「%1」を作成しました。他のプログラムから開けます。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -5343,10 +5385,6 @@ Networks: %5</source>
             <translation>%1 を開いているプログラムはまだありません。お使いのプログラムで、正確に %1 を選んでください。プログラムが開くと、このパネルは更新されます。</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet. This panel updates when one does.</source>
-            <translation type="vanished">%1を開いたプログラムはまだありません。開かれると、このパネルが更新されます。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="365" />
             <source>Program connected</source>
             <translation>プログラム接続済み</translation>
@@ -5458,6 +5496,16 @@ Networks: %5</source>
             <location filename="../src/panes/ports_panel.cpp" line="341" />
             <source>Copied %1.</source>
             <translation>%1をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="136" />
+            <source>Ports table columns</source>
+            <translation>ポート表の列</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/ports_panel.cpp" line="235" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>%1列の幅は%2 pxです。</translation>
         </message>
     </context>
     <context>
@@ -5778,8 +5826,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="134" />
-            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check: it says whether your account is missing the serial device group or AppArmor, SELinux or a sandbox is in the way, and shows the command to fix it.</source>
-            <translation>システムが許可しませんでした。何も変更されていません。「ツール」の「セットアップチェック」を開いてください。アカウントにシリアルデバイスのグループがないのか、AppArmor、SELinux、サンドボックスが妨げているのかが表示され、解決のコマンドも示されます。</translation>
+            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check to see whether the cause is a missing group, AppArmor, SELinux or a sandbox. It shows the command to fix it.</source>
+            <translation>システムが許可しませんでした。何も変更されていません。「ツール」の「セットアップチェック」を開き、原因がグループ不足、AppArmor、SELinux、サンドボックスのいずれかを確認してください。修正用のコマンドも表示されます。</translation>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="69" />
@@ -5913,8 +5961,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>このポートを開いているプログラムに手放させます。</translation>
+            <source>Make the program release this port.</source>
+            <translation>プログラムにこのポートを解放させます。</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -6132,10 +6180,6 @@ Networks: %5</source>
             <location filename="../src/panes/send_panel.cpp" line="98" />
             <source>Send</source>
             <translation>送信</translation>
-        </message>
-        <message>
-            <source>Send to port</source>
-            <translation type="vanished">ポートへ送信</translation>
         </message>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="81" />
@@ -6396,18 +6440,18 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="369" />
-            <source>50 ms, live</source>
-            <translation>50 ms (リアルタイム)</translation>
+            <source>50 ms, most frequent</source>
+            <translation>50 ms、最も頻繁</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="372" />
-            <source>5000 ms, light</source>
-            <translation>5000 ms (低負荷)</translation>
+            <source>5000 ms, least frequent</source>
+            <translation>5000 ms、最も低頻度</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="375" />
-            <source>How often counters and states are read. Shorter feels live. Longer is lighter on a busy machine.</source>
-            <translation>カウンターと状態を読み取る頻度です。短くするとリアルタイムに近くなり、長くすると負荷の高いマシンでも軽く動作します。</translation>
+            <source>A shorter interval updates more often. A longer interval uses less CPU.</source>
+            <translation>間隔を短くすると更新が頻繁になります。長くすると CPU の使用量が減ります。</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="417" />
@@ -6480,6 +6524,56 @@ Networks: %5</source>
         <message>
             <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
             <translation>VSS_RENDER または --render が設定されているため、この選択より優先されます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="166" />
+            <source>Running</source>
+            <translation>実行中</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="252" />
+            <source>Your ports run on this computer until you quit Studio or open another setup. The window is only for setting them up and watching them.</source>
+            <translation>ポートは、Studio を終了するか別のセットアップを開くまで、このコンピューターで動き続けます。ウィンドウはポートの設定と監視のためだけのものです。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="262" />
+            <source>When I close the window</source>
+            <translation>ウィンドウを閉じたとき</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="271" />
+            <source>Keep the ports running in the background</source>
+            <translation>ポートをバックグラウンドで動かし続ける</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="276" />
+            <source>Stop the ports and quit</source>
+            <translation>ポートを停止して終了</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="289" />
+            <source>Start when I sign in</source>
+            <translation>サインイン時に起動</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="296" />
+            <source>Not available in this build</source>
+            <translation>このビルドでは利用できません</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
+            <source>Studio starts in the notification area and starts the ports that were running before the computer restarted.</source>
+            <translation>Studio は通知領域で起動し、コンピューターの再起動前に動いていたポートを開始します。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="624" />
+            <source>Could not change start at sign-in</source>
+            <translation>サインイン時の起動を変更できませんでした</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="626" />
+            <source>Studio could not write the sign-in entry. Nothing was changed.</source>
+            <translation>Studio はサインイン用のエントリを書き込めませんでした。何も変更されていません。</translation>
         </message>
     </context>
     <context>
@@ -6819,10 +6913,6 @@ Networks: %5</source>
             <translation>com0comがインストールされているため、他のプログラムから仮想ポートがCOMポートとして見えます。</translation>
         </message>
         <message>
-            <source>com0com was not found. Windows needs a driver before other programs can see virtual ports as COM ports.</source>
-            <translation type="vanished">com0comが見つかりません。他のプログラムから仮想ポートをCOMポートとして見るには、Windowsにドライバーが必要です。</translation>
-        </message>
-        <message>
             <location filename="../src/support/setup_facts.cpp" line="187" />
             <source>Neither the Virtual Serial Studio driver nor com0com was found. Windows needs a driver before other programs can see virtual ports as COM ports.</source>
             <translation>Virtual Serial Studio ドライバーも com0com も見つかりませんでした。他のプログラムが仮想ポートを COM ポートとして認識するには、Windows にドライバーが必要です。</translation>
@@ -6883,7 +6973,7 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/setup_facts.cpp" line="256" />
-            <source>Carry on without a driver</source>
+            <source>Continue without a driver</source>
             <translation>ドライバーなしで続ける</translation>
         </message>
         <message>
@@ -6983,10 +7073,6 @@ Networks: %5</source>
             <translation>Windows の許可の確認を拒否したため、Studio はこれまでどおり動作します。何も変更されていません。</translation>
         </message>
         <message>
-            <source>Windows did not allow the elevated restart. Try again from the Start menu.</source>
-            <translation type="vanished">Windowsが昇格での再起動を許可しませんでした。スタートメニューからもう一度お試しください。</translation>
-        </message>
-        <message>
             <location filename="../src/support/setup_facts.cpp" line="589" />
             <source>Windows could not restart Virtual Serial Studio as administrator.</source>
             <translation>WindowsがVirtual Serial Studioを管理者として再起動できませんでした。</translation>
@@ -7083,7 +7169,7 @@ Networks: %5</source>
         <message>
             <location filename="../src/support/setup_check_dialog.cpp" line="225" />
             <location filename="../src/support/setup_facts.cpp" line="475" />
-            <source>All set</source>
+            <source>Ready</source>
             <translation>準備完了</translation>
         </message>
         <message>
@@ -7211,8 +7297,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>読み取り専用です。プログラムが「何も届かない」と言うときに役立ちます。</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>読み取り専用です。プログラムが何も届かないと報告するときに、データを確認するために使います。</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -7678,10 +7764,6 @@ Networks: %5</source>
             <translation>TCP、UDP、またはRFC 2217を使うシリアルサーバーのアドレスです。</translation>
         </message>
         <message>
-            <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are.</source>
-            <translation type="vanished">プログラムは%1自体ではなく、Studioが作成するポートを開きます。次に、プログラムの数を選びます。</translation>
-        </message>
-        <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="483" />
             <location filename="../src/dialogs/share_wizard.cpp" line="488" />
             <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are. You can add more afterwards.</source>
@@ -7964,8 +8046,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>セットアップは変更されていません。デバイスを確認して、もう一度やり直してください。</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>セットアップは変更されていません。デバイスを確認して、もう一度お試しください。</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -7979,8 +8061,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio が共有できるプログラムは最大 32 個です</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio がデバイスを共有できるプログラムは最大 32 個です</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -8763,10 +8845,6 @@ Networks: %5</source>
             <translation>Studio を開いたままにする</translation>
         </message>
         <message>
-            <source>Undo needs an exact restore, which this build cannot prove.</source>
-            <translation type="vanished">元に戻すには正確な復元が必要ですが、このビルドではそれを保証できません。</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="533" />
             <source>&amp;File</source>
             <translation>ファイル(&amp;F)</translation>
@@ -8815,10 +8893,6 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="619" />
             <source>Main toolbar</source>
             <translation>メインツールバー</translation>
-        </message>
-        <message>
-            <source>Not available in this build.</source>
-            <translation type="vanished">このビルドでは利用できません。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="833" />
@@ -8919,10 +8993,6 @@ Networks: %5</source>
             <translation>%1を削除しますか?</translation>
         </message>
         <message>
-            <source>The port and its links will be removed. This cannot be undone.</source>
-            <translation type="vanished">このポートとそのリンクが削除されます。この操作は元に戻せません。</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="1963" />
             <location filename="../src/shell/shell_window.cpp" line="2027" />
             <location filename="../src/shell/shell_window.cpp" line="2062" />
@@ -8996,13 +9066,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1は今後のワークパッケージで提供されます。</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1は%2で提供されます。</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 はまだ利用できません。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -9159,6 +9224,161 @@ Networks: %5</source>
             <source>Diagnostic information copied.</source>
             <translation>診断情報をコピーしました。</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="385" />
+            <source>canvas new port</source>
+            <translation>キャンバス 新しいポート</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="392" />
+            <source>Add fixture</source>
+            <translation>フィクスチャを追加</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="393" />
+            <source>canvas new mock fixture</source>
+            <translation>キャンバス 新しいモックフィクスチャ</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="400" />
+            <source>Add pair</source>
+            <translation>ペアを追加</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="401" />
+            <source>canvas bundle two ports null modem</source>
+            <translation>キャンバス バンドル 2つのポート ヌルモデム</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="409" />
+            <source>Duplicate</source>
+            <translation>複製</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="410" />
+            <source>copy ports canvas</source>
+            <translation>ポート コピー キャンバス</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="424" />
+            <source>Show toolbox</source>
+            <translation>ツールボックスを表示</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="425" />
+            <source>canvas tiles palette</source>
+            <translation>キャンバス タイル パレット</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="775" />
+            <source>Start again</source>
+            <translation>もう一度開始</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3351" />
+            <source>This stops %1 ports and %2 links. Studio offers to start them again the next time it opens.</source>
+            <translation>%1個のポートと%2個のリンクを停止します。次に Studio を開いたときに、もう一度開始するか確認します。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3355" />
+            <source>Stop the ports and quit?</source>
+            <translation>ポートを停止して終了しますか?</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3356" />
+            <source>Stop the ports and quit</source>
+            <translation>ポートを停止して終了</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3357" />
+            <source>Keep running</source>
+            <translation>動かし続ける</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3402" />
+            <source>Keep the ports running?</source>
+            <translation>ポートを動かし続けますか?</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3403" />
+            <source>This desktop has no notification area to keep Studio in. Minimise the window to keep the ports running, or stop them and quit.</source>
+            <translation>このデスクトップには Studio を置いておく通知領域がありません。ポートを動かし続けるにはウィンドウを最小化してください。または、ポートを停止して終了してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3410" />
+            <source>Minimise instead</source>
+            <translation>代わりに最小化</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3490" />
+            <source>Could not change start at sign-in</source>
+            <translation>サインイン時の起動を変更できませんでした</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3491" />
+            <source>Studio could not write the sign-in entry. Nothing was changed.</source>
+            <translation>Studio はサインイン用のエントリを書き込めませんでした。何も変更されていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3513" />
+            <source>The ports from last time could not be read, so Studio started without them.</source>
+            <translation>前回のポートを読み込めなかったため、Studio はポートなしで起動しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3593" />
+            <source>Could not start the ports from last time: %1</source>
+            <translation>前回のポートを開始できませんでした: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3599" />
+            <source>Could not start the ports from last time</source>
+            <translation>前回のポートを開始できませんでした</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3600" />
+            <source>Open Studio to see why and start them again.</source>
+            <translation>Studio を開いて理由を確認し、もう一度開始してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3618" />
+            <source>Started the ports that were running before: %1 ports, %2 links.</source>
+            <translation>以前動いていたポートを開始しました: ポート%1個、リンク%2個。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3622" />
+            <source>Started the ports again: %1 ports, %2 links.</source>
+            <translation>ポートをもう一度開始しました: ポート%1個、リンク%2個。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3651" />
+            <source>When you last quit, %1 ports and %2 links were running.</source>
+            <translation>前回終了したとき、ポート%1個とリンク%2個が動いていました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3666" />
+            <source>Some COM ports were lost</source>
+            <translation>一部のCOMポートが失われました</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3667" />
+            <source>Open Studio to recreate them.</source>
+            <translation>Studio を開いて作り直してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3681" />
+            <source>Studio is still running your ports</source>
+            <translation>Studio はポートを動かし続けています</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3683" />
+            <source>Open it again from this icon, or quit it there to stop the ports. To have them back after a restart, choose Start when I sign in in the same menu.</source>
+            <translation>このアイコンからもう一度開くか、ここで終了するとポートが停止します。再起動後にポートを元に戻すには、同じメニューで「サインイン時に起動」を選んでください。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3686" />
+            <source>Open it again from this icon, or quit it there to stop the ports.</source>
+            <translation>このアイコンからもう一度開くか、ここで終了するとポートが停止します。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -9172,8 +9392,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="124" />
-            <source>Every action has a menu item. These are the quick ways.</source>
-            <translation>すべての操作にメニュー項目があります。こちらは手早く操作する方法です。</translation>
+            <source>Shortcuts for the actions in the menus.</source>
+            <translation>メニューにある操作のショートカットです。</translation>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="133" />
@@ -9258,8 +9478,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>まだ何も設定されていないため、見るポートがありません。先に何かを設定してください。</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>まだ何もセットアップされていません。先にポートをセットアップしてください。</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -10185,10 +10405,6 @@ Networks: %5</source>
             <translation>"%1" のことですか? 該当行が強調表示され、何も適用されていません。</translation>
         </message>
         <message>
-            <source>Use duplex, split, join, redirect or monitor. Nothing was applied.</source>
-            <translation type="vanished">duplex、split、join、redirect、monitor のいずれかを使用してください。何も適用されていません。</translation>
-        </message>
-        <message>
             <location filename="../src/advanced/json_validation.cpp" line="1032" />
             <source>Line %1: a link needs ports on both sides</source>
             <translation>%1行目: リンクには両側にポートが必要です</translation>
@@ -10648,10 +10864,6 @@ Networks: %5</source>
             <translation>%1 を開いているプログラムはまだないため、何も届きません。プログラムは正確に %1 を開く必要があります。別の COM ポートでは何も受信されません。</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet, so nothing can arrive.</source>
-            <translation type="vanished">まだどのプログラムも%1を開いていないため、何も届きません。</translation>
-        </message>
-        <message>
             <location filename="../src/support/troubleshoot.cpp" line="361" />
             <location filename="../src/support/troubleshoot.cpp" line="370" />
             <source>Data reaches the program</source>
@@ -10697,8 +10909,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="206" />
-            <source>Still stuck? A diagnostic bundle gathers the setup, the log and the environment for whoever helps you. Traffic contents are left out unless you choose to include them.</source>
-            <translation>解決しませんか? 診断バンドルには、ヘルプを依頼する相手に必要なセットアップ、ログ、環境情報がまとめられます。トラフィックの内容は、含めると選ばない限り除外されます。</translation>
+            <source>A diagnostic bundle collects the setup, the log and the environment to send to whoever helps you. Traffic contents are left out unless you include them.</source>
+            <translation>診断バンドルは、セットアップ、ログ、環境をまとめ、サポートしてくれる相手に送れるようにします。通信内容は、含めると選ばない限り含まれません。</translation>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="224" />
@@ -10972,17 +11184,6 @@ Networks: %5</source>
         </message>
     </context>
     <context>
-        <name>json_validation</name>
-        <message>
-            <source>Valid, version 1</source>
-            <translation type="vanished">有効、バージョン1</translation>
-        </message>
-        <message>
-            <source>Not valid</source>
-            <translation type="vanished">無効</translation>
-        </message>
-    </context>
-    <context>
         <name>ordinal</name>
         <message>
             <location filename="../src/dialogs/share_plan.cpp" line="111" />
@@ -11146,269 +11347,6 @@ Networks: %5</source>
         </message>
     </context>
     <context>
-        <name>vss::gui</name>
-        <message>
-            <source>%1 (%2)</source>
-            <translation type="vanished">%1 (%2)</translation>
-        </message>
-        <message>
-            <source>Started</source>
-            <translation type="vanished">開始済み</translation>
-        </message>
-        <message>
-            <source>Stopped</source>
-            <translation type="vanished">停止済み</translation>
-        </message>
-        <message>
-            <source>Control lines</source>
-            <translation type="vanished">制御線</translation>
-        </message>
-        <message>
-            <source>Error</source>
-            <translation type="vanished">エラー</translation>
-        </message>
-        <message>
-            <source>Counters</source>
-            <translation type="vanished">カウンター</translation>
-        </message>
-        <message>
-            <source>Message</source>
-            <translation type="vanished">メッセージ</translation>
-        </message>
-        <message>
-            <source>Traffic</source>
-            <translation type="vanished">トラフィック</translation>
-        </message>
-        <message>
-            <source>1 port, all names unique</source>
-            <translation type="vanished">1個のポート、すべての名前が一意</translation>
-        </message>
-        <message>
-            <source>%1 ports, all names unique</source>
-            <translation type="vanished">%1個のポート、すべての名前が一意</translation>
-        </message>
-        <message>
-            <source>1 port, a name is used twice</source>
-            <translation type="vanished">1個のポート、名前が重複しています</translation>
-        </message>
-        <message>
-            <source>%1 ports, a name is used twice</source>
-            <translation type="vanished">%1個のポート、名前が重複しています</translation>
-        </message>
-        <message>
-            <source>1 link, no loops</source>
-            <translation type="vanished">1個のリンク、ループなし</translation>
-        </message>
-        <message>
-            <source>%1 links, no loops</source>
-            <translation type="vanished">%1個のリンク、ループなし</translation>
-        </message>
-        <message>
-            <source>1 link, a loop was found</source>
-            <translation type="vanished">1個のリンク、ループが見つかりました</translation>
-        </message>
-        <message>
-            <source>%1 links, a loop was found</source>
-            <translation type="vanished">%1個のリンク、ループが見つかりました</translation>
-        </message>
-        <message>
-            <source>Valid JSON, version 1</source>
-            <translation type="vanished">有効なJSON、バージョン1</translation>
-        </message>
-        <message>
-            <source>Ports, all names unique</source>
-            <translation type="vanished">ポート、すべての名前が一意</translation>
-        </message>
-        <message>
-            <source>Links, no loops</source>
-            <translation type="vanished">リンク、ループなし</translation>
-        </message>
-        <message>
-            <source>Line %1: %2</source>
-            <translation type="vanished">%1行目: %2</translation>
-        </message>
-        <message>
-            <source>The line is highlighted and nothing was applied.</source>
-            <translation type="vanished">該当行が強調表示され、何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Line 1: the document must be a JSON object</source>
-            <translation type="vanished">1行目: ドキュメントはJSONオブジェクトである必要があります</translation>
-        </message>
-        <message>
-            <source>A setup file starts with a { and ends with a }.</source>
-            <translation type="vanished">セットアップファイルは { で始まり、} で終わります。</translation>
-        </message>
-        <message>
-            <source>Line %1: version must be 1</source>
-            <translation type="vanished">%1行目: version は 1 である必要があります</translation>
-        </message>
-        <message>
-            <source>The document needs "version": 1</source>
-            <translation type="vanished">ドキュメントには "version": 1 が必要です</translation>
-        </message>
-        <message>
-            <source>Nothing was applied.</source>
-            <translation type="vanished">何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>"ports" must be a list</source>
-            <translation type="vanished">"ports" はリストである必要があります</translation>
-        </message>
-        <message>
-            <source>Each port must be an object</source>
-            <translation type="vanished">各ポートはオブジェクトである必要があります</translation>
-        </message>
-        <message>
-            <source>Line %1: a port has no name</source>
-            <translation type="vanished">%1行目: 名前のないポートがあります</translation>
-        </message>
-        <message>
-            <source>A port has no name</source>
-            <translation type="vanished">名前のないポートがあります</translation>
-        </message>
-        <message>
-            <source>Every port needs a name so links can refer to it.</source>
-            <translation type="vanished">リンクから参照できるように、すべてのポートに名前が必要です。</translation>
-        </message>
-        <message>
-            <source>Line %1: the name "%2" is used twice</source>
-            <translation type="vanished">%1行目: 名前 "%2" が重複しています</translation>
-        </message>
-        <message>
-            <source>The name "%1" is used twice</source>
-            <translation type="vanished">名前 "%1" が重複しています</translation>
-        </message>
-        <message>
-            <source>Port names identify ports in links, so each name must be unique. Nothing was applied.</source>
-            <translation type="vanished">ポート名はリンク内でポートを識別するため、各名前は一意である必要があります。何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown port kind "%2"</source>
-            <translation type="vanished">%1行目: 不明なポートの種類 "%2"</translation>
-        </message>
-        <message>
-            <source>Unknown port kind "%1"</source>
-            <translation type="vanished">不明なポートの種類 "%1"</translation>
-        </message>
-        <message>
-            <source>Use virtual, physical, tcp, udp, rfc2217 or mock. Nothing was applied.</source>
-            <translation type="vanished">virtual、physical、tcp、udp、rfc2217、mock のいずれかを使用してください。何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown virtual kind "%2"</source>
-            <translation type="vanished">%1行目: 不明な仮想の種類 "%2"</translation>
-        </message>
-        <message>
-            <source>Unknown virtual kind "%1"</source>
-            <translation type="vanished">不明な仮想の種類 "%1"</translation>
-        </message>
-        <message>
-            <source>Use auto, pty, named-pipe, loopback or windows-driver. Nothing was applied.</source>
-            <translation type="vanished">auto、pty、named-pipe、loopback、windows-driver のいずれかを使用してください。何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Line %1: port "%2" has no address</source>
-            <translation type="vanished">%1行目: ポート "%2" にアドレスがありません</translation>
-        </message>
-        <message>
-            <source>Port "%1" has no address</source>
-            <translation type="vanished">ポート "%1" にアドレスがありません</translation>
-        </message>
-        <message>
-            <source>A physical or network port needs a uri. Nothing was applied.</source>
-            <translation type="vanished">physical またはネットワークのポートには uri が必要です。何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>"links" must be a list</source>
-            <translation type="vanished">"links" はリストである必要があります</translation>
-        </message>
-        <message>
-            <source>Line %1: each link must be an object</source>
-            <translation type="vanished">%1行目: 各リンクはオブジェクトである必要があります</translation>
-        </message>
-        <message>
-            <source>Each link must be an object</source>
-            <translation type="vanished">各リンクはオブジェクトである必要があります</translation>
-        </message>
-        <message>
-            <source>Line %1: unknown link mode "%2"</source>
-            <translation type="vanished">%1行目: 不明なリンクモード "%2"</translation>
-        </message>
-        <message>
-            <source>Unknown link mode "%1"</source>
-            <translation type="vanished">不明なリンクモード "%1"</translation>
-        </message>
-        <message>
-            <source>Did you mean "%1"? The line is highlighted and nothing was applied.</source>
-            <translation type="vanished">"%1" のことですか? 該当行が強調表示され、何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Use duplex, split, join, redirect or monitor. Nothing was applied.</source>
-            <translation type="vanished">duplex、split、join、redirect、monitor のいずれかを使用してください。何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Line %1: a link needs ports on both sides</source>
-            <translation type="vanished">%1行目: リンクには両側にポートが必要です</translation>
-        </message>
-        <message>
-            <source>A link needs ports on both sides</source>
-            <translation type="vanished">リンクには両側にポートが必要です</translation>
-        </message>
-        <message>
-            <source>sources and targets must be non-empty lists of port names. Nothing was applied.</source>
-            <translation type="vanished">sources と targets は、ポート名の空でないリストである必要があります。何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Line %1: "%2" has the wrong number of ports</source>
-            <translation type="vanished">%1行目: "%2" のポート数が正しくありません</translation>
-        </message>
-        <message>
-            <source>"%1" has the wrong number of ports</source>
-            <translation type="vanished">"%1" のポート数が正しくありません</translation>
-        </message>
-        <message>
-            <source>A duplex, redirect or monitor link joins one port to one port; a split has one source; a join has one target. Nothing was applied.</source>
-            <translation type="vanished">duplex、redirect、monitor のリンクは1つのポートを1つのポートに接続します。split の送信元は1つ、join の宛先は1つです。何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>Line %1: no port is called "%2"</source>
-            <translation type="vanished">%1行目: "%2" という名前のポートはありません</translation>
-        </message>
-        <message>
-            <source>No port is called "%1"</source>
-            <translation type="vanished">"%1" という名前のポートはありません</translation>
-        </message>
-        <message>
-            <source>Line %1: these links create a loop</source>
-            <translation type="vanished">%1行目: これらのリンクはループを作ります</translation>
-        </message>
-        <message>
-            <source>These links create a loop</source>
-            <translation type="vanished">これらのリンクはループを作ります</translation>
-        </message>
-        <message>
-            <source>Bytes would go round forever, so the hub refuses a loop and nothing was applied.</source>
-            <translation type="vanished">バイトが永久に回り続けてしまうため、ハブはループを拒否し、何も適用されていません。</translation>
-        </message>
-        <message>
-            <source>The setup format rejected this document</source>
-            <translation type="vanished">セットアップ形式がこのドキュメントを受け付けませんでした</translation>
-        </message>
-        <message>
-            <source>Open</source>
-            <translation type="vanished">開いている</translation>
-        </message>
-        <message>
-            <source>Failed</source>
-            <translation type="vanished">失敗</translation>
-        </message>
-        <message>
-            <source>Closed</source>
-            <translation type="vanished">閉じている</translation>
-        </message>
-    </context>
-    <context>
         <name>vss::gui::AddFixtureDialog</name>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="39" />
@@ -11419,8 +11357,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>スクリプトで動かせる疑似デバイスです。ハードウェアなしでテストできます。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>ハードウェアなしでテストするための模擬デバイス。</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -11603,8 +11541,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>スクリプトで動かせる疑似デバイスです。ハードウェアなしでテストできます。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>ハードウェアなしでテストするための模擬デバイス。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -11678,21 +11616,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>COM3 のような固定名を開くプログラムは、実行のたびに同じポートを見つけられます。自動の場合、このPCにすでにあるポートより大きい空き番号が選ばれ、COM1 と COM2 は使われません。番号の指定には Studio ドライバーとそのヘルパーサービスが必要で、ポートを1つ作成するときに使われます。</translation>
-        </message>
-        <message>
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation type="vanished">COM3 のような固定名を開くプログラムは、実行のたびにポートを見つけられます。「自動」は空いている最小の番号を使います。番号の指定には Studio ドライバーとそのヘルパーサービスが必要で、ポートを 1 つ作るときに使われます。</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>COM3 のような固定の名前を開くプログラムは、毎回同じ番号が必要です。「自動」は、この PC に既にあるポートより大きい空き番号を選び、COM1 と COM2 は選びません。番号を指定するには Studio ドライバーとそのヘルパーサービスが必要で、ポートを 1 つ作成するときに使われます。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
             <source>Best available uses the Studio driver or com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
             <translation>「最適なものを使う」は、Windows では Studio ドライバーまたは com0com を、Linux と macOS では疑似端末を使います。同時に最大 32 個まで作れます。複数のポートは port-1、port-2 のように名前が付きます。</translation>
-        </message>
-        <message>
-            <source>Best available uses com0com on Windows, and a pseudo terminal on Linux and macOS. Up to 32 at once. Several ports are named port-1, port-2 and so on.</source>
-            <translation type="vanished">最適なものを自動選択では、Windowsではcom0com、LinuxとmacOSでは疑似端末を使います。一度に最大32個まで作成できます。複数のポートには port-1、port-2 のような名前が付きます。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="377" />
@@ -11701,13 +11631,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>ネットワークエンドポイントは今後のワークパッケージで提供されます。何も作成されていません。</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>ネットワークエンドポイントはまだ利用できません。何も作成されていません。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>モックフィクスチャは今後のワークパッケージで提供されます。何も作成されていません。</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>模擬フィクスチャはまだ利用できません。何も作成されていません。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -11808,10 +11738,6 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="76" />
             <source>Attach a real device</source>
             <translation>実デバイスを接続</translation>
-        </message>
-        <message>
-            <source>Studio opens the device once. Your programs then open the port Studio creates for them.</source>
-            <translation type="vanished">Studioはデバイスを一度だけ開きます。プログラムは、Studioが作成したポートを開きます。</translation>
         </message>
         <message>
             <location filename="../src/flows/attach_dialog.cpp" line="77" />
@@ -12025,14 +11951,6 @@ Networks: %5</source>
             <translation>Studio は %1 を %2 ボーで開いたままにします。プログラムは %1 を開かないでください。Studio が作成する新しい仮想ポートを開き、Studio がそのポートと %1 の間でデータを受け渡します。</translation>
         </message>
         <message>
-            <source>Studio will open &lt;b&gt;%1&lt;/b&gt; at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studioは&lt;b&gt;%1&lt;/b&gt;を%2ボーで開き、開いたままにします。プログラムはStudioが作成したポートを開いてください。%1は開かないでください。</translation>
-        </message>
-        <message>
-            <source>Studio will open %1 at %2 baud and keep it open. Your programs should open the port Studio creates, not %1.</source>
-            <translation type="vanished">Studioは%1を%2ボーで開き、開いたままにします。プログラムはStudioが作成したポートを開いてください。%1は開かないでください。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/attach_dialog.cpp" line="632" />
             <source>hardware flow control</source>
             <translation>ハードウェアフロー制御</translation>
@@ -12152,8 +12070,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>この2つのポートをStudioでリンクしないでください。データはケーブルまたはドライバーのペアを通る必要があり、そうしないと件数に意味がありません。</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>これらのポートを Studio 内でリンクしないでください。データはケーブルまたはドライバーのペアを通らないと、カウントされません。</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -12332,10 +12250,6 @@ Networks: %5</source>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="568" />
             <source>%1: sent %2, received %3, lost %4, throughput %5.</source>
             <translation>%1: 送信 %2、受信 %3、損失 %4、スループット %5。</translation>
-        </message>
-        <message>
-            <source>The benchmark command is not available in this build.</source>
-            <translation type="vanished">このビルドではベンチマークコマンドは利用できません。</translation>
         </message>
     </context>
     <context>
@@ -13376,10 +13290,6 @@ Networks: %5</source>
             <translation>名前をコピー、%1</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet.</source>
-            <translation type="vanished">%1を開いたプログラムはまだありません。</translation>
-        </message>
-        <message>
             <location filename="../src/panes/inspector_panel.cpp" line="451" />
             <location filename="../src/panes/inspector_panel.cpp" line="457" />
             <source>Not available in this build</source>
@@ -13522,8 +13432,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>アドレス、障害注入、ポートの所有権が必要ですか? &lt;a href="advanced"&gt;高度モード&lt;/a&gt;にすると、このウィンドウにそれらが追加されます。作成済みの内容は変わりません。</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;高度モード&lt;/a&gt;では、このウィンドウにアドレス、障害の注入、ポートの所有権が追加されます。作成済みの内容は変わりません。</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -13964,8 +13874,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>トポロジーJSONエディターはWP7で提供されます。</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>トポロジー JSON エディターはまだ利用できません。</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -14697,14 +14607,14 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>ポート「%1」がStudio内に作成されました。</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>ポート「%1」を作成しました。開けるのは Studio だけです。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>ポート「%1」が作成され、他のプログラムから開けます。</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>ポート「%1」を作成しました。他のプログラムから開けます。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -14850,10 +14760,6 @@ Networks: %5</source>
             <translation>%1 を開いているプログラムはまだありません。お使いのプログラムで、正確に %1 を選んでください。プログラムが開くと、このパネルは更新されます。</translation>
         </message>
         <message>
-            <source>No program has opened %1 yet. This panel updates when one does.</source>
-            <translation type="vanished">%1を開いたプログラムはまだありません。開かれると、このパネルが更新されます。</translation>
-        </message>
-        <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="365" />
             <source>Program connected</source>
             <translation>プログラム接続済み</translation>
@@ -14955,8 +14861,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>このポートを開いているプログラムに手放させます。</translation>
+            <source>Make the program release this port.</source>
+            <translation>プログラムにこのポートを解放させます。</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -15135,10 +15041,6 @@ Networks: %5</source>
             <location filename="../src/panes/send_panel.cpp" line="98" />
             <source>Send</source>
             <translation>送信</translation>
-        </message>
-        <message>
-            <source>Send to port</source>
-            <translation type="vanished">ポートへ送信</translation>
         </message>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="81" />
@@ -15448,10 +15350,6 @@ Networks: %5</source>
             <translation>TCP、UDP、またはRFC 2217を使うシリアルサーバーのアドレスです。</translation>
         </message>
         <message>
-            <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are.</source>
-            <translation type="vanished">プログラムは%1自体ではなく、Studioが作成するポートを開きます。次に、プログラムの数を選びます。</translation>
-        </message>
-        <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="483" />
             <location filename="../src/dialogs/share_wizard.cpp" line="488" />
             <source>Your programs will open the ports Studio creates, not %1 itself. Next you choose how many programs there are. You can add more afterwards.</source>
@@ -15734,8 +15632,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>セットアップは変更されていません。デバイスを確認して、もう一度やり直してください。</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>セットアップは変更されていません。デバイスを確認して、もう一度お試しください。</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -15749,8 +15647,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio が共有できるプログラムは最大 32 個です</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio がデバイスを共有できるプログラムは最大 32 個です</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -16533,10 +16431,6 @@ Networks: %5</source>
             <translation>Studio を開いたままにする</translation>
         </message>
         <message>
-            <source>Undo needs an exact restore, which this build cannot prove.</source>
-            <translation type="vanished">元に戻すには正確な復元が必要ですが、このビルドではそれを保証できません。</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="533" />
             <source>&amp;File</source>
             <translation>ファイル(&amp;F)</translation>
@@ -16585,10 +16479,6 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="619" />
             <source>Main toolbar</source>
             <translation>メインツールバー</translation>
-        </message>
-        <message>
-            <source>Not available in this build.</source>
-            <translation type="vanished">このビルドでは利用できません。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="833" />
@@ -16689,10 +16579,6 @@ Networks: %5</source>
             <translation>%1を削除しますか?</translation>
         </message>
         <message>
-            <source>The port and its links will be removed. This cannot be undone.</source>
-            <translation type="vanished">このポートとそのリンクが削除されます。この操作は元に戻せません。</translation>
-        </message>
-        <message>
             <location filename="../src/shell/shell_window.cpp" line="1963" />
             <location filename="../src/shell/shell_window.cpp" line="2027" />
             <location filename="../src/shell/shell_window.cpp" line="2062" />
@@ -16766,13 +16652,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1は今後のワークパッケージで提供されます。</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1は%2で提供されます。</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 はまだ利用できません。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -17572,17 +17453,6 @@ Networks: %5</source>
         </message>
     </context>
     <context>
-        <name>vss::gui::json_validation</name>
-        <message>
-            <source>Valid, version 1</source>
-            <translation type="vanished">有効、バージョン1</translation>
-        </message>
-        <message>
-            <source>Not valid</source>
-            <translation type="vanished">無効</translation>
-        </message>
-    </context>
-    <context>
         <name>vss::gui::other_ports</name>
         <message>
             <location filename="../src/backend/other_ports.hpp" line="32" />
@@ -17732,8 +17602,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>プログラムが送信したものは、すぐにそのままプログラムに戻ります。送信と受信の両方が動くかを手早く確かめられます。</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>プログラムが送ったデータはすぐにそのプログラムへ戻ります。プログラムが送受信できるかを確認するときに使います。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -17769,8 +17639,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>デバイスの説明書に書かれています。あとで文字化けする場合は、たいていこれが原因です。</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>デバイスのマニュアルで確認してください。速度が違うと、通常は文字化けします。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -17836,8 +17706,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>プログラムの準備ができる前に、デバイスが動くかを確かめるのに便利です。入力した内容はデバイスに送られ、デバイスからの返信はこことプログラムに表示されます。</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>自分のプログラムが用意できる前に、デバイスが動作するかを確認するときに使います。入力した内容はデバイスに送られ、その応答はこことプログラムに表示されます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -17846,8 +17716,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>各方向に送られた内容のリアルタイムの一覧を、設定のページに表示します。見るだけなので、何も変わりません。あとから有効にすることもできます。</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>セットアップのページに、各方向に送られたデータを一覧表示します。データは変更されません。あとからオンにすることもできます。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -17873,6 +17743,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="816" />
             <source>New port</source>
             <translation>新しいポート</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="912" />
+            <source>Automatic</source>
+            <translation>自動</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="823" />
@@ -18318,8 +18193,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="390" />
-            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
-            <translation>デバイスに入力し、その応答をここで読めます。別のプログラムは不要です。動作の最初の確認に便利です。</translation>
+            <source>Type to the device and read its replies here, without another program. Use it to check that the device works.</source>
+            <translation>別のプログラムなしで、デバイスに入力し、その応答をここで読めます。デバイスが動作するかを確認するときに使います。</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="396" />
@@ -18403,18 +18278,6 @@ Networks: %5</source>
             </translation>
         </message>
         <message numerus="yes">
-            <source>Line with %n</source>
-            <translation type="vanished">
-                <numerusform>%n 件の回線</numerusform>
-            </translation>
-        </message>
-        <message numerus="yes">
-            <source>%n into %1</source>
-            <translation type="vanished">
-                <numerusform>%n 件を %1 へ</numerusform>
-            </translation>
-        </message>
-        <message numerus="yes">
             <location filename="../src/simple/setup_kinds.cpp" line="425" />
             <source>%n programs take turns sending to %1</source>
             <translation>
@@ -18472,8 +18335,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>読み取り専用です。プログラムが「何も届かない」と言うときに役立ちます。</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>読み取り専用です。プログラムが何も届かないと報告するときに、データを確認するために使います。</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -18798,8 +18661,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>まだ何も設定されていないため、見るポートがありません。先に何かを設定してください。</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>まだ何もセットアップされていません。先にポートをセットアップしてください。</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -19012,8 +18875,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="115" />
-            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, now, and not each time you add a port.</source>
-            <translation>Windows では、ドライバーだけが他のプログラムから開ける COM ポートを作成できます。セットアップでは Virtual Serial Studio のドライバーと、ポートを作成する小さなヘルパーサービスをインストールします。そのため管理者権限が必要なのは今回の 1 回だけで、ポートを追加するたびには必要ありません。</translation>
+            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, not each time you add a port.</source>
+            <translation>Windows では、他のプログラムが開ける COM ポートを作れるのはドライバーだけです。セットアップでは Virtual Serial Studio ドライバーと、ポートを作成する小さなヘルパーサービスをインストールします。そのため、管理者権限が必要なのはポートを追加するたびではなく、1 回だけです。</translation>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="123" />
@@ -19072,6 +18935,151 @@ Networks: %5</source>
             <location filename="../src/topology/add_sheet.cpp" line="490" />
             <source>Set up Virtual Serial Studio</source>
             <translation>Virtual Serial Studio をセットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="72" />
+            <source>End A</source>
+            <translation>端A</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="72" />
+            <source>End B</source>
+            <translation>端B</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="74" />
+            <source>Source</source>
+            <translation>送信元</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="75" />
+            <source>Target %1</source>
+            <translation>宛先 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="77" />
+            <source>Target</source>
+            <translation>宛先</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="78" />
+            <source>Source %1</source>
+            <translation>送信元 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="80" />
+            <source>Device</source>
+            <translation>デバイス</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="81" />
+            <source>Program %1</source>
+            <translation>プログラム %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="83" />
+            <source>Member %1</source>
+            <translation>メンバー %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="85" />
+            <source>From</source>
+            <translation>送信元</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="85" />
+            <source>To</source>
+            <translation>宛先</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="87" />
+            <source>Watched</source>
+            <translation>監視中</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="87" />
+            <source>Copy</source>
+            <translation>コピー</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="89" />
+            <source>Fixture %1</source>
+            <translation>フィクスチャ %1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="90" />
+            <source>Port %1</source>
+            <translation>ポート%1</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="99" />
+            <source>Name</source>
+            <translation>名前</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="100" />
+            <source>Name %1</source>
+            <translation>%1の名前</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="109" />
+            <source>Add %1</source>
+            <translation>%1を追加</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="145" />
+            <source>How many</source>
+            <translation>作成数</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="166" />
+            <source>More settings</source>
+            <translation>その他の設定</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="176" />
+            <source>Baud rate</source>
+            <translation>ボーレート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="184" />
+            <source>Framing</source>
+            <translation>フレーミング</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="207" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="211" />
+            <source>Add</source>
+            <translation>追加</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="262" />
+            <source>%1 kind</source>
+            <translation>%1の種類</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="263" />
+            <source>New port</source>
+            <translation>新しいポート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="264" />
+            <source>New fixture</source>
+            <translation>新しいフィクスチャ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="265" />
+            <source>Loopback</source>
+            <translation>ループバック</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/add_sheet.cpp" line="270" />
+            <source>%1 name</source>
+            <translation>%1の名前</translation>
         </message>
     </context>
     <context>
@@ -19168,6 +19176,726 @@ Networks: %5</source>
             <location filename="../src/topology/topology_view.cpp" line="181" />
             <source>Zoom in</source>
             <translation>ズームイン</translation>
+        </message>
+    </context>
+    <context>
+        <name>CanvasController</name>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="67" />
+            <source>Delete</source>
+            <translation>削除</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="67" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="200" />
+            <source>Nothing was added: %1</source>
+            <translation>何も追加されませんでした: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="205" />
+            <source>Add %1</source>
+            <translation>%1を追加</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="209" />
+            <source>Added %1.</source>
+            <translation>%1を追加しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="247" />
+            <source>Could not link the ports: %1</source>
+            <translation>ポートをリンクできませんでした: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="254" />
+            <source>Connect ports</source>
+            <translation>ポートを接続</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="273" />
+            <source>Linked %1.</source>
+            <translation>%1をリンクしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="323" />
+            <source>Could not add and link a new port.</source>
+            <translation>新しいポートを追加してリンクできませんでした。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="355" />
+            <source>This port can only be opened once.</source>
+            <translation>このポートは一度しか開けません。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="356" />
+            <source>Could not duplicate: %1</source>
+            <translation>複製できませんでした: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="359" />
+            <source>Duplicate</source>
+            <translation>複製</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="380" />
+            <source>%1 and %2</source>
+            <translation>%1と%2</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/shell/canvas_controller.cpp" line="386" />
+            <source>%n link(s)</source>
+            <translation>
+                <numerusform>リンク%n個</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="407" />
+            <source>Delete %1 and the links on them? Undo brings them back.</source>
+            <translation>%1とそのリンクを削除しますか? 「元に戻す」で戻せます。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="409" />
+            <source>Delete %1? Undo brings it back.</source>
+            <translation>%1を削除しますか? 「元に戻す」で戻せます。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="410" />
+            <source>Delete %1?</source>
+            <translation>%1を削除しますか?</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="417" />
+            <source>Could not delete: %1</source>
+            <translation>削除できませんでした: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="424" />
+            <source>link</source>
+            <translation>リンク</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="425" />
+            <source>%1 ports</source>
+            <translation>%1個のポート</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="428" />
+            <source>Delete %1</source>
+            <translation>%1を削除</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="439" />
+            <source>Recreated %1 as %2 (it was %3).</source>
+            <translation>%1を%2として作り直しました (元は%3)。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="451" />
+            <source>Deleted %1.</source>
+            <translation>%1を削除しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="488" />
+            <source>Link selected</source>
+            <translation>リンクを選択</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="518" />
+            <source>Could not change the link: %1</source>
+            <translation>リンクを変更できませんでした: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="552" />
+            <source>Link settings</source>
+            <translation>リンクの設定</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="584" />
+            <source>Could not reverse the link.</source>
+            <translation>リンクを反転できませんでした。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="587" />
+            <source>Reverse direction</source>
+            <translation>向きを反転</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="617" />
+            <source>Settings for %1</source>
+            <translation>%1の設定</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/shell/canvas_controller.cpp" line="618" />
+            <source>Settings for %n ports</source>
+            <translation>
+                <numerusform>%n個のポートの設定</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="634" />
+            <source>Settings changed.</source>
+            <translation>設定を変更しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/canvas_controller.cpp" line="650" />
+            <source>Link settings changed.</source>
+            <translation>リンクの設定を変更しました。</translation>
+        </message>
+    </context>
+    <context>
+        <name>PaneHeader</name>
+        <message numerus="yes">
+            <location filename="../src/widgets/surfaces.cpp" line="100" />
+            <source>%n item(s)</source>
+            <translation>
+                <numerusform>%n個の項目</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>PortSettingsDialog</name>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="61" />
+            <source>no flow control</source>
+            <translation>フロー制御なし</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="63" />
+            <source>hardware flow control</source>
+            <translation>ハードウェアフロー制御</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="65" />
+            <source>software flow control</source>
+            <translation>ソフトウェアフロー制御</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="137" />
+            <source>Settings for %1</source>
+            <translation>%1の設定</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="138" />
+            <source>Settings for %n ports</source>
+            <translation>
+                <numerusform>%n個のポートの設定</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="159" />
+            <source>Studio opens the device with these settings.</source>
+            <translation>Studio はこの設定でデバイスを開きます。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="162" />
+            <source>Studio asks the remote device to use these settings.</source>
+            <translation>Studio はリモートデバイスにこの設定を使うよう求めます。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="165" />
+            <source>The fixture behaves as a device set to these values.</source>
+            <translation>フィクスチャは、この値に設定されたデバイスのように動作します。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="168" />
+            <source>A program that opens this port sets its own speed. These are the values saved with the setup.</source>
+            <translation>このポートを開くプログラムが自分で速度を決めます。ここにあるのはセットアップに保存された値です。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="178" />
+            <source>Program set %1.</source>
+            <translation>プログラムが設定した値: %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="185" />
+            <source>A loopback has no line speed. These values are saved with the setup.</source>
+            <translation>ループバックには回線速度がありません。この値はセットアップに保存されます。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="189" />
+            <source>A network port has no line settings.</source>
+            <translation>ネットワークポートには回線設定がありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="203" />
+            <source>Baud rate</source>
+            <translation>ボーレート</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="211" />
+            <source>Data bits</source>
+            <translation>データビット</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="215" />
+            <source>Parity</source>
+            <translation>パリティ</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="216" />
+            <source>None</source>
+            <translation>なし</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="217" />
+            <source>Odd</source>
+            <translation>奇数</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="218" />
+            <source>Even</source>
+            <translation>偶数</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="219" />
+            <source>Mark</source>
+            <translation>マーク</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="220" />
+            <source>Space</source>
+            <translation>スペース</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="222" />
+            <source>Stop bits</source>
+            <translation>ストップビット</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="230" />
+            <source>Flow control</source>
+            <translation>フロー制御</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="232" />
+            <source>Hardware (RTS/CTS)</source>
+            <translation>ハードウェア (RTS/CTS)</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="234" />
+            <source>Software (XON/XOFF)</source>
+            <translation>ソフトウェア (XON/XOFF)</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="244" />
+            <source> ms</source>
+            <translation> ms</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="245" />
+            <source>Wait</source>
+            <translation>待機</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="248" />
+            <source>Read timeout</source>
+            <translation>読み取りタイムアウト</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="249" />
+            <source>Write timeout</source>
+            <translation>書き込みタイムアウト</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="283" />
+            <source>Restarting the port drops bytes that are in flight. Programs that have it open keep their handle.</source>
+            <translation>ポートを再起動すると、転送中のバイトは失われます。ポートを開いているプログラムはハンドルを保持します。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="313" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="316" />
+            <source>Apply and restart</source>
+            <translation>適用して再起動</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="317" />
+            <source>Apply</source>
+            <translation>適用</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="399" />
+            <source>%1, %2</source>
+            <translation>%1、%2</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="401" />
+            <source>The baud rate must be a whole number from %1 to %2.</source>
+            <translation>ボーレートは%1から%2までの整数にしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
+            <source>The port could not take these settings: %1</source>
+            <translation>ポートがこの設定を受け付けませんでした: %1</translation>
+        </message>
+    </context>
+    <context>
+        <name>StudioTray</name>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="25" />
+            <source>Open Studio</source>
+            <translation>Studio を開く</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="32" />
+            <source>Start when I sign in</source>
+            <translation>サインイン時に起動</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="37" />
+            <source>Stop the ports and quit</source>
+            <translation>ポートを停止して終了</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="83" />
+            <source>%1 ports, %2 links running</source>
+            <translation>ポート%1個、リンク%2個が動作中</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="85" />
+            <source>Virtual Serial Studio: %1</source>
+            <translation>Virtual Serial Studio: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/studio_tray.cpp" line="104" />
+            <source>Not available in this build</source>
+            <translation>このビルドでは利用できません</translation>
+        </message>
+    </context>
+    <context>
+        <name>Toolbox</name>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="62" />
+            <source>Port</source>
+            <translation>ポート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="64" />
+            <source>Fixture</source>
+            <translation>フィクスチャ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="66" />
+            <source>Loopback</source>
+            <translation>ループバック</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="68" />
+            <source>Device</source>
+            <translation>デバイス</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="70" />
+            <source>Network</source>
+            <translation>ネットワーク</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="72" />
+            <source>Pair</source>
+            <translation>ペア</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="74" />
+            <source>Split</source>
+            <translation>分割</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="76" />
+            <source>Join</source>
+            <translation>結合</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="78" />
+            <source>Bus</source>
+            <translation>バス</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="80" />
+            <source>Switch</source>
+            <translation>スイッチ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="82" />
+            <source>Redirect</source>
+            <translation>リダイレクト</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="84" />
+            <source>Monitor</source>
+            <translation>モニター</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="86" />
+            <source>Share</source>
+            <translation>共有</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="88" />
+            <source>Bench</source>
+            <translation>ベンチ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="98" />
+            <source>A virtual port of the best available kind</source>
+            <translation>利用できる中で最適な種類の仮想ポート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="100" />
+            <source>A mock device</source>
+            <translation>モックデバイス</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="102" />
+            <source>A port that sends back everything it receives</source>
+            <translation>受信したものをすべて送り返すポート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="104" />
+            <source>A real serial device on this computer</source>
+            <translation>このコンピューター上の実際のシリアルデバイス</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="106" />
+            <source>A TCP, UDP or RFC 2217 endpoint</source>
+            <translation>TCP、UDP、またはRFC 2217のエンドポイント</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="108" />
+            <source>Two ports linked both ways, like a null-modem cable</source>
+            <translation>ヌルモデムケーブルのように、双方向にリンクした2つのポート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="111" />
+            <source>One port feeds several; their replies merge back</source>
+            <translation>1つのポートが複数のポートに送り、その返答が1つに戻ります</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="113" />
+            <source>Several ports send into one, one way</source>
+            <translation>複数のポートが1つのポートへ一方向に送ります</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="115" />
+            <source>Several ports on one shared line; each hears all the others</source>
+            <translation>複数のポートが1本の共有回線につながり、それぞれが他のすべてを受信します</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="118" />
+            <source>Several programs send to one port, one owner at a time</source>
+            <translation>複数のプログラムが1つのポートに送り、同時に使えるのは1つだけです</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="121" />
+            <source>Bytes from one port go to another, one way</source>
+            <translation>1つのポートのバイトが別のポートへ一方向に流れます</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="123" />
+            <source>A passive copy of one port's traffic</source>
+            <translation>1つのポートのトラフィックの受動的なコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="125" />
+            <source>A real device given to several programs</source>
+            <translation>実際のデバイスを複数のプログラムに提供します</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="127" />
+            <source>Several fixtures, each paired with its own port</source>
+            <translation>複数のフィクスチャ。それぞれが専用のポートとペアになります</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="171" />
+            <source>Toolbox</source>
+            <translation>ツールボックス</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="173" />
+            <source>Drag a tile onto the canvas, or press Enter on it.</source>
+            <translation>タイルをキャンバスにドラッグするか、タイルでEnterキーを押してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="239" />
+            <source>%1: %2</source>
+            <translation>%1: %2</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="254" />
+            <source>Ports</source>
+            <translation>ポート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="257" />
+            <source>Bundles</source>
+            <translation>バンドル</translation>
+        </message>
+    </context>
+    <context>
+        <name>TopologyView</name>
+        <message numerus="yes">
+            <location filename="../src/topology/topology_view.cpp" line="919" />
+            <source>%n selected: %1</source>
+            <translation>
+                <numerusform>%n個を選択: %1</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2363" />
+            <source>Drag a port or bundle from the toolbox, or press Enter on one.</source>
+            <translation>ツールボックスからポートまたはバンドルをドラッグするか、選んでEnterキーを押してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2572" />
+            <source>Choose the port to link %1 to, then press Enter. Esc cancels.</source>
+            <translation>%1のリンク先のポートを選び、Enterキーを押してください。Escで取り消します。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2704" />
+            <source>Two-way</source>
+            <translation>双方向</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2705" />
+            <source>One way, from %1 to %2</source>
+            <translation>一方向、%1から%2へ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2706" />
+            <source>Monitor %1 on %2</source>
+            <translation>%2の%1を監視</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2727" />
+            <source>Link %1 and %2</source>
+            <translation>%1と%2をリンク</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2761" />
+            <source>New port here</source>
+            <translation>ここに新しいポート</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2764" />
+            <source>New fixture here</source>
+            <translation>ここに新しいフィクスチャ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2765" />
+            <source>New loopback here</source>
+            <translation>ここに新しいループバック</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2771" />
+            <source>One way, to the new port</source>
+            <translation>一方向、新しいポートへ</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2772" />
+            <source>Monitor on the new port</source>
+            <translation>新しいポートで監視</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2812" />
+            <source>Settings...</source>
+            <translation>設定...</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2818" />
+            <source>A network port has no line settings.</source>
+            <translation>ネットワークポートには回線設定がありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2827" />
+            <source>Duplicate</source>
+            <translation>複製</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2833" />
+            <source>This port can only be opened once.</source>
+            <translation>このポートは一度しか開けません。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2847" />
+            <source>Delete</source>
+            <translation>削除</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2855" />
+            <source>Link selected</source>
+            <translation>リンクを選択</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2871" />
+            <source>Select exactly two ports.</source>
+            <translation>ポートをちょうど2つ選んでください。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2872" />
+            <source>Split from %1</source>
+            <translation>%1から分割</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2873" />
+            <source>Join into %1</source>
+            <translation>%1に結合</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2874" />
+            <source>Bus</source>
+            <translation>バス</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2875" />
+            <source>Switch on %1</source>
+            <translation>%1のスイッチ</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/topology/topology_view.cpp" line="2898" />
+            <source>Settings for %n ports...</source>
+            <translation>
+                <numerusform>%n個のポートの設定...</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2918" />
+            <source>A monitor link has no settings.</source>
+            <translation>モニターリンクには設定がありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2922" />
+            <source>Reverse direction</source>
+            <translation>向きを反転</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2949" />
+            <source>Add port</source>
+            <translation>ポートを追加</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2950" />
+            <source>Add fixture</source>
+            <translation>フィクスチャを追加</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2951" />
+            <source>Add loopback</source>
+            <translation>ループバックを追加</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2952" />
+            <source>Add bundle</source>
+            <translation>バンドルを追加</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="2959" />
+            <source>Select all</source>
+            <translation>すべて選択</translation>
         </message>
     </context>
 </TS>

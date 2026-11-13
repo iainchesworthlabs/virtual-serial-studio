@@ -18,6 +18,7 @@ add_library(vss_gui_rendering STATIC
   render_mode.hpp
   render_state.cpp
   render_state.hpp
+  content_revision.hpp
   gpu_canvas.cpp
   gpu_canvas.hpp
   gpu_profiler.hpp

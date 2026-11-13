@@ -79,7 +79,7 @@ result<std::optional<frame>> frame_reader::next()
 
     const byte* const base = buffer_.data() + start_;
     const std::size_t size = get_u32(base);
-    if (size > max_frame_size)
+    if (size > limit_)
     {
         failed_ = make_error_code(protocol_errc::oversized_frame);
         return failed_;

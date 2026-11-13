@@ -1,6 +1,6 @@
 # Virtual Serial Studio
 
-A playground for real, virtual and networked serial ports. It opens one serial
+A tool for real, virtual and networked serial ports. It opens one serial
 port and gives it to as many applications as you like, splits a device across
 virtual ports, merges publishers, bridges a port to TCP, RFC 2217 or UDP,
 drives the modem control lines and records the traffic. It is built on
@@ -20,6 +20,7 @@ drives the modem control lines and records the traffic. It is built on
 | See what is tested where | [Platforms](platforms.md) and [Virtual machine testing](vm-testing.md) |
 | Make a release | [Releasing](releasing.md) |
 | Contribute | [Contributing](contributing.md) |
+| See the editions and licensing proposal | [Editions](editions.md) |
 
 The program is free software under the GNU General Public License, version 3
 or later.

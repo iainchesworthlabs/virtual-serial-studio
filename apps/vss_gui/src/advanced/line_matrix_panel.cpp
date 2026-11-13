@@ -74,7 +74,8 @@ const std::array<fault_tile, 6>& fault_tiles()
                            "Byte arrives with no valid stop bit"),
          vss::fault_kind::framing},
         {QT_TRANSLATE_NOOP("LineMatrix", "Overrun"),
-         QT_TRANSLATE_NOOP("LineMatrix", "Incoming data lost, too fast"),
+         QT_TRANSLATE_NOOP("LineMatrix", "Incoming data lost because it "
+                                         "arrived too fast"),
          vss::fault_kind::overrun},
         {QT_TRANSLATE_NOOP("LineMatrix", "Break"),
          QT_TRANSLATE_NOOP("LineMatrix", "A break is received on the line"),
@@ -83,7 +84,7 @@ const std::array<fault_tile, 6>& fault_tiles()
          QT_TRANSLATE_NOOP("LineMatrix", "Carrier drops, as a modem does"),
          vss::fault_kind::hangup},
         {QT_TRANSLATE_NOOP("LineMatrix", "Disconnect"),
-         QT_TRANSLATE_NOOP("LineMatrix", "Device vanishes, as if unplugged"),
+         QT_TRANSLATE_NOOP("LineMatrix", "Device disconnects, as if unplugged"),
          vss::fault_kind::disconnect},
     }};
     return tiles;

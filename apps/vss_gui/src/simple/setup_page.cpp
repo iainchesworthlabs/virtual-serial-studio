@@ -170,7 +170,8 @@ void SetupPage::build()
     auto* show_row = new QHBoxLayout();
     show_row->addWidget(show_data_);
     show_row->addWidget(
-        muted(tr("Read only. Useful when a program says nothing arrives."),
+        muted(tr("Read only. Use it to check the data when a program reports "
+                 "that nothing arrives."),
               body),
         1);
     layout->addLayout(show_row);
@@ -695,15 +696,18 @@ void SetupPage::add_events(const event_batch& events)
         if (!paused_)
         {
             lines_.push_back({QDateTime::currentDateTime(),
-                              shown(event.endpoint), event.data, false});
+                              shown(event.endpoint), event.data.to_byte_array(),
+                              false});
             if (lines_.size() > kMaxLines)
                 lines_.remove(0, lines_.size() - kMaxLines);
             data_changed = true;
         }
         if (event.endpoint == type_target_)
         {
-            conversation_.push_back(
-                {QDateTime::currentDateTime(), {}, event.data, false});
+            conversation_.push_back({QDateTime::currentDateTime(),
+                                     {},
+                                     event.data.to_byte_array(),
+                                     false});
             if (conversation_.size() > kMaxLines)
                 conversation_.remove(0, conversation_.size() - kMaxLines);
             conversation_changed = true;

@@ -280,9 +280,9 @@ void Launcher::build()
     // Pointer to Advanced mode, which adds tools to the same window without
     // changing anything already built.
     auto* hint = new QLabel(
-        tr("Need addresses, fault injection or port ownership? "
-           "<a href=\"advanced\">Advanced mode</a> adds them to this "
-           "same window. Nothing you have built changes."),
+        tr("<a href=\"advanced\">Advanced mode</a> adds addresses, fault "
+           "injection and port ownership to this window. Nothing you have "
+           "built changes."),
         content);
     hint->setTextFormat(Qt::RichText);
     hint->setFont(Theme::instance().font(text_style::body));

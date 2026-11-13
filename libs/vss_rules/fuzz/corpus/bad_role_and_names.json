@@ -1,0 +1,42 @@
+{
+ "attach": {
+  "role": "inline",
+  "from": "a",
+  "to": "b"
+ },
+ "states": [
+  "x",
+  "x",
+  ""
+ ],
+ "rules": [
+  {
+   "name": "r",
+   "when": {
+    "bytes": "01"
+   },
+   "do": [
+    {
+     "reply": [
+      "01"
+     ]
+    },
+    {
+     "set_state": "y"
+    }
+   ]
+  },
+  {
+   "name": "r",
+   "when": {
+    "bytes": "02",
+    "port": "opened"
+   },
+   "do": [
+    {
+     "pass": true
+    }
+   ]
+  }
+ ]
+}

@@ -7,6 +7,8 @@
 #ifndef VSS_GUI_TOPOLOGY_NODE_ITEM_HPP
 #define VSS_GUI_TOPOLOGY_NODE_ITEM_HPP
 
+#include "rendering/content_revision.hpp"
+
 #include <vss/core/types.hpp>
 
 #include <QFont>
@@ -73,7 +75,7 @@ struct node_item_callbacks
 };
 
 /// One port drawn as a card on the topology scene.
-class NodeItem final : public QGraphicsItem
+class NodeItem final : public QGraphicsItem, public rendering::content_revision
 {
 public:
     NodeItem(node_data data, const QSizeF& size, node_item_callbacks callbacks);
@@ -109,6 +111,12 @@ public:
     QPointF left_handle() const;
     QPointF right_handle() const;
 
+    /// Counts up whenever what `paint` draws changes; a move does not count.
+    [[nodiscard]] quint64 revision() const noexcept override
+    {
+        return revision_;
+    }
+
     QRectF boundingRect() const override;
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
                QWidget* widget) override;
@@ -122,7 +130,11 @@ protected:
     void hoverLeaveEvent(QGraphicsSceneHoverEvent* event) override;
 
 private:
+    /// For every change in what `paint` draws.
+    void redraw();
+
     node_data data_;
+    quint64 revision_ = 1;
     QSizeF size_;
     node_item_callbacks callbacks_;
     bool selected_ = false;

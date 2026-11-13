@@ -1,14 +1,14 @@
 # Virtual Serial Studio
 
-**A playground for real, virtual and networked serial ports.**
+**A tool for real, virtual and networked serial ports.**
 
 Virtual Serial Studio opens one serial port and gives it to as many applications
 as you like. It splits a device across several virtual ports, merges several
 publishers into one, redirects traffic, bridges a COM port to TCP, RFC 2217 or
 UDP, drives the modem control lines, and records everything it sees. It is
 built on [Boost.Asio](https://boost.org/libs/asio) and on
-[Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial), the drop-in serial stream
-abstraction that makes the transport replaceable.
+[Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial), the serial stream
+abstraction that lets the transport be replaced.
 
 [![CI](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/ci.yml)
 [![Fuzz](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/fuzz.yml/badge.svg?branch=develop)](https://github.com/iainchesworthlabs/virtual-serial-studio/actions/workflows/fuzz.yml)
@@ -27,7 +27,7 @@ abstraction that makes the transport replaceable.
 | Merge several writers into one device | `join` two or more publishers into one target |
 | Give an application its own serial port | Pseudo terminal on Linux/macOS; on Windows the first-party `vsscom` driver, or a com0com pair when the driver is not installed |
 | Replace com0com | The Windows driver is described in [docs/windows-com-driver.md](docs/windows-com-driver.md); its kernel-mode package is not signed yet, so Windows loads it only with test signing on |
-| Bridge a device to the network | `tcp://`, `udp://` and `rfc2217://` endpoints are first-class ports; `tcp-listen://`, `udp-listen://` and `rfc2217-listen://` wait for other computers to connect |
+| Bridge a device to the network | `tcp://`, `udp://` and `rfc2217://` endpoints are ports like any other; `tcp-listen://`, `udp-listen://` and `rfc2217-listen://` wait for other computers to connect |
 | Test RS-232 control lines | DTR/RTS/BREAK are drivable, CTS/DSR/DCD/RI are reported, a null-modem link crosses them |
 | Watch traffic without disturbing it | One-way `monitor` links and a bounded traffic ring buffer |
 | Put several programs on one multi-drop line | A `bus` link: each port hears every other and never itself, with a `join` to a listen-only tap |
@@ -54,7 +54,7 @@ The same pages are published as a site by the Docs workflow (`mkdocs build --str
 
 ## Building
 
-Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.74+ headers and git. [docs/building.md](docs/building.md) has every preset, the options, Qt and the language standard.
+Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.88+ headers and git. [docs/building.md](docs/building.md) has every preset, the options, Qt and the language standard.
 
 ```bash
 cmake --preset linux-release
@@ -99,6 +99,11 @@ vss_cli bench --from=serial://COM3 --to=serial://COM5 --bytes=10MB
 vss_cli selftest
 vss_agent &                         # keep ports after the command that made them (a first slice)
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
+vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
+vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
+vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
+vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
+vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
 ```
 
 Run `vss_cli --help` for the full list.
@@ -231,10 +236,14 @@ libs/vss_license     licence files and the signed envelope (verify, judge, sign)
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent
+libs/vss_plugin      plugin manifests and the checks made before a plugin runs
 libs/vss_agent       the agent's local transport, server and client
+libs/vss_control_proto the control API: messages, errors and the policy table
+libs/vss_control     the control gateway, its audit log and its client
 third_party          Monocypher, vendored unchanged (Ed25519)
 apps/vss_cli         headless command line
 apps/vss_agent       keeps ports running without the window (a first slice)
+apps/vss_gate        serves the control API to this user's programs (a first slice)
 apps/vss_gui         Qt 6 desktop application
 tests/               in-tree framework, unit and system suites
 perf/                performance suite and floors

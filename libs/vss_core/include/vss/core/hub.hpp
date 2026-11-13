@@ -46,11 +46,20 @@ struct hub_options
     unsigned io_threads = 0;
     /// Events kept in the traffic ring buffer.
     std::size_t traffic_capacity = 8192;
-    /// Where a half-duplex bus reads the time.  Empty (the default) is the
+    /// Where the hub reads the time (#hub::now).  Empty (the default) is the
     /// steady clock.  A test gives its own and moves it by hand, so that
     /// what overlaps and what does not is written in the test and does not
-    /// depend on how fast the machine ran it.  Called from any thread.
+    /// depend on how fast the machine ran it.  A timer cannot wait for such
+    /// a clock, so a link that holds bytes for a delay looks at it every
+    /// millisecond.  Called from any thread.
     std::function<time_point()> clock;
+    /// Ask the system to time this process's timers to about a millisecond
+    /// while the hub runs.  It matters on Windows, where a timer otherwise
+    /// fires on a 15.6 ms tick and a link's `delay_ms` of 1 takes about 15;
+    /// elsewhere timers are already that fine and nothing is asked.  The
+    /// request is made by start() and given back by join().  It costs some
+    /// power, so a host that only watches traffic may turn it off.
+    bool fine_timers = true;
 };
 
 /// The topology engine.
@@ -78,6 +87,12 @@ public:
     void stop();
     void join();
     bool running() const noexcept { return running_.load(); }
+
+    /// The time by the hub's clock: the steady clock unless
+    /// `hub_options::clock` replaces it.  Every time the hub reports (an
+    /// event's `when`) and every time it acts on (a link's delay, a
+    /// half-duplex bus) is read here.  Safe from any thread.
+    time_point now() const;
 
     // -- endpoints ---------------------------------------------------------
 
@@ -393,6 +408,10 @@ public:
 
     // -- used by endpoint --------------------------------------------------
 
+    /// Routes a chunk that `from` read at `when`, a time of the hub's clock.
+    /// It is the chunk's time for a half-duplex bus and for a fault event.
+    void route_data(endpoint_id from, bytes_view data, time_point when);
+    /// The same, for a chunk read now.
     void route_data(endpoint_id from, bytes_view data);
     void route_lines(endpoint_id from, control_lines lines);
     void publish(endpoint_event event);
@@ -463,14 +482,15 @@ private:
     link_info describe(const link_record& record) const;
     void dispatch(const endpoint_event& event);
     void endpoint_closed();
-    /// The time by the hub's clock (`hub_options::clock`).
-    time_point now() const;
 
     hub_options options_;
     boost::asio::io_context io_;
     std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>
         work_;
     std::vector<std::thread> threads_;
+    /// The request for fine timers (`hub_options::fine_timers`), held from
+    /// start() to join().  Its type is the platform layer's.
+    std::shared_ptr<void> timer_period_;
     std::atomic<bool> running_{false};
     // Shutdowns in flight, from remove_endpoint() and stop(). The io_context is
     // stopped only once stop() has been called and this reaches zero.

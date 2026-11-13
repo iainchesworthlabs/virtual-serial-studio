@@ -47,6 +47,9 @@ struct hello_request
     std::uint32_t protocol = protocol_version;
     /// The program that connects, for the agent's log (`vss_cli 0.1.0`).
     std::string client;
+    /// The connection only looks: it may list and subscribe, and the agent
+    /// refuses everything else it asks for.  It cannot be taken back.
+    bool read_only = false;
 
     friend bool operator==(const hello_request&,
                            const hello_request&) = default;
@@ -173,6 +176,9 @@ struct hello_reply
     std::uint64_t process_id = 0;
     /// The kinds of port `create_port` takes in this agent.
     std::vector<std::string> port_kinds;
+    /// What the `hello` asked for, said back: a client that asked for a
+    /// connection that only looks can see that it has one.
+    bool read_only = false;
 
     friend bool operator==(const hello_reply&, const hello_reply&) = default;
 };
@@ -241,6 +247,9 @@ struct event_record
     std::string message;
     /// The error of an error event, or a default one.
     wire_error error;
+    /// When the engine made the event: nanoseconds on the steady clock of
+    /// this computer, the clock that stamps all traffic.  0 when not known.
+    std::uint64_t when_ns = 0;
 
     friend bool operator==(const event_record&, const event_record&) = default;
 };

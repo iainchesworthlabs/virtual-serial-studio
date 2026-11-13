@@ -9,6 +9,8 @@
 
 #include "topology/topology_layout.hpp"
 
+#include "rendering/content_revision.hpp"
+
 #include <vss/core/types.hpp>
 
 #include <QGraphicsItem>
@@ -45,7 +47,7 @@ struct link_item_callbacks
 ///
 /// The item has an 8 px hit tolerance, as the design asks, and the label text
 /// is part of the shape so clicking a label selects the link.
-class LinkItem final : public QGraphicsItem
+class LinkItem final : public QGraphicsItem, public rendering::content_revision
 {
 public:
     LinkItem(link_data data, link_item_callbacks callbacks);
@@ -64,6 +66,12 @@ public:
     void set_in_loop(bool value);
     bool in_loop() const noexcept { return in_loop_; }
 
+    /// Counts up whenever what `paint` draws changes.
+    [[nodiscard]] quint64 revision() const noexcept override
+    {
+        return revision_;
+    }
+
     QRectF boundingRect() const override;
     QPainterPath shape() const override;
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option,
@@ -76,8 +84,11 @@ protected:
 
 private:
     void compute_label_rects();
+    /// For every change in what `paint` draws.
+    void redraw();
 
     link_data data_;
+    quint64 revision_ = 1;
     link_item_callbacks callbacks_;
     topo_link_placement geometry_;
     QRectF primary_rect_;

@@ -157,7 +157,13 @@ private:
         {
             const auto now = steady::now();
             if (now >= deadline)
-                return false;
+            {
+                // What has already happened is still taken, so a caller with
+                // no time to wait gets what has arrived.
+                io_.restart();
+                io_.poll();
+                return finished();
+            }
             io_.restart();
             io_.run_one_for(deadline - now);
         }
@@ -263,6 +269,7 @@ result<std::unique_ptr<client>> client::connect(const client_options& options)
     hello_request greeting;
     greeting.protocol = protocol_version;
     greeting.client = options.name;
+    greeting.read_only = options.read_only;
     auto answer = state->call(std::move(greeting));
     if (!answer)
         return answer.error();
@@ -270,6 +277,10 @@ result<std::unique_ptr<client>> client::connect(const client_options& options)
     if (welcome == nullptr)
         return make_error_code(protocol_errc::malformed_message);
     if (welcome->protocol != protocol_version)
+        return make_error_code(protocol_errc::version_mismatch);
+    // An agent that does not say it will hold the connection to looking
+    // would let it change things: that is not the connection asked for.
+    if (options.read_only && !welcome->read_only)
         return make_error_code(protocol_errc::version_mismatch);
     state->hello = std::move(*welcome);
     return std::unique_ptr<client>(new client(std::move(state)));
