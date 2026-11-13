@@ -343,13 +343,14 @@ void machine::tick(time_point now, std::vector<firing>& out)
             ++next;
         const bool quiet_due = next < quiet_order_.size() &&
                                quiet_deadline(quiet_order_[next]) <= now;
-        const bool gap_due = waiting_ && waiting_->deadline <= now;
         // At the same instant the rule that matched bytes goes first.
-        if (gap_due &&
+        if (waiting_ && waiting_->deadline <= now &&
             (!quiet_due ||
              waiting_->deadline <= quiet_deadline(quiet_order_[next])))
         {
-            fire_waiting(out);
+            const waiting ready = std::move(*waiting_);
+            waiting_.reset();
+            fire_waiting(ready, out);
             continue;
         }
         if (!quiet_due)
@@ -366,10 +367,8 @@ void machine::tick(time_point now, std::vector<firing>& out)
     }
 }
 
-void machine::fire_waiting(std::vector<firing>& out)
+void machine::fire_waiting(const waiting& ready, std::vector<firing>& out)
 {
-    waiting ready = std::move(*waiting_);
-    waiting_.reset();
     const compiled_rule& rule = set_->rules[ready.rule];
     // A line rule may have changed the state while this one waited.
     if (rules_[ready.rule].finished ||

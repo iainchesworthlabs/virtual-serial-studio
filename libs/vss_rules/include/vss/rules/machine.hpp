@@ -224,7 +224,7 @@ private:
     void fire(std::size_t rule, std::uint64_t offset, bytes_view matched,
               time_point start, time_point end, std::vector<firing>& out,
               const time_point* cause = nullptr);
-    void fire_waiting(std::vector<firing>& out);
+    void fire_waiting(const waiting& ready, std::vector<firing>& out);
     time_point quiet_deadline(std::size_t rule) const;
     void plan(const std::vector<compiled_action>& actions, rule_state* runtime,
               std::uint64_t position, bytes_view matched, firing& into);

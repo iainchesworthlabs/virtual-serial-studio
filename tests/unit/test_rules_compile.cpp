@@ -239,7 +239,7 @@ TEST_CASE("rules: compile accepts a valid set and resolves its names")
     REQUIRE(set->attach.as == role::station);
     REQUIRE_EQ(set->attach.port, std::string("p"));
     REQUIRE(set->seed.has_value());
-    REQUIRE_EQ(*set->seed, std::uint64_t{99});
+    REQUIRE_EQ(set->seed.value_or(0), std::uint64_t{99});
     REQUIRE(set->late_after == microseconds(500));
     REQUIRE(set->order == ordering::independent);
     REQUIRE_EQ(set->states.size(), std::size_t{2});
