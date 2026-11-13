@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Plugins: the manifest of a plugin, and the checks made on a plugin before
-# any of its code runs. It does no I/O and starts no process, so it can be
-# tested and fuzzed alone. See docs/plugins.md.
+# any of its code runs. It starts no process and, apart from the load and save
+# of the trust store, does no I/O, so it can be tested and fuzzed alone. See
+# docs/plugins.md.
 #
 
 add_library(vss_plugin
@@ -11,6 +12,7 @@ add_library(vss_plugin
   src/manifest.cpp
   src/policy.cpp
   src/revocations.cpp
+  src/trust_store.cpp
   src/verify.cpp)
 add_library(Vss::plugin ALIAS vss_plugin)
 

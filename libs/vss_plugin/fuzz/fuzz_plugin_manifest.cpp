@@ -16,10 +16,12 @@
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/revocations.hpp>
+#include <vss/plugin/trust_store.hpp>
 
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -36,6 +38,40 @@ void require(bool holds)
     {
         std::abort();
     }
+}
+
+/// What `parse_trust_store` promises about a store it accepts.
+void require_trust_store(const plugin::trust_store& store)
+{
+    require(store.keys().size() <= plugin::max_approved_keys);
+    require(store.decisions().size() <= plugin::max_decisions);
+    for (const plugin::approved_key& key : store.keys())
+    {
+        require(plugin::is_key_id(key.key_id));
+        require(!key.name.empty());
+        require(key.name.size() <= plugin::max_name_length);
+        require(key.approved_on.ok());
+        require(store.find_key(key.key_id) == &key);
+    }
+    std::map<std::string, std::size_t> per_plugin;
+    for (const plugin::plugin_decision& decision : store.decisions())
+    {
+        require(plugin::is_key_id(decision.key_id) ||
+                decision.key_id.empty());
+        require((decision.level == plugin::trust_level::unsigned_plugin) ==
+                decision.key_id.empty());
+        require(decision.decided_on.ok());
+        require(decision.granted.size() <= plugin::max_permissions);
+        require(store.find(decision.plugin_id, decision.hash,
+                           decision.key_id) == &decision);
+        require(++per_plugin[decision.plugin_id] <=
+                plugin::max_decisions_per_plugin);
+    }
+    require(store.ledger().revocation_serial <=
+            plugin::max_revocations_serial);
+    require(store.ledger().key_list_serial <= plugin::max_revocations_serial);
+    require(!store.ledger().latest_date ||
+            store.ledger().latest_date->ok());
 }
 
 /// What `check_relative_path` promises about a path it accepts.
@@ -211,6 +247,29 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
     {
         require(!detail.empty());
         require(plugin::parse_revocations(text).has_error());
+    }
+
+    // The same bytes as a trust store.  A store that reads is inside its
+    // limits, reads the same a second time, and is written as text that
+    // reads back to an equal store.
+    detail.clear();
+    const auto trusted = plugin::parse_trust_store(text, &detail);
+    if (trusted.has_value())
+    {
+        require(detail.empty());
+        require(size <= plugin::max_trust_store_size);
+        require_trust_store(*trusted);
+        const auto again = plugin::parse_trust_store(text);
+        require(again.has_value() && *again == *trusted);
+        const std::string written = plugin::to_json(*trusted);
+        const auto reread = plugin::parse_trust_store(written);
+        require(reread.has_value() && *reread == *trusted);
+        require(plugin::to_json(*reread) == written);
+    }
+    else
+    {
+        require(!detail.empty());
+        require(plugin::parse_trust_store(text).has_error());
     }
     return 0;
 }

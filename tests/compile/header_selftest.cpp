@@ -47,6 +47,7 @@
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/revocations.hpp>
+#include <vss/plugin/trust_store.hpp>
 #include <vss/plugin/verify.hpp>
 #include <vss/rules/compile.hpp>
 #include <vss/rules/machine.hpp>
