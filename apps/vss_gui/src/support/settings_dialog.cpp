@@ -485,16 +485,16 @@ void SettingsDialog::build()
     auto* ends_layout = new QHBoxLayout(ends);
     ends_layout->setContentsMargins(0, 0, 0, 0);
     ends_layout->addWidget(hint_label(
-        QCoreApplication::translate("Settings", "50 ms, live"), ends));
+        QCoreApplication::translate("Settings", "50 ms, most frequent"), ends));
     ends_layout->addStretch(1);
     ends_layout->addWidget(hint_label(
-        QCoreApplication::translate("Settings", "5000 ms, light"), ends));
+        QCoreApplication::translate("Settings", "5000 ms, least frequent"),
+        ends));
     refresh_layout->addWidget(ends);
     refresh_layout->addWidget(hint_label(
         QCoreApplication::translate("Settings",
-                                    "How often counters and states are read. "
-                                    "Shorter feels live. Longer "
-                                    "is lighter on a busy machine."),
+                                    "A shorter interval updates more often. A "
+                                    "longer interval uses less CPU."),
         refresh_holder));
     performance_layout->addWidget(refresh_holder);
 

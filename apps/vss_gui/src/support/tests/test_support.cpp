@@ -409,7 +409,7 @@ TEST_CASE("support: setup report degrades and never fakes a check")
         support::build_setup_report(present, platform, devices);
     REQUIRE_EQ(ready.state, support::setup_report::readiness::ready);
     REQUIRE(ready.ports_ready);
-    REQUIRE_EQ(ready.header_chip, QStringLiteral("All set"));
+    REQUIRE_EQ(ready.header_chip, QStringLiteral("Ready"));
     REQUIRE(ready.driver_note.isEmpty());
     REQUIRE_EQ(ready.rows.at(0).chip, QStringLiteral("OK"));
 
@@ -421,7 +421,7 @@ TEST_CASE("support: setup report degrades and never fakes a check")
         support::build_setup_report(studio, platform, devices);
     REQUIRE_EQ(studio_report.state, support::setup_report::readiness::ready);
     REQUIRE(studio_report.ports_ready);
-    REQUIRE_EQ(studio_report.header_chip, QStringLiteral("All set"));
+    REQUIRE_EQ(studio_report.header_chip, QStringLiteral("Ready"));
     REQUIRE(studio_report.driver_note.isEmpty());
     REQUIRE_EQ(studio_report.rows.at(0).chip, QStringLiteral("OK"));
     REQUIRE(studio_report.rows.at(0).action_text.isEmpty());
@@ -512,14 +512,14 @@ TEST_CASE("support: the setup report cache asks the backend only when stale")
     vss::gui::setup_facts present = windows_facts();
     present.com0com_found = true;
     backend.set_facts(present);
-    REQUIRE_EQ(cache.get(backend).header_chip, QStringLiteral("All set"));
+    REQUIRE_EQ(cache.get(backend).header_chip, QStringLiteral("Ready"));
 
     // A backend with something slow behind it is asked once in a while.
     backend.set_probe_cache_age(std::chrono::hours(1));
     cache.invalidate();
-    REQUIRE_EQ(cache.get(backend).header_chip, QStringLiteral("All set"));
+    REQUIRE_EQ(cache.get(backend).header_chip, QStringLiteral("Ready"));
     backend.set_facts(windows_facts());
-    REQUIRE_EQ(cache.get(backend).header_chip, QStringLiteral("All set"));
+    REQUIRE_EQ(cache.get(backend).header_chip, QStringLiteral("Ready"));
     cache.invalidate();
     REQUIRE_EQ(cache.get(backend).header_chip,
                QStringLiteral("1 thing to fix"));
@@ -559,14 +559,14 @@ TEST_CASE("support: setup check dialog reads engine facts")
     present.com0com_found = true;
     backend.set_facts(present);
     dialog.recheck();
-    REQUIRE_EQ(dialog.report().header_chip, QStringLiteral("All set"));
+    REQUIRE_EQ(dialog.report().header_chip, QStringLiteral("Ready"));
 
     vss::gui::setup_facts studio = windows_facts();
     studio.driver_found = true;
     studio.driver_version = QStringLiteral("2");
     backend.set_facts(studio);
     dialog.recheck();
-    REQUIRE_EQ(dialog.report().header_chip, QStringLiteral("All set"));
+    REQUIRE_EQ(dialog.report().header_chip, QStringLiteral("Ready"));
     REQUIRE(dialog.report().ports_ready);
     check_accessible(dialog);
 

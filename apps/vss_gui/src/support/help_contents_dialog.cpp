@@ -66,7 +66,8 @@ void HelpContentsDialog::build()
     add_dialog_heading(
         header_layout, QCoreApplication::translate("Help", "Help contents"),
         QCoreApplication::translate(
-            "Help", "Every action is in the menus. Start with these."),
+            "Help", "These are the most used actions. All actions are in the "
+                    "menus."),
         header);
     outer->addWidget(header);
 

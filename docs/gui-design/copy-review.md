@@ -1,6 +1,12 @@
 # Copy review: plain language
 
-Status: proposal for the owner to review. No string in the specs, the code, the translation catalogues or the tests has been changed.
+Status: applied, except rows 28 and 29. The owner approved the table. The specs, the HTML mockups, the `tr()` calls, the eight translated catalogues (`tools/ts_tool.py`; the English text is the source) and the tests that assert on a changed text now use the proposed text.
+
+- Rows 1 to 9 and 11 to 27 and 30 to 38 were applied as written, with one correction: row 12 keeps its `<a href="advanced">` link around "Advanced mode".
+- Row 10 was applied by deleting `ShellWindow::later_package`, which nothing called, and its string. Row 9 is the only string left, and `ShellWindow::placeholder` uses it.
+- Rows 28 and 29 were not applied. The copy deck does not name "Engine" for the user: it says "Engine text lives only behind Copy details", and the only other "engine" strings in the window are two internal messages. "Hub running" is also in the user guide and in the workspace spec and mockups. The copy deck says to avoid "hub" but gives no replacement, so the owner needs to pick a word first.
+- Rows 3 and 36 were checked against the code and are true: the bundle is saved as a `.zip`, and a Studio-only port is an in-process port that only Studio can open (the same fact appears in the ports table).
+- The proposed texts in the table are the ones now in the code. In the translated catalogues each changed text is retranslated, not left unfinished.
 
 ## Scope and method
 

@@ -52,8 +52,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="200" />
-            <source>Copy this into a bug report. It answers "which build is this?"</source>
-            <translation>请将此内容复制到错误报告中。它回答的是“这是哪个构建版本？”</translation>
+            <source>Copy this into a bug report. It shows which build you are running.</source>
+            <translation>请将其复制到错误报告中。它显示您正在使用的版本。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="231" />
@@ -183,8 +183,8 @@
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>可编写脚本的虚拟设备，无需硬件即可测试。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>用于在没有硬件时测试的模拟设备。</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -382,8 +382,8 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>可编写脚本的虚拟设备，无需硬件即可测试。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>用于在没有硬件时测试的模拟设备。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -457,8 +457,8 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>打开 COM3 这类固定名称的程序每次运行都能再次找到该端口。“自动”会选取高于此电脑现有端口的空闲编号，绝不使用 COM1 或 COM2。指定编号需要 Studio 驱动程序及其辅助服务，并且只在创建单个端口时使用。</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>打开 COM3 这类固定名称的程序每次都需要相同的编号。“自动”会选择高于本电脑现有串口的空闲编号，绝不会选择 COM1 或 COM2。指定编号需要 Studio 驱动程序及其辅助服务，并在创建单个串口时使用。</translation>
         </message>
         <message>
             <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
@@ -480,13 +480,13 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>网络端点将在后续工作包中提供。尚未创建任何内容。</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>网络端点尚不可用。未创建任何内容。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>模拟设备将在后续工作包中提供。尚未创建任何内容。</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>模拟设备尚不可用。未创建任何内容。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -949,8 +949,8 @@
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>请勿在 Studio 中链接这两个串口。数据必须经过线缆或驱动程序串口对传输，这样计数才有意义。</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>请勿在 Studio 中链接这些串口。数据必须经过线缆或驱动程序配对端口才会被计数。</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -1202,8 +1202,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="129" />
-            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
-            <translation>收集协助者了解您的配置所需的信息。不会向任何地方发送任何内容。保存位置由您选择。</translation>
+            <source>Collects your setup, event log and environment details into one file. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>将您的设置、事件日志和环境详情收集到一个文件中。不会向任何地方发送内容。由您选择保存位置。</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="145" />
@@ -1272,8 +1272,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="202" />
-            <source>Nothing leaves this PC until you share the file yourself. Look inside the bundle first if you want to check it.</source>
-            <translation>在您自己分享文件之前，任何内容都不会离开此电脑。如需核对，请先查看包内的内容。</translation>
+            <source>Nothing is sent. The file is a zip that you can open and read before you share it.</source>
+            <translation>不会发送任何内容。该文件是 zip 压缩包，您可以在分享之前打开并查看。</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="210" />
@@ -2389,8 +2389,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="60" />
-            <source>Every action is in the menus. Start with these.</source>
-            <translation>所有操作都在菜单中。从这些开始。</translation>
+            <source>These are the most used actions. All actions are in the menus.</source>
+            <translation>这些是最常用的操作。所有操作都在菜单中。</translation>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="77" />
@@ -2757,8 +2757,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>你的程序发送的内容会立即返回给它。可快速测试它的发送和接收是否都正常。</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>程序发送的任何数据都会立即返回给它。可用它检查程序能否发送和接收。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -2794,8 +2794,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>设备手册里有这个值。之后如果文字显示乱码，通常就是这个原因。</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>请查看设备手册。速率不对通常会显示为乱码。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -2861,8 +2861,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>适合在你自己的程序就绪之前检查设备是否正常。你输入的内容会发送到设备，它的回复会显示在这里和你的程序中。</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>可在您自己的程序就绪之前，用它检查设备是否正常。您输入的内容会发送到设备，设备的回复会显示在这里和您的程序中。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -2871,8 +2871,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>在配置页面上实时列出双向发送的内容。它只是查看，不会改变任何设置。之后也可以再开启。</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>在该设置的页面上列出向每个方向发送的数据。不会更改数据。您也可以稍后再开启。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -3373,8 +3373,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>需要地址、故障注入或串口所有权？&lt;a href="advanced"&gt;高级模式&lt;/a&gt;会将它们添加到同一窗口。您已创建的内容不会改变。</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;高级模式&lt;/a&gt;会在此窗口中添加地址、故障注入和串口所有权。您已创建的内容不会改变。</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -3453,8 +3453,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="75" />
-            <source>Incoming data lost, too fast</source>
-            <translation>传入数据因速度过快而丢失</translation>
+            <source>Incoming data lost because it arrived too fast</source>
+            <translation>传入数据因到达过快而丢失</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="77" />
@@ -3483,8 +3483,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="84" />
-            <source>Device vanishes, as if unplugged</source>
-            <translation>设备消失，如同被拔出</translation>
+            <source>Device disconnects, as if unplugged</source>
+            <translation>设备断开，如同被拔出</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="330" />
@@ -3941,8 +3941,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>拓扑 JSON 编辑器将随 WP7 提供。</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>拓扑 JSON 编辑器尚不可用。</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -5030,14 +5030,14 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>您的串口“%1”现已在 Studio 内创建。</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>已创建串口“%1”。只有 Studio 可以打开它。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>您的串口“%1”现已创建，其他程序可以打开它。</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>已创建串口“%1”。其他程序可以打开它。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -5618,8 +5618,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="134" />
-            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check: it says whether your account is missing the serial device group or AppArmor, SELinux or a sandbox is in the way, and shows the command to fix it.</source>
-            <translation>系统不允许这样做。没有任何更改。请打开“工具”中的“配置检查”：它会说明是您的账户缺少串行设备组，还是 AppArmor、SELinux 或沙盒造成了阻碍，并给出修复命令。</translation>
+            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check to see whether the cause is a missing group, AppArmor, SELinux or a sandbox. It shows the command to fix it.</source>
+            <translation>系统不允许此操作。未做任何更改。请打开“工具”中的“配置检查”，查看原因是缺少用户组、AppArmor、SELinux 还是沙盒。那里也会显示修复命令。</translation>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="69" />
@@ -5753,8 +5753,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>让占用此端口的程序放开它。</translation>
+            <source>Make the program release this port.</source>
+            <translation>让该程序释放此串口。</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -6197,18 +6197,18 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="369" />
-            <source>50 ms, live</source>
-            <translation>50 毫秒，实时</translation>
+            <source>50 ms, most frequent</source>
+            <translation>50 毫秒，最频繁</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="372" />
-            <source>5000 ms, light</source>
-            <translation>5000 毫秒，省资源</translation>
+            <source>5000 ms, least frequent</source>
+            <translation>5000 毫秒，最不频繁</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="375" />
-            <source>How often counters and states are read. Shorter feels live. Longer is lighter on a busy machine.</source>
-            <translation>读取计数器和状态的频率。越短越接近实时，越长则在繁忙的电脑上越省资源。</translation>
+            <source>A shorter interval updates more often. A longer interval uses less CPU.</source>
+            <translation>间隔越短，更新越频繁；间隔越长，占用的 CPU 越少。</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="417" />
@@ -6652,7 +6652,7 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/setup_facts.cpp" line="256" />
-            <source>Carry on without a driver</source>
+            <source>Continue without a driver</source>
             <translation>不使用驱动程序继续</translation>
         </message>
         <message>
@@ -6852,8 +6852,8 @@ Networks: %5</source>
         <message>
             <location filename="../src/support/setup_check_dialog.cpp" line="225" />
             <location filename="../src/support/setup_facts.cpp" line="475" />
-            <source>All set</source>
-            <translation>一切就绪</translation>
+            <source>Ready</source>
+            <translation>就绪</translation>
         </message>
         <message>
             <location filename="../src/support/setup_check_dialog.cpp" line="262" />
@@ -6980,8 +6980,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>只读。当程序提示没有收到数据时很有用。</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>只读。当程序报告收不到任何数据时，可用它检查数据。</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -7733,8 +7733,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>配置未改变。请检查设备，然后重试。</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>设置未更改。请检查设备，然后重试。</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -7748,8 +7748,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio 最多可共享 32 个程序</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio 最多可将一台设备共享给 32 个程序</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -8765,13 +8765,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1 属于后续工作包。</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1 将随 %2 提供。</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 尚不可用。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -8922,8 +8917,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="124" />
-            <source>Every action has a menu item. These are the quick ways.</source>
-            <translation>每个操作都有对应的菜单项。以下是快捷方式。</translation>
+            <source>Shortcuts for the actions in the menus.</source>
+            <translation>菜单中各项操作的快捷键。</translation>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="133" />
@@ -9008,8 +9003,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>尚未设置任何内容，因此没有可查看的串口。请先设置一些内容。</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>尚未设置任何内容。请先设置一个串口。</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -10447,8 +10442,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="206" />
-            <source>Still stuck? A diagnostic bundle gathers the setup, the log and the environment for whoever helps you. Traffic contents are left out unless you choose to include them.</source>
-            <translation>仍然没有解决？诊断包会收集配置、日志和环境信息，供帮助您的人使用。除非您选择包含，否则不会包含流量内容。</translation>
+            <source>A diagnostic bundle collects the setup, the log and the environment to send to whoever helps you. Traffic contents are left out unless you include them.</source>
+            <translation>诊断包会收集设置、日志和环境信息，供您发送给协助您的人。除非您选择包含，否则不含流量内容。</translation>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="224" />
@@ -11169,8 +11164,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>可编写脚本的虚拟设备，无需硬件即可测试。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>用于在没有硬件时测试的模拟设备。</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -11353,8 +11348,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>可编写脚本的虚拟设备，无需硬件即可测试。</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>用于在没有硬件时测试的模拟设备。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -11428,8 +11423,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>打开 COM3 这类固定名称的程序每次运行都能再次找到该端口。“自动”会选取高于此电脑现有端口的空闲编号，绝不使用 COM1 或 COM2。指定编号需要 Studio 驱动程序及其辅助服务，并且只在创建单个端口时使用。</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>打开 COM3 这类固定名称的程序每次都需要相同的编号。“自动”会选择高于本电脑现有串口的空闲编号，绝不会选择 COM1 或 COM2。指定编号需要 Studio 驱动程序及其辅助服务，并在创建单个串口时使用。</translation>
         </message>
         <message>
             <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes the lowest free number. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
@@ -11451,13 +11446,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>网络端点将在后续工作包中提供。尚未创建任何内容。</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>网络端点尚不可用。未创建任何内容。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>模拟设备将在后续工作包中提供。尚未创建任何内容。</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>模拟设备尚不可用。未创建任何内容。</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -11894,8 +11889,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>请勿在 Studio 中链接这两个串口。数据必须经过线缆或驱动程序串口对传输，这样计数才有意义。</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>请勿在 Studio 中链接这些串口。数据必须经过线缆或驱动程序配对端口才会被计数。</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -13248,8 +13243,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>需要地址、故障注入或串口所有权？&lt;a href="advanced"&gt;高级模式&lt;/a&gt;会将它们添加到同一窗口。您已创建的内容不会改变。</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;高级模式&lt;/a&gt;会在此窗口中添加地址、故障注入和串口所有权。您已创建的内容不会改变。</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -13690,8 +13685,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>拓扑 JSON 编辑器将随 WP7 提供。</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>拓扑 JSON 编辑器尚不可用。</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -14419,14 +14414,14 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>您的串口“%1”现已在 Studio 内创建。</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>已创建串口“%1”。只有 Studio 可以打开它。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>您的串口“%1”现已创建，其他程序可以打开它。</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>已创建串口“%1”。其他程序可以打开它。</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -14677,8 +14672,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>让占用此端口的程序放开它。</translation>
+            <source>Make the program release this port.</source>
+            <translation>让该程序释放此串口。</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -15456,8 +15451,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>配置未改变。请检查设备，然后重试。</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>设置未更改。请检查设备，然后重试。</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -15471,8 +15466,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio 最多可共享 32 个程序</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio 最多可将一台设备共享给 32 个程序</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -16488,13 +16483,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1 属于后续工作包。</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1 将随 %2 提供。</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 尚不可用。</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -17423,8 +17413,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>你的程序发送的内容会立即返回给它。可快速测试它的发送和接收是否都正常。</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>程序发送的任何数据都会立即返回给它。可用它检查程序能否发送和接收。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -17460,8 +17450,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>设备手册里有这个值。之后如果文字显示乱码，通常就是这个原因。</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>请查看设备手册。速率不对通常会显示为乱码。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -17527,8 +17517,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>适合在你自己的程序就绪之前检查设备是否正常。你输入的内容会发送到设备，它的回复会显示在这里和你的程序中。</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>可在您自己的程序就绪之前，用它检查设备是否正常。您输入的内容会发送到设备，设备的回复会显示在这里和您的程序中。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -17537,8 +17527,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>在配置页面上实时列出双向发送的内容。它只是查看，不会改变任何设置。之后也可以再开启。</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>在该设置的页面上列出向每个方向发送的数据。不会更改数据。您也可以稍后再开启。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -17989,8 +17979,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="390" />
-            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
-            <translation>在这里向设备输入内容并读取它的回复，不需要另一个程序。适合首次检查设备是否正常工作。</translation>
+            <source>Type to the device and read its replies here, without another program. Use it to check that the device works.</source>
+            <translation>无需其他程序，即可在此向设备输入并查看其回复。可用它检查设备是否正常。</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="396" />
@@ -18143,8 +18133,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>只读。当程序提示没有收到数据时很有用。</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>只读。当程序报告收不到任何数据时，可用它检查数据。</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -18469,8 +18459,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>尚未设置任何内容，因此没有可查看的串口。请先设置一些内容。</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>尚未设置任何内容。请先设置一个串口。</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -18683,8 +18673,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="115" />
-            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, now, and not each time you add a port.</source>
-            <translation>Windows 只允许驱动程序创建其他程序可以打开的 COM 端口。设置会安装 Virtual Serial Studio 驱动程序和一个为您创建端口的小型辅助服务，因此只需在现在使用一次管理员权限，而不是每次添加端口时都需要。</translation>
+            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, not each time you add a port.</source>
+            <translation>Windows 只允许驱动程序创建其他程序可以打开的 COM 串口。设置会安装 Virtual Serial Studio 驱动程序和一个为您创建串口的小型辅助服务，因此只需管理员权限一次，而不是每次添加串口时都需要。</translation>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="123" />

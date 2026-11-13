@@ -137,8 +137,8 @@ void DiagnosticBundleDialog::build()
         QCoreApplication::translate("Bundle", "Create a diagnostic bundle"),
         QCoreApplication::translate(
             "Bundle",
-            "Gathers what a helper needs to understand your setup. Nothing is "
-            "sent anywhere. You choose where to save it."),
+            "Collects your setup, event log and environment details into one "
+            "file. Nothing is sent anywhere. You choose where to save it."),
         header);
     outer->addWidget(header);
 
@@ -218,8 +218,8 @@ void DiagnosticBundleDialog::build()
         NoteBanner::kind::info,
         QCoreApplication::translate(
             "Bundle",
-            "Nothing leaves this PC until you share the file yourself. Look "
-            "inside the bundle first if you want to check it."),
+            "Nothing is sent. The file is a zip that you can open and read "
+            "before you share it."),
         body);
     body_layout->addWidget(privacy);
 

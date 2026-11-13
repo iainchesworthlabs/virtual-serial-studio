@@ -2128,13 +2128,7 @@ void ShellWindow::focus_monitor(vss::endpoint_id port)
 
 void ShellWindow::placeholder(const QString& what)
 {
-    status_->showMessage(tr("%1 is part of a later work package.").arg(what),
-                         5000);
-}
-
-void ShellWindow::later_package(const QString& what, const QString& package)
-{
-    status_->showMessage(tr("%1 arrives with %2.").arg(what, package), 6000);
+    status_->showMessage(tr("%1 is not available yet.").arg(what), 5000);
 }
 
 void ShellWindow::refresh_topology()

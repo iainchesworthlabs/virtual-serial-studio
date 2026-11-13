@@ -280,7 +280,7 @@ const GOALS = [
     left: { label: "Device", role: "device", min: 1, max: 1 },
     right: { label: "Programs", role: "program", min: 2, max: 32 }, arrows: "both", adds: true, extras: ["type", "data"] },
   { id: "talk", group: "I have a serial device", title: "Try my device from this window",
-    blurb: "Type to the device and read its replies here, without another program. Good for a first check that it works.",
+    blurb: "Type to the device and read its replies here, without another program. Use it to check that the device works.",
     left: { label: "Device", role: "device", min: 1, max: 1 },
     right: null, arrows: "none", extras: ["data"] },
   { id: "network", group: "I have a serial device", title: "Let other computers use my device",
@@ -310,7 +310,7 @@ const GOALS = [
 
 const ANSWERS = {
   me: ["I'll type to it from this window", "What your program sends shows here, and what you type goes to your program. Use it to see that your program sends what you expect."],
-  echo: ["Send everything straight back", "Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work."],
+  echo: ["Send everything straight back", "Whatever your program sends comes back to it at once. Use it to check that the program can send and receive."],
 };
 
 // ---- state ----------------------------------------------------------------
@@ -616,7 +616,7 @@ function renderForm() {
   if (ends(f).some(e => e.kind === "device")) {
     fields.append(el("div", { class: "field" }, el("label", { for: "baud" }, "Device speed (baud rate)"),
       el("select", { id: "baud", onchange: ev => { f.baud = ev.target.value; } }, ["9600", "19200", "38400", "57600", "115200"].map(b => el("option", { selected: b === f.baud }, b))),
-      el("div", { class: "hint", style: "font-size:12px;color:var(--ink3);margin-top:4px" }, "The device's manual gives it. If text looks garbled later, this is usually why.")));
+      el("div", { class: "hint", style: "font-size:12px;color:var(--ink3);margin-top:4px" }, "Check the device's manual. A wrong rate usually shows as garbled text.")));
     fields.append(el("div", { class: "field" }, el("label", {}, "Other device settings"),
       el("button", { class: "btn", style: "width:100%;text-align:left" }, "8 data bits, no parity, 1 stop bit. Change…")));
   }
@@ -631,17 +631,17 @@ function renderForm() {
     if (g.extras.includes("type") && d)
       ex.append(el("label", { class: "choice" }, el("input", { type: "checkbox", checked: f.type, onchange: ev => { f.type = ev.target.checked; } }),
         el("b", {}, `Let me type to ${endName(d)} from this window`),
-        el("span", {}, "Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.")));
+        el("span", {}, "Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.")));
     if (g.extras.includes("data"))
       ex.append(el("label", { class: "choice" }, el("input", { type: "checkbox", checked: f.data, onchange: ev => { f.data = ev.target.checked; } }),
         el("b", {}, "Show me the data going through"),
-        el("span", {}, "A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.")));
+        el("span", {}, "Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.")));
     page.append(ex);
   }
 
   page.append(el("div", { class: "result", id: "result", html: resultText(f) }));
   if (editing) page.append(changeSummary(f));
-  if (f.goal === "watch" && !allPorts().length) page.append(el("div", { class: "note" }, "Nothing is set up yet, so there is no port to look at. Set something up first."));
+  if (f.goal === "watch" && !allPorts().length) page.append(el("div", { class: "note" }, "Nothing is set up yet. Set up a port first."));
   return page;
 }
 
@@ -720,7 +720,7 @@ function renderSetup(s) {
         el("button", { class: "btn quiet", onclick: () => { s.showData = false; render(); } }, "Hide"))));
   } else {
     dataSec.append(el("div", {}, el("button", { class: "btn", onclick: () => { s.showData = true; render(); } }, "Show me the data going through"),
-      el("span", { class: "sub", style: "margin-left:8px" }, "Read only. Useful when a program says nothing arrives.")));
+      el("span", { class: "sub", style: "margin-left:8px" }, "Read only. Use it to check the data when a program reports that nothing arrives.")));
   }
   page.append(dataSec);
 

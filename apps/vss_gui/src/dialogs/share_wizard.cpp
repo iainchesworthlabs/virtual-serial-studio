@@ -1438,8 +1438,8 @@ bool ShareWizard::share()
             tr("Could not share %1").arg(source_name()),
             replacing ? tr("The previous share was removed. Check the device, "
                            "then try again.")
-                      : tr("The studio is unchanged. Check the device, then "
-                           "try again."),
+                      : tr("The setup is unchanged. Check the device, then try "
+                           "again."),
             last_error_);
         return false;
     }
@@ -1472,7 +1472,7 @@ bool ShareWizard::add_another_program()
     if (listener_ids_.size() >= 32)
     {
         error_->show_error(
-            tr("The most Studio can share is 32 programs"),
+            tr("Studio can share a device with at most 32 programs"),
             tr("Remove a program's port first if you need a different one."));
         return false;
     }

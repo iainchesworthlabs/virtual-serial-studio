@@ -218,7 +218,8 @@ void AboutDialog::build()
     environment_layout->addWidget(body_label(
         QCoreApplication::translate(
             "About",
-            "Copy this into a bug report. It answers \"which build is this?\""),
+            "Copy this into a bug report. It shows which build you are "
+            "running."),
         environment_page));
     auto* card = new QFrame(environment_page);
     card->setProperty("card", true);
