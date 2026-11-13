@@ -7,11 +7,11 @@
 # snapshots the studio on a timer and never touches widgets from hub threads.
 #
 
-find_package(Qt6 6.2 QUIET COMPONENTS Widgets Svg Network)
+find_package(Qt6 6.11 QUIET COMPONENTS Widgets Svg Network GuiPrivate CanvasPainter)
 if(NOT Qt6_FOUND)
   if(VSS_GUI_REQUIRED)
     message(FATAL_ERROR
-      "Vss: the GUI was requested but Qt 6 with the Widgets, Svg and Network modules "
+      "Vss: the GUI was requested but Qt 6.11 or newer with the Widgets, Svg, Network and Canvas Painter modules "
       "was not found. It was searched for in CMAKE_PREFIX_PATH, VSS_QT_ROOT, "
       "ICL_QT_ROOT, QT_ROOT_DIR, QTDIR and the usual install locations. Set "
       "VSS_QT_ROOT or CMAKE_PREFIX_PATH to a Qt 6 installation that includes "
@@ -44,34 +44,15 @@ set(CMAKE_AUTORCC ON)
 vss_enable_coverage_directory()
 set(CMAKE_AUTOUIC OFF)
 
-# Build identity for the About window and for `environment.txt` in the
-# diagnostic bundle.  Resolved before the support target so its compile
-# definitions can carry the values.
-find_package(Git QUIET)
-if(GIT_FOUND AND EXISTS "${CMAKE_SOURCE_DIR}/.git")
-  execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE VSS_GIT_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-  execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    OUTPUT_VARIABLE VSS_GIT_BRANCH OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-endif()
-if(NOT VSS_GIT_COMMIT)
-  set(VSS_GIT_COMMIT "unknown")
-endif()
-if(NOT VSS_GIT_BRANCH)
-  set(VSS_GIT_BRANCH "unknown")
-endif()
-string(TIMESTAMP VSS_BUILD_DATE "%Y-%m-%d")
-set(VSS_BUILD_TYPE "${CMAKE_BUILD_TYPE}")
-set(VSS_COMPILER "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
-
 # The adapter is a separate library so the backend tests can link it without
 # Qt Widgets.
 add_subdirectory(src/backend)
 
 # Tracy: the instrumented QApplication and the profiling switch.
 add_subdirectory(src/profiling)
+
+# How the canvas is drawn (GPU or CPU), used by the topology view and main.
+add_subdirectory(src/rendering)
 
 # Design tokens, resources, icons and the focus style.
 add_subdirectory(src/theme)
@@ -113,6 +94,7 @@ target_link_libraries(vss_gui PRIVATE
   Qt6::Widgets
   vss_gui_backend
   vss_gui_profiling
+  vss_gui_rendering
   vss_gui_theme
   vss_gui_widgets
   vss_gui_panes
@@ -123,12 +105,6 @@ target_link_libraries(vss_gui PRIVATE
   vss_gui_shell)
 
 target_compile_definitions(vss_gui PRIVATE
-  VSS_GIT_COMMIT="${VSS_GIT_COMMIT}"
-  VSS_GIT_BRANCH="${VSS_GIT_BRANCH}"
-  VSS_BUILD_DATE="${VSS_BUILD_DATE}"
-  VSS_BUILD_TYPE="${VSS_BUILD_TYPE}"
-  VSS_COMPILER="${VSS_COMPILER}"
-  VSS_GUI_VERSION="${PROJECT_VERSION}"
   # vss::endpoint has a member function called `emit`; Qt's keyword macro
   # would rewrite it to nothing inside the moc translation unit.  Using the
   # Q_* spellings everywhere keeps both worlds intact.

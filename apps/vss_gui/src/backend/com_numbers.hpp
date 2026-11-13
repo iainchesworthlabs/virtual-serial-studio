@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -41,5 +42,16 @@ unsigned first_com_candidate(const std::vector<unsigned>& in_use);
 /// all the way round to `start`, where `start` is the first candidate.
 unsigned next_com_candidate(unsigned candidate, unsigned start,
                             const std::vector<unsigned>& in_use);
+
+/// The numbers worth trying before a brand-new one: the ones Windows keeps for
+/// a port that is gone (`kept`) and that no listed port or device uses
+/// (`listed`), lowest first, from `kFirstGuiComNumber` up, at most `limit`.
+/// Windows spends about 27 seconds installing a device for a COM number this
+/// computer has never had and well under a second on one it has had, and the
+/// driver takes back a number its own earlier port had.  A number that
+/// belonged to another device is refused, which costs a fraction of a second.
+std::vector<unsigned> reusable_com_candidates(const std::vector<unsigned>& listed,
+                                              const std::vector<unsigned>& kept,
+                                              std::size_t limit);
 
 } // namespace vss::gui

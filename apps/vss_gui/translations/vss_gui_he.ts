@@ -171,6 +171,151 @@
             <source>Environment copied.</source>
             <translation>הסביבה הועתקה.</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information</source>
+            <translation>פרטי הבנייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy build information</source>
+            <translation>העתקת פרטי הבנייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>העתקת מידע אבחון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build information copied.</source>
+            <translation>פרטי הבנייה הועתקו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>מידע האבחון הועתק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Copy this into a bug report. It answers "what is this running on?"</source>
+            <translation>העתיקו זאת לדיווח על באג. זה עונה על השאלה "על מה זה רץ?"</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>גרסה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git tag</source>
+            <translation>תג Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Git revision</source>
+            <translation>גרסת Git</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Short revision</source>
+            <translation>גרסה מקוצרת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Working tree</source>
+            <translation>עץ עבודה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Branch</source>
+            <translation>ענף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build number</source>
+            <translation>מספר בנייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Built</source>
+            <translation>נבנה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Build type</source>
+            <translation>סוג בנייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Compiler</source>
+            <translation>מהדר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt built with</source>
+            <translation>Qt בזמן הבנייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>מערכת הפעלה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Architecture</source>
+            <translation>ארכיטקטורה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Kernel</source>
+            <translation>ליבה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Qt running</source>
+            <translation>Qt בזמן הריצה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Platform plugin</source>
+            <translation>תוסף פלטפורמה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Display</source>
+            <translation>תצוגה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Language</source>
+            <translation>שפה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Profiling</source>
+            <translation>פרופיילינג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Shipped with Studio as shared libraries.</source>
+            <translation>מסופק עם Studio כספריות משותפות.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Present because this build includes profiling support.</source>
+            <translation>קיים כי בנייה זו כוללת תמיכה בפרופיילינג.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>SIL Open Font License, version 1.1.</source>
+            <translation>רישיון הגופנים הפתוח של SIL, גרסה 1.1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Renderer</source>
+            <translation>מעבד גרפי</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -1340,6 +1485,16 @@
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="407" />
             <source>Environment copied.</source>
             <translation>הסביבה הועתקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>העתקת מידע אבחון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>מידע האבחון הועתק.</translation>
         </message>
     </context>
     <context>
@@ -5929,6 +6084,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>לא ניתן היה להפעיל את מערכת הגרפיקה (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>לא צוינה סיבה</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>התקן הגרפיקה היחיד שנמצא הוא מעבד גרפי תוכנתי (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>חומרה (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>חומרה (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>תוכנה (CPU), כי: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>תוכנה (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>התקן הגרפיקה הפסיק לפעול.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>לא נוצר התקן גרפיקה</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6250,8 +6444,40 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
-            <source>For finding out why Studio is slow. It records timings only and sends nothing until you connect the Tracy profiler to the address above. It is off again each time Studio starts.</source>
-            <translation>לבירור הסיבה לאיטיות של Studio. מתעד זמנים בלבד ואינו שולח דבר עד שתחבר את הפרופיילר Tracy לכתובת שלמעלה. הוא כבוי שוב בכל הפעלה של Studio.</translation>
+            <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
+            <translation>לבירור הסיבה לאיטיות של Studio. מתעד זמנים בלבד ואינו שולח דבר לשום מקום: Studio מאזין במחשב הזה בלבד, וציר זמן מופיע רק כשאתה מפעיל כאן את הפרופיילר Tracy ומחבר אותו לכתובת שלמעלה. Studio זוכר את המתג הזה ומתעד שוב בהפעלה הבאה. כדי לאפשר למחשבים אחרים להתחבר נדרשת הפעלה מחדש.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>עיבוד גרפי</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אוטומטי</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>חומרה (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>תוכנה (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>חומרה מציירת את הקנבס בכרטיס המסך, וכך הוא נשאר חלק גם עם הרבה יציאות. תוכנה מציירת אותו במעבד. אוטומטי משתמש בכרטיס המסך כשיש כרטיס שאפשר להשתמש בו.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>הציור כעת: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>הפעל מחדש את Studio כדי להשתמש בבחירה זו.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER או ‎--render מוגדר, ולכן הוא עוקף בחירה זו.</translation>
         </message>
     </context>
     <context>
@@ -8915,6 +9141,25 @@ Networks: %5</source>
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio הוגדר. תוכניות אחרות יכולות לפתוח יציאות חדשות.</translation>
         </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>הקנבס מצויר במעבד: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>העתקת מידע אבחון</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>בנייה סביבה דיווח באג</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>מידע האבחון הועתק.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -11554,6 +11799,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> נסו שם או סוג אחר, ואז נסו שוב.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>יוצר</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11861,6 +12110,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>בחירת אחר</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>מחבר</translation>
         </message>
     </context>
     <context>
@@ -12962,6 +13215,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>גלילה</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>התקדמות</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13097,6 +13358,14 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="417" />
             <source>RX %1, TX %2</source>
             <translation>RX %1, TX %2</translation>
+        </message>
+        <message>
+            <source>Total traffic</source>
+            <translation>סך התעבורה</translation>
+        </message>
+        <message>
+            <source>Bytes received and sent in total. The status bar shows the current rate.</source>
+            <translation>סך הבייטים שהתקבלו ונשלחו. שורת המצב מציגה את הקצב הנוכחי.</translation>
         </message>
         <message>
             <location filename="../src/panes/inspector_panel.cpp" line="426" />
@@ -14027,6 +14296,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>יצירת זוג</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>יוצר</translation>
         </message>
     </context>
     <context>
@@ -16638,6 +16911,29 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>הפריסה אופסה.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>התקדמות</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Copy diagnostic information</source>
+            <translation>העתקת מידע אבחון</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>build environment bug report</source>
+            <translation>בנייה סביבה דיווח באג</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Diagnostic information copied.</source>
+            <translation>מידע האבחון הועתק.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17073,6 +17369,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1 נשמר.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>מחיל</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
         </message>
     </context>
     <context>
@@ -17835,6 +18139,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio לא הצליח לקרוא אילו מספרי COM Windows שומר, ולכן הוא בוחר מספר פנוי בעת יצירת היציאה ומציג אותו כשהיציאה מוכנה.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>מחיל</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>יוצר</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מחיל את השינוי. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>מגדיר. Windows מתקין כל יציאה חדשה, וזה עשוי לקחת עד דקה.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>התקדמות ההגדרה</translation>
         </message>
     </context>
     <context>
@@ -18836,6 +19160,29 @@ Networks: %5</source>
             <location filename="../src/widgets/half_duplex_fields.cpp" line="168" />
             <source>Not available in this build</source>
             <translation>לא זמין בגרסה זו</translation>
+        </message>
+    </context>
+    <context>
+        <name>vss::gui::topology::TopologyView</name>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="158" />
+            <source>Zoom controls</source>
+            <translation>פקדי זום</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="176" />
+            <source>Zoom out</source>
+            <translation>הקטנה</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="178" />
+            <source>Reset zoom to 100%</source>
+            <translation>איפוס הזום ל-100%</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/topology_view.cpp" line="181" />
+            <source>Zoom in</source>
+            <translation>הגדלה</translation>
         </message>
     </context>
 </TS>

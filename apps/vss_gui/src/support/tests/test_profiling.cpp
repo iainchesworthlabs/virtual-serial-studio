@@ -8,10 +8,12 @@
 // off pauses recording, and the state is what the status bar and About show.
 //
 
+#include "qt_wait.hpp"
 #include "test_framework.hpp"
 
 #include "backend/fake_studio_backend.hpp"
 #include "profiling/profiling_controller.hpp"
+#include "profiling/stall_watchdog.hpp"
 #include "support/build_info.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
@@ -20,8 +22,15 @@
 #include <vss/core/profiling.hpp>
 
 #include <QCheckBox>
+#include <QEvent>
 #include <QLabel>
 #include <QSettings>
+
+#include <chrono>
+#include <mutex>
+#include <string>
+#include <thread>
+#include <vector>
 
 namespace
 {
@@ -88,4 +97,53 @@ TEST_CASE("profiling: the Settings switch starts it, pauses it and resumes it")
     // Wanting other computers after a local start needs a restart.
     REQUIRE(!remote->isEnabled());
     record->setChecked(false);
+}
+
+TEST_CASE("profiling: the stall watchdog names the event a frozen GUI thread "
+          "was in and says when it recovers")
+{
+    std::mutex mutex;
+    std::vector<std::string> lines;
+    vss::gui::StallWatchdog watchdog(
+        100,
+        [&](const std::string& line)
+        {
+            const std::lock_guard lock(mutex);
+            lines.push_back(line);
+        });
+    vss_test::spin(250);
+    {
+        const std::lock_guard lock(mutex);
+        REQUIRE(lines.empty());
+    }
+    REQUIRE_EQ(watchdog.reported(), 0);
+
+    // Hold the GUI thread without running its event loop, as a slow resize
+    // would, with an event published as the one being handled.
+    vss::gui::publish_current_event("FrozenWidget", QEvent::Resize);
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    vss::gui::publish_current_event(nullptr, -1);
+    vss_test::spin(400);
+
+    REQUIRE_EQ(watchdog.reported(), 1);
+    const std::lock_guard lock(mutex);
+    REQUIRE(lines.size() >= 2);
+    REQUIRE(lines.front().find("FrozenWidget / Resize") != std::string::npos);
+    REQUIRE(lines.back().find("running again") != std::string::npos);
+}
+
+TEST_CASE("profiling: the choice to record from the next start is remembered")
+{
+    QSettings().clear();
+    REQUIRE(!support::load_ui_settings().profile_on_start);
+
+    auto settings = support::load_ui_settings();
+    settings.profile_on_start = true;
+    support::save_ui_settings(settings);
+    REQUIRE(support::load_ui_settings().profile_on_start);
+
+    settings.profile_on_start = false;
+    support::save_ui_settings(settings);
+    REQUIRE(!support::load_ui_settings().profile_on_start);
+    QSettings().clear();
 }
