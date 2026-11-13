@@ -39,6 +39,11 @@ class QMenu;
 class QRubberBand;
 class QToolButton;
 
+namespace vss::gui::rendering
+{
+class GpuCanvas;
+}
+
 namespace vss::gui::topology
 {
 
@@ -202,6 +207,13 @@ public:
     int loop_link_count() const;
     QVector<vss::endpoint_id> loop_ports() const { return loop_nodes_; }
 
+    /// What the last frame cost, in milliseconds: the CPU's drawing time (for
+    /// the GPU canvas, the time to record the frame) and, with the GPU, the
+    /// GPU's time. For the render bench and tests.
+    [[nodiscard]] double last_paint_ms() const noexcept;
+    [[nodiscard]] double last_gpu_ms() const noexcept;
+    [[nodiscard]] bool gpu_active() const noexcept { return gpu_ != nullptr; }
+
 Q_SIGNALS:
     void port_selected(vss::endpoint_id id);
     void link_selected(vss::link_id id);
@@ -246,6 +258,7 @@ protected:
     void keyPressEvent(QKeyEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void paintEvent(QPaintEvent* event) override;
     void focusInEvent(QFocusEvent* event) override;
     void focusOutEvent(QFocusEvent* event) override;
     void wheelEvent(QWheelEvent* event) override;
@@ -260,6 +273,11 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    /// The GPU canvas covers the viewport while the canvas is drawn in
+    /// hardware; `disable_gpu` hands drawing back to the QPainter path.
+    void enable_gpu();
+    void disable_gpu();
+    void apply_gpu_style();
     void rebuild_items();
     void apply_positions(bool refresh_scene_rect = true);
     void update_scene_rect();
@@ -307,6 +325,10 @@ private:
     void move_selection_by(const QPointF& delta, vss::endpoint_id except);
 
     QGraphicsScene* scene_ = nullptr;
+    /// Set while the canvas is drawn by the GPU.
+    rendering::GpuCanvas* gpu_ = nullptr;
+    /// CPU time of the last QPainter frame (software drawing).
+    double software_paint_ms_ = 0.0;
     std::vector<port_view> ports_;
     std::vector<link_view> links_;
     QHash<vss::endpoint_id, QString> names_;

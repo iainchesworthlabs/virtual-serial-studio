@@ -34,6 +34,7 @@
 #include "panes/monitor_panel.hpp"
 #include "panes/ports_panel.hpp"
 #include "panes/send_panel.hpp"
+#include "rendering/render_state.hpp"
 #include "shell/canvas_controller.hpp"
 #include "shell/command_palette.hpp"
 #include "shell/format.hpp"
@@ -1192,6 +1193,18 @@ void ShellWindow::build_docks()
     // Advanced bottom tabs.  Log and Topology JSON are tabified with the
     // Monitor dock; WP3 owns the Monitor pane, this package owns these two.
     event_log_ = new EventLogPanel(this);
+    // The canvas went back to the processor after start-up.
+    connect(&rendering::render_events::instance(),
+            &rendering::render_events::fell_back, this,
+            [this](const QString& reason)
+            {
+                const QString text =
+                    tr("The canvas is drawn on the processor: %1")
+                        .arg(reason);
+                if (status_ != nullptr)
+                    status_->showMessage(text, 10000);
+                log_local(text);
+            });
     log_dock_ = new QDockWidget(tr("Log"), this);
     log_dock_->setObjectName(QStringLiteral("logDock"));
     log_dock_->setAllowedAreas(Qt::AllDockWidgetAreas);

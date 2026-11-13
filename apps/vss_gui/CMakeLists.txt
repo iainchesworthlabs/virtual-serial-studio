@@ -7,11 +7,11 @@
 # snapshots the studio on a timer and never touches widgets from hub threads.
 #
 
-find_package(Qt6 6.2 QUIET COMPONENTS Widgets Svg Network)
+find_package(Qt6 6.11 QUIET COMPONENTS Widgets Svg Network GuiPrivate CanvasPainter)
 if(NOT Qt6_FOUND)
   if(VSS_GUI_REQUIRED)
     message(FATAL_ERROR
-      "Vss: the GUI was requested but Qt 6 with the Widgets, Svg and Network modules "
+      "Vss: the GUI was requested but Qt 6.11 or newer with the Widgets, Svg, Network and Canvas Painter modules "
       "was not found. It was searched for in CMAKE_PREFIX_PATH, VSS_QT_ROOT, "
       "ICL_QT_ROOT, QT_ROOT_DIR, QTDIR and the usual install locations. Set "
       "VSS_QT_ROOT or CMAKE_PREFIX_PATH to a Qt 6 installation that includes "
@@ -73,6 +73,9 @@ add_subdirectory(src/backend)
 # Tracy: the instrumented QApplication and the profiling switch.
 add_subdirectory(src/profiling)
 
+# How the canvas is drawn (GPU or CPU), used by the topology view and main.
+add_subdirectory(src/rendering)
+
 # Design tokens, resources, icons and the focus style.
 add_subdirectory(src/theme)
 
@@ -113,6 +116,7 @@ target_link_libraries(vss_gui PRIVATE
   Qt6::Widgets
   vss_gui_backend
   vss_gui_profiling
+  vss_gui_rendering
   vss_gui_theme
   vss_gui_widgets
   vss_gui_panes

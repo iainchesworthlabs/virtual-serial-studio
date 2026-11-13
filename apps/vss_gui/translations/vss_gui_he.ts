@@ -5929,6 +5929,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>לא ניתן היה להפעיל את מערכת הגרפיקה (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>לא צוינה סיבה</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>התקן הגרפיקה היחיד שנמצא הוא מעבד גרפי תוכנתי (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>חומרה (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>חומרה (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>תוכנה (CPU), כי: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>תוכנה (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>התקן הגרפיקה הפסיק לפעול.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>לא נוצר התקן גרפיקה</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6252,6 +6291,38 @@ Networks: %5</source>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
             <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
             <translation>לבירור הסיבה לאיטיות של Studio. מתעד זמנים בלבד ואינו שולח דבר לשום מקום: Studio מאזין במחשב הזה בלבד, וציר זמן מופיע רק כשאתה מפעיל כאן את הפרופיילר Tracy ומחבר אותו לכתובת שלמעלה. Studio זוכר את המתג הזה ומתעד שוב בהפעלה הבאה. כדי לאפשר למחשבים אחרים להתחבר נדרשת הפעלה מחדש.</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>עיבוד גרפי</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>אוטומטי</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>חומרה (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>תוכנה (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>חומרה מציירת את הקנבס בכרטיס המסך, וכך הוא נשאר חלק גם עם הרבה יציאות. תוכנה מציירת אותו במעבד. אוטומטי משתמש בכרטיס המסך כשיש כרטיס שאפשר להשתמש בו.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>הציור כעת: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>הפעל מחדש את Studio כדי להשתמש בבחירה זו.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER או ‎--render מוגדר, ולכן הוא עוקף בחירה זו.</translation>
         </message>
     </context>
     <context>
@@ -8914,6 +8985,10 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio הוגדר. תוכניות אחרות יכולות לפתוח יציאות חדשות.</translation>
+        </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>הקנבס מצויר במעבד: %1</translation>
         </message>
     </context>
     <context>

@@ -5927,6 +5927,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>无法启动图形系统（%1）。</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>未给出原因</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>找到的唯一图形设备是软件渲染器（%1）。</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>硬件（GPU）</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>硬件（GPU）：%1、%2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>软件（CPU），原因：%1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>软件（CPU）</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>图形设备已停止工作。</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>未创建图形设备</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6249,6 +6288,38 @@ Networks: %5</source>
             <location filename="../src/support/settings_dialog.cpp" line="1" />
             <source>For finding out why Studio is slow. It records timings only and sends nothing anywhere: Studio listens on this computer only, and a timeline appears only when you start the Tracy profiler here and connect it to the address above. Studio remembers this switch and records again the next time it starts. Letting other computers connect takes a restart.</source>
             <translation>用于查明 Studio 变慢的原因。它只记录耗时，不会向任何地方发送内容：Studio 只在这台计算机上监听，只有当你在这里启动 Tracy 分析器并将其连接到上方地址时才会出现时间线。Studio 会记住此开关，并在下次启动时再次记录。允许其他计算机连接需要重启。</translation>
+        </message>
+        <message>
+            <source>Rendering</source>
+            <translation>渲染</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>自动</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>硬件（GPU）</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>软件（CPU）</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>硬件在显卡上绘制画布，端口很多时也能保持流畅。软件在处理器上绘制画布。自动在有可用显卡时使用显卡。</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>当前绘制方式：%1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>请重新启动 Studio 以使用此选择。</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>已设置 VSS_RENDER 或 --render，因此它会覆盖此选择。</translation>
         </message>
     </context>
     <context>
@@ -8908,6 +8979,10 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2765" />
             <source>Virtual Serial Studio is set up. New ports can be opened by other programs.</source>
             <translation>Virtual Serial Studio 已设置完成。其他程序可以打开新建的端口。</translation>
+        </message>
+        <message>
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>画布在处理器上绘制：%1</translation>
         </message>
     </context>
     <context>

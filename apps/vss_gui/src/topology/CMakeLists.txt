@@ -29,6 +29,7 @@ target_include_directories(vss_gui_topology PUBLIC
 
 target_link_libraries(vss_gui_topology PUBLIC
   vss_gui_backend
+  vss_gui_rendering
   vss_gui_theme
   vss_gui_widgets
   Qt6::Widgets)

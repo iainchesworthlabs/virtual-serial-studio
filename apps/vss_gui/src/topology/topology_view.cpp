@@ -8,6 +8,8 @@
 
 #include "theme/focus_ring_style.hpp"
 #include "theme/icon_provider.hpp"
+#include "rendering/gpu_canvas.hpp"
+#include "rendering/render_state.hpp"
 #include "theme/theme.hpp"
 #include "topology/link_curve.hpp"
 #include "topology/link_item.hpp"
@@ -27,6 +29,7 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QElapsedTimer>
 #include <QFocusEvent>
 #include <QFontMetricsF>
 #include <QFrame>
@@ -228,6 +231,7 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
                 empty_->setFont(Theme::instance().font(text_style::body));
                 hint_->setFont(Theme::instance().font(text_style::caption));
                 update_zoom_controls();
+                apply_gpu_style();
                 scene_->update();
                 viewport()->update();
                 update_overlays();
@@ -235,9 +239,90 @@ TopologyView::TopologyView(QWidget* parent) : QGraphicsView(parent)
     update_zoom_controls();
     update_accessibility();
     update_overlays();
+    if (rendering::current().active == rendering::renderer::hardware)
+        enable_gpu();
 }
 
 TopologyView::~TopologyView() = default;
+
+void TopologyView::enable_gpu()
+{
+    if (gpu_ != nullptr)
+        return;
+    gpu_ = new rendering::GpuCanvas(*this);
+    apply_gpu_style();
+    gpu_->lower();
+    gpu_->show();
+    // The canvas draws the whole frame itself; there is nothing to gain from
+    // drawing only the changed rectangle, and the viewport must not scroll
+    // its children (the canvas is one of them).
+    setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+    connect(gpu_, &rendering::GpuCanvas::device_ready, this,
+            [this](const rendering::gpu_report& report)
+            {
+                if (!rendering::confirm_gpu(report))
+                    disable_gpu();
+            });
+    connect(gpu_, &rendering::GpuCanvas::device_lost, this,
+            [this](const QString& reason)
+            {
+                rendering::report_gpu_failure(reason);
+                disable_gpu();
+            });
+    connect(&rendering::render_events::instance(),
+            &rendering::render_events::fell_back, this,
+            [this](const QString&) { disable_gpu(); });
+}
+
+void TopologyView::disable_gpu()
+{
+    if (gpu_ == nullptr)
+        return;
+    // Not deleted here: this runs from the canvas's own signals.
+    gpu_->hide();
+    gpu_->disconnect(this);
+    gpu_->deleteLater();
+    gpu_ = nullptr;
+    setViewportUpdateMode(QGraphicsView::BoundingRectViewportUpdate);
+    viewport()->update();
+}
+
+void TopologyView::apply_gpu_style()
+{
+    if (gpu_ == nullptr)
+        return;
+    const Theme& theme = Theme::instance();
+    rendering::GpuCanvas::style style;
+    style.ground = theme.colour(colour_role::sunken);
+    style.dots = theme.colour(colour_role::line2);
+    gpu_->set_style(style);
+    gpu_->invalidate_all();
+}
+
+void TopologyView::paintEvent(QPaintEvent* event)
+{
+    VSS_PROFILE_ZONE("gui.render.view");
+    if (gpu_ != nullptr)
+    {
+        // The GPU canvas covers the viewport and draws the frame.
+        gpu_->update();
+        return;
+    }
+    QElapsedTimer timer;
+    timer.start();
+    QGraphicsView::paintEvent(event);
+    software_paint_ms_ = static_cast<double>(timer.nsecsElapsed()) / 1e6;
+}
+
+double TopologyView::last_paint_ms() const noexcept
+{
+    return gpu_ != nullptr ? gpu_->last_paint_ms() : software_paint_ms_;
+}
+
+double TopologyView::last_gpu_ms() const noexcept
+{
+    return gpu_ != nullptr ? gpu_->last_gpu_ms() : 0.0;
+}
 
 void TopologyView::set_capabilities(const capabilities& caps)
 {
