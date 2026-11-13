@@ -9581,13 +9581,13 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>Hub läuft</translation>
+            <source>Engine running</source>
+            <translation>Engine läuft</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>Hub gestoppt</translation>
+            <source>Engine stopped</source>
+            <translation>Engine gestoppt</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -16871,13 +16871,13 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>Hub läuft</translation>
+            <source>Engine running</source>
+            <translation>Engine läuft</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>Hub gestoppt</translation>
+            <source>Engine stopped</source>
+            <translation>Engine gestoppt</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
