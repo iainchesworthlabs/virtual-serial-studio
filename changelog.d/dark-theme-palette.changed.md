@@ -1,0 +1,1 @@
+**A softer, more even dark theme.** The dark theme's surfaces are lighter and step further apart, so panes, cards and the canvas read as separate layers instead of one flat black sheet. Borders are easier to see, text is slightly less glaring, and the accent, status and tag colours are calmer. Every colour pair still meets WCAG AA contrast.

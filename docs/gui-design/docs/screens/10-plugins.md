@@ -17,7 +17,9 @@ Every plugin is in exactly one row of this table. The GUI shows the state, never
 | Starting | starting, backing off | "Starting" waiting, hollow | It is on | Tiles shown, disabled |
 | Off | switched off by the user | "Off" neutral, hollow | Yes | Tiles hidden |
 | Needs your decision | untrusted, changed | "Needs your decision" warn, hollow | After the decision | Tiles hidden |
-| Blocked by your administrator | policy, sandbox_insufficient by policy | "Blocked" neutral, hollow | No | Tiles hidden |
+| Blocked by your administrator | policy, sandbox_insufficient with no override allowed | "Blocked" neutral, hollow | No | Tiles hidden |
+| Needs more isolation | sandbox_insufficient where the user may override | "Not isolated" warn, hollow | After "Run without isolation..." | Tiles hidden |
+| Not used | shadowed, reserved_id | "Not used" neutral, hollow | No | Tiles hidden |
 | Needs a licence | not_licensed | "Needs a licence" warn, hollow | It stays on; it runs when the licence allows | Tiles shown, disabled |
 | Stopped after failing | quarantined, start_failed, unresponsive, misbehaving | "Stopped" failed, cross | It is on; **Start again** | Tiles shown, disabled |
 | Needs a newer Studio | api_incompatible, capability_missing, unsupported manifest version | "Not compatible" neutral, hollow | No | Tiles hidden |
@@ -39,12 +41,13 @@ Header chip: "<n> on" (`%n`; ok) or, when any plugin is in Needs your decision, 
 Top NoteBanner, only one, in this order of priority:
 - Policy file could not be trusted (warn): "A policy file was found on this computer and could not be trusted, so only official plugins will run." Action "Copy details".
 - Official only by policy (info): "Your administrator allows only official plugins on this computer."
+- Per-user plugins off by policy (info): "Your administrator installs the plugins on this computer. Plugins in your own plugin folder are not used."
 - No licence and at least one official plugin installed (info): "Official plugins need a Pro licence." Action "Licence".
 
 ### The list (left, 320 wide)
 A list with the accessible name "Installed plugins". Filter field above it, placeholder "Filter plugins". One row for each plugin, sorted with the rows that need attention first, then by name.
 
-Row: the plugin's name (600), second line "<trust line>, version <version>" (12, `ink3`), the state chip on the right, and a Switch at the far right.
+Row: the plugin's name (600), second line "<trust line>, version <version>" (12, `ink3`), the state chip on the right, and a Switch at the far right. A copy that is not used (see "Installed for" below) is its own row, directly under the copy that is used, indented, with no Switch.
 
 Trust line, one of:
 - "Official"
@@ -58,7 +61,13 @@ Row accessible name: "<plugin name>, <trust line>, <state>", for example "Modbus
 
 Empty list: an EmptyState, title "No plugins are installed", text "Plugins are folders that you or your administrator put in the plugin folder. Studio does not download anything." Button "Open the plugin folder". With a filter and no match: "No plugin matches <text>."
 
-Under the list: "Open the plugin folder" (quiet; opens the per-user plugin folder in the file manager) and "Check again" (quiet; rescans; toast "Checked. <n> plugins found." with `%n`).
+Under the list: "Add a plugin..." (quiet), "Open the plugin folder" (quiet; opens the per-user plugin folder in the file manager) and "Check again" (quiet; rescans; toast "Checked. <n> plugins found." with `%n`).
+
+"Add a plugin..." opens a folder chooser with the title "Choose a plugin's folder". Studio copies the folder into the per-user plugin folder and selects the new row, which is in Needs your decision. Nothing runs. Toast "Added for you only. Review it before it runs." A folder with no description file: "That folder is not a plugin. A plugin's folder holds a file named plugin.json." A plugin already installed for you: "<plugin name> is already installed for you. Remove it first to add a different copy."
+
+Studio never asks for administrator rights. A muted line under the buttons, with a CopyButton for the path: "To install a plugin for everyone on this computer, an administrator puts its folder in <machine plugin folder>."
+
+When the administrator has turned per-user plugins off, "Add a plugin..." and "Open the plugin folder" are disabled with the tooltip "Your administrator installs the plugins on this computer."
 
 ### The detail (right)
 For the selected plugin. Heading: the plugin's name in title type, then the "Plugin" mark and the state chip.
@@ -73,6 +82,11 @@ For the selected plugin. Heading: the plugin's name in title type, then the "Plu
 | Blocked, official only | info | "Your administrator allows only official plugins. This one is not official." | none |
 | Blocked, named | info | "Your administrator has blocked this plugin." | none |
 | Blocked, protection | info | "Your administrator requires more isolation than this computer can give this plugin." | "Copy details" |
+| Needs more isolation, override not allowed | info | "Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run. Only your administrator can allow it." | "Copy details" |
+| Needs more isolation | warn | "Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run." | "Run without isolation...", "Copy details" |
+| Not used, same plugin for everyone | info | "The copy installed for everyone is used. This copy, installed for you only, is not." With a newer version here: "This copy is newer (version <version>), and it is still not used. Ask your administrator to update the copy for everyone." | "Show the copy that is used" |
+| Not used, different signer | warn | "Another plugin with the same identifier is installed, <trust line>. This one, <trust line>, is not used. They are not the same plugin." | "Show the copy that is used", "Copy details" |
+| Not used, reserved name | danger | "Its identifier is one that only official plugins may use, and it is not signed by Virtual Serial Studio. It will not run." | "Copy details" |
 | Needs a licence | warn | The licence service's reason sentence, then "Its settings are kept, and it runs again when a licence allows it." | "Licence" |
 | Stopped after failing | danger | "It stopped <n> times in 10 minutes, so Studio stopped starting it." (`%n`) or "It did not answer, so Studio stopped it." or "It sent more than it is allowed to (<limit name>), so Studio stopped it." | "Start again", "Show log" |
 | Needs a newer Studio | info | "This plugin needs a newer version of Studio. This is version <version>." or "This plugin needs something this build does not have: <capability name>." | none |
@@ -98,7 +112,8 @@ There is never a way to run a plugin whose signature failed or that was withdraw
 | "Expires" | `<date>` |
 | "Licence" | "Included in your licence", or the licence service's reason sentence |
 | "Timing" | "Timed by Studio", "In the path of the data", or "Beside the data" (see below) |
-| "Isolation" | "Full", "Partial: <what is missing>", or "None on this computer" |
+| "Isolation" | "Full", "Partial: <what is missing>", "None on this computer", or, after the override below, "None. You allowed this on <date>." with a quiet button "Undo" |
+| "Installed for" | "Everyone on this computer", "You only", or "Came with Studio" |
 | "Folder" | The path in the fixed font, with a CopyButton and a quiet button "Show in folder" |
 
 Signature sentences:
@@ -143,11 +158,11 @@ Timing sentences, as tooltips and accessible descriptions:
 **Log.** A disclosure "Recent messages (<n>)". A read-only fixed-font view with the accessible name "Messages from <plugin name>", the last 200 lines, each with its time. Button "Copy". Muted line: "These lines come from the plugin."
 
 ### Footer
-Left: quiet "Remove plugin..." (per-user plugins only; for others disabled with the tooltip "Installed by your administrator"). Right: "Copy details" (quiet), Close (primary).
+Left: quiet "Remove plugin..." (plugins installed for you only; disabled for a plugin installed for everyone with the tooltip "Installed by your administrator", and for one that came with Studio with the tooltip "Came with Studio"). Right: "Copy details" (quiet), Close (primary).
 
 "Remove plugin..." asks first: title "Remove <plugin name>?", text "Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again." Check box "Also delete its saved data" (off). Buttons Cancel (default), "Remove plugin" (danger).
 
-Copy details gives the plugin id, version, state, reason code, fingerprint, signer key id, isolation level and the host's message. Never file contents, never a setting marked secret.
+Copy details gives the plugin id, version, state, reason code, fingerprint, signer key id, who it is installed for, isolation level and the host's message. Never file contents, never a setting marked secret.
 
 Acceptance: every state in the tables can be shown from `FakeStudioBackend`; a state change updates the open dialog without closing it and is announced once as a polite live region; the list, the detail and the footer are reachable in that order by keyboard, and F6 moves between the list and the detail; every switch and button has a 24 px target; the dialog works at 200 percent text with the detail scrolling inside the dialog; both themes from tokens only; no string is built by joining translated fragments; no network call.
 
@@ -172,13 +187,27 @@ Body: the plugin's name, version and fingerprint (fixed font); "What it adds" as
 Isolation line, by what this computer can give:
 - "Studio runs it apart from your files and other programs."
 - "Studio can only partly keep it apart on this computer: <what is missing>."
-- "Studio cannot keep it apart on this computer. It runs with your own access to files and the network."
+- "Studio cannot keep it apart on this computer. It runs with your own access to files and the network." (official plugins only)
+- For any other plugin that cannot be kept apart at all: "Studio cannot keep it apart on this computer, so it will not run here." The run button is then "Decide anyway", which stores the decision and leaves the plugin in Needs more isolation.
 
 For a signed plugin from an author not yet approved: check box "Also approve other plugins signed by <author name>" (off).
 
 Buttons: Cancel; then "Switch on" (official), "Run this plugin" (signed) or "Run anyway" (unsigned, danger role). Cancel leaves everything unchanged and the plugin off.
 
 Acceptance: the dialog cannot be answered by Enter alone for a signed or unsigned plugin (Cancel is the default); every permission sentence is read by a screen reader with its state ("Needed", "ticked", "not ticked"); the fingerprint shown equals the one in the Plugins dialog; a decision is stored for that fingerprint only.
+
+## Run a plugin without isolation (width 520)
+Context `PluginNoIsolationDialog`. Opens from "Run without isolation...". Modal. Initial focus and default are Cancel. It is offered only where `docs/plugins.md`, section 9.2, allows the override: Studio installed for one user, or an administrator's policy that allows it.
+
+Title "Run <plugin name> without isolation?". NoteBanner (danger): "It will run with your own access to your files, the network and other programs." For an unsigned plugin, a second line: "Studio cannot tell who made it or whether it was changed."
+
+Body: the plugin's name, version and fingerprint (fixed font), then "This applies to this version of this plugin only. A changed plugin asks again."
+
+Check box "I understand that Studio is not keeping this plugin apart" (off). "Run without isolation" (danger role) is disabled until it is ticked. Buttons: Cancel, "Run without isolation".
+
+Afterwards the Isolation row says so and offers Undo, and the plugin's row and every part it provides carry the trust line unchanged; nothing presents the plugin as safer than it is.
+
+Acceptance: the dialog cannot be answered by Enter alone; it is never shown on an install for everyone without the policy; the override is stored for that fingerprint only and Undo removes it and stops the plugin; a screen reader hears the banner before the buttons.
 
 ## Toolbox (Advanced mode)
 Context `Toolbox`, extending `screens/07-canvas-editor.md`. A third group under **Ports** and **Bundles**, with the group label **Plugins**. The group is absent when it would be empty. One tile for each fixture type of each plugin that is installed and on, ordered by plugin name, then type name.
@@ -240,7 +269,7 @@ The setup is never changed and nothing is removed. The port stays a port: it kee
 
 **Saving.** Saving keeps every plugin part exactly as it was read, whether or not the plugin is installed: the type, the plugin's id and the settings. Studio never offers to remove them and never removes them on save. A setup made on a computer with a plugin opens on one without it, and opens again, unchanged, on the first.
 
-Where the plugin part is written (a key in the setup file, or a second file beside it) is decision 13 of `docs/plugins.md`. This rule holds either way; with a second file, Save and Open move both, and Studio says "This setup's plugin settings are in <file name>. Keep the two files together." once when it first writes one.
+The plugin part is written in the setup file itself, as a list named `plugins` on the port or the link (decision 13 of `docs/plugins.md`, section 7.8). There is no second file.
 
 **Removing.** The user can remove such a port or behaviour like any other. Nothing else removes it.
 

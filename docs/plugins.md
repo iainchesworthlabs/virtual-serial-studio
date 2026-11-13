@@ -1,7 +1,7 @@
 # The plugin framework (design)
 
-Status: **proposed**. This page is a design for the owner to review. Nothing here is built. Section 17 lists the
-decisions to make, and nothing is implemented until they are made. It builds on the decisions in
+Status: **reviewed**. The owner went through this design on 13 November 2026. Section 17 records each decision
+and lists what is still open. The manifest reader is the first part built. It builds on the decisions in
 [Editions, licensing and plugins](editions.md) and on the protocol of [the per-user agent](agent.md), and it does not
 repeat them.
 
@@ -30,7 +30,7 @@ Not in this page, and referenced only:
 | The signed-file envelope, the Ed25519 code and the trust list | `docs/licensing.md`, `vss::signed_file` | The plugin signature is one more purpose of that envelope, with its own key (section 8.2). There is one verifier, not two |
 | The plain support bundle (version, driver state, setup, log, serial ports; never traffic) | `docs/licensing.md` and `screens/09-licence-and-support.md` | A plugin can add a section to it (section 19). Studio owns the bundle, its dialog and its preview |
 | The rule model for response timing: matches, actions, clocks, determinism, replaying a recording | `docs/response-timing.md` (the response-timing work, under review on its own branch) | Section 6 is the plugin side only: which tier a plugin declares and what the host holds it to. Where the two pages differ, that page is right |
-| The Plugins screens and their strings | `docs/gui-design/docs/screens/10-plugins.md`, in this pull request | Section 10 names the failures; the screen spec has the words |
+| The Plugins screens and their strings | `docs/gui-design/docs/screens/10-plugins.md` and `11-decoding-and-triggers.md`, in this pull request | Section 10 names the failures; the screen spec has the words |
 | Security of the remote control endpoint (tokens, OAuth, bindings to other computers) | The remote-control work | An automation adapter gets the engine's agent operations through the proxy of section 7.7. How an adapter is exposed to the network is not designed here |
 | Website and downloads | The website work | none |
 | `vss_core` behaviour, the JSON topology schema | Unchanged without a request | Section 6 shows how the first version avoids both. Where it cannot, it says so |
@@ -50,7 +50,8 @@ Goals, in order of priority:
 
 Non-goals for the first version:
 
-- In-process plugins with a C ABI (`editions.md` says they may follow). Decision 12 of section 17 keeps the question open.
+- In-process plugins with a C ABI or WASM. Not in the first version (decision 12). They stay possible later, and
+  need a licence position from the owner first.
 - A plugin store, an update client or any network access. A plugin is installed by putting a directory in place.
 - Plugins that draw their own windows. A plugin has parameters and a status line, nothing else, in Studio.
 - Hot code loading. A plugin changes by stopping and starting.
@@ -144,6 +145,93 @@ Rules:
   owned by the user or by an administrator, with no write access for others (Windows: the ACL is read, and an entry
   that grants write to `Everyone` or `Users` on a machine or install root rejects the plugin).
 - At most 64 plugins, and a manifest of at most 256 KiB. More is `rejected: too_many` or `manifest_too_large`.
+
+**Scope.** A plugin has a scope, from the root it was found in. The host's view of a plugin carries it and the
+Plugins page shows it (`screens/10-plugins.md`).
+
+| | Came with Studio | For everyone on this computer | For this user |
+|---|---|---|---|
+| Root | `<install>/plugins/` | The machine plugin directory | The per-user plugin directory |
+| Put there by | The installer | An administrator | The user |
+| Removed or replaced by | The installer | An administrator | The user |
+| Listed for | Every user | Every user | That user |
+| Switched on and off, and decided about | By each user, for themselves, inside the policy | The same | The same |
+
+- **Studio never raises its own rights.** From the window a user adds a plugin for themselves: Studio copies the
+  folder into the per-user root. A plugin for everyone is put in the machine root by an administrator, by hand,
+  with an installer or with `vss_cli plugin install --machine` from an administrator's prompt. The window shows
+  the path to use.
+- **An administrator can turn the per-user root off** (`user_plugins: false` in the policy, section 8.6). It is
+  then not searched, and the page says so.
+- **The same id in two scopes.** The wider scope wins, in the order of the table, and the other copy is
+  `shadowed`: listed under the winner with its version and scope, and never run. When the shadowed copy is the
+  newer one, the page says that too, so that a user is not left wondering why their update did nothing. There is
+  no way for a per-user copy to replace a copy for everyone in the first version.
+- **The same id from a different signer is a different plugin.** A decision is stored for an id, a hash and,
+  for a signed plugin, the key. It never carries over to a plugin with the same id that is signed by another
+  key or is not signed. The page shows the two as a conflict and names both signers. Nothing is swapped in
+  silently.
+- **Reserved ids.** An id that starts with `com.virtualserialstudio.` is accepted only with an official
+  signature. Anything else that uses it is `rejected: reserved_id`.
+
+**Studio installed for one user.** Studio itself may be installed for everyone or for one user, depending on the
+rights a person has on the computer. This was investigated on 13 November 2026 by reading the packaging in
+`cmake/packaging/`, `docs/releasing.md` and `docs/agent.md`. Nothing was installed on a computer to try it; the
+tests of section 16 do that when the host exists.
+
+What the packages do today:
+
+| | For everyone | For one user |
+|---|---|---|
+| Windows | The NSIS installer. It asks for an administrator once and installs into `%ProgramFiles%`. It has no mode for one user, on purpose (`VssPackage-windows.cmake` says why) | The zip, unpacked anywhere the user can write. Nothing is registered |
+| Linux | The deb or rpm, into `/opt/virtual-serial-studio`, owned by root | The release archive, unpacked anywhere the user can write |
+| macOS | The app in `/Applications`, when root owns it (a management tool put it there) | The app dragged from the disk image, into `~/Applications` or into `/Applications`. A person who drags it owns it and can change it, so it counts as for one user wherever it lies |
+
+So an install for one user already exists on every platform, as an archive. **No installer gets a second mode.**
+What changes is that Studio works out which kind it is and behaves accordingly.
+
+- **How Studio tells.** By the folder, not by a registry value or a file that says so. The install is *for
+  everyone* when nobody but an administrator can write to the folder that holds the programs or to any folder
+  above it (Windows: only Administrators, SYSTEM and TrustedInstaller have write access; Linux and macOS: root
+  owns them and no group or other has write access). Anything else is *for one user*. The check is the one
+  already written for a plugin directory, run once when the agent starts. A build tree is for one user.
+- **The install root** of an install for one user is checked as the per-user root is: owned by the user, not
+  writable by others. Its plugins still show as "Came with Studio".
+- **An official plugin loses nothing**, because its trust comes from its signature and not from its folder.
+- **The machine root and the policy file** are read by both kinds when they exist, and are an administrator's.
+- **A policy binds Studio, not the person.** A user who may run their own programs can run a copy of Studio that
+  ignores the policy, whatever this design does. A policy holds where the administrator also controls which
+  programs run (AppLocker or App Control on Windows, and the like elsewhere). The page says which kind of
+  install is running, and a diagnostic bundle records it.
+- **Running without isolation** (section 9.2) follows the kind: an install for one user offers the override
+  unless a policy file is there and forbids it; an install for everyone offers it only where the policy allows.
+- **The sandbox needs no administrator** on any of the three systems (the mechanisms of section 9.2 are all
+  open to an ordinary user), so the launcher works the same in both kinds and is never installed with special
+  rights.
+
+**Both kinds on one computer.** This is possible and will happen: the installer for everyone, and a zip of a
+newer version in a user's folder. There is one agent for each user (`docs/agent.md`, section 2), and a client
+starts the agent that lies beside it only when none is running. So today the agent that runs is the one whose
+window or command was started first, and a window from the other copy would talk to it. For plugins that is not
+good enough, because the agent decides the install root, the launcher and the kind of install. Needed, as an
+addition to the agent's `hello` when the host is built:
+
+- The agent's reply to `hello` carries the folder it runs from and the kind of install.
+- A client that finds an agent from another folder says so ("Another copy of Studio is running the ports:
+  `<folder>`") and offers the restart that `docs/agent.md` already plans for a version mismatch. It does not
+  carry on silently. Where the protocol numbers differ, the existing `version_mismatch` path already does this.
+- The Plugins page shows the folder and the kind of the agent it is connected to, since that is the copy whose
+  plugins run.
+
+**The driver** is only on Windows, is per machine, and needs an administrator to set up, from the installer or
+from "Set up Virtual Serial Studio". A Studio from the zip uses the driver and the helper service when they are
+there and works without driver ports when they are not, as it does today. No plugin and no part of the plugin
+host talks to the driver or to the helper service, and neither is started by the launcher. "Studio never raises
+its own rights" above is about plugins; the driver set-up keeps the prompt it has.
+
+**Left for the installers' own work, not this design:** adding `vss_agent` and `vss_plugin_launcher` to the
+four packages and their signing lists (`docs/agent.md`, step 9), and creating the machine plugin directory with
+the right owner in the installer for everyone, so that it never has to be made by a program a user runs.
 
 ### 5.3 Verify
 
@@ -249,9 +337,9 @@ Two points where the pages meet:
 - Its `ask` action (a rule waits for a plugin's answer, with a timeout and an `on_timeout`) is this page's inline
   tier T1, seen from the engine. The batch, budget and circuit breaker of section 7.6 are how the host carries an
   `ask` to the plugin.
-- Its `inline` role puts a rule set on one direction of a link, inside the engine. Where the engine has it
-  (`capabilities::rules_link`), a behaviour modifier uses it and the two internal endpoints of section 7.6 are not
-  made. The insertion stays as the way that needs no engine change.
+- Its `inline` role puts a rule set on one direction of a link, through one optional stage on a route in `hub`.
+  A behaviour modifier uses that same stage (section 7.6, decision 5). `vss_core` gets one stage, not one for
+  rules and another for plugins.
 
 ### 6.1 The problem
 
@@ -339,7 +427,7 @@ the engine and which is in the path.
 | Need | Where | Change to `vss_core` or the JSON schema? |
 |---|---|---|
 | Run a rule set on an endpoint | `vss::responder` in `vss_studio` already does this for a port a program would open, using `endpoint::write` | No. The extensions (new triggers, guards, actions, microseconds) are in `vss_studio` |
-| Rules on a **link** (corrupt, drop or duplicate what crosses it) rather than on a port's replies | A link-level hook in the route path, or the insertion method of section 7.6 | **Perhaps.** The insertion method needs no change. A route hook in `hub` would, and is not proposed without a request |
+| Rules and modifiers on a **link** (hold, corrupt, drop or duplicate what crosses it) | The route stage in `hub` that `docs/response-timing.md` adds (its decision 2) | **Yes, `vss_core`.** The owner asked for it (decision 5). The stage is null unless something is installed, so a link with nothing on it behaves as before |
 | Delay with microsecond resolution | `delay_line` in `vss_core` is in milliseconds | Not needed for rules on a port (they use a timer in `vss_studio`). For links it is part of the same question |
 | A plugin's rule set saved with the topology | The JSON schema | **No.** The rule set is part of the plugin instance's own state (section 7.8), stored beside the topology by the agent, not in it |
 
@@ -469,17 +557,42 @@ description and parameters, taken from the verified manifest, so the toolbox nev
 A modifier changes traffic on a link. It is the most dangerous extension point, since it sits in the path of bytes, so
 it has the most rules.
 
-**How it sits in the path.** Without changing the engine, by insertion (Studio already makes ports and links as
-primitives): for a link from A to B the agent creates a **tap pair**, two private endpoints `Min` and `Mout`, links A to
-`Min` and `Mout` to B, and the host carries bytes between `Min` and `Mout` through the plugin. These endpoints and links
-belong to the instance, are marked internal, are **not** saved in the topology, are not shown as ports and are removed
-with the instance. If the plugin or the instance goes away, the host applies the failure rule (below) and, when it
-cannot, removes the pair and restores the original link. The modem lines and options of the original link are carried
-by the host onto the pair.
+**How it sits in the path.** By a stage on the route, inside the engine. This is decision 5: the owner asked for a
+route hook in the first version, in place of the earlier plan to insert two hidden endpoints into the link.
 
-This costs two extra hops and a copy. A route hook in `hub` (the proper way) would remove them and is the one change to
-the engine that would help; it is **not** proposed here and needs a request (section 17, decision 5). `capabilities`
-carries `route_hook` so a later hook can replace the insertion with no change to a plugin.
+`docs/response-timing.md` adds one optional stage to a route for its `inline` rule sets. It sits after the owner
+policy and before the half-duplex line and the link's delay line. A modifier is a second user of **that same
+stage**. The stage hands the chunks of one direction of one link to the host, the host carries them to the plugin
+and gives the stage the result.
+
+- No endpoint and no link is made for a modifier. Nothing internal has to be hidden, kept out of the saved setup
+  or put back afterwards.
+- When an instance goes away, its part of the stage is removed and the bytes it held are released in order,
+  ahead of anything routed later, as that page says for an `inline` set that is removed.
+- With nothing installed the stage is a null pointer and a link behaves as it does today.
+- When a link has both a rule set and modifiers, **the rule set runs first** and the modifiers follow in the
+  order of the link's bindings (section 7.8). The reasons:
+  - A rule then matches the bytes the program sent, at the time the engine read them. What a rule set does on a
+    run does not depend on a plugin being fast, slow or stopped, which is what `docs/response-timing.md` promises
+    for rules. The other order would put a plugin's round trip and its failures in front of every rule.
+  - A modifier that fails open passes bytes unchanged. With rules first that changes nothing for the rules.
+  - A recording replays into the rules as it was recorded.
+  - The cost: a rule's delay is no longer the last thing before the wire, because the modifier's round trip
+    follows it. So a link direction that has a modifier is marked "not exactly repeatable" in a run, and the
+    run's report names the modifier.
+  - Weighed and not taken: refusing a rule set and a modifier on the same link direction. It is simpler, and it
+    stops the common case of a scripted fault with a plugin that corrupts frames.
+
+  The owner agreed to this order on 13 November 2026, and `docs/response-timing.md`, which owns the stage, says
+  the same ("Where a rule set sits" and "Determinism"). From that page: the stage keeps a direction's bytes in
+  order from one user to the next; when a modifier is removed, the bytes it had not yet answered for pass on
+  unchanged first; and bytes a rule still holds go on when they are due.
+- Two capability flags cover the one stage: `rules_link` for `inline` rule sets, which is that page's, and
+  `route_hook` for modifiers.
+- The capability `route_hook` says the engine has the stage and the host can use it for modifiers. Without it a
+  modifier is `disabled: capability_missing` and the page says "Not available in this build".
+
+So the modifier slice comes after the slice of `docs/response-timing.md` that adds the stage.
 
 | Message | From | Content |
 |---|---|---|
@@ -488,7 +601,7 @@ carries `route_hook` so a later hook can replace the insertion with no change to
 | `modifier.result` | plugin | `seq`, `actions`: one for each chunk, in order, and a blob for what replaced them |
 | `modifier.stop` | host | |
 
-**Batching.** The host collects the chunks that reach `Min` into a batch, and sends it when the first of these happens:
+**Batching.** The host collects the chunks the stage hands it into a batch, and sends it when the first of these happens:
 `max_batch_bytes` (default 4 KiB), `max_batch_us` since the first chunk (default 200 µs), or the arrival of a byte the
 plugin declared as a flush trigger (`flush_on`, optional). At most **one batch is outstanding** per instance and
 direction: bytes that arrive while a batch is out wait in a bounded queue (default 64 KiB). That keeps order, caps the
@@ -601,16 +714,36 @@ Rules for the binding, whatever the plugin's state (the screens are in `screens/
 - When the plugin becomes available, its instances are made again from the bindings, without a prompt.
 - Only the user removes a binding.
 
-**Where the binding is written is a decision for the owner (section 17, decision 13)**, because the first choice
-changes the topology schema, which this work must not do unasked:
+**Where the binding is written (decision 13): in the topology file.** The owner asked for this additive change to
+the schema, so that a setup that is shared says which plugins it needs and where to get them. A port or a link
+may carry a list:
 
-| Choice | How | Cost |
-|---|---|---|
-| **A. One optional key in the topology** (recommended) | A port or a link may carry `"plugin": {"id": ..., "type": ..., "params": {...}, "on_timeout": ...}`. A reader without plugins keeps the object and writes it back | An additive change to the schema and to `vss_config`'s parser, which refuses unknown keys today. `vss_core` is not touched |
-| B. A file beside the setup | `<name>.plugins.json`, keyed by port and link name, written and read with the setup | No schema change. Two files to keep together: a person who sends only the setup loses the bindings without knowing, which is the loss the owner asked to prevent |
+```json
+"plugins": [
+  { "id": "com.example.modbus-fixture", "kind": "fixture", "type": "meter", "name": "Modbus fixture",
+    "publisher": "Example Ltd", "key_id": "<hex>", "version": "1.2.0",
+    "get_it_from": "https://example.com/plugins",
+    "params": { "address": 17 }, "on_timeout": "fail_open" }
+]
+```
 
-Until the owner decides, the design assumes A and names B as the fallback. The running setup that the agent
-keeps (`running-setup.json`) follows the same choice.
+- A port has at most one fixture type or one generator, and any number of decoders. A link has any number of
+  modifiers and decoders. **The order of the list is the order modifiers are applied in.**
+- `kind` is what the plugin provides there: `fixture`, `generator`, `modifier` or `decoder`. A kind this
+  Studio does not know is kept as it is, so a newer setup still opens.
+- `id` is the plugin's manifest id, which is the identifier. There is no second identifier such as a UUID. For a
+  signed plugin `key_id` says whose it was, so that a different plugin with the same id is noticed.
+- `name`, `publisher`, `version` and `get_it_from` are for a person who opens the setup without the plugin.
+  They are plain text with the manifest's text rules. **Studio shows `get_it_from` and never opens or fetches
+  it.** It is copied from the manifest's author address when the binding is made.
+- A `secret` parameter is never written.
+- A reader that does not know the plugin keeps every entry and writes it back as it was read.
+
+This is a change to the schema and to `vss_config`'s reader and writer. `vss_core` is not touched. The key is
+optional and the file's `version` stays 1: the reader has always passed over keys it does not know, so an older
+Studio opens a setup that has the list, and leaves the list out when it saves. The alternative that was not
+taken is a file beside the setup (`<name>.plugins.json`), which needs no schema change but is lost when a
+person sends only the setup. The running setup that the agent keeps (`running-setup.json`) holds the same list.
 
 ### 7.9 Limits per plugin (defaults, set in the host, never raised by a manifest above the host's maximum)
 
@@ -634,9 +767,9 @@ doing it for 10 seconds is killed as `misbehaving` with the limit's name.
 
 | Level | Condition | The user sees | Loads |
 |---|---|---|---|
-| Official | The signature verifies with a key that is in the **official key set** built into Studio | The Virtual Serial Studio badge and "Signed by Iain Chesworth Labs" | Yes (if the licence permits) |
+| Official | The signature verifies with a key that the **official key list** names for plugins (section 8.9) | The Virtual Serial Studio badge and "Signed by Iain Chesworth Labs" | Yes (if the licence permits) |
 | Third-party signed | The signature verifies with a key that is not official, and the user has trusted that key | The author's name from the key's record and "not verified by Virtual Serial Studio" | After the user trusts the key and the plugin |
-| Third-party unsigned | No signature | "Unofficial plugin. It can do anything Studio can." | After an explicit confirmation |
+| Third-party unsigned | No signature | "Unofficial plugin. It can do anything Studio can." | After an explicit confirmation, and only in a sandbox of at least `partial` unless that is overridden (section 9.2) |
 | Signed, key unknown | A signature that verifies only against a key in the file | Treated as unsigned for the decision, with the key shown: "Signed by an author you have not trusted" | As unsigned, or after the key is trusted |
 
 A signature **proves who signed it and that the files were not changed afterwards**. It does not prove that the plugin
@@ -668,8 +801,8 @@ payload = { "plugin_id": "com.example.modbus-fixture",
   plugin signature as a revocation list (purpose `plugin-revocations`).
 - The manifest lists every file as `{path, size, sha512}`. The verifier checks each, and that no other file is in
   the directory.
-- The public key comes from the trust list (official keys, built in) or from the user's approved keys, never from
-  `plugin.sig`. A key of another purpose does not verify a plugin, even if it is official.
+- The public key comes from the official key list (section 8.9), from the administrator's `allow_keys` or from
+  the user's approved keys, never from `plugin.sig` and never from the operating system's certificate store. A key of another purpose does not verify a plugin, even if it is official.
 - Delegation (an official key signing an author's key) is not in the first version.
 
 This makes `libs/vss_plugin` depend on the `vss::signed_file` part of `libs/vss_license`, which the licensing work
@@ -686,7 +819,11 @@ record:
 | The operating system's cryptography (CNG, CryptoKit, OpenSSL) | Three code paths, and OpenSSL as a dependency on Linux. Against the rule to pick files in CMake and not to use `#if` |
 | Qt's `QCryptographicHash` for hashing | SHA-512 only; no signatures |
 
-This is decision 6, and it is the same decision as the licensing page's.
+**Decided (decision 6): the vendored Monocypher.** Signatures as X.509 certificate chains from the owner's own
+certificate authority, checked by each operating system's code, were weighed in the review and not taken: Linux
+has no such service of its own, three implementations would have to agree, and licence files would have had to
+follow or use a second scheme. The envelope carries a `format`, so a second kind of signature can be added for
+third parties later without changing how official plugins are checked.
 
 ### 8.3 The hash that a decision is tied to
 
@@ -736,7 +873,14 @@ There is no network, so:
 - A revoked plugin or key is `rejected: revoked` at the next check. A running plugin is stopped within a second of
   the list being applied.
 - **Expiry.** The manifest has `not_after` (a date; official plugins get a bounded lifetime, and the owner's signing job
-  chooses it). An expired plugin is `rejected: expired`. There is a grace choice: the page offers "Run anyway for this
+  chooses it). **How long is not settled.** The owner's first thought was 28 days. This page recommends against
+  a period that short: an expired official plugin does not run and has no "Run anyway", and there is no network,
+  so every official plugin, the ones that come with Studio included, would stop 28 days after it was signed
+  until the person fetched and installed a new copy by hand, every month, and a computer that is kept offline
+  would lose them for good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
+  years in the example of section 8.9), that a plugin signed with a mistake is stopped by the revocation list,
+  and that anything meant to lapse monthly is the licence's period (`docs/licensing.md`), which has a grace
+  period and a renewal path built for it. An expired plugin is `rejected: expired`. There is a grace choice: the page offers "Run anyway for this
   session" only for **unsigned and third-party** plugins, never for an official one, since an official plugin has an
   update path and a user can always take it.
 - **The clock.** The wall clock is only trusted to go forward. The ledger keeps the highest time seen (from the
@@ -744,9 +888,9 @@ There is no network, so:
   `max(system now, high-water mark)`. Setting the clock back does not revive an expired plugin. This is a
   **deterrent**, as for licences in `editions.md`: a user who deletes their own ledger defeats it, and the page says
   nothing stronger.
-- The built-in **official key set** has a current key and a next key. A release can carry a new current key. A key
-  that was withdrawn but not revoked keeps working for plugins signed before its end date only if their signature
-  carries a date, which the first version does not have: **a rotated-out key is revoked by the list**, simply.
+- **Keys** come and go by the official key list of section 8.9. A signing key that is replaced is taken out of
+  that list, which revokes it. The first version has no date inside a signature, so there is no "signed before
+  the key ended" case to judge.
 
 ### 8.6 Administrator policy
 
@@ -759,7 +903,9 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   "allow": "official_only",         // official_only | signed | any (default: any)
   "allow_keys": ["<key_id>"],       // with "signed": these third-party keys are pre-trusted
   "deny_plugins": ["<plugin_id>"],
-  "min_sandbox": "partial",         // none | partial | full
+  "min_sandbox": "partial",         // none | partial | full (default: partial)
+  "allow_no_sandbox": false,        // may a user override the minimum for one plugin (section 9.2)
+  "user_plugins": true,             // is the per-user plugin directory searched (section 5.2)
   "on_timeout": null,               // "fail_open" | "fail_closed" | null (do not force)
   "permissions_denied": ["net.outbound"]
 }
@@ -770,6 +916,10 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   `SYSTEM` and no write for `Users`; elsewhere: owned by root, no group or other write bit). **A policy file that
   fails that test, or does not parse, is treated as `official_only`**: fail closed, with a banner: "A policy file was
   found and could not be trusted, so only official plugins will run." A missing file is the default.
+- `allow_keys` is how an organisation adds its own signing keys: the administrator lists them here. A user who
+  controls their own computer approves a key in their own trust store (section 8.4). Neither looks in the
+  operating system's certificate store, which trusts every public web authority and would let in far more than
+  is meant.
 - A policy narrows what the user can do. It never grants beyond what the user decides. A user cannot widen it from
   Studio, and the page says "Set by your administrator" with the reason.
 
@@ -848,6 +998,75 @@ library function used by the owner's signing job; the repository will not contai
 **throwaway keys generated in the test process from a fixed documented test seed, marked TEST ONLY**. The owner is
 asked to confirm that fixed test seeds are acceptable (decision 7), since they are test vectors, not secrets.
 
+### 8.9 Keys: the root, the key list and the owner's procedure
+
+Decision 8. Official signatures use plain Ed25519 keys under a key list that a root key signs. It is the shape of a
+certificate authority with the certificate replaced by one line of a signed list.
+
+| | What it is | Where it lives | When it is used |
+|---|---|---|---|
+| **Root key** | An Ed25519 key pair | The private half offline, with the owner, kept as the owner's root certificate authority is. The public half is compiled into Studio (a current one and a next one, so the root itself can be replaced by a release) | Only to sign a new key list |
+| **Signing keys** | Ed25519 key pairs | The private half in the secret store of the owner's signing job, or on a hardware token | To sign an official plugin or a revocation list |
+| **The official key list** | A `vss::signed_file` envelope with the purpose `key-list`, signed by the root | Public. In every release, and importable from a file as a revocation list is | Read by the verifier |
+
+So there are two secrets, and neither is ever on a computer that runs Studio or in this repository.
+
+```json
+{ "serial": 4, "issued": "2026-11-13",
+  "keys": [
+    { "key_id": "plugins-2026", "public_key": "<64 hex characters>", "purpose": "plugin",
+      "name": "Virtual Serial Studio plugins", "valid_from": "2026-11-01", "valid_to": "2028-11-01" },
+    { "key_id": "revocations-2026", "public_key": "<64 hex characters>", "purpose": "plugin-revocations",
+      "name": "Virtual Serial Studio revocations", "valid_from": "2026-11-01", "valid_to": "2028-11-01" }
+  ],
+  "revoked": [] }
+```
+
+- **Checking a plugin.** The verifier checks the root's signature on the list, finds the signature's `key_id` in
+  it, checks that the key's purpose is `plugin`, that today is inside its dates and that it is not in `revoked`,
+  and then checks the plugin's signature with that key.
+- **The newest list wins.** The verifier keeps the list with the highest `serial` it has seen, in the ledger of
+  section 8.4, so an old list cannot be put back to bring a revoked key to life.
+- **How a new list reaches a computer.** There is no network, so: inside a Studio release, beside a plugin (a
+  plugin folder may hold a newer `official-keys.json`), or as a file an administrator or a user imports.
+- **Replacing a signing key:** add its line, sign a list with the next serial. **Revoking one:** move its id to
+  `revoked`, sign a list with the next serial. **A lost root:** a new root needs a new Studio release, which is why
+  a next root is compiled in beside the current one.
+- **A key's dates cover what it signs.** The signing job refuses to sign a plugin whose `not_after` is later than
+  its key's `valid_to`.
+- **Licence keys are not in this list.** The owner decided on 13 November 2026 that licence files do not use
+  the plugin key list. The list holds the purposes `plugin` and `plugin-revocations` only, and the verifier
+  refuses a line with any other purpose. How a licence key is trusted is for `docs/licensing.md` to say, and
+  nothing here changes that page. The two share only the `vss::signed_file` envelope, whose purpose string keeps
+  a signature of one kind from passing as the other.
+
+**The owner's procedure, in outline.** The owner runs these; nothing in this work creates or holds a key. OpenSSL 3
+makes and uses Ed25519 keys, so no other tool is needed for the keys themselves.
+
+```
+# Once, on the offline computer: the root key.
+openssl genpkey -algorithm ed25519 -out root.key
+openssl pkey -in root.key -pubout -out root.pub
+
+# For each signing key.
+openssl genpkey -algorithm ed25519 -out plugins-2026.key
+openssl pkey -in plugins-2026.key -pubout -out plugins-2026.pub
+
+# The 32 bytes of a public key as hex, for the key list or for Studio's source.
+openssl pkey -pubin -in plugins-2026.pub -outform DER | tail -c 32 | xxd -p -c 32
+
+# Sign the bytes of a message (the envelope's signed message, section 8.2).
+openssl pkeyutl -sign -inkey root.key -rawin -in message.bin -out signature.bin
+```
+
+A small script, written with the verifier, builds the message and the envelope around those last two steps. It is
+given the path of a key and calls OpenSSL; it does not make keys and stores nothing. The root public key and the
+first key list are placed in the repository by the owner, as public files.
+
+**Other people's keys.** A third-party author makes an Ed25519 key in the same way and signs with it. No root is
+involved: the key is trusted by a user in their own store, or by an administrator in `allow_keys`. A key on a
+hardware token works where the token can sign with Ed25519.
+
 ## 9. Permissions and sandboxing
 
 ### 9.1 Permissions
@@ -892,8 +1111,29 @@ what was **not** applied. Studio shows that, never the level asked for.
 The sandbox is **defence in depth, not the trust boundary**. The boundary is the three trust levels and the user's
 decision. The unofficial warning in `editions.md` ("It can do anything Studio can") stays as written because the
 level on a given machine may be `partial`, or `none` on an old kernel. The more specific information is shown
-beside the warning: "Sandbox: full" or "Sandbox: partial (no network isolation)". A policy can require a minimum
-(`min_sandbox`); below it the plugin is `disabled: sandbox_insufficient`.
+beside the warning: "Sandbox: full" or "Sandbox: partial (no network isolation)".
+
+**The minimum (decision 9).** `min_sandbox` is `partial` unless a policy sets it. A plugin whose level on this
+computer is below the minimum is `disabled: sandbox_insufficient` and does not run.
+
+| Plugin | Below the minimum |
+|---|---|
+| Official | Runs. Its trust is the owner's signature. The level is still shown |
+| Third-party signed, key approved | Does not run, unless overridden as below |
+| Unsigned, or signed with a key that is not approved | Does not run, unless overridden as below |
+
+**The override** is one user's decision about one plugin: "run this one without isolation". It is asked in its
+own dialog, apart from the decision to run the plugin, it is stored for that plugin's hash only, and a changed
+plugin asks again. Whether it is offered depends on the install:
+
+- Studio installed for everyone: only when the administrator's policy has `allow_no_sandbox: true`. With no
+  policy file it is not offered. A plugin a user installed for themselves does not get free rein on a computer
+  someone else administers.
+- Studio installed for one user (section 5.2 says how Studio tells): offered, because that user already
+  controls everything Studio is, unless a policy file is there and says `allow_no_sandbox: false`.
+
+An administrator can raise the minimum to `full`, and can lower it to `none` for everyone, which is the old
+behaviour and is their choice to make.
 
 ### 9.3 Resource limits
 
@@ -922,8 +1162,9 @@ start other programs while this holds."* This design needs the agent to start pr
    This is the better long-term fix and is needed anyway if the agent ever starts anything else, but it changes
    engine code that this design should not touch unasked.
 
-Both are listed in section 17 (decision 4). Whichever is chosen, a test checks that **no descriptor other than the
-channel reaches a plugin** (section 16).
+**Decided (decision 4): the launcher.** A test checks that **no descriptor other than the channel reaches a
+plugin** (section 16). The launcher is always the one from the same install as the agent that starts it, and is
+never looked for in a plugin directory.
 
 The launcher is a separate executable listed in the installers (`agent.md` says each installer holds a fixed list of
 programs). It does not link Qt or the engine.
@@ -982,9 +1223,10 @@ These follow `AGENTS.md` and `architecture.md`, and apply to every line of the h
    by `shared_ptr`, and the queue's `closed` flag makes late deliveries harmless.
 4. **One strand for each plugin** carries its channel's reads and writes, its timers (heartbeat, timeouts, back-off)
    and its state. The supervisor has one strand for the set of plugins. Neither runs on a hub strand.
-5. **A modifier's hop is asynchronous.** The tap-pair endpoint hands a batch to the plugin's strand and returns;
-   the result comes back as a completion on the instance's strand, which writes to `Mout`. A deadline timer on the
-   instance's strand enforces `budget_us`. Nothing waits on a future.
+5. **A modifier's hop is asynchronous.** The route stage hands a batch to the plugin's strand and returns; the
+   result comes back as a completion on the instance's strand, which gives the bytes back to the stage. A
+   deadline timer on the instance's strand enforces `budget_us`. Nothing waits on a future, and no hub strand
+   waits for a plugin.
 6. **Hashing and verification run on a worker pool of 2 threads**, never on a plugin strand, a hub strand or the GUI
    thread. The result is posted back to the supervisor's strand.
 7. **State of a plugin is changed only on its strand.** Other threads read an immutable snapshot (`shared_ptr<const>`),
@@ -998,10 +1240,11 @@ These follow `AGENTS.md` and `architecture.md`, and apply to every line of the h
 A plugin's state always carries one of these, as `vss::plugin_errc` (an `error_category` named `vss.plugin`),
 and `vss_cli plugin list --json` prints them:
 
-`manifest_invalid`, `manifest_too_large`, `too_many`, `shadowed`, `layout_invalid`, `file_missing`, `unlisted_file`,
+`manifest_invalid`, `manifest_too_large`, `too_many`, `shadowed`, `reserved_id`, `layout_invalid`, `file_missing`, `unlisted_file`,
 `signature_missing`, `signature_invalid`, `key_unknown`, `changed`, `revoked`, `expired`, `policy`, `not_licensed`,
 `api_incompatible`, `capability_missing`, `sandbox_insufficient`, `permission_denied`, `no_hello`, `bad_hello`,
 `unresponsive`, `misbehaving` (with the limit's name), `crashed`, `exited`, `start_failed`, `quarantined`.
+The manifest reader adds `manifest_unsupported_version`, for a manifest newer than the reader.
 
 ## 13. Manifest
 
@@ -1070,7 +1313,7 @@ parser), so a misspelling is found. Duplicate keys are errors. Strings have leng
 | `requires.api`, `capabilities`, `edition`, `runtime` | Section 7.2, 6.6, 8.7, 8.3 |
 | `run` | One executable, a fixed argument list, the platforms it supports. No shell string. A missing platform means the plugin is not offered on this one |
 | `permissions` | Section 9.1; unknown names are errors |
-| `extension_points` | One or more. `kind` is one of `generator`, `fixture`, `modifier`, `adapter`. `timing` as in 6.4 (`modifier` requires `class` of `inline` or `async`; others default to `async`, `rules` allowed for `generator` and `fixture`) |
+| `extension_points` | One or more. `kind` is one of `generator`, `fixture`, `modifier`, `adapter`, and `decoder` (section 20.6; `async` only). `timing` as in 6.4 (`modifier` requires `class` of `inline` or `async`; others default to `async`, `rules` allowed for `generator` and `fixture`) |
 | `parameters` | Section 7.8. Ids unique within the extension point. Defaults must satisfy the constraints |
 | `files` | Required for signed plugins; ignored for unsigned (the verifier measures) |
 | `labels`, `description` | Plain text; per-language maps |
@@ -1220,43 +1463,50 @@ recovery is bounded.
 - The signing job and the real official key. The verifier is tested with test keys; the job is the owner's.
 - Real timing on loaded machines.
 
-## 17. Decisions for the owner
+## 17. Decisions
 
-1. **Where the host lives**: in `vss_agent` (recommended), with the library usable in `vss_gui` and `vss_cli` until
-   the agent is in use.
-2. **The timing proposal** (section 6): engine rules as T0 in `vss_studio`, three tiers, rules before round trips.
-   Approve the tiers and the rule language's growth (microseconds, guards, fault actions, the closed template
-   functions).
-3. **`fail_open` as the default for a modifier**, with per-instance override and a policy that can force either.
-4. **Starting programs from the agent**: the launcher started before any port (recommended), or close-on-exec on all
-   descriptors in `vss_ports` and the transports (a change to engine-side code).
-5. **A route hook in `hub`** for modifiers. The first version uses insertion (two extra endpoints, no engine change).
-   A hook is cleaner and faster but is a `vss_core` change, which needs a request.
-6. **Signature algorithm and library**: Ed25519 with SHA-512 through a vendored Monocypher (recommended, public domain
-   or BSD-2), or the operating systems' cryptography.
-7. **Test keys**: confirm that throwaway keys from a fixed seed, marked TEST ONLY and used only by tests, are
-   acceptable. No private key is created for the owner's job.
-8. **The official key set**: the owner provides the public keys (a current and a next) as a file; the date format and
-   lifetime of `not_after` for official plugins.
-9. **The sandbox minimum**: whether an unsigned plugin may run with sandbox `none`, or the default `min_sandbox` is
-   `partial`. Recommended: allow, with the warning, as `editions.md` says an unsigned plugin "can do anything Studio
-   can".
-10. ~~Whether a plugin fixture appears in the Advanced toolbox.~~ **Decided:** yes, only while the plugin is
-    installed and on, marked as provided by a plugin with its name and trust level (section 7.5 and
-    `screens/10-plugins.md`). Still to confirm: the recommendation that a plugin the user switched on and that
-    cannot run now keeps its tiles, disabled with the reason, and every other unavailable plugin's tiles are hidden.
-11. **Whether "run anyway" for an expired third-party plugin** is offered (this page proposes yes for non-official).
-12. **In-process plugins** with a C ABI or WASM: not in the first version. Confirm it stays that way.
-13. **Where a setup records that it uses a plugin** (section 7.8): one optional `plugin` key on a port or link in the
-    topology file (recommended; an additive schema change, which needs the owner's request), or a second file
-    beside the setup.
-14. **Recording inside the agent** (section 19): a recording that must not lose bytes is written by the agent with
-    `vss::capture`, on a plugin's request, and not copied through the plugin. Confirm, and confirm that capture
-    gains a format with nanosecond times.
-15. **Bundle sections as a fifth thing a plugin can add** (section 19): `contributes.bundle_sections` and the
-    `bundle.section` permission, shown in Studio's own bundle dialog.
-16. **Who can open a recording.** The format is open and documented. Proposed: reading a bundle and looking at its
-    traffic is possible with the public reader; replaying it is the Pro plugin.
+The owner went through these on 13 November 2026. Each line says what was decided and where it is written.
+
+| | Decision | Outcome |
+|---|---|---|
+| 1 | Where the host lives | In `vss_agent`, with the library usable in `vss_gui` and `vss_cli` until the agent is in use |
+| 2 | The timing proposal (section 6) | Three tiers, rules before round trips |
+| 3 | The default for a modifier that does not answer | `fail_open`, with an override for each instance and a policy that can force either |
+| 4 | Starting programs from the agent | The launcher, started before any port (section 9.5). **Added in review:** plugins for everyone and plugins for one user are both listed and managed, and Studio installed for one user is to be investigated (section 5.2) |
+| 5 | How a modifier sits in the path | **Changed in review:** a route hook in `hub` in the first version, and no inserted endpoints. The owner asked for the change to `vss_core`. It is the one route stage that `docs/response-timing.md` adds (section 7.6) |
+| 6 | Signature algorithm and library | Ed25519 with SHA-512 through a vendored Monocypher. X.509 chains were weighed and not taken (section 8.2) |
+| 7 | Test keys | Throwaway keys from a fixed seed, marked TEST ONLY, used only by tests |
+| 8 | The official keys | A root key kept offline signs a key list; signing keys live in the signing job (section 8.9). Decided "for now": a second kind of signature for third parties can be added later |
+| 9 | The sandbox minimum | **Changed in review:** `partial` by default. Running without a sandbox is an override for one plugin, by the user, and on an install for everyone only where the administrator allows it (section 9.2) |
+| 10 | Plugin fixtures in the Advanced toolbox | Yes, only while the plugin is installed and on, marked with its name and trust level. A plugin the user switched on that cannot run now keeps its tiles, disabled with the reason; every other unavailable plugin's tiles are hidden |
+| 11 | "Run anyway" for an expired plugin | Offered for a plugin that is not official, until Studio closes |
+| 12 | In-process plugins | Not in the first version. Left open for later; it needs a licence position from the owner first |
+| 13 | Where a setup records its plugins | An optional list on a port or a link in the topology file (section 7.8). The owner asked for this schema change. It is additive and the file's version does not change. No UUID: the manifest id is the identifier |
+| 14 | Recording inside the agent | Yes, with `vss::capture`, on a plugin's request, and capture gains nanosecond times |
+| 15 | Bundle sections | Yes: `contributes.bundle_sections` and the `bundle.section` permission |
+| 16 | Who can open a recording | Anyone can read a bundle and look at its traffic with the public reader. Replaying it is the Pro plugin |
+| 17 | Decoders as a fifth kind of extension point | Yes: `kind: decoder`, always `async`, needing `traffic.tap` (section 20.6) |
+| 18 | The decode stream in the agent | Yes (section 20.4), with the `bus_fault` value, link and time added to the agent protocol's event record |
+| 19 | Triggers | Yes (section 20.7): the agent's own record, not a `vss_core` event kind. Engine actions on a trigger are off unless the user turns them on |
+| 20 | The protocol description format | Public, in this repository, with a conformance corpus and `vss_cli protocol check` |
+| 21 | Community and Pro for decoding | Community keeps bytes, text and times and gains a basic framing view. Descriptions, decoders, anomaly detection, triggers and harness delivery are Pro. The formats are public in both |
+
+**Still open:**
+
+1. **From the owner, when the verifier and its signing script exist:** the root public key (and a next one) and
+   the first official key list, as public files. Nothing is needed before then (section 8.9).
+2. **How long an official plugin's `not_after` runs.** The owner's first thought was 28 days; this page
+   recommends the signing key's `valid_to` and gives the reasons (section 8.5). To be confirmed.
+
+**Closed since the review:**
+
+- **Studio installed for one user**: investigated (section 5.2). No installer gets a second mode; Studio tells
+  the kind of install from its folder; the agent's `hello` has to say which copy it is.
+- **Licence files and the key list**: the owner decided that licence files do not use it (section 8.9).
+- **The order of a rule set and modifiers on one route stage**: the rule set first, agreed by the owner and
+  written in both pages (section 7.6). The stage itself is not built yet; it is slice 4 of
+  `docs/response-timing.md`.
+- **The screens for decoding and triggers**: written, `screens/11-decoding-and-triggers.md` (section 20.9).
 
 ## 18. Order of work after review
 
@@ -1271,7 +1521,10 @@ Small vertical slices, each with its tests, each a pull request:
 3. **The first extension point: generators.** They have the simplest contract (credit flow, one direction, no byte
    path), and they exercise the instance lifecycle, parameters, permissions, the Plugins page and the failure
    states. The replay half of the worked example of section 19 is a generator, so it is the first real plugin to
-   run against the API. Fixtures with engine rules follow, then modifiers, then adapters.
+   run against the API. Fixtures with engine rules follow, then modifiers (on the route stage, so after the slice of
+   `docs/response-timing.md` that adds it), then adapters. The decode stream,
+   decoders and triggers of section 20 come after the capture in the agent, which they share a path with, and
+   after the event times of `docs/response-timing.md`.
 
 Slice 1 takes its signature check from `vss::signed_file` (section 8.2). If the licensing work has not merged that
 part, slice 1 is the manifest parser, the layout checks, the hashing, the trust store and the policy, and the
@@ -1468,3 +1721,347 @@ paths inside the zip follow the layout rules of section 5.3, and the reader has 
 
 The four extension points were otherwise enough: the plugin is a generator, a fixture type and two bundle sections,
 with read-only proxy calls. It needs no behaviour modifier and is never in the path of the data.
+
+## 20. Worked example: the Protocol decoding and triggers plugin
+
+The owner chose this as the second plugin to frame the API with. It is an official Pro plugin for people who use
+Studio as automated test equipment. As in section 19, this section says what the plugin does, derives what the API
+must offer, and lists what the earlier sections lacked.
+
+### 20.1 What it does
+
+1. **Describe.** The user writes down their serial protocol as data: how a frame starts and ends, where its length
+   is, what its fields are, which message types exist and how the check value is worked out (section 20.5).
+2. **Decode.** The plugin reads the traffic of a link or a port and turns the bytes into frames and fields. It only
+   reads. Nothing is held, changed or delayed, so the devices talk as they always do and run their own recovery.
+3. **Detect.** The plugin compares what it decoded with the description and reports what does not fit:
+
+   | Anomaly | Found by | From what |
+   |---|---|---|
+   | Framing error | Plugin | A start with no end, a frame over its longest length, bytes between frames. Also a line error (parity, framing, overrun, break) that the engine reported at that time |
+   | Unknown message type, unknown field value | Plugin | A type the description does not list; a value outside a field's listed values or range |
+   | Check value mismatch | Plugin | The check value worked out over the described range against the one in the frame. Reported with the field, the range covered, and the expected and actual values |
+   | Length mismatch | Plugin | The length field against the bytes that arrived before the end marker, the gap or the next start |
+   | Timeout, missing reply | Plugin, on the engine's time | A request whose described reply did not start within its time (section 20.3) |
+   | Out of sequence | Plugin | A reply with no request, a second request before a reply, a sequence counter that skipped or repeated |
+   | Bus contention | **Engine** | The half-duplex bus's `bus_fault` event: `overlap`, `too_soon`, `line_held`, `transmitter_off`, `overrun`. The plugin adds the frames that were on the wire |
+
+4. **Trigger.** Each detection becomes a trigger: one event with a time on the run's one clock and the decoded
+   context. What a trigger then does is the user's choice (section 20.8): it is logged, it reaches the test
+   harness, it can keep a recording of the traffic around it, and it can make the engine do something.
+
+A check value mismatch says which field holds the check value and what it should have been. It cannot say which
+data byte is wrong, because a check value does not say that. When a `bus_fault` covers the same bytes, the trigger
+says so (`cause`), and that is the only case where the damaged bytes are known.
+
+### 20.2 Community and Pro
+
+Proposed split. The Community user is the hobbyist who is working out what a device says. The Pro user tests a
+device against a protocol they already know.
+
+| | Community (Studio itself) | Pro (this plugin) |
+|---|---|---|
+| Bytes as hex and as text, direction, timestamps, search | Yes, as today | The same view |
+| The engine's own events in the log: line changes, line errors, `bus_fault` | Yes, as today | Also joined to the frames they touched |
+| **A basic framing view**: the traffic view starts a new row at a silence the user sets, at a byte the user sets (for example `0A`), or every n bytes | Yes. It is a way of showing bytes. It marks nothing as right or wrong | The description's framing replaces it for a place that has one |
+| Protocol descriptions: fields, message types, check values | No | Yes |
+| Decoders for protocols a description cannot express | No | Yes; Modbus RTU, Modbus ASCII and NMEA 0183 come with the plugin |
+| Anomaly detection | No | Yes |
+| Triggers, delivery to a harness, a recording kept on a trigger, an engine action on a trigger | No | Yes |
+| The description format, the corpus format and the trigger format | Public and documented | The same formats |
+
+The formats are public in both editions, so that anyone can write a description, share it and build tools on it.
+What is Pro is the program that decodes with them inside Studio. The basic framing view is drawn by Studio and
+needs no plugin, no permission and no engine change beyond the chunk times of section 20.3.
+
+### 20.3 What runs in the engine, and what in the plugin
+
+The rule is: **what needs the clock is the engine's; what needs only the bytes is the plugin's.**
+
+| Part | Where | Why |
+|---|---|---|
+| The time of every chunk, line change and fault, on the run's one clock | Engine | `docs/response-timing.md`, "One clock": the read time is taken once, before routing. A plugin's clock is not the engine's |
+| First and last byte times of a chunk on a half-duplex bus | Engine | Only the bus has a line rate, so only it has byte times (`bus_line`) |
+| Contention | Engine | The bus already decides it and publishes `bus_fault`. The plugin never works out an overlap from timestamps |
+| Keeping chunks apart and in order, and saying when some were lost | Agent | Section 20.4, the decode stream |
+| Splitting the bytes into frames by markers, a length field or a delimiter | Plugin | It needs only the bytes |
+| **Splitting by a time gap, to observe** | Plugin, from the engine's chunk times | Each chunk arrives with its time and is never joined to another, so the silence between two chunks is a subtraction of two engine times. The plugin's own speed does not enter into it |
+| **Splitting by a time gap, to act within the turn-around** | Engine, as a rule | A reaction that must come inside a frame gap cannot wait for a plugin. It is a rule with `gap_us` (`docs/response-timing.md`, "What a rule matches"), which the engine matches and times. Section 20.8 |
+| Fields, message types, check values, lengths, sequence | Plugin | Bytes only, and the list of check values a protocol may need is longer than the engine's closed list |
+| Deciding a timeout | Plugin, on engine time | The decode stream carries the engine's time forward when nothing happens (a `time` item at least every 10 ms while a decoder waits for a reply). The trigger's `when_ns` is the request's end plus the allowed time, which is exact. It is published up to one `time` item later |
+| Stamping, limiting and storing triggers; delivering them | Agent | Section 20.7 |
+| Keeping the traffic around a trigger | Agent | The capture ring of section 19 |
+| Any action on the traffic | Engine, by the existing operations and rules | Section 20.8 |
+
+Said plainly, two limits:
+
+- **A gap the program did not make cannot be seen.** A virtual port hands over a whole write at once. Two frames
+  that a program wrote in one write have no silence between them, whatever the baud rate says, and on a real UART
+  they would have had none either. Gap framing on a virtual port shows the program's writes; on a half-duplex bus
+  with a line rate it shows wire times.
+- **Detection is after the fact.** A trigger is published after the bytes have been delivered, later by the decode
+  stream's delay and the plugin's own work: milliseconds, not microseconds. Its `when_ns` is still the engine's
+  time of the bytes it is about.
+
+So no new framing code is asked of the engine for this plugin. It needs the chunk times that
+`docs/response-timing.md` already plans, and the decode stream below.
+
+### 20.4 What the API must offer
+
+| Need | API | Kind | Permission | In this design |
+|---|---|---|---|---|
+| **Read the traffic of chosen places, in order, with times, without ever slowing it** | The decode stream: `decoder.data` items (below) | **New** stream from the agent | `traffic.tap` | **New.** The tap of section 7.7 may drop without saying where and joins chunks; a decoder would report anomalies that are not there |
+| Line changes, line errors, `bus_fault`, rule firings, in the same order as the bytes | Items of the same stream | The same | `traffic.tap` (it already implies the events of its places) | **New** |
+| The engine's time while nothing happens | `time` items | The same | none | **New** |
+| A protocol description the user chose | A `path` parameter, read access to that one file | Parameter | `fs.read` | Sections 7.8 and 9.1 |
+| **Decoders that are code**, from this plugin or another | Extension point kind `decoder` (section 20.6) | **New** extension point | `traffic.tap` | **New.** Decision 17 |
+| Show decoded frames in the traffic view | `decoder.frame`: a summary and fields, drawn by Studio | Plugin message | none beyond the above | **New.** The plugin draws nothing |
+| **Publish a trigger** | `trigger.publish` (section 20.7) | Plugin message | none beyond the above: a decoder may always report | **New.** Decision 19 |
+| **Deliver triggers to a harness** | Triggers are records in the agent's event stream; `triggers.query` and `trigger_stats` for a harness that asks afterwards | Agent operations, through the proxy for an adapter | `ports.read` for the trigger, `traffic.tap` to see its bytes | **New** |
+| Keep the traffic around a trigger | `capture.start {ring, snapshot_on, before_s, after_s}`: the agent cuts the ring itself when a trigger passes | Engine-side operation | `traffic.tap` | **Change** to section 19.4: `snapshot_on`. No plugin talks to another plugin |
+| Act on a trigger | The existing operations: `fault`, `lines`, a write, `rules.set`, a slot | Proxy calls, rules | `faults`, `ports.write` (both optional) | Sections 7.5 and 7.7. Section 20.8 |
+| React inside the turn-around | A rule set made from the description | Rules | `faults` or `ports.write` | `docs/response-timing.md`. Section 20.8 |
+| Add the triggers of a run to a support bundle | A bundle section `triggers` | Bundle section | `bundle.section` | Section 19.5, reused |
+
+**The decode stream.** It is the tap made exact. For each place the decoder was given, the agent sends items in the
+order the engine saw them:
+
+| Item | Carries |
+|---|---|
+| `data` | `place`, `direction`, `offset` (the count of bytes at that place and direction before this chunk), `t_ns`, `end_ns` (on a half-duplex bus: when the last byte left the wire), the bytes. One engine chunk is one item; chunks are never joined |
+| `line` | `place`, `t_ns`, the lines and which changed |
+| `line_error` | `place`, `t_ns`, the kind |
+| `bus_fault` | `link`, the sender, `t_ns`, the `bus_fault` value, the `offset` and length of the sender's chunk |
+| `rule` | A rule fired at the place: its event as `docs/response-timing.md` defines it |
+| `time` | `t_ns`: the engine's time now |
+| `lost` | `place`, `direction`, `from_offset`, `bytes`, `from_ns`, `to_ns`: the decoder was too slow and this much was not sent |
+
+- **It never slows the traffic.** The agent keeps what the plugin has not yet taken in a queue of fixed size (4 MiB
+  by default for an instance). When it is full, the oldest items are dropped and one `lost` item takes their place.
+  There is no back-pressure on a port.
+- **Loss is in the stream, at the place it happened.** A decoder that reads a `lost` item forgets the frame it was
+  in, starts again at the next frame start, and publishes a `decoder_lost` trigger. It must not report a framing,
+  length or timeout anomaly across a loss. A harness can therefore tell a clean run from one where detection had a
+  hole, as a run whose harness died is marked incomplete.
+- **Offsets tie everything together.** A frame is `place`, `direction`, `offset` and `length`, so a trigger points
+  at exact bytes of a recording made by the capture of section 19, without matching by content.
+- **Flow.** The plugin acknowledges items (`decoder.ack {seq}`), and the host sends at most 256 KiB that is not
+  acknowledged.
+- The traffic chip of `screens/10-plugins.md` ("Reading data") shows for as long as a decoder reads.
+
+**Two gaps in what exists today**, to be closed by the agent work and not by `vss_core`:
+
+- The agent protocol's `event_record` has the kind `bus_fault` and the engine's sentence, but not the `fault` value,
+  the link or a time. The decode stream needs all three. This is an addition to `vss_agent_proto`; `vss_core`'s
+  event already has them. Until the agent carries them the capability `events_bus_fault_detail` is absent, and a
+  contention trigger then has the kind `contention`, the engine's sentence and no sub-kind. It says "detail not
+  available in this build" and is never guessed from the bytes.
+- Events have no time in the agent protocol at all. `docs/response-timing.md` ("One clock") gives every event a
+  time since the run's origin; the decode stream depends on that and adds nothing of its own.
+
+### 20.5 The protocol description: an open format
+
+A description is one JSON file. It is data and not code, so it needs no signature and no sandbox to share. It is
+still a file from someone else: it is read with limits, unknown keys are errors, and its reader has a fuzz harness
+(section 16).
+
+```json
+{
+  "protocol_format": 1,
+  "id": "com.example.meter-bus",
+  "name": "Meter bus",
+  "version": "1.2.0",
+  "byte_order": "big",
+  "framing": {
+    "start": "02", "end": "03",
+    "length": { "at": 2, "size": 1, "counts": "payload", "add": 0 },
+    "gap_us": 1750, "max_length": 260
+  },
+  "check": { "algorithm": "crc16", "poly": "8005", "init": "FFFF", "reflect": true, "xor_out": "0000",
+             "covers": [1, -4], "at": -3, "byte_order": "little" },
+  "header": [
+    { "name": "address", "type": "u8", "range": [1, 247] },
+    { "name": "length", "type": "u8" },
+    { "name": "type", "type": "u8" },
+    { "name": "counter", "type": "u8" }
+  ],
+  "type_field": "type",
+  "sequence": { "field": "counter", "step": 1, "wraps_after": 255, "per": "address" },
+  "messages": [
+    { "name": "read request", "type": 3, "from": "controller",
+      "fields": [ { "name": "register", "type": "u16" }, { "name": "count", "type": "u16", "range": [1, 125] } ],
+      "reply": { "one_of": ["read reply", "error reply"], "within_us": 100000, "same": ["address", "counter"] } },
+    { "name": "read reply", "type": 3, "from": "device",
+      "fields": [ { "name": "size", "type": "u8" }, { "name": "values", "type": "bytes", "length": "size" } ] },
+    { "name": "error reply", "type": 131, "from": "device",
+      "fields": [ { "name": "code", "type": "u8",
+                    "values": { "1": "bad function", "2": "bad address", "3": "bad value" }, "strict": true } ] }
+  ],
+  "unknown_type": "anomaly"
+}
+```
+
+| Part | What it can say |
+|---|---|
+| `framing` | Any of: a start marker, an end marker, an escape byte for markers inside the data, a length field (where, how wide, what it counts, a constant to add), a delimiter, a fixed length, a silence (`gap_us`) before a frame or after it. `max_length` is required |
+| `check` | A named value (`crc16_modbus`, `crc16_ccitt`, `sum8`, `xor8`, `lrc`: the names `docs/response-timing.md` uses, with the same results) or a CRC by its parameters (width 8, 16 or 32, polynomial, start value, reflection, final xor); the range it covers; where it is; its byte order. For a text protocol: the value as two or four hex characters |
+| Fields | `u8` to `u64`, `i8` to `i64`, `f32`, `f64`, `bcd`, `ascii`, `bytes`, and `bits` (named parts of one integer). A length is a number, another field, or `rest`. A field may list `values` with names, a `range`, and `strict` (a value outside them is an anomaly) |
+| `messages` | A name, how it is recognised (the type field's value, and who sends it where the protocol has a controller), its fields, and the reply it expects: which messages, within how long, and which fields must be the same |
+| `sequence` | A counter field, its step and where it wraps, counted for each address or for the whole place |
+| `unknown_type` | `anomaly` or `ignore` |
+
+What it cannot say, on purpose: loops, arithmetic, conditions on field values beyond the message type, or state
+beyond request and reply and one counter. The reader builds tables from it, and decoding a frame takes a number of
+steps fixed by the frame's length. A protocol that needs more is a decoder in code (section 20.6). Limits: 256 KiB
+of JSON, depth 16, 256 messages, 64 fields in a message, a frame of at most 64 KiB.
+
+- **Versioned.** `protocol_format` rises only for a change an old reader cannot ignore. A reader refuses a higher
+  number and says so. `version` is the author's own, for people.
+- **A test corpus travels with it.** Beside `protocol.json`, a folder `corpus/` holds cases. A case is a recording
+  in the format of section 19.6 and an `expected.jsonl`: the frames and the triggers a correct reader produces from
+  it, one JSON object on a line, in order. `vss_cli protocol check <folder>` runs every case and prints the first
+  difference. So a description can be reviewed, shared and changed with evidence, and a second implementation of
+  the format can be held to the first.
+- **The format has its own corpus**, in this repository: descriptions that must be refused with a given reason,
+  and cases for each framing kind, each field type and each check value. It is the conformance test for any reader.
+- **Decoding a recording is the same as decoding live.** A decoder is a function of its stream, and the stream of a
+  recording is the recording. The corpus check, a harness that looks at a finished run, and support reading a
+  bundle all use that. Nothing is opened and no port exists.
+
+### 20.6 Decoders in code
+
+Some protocols do not fit a description: Modbus RTU (frames told apart only by silence and by what the function
+code implies), Modbus ASCII and NMEA 0183 (text with a check value in hex and optional parts), and many in-house
+binary protocols. For them a plugin contributes a **decoder**, a fifth kind of extension point.
+
+```json
+{ "kind": "decoder", "id": "modbus-rtu", "name": { "en": "Modbus RTU" },
+  "timing": { "class": "async" },
+  "parameters": [ { "id": "silence", "type": "duration", "default": "1750us" } ] }
+```
+
+| Message | From | Content |
+|---|---|---|
+| `decoder.create` | host | `instance`, the places and their settings (rate, format, whether a bus), `params` |
+| `decoder.data` | host | `seq` and a list of the items of section 20.4, with the bytes as one blob |
+| `decoder.ack` | plugin | `seq` |
+| `decoder.frame` | plugin | `place`, `direction`, `offset`, `length`, `t_start_ns`, `t_end_ns`, a message name, a summary of at most 200 characters, and up to 64 fields as `{name, offset, length, value}`. Optional, rate limited, and dropped first when the plugin is over its limits |
+| `trigger.publish` | plugin | Section 20.7 |
+| `decoder.stop` | host | |
+
+Rules:
+
+- A decoder's timing class is `async` and nothing else. It is never in the path of the data and the engine never
+  waits for it.
+- It needs `traffic.tap`, on the places the user gave it and no others.
+- A decoder that crashes or is stopped costs the decoding and nothing else: the traffic is untouched, the traffic
+  view falls back to bytes, a `decoder_lost` trigger is published by the host, and the instance shows its state.
+- **What a decoder says about traffic is untrusted twice**: the plugin wrote it, and the device under test chose
+  the bytes. Names and summaries are plain text with the manifest's text rules (no control characters, no direction
+  marks, a length limit). Studio draws field values from their bytes where the type is known. Nothing is markup.
+- The declarative reader of section 20.5 is itself a decoder of the official plugin, with one parameter: the
+  description file. So descriptions and coded decoders produce the same frames and the same triggers, and the rest
+  of Studio does not know which one is running.
+
+### 20.7 The trigger
+
+A trigger is one record. The format is public and versioned with the plugin API.
+
+```json
+{
+  "id": 4127,
+  "kind": "check",
+  "when_ns": 18204113250,
+  "place": "bus-1", "direction": "rx", "sender": "meter-17",
+  "protocol": { "id": "com.example.meter-bus", "version": "1.2.0" },
+  "frame": { "offset": 48213, "length": 10, "t_start_ns": 18203200000, "t_end_ns": 18204113250,
+             "message": "read reply" },
+  "field": { "name": "check", "offset": 7, "length": 2 },
+  "expected": "3A91", "actual": "3A90",
+  "covers": [1, 6],
+  "cause": { "bus_fault": "overlap", "event": 9912 },
+  "request": { "offset": 48205, "length": 8, "t_end_ns": 18201000000 },
+  "text": "Check value is 3A90, expected 3A91.",
+  "from": { "plugin": "com.virtualserialstudio.protocol", "instance": 3 }
+}
+```
+
+- `kind` is from a closed list: `framing`, `unknown_type`, `unknown_value`, `check`, `length`, `timeout`,
+  `sequence`, `contention`, `line_error`, `decoder_lost`, and `custom` with a `code` the manifest declared.
+- **The host stamps it.** `id` (a count for the run), `from`, and the time it was published are the agent's. A
+  `when_ns` later than the engine's time now, or a frame at an offset the place has not reached, is refused. A
+  plugin cannot publish a trigger for a place it was not given.
+- **The bytes are not in it.** A trigger names its frame by offset. A subscriber with `traffic.tap` may ask for the
+  bytes (`triggers.query` with `bytes`), up to 4 KiB a frame, for as long as the agent's ring has them; a
+  subscriber with only `ports.read` gets the record without `expected`, `actual` or bytes. So "which tests failed"
+  can be read by a tool that may not read traffic.
+- **Limits.** 200 triggers a second for an instance, as a budget that refills. Over it the agent counts them
+  (`suppressed`) and publishes one `trigger_storm` record a second. The agent keeps the last 10 000 triggers of a
+  run. `trigger_stats` gives the count for each kind and place at any time, exact whatever was dropped, as
+  `rule_stats` does for rules.
+- **They are the agent's records, not `vss_core` events.** A trigger is made outside the hub, so it travels in the
+  agent protocol's event stream as its own record and `vss::event_kind` does not change.
+
+### 20.8 What a trigger does
+
+The user or the harness chooses, for each kind of trigger. The plugin does not choose for them.
+
+| | What happens | Who does it | Timing |
+|---|---|---|---|
+| **(a) Log** | Always. The trigger is in the event log, in the run's log and in any capture that is running, at its `when_ns` | Agent | |
+| **(b) Reach the harness** | A harness adapter, or a client of the control API, subscribes to triggers or asks afterwards (`triggers.query {since, kinds, places}`, `trigger_stats`). A test asserts "no triggers", "exactly one `timeout` on bus-1", or waits for one with a time limit | Agent, through the proxy of section 7.7. How the control API is reached from outside is the remote-control work | Batched like every event; the times inside are exact |
+| **(c) Keep the traffic** | A capture ring is running (`capture.start` with `ring`, section 19.4). With `snapshot_on: {kinds, places}`, `before_s` and `after_s`, the agent cuts that span out of the ring into a kept recording when a matching trigger passes, and names the trigger in the recording's index. That recording is what the Diagnostics and replay plugin packs and replays | Agent. The two plugins never talk to each other; either may start the ring | The span is exact because the ring was already recording |
+| **(d) An engine action** | Off unless the user turns it on. Two forms, below | Engine | Below |
+
+**(d) in two forms**, which is the boundary with `docs/response-timing.md`. That page owns the rules, their clock
+and their guarantees, and nothing here changes it.
+
+1. **After the fact.** On a trigger the plugin calls an existing operation: raise a fault, set a line, write
+   bytes, fill a slot, switch a rule on or off (`update_rules`). This is tier T2 of section 6: the action comes
+   after the trigger was decided, milliseconds after the bytes, and that delay is the plugin's and is not promised.
+   It suits "after the first bad check value, drop the device's carrier" and does not suit "answer this frame".
+2. **Armed.** For a reaction that must be exact, the plugin does not react; it prepares. It installs a rule set
+   made from the description (the fixed start of a message as `bytes`, the frame's silence as `gap_us`, the action
+   with its delay), switched off. A trigger switches it on, and the **next** matching frame is matched and
+   answered by the engine, with the engine's timing and its lateness reported. This is "staying one step ahead"
+   of that page, used for faults. What the description can express and a fixed-length pattern cannot (a length
+   inside the frame) stays detection only, until that page's rule language has bounded variable-length patterns,
+   which is its decision 6.
+
+Either form needs `faults` or `ports.write`, which this plugin asks for as optional. Without them it is read-only
+and (d) is not offered.
+
+**A trigger must not feed itself.** An action that damages traffic causes anomalies, which cause triggers. So
+actions from triggers have a budget of their own (10 a second for an instance; over it the actions stop, the
+detection goes on and the instance says so), and a trigger whose frame overlaps a fault the same instance asked
+for carries `cause: {"own_action": id}`, so that a rule of the user's can leave it out.
+
+**Permissions of this plugin**, as the user sees them in the decision dialog:
+
+| Sentence | Needed | Note |
+|---|---|---|
+| "See your ports and links, their state and their counters." | Yes | |
+| **"Read the data that passes through the ports and links you use it on."** | Yes | The read-traffic permission. An amber row, never granted silently |
+| "Read files in a folder you choose." | Yes | The description file and its corpus |
+| "Add a section to a support bundle. You see it and choose whether to include it." | Optional | The `triggers` section |
+| "Raise faults on the ports you use it on." | Optional | For (d) |
+| "Send data from the ports you use it on." | Optional | For (d) |
+
+It asks for no network permission and no `modifier.inline`. It is never in the path of the data.
+
+### 20.9 What this example changed in the design
+
+| Gap | Where it is now |
+|---|---|
+| The tap could drop without saying where, and joined chunks | The decode stream: one item for each chunk, engine times, offsets, `lost` in place (20.4). Decision 18 |
+| Nothing let a plugin interpret traffic for Studio | The `decoder` extension point (20.6). Decision 17 |
+| A plugin could report only a status and a log line | The trigger record, with limits, storage and counters in the agent (20.7). Decision 19 |
+| A recording could not be kept because of something that happened | `snapshot_on` in `capture.start` (20.8) |
+| The agent's `bus_fault` event had no value, link or time | An addition to `vss_agent_proto`, behind `events_bus_fault_detail` (20.4) |
+| A plugin had no time source but its own clock | `time` items on the engine's clock (20.3) |
+| No shared way to write a protocol down | The description format and its corpus (20.5). Decision 20 |
+| What Community gets | The basic framing view, in Studio (20.2). Decision 21 |
+
+The screens are in `docs/gui-design/docs/screens/11-decoding-and-triggers.md`, which is the copy to build from:
+the basic framing view as "Rows" in the Monitor, the dialog that starts a decoding, frames and their fields in the
+Monitor, the Triggers tab with the name and sentence of every kind, and the choices of section 20.8.

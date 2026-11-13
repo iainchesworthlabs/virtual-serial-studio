@@ -142,6 +142,7 @@ TEST_CASE("setup: a port that cannot be made says which piece is missing")
         // The engine's own answer is one of the bare codes.
         s.fake().fail_next(vss::make_error_code(vss::errc::permission_denied));
         click(form->create_button());
+        wait_for("the failed build", [&] { return !form->busy(); });
         s.settle();
 
         s.step(QStringLiteral("read the error"));
@@ -178,6 +179,7 @@ TEST_CASE("setup: a refusal with nothing wrong in the set-up is in words, with d
     auto* form = st::open_job(s, job::pair);
     s.fake().fail_next(vss::make_error_code(vss::errc::permission_denied));
     click(form->create_button());
+    wait_for("the failed build", [&] { return !form->busy(); });
     s.settle();
 
     s.step(QStringLiteral("read the error"));

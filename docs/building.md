@@ -1,6 +1,6 @@
 # Building
 
-Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.74+ headers, git and
+Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.88+ headers, git and
 Python 3 (for the scripts under `tools/`).
 CI builds with the versions pinned in `.github/toolchain-versions.json`: GCC 16,
 Clang 23, MSVC 19.51 (toolset 14.51) and Qt 6.12.
@@ -9,7 +9,7 @@ Qt 6 is optional and only needed for the GUI. CMake looks for it through
 Qt's own config package first, then looks in `VSS_QT_ROOT`, `ICL_QT_ROOT`,
 `QT_ROOT_DIR`, `QTDIR` and the usual install locations. The
 `*-gui` presets make a missing Qt an error instead of silently building the
-CLI alone. The GUI needs Qt 6.2 or newer with Widgets, Svg, Network and the Linguist
+CLI alone. The GUI needs Qt 6.11 or newer with Widgets, Svg, Network, Qt Canvas Painter and the Linguist
 tools; the GUI test programs also need Qt Test.
 
 ```bash
@@ -92,6 +92,24 @@ preset) to a Release build when a release binary needs to be profiled. Tracy
 comes from vcpkg, so the configure needs the vcpkg toolchain file; the
 `*-tracy*` presets take it from `VCPKG_ROOT`. How profiling is switched on, what
 it costs and how to capture a trace are in [Profiling](profiling.md#building-it).
+
+## The version a build reports
+
+About and `vss_gui --version` show one string, for example
+`v0.1.0-rc.3+build.6083-3de4617`: the semantic version, the CI run number and the short
+commit (`-dirty` follows the commit when the tree was modified). `cmake/VssBuildStamp.cmake`
+works it out before every build and writes a generated source file, so a new commit shows
+without a reconfigure and no preprocessor definition is involved.
+
+| Part | Where it comes from |
+|---|---|
+| Version and tag | The tag of a tag build in GitHub Actions, else the nearest `v*` tag git can see, else `<project version>-dev` (a shallow CI clone has no tags) |
+| Build number | `-DVSS_BUILD_NUMBER=`, else the GitHub Actions run number, else none |
+| Commit | `GITHUB_SHA`, else git `HEAD` (a pull request build is the merge commit) |
+| Branch | The pull request's head branch, else the branch Actions built, else the checked-out branch; on a detached `HEAD` the tag, or a branch pointing at the commit |
+| Time | UTC, refreshed only when one of the above changes |
+
+`-DVSS_VERSION_TAG=v1.2.3` takes the version from a tag when git is not available.
 
 ## Language standard
 

@@ -183,7 +183,7 @@ try {
     if ($null -eq (Get-ItemProperty -LiteralPath $runKey -Name $runName -ErrorAction SilentlyContinue)) {
       New-ItemProperty -LiteralPath $runKey -Name $runName -Value ('"{0}" --background' -f (Join-Path $folder 'bin\vss_gui.exe')) | Out-Null
     }
-    $data = Join-Path $env:APPDATA 'Virtual Serial Studio\Virtual Serial Studio'
+    $data = Join-Path $env:APPDATA 'iainchesworthlabs\Virtual Serial Studio'
     $running = Join-Path $data 'running-setup.json'
     $madeRunning = -not (Test-Path -LiteralPath $running)
     if ($madeRunning) {

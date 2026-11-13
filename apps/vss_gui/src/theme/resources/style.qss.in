@@ -48,6 +48,8 @@ QToolButton::menu-indicator { image: none; width: 0; }
 QToolButton[role="secondary"] { background: %fill%; color: %ink%; font-weight: 500; }
 QToolButton[role="secondary"]:hover { background: %fillHover%; }
 QToolButton[role="secondary"]:pressed { background: %pressed%; }
+/* The tool row takes keyboard focus only (Tab), so :focus is keyboard focus here. The padding shrinks by the border width so the button keeps its size. */
+QToolBar QToolButton:focus { border: 2px solid %focus%; padding: 0 6px; }
 QStatusBar { background: %ground%; border: 0; color: %ink3%; }
 QStatusBar::item { border: 0; }
 QStatusBar QLabel { color: %ink3%; }
@@ -112,10 +114,11 @@ QProgressBar { min-height: 6px; max-height: 6px; border: 0; border-radius: 3px; 
 QProgressBar::chunk { background: %accent%; border-radius: 3px; }
 
 /* item views: no grid, no zebra, rounded selection */
-QTableView, QTreeView, QListView { background: %panel%; alternate-background-color: %panel%; gridline-color: transparent; border: 0; selection-background-color: %accentSoft%; selection-color: %ink%; outline: 0; }
+QTableView, QTreeView, QListView { background: %panel%; alternate-background-color: %panel%; gridline-color: transparent; border: 0; selection-background-color: %accentSoft%; selection-color: %ink%; }
 QTableView::item, QTreeView::item, QListView::item { border: 0; padding: 0 6px; }
 QTableView::item:hover, QTreeView::item:hover, QListView::item:hover { background: %hover%; }
 QTableView::item:selected, QTreeView::item:selected, QListView::item:selected { background: %accentSoft%; color: %ink%; }
+QListWidget#simpleSetupList::item { padding: %space.0% %space.1%; }
 QHeaderView { background: %panel%; border: 0; }
 QHeaderView::section { background: %panel%; color: %ink3%; border: 0; border-bottom: 1px solid %line%; padding: 0 12px; min-height: 28px; font-weight: 600; }
 QTableCornerButton::section { background: %panel%; border: 0; }
@@ -162,6 +165,8 @@ QFrame[spin="true"] QToolButton { min-height: 30px; padding: 0; border: 0; borde
 QFrame[spin="true"] QToolButton:hover { background: %hover%; }
 QFrame[spin="true"] QLabel#shareProgramCount { border-left: 1px solid %line%; border-right: 1px solid %line%; background: %panel%; }
 QFrame#dialogFooter { background: transparent; border: 0; }
+QFrame#topologyZoomBar { background: %panel%; border: 1px solid %line2%; border-radius: %radius.control%; }
+QFrame#topologyZoomBar QToolButton { min-width: 28px; min-height: 28px; padding: 0 4px; }
 QFrame[note="info"] { background: %accentSoft%; border: 0; border-radius: %radius.group%; }
 QFrame[note="info"] QLabel { color: %noteInfoText%; }
 QFrame[note="ok"] { background: %okSoft%; border: 0; border-radius: %radius.group%; }

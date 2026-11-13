@@ -21,10 +21,14 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QMenu>
+#include <QSettings>
 #include <QStackedWidget>
+#include <QStyleOptionViewItem>
 #include <QTableView>
 #include <QTimer>
 #include <QVBoxLayout>
+
+#include <algorithm>
 
 namespace vss::gui
 {
@@ -111,8 +115,9 @@ void PortsPanel::build()
             this, [this](const QModelIndex& current, const QModelIndex&)
             { on_current_changed(current); });
 
-    // The table keeps every column except the first at a fixed width, so
-    // the first takes whatever space is left and nothing scrolls sideways.
+    // Every column is resized by dragging its header divider, and a double
+    // click on a divider fits the column to its contents. The last column
+    // takes whatever space is left, so there is no dead space on the right.
     table_ = new QTableView(stack_);
     table_->setModel(model_);
     table_->setAccessibleName(tr("Ports table"));
@@ -122,18 +127,27 @@ void PortsPanel::build()
     table_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
     table_->setAlternatingRowColors(false);
     table_->verticalHeader()->hide();
-    table_->horizontalHeader()->setStretchLastSection(false);
-    table_->horizontalHeader()->setHighlightSections(false);
-    table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-    table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
-    table_->setColumnWidth(1, 96);
-    for (int column = 2; column <= 4; ++column)
-    {
-        table_->horizontalHeader()->setSectionResizeMode(column,
-                                                         QHeaderView::Fixed);
-        table_->setColumnWidth(column, column == 4 ? 64 : 52);
-    }
-    table_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    QHeaderView* header = table_->horizontalHeader();
+    header->setHighlightSections(false);
+    header->setSectionsMovable(false);
+    header->setSectionResizeMode(QHeaderView::Interactive);
+    header->setMinimumSectionSize(kMinimumColumnWidth);
+    header->setStretchLastSection(true);
+    header->setAccessibleName(tr("Ports table columns"));
+    set_default_column_widths();
+    restore_column_widths();
+    table_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    column_save_timer_ = new QTimer(this);
+    column_save_timer_->setSingleShot(true);
+    column_save_timer_->setInterval(400);
+    connect(column_save_timer_, &QTimer::timeout, this,
+            [this] { save_column_widths(); });
+    connect(header, &QHeaderView::sectionResized, this,
+            [this](int, int, int)
+            {
+                if (!applying_widths_)
+                    column_save_timer_->start();
+            });
     table_->verticalHeader()->setDefaultSectionSize(44);
     // The same delegate class paints both views; table mode paints each
     // cell for its own column instead of a whole row.
@@ -169,6 +183,75 @@ void PortsPanel::build()
     others_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     others_->setVisible(false);
     layout->addWidget(others_);
+}
+
+void PortsPanel::set_default_column_widths()
+{
+    // The State chip must show its longest text whole.
+    const int state_width =
+        PortDelegate::state_chip_width(PortModel::tr("Waiting for program")) +
+        12;
+    applying_widths_ = true;
+    table_->setColumnWidth(0, 200);
+    table_->setColumnWidth(1, state_width);
+    table_->setColumnWidth(2, 64);
+    table_->setColumnWidth(3, 64);
+    applying_widths_ = false;
+}
+
+void PortsPanel::restore_column_widths()
+{
+    const QStringList saved =
+        QSettings().value(QStringLiteral("ui/portsColumnWidths")).toStringList();
+    // The last column stretches, so only the others are kept.
+    if (saved.size() != 4)
+        return;
+    applying_widths_ = true;
+    for (int column = 0; column < 4; ++column)
+    {
+        bool ok = false;
+        const int width = saved.at(column).toInt(&ok);
+        if (ok && width >= kMinimumColumnWidth && width <= 2000)
+            table_->setColumnWidth(column, width);
+    }
+    applying_widths_ = false;
+}
+
+void PortsPanel::save_column_widths() const
+{
+    QStringList widths;
+    for (int column = 0; column < 4; ++column)
+        widths.push_back(QString::number(table_->columnWidth(column)));
+    QSettings().setValue(QStringLiteral("ui/portsColumnWidths"), widths);
+}
+
+void PortsPanel::resize_column_by_key(int column, int delta)
+{
+    QHeaderView* header = table_->horizontalHeader();
+    const int width =
+        std::max(kMinimumColumnWidth, header->sectionSize(column) + delta);
+    header->resizeSection(column, width);
+    Q_EMIT status_message(
+        tr("%1 column is %2 px wide.")
+            .arg(model_->headerData(column, Qt::Horizontal).toString())
+            .arg(header->sectionSize(column)));
+}
+
+void PortsPanel::fit_column_by_key(int column)
+{
+    QHeaderView* header = table_->horizontalHeader();
+    // The view's own fit is protected, so ask the delegate for each cell.
+    int width = std::max(kMinimumColumnWidth, header->sectionSizeHint(column));
+    const QStyleOptionViewItem option;
+    for (int row = 0; row < model_->rowCount(); ++row)
+        width = std::max(
+            width, table_delegate_->sizeHint(option, model_->index(row, column))
+                       .width());
+    header->resizeSection(column, width);
+    Q_EMIT status_message(
+        tr("%1 column is %2 px wide.")
+            .arg(model_->headerData(column, Qt::Horizontal).toString())
+            .arg(header->sectionSize(column)));
 }
 
 void PortsPanel::refresh_others()
@@ -295,8 +378,10 @@ void PortsPanel::sync_views(vss::endpoint_id id)
     const QModelIndex index = model_->index(row, 0);
     if (simple_->currentIndex() != index)
         simple_->setCurrentIndex(index);
-    if (table_->currentIndex() != index)
-        table_->setCurrentIndex(index);
+    // Keep the column the keyboard is on (it names the column to resize).
+    if (table_->currentIndex().row() != row)
+        table_->setCurrentIndex(
+            model_->index(row, std::max(0, table_->currentIndex().column())));
     simple_->scrollTo(index, QAbstractItemView::EnsureVisible);
     table_->scrollTo(index, QAbstractItemView::EnsureVisible);
     syncing_ = previous;
@@ -366,6 +451,28 @@ bool PortsPanel::eventFilter(QObject* watched, QEvent* event)
         const int row = current_row();
         if (row < 0)
             return QWidget::eventFilter(watched, event);
+        // Ctrl+Alt+Left and Right narrow and widen the column the cursor is
+        // in (Left and Right move it); Ctrl+Alt+0 fits it to its contents.
+        if (watched == table_ &&
+            key->modifiers() == (Qt::ControlModifier | Qt::AltModifier))
+        {
+            const int column = table_->currentIndex().column();
+            if (key->key() == Qt::Key_Left)
+            {
+                resize_column_by_key(column, -16);
+                return true;
+            }
+            if (key->key() == Qt::Key_Right)
+            {
+                resize_column_by_key(column, 16);
+                return true;
+            }
+            if (key->key() == Qt::Key_0)
+            {
+                fit_column_by_key(column);
+                return true;
+            }
+        }
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter)
         {
             Q_EMIT inspect_requested(model_->port_id(row));

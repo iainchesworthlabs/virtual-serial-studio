@@ -39,7 +39,7 @@ public:
     QSpinBox* number_spin() const noexcept { return number_; }
     FormRow* number_row() const noexcept { return number_row_; }
     /// True from the click on Change number until the answer is shown.
-    bool busy() const noexcept { return busy_; }
+    bool changing() const noexcept { return busy_; }
     /// The COM name the port has now: the new one after a successful change.
     QString com_name() const;
     void done(int result) override;

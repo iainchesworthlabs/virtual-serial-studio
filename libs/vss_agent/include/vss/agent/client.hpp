@@ -27,6 +27,10 @@ struct client_options
     std::string name = "client";
     /// How long one request may take before the connection is given up.
     std::chrono::milliseconds timeout{10000};
+    /// Ask for a connection that may list and subscribe and nothing else.
+    /// The agent enforces it; `connect` fails with
+    /// `protocol_errc::version_mismatch` when the agent does not say it will.
+    bool read_only = false;
 };
 
 /// A connection to this user's agent, for a program that asks and waits: the
@@ -67,7 +71,8 @@ public:
     result<void> shutdown();
 
     /// The next batch of events, waiting up to `limit` for it.
-    /// `errc::timeout` when none came; the connection stays usable.
+    /// `errc::timeout` when none came; the connection stays usable.  With a
+    /// limit of nothing it takes what has already arrived and does not wait.
     result<event_batch> next_events(std::chrono::milliseconds limit);
 
     /// The message of the last error the agent sent, in its words.
