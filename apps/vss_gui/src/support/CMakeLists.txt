@@ -8,6 +8,8 @@ add_library(vss_gui_support STATIC
   about_dialog.cpp
   about_dialog.hpp
   account_id.hpp
+  app_identity.cpp
+  app_identity.hpp
   build_info.cpp
   build_info.hpp
   bundle.cpp

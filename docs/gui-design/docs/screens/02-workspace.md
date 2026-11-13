@@ -28,7 +28,7 @@ Header "Send". A line "Sending from: <name> (<path>)" (or "Sending from: no port
 ## Monitor
 Tabs: "Monitor". Advanced also "Log" and "Topology JSON".
 - Toolbar: Pause, Clear, checkboxes Hex and Follow (Follow default on), right aligned "All ports". Space pauses and resumes when the table has focus.
-- Advanced filter row: port combo (All ports), checkboxes RX, TX, Dropped, search field "Search payload" (Ctrl+F), segmented ASCII or Hex, Export (saves the visible rows as text).
+- Advanced controls: port combo (All ports), checkboxes RX, TX, Dropped, search field "Search payload" (Ctrl+F), segmented ASCII or Hex, then right aligned Pause, Clear, Follow, Export (saves the visible rows as text) and Export capture. They sit on the pane's title row, after "Monitor", like the Add port button in the Ports header. When the row is too narrow or the text too large for all of them, they move to a row of their own under the title, never clipped.
 - Columns: Time (HH:MM:SS.mmm), Port, Direction (DirectionBadge), Bytes (right aligned), Preview (fixed font). ASCII mode shows `\r` and `\n` as escapes and other non-printables as a dot. Hex mode shows `48 65 6C 6C 6F`.
 - DROP rows add the muted `bad` text "not the owner, not forwarded".
 - Performance: a bounded ring (default 10,000 rows, a named constant). Updates are batched per refresh interval and inserted on the GUI thread. Never create per-row widgets. Pause stops appending, traffic still flows and is counted.

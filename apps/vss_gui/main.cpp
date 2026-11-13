@@ -13,6 +13,7 @@
 #include "shell/shell_window.hpp"
 #include "shell/single_instance.hpp"
 #include "shell/studio_tray.hpp"
+#include "support/app_identity.hpp"
 #include "support/console.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
@@ -115,11 +116,10 @@ try
                          started.error().message().c_str());
         }
     }
-    QApplication::setApplicationName(QStringLiteral("Virtual Serial Studio"));
+    vss::gui::support::apply_application_identity();
     QApplication::setApplicationDisplayName(
-        QStringLiteral("Virtual Serial Studio"));
+        vss::gui::support::application_name());
     QApplication::setApplicationVersion(QStringLiteral(VSS_GUI_VERSION));
-    QApplication::setOrganizationName(QStringLiteral("Virtual Serial Studio"));
     QApplication::setOrganizationDomain(
         QStringLiteral("virtualserial.example"));
     // Settings, Performance, Profiling is remembered here, as soon as the

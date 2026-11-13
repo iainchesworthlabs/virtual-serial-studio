@@ -2,7 +2,7 @@
 #
 # How the canvas is drawn: the choice between the GPU and the CPU, the GPU
 # canvas (Qt Canvas Painter on QRhi) and the GPU zones for the profiler. See
-# docs/gui-design/docs/rendering.md.
+# docs/gui-design/docs/11-rendering.md.
 #
 
 # Tracy's GPU zones are compiled only into a build that has Tracy; the other

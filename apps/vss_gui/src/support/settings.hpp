@@ -42,7 +42,7 @@ struct ui_settings
     bool profile_on_start = false;
     /// How the canvas is drawn (`ui/renderMode`): by the GPU, by the CPU, or
     /// by the GPU when there is a usable one. A change applies at the next
-    /// start. See `docs/gui-design/docs/rendering.md`.
+    /// start. See `docs/gui-design/docs/11-rendering.md`.
     rendering::render_mode render_mode = rendering::render_mode::automatic;
 };
 

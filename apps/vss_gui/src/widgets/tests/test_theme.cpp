@@ -65,9 +65,9 @@ TEST_CASE("theme: resolves tokens in both themes")
     REQUIRE(theme.colour_names().size() >= 30);
 
     theme.set_mode(vss::gui::theme_mode::dark);
-    REQUIRE_EQ(theme.colour(QStringLiteral("ink")), QColor(0xEC, 0xED, 0xEF));
+    REQUIRE_EQ(theme.colour(QStringLiteral("ink")), QColor(0xE6, 0xE8, 0xEC));
     REQUIRE_EQ(theme.colour(QStringLiteral("ground")),
-               QColor(0x0E, 0x0F, 0x12));
+               QColor(0x14, 0x16, 0x1A));
     REQUIRE(theme.has_colour(QStringLiteral("accent")));
     REQUIRE(!theme.has_colour(QStringLiteral("not-a-token")));
 }
