@@ -18,25 +18,32 @@ solicitor to review. Nothing here is built, and nothing here is legal advice.
 
 ## Summary
 
+The base application and the test-signed driver are the Community edition. Pro
+and Enterprise add plugins (connectivity, automation, monitoring), the Microsoft-signed driver and support.
+
 | | Community | Pro | Enterprise |
 |---|---|---|---|
 | Price | Free | Annual licence | Price on application |
+| Seats | Unlimited | Per seat: your computer, plus one other computer you monitor | Site licence, not per seat |
 | Licence of the code | GPL-3.0-or-later | Commercial terms for the Pro parts | Commercial terms and a support agreement |
 | Studio and command line tool | Yes | Yes | Yes |
-| Windows driver | Test-signed, built from source | Signed through Microsoft | Signed through Microsoft |
-| Official plugins (signed by the owner) | No | Yes | Yes |
-| Test harness and scripting plugins | No | Yes | Yes |
+| Windows driver | Test-signed by Iain Chesworth Labs, built from source | Signed through Microsoft | Signed through Microsoft |
+| Official plugins, signed by the owner | No | Yes | Yes |
+| Test harness, scripting and remote monitoring plugins | No | Yes | Yes |
 | Third-party plugins | Yes, with a warning | Yes, with a warning | Yes, with an optional "official only" policy |
 | Support | Community | Support included | Support agreement |
 
-The Pro column is a proposal. Which feature belongs to which edition is the
-owner's decision.
+With no plugins, Studio is the Community edition. Going Pro adds plugins, and the
+plugins are about connectivity: driving Studio from other tools and watching it
+from another computer. A seat is enforced by the licence file and the licence terms,
+not by a server, so a lab that wants a hard seat count asks for an Enterprise
+licence that can name machines.
 
 ## Licences by layer
 
 | Layer | Licence | Notes |
 |---|---|---|
-| Boost.VirtualSerial (the engine) | Boost Software License 1.0 | Permissive: anyone can build on it, including a closed product |
+| Boost.VirtualSerial (the engine) | GPL-3.0-or-later (decided; it is Boost today) | The value is in the services and plugins, not the engine. Under the GPL anyone who builds on it must publish their source |
 | Studio, `vss_cli` and the test-signed driver | GPL-3.0-or-later | The Community edition |
 | Microsoft-signed driver, official plugins, licence keys | Commercial | The Pro and Enterprise editions |
 
@@ -76,7 +83,7 @@ it. There is no activation server and no telemetry.
 
 When a licence expires, the Pro features switch off with a visible "licence
 expired" notice and a renew link, and Studio falls back to Community. It keeps
-every port, topology and file. A short grace period follows expiry. Studio
+every port, topology and file. A grace period of 28 days follows expiry before the plugins switch off. Studio
 remembers the latest date it has seen and refuses to go backwards, as a
 deterrent only.
 
@@ -129,15 +136,31 @@ All of this is in the first version.
 |---|---|
 | Python library and pytest plugin | Create ports, link them, inject faults, send and expect bytes, read the event log |
 | Bindings for other languages | C and C++ (a stable C ABI), C# and .NET, Java, Node.js; the C ABI is what the others wrap, so a lab can bind its own language |
-| Robot Framework library | The same, as keywords |
+| Robot Framework library | The same, as keywords for Robot Framework, an open-source, keyword-driven test automation framework (Python-based) that many hardware and QA labs use to write tests as readable tables |
 | TestStand and LabVIEW wrappers | For lab test rigs |
 | Remote control endpoint | Run Studio from a CI machine or a rig controller; off until the user enables it |
 | Reports | JUnit XML and a plain log of a run, for CI systems |
 
-The control endpoint listens on a local socket or loopback with an access
-token by default. The adapters check the licence file. The agent protocol
+The control endpoint is local only by default (see "Access to the control
+endpoint" below). The adapters check the licence file. The agent protocol
 itself stays documented and free, so third parties can write their own; Pro is
 the maintained, supported, compatibility-tested set.
+
+### Access to the control endpoint
+
+Security is designed in, and each step needs more setup than the last:
+
+1. **Local only (default).** A local socket or loopback, reachable only by
+   programs on the same computer and account.
+2. **Token.** The user generates a token on the receiving side and gives it to
+   the sending side. Tokens can be revoked, and can be limited to certain
+   actions.
+3. **Administrator control.** Plugins add OAuth 2.0 and OpenID Connect, an
+   external identity provider, and the client credentials grant for unattended
+   rigs, for sites that manage access centrally.
+
+Remote monitoring (one other computer watching a running Studio) uses the same
+endpoint and the same access levels, and is a Pro plugin.
 
 ### Controlling responses and timing (Pro)
 
@@ -178,34 +201,46 @@ out itself.
 |---|---|---|
 | `virtual-serial-studio` | Public | Community: Studio, command line tool, test-signed driver, plugin API and protocol |
 | `virtual-serial-studio-pro` | Private | Signed driver packaging and its signing pipeline, official plugins, licence verification and issuing tools |
-| `virtual-serial` | Public | The engine |
+| `virtual-serial` | Public | The engine, to be relicensed to GPL-3.0-or-later |
 | `icl-common-infra` | As now | Shared CI and build files |
 
 The Pro repository consumes Community as a dependency and never forks it.
 
 ## Website
 
-A static site for virtual-serial-studio.com, hosted from a repository so the
-documents and download links stay current: a landing page, features, downloads
+A static site for virtual-serial-studio.com (the domain is bought), hosted on
+GitHub Pages with a CNAME record, so the documents and download links stay current. A shop would need paid hosting, which is
+decided when it is needed. The first version has: a landing page, features, downloads
 from the GitHub Releases, documents, pricing and support, and a licence page.
 It follows the design tokens of the application.
 
+## Decisions made
+
+* Community is the base application plus the test-signed driver, with no plugins.
+  Pro adds plugins, the signed driver and support. Enterprise is a site licence.
+* Pro is per seat: your computer plus one other you monitor. Enterprise is not per seat.
+* The engine moves from Boost to GPL-3.0-or-later.
+* All the proposed bindings are wanted: C and C++, Python, C#/.NET, Java,
+  Node.js, LabVIEW and TestStand, plus Robot Framework.
+* An expired licence returns Studio to Community. The plugins switch off after a
+  28 day grace period.
+* The control endpoint starts local only, then token, then administrator-controlled access.
+* No outside contributions are accepted for now, so no contributor agreement is
+  needed yet.
+* The licence audit of Qt and the other third-party code goes ahead.
+* The site is hosted on GitHub Pages first, with paid hosting for a shop later.
+
 ## Open decisions
 
-1. Which feature belongs to which edition.
-2. Whether the engine stays Boost-licensed, since a competitor can build a
-   closed product on it.
-3. Which bindings ship in the first version and which are community-built
-   (Python and a C ABI are settled; C#, Java, Node.js, LabVIEW and TestStand are
-   proposed).
-4. How response timing is declared to the engine, so that the fast cases run
+1. How response timing is declared to the engine, so that the fast cases run
    without a round trip to a plugin.
-5. Whether a plugin fixture type appears in the Advanced toolbox beside the
+2. Whether a plugin fixture type appears in the Advanced toolbox beside the
    built-in ones.
-6. Whether an expired Annual licence keeps working with the Pro versions
+3. Whether an expired Annual licence keeps working with the Pro versions
    released during its term.
-7. The access model of the remote control endpoint (token, local only, or a
-   certificate).
-8. A contributor agreement before the first outside contribution.
-9. The result of the licence audit of Qt and the other third-party code.
-10. Hosting for the website.
+4. How a seat is counted when there is no server: by trust, by the terms and
+   by a machine name in the file.
+5. Whether remote monitoring sends a live view or a recording.
+6. The result of the licence audit.
+7. What the Boost relicensing means for the two published releases of
+   `virtual-serial`: anyone who has them keeps the Boost rights to those copies.
