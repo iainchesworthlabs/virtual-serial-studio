@@ -1,0 +1,1 @@
+**Remove port and Remove setup have different icons.** When the Advanced canvas bar shrinks to icons only, Remove port now shows a port with a minus and Remove setup shows a stack with a cross, so the two can be told apart.

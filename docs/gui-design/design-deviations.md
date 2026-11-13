@@ -1115,6 +1115,8 @@ lines applied. The numbers are the rows of the design review.
   700 pixels high, and topology nodes shrink below 500 pixels of view width.
 - **Toolbar labels (10).** The toolbar uses the menu wording: "Attach real
   device", "Connect ports", "Remove port", "Mock fixture", "Share a device".
+- **Remove icons (10).** Remove port and Remove setup have their own icons so
+  they stay apart when the toolbar shows icons only.
 - **Readiness chip (12, 19).** A third state, "Setup not checked", is shown by
   builds that cannot run the setup check. The launcher strip has matching
   variants: "Setup needs attention. New ports may not be usable by other

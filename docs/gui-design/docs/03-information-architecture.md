@@ -29,7 +29,7 @@ Items marked **A** are visible only in Advanced mode and hidden in Simple. **new
 The old Scenarios menu is retired. Share and bridge live under Topology and Ports, and the null-modem demo becomes a template. Menu items hidden in Simple still appear in the command palette with a "Needs Advanced mode" prompt.
 
 ## Toolbar
-Simple: New, Open, Save, separator, Add port, Attach device, Connect, Remove port, Remove setup, spacer, Search actions field (Ctrl+K). Advanced adds after Remove: separator, Mock device, Share, Fit. Buttons show icon and text. Remove and Connect are disabled when they cannot act.
+Simple: New, Open, Save, separator, Add port, Attach device, Connect, Remove port, Remove setup, spacer, Search actions field (Ctrl+K). Advanced adds after Remove: separator, Mock device, Share, Fit. Buttons show icon and text. Below the compact width only the icons show; each keeps its full name as its accessible name and tooltip, and no two buttons share an icon (Remove port is a port with a minus, Remove setup is a stack with a cross, Remove link and Remove selected keep the plain cross). Remove and Connect are disabled when they cannot act.
 
 ## Status bar
 Left: Ports N, Links N, RX rate, TX rate, Hub state. Advanced also shows a warning chip when bytes were dropped. Right: setup readiness chip (Setup ready, or Setup needs attention linking to the setup check) and the Simple or Advanced segmented switch. Mode is global, never per document.

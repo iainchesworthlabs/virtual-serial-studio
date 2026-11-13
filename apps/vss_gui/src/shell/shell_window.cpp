@@ -323,13 +323,13 @@ void ShellWindow::build_actions()
         { return backend_.caps().rename_port && selection_.port() != 0; });
     add(
         QStringLiteral("ports.remove"), tr("Remove port"), tr("delete remove"),
-        QStringLiteral("remove"), {}, action_level::simple,
+        QStringLiteral("remove-port"), {}, action_level::simple,
         [this] { remove_selected_port(); }, false,
         [this] { return selection_.port() != 0; });
     add(
         QStringLiteral("topology.removeSetup"), tr("Remove setup"),
         tr("delete remove teardown close pair share attach everything"),
-        QStringLiteral("remove"), {}, action_level::simple,
+        QStringLiteral("remove-setup"), {}, action_level::simple,
         [this] { remove_selected_setup(); }, false,
         [this] { return selection_.port() != 0 || selection_.link() != 0; });
 
@@ -717,6 +717,15 @@ void ShellWindow::build_toolbar()
     toolbar_->addSeparator();
     add(QStringLiteral("ports.remove"));
     add(QStringLiteral("topology.removeSetup"));
+
+    // A QToolBar makes its buttons unfocusable.  The tool row must be reachable
+    // by keyboard, with the style's focus ring.
+    for (QAction* action : toolbar_->actions())
+    {
+        if (auto* button =
+                qobject_cast<QToolButton*>(toolbar_->widgetForAction(action)))
+            button->setFocusPolicy(Qt::TabFocus);
+    }
 
     // Menus, the action search and the mode switch share one row: the search
     // and the switch are the menu bar's right-hand corner widget.
