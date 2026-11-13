@@ -28,6 +28,8 @@ result<std::string> local_address(local_endpoint endpoint,
 /// The word for `endpoint` in a pipe name or a file name.  No instance name
 /// can turn one endpoint's address into another's: an instance name is added
 /// after a `-`, and none of these words is another one followed by `-`.
+/// The words are short because the path of a Unix socket may have only about
+/// a hundred bytes, and a temporary directory on macOS uses half of them.
 constexpr std::string_view endpoint_word(local_endpoint endpoint) noexcept
 {
     switch (endpoint)
@@ -37,7 +39,7 @@ constexpr std::string_view endpoint_word(local_endpoint endpoint) noexcept
     case local_endpoint::control:
         return "control";
     case local_endpoint::control_admin:
-        return "control_admin";
+        return "admin";
     }
     return "agent";
 }

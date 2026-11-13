@@ -58,7 +58,7 @@ std::string unique_instance()
     {
         std::random_device device;
         std::ostringstream text;
-        text << "vsstc-" << std::hex << std::setw(8) << std::setfill('0')
+        text << "g" << std::hex << std::setw(8) << std::setfill('0')
              << device();
         return text.str();
     }();
