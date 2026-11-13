@@ -42,6 +42,7 @@
 #include <vss/control/audit_log.hpp>
 #include <vss/control/proto/secret.hpp>
 #include <vss/control/proto/token.hpp>
+#include <vss/core/event.hpp>
 #include <vss/core/types.hpp>
 
 #include <boost/asio/executor_work_guard.hpp>
@@ -59,6 +60,7 @@
 #include <exception>
 #include <functional>
 #include <future>
+#include <iterator>
 #include <mutex>
 #include <optional>
 #include <thread>
@@ -79,6 +81,9 @@ constexpr std::size_t read_buffer_size = std::size_t{64} * 1024;
 constexpr int frames_per_turn = 64;
 constexpr std::chrono::milliseconds accept_retry_delay{100};
 constexpr unsigned request_threads = 2;
+/// Batches taken from the agent in one turn of a stream.  The agent sends
+/// one each interval, so more than one waits only after a pause.
+constexpr int batches_per_poll = 4;
 
 /// Bytes waiting for a client to read them.
 struct outgoing
@@ -108,7 +113,7 @@ struct session
             boost::asio::io_context& io, boost::asio::thread_pool& pool)
         : stream(std::move(connection)), via(how),
           peer(std::move(who_connected)), number(serial),
-          work(pool.get_executor()), handshake_timer(io),
+          work(pool.get_executor()), handshake_timer(io), poll_timer(io),
           reader(max_hello_frame_size), read_buffer(read_buffer_size)
     {
     }
@@ -134,6 +139,8 @@ struct session
     const std::uint64_t number;
     boost::asio::strand<boost::asio::thread_pool::executor_type> work;
     boost::asio::steady_timer handshake_timer;
+    /// Turns the stream: each time it fires the agent is asked for batches.
+    boost::asio::steady_timer poll_timer;
     agent::frame_reader reader;
     byte_buffer read_buffer;
 
@@ -178,8 +185,46 @@ struct session
     audit_burst forbidden_burst;
     audit_burst rate_burst;
 
-    /// The request pool only: this session's own connection to the agent.
+    /// For `sessions.list`: when it said `hello`, what it called itself and
+    /// how many requests it has sent since.
+    wall_clock::time_point opened;
+    std::string client_name;
+    std::uint64_t requests = 0;
+
+    // -- the stream ----------------------------------------------------------
+
+    /// Which of the two kinds this session has, and for which ports.  The
+    /// lists are sorted; an empty one means every port.
+    bool events_on = false;
+    bool traffic_on = false;
+    std::vector<endpoint_id> event_ports;
+    std::vector<endpoint_id> traffic_ports;
+    std::chrono::milliseconds interval{default_stream_interval_ms};
+    /// A turn of the stream is with the request pool.
+    bool polling = false;
+    /// Batches queued for this client that it has not been written yet.
+    std::size_t batches_unsent = 0;
+    std::uint64_t next_seq = 1;
+    /// Events lost that no batch has told the client about yet.
+    std::uint64_t unreported = 0;
+    /// The revision the client was last told, once it was told one.
+    std::optional<std::uint64_t> sent_revision;
+    /// The bytes of batches this session may still be sent now.
+    double event_allowance = 0.0;
+    steady::time_point event_refilled;
+    std::uint64_t events_sent = 0;
+    std::uint64_t bytes_sent = 0;
+    std::uint64_t events_dropped = 0;
+
+    bool streaming() const noexcept { return events_on || traffic_on; }
+
+    // -- the request pool only -----------------------------------------------
+
+    /// This session's own connection to the agent.
     std::unique_ptr<agent::client> agent;
+    /// That connection has been asked for the agent's event stream.  A new
+    /// connection has not, so a stream never goes on over one unnoticed.
+    bool upstream = false;
 };
 
 using session_ptr = std::shared_ptr<session>;
@@ -414,8 +459,12 @@ public:
         out.forbidden = forbidden_.load();
         out.rate_limited = rate_limited_.load();
         out.slow_clients_closed = slow_clients_closed_.load();
+        out.events_sent = events_sent_.load();
+        out.events_dropped = events_dropped_.load();
+        out.agent_lost = agent_lost_.load();
         out.connections = connections_.load();
         out.sessions = greeted_.load();
+        out.streams = streams_.load();
         return out;
     }
 
@@ -511,6 +560,9 @@ private:
                                       ++last_session_, io_, *pool_);
         client->tokens = options_.request_burst;
         client->refilled = steady::now();
+        client->event_allowance =
+            static_cast<double>(options_.max_event_bytes_per_second);
+        client->event_refilled = client->refilled;
         const bool full = waiting_for_hello() >= options_.max_unauthenticated;
         sessions_.insert(client);
         connections_.store(sessions_.size());
@@ -676,6 +728,7 @@ private:
                 return;
             }
         }
+        ++client->requests;
         if (!take_token(*client))
         {
             rate_limited_.fetch_add(1);
@@ -721,6 +774,35 @@ private:
                 std::get_if<tokens_revoke_request>(&asked.body))
         {
             revoke_token(client, asked.id, *revoking);
+            return;
+        }
+        if (const auto* starting =
+                std::get_if<events_subscribe_request>(&asked.body))
+        {
+            change_stream(client, asked.id, wanted, &starting->options);
+            return;
+        }
+        if (const auto* starting =
+                std::get_if<traffic_subscribe_request>(&asked.body))
+        {
+            change_stream(client, asked.id, wanted, &starting->options);
+            return;
+        }
+        if (wanted.id == operation::events_unsubscribe ||
+            wanted.id == operation::traffic_unsubscribe)
+        {
+            change_stream(client, asked.id, wanted, nullptr);
+            return;
+        }
+        if (std::holds_alternative<sessions_list_request>(asked.body))
+        {
+            list_sessions(client, asked.id);
+            return;
+        }
+        if (const auto* kicking =
+                std::get_if<sessions_kick_request>(&asked.body))
+        {
+            kick_session(client, asked.id, *kicking);
             return;
         }
         if (wanted.id == operation::endpoint_stop)
@@ -798,6 +880,8 @@ private:
         }
 
         client->who = std::move(made);
+        client->opened = wall_clock::now();
+        client->client_name = hello.client;
         client->handshake_timer.cancel();
         client->reader.set_limit(agent::max_frame_size);
         greeted_.fetch_add(1);
@@ -807,7 +891,7 @@ private:
         welcome.version = gateway_version();
         welcome.principal = client->principal_id();
         welcome.scopes = scope_names(client->scopes());
-        welcome.features = {"ports.read"};
+        welcome.features = {"ports.read", "events", "traffic"};
 
         audit_->record("session.opened",
                        {{"session", client->number},
@@ -1007,6 +1091,424 @@ private:
             send_reply(client, error_reply_for(id, outcome));
     }
 
+    // -- streams -------------------------------------------------------------
+
+    /// What a session's stream is to be after a request.
+    struct stream_plan
+    {
+        bool events_on = false;
+        bool traffic_on = false;
+        std::vector<endpoint_id> event_ports;
+        std::vector<endpoint_id> traffic_ports;
+        std::chrono::milliseconds interval{default_stream_interval_ms};
+    };
+
+    static std::string joined_ports(const std::vector<endpoint_id>& ports)
+    {
+        std::string out;
+        for (const endpoint_id port : ports)
+        {
+            if (!out.empty())
+                out += ' ';
+            out += port_id_text(port);
+        }
+        return out;
+    }
+
+    /// The four stream operations.  `options` is null for an unsubscribe.
+    /// The agent is asked first, by the request pool; the session's stream
+    /// changes only when the agent has agreed.
+    void change_stream(const session_ptr& client, std::uint64_t id,
+                       const operation_info& wanted,
+                       const stream_options* options)
+    {
+        const bool traffic = wanted.id == operation::traffic_subscribe ||
+                             wanted.id == operation::traffic_unsubscribe;
+        stream_plan plan;
+        plan.events_on = client->events_on;
+        plan.traffic_on = client->traffic_on;
+        plan.event_ports = client->event_ports;
+        plan.traffic_ports = client->traffic_ports;
+        plan.interval = client->interval;
+
+        if (options == nullptr)
+        {
+            if (!(traffic ? client->traffic_on : client->events_on))
+            {
+                // Nothing to end.
+                send_reply(client, reply{id, done_reply{}});
+                return;
+            }
+            (traffic ? plan.traffic_on : plan.events_on) = false;
+            (traffic ? plan.traffic_ports : plan.event_ports).clear();
+        }
+        else
+        {
+            std::vector<endpoint_id> ports;
+            ports.reserve(options->ports.size());
+            for (const std::string& text : options->ports)
+            {
+                const auto port = parse_port_id(text);
+                if (!port)
+                {
+                    send_reply(client,
+                               error_reply_for(id, api_errc::invalid_argument));
+                    return;
+                }
+                ports.push_back(*port);
+            }
+            std::ranges::sort(ports);
+            const auto repeated = std::ranges::unique(ports);
+            ports.erase(repeated.begin(), repeated.end());
+            (traffic ? plan.traffic_on : plan.events_on) = true;
+            (traffic ? plan.traffic_ports : plan.event_ports) =
+                std::move(ports);
+            plan.interval = std::chrono::milliseconds(
+                std::clamp(options->interval_ms, min_stream_interval_ms,
+                           max_stream_interval_ms));
+        }
+
+        const bool had_stream = client->streaming();
+        ++client->pending;
+        boost::asio::post(
+            client->work,
+            [this, client, id, plan = std::move(plan), traffic, had_stream,
+             starting = options != nullptr]() mutable
+            {
+                const bool agreed = ask_agent_for(*client, plan);
+                boost::asio::post(
+                    io_,
+                    [this, client, id, plan = std::move(plan), traffic,
+                     had_stream, starting, agreed]() mutable
+                    {
+                        --client->pending;
+                        if (client->closed)
+                            return;
+                        stream_changed(client, id, std::move(plan), traffic,
+                                       had_stream, starting, agreed);
+                        pump(client);
+                    });
+            });
+    }
+
+    void stream_changed(const session_ptr& client, std::uint64_t id,
+                        stream_plan plan, bool traffic, bool had_stream,
+                        bool starting, bool agreed)
+    {
+        if (!agreed)
+        {
+            if (had_stream)
+            {
+                // The stream the session had went with the connection to the
+                // agent.  It is not left running empty.
+                lose_agent(client, id);
+                return;
+            }
+            send_reply(client, error_reply_for(id, api_errc::unavailable));
+            return;
+        }
+        client->events_on = plan.events_on;
+        client->traffic_on = plan.traffic_on;
+        client->event_ports = std::move(plan.event_ports);
+        client->traffic_ports = std::move(plan.traffic_ports);
+        client->interval = plan.interval;
+        count_streams();
+
+        const std::string_view kind = traffic ? "traffic" : "events";
+        if (!starting)
+        {
+            audit_->record("stream.stopped",
+                           {{"session", client->number},
+                            {"principal", client->principal_id()},
+                            {"stream", kind},
+                            {"reason", "unsubscribed"}});
+            if (!client->streaming())
+                client->poll_timer.cancel();
+            send_reply(client, reply{id, done_reply{}});
+            return;
+        }
+        audit_->record("stream.started",
+                       {{"session", client->number},
+                        {"principal", client->principal_id()},
+                        {"stream", kind},
+                        {"ports", joined_ports(traffic ? client->traffic_ports
+                                                       : client->event_ports)},
+                        {"interval_ms", static_cast<std::uint64_t>(
+                                            client->interval.count())}});
+        subscribed_reply answer;
+        answer.interval_ms =
+            static_cast<std::uint32_t>(client->interval.count());
+        answer.next_seq = client->next_seq;
+        send_reply(client, reply{id, answer});
+        arm_poll(client);
+    }
+
+    void count_streams()
+    {
+        streams_.store(static_cast<std::uint64_t>(
+            std::ranges::count_if(sessions_, [](const session_ptr& other)
+                                  { return other->streaming(); })));
+    }
+
+    /// Ends a session whose stream lost the agent under it.
+    void lose_agent(const session_ptr& client, std::uint64_t id)
+    {
+        agent_lost_.fetch_add(1);
+        client->close_reason = "agent_lost";
+        fail(client, id, api_errc::unavailable);
+    }
+
+    /// Starts the turns of a stream, or starts them again at a new pace.
+    void arm_poll(const session_ptr& client)
+    {
+        client->poll_timer.expires_after(client->interval);
+        client->poll_timer.async_wait(
+            [this, client](boost::system::error_code cancelled)
+            {
+                if (cancelled || client->closed || client->leaving ||
+                    !client->streaming())
+                    return;
+                // A stream has no next request at which a token that has
+                // ended would be noticed, so it is looked at every turn.
+                if (!client->token_id.empty())
+                {
+                    const token_check standing =
+                        tokens_->standing(client->token_id);
+                    if (standing != token_check::accepted)
+                    {
+                        client->close_reason =
+                            "token_" + std::string(token_check_name(standing));
+                        fail(client, 0, api_errc::unauthenticated);
+                        return;
+                    }
+                }
+                if (!client->polling)
+                {
+                    client->polling = true;
+                    boost::asio::post(client->work,
+                                      [this, client] { poll_agent(client); });
+                }
+                arm_poll(client);
+            });
+    }
+
+    /// The client thread: what one turn of the stream brought.
+    void polled(const session_ptr& client,
+                std::vector<agent::event_batch>& batches, bool lost)
+    {
+        client->polling = false;
+        if (client->closed || client->leaving || !client->streaming())
+            return;
+        // While the client has not read what it was sent, nothing new is
+        // queued for it: what came meanwhile is counted and gone.
+        const bool behind = client->batches_unsent != 0;
+        for (agent::event_batch& batch : batches)
+        {
+            note_dropped(*client, batch.dropped);
+            event_batch out;
+            out.revision = batch.revision;
+            out.events.reserve(batch.events.size());
+            for (agent::event_record& event : batch.events)
+            {
+                if (auto entry = select(*client, event))
+                    out.events.push_back(std::move(*entry));
+            }
+            if (behind)
+            {
+                note_dropped(*client, out.events.size());
+                continue;
+            }
+            if (out.events.empty() && client->sent_revision == batch.revision)
+                continue;
+            send_batch(client, std::move(out));
+            if (client->closed)
+                return;
+        }
+        // A loss is told even when nothing else follows it.
+        if (client->unreported != 0 && client->batches_unsent == 0)
+        {
+            event_batch notice;
+            notice.revision = client->sent_revision.value_or(0);
+            send_batch(client, std::move(notice));
+            if (client->closed)
+                return;
+        }
+        if (lost)
+            lose_agent(client, 0);
+    }
+
+    void note_dropped(session& client, std::uint64_t count)
+    {
+        client.unreported += count;
+        client.events_dropped += count;
+        events_dropped_.fetch_add(count);
+    }
+
+    static bool names(const std::vector<endpoint_id>& ports, endpoint_id port)
+    {
+        return ports.empty() || std::ranges::binary_search(ports, port);
+    }
+
+    /// An event as this session is to see it, or nothing when it is not for
+    /// this session.  The bytes go only to a traffic stream that names the
+    /// port; an events stream learns that bytes moved and how many.
+    static std::optional<event_entry> select(const session& client,
+                                             agent::event_record& event)
+    {
+        const bool is_data = event.kind == event_kind::data;
+        const bool as_event =
+            client.events_on && names(client.event_ports, event.endpoint);
+        const bool as_traffic = is_data && client.traffic_on &&
+                                names(client.traffic_ports, event.endpoint);
+        if (!as_event && !as_traffic)
+            return std::nullopt;
+        event_entry out;
+        out.kind = to_string(event.kind);
+        if (event.endpoint != 0)
+            out.port = port_id_text(event.endpoint);
+        out.name = std::move(event.name);
+        if (is_data)
+            out.direction = to_string(event.direction);
+        out.size = event.size;
+        if (as_traffic)
+            out.data = std::move(event.data);
+        out.lines = event.lines;
+        out.message = std::move(event.message);
+        if (event.error != agent::wire_error{})
+            out.error = engine_error_name(agent::from_wire(event.error));
+        out.mono_ns = event.when_ns;
+        return out;
+    }
+
+    /// Takes `size` bytes out of the session's allowance for batches, which
+    /// refills at `max_event_bytes_per_second` up to one second's worth.
+    bool take_event_bytes(session& client, std::size_t size) const
+    {
+        const auto now = steady::now();
+        const std::chrono::duration<double> passed =
+            now - client.event_refilled;
+        const auto most =
+            static_cast<double>(options_.max_event_bytes_per_second);
+        client.event_refilled = now;
+        client.event_allowance =
+            (std::min)(most, client.event_allowance + passed.count() * most);
+        const auto wanted = static_cast<double>(size);
+        if (client.event_allowance < wanted)
+            return false;
+        client.event_allowance -= wanted;
+        return true;
+    }
+
+    /// Queues one batch for the client, or drops its events and counts them:
+    /// when the session's allowance is used up, and when batches would take
+    /// more than half of what may wait for one client, which leaves the rest
+    /// for answers and keeps a busy port from closing its own watcher.
+    void send_batch(const session_ptr& client, event_batch out)
+    {
+        const std::size_t count = out.events.size();
+        out.seq = client->next_seq;
+        out.dropped = client->unreported;
+        out.mono_ns = static_cast<std::uint64_t>(
+            std::chrono::duration_cast<std::chrono::nanoseconds>(
+                steady::now().time_since_epoch())
+                .count());
+        out.wall_ms = milliseconds_of(wall_clock::now());
+        auto bytes = agent::encode_frame(encode(out));
+        if (!bytes)
+        {
+            // Too much for one frame: two halves, each with its own number.
+            if (count < 2)
+            {
+                note_dropped(*client, count);
+                return;
+            }
+            event_batch second;
+            second.revision = out.revision;
+            const auto middle =
+                out.events.begin() + static_cast<std::ptrdiff_t>(count / 2);
+            second.events.assign(std::make_move_iterator(middle),
+                                 std::make_move_iterator(out.events.end()));
+            out.events.erase(middle, out.events.end());
+            send_batch(client, std::move(out));
+            if (!client->closed)
+                send_batch(client, std::move(second));
+            return;
+        }
+        if (client->unsent_bytes + bytes->size() >
+                options_.max_unsent_bytes / 2 ||
+            !take_event_bytes(*client, bytes->size()))
+        {
+            note_dropped(*client, count);
+            return;
+        }
+        ++client->next_seq;
+        client->unreported = 0;
+        client->sent_revision = out.revision;
+        client->events_sent += count;
+        client->bytes_sent += bytes->size();
+        events_sent_.fetch_add(count);
+        ++client->batches_unsent;
+        enqueue(client, outgoing{std::move(*bytes), [client]
+                                 { --client->batches_unsent; }, false});
+    }
+
+    // -- sessions ------------------------------------------------------------
+
+    void list_sessions(const session_ptr& client, std::uint64_t id)
+    {
+        sessions_reply answer;
+        answer.sessions.reserve(sessions_.size());
+        for (const session_ptr& other : sessions_)
+        {
+            if (!other->who)
+                continue;
+            session_entry entry;
+            entry.number = other->number;
+            entry.principal = other->principal_id();
+            entry.transport = transport_name(other->via);
+            entry.client = other->client_name;
+            entry.program = other->peer.program;
+            entry.process = other->peer.process_id;
+            entry.opened_ms = milliseconds_of(other->opened);
+            entry.requests = other->requests;
+            entry.events = other->events_on;
+            entry.traffic = other->traffic_on;
+            entry.events_sent = other->events_sent;
+            entry.bytes_sent = other->bytes_sent;
+            entry.events_dropped = other->events_dropped;
+            answer.sessions.push_back(std::move(entry));
+        }
+        std::ranges::sort(answer.sessions, {}, &session_entry::number);
+        send_reply(client, reply{id, std::move(answer)});
+    }
+
+    /// `sessions.kick`: the session with this number is closed now.
+    void kick_session(const session_ptr& client, std::uint64_t id,
+                      const sessions_kick_request& wanted)
+    {
+        session_ptr target;
+        for (const session_ptr& other : sessions_)
+        {
+            if (other->who && other->number == wanted.session)
+                target = other;
+        }
+        audit_->record("operation",
+                       {{"session", client->number},
+                        {"principal", client->principal_id()},
+                        {"operation", info_of(operation::sessions_kick).name},
+                        {"target", wanted.session},
+                        {"outcome", target ? std::string_view("ok")
+                                           : code_name(api_errc::not_found)}});
+        if (!target)
+        {
+            send_reply(client, error_reply_for(id, api_errc::not_found));
+            return;
+        }
+        // The answer first: the one to go may be the one that asked.
+        send_reply(client, reply{id, done_reply{}});
+        close(target, "kicked");
+    }
+
     /// True when one more session of `candidate` fits its endpoint.
     bool has_room_for(const principal& candidate) const
     {
@@ -1173,14 +1675,17 @@ private:
             return;
         client->closed = true;
         client->handshake_timer.cancel();
+        client->poll_timer.cancel();
         client->stream->close();
         // The bytes stay until the session goes: a write that is being
         // cancelled may still be looking at them.  What was to run after
         // them holds the session, so it is let go here.
         for (outgoing& item : client->unsent)
             item.after = nullptr;
+        sessions_.erase(client);
         // The record first, the counters after: whoever waits for a count
-        // to drop then finds the record already written.
+        // to drop then finds the record already written.  The count of
+        // sessions goes last, so the others are right when it has dropped.
         if (client->who)
         {
             audit_->record(
@@ -1190,11 +1695,15 @@ private:
                  {"reason",
                   reason.empty() ? std::string_view("closed") : reason},
                  {"forbidden_unrecorded", client->forbidden_burst.suppressed},
-                 {"rate_limited_unrecorded", client->rate_burst.suppressed}});
-            greeted_.fetch_sub(1);
+                 {"rate_limited_unrecorded", client->rate_burst.suppressed},
+                 {"events_sent", client->events_sent},
+                 {"event_bytes_sent", client->bytes_sent},
+                 {"events_dropped", client->events_dropped}});
         }
-        sessions_.erase(client);
+        count_streams();
         connections_.store(sessions_.size());
+        if (client->who)
+            greeted_.fetch_sub(1);
     }
 
     // -- the request pool ----------------------------------------------------
@@ -1208,12 +1717,99 @@ private:
             how.instance = options_.agent_instance;
             how.name = "vss_gate";
             how.timeout = options_.agent_timeout;
+            // `who` was set once, before any request reached the pool.
+            how.read_only = looks_only(client.scopes());
             auto connected = agent::client::connect(how);
             if (!connected)
                 return nullptr;
             client.agent = std::move(*connected);
+            client.upstream = false;
         }
         return client.agent.get();
+    }
+
+    /// Lets the connection to the agent go.  The next request makes a new
+    /// one, and a stream that was running over this one ends.
+    static void drop_agent(session& client) noexcept
+    {
+        client.agent.reset();
+        client.upstream = false;
+    }
+
+    /// Brings the agent's stream of this session's connection to what
+    /// `plan` needs.  False when the agent could not be asked.
+    bool ask_agent_for(session& client, const stream_plan& plan) noexcept
+    {
+        try
+        {
+            if (!plan.events_on && !plan.traffic_on)
+            {
+                // The agent has no request that ends a stream; letting the
+                // connection go does.
+                drop_agent(client);
+                return true;
+            }
+            agent::client* const source = agent_of(client);
+            // The bytes are asked for only by a session with the traffic
+            // stream: a session without it is never sent them.
+            if (source != nullptr &&
+                source->subscribe(plan.traffic_on, static_cast<std::uint32_t>(
+                                                       plan.interval.count())))
+            {
+                client.upstream = true;
+                return true;
+            }
+        }
+        catch (const std::exception&)
+        {
+            // Out of memory: as if the agent had not answered.
+            drop_agent(client);
+            return false;
+        }
+        drop_agent(client);
+        return false;
+    }
+
+    /// What the agent has sent on this session's connection, taken without
+    /// waiting.  `lost` when the connection is gone or was never asked for
+    /// the stream.
+    static bool take_batches(session& client,
+                             std::vector<agent::event_batch>& batches)
+    {
+        if (!client.agent || !client.upstream)
+            return false;
+        batches.reserve(batches_per_poll);
+        for (int taken = 0; taken < batches_per_poll; ++taken)
+        {
+            auto next = client.agent->next_events(std::chrono::milliseconds(0));
+            if (!next)
+                return next.error() == make_error_code(errc::timeout);
+            batches.push_back(std::move(*next));
+        }
+        return true;
+    }
+
+    /// One turn of a stream, handed to the client thread.  Out of memory
+    /// here ends the stream as a lost agent does; when even that cannot be
+    /// said, the exception leaves the pool's thread and the program ends.
+    void poll_agent(const session_ptr& client)
+    {
+        std::vector<agent::event_batch> batches;
+        bool lost = false;
+        try
+        {
+            lost = !take_batches(*client, batches);
+        }
+        catch (const std::exception&)
+        {
+            batches.clear();
+            lost = true;
+        }
+        if (lost)
+            drop_agent(*client);
+        boost::asio::post(
+            io_, [this, client, batches = std::move(batches), lost]() mutable
+            { polled(client, batches, lost); });
     }
 
     reply run(session& client, const request& asked,
@@ -1228,7 +1824,7 @@ private:
         }
         catch (const std::exception&)
         {
-            client.agent.reset();
+            drop_agent(client);
         }
         return error_reply_for(asked.id, api_errc::internal);
     }
@@ -1252,7 +1848,7 @@ private:
             }
             else
             {
-                client.agent.reset();
+                drop_agent(client);
             }
         }
         return out;
@@ -1268,7 +1864,7 @@ private:
         {
             // Whatever went wrong, the next request starts with a new
             // connection.  Nothing about the agent's error crosses.
-            client.agent.reset();
+            drop_agent(client);
             return error_reply_for(id, api_errc::unavailable);
         }
         ports_reply out;
@@ -1322,6 +1918,10 @@ private:
     std::atomic<std::uint64_t> forbidden_{0};
     std::atomic<std::uint64_t> rate_limited_{0};
     std::atomic<std::uint64_t> slow_clients_closed_{0};
+    std::atomic<std::uint64_t> events_sent_{0};
+    std::atomic<std::uint64_t> events_dropped_{0};
+    std::atomic<std::uint64_t> agent_lost_{0};
+    std::atomic<std::uint64_t> streams_{0};
     std::atomic<std::uint64_t> connections_{0};
     std::atomic<std::uint64_t> greeted_{0};
 };

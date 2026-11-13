@@ -78,6 +78,31 @@ public:
     /// an id no token has.  Administration endpoint only.
     result<void> revoke_token(const std::string& id);
 
+    /// Starts the stream of what happens to the ports, without bytes, or
+    /// changes its ports and its pace.  The reply says the pace the gateway
+    /// took and the number of the next batch.
+    result<subscribed_reply>
+    subscribe_events(const stream_options& options = {});
+    /// Starts the stream of the bytes of traffic.  It needs `monitor.data`.
+    result<subscribed_reply>
+    subscribe_traffic(const stream_options& options = {});
+    result<void> unsubscribe_events();
+    result<void> unsubscribe_traffic();
+
+    /// The next batch of events, waiting up to `limit` for it.
+    /// `errc::timeout` when none came; the connection stays usable.  With a
+    /// limit of nothing it takes what has already arrived and does not wait.
+    /// Batches that arrive while a request waits for its answer are kept,
+    /// the newest 256 of them; `event_batch::seq` shows a gap.  When the
+    /// gateway ends the session it says why first, and that is the error.
+    result<event_batch> next_events(std::chrono::milliseconds limit);
+
+    /// Who is connected.  Administration endpoint only.
+    result<sessions_reply> list_sessions();
+    /// Closes the session with this number.  `api_errc::not_found` when
+    /// there is none.  Administration endpoint only.
+    result<void> kick_session(std::uint64_t number);
+
     /// The message of the last error the gateway sent, in its words.
     const std::string& last_error_message() const noexcept;
 

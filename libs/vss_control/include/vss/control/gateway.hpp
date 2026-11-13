@@ -60,6 +60,9 @@ struct gateway_options
     std::size_t max_unsent_bytes = std::size_t{4} * 1024 * 1024;
     /// How long one request to the agent may take.
     std::chrono::milliseconds agent_timeout{10000};
+    /// Bytes of event batches one session may be sent each second.  What
+    /// comes faster is dropped and counted, and the next batch says so.
+    std::size_t max_event_bytes_per_second = std::size_t{4} * 1024 * 1024;
 
     /// Where the audit log is kept; empty for `default_audit_directory()`.
     std::filesystem::path audit_directory;
@@ -94,9 +97,17 @@ struct gateway_counters
     std::uint64_t forbidden = 0;
     std::uint64_t rate_limited = 0;
     std::uint64_t slow_clients_closed = 0;
+    /// Events passed on to subscribers, and events that were not because
+    /// they came faster than a subscriber or its allowance took them.
+    std::uint64_t events_sent = 0;
+    std::uint64_t events_dropped = 0;
+    /// Sessions closed because the agent went away under their stream.
+    std::uint64_t agent_lost = 0;
     /// Connections open now, and those of them that have said `hello`.
     std::uint64_t connections = 0;
     std::uint64_t sessions = 0;
+    /// Sessions that have a stream of events or of traffic now.
+    std::uint64_t streams = 0;
 
     friend bool operator==(const gateway_counters&,
                            const gateway_counters&) = default;
@@ -114,7 +125,13 @@ struct gateway_counters
 ///
 /// Threads: one does all I/O with the clients, and a small pool runs the
 /// requests that wait for the agent, one session's requests in order.  Each
-/// session has its own connection to the agent.
+/// session has its own connection to the agent, and a session that can only
+/// look has one the agent holds to looking.
+///
+/// A stream of events is the agent's stream of that connection, filtered and
+/// passed on at the pace the client reads: while a batch is unread no new one
+/// is sent, what arrives meanwhile is dropped and counted, and the next
+/// batch says how many.  Nothing a subscriber does makes the agent wait.
 class gateway
 {
 public:
