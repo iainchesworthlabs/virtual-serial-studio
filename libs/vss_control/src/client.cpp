@@ -336,6 +336,56 @@ result<ports_reply> client::list_ports()
     return std::move(*listed);
 }
 
+namespace
+{
+
+result<std::string> made(result<reply_body> answer)
+{
+    if (!answer)
+        return answer.error();
+    auto* created = std::get_if<created_reply>(&*answer);
+    if (created == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(created->id);
+}
+
+result<void> carried_out(const result<reply_body>& answer)
+{
+    if (!answer)
+        return answer.error();
+    if (!std::holds_alternative<done_reply>(*answer))
+        return make_error_code(api_errc::invalid_argument);
+    return {};
+}
+
+} // namespace
+
+result<std::string> client::create_port(const std::string& name,
+                                        const std::string& kind)
+{
+    return made(impl_->call(ports_create_request{name, kind}));
+}
+
+result<void> client::remove_port(const std::string& port)
+{
+    return carried_out(impl_->call(ports_remove_request{port}));
+}
+
+result<std::string> client::connect_ports(const std::string& first,
+                                          const std::string& second,
+                                          bool one_way)
+{
+    return made(impl_->call(links_connect_request{first, second, one_way}));
+}
+
+result<void> client::send(const std::string& port, bytes_view data)
+{
+    ports_send_request asking;
+    asking.port = port;
+    asking.data.assign(data.begin(), data.end());
+    return carried_out(impl_->call(std::move(asking)));
+}
+
 result<void> client::stop()
 {
     auto answer = impl_->call(endpoint_stop_request{});

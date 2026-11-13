@@ -57,6 +57,16 @@ constexpr std::array operation_rows{
     operation_info{operation::sessions_list, "sessions.list", scope::admin,
                    false},
     operation_info{operation::sessions_kick, "sessions.kick", scope::admin,
+                   true},
+    // What changes the ports.  Sending bytes has a scope of its own: a
+    // caller that may arrange ports is not thereby allowed to speak on them.
+    operation_info{operation::ports_create, "ports.create",
+                   scope::control_ports, true},
+    operation_info{operation::ports_remove, "ports.remove",
+                   scope::control_ports, true},
+    operation_info{operation::links_connect, "links.connect",
+                   scope::control_ports, true},
+    operation_info{operation::ports_send, "ports.send", scope::control_data,
                    true}};
 
 } // namespace

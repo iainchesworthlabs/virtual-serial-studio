@@ -807,7 +807,7 @@ TEST_CASE("control gateway: an operation this gateway does not have costs an "
     fixture env;
     raw_client raw(env.instance.name());
     say_hello(raw);
-    REQUIRE(raw.send(wire_of_header(R"({"id":5,"op":"ports.create"})")));
+    REQUIRE(raw.send(wire_of_header(R"({"id":5,"op":"ports.rename"})")));
     const control::reply answer = read_reply(raw);
     REQUIRE_EQ(answer.id, std::uint64_t{5});
     REQUIRE_EQ(error_of(answer).code, std::string("unsupported"));
@@ -2622,4 +2622,307 @@ TEST_CASE("control gateway: stress with busy streams and a stop underneath")
     }
     REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{0});
     REQUIRE_EQ(env.gate.counters().connections, std::uint64_t{0});
+}
+
+// -- what changes the ports --------------------------------------------------
+
+namespace
+{
+
+vss::error_code engine(vss::errc value)
+{
+    return vss::make_error_code(value);
+}
+
+/// The audit records of one operation, oldest first.
+std::vector<json::object> operations_named(const fixture& env,
+                                           std::string_view name)
+{
+    std::vector<json::object> out;
+    for (const json::object& record :
+         records_of(audit_records(env.audit_directory), "operation"))
+    {
+        if (text_of(record, "operation") == name)
+            out.push_back(record);
+    }
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("control gateway: a controller makes ports, links them and sends "
+          "bytes through")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "driver");
+    const auto& features = driver->gateway().features;
+    REQUIRE(std::ranges::find(features, "ports.write") != features.end());
+    REQUIRE(std::ranges::find(features, "ports.send") != features.end());
+
+    const auto left = driver->create_port("left");
+    const auto right = driver->create_port("right", "loopback");
+    REQUIRE(left);
+    REQUIRE(right);
+    REQUIRE(control::parse_port_id(*left).has_value());
+    REQUIRE(*left != *right);
+    const auto link = driver->connect_ports(*left, *right, true);
+    REQUIRE(link);
+    REQUIRE_EQ(link->rfind("l_", 0), std::size_t{0});
+
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{2});
+    REQUIRE_EQ(listed->links.size(), std::size_t{1});
+    REQUIRE_EQ(listed->links.front().id, *link);
+    REQUIRE_EQ(listed->links.front().sources, std::vector<std::string>{*left});
+    REQUIRE_EQ(listed->links.front().targets, std::vector<std::string>{*right});
+
+    // Another session watches the bytes arrive.
+    auto tap = env.connect(false, "tap");
+    const auto started = tap->subscribe_traffic(every(10, {*right}));
+    REQUIRE(started);
+    const std::string sent("\x00\xffhello\r\n", 9);
+    REQUIRE(driver->send(*left, vss::to_bytes(sent)));
+    std::string seen;
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(
+        *tap, next_seq,
+        [&](const control::event_batch& batch)
+        {
+            for (const control::event_entry& event : batch.events)
+            {
+                if (event.direction == "rx")
+                    seen += vss::to_string(vss::bytes_view(event.data));
+            }
+            return seen.size() >= sent.size();
+        }));
+    REQUIRE_EQ(seen, sent);
+
+    REQUIRE(driver->remove_port(*left));
+    const auto fewer = driver->list_ports();
+    REQUIRE(fewer);
+    REQUIRE_EQ(fewer->ports.size(), std::size_t{1});
+    REQUIRE_EQ(fewer->ports.front().id, *right);
+
+    // A session that may change things is not held to looking at the agent.
+    REQUIRE_EQ(env.backend->server.counters().read_only_refused,
+               std::uint64_t{0});
+}
+
+TEST_CASE("control gateway: a monitor can change nothing, and the bytes have "
+          "a scope of their own")
+{
+    {
+        fixture env(with_local_scopes(monitor_with_data()));
+        const traffic_rig rig(env);
+        auto watcher = env.connect();
+        const std::string a = control::port_id_text(rig.a);
+        const std::string b = control::port_id_text(rig.b);
+        const auto before = watcher->list_ports();
+        REQUIRE(before);
+
+        const auto made = watcher->create_port("mine");
+        REQUIRE(!made);
+        REQUIRE_EQ(made.error(), code(control::api_errc::forbidden));
+        const auto removed = watcher->remove_port(a);
+        REQUIRE(!removed);
+        REQUIRE_EQ(removed.error(), code(control::api_errc::forbidden));
+        const auto linked = watcher->connect_ports(b, a, false);
+        REQUIRE(!linked);
+        REQUIRE_EQ(linked.error(), code(control::api_errc::forbidden));
+        const auto written = watcher->send(a, vss::to_bytes("x"));
+        REQUIRE(!written);
+        REQUIRE_EQ(written.error(), code(control::api_errc::forbidden));
+
+        const auto after = watcher->list_ports();
+        REQUIRE(after);
+        REQUIRE(*after == *before);
+        REQUIRE_EQ(env.gate.counters().forbidden, std::uint64_t{4});
+        // Refused by the gateway: the agent was never asked.
+        REQUIRE_EQ(env.backend->server.counters().read_only_refused,
+                   std::uint64_t{0});
+    }
+    {
+        // May arrange ports, may not speak on them.
+        fixture env(with_local_scopes(
+            {control::scope::monitor, control::scope::control_ports}));
+        auto arranger = env.connect();
+        const auto port = arranger->create_port("quiet");
+        REQUIRE(port);
+        const auto written = arranger->send(*port, vss::to_bytes("x"));
+        REQUIRE(!written);
+        REQUIRE_EQ(written.error(), code(control::api_errc::forbidden));
+    }
+    {
+        // May speak, may not arrange.
+        fixture env(with_local_scopes(
+            {control::scope::monitor, control::scope::control_data}));
+        const traffic_rig rig(env);
+        auto speaker = env.connect();
+        REQUIRE(
+            speaker->send(control::port_id_text(rig.a), vss::to_bytes("x")));
+        const auto made = speaker->create_port("no");
+        REQUIRE(!made);
+        REQUIRE_EQ(made.error(), code(control::api_errc::forbidden));
+    }
+}
+
+TEST_CASE("control gateway: what the engine refuses comes back by name and "
+          "costs only an error")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect();
+    const auto port = driver->create_port("only");
+    REQUIRE(port);
+
+    const auto gone = driver->remove_port("p_999999");
+    REQUIRE(!gone);
+    REQUIRE_EQ(gone.error(), engine(vss::errc::not_found));
+    const auto nowhere = driver->send("p_999999", vss::to_bytes("x"));
+    REQUIRE(!nowhere);
+    REQUIRE_EQ(nowhere.error(), engine(vss::errc::not_found));
+    const auto half = driver->connect_ports(*port, "p_999999", false);
+    REQUIRE(!half);
+    REQUIRE_EQ(half.error(), engine(vss::errc::not_found));
+    const auto odd = driver->create_port("x", "no-such-kind");
+    REQUIRE(!odd);
+    REQUIRE_EQ(odd.error(), engine(vss::errc::unsupported));
+    // The message is the gateway's: nothing of the engine's wording crosses.
+    REQUIRE_EQ(driver->last_error_message(),
+               std::string("the engine refused the request"));
+
+    // An id that is not one is the caller's mistake, and is not sent on.
+    for (const char* const bad : {"COM3", "p_", "left", "", "p_-1"})
+    {
+        const auto removed = driver->remove_port(bad);
+        REQUIRE(!removed);
+        REQUIRE_EQ(removed.error(), code(control::api_errc::invalid_argument));
+        const auto written = driver->send(bad, vss::to_bytes("x"));
+        REQUIRE(!written);
+        REQUIRE_EQ(written.error(), code(control::api_errc::invalid_argument));
+        const auto linked = driver->connect_ports(*port, bad, false);
+        REQUIRE(!linked);
+        REQUIRE_EQ(linked.error(), code(control::api_errc::invalid_argument));
+    }
+    // Nothing to send, and too much.
+    const auto nothing = driver->send(*port, vss::bytes_view());
+    REQUIRE(!nothing);
+    REQUIRE_EQ(nothing.error(), code(control::api_errc::invalid_argument));
+    const vss::byte_buffer most(control::max_send_size, vss::byte{0x41});
+    REQUIRE(driver->send(*port, vss::bytes_view(most)));
+    const vss::byte_buffer over(control::max_send_size + 1, vss::byte{0x41});
+    const auto too_much = driver->send(*port, vss::bytes_view(over));
+    REQUIRE(!too_much);
+    REQUIRE_EQ(too_much.error(), code(control::api_errc::limit_exceeded));
+
+    // After all of it the session is as good as it was.
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{1});
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+}
+
+TEST_CASE("control gateway: without an agent a change says so, and nothing "
+          "is half done")
+{
+    fixture env(with_local_scopes(control::role_control()), false);
+    auto driver = env.connect();
+    const auto made = driver->create_port("early");
+    REQUIRE(!made);
+    REQUIRE_EQ(made.error(), code(control::api_errc::unavailable));
+    const auto written = driver->send("p_1", vss::to_bytes("x"));
+    REQUIRE(!written);
+    REQUIRE_EQ(written.error(), code(control::api_errc::unavailable));
+
+    env.start_agent();
+    const auto later = driver->create_port("later");
+    REQUIRE(later);
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{1});
+}
+
+TEST_CASE("control gateway: every change is in the audit log, and the bytes "
+          "of a send are not")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "driver");
+    const auto left = driver->create_port("left");
+    const auto right = driver->create_port("right");
+    REQUIRE(left);
+    REQUIRE(right);
+    REQUIRE(driver->connect_ports(*left, *right, false));
+    const std::string canary = "CANARY-7f3a9c-do-not-log";
+    REQUIRE(driver->send(*left, vss::to_bytes(canary)));
+    REQUIRE(!driver->remove_port("p_999999"));
+    REQUIRE(!driver->remove_port("not a port\n{\"event\":\"forged\"}"));
+    REQUIRE(driver->remove_port(*left));
+    driver.reset();
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+
+    const auto creates = operations_named(env, "ports.create");
+    REQUIRE_EQ(creates.size(), std::size_t{2});
+    REQUIRE_EQ(text_of(creates.front(), "name"), std::string("left"));
+    REQUIRE_EQ(text_of(creates.front(), "port"), *left);
+    REQUIRE_EQ(text_of(creates.front(), "outcome"), std::string("ok"));
+    REQUIRE_EQ(text_of(creates.front(), "principal").rfind("local:", 0),
+               std::size_t{0});
+
+    const auto links = operations_named(env, "links.connect");
+    REQUIRE_EQ(links.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(links.front(), "first"), *left);
+    REQUIRE_EQ(text_of(links.front(), "second"), *right);
+    REQUIRE_EQ(text_of(links.front(), "one_way"), std::string("no"));
+
+    const auto sends = operations_named(env, "ports.send");
+    REQUIRE_EQ(sends.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(sends.front(), "port"), *left);
+    REQUIRE_EQ(number_of(sends.front(), "bytes"), canary.size());
+
+    const auto removes = operations_named(env, "ports.remove");
+    REQUIRE_EQ(removes.size(), std::size_t{3});
+    REQUIRE_EQ(text_of(removes[0], "outcome"), std::string("engine.not_found"));
+    // An id that was not one is not written down as it came.
+    REQUIRE_EQ(text_of(removes[1], "outcome"), std::string("invalid_argument"));
+    REQUIRE(text_of(removes[1], "port").empty());
+    REQUIRE_EQ(text_of(removes[2], "outcome"), std::string("ok"));
+
+    // The bytes that were sent are nowhere the gateway keeps anything.
+    REQUIRE(!holds(everything_kept(env.audit_directory), canary));
+    REQUIRE(!holds(everything_kept(env.audit_directory), "forged"));
+    require_intact(env.audit_directory);
+}
+
+TEST_CASE("control gateway: a token is held to its scopes when it changes "
+          "ports")
+{
+    fixture env;
+    const control::token_created_reply arranger = make_token(
+        env, {control::scope::monitor, control::scope::control_ports});
+    auto connected = connect_with(env, arranger.token);
+    REQUIRE(connected);
+    auto& client = **connected;
+    const auto port = client.create_port("by token");
+    REQUIRE(port);
+    const auto written = client.send(*port, vss::to_bytes("x"));
+    REQUIRE(!written);
+    REQUIRE_EQ(written.error(), code(control::api_errc::forbidden));
+
+    // The record names the token, not the local user.
+    const auto creates = operations_named(env, "ports.create");
+    REQUIRE_EQ(creates.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(creates.front(), "principal"),
+               "token:" + arranger.entry.id);
+
+    // And a ceiling takes the scope away again.
+    control::gateway_options capped;
+    capped.local_ceiling = control::role_monitor();
+    fixture strict(capped);
+    const control::token_created_reply same = make_token(
+        strict, {control::scope::monitor, control::scope::control_ports});
+    auto held = connect_with(strict, same.token);
+    REQUIRE(held);
+    const auto refused = (*held)->create_port("no");
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), code(control::api_errc::forbidden));
 }
