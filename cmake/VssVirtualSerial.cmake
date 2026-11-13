@@ -47,7 +47,7 @@ find_path(VSS_BOOST_INCLUDE_DIR boost/asio.hpp
   PATH_SUFFIXES include)
 
 if(NOT VSS_BOOST_INCLUDE_DIR)
-  find_package(Boost 1.74 REQUIRED)
+  find_package(Boost 1.88 REQUIRED)
   if(TARGET Boost::headers)
     set(VSS_BOOST_TARGET Boost::headers)
   elseif(TARGET Boost::boost)
@@ -55,7 +55,7 @@ if(NOT VSS_BOOST_INCLUDE_DIR)
   else()
     message(FATAL_ERROR
       "Boost headers were not found. Set VSS_BOOST_ROOT (or BOOST_ROOT) to a "
-      "Boost tree, or install Boost >= 1.74.")
+      "Boost tree, or install Boost >= 1.88.")
   endif()
 else()
   add_library(Vss::Boost INTERFACE IMPORTED GLOBAL)

@@ -11,6 +11,7 @@
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QGuiApplication>
+#include <QSurfaceFormat>
 
 #include <cstdio>
 #include <string>
@@ -84,6 +85,29 @@ render_state initialise(render_mode setting, const QString& environment,
     state.active = (asked.mode == render_mode::software || headless)
                        ? renderer::software
                        : renderer::hardware;
+    // A window that holds a GPU widget is presented through the graphics
+    // API, and by default every present waits for the display: one refresh of
+    // the screen for each repaint of anything in the window, with the GUI
+    // thread stopped. A window drawn by the CPU never waits, so ask for the
+    // same (swap interval 0) before the window is made. VSS_RENDER_VSYNC=1
+    // keeps the wait, for a display that shows tearing without it.
+    if (state.active == renderer::hardware &&
+        qEnvironmentVariable("VSS_RENDER_VSYNC") != QLatin1String("1"))
+    {
+        QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+        format.setSwapInterval(0);
+        QSurfaceFormat::setDefaultFormat(format);
+    }
+    // Direct3D only (nothing else reads the variable): Qt's default "flip"
+    // swap chain made a resize step 5 to 7 ms slower than the CPU path and
+    // now and then held a present for 40 to 190 ms; the older copying swap
+    // chain does neither (docs/gui-design/docs/12-render-profiling.md).
+    // QT_D3D_NO_FLIP=0 in the environment keeps Qt's default.
+    if (state.active == renderer::hardware &&
+        !qEnvironmentVariableIsSet("QT_D3D_NO_FLIP"))
+    {
+        qputenv("QT_D3D_NO_FLIP", QByteArrayLiteral("1"));
+    }
     set_state(state);
     log_state(state);
     return state;

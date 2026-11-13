@@ -56,6 +56,19 @@ result<byte_buffer> encode_frame(const frame& value);
 class frame_reader
 {
 public:
+    frame_reader() = default;
+
+    /// A reader that refuses a frame with more than `limit` bytes after its
+    /// length prefix.  Never more than `max_frame_size`.
+    explicit frame_reader(std::size_t limit) noexcept { set_limit(limit); }
+
+    /// Changes the most bytes the next frames may have, for a connection
+    /// that is allowed little before it has said who it is and more after.
+    void set_limit(std::size_t limit) noexcept
+    {
+        limit_ = limit < max_frame_size ? limit : max_frame_size;
+    }
+
     /// Adds bytes that were read from the connection.
     void feed(bytes_view data);
 
@@ -69,6 +82,7 @@ public:
 private:
     byte_buffer buffer_;
     std::size_t start_ = 0;
+    std::size_t limit_ = max_frame_size;
     error_code failed_;
 };
 

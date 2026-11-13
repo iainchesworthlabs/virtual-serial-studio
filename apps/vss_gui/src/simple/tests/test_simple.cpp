@@ -982,6 +982,26 @@ TEST_CASE("simple: echo answers a lone program port")
     REQUIRE(backend.echo(found[0].echo));
 }
 
+namespace
+{
+
+/// Chooses a number in one row's port picker, as a click on it would.  The
+/// rows are rebuilt afterwards, so the next call finds the new pickers.
+void pick_number(JobForm& form, int row, const QString& text)
+{
+    const auto combos =
+        form.findChildren<QComboBox*>(QStringLiteral("jobFormPort"));
+    auto* combo = combos.value(row);
+    REQUIRE(combo != nullptr);
+    const int index = combo->findText(text);
+    REQUIRE(index >= 0);
+    combo->setCurrentIndex(index);
+    Q_EMIT combo->activated(index);
+    settle();
+}
+
+} // namespace
+
 TEST_CASE("simple: the share form needs a device and creates the setup")
 {
     FakeStudioBackend backend;
@@ -995,7 +1015,10 @@ TEST_CASE("simple: the share form needs a device and creates the setup")
     REQUIRE(form.create_button()->isEnabled());
     REQUIRE_EQ(form.plan().second.size(), std::size_t{2});
     form.set_label(true, 0, QStringLiteral("PuTTY"));
-    REQUIRE(form.result_text().contains(QStringLiteral("COM3")));
+    // Automatic names no number yet; a chosen one is named, and so is the
+    // device it replaces.
+    pick_number(form, 0, QStringLiteral("COM5"));
+    REQUIRE(form.result_text().contains(QStringLiteral("COM5")));
     REQUIRE(form.result_text().contains(QStringLiteral("PuTTY")));
     REQUIRE(form.result_text().contains(QStringLiteral("not COM3")));
 
@@ -1020,8 +1043,9 @@ TEST_CASE("simple: the form says when a COM name is chosen twice")
     backend.set_capabilities(windows_caps());
     JobForm form(backend, job::pair);
     REQUIRE(form.create_button()->isEnabled());
-    REQUIRE(form.plan().first.front().com_number !=
-            form.plan().second.front().com_number);
+    // Both rows start on Automatic, so they cannot clash.
+    REQUIRE_EQ(form.plan().first.front().com_number, 0u);
+    REQUIRE_EQ(form.plan().second.front().com_number, 0u);
 }
 
 namespace
@@ -1066,6 +1090,13 @@ TEST_CASE("simple: numbers Windows keeps are neither offered nor chosen")
     backend.set_taken_com_numbers({5, 6, 8});
 
     JobForm form(backend, job::pair);
+    // A port starts on Automatic, which lists first.
+    REQUIRE_EQ(form.plan().first.front().com_number, 0u);
+    REQUIRE_EQ(form.plan().second.front().com_number, 0u);
+    REQUIRE_EQ(offered_numbers(form).front().front(),
+               QStringLiteral("Automatic"));
+    pick_number(form, 0, QStringLiteral("COM7"));
+    pick_number(form, 1, QStringLiteral("COM9"));
     REQUIRE_EQ(form.plan().first.front().com_number, 7u);
     REQUIRE_EQ(form.plan().second.front().com_number, 9u);
     const auto rows = offered_numbers(form);
@@ -1122,6 +1153,8 @@ TEST_CASE("simple: a refused number is named and replaced")
     backend.set_hidden_com_numbers({3});
 
     JobForm form(backend, job::pair);
+    pick_number(form, 0, QStringLiteral("COM3"));
+    pick_number(form, 1, QStringLiteral("COM4"));
     REQUIRE_EQ(form.plan().first.front().com_number, 3u);
     REQUIRE_EQ(form.plan().second.front().com_number, 4u);
     REQUIRE(!submit_and_wait(&form));
@@ -1134,8 +1167,9 @@ TEST_CASE("simple: a refused number is named and replaced")
     REQUIRE(failure.contains(QStringLiteral("Nothing was changed.")));
     REQUIRE(!failure.contains(QStringLiteral("already exists")));
 
-    // The refused number is gone from both rows and the form holds a free one.
-    REQUIRE_EQ(form.plan().first.front().com_number, 5u);
+    // The refused number is gone from both rows and its row is back on
+    // Automatic.
+    REQUIRE_EQ(form.plan().first.front().com_number, 0u);
     REQUIRE_EQ(form.plan().second.front().com_number, 4u);
     // The old rows wait to be deleted; only the new ones count.
     settle();

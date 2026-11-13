@@ -95,6 +95,73 @@ TEST_CASE("event bridge: batches hub events on the GUI thread")
     hub.join();
 }
 
+TEST_CASE("event bridge: the bytes of a batch share one block")
+{
+    vss::hub hub{make_hub_options()};
+    hub.start();
+
+    vss::gui::EventBridge::options options;
+    options.interval_ms = 60000;
+    {
+        vss::gui::EventBridge bridge(hub, options);
+        vss::gui::event_batch seen;
+        QObject::connect(&bridge, &vss::gui::EventBridge::batch_ready, &bridge,
+                         [&seen](const vss::gui::event_batch& events)
+                         { seen = events; });
+        bridge.start();
+
+        // Data of three sizes from two ports, and an event with no bytes
+        // between them.
+        const std::vector<std::string> payloads{"first", std::string(300, 'b'),
+                                                "c"};
+        for (std::size_t index = 0; index < payloads.size(); ++index)
+        {
+            vss::endpoint_event event;
+            event.kind = vss::event_kind::data;
+            event.endpoint = index == 1 ? 2 : 1;
+            event.name = index == 1 ? "other" : "port";
+            event.direction = vss::data_direction::tx;
+            vss::byte_buffer bytes;
+            for (const char character : payloads[index])
+                bytes.push_back(static_cast<vss::byte>(character));
+            event.data =
+                std::make_shared<const vss::byte_buffer>(std::move(bytes));
+            hub.publish(event);
+            if (index == 0)
+                hub.publish(make_event(7));
+        }
+        REQUIRE(wait_until([&bridge] { return bridge.delivered() >= 4; }));
+        bridge.flush();
+
+        REQUIRE_EQ(seen.size(), 4);
+        REQUIRE_EQ(seen[0].data.to_byte_array(), QByteArray("first"));
+        REQUIRE(seen[1].data.empty());
+        REQUIRE_EQ(seen[1].message, QStringLiteral("event 7"));
+        REQUIRE_EQ(seen[2].data.to_byte_array(), QByteArray(300, 'b'));
+        REQUIRE_EQ(seen[2].data.size(), 300);
+        REQUIRE_EQ(seen[3].data.to_byte_array(), QByteArray("c"));
+        REQUIRE_EQ(seen[3].data.first(256).size(), 1);
+        REQUIRE_EQ(seen[0].name, QStringLiteral("port"));
+        REQUIRE_EQ(seen[2].name, QStringLiteral("other"));
+        REQUIRE_EQ(seen[3].name, QStringLiteral("port"));
+        // The parts follow each other in one block.
+        REQUIRE(seen[2].data.data() == seen[0].data.data() + 5);
+        REQUIRE(seen[3].data.data() == seen[2].data.data() + 300);
+
+        // A port that is renamed gets its new name.
+        vss::endpoint_event renamed = make_event(8);
+        renamed.name = "renamed";
+        hub.publish(renamed);
+        REQUIRE(wait_until([&bridge] { return bridge.delivered() >= 5; }));
+        bridge.flush();
+        REQUIRE_EQ(seen.size(), 1);
+        REQUIRE_EQ(seen[0].name, QStringLiteral("renamed"));
+    }
+
+    hub.stop();
+    hub.join();
+}
+
 TEST_CASE("event bridge: caps the queue and counts dropped events")
 {
     vss::hub hub{make_hub_options()};

@@ -213,6 +213,8 @@ public:
     [[nodiscard]] double last_paint_ms() const noexcept;
     [[nodiscard]] double last_gpu_ms() const noexcept;
     [[nodiscard]] bool gpu_active() const noexcept { return gpu_ != nullptr; }
+    /// Asks for the canvas to be drawn again, in whichever renderer is in use.
+    void request_frame();
 
 Q_SIGNALS:
     void port_selected(vss::endpoint_id id);
@@ -270,6 +272,7 @@ protected:
     void dragLeaveEvent(QDragLeaveEvent* event) override;
     void dropEvent(QDropEvent* event) override;
     void drawBackground(QPainter* painter, const QRectF& rect) override;
+    void scrollContentsBy(int dx, int dy) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:

@@ -165,11 +165,14 @@ try
             vss::gui::support::load_ui_settings().render_mode,
             qEnvironmentVariable("VSS_RENDER"), render_argument);
         // Qt only asks the graphics device for GPU timings when it is told
-        // to when the device is made, at the first window. So the GPU zone
-        // (gui.gpu.frame) appears when the profiler is already recording by
-        // then; started later from Settings, the CPU zones record and the GPU
-        // zone needs a restart. Timings only; nothing leaves this computer.
-        if (vss::profiling::current().current ==
+        // to when the device is made, at the first window. Reading them makes
+        // the canvas wait for the GPU in every frame (several milliseconds a
+        // frame while the window is resized), so the GPU zone (gui.gpu.frame)
+        // is recorded only when VSS_PROFILE_GPU=1 asks for it and the profiler
+        // is already recording by then. Timings only; nothing leaves this
+        // computer.
+        if (qEnvironmentVariable("VSS_PROFILE_GPU") == QLatin1String("1") &&
+            vss::profiling::current().current ==
                 vss::profiling::state::recording &&
             !qEnvironmentVariableIsSet("QSG_RHI_PROFILE"))
         {

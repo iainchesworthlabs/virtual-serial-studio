@@ -1,6 +1,6 @@
 # Building
 
-Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.74+ headers, git and
+Requirements: CMake 3.21+, a **C++23** compiler, Boost 1.88+ headers, git and
 Python 3 (for the scripts under `tools/`).
 CI builds with the versions pinned in `.github/toolchain-versions.json`: GCC 16,
 Clang 23, MSVC 19.51 (toolset 14.51) and Qt 6.12.
