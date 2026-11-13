@@ -8,8 +8,13 @@
 
 #include "language/language_choice.hpp"
 
+#include <QCoreApplication>
+#include <QFile>
+#include <QObject>
+#include <QProcess>
 #include <QGuiApplication>
 #include <QStringList>
+#include <QTranslator>
 
 namespace
 {
@@ -128,4 +133,69 @@ TEST_CASE("language: without a catalogue the program stays English")
     qunsetenv("VSS_LANGUAGE");
     REQUIRE_EQ(choice.code, QStringLiteral("en"));
     REQUIRE(QGuiApplication::layoutDirection() == Qt::LeftToRight);
+}
+
+TEST_CASE("language: the pseudo-language keeps placeholders and markup")
+{
+    const QString text = vss::gui::pseudo_localise(
+        QStringLiteral("Open %1 and %L2 now, <b>%n item(s)</b> &Save 100%%"));
+    REQUIRE(text.startsWith(QLatin1Char('[')));
+    REQUIRE(text.endsWith(QLatin1Char(']')));
+    for (const char* kept :
+         {"%1", "%L2", "<b>", "%n", "</b>", "&", "100%%", "(", ")"})
+        REQUIRE(text.contains(QLatin1String(kept)));
+    // No plain letter of the words is left, so text that is not in tr() stands
+    // out, and the text is longer, so a fixed width that clips shows.
+    REQUIRE(!text.contains(QStringLiteral("Open")));
+    REQUIRE(!text.contains(QStringLiteral("Save")));
+    REQUIRE(text.size() > QStringLiteral("Open %1 now").size());
+    REQUIRE_EQ(vss::gui::pseudo_localise(QString()), QStringLiteral("[]"));
+}
+
+TEST_CASE("language: pseudo and pseudo-rtl show every text accented")
+{
+    qputenv("VSS_LANGUAGE", QByteArrayLiteral("pseudo-rtl"));
+    const auto choice = vss::gui::apply_language();
+    qunsetenv("VSS_LANGUAGE");
+    REQUIRE_EQ(choice.code, QStringLiteral("pseudo-rtl"));
+    REQUIRE(QGuiApplication::layoutDirection() == Qt::RightToLeft);
+    const QString shown = QCoreApplication::translate("Any", "Add a port");
+    REQUIRE(shown != QStringLiteral("Add a port"));
+    REQUIRE(shown == vss::gui::pseudo_localise(QStringLiteral("Add a port")));
+
+    // Put the program back as the other tests expect it.
+    const auto translators =
+        QCoreApplication::instance()->findChildren<QTranslator*>();
+    for (QTranslator* translator : translators)
+        delete translator;
+    QGuiApplication::setLayoutDirection(Qt::LeftToRight);
+    REQUIRE_EQ(QCoreApplication::translate("Any", "Add a port"),
+               QStringLiteral("Add a port"));
+}
+
+TEST_CASE("language: a catalogue answers for a qualified context")
+{
+    const QString qm = QStringLiteral(VSS_I18N_SCRATCH_DIR "/vss_gui_de.qm");
+    QFile::remove(qm);
+    QProcess lrelease;
+    lrelease.start(QStringLiteral(VSS_LRELEASE_EXE),
+                   {QStringLiteral(VSS_TRANSLATIONS_DIR "/vss_gui_de.ts"),
+                    QStringLiteral("-qm"), qm});
+    REQUIRE(lrelease.waitForFinished(120000));
+    REQUIRE_EQ(lrelease.exitCode(), 0);
+
+    QObject owner;
+    QTranslator* translator = vss::gui::make_catalogue_translator(qm, &owner);
+    REQUIRE(translator != nullptr);
+    // Qt passes the class with its namespaces, the catalogue holds the name.
+    REQUIRE_EQ(translator->translate("vss::gui::topology::Toolbox", "Pair"),
+               QStringLiteral("Paar"));
+    REQUIRE_EQ(translator->translate("Toolbox", "Pair"),
+               QStringLiteral("Paar"));
+    REQUIRE(translator->translate("vss::gui::topology::Toolbox",
+                                  "Not a source text")
+                .isNull());
+    REQUIRE(vss::gui::make_catalogue_translator(
+                QStringLiteral(VSS_I18N_SCRATCH_DIR "/missing.qm"), &owner) ==
+            nullptr);
 }

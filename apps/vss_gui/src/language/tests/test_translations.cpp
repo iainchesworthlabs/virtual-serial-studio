@@ -13,6 +13,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
 #include <QString>
@@ -31,6 +32,7 @@ struct message
     QString comment;
     bool numerus = false;
     bool unfinished = false;
+    bool vanished = false;
     QStringList forms;
 };
 
@@ -45,9 +47,9 @@ QString translations_path(const QString& code)
     return QStringLiteral(VSS_TRANSLATIONS_DIR "/vss_gui_%1.ts").arg(code);
 }
 
-catalogue read_catalogue(const QString& code)
+catalogue read_catalogue_file(const QString& path)
 {
-    QFile file(translations_path(code));
+    QFile file(path);
     REQUIRE(file.open(QIODevice::ReadOnly));
     QXmlStreamReader xml(&file);
     catalogue result;
@@ -79,9 +81,11 @@ catalogue read_catalogue(const QString& code)
                 current.comment = xml.readElementText();
             else if (name == QLatin1String("translation"))
             {
-                current.unfinished =
-                    xml.attributes().value(QLatin1String("type")) ==
-                    QLatin1String("unfinished");
+                const QStringView type =
+                    xml.attributes().value(QLatin1String("type"));
+                current.unfinished = type == QLatin1String("unfinished");
+                current.vanished = type == QLatin1String("vanished") ||
+                                   type == QLatin1String("obsolete");
                 if (!current.numerus)
                     current.forms << xml.readElementText();
             }
@@ -93,6 +97,26 @@ catalogue read_catalogue(const QString& code)
     }
     REQUIRE(!xml.hasError());
     return result;
+}
+
+catalogue read_catalogue(const QString& code)
+{
+    return read_catalogue_file(translations_path(code));
+}
+
+/// The part of a context name after the last `::`. The catalogues keep the
+/// short class name, and lupdate writes the qualified one.
+QString short_context(const QString& context)
+{
+    return context.mid(context.lastIndexOf(QLatin1String("::")) < 0
+                           ? 0
+                           : context.lastIndexOf(QLatin1String("::")) + 2);
+}
+
+QString message_key(const message& entry)
+{
+    return short_context(entry.context) + QLatin1Char('') + entry.source +
+           QLatin1Char('') + entry.comment;
 }
 
 QStringList placeholders(const QString& text)
@@ -208,4 +232,67 @@ TEST_CASE("translations: right-to-left languages have catalogues")
 {
     for (const char* code : {"he", "yi", "ar"})
         REQUIRE(QFile::exists(translations_path(QString::fromLatin1(code))));
+}
+
+TEST_CASE("translations: no catalogue keeps a message the sources dropped")
+{
+    for (const QString& code : translated_languages())
+    {
+        for (const message& entry : read_catalogue(code).messages)
+        {
+            if (entry.vanished)
+                throw vss_test::failure(
+                    (code + ": vanished or obsolete message, remove it: " +
+                     entry.source)
+                        .toStdString());
+        }
+    }
+}
+
+// lupdate reads the sources the way the build does and writes every string
+// that reaches a catalogue. A string the catalogues lack shows in English in
+// that language, so the test compares the two and names what is missing.
+TEST_CASE("translations: every catalogue has every string in the sources")
+{
+    const QString fresh_path =
+        QStringLiteral(VSS_I18N_SCRATCH_DIR "/sources.ts");
+    QFile::remove(fresh_path);
+
+    QProcess lupdate;
+    lupdate.start(QStringLiteral(VSS_LUPDATE_EXE),
+                  {QStringLiteral("@" VSS_I18N_SOURCE_LIST),
+                   QStringLiteral("-no-obsolete"), QStringLiteral("-ts"),
+                   fresh_path});
+    REQUIRE(lupdate.waitForFinished(180000));
+    REQUIRE_EQ(lupdate.exitCode(), 0);
+
+    QSet<QString> wanted;
+    for (const message& entry : read_catalogue_file(fresh_path).messages)
+        wanted.insert(message_key(entry));
+    REQUIRE(wanted.size() > 1000);
+
+    for (const QString& code : translated_languages())
+    {
+        QSet<QString> held;
+        for (const message& entry : read_catalogue(code).messages)
+            held.insert(message_key(entry));
+        QStringList missing;
+        for (const QString& key : wanted)
+        {
+            if (!held.contains(key))
+                missing << key.section(QLatin1Char(''), 0, 1)
+                               .replace(QLatin1Char(''), QLatin1String(": "));
+        }
+        if (!missing.isEmpty())
+        {
+            missing.sort();
+            throw vss_test::failure(
+                (code + ": " + QString::number(missing.size()) +
+                 " strings of the sources are not in the catalogue, such as " +
+                 missing.front() +
+                 ". Run the update_translations target and translate them "
+                 "(docs/i18n.md)")
+                    .toStdString());
+        }
+    }
 }
