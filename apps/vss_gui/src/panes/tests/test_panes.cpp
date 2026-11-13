@@ -62,7 +62,7 @@ vss::gui::gui_event data_event(vss::endpoint_id id, const QString& name,
     event.endpoint = id;
     event.name = name;
     event.direction = direction;
-    event.data = data;
+    event.data = vss::gui::event_payload(data);
     return event;
 }
 

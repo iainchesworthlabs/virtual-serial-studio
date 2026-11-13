@@ -925,7 +925,7 @@ TEST_CASE("event log: state changes and local events, not traffic")
     gui_event data;
     data.kind = vss::event_kind::data;
     data.name = QStringLiteral("terminal");
-    data.data = QByteArrayLiteral("hello");
+    data.data = vss::gui::event_payload(QByteArrayLiteral("hello"));
     batch.push_back(data);
 
     log.append(batch);

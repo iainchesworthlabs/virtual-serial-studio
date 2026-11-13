@@ -251,8 +251,8 @@ class event_payload
 public:
     event_payload() = default;
     /// All of `bytes`.
-    // NOLINTNEXTLINE(google-explicit-constructor,hicpp-explicit-conversions)
-    event_payload(const QByteArray& bytes) : block_(bytes), size_(bytes.size())
+    explicit event_payload(const QByteArray& bytes)
+        : block_(bytes), size_(bytes.size())
     {
     }
     /// `size` bytes of `block` from `offset`.
