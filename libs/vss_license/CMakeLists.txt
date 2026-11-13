@@ -11,6 +11,7 @@
 add_library(vss_license
   src/error.cpp
   src/license.cpp
+  src/revocations_release.cpp
   src/signed_file.cpp
   src/strict_json.cpp
   src/trusted_keys_release.cpp)

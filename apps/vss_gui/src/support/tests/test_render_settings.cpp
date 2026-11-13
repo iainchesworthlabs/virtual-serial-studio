@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // The Rendering preference in Settings, Performance, and the Renderer line in
-// About and in the diagnostic bundle.
+// About and in the support bundle.
 //
 
 #include "qt_wait.hpp"
@@ -135,15 +135,15 @@ TEST_CASE("render settings: About and the bundle name the renderer")
     REQUIRE(!info.renderer.isEmpty());
     REQUIRE_EQ(info.renderer, rendering::describe());
 
-    support::AboutDialog about;
+    vss::gui::FakeStudioBackend backend;
+    support::AboutDialog about(backend);
     const QString environment = about.environment_text();
     REQUIRE(environment.contains(QStringLiteral("Renderer:")));
     REQUIRE(environment.contains(info.renderer));
 
-    vss::gui::FakeStudioBackend backend;
     support::EventLog log;
     support::bundle_selection selection;
-    const auto files = support::build_bundle_files(backend, log, selection);
+    const auto files = support::build_bundle(backend, log, selection).files();
     bool found = false;
     for (const auto& file : files)
     {

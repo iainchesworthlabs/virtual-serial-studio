@@ -70,7 +70,6 @@
     "apps/vss_gui/src/support/build_info.hpp": 3,
     "apps/vss_gui/src/support/bundle.hpp": 3,
     "apps/vss_gui/src/support/check_row.hpp": 3,
-    "apps/vss_gui/src/support/diagnostic_bundle_dialog.hpp": 3,
     "apps/vss_gui/src/support/event_log.hpp": 3,
     "apps/vss_gui/src/support/help_contents_dialog.hpp": 3,
     "apps/vss_gui/src/support/redact.hpp": 3,

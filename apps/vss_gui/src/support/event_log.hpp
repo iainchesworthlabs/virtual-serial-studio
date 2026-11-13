@@ -19,9 +19,9 @@ namespace vss::gui::support
 /// A bounded, GUI-side record of state changes, errors and log messages.
 ///
 /// It is fed from the coalesced event batch on the GUI thread and never
-/// records payload bytes, so the diagnostic bundle's `log.txt` is useful
-/// without being a second copy of the traffic.  Payload contents only enter a
-/// bundle through the traffic option, which is off by default.
+/// records payload bytes, so the support bundle's `log.txt` is useful without
+/// being a second copy of the traffic.  The support bundle never holds payload
+/// bytes.
 class EventLog final : public QObject
 {
     Q_OBJECT

@@ -53,7 +53,7 @@ In the GUI, Settings, Performance, Profiling has a switch to record a trace (it
 is remembered, so Studio records again from its next start unless `--no-profile`
 or `VSS_PROFILE=0` says otherwise) and one to let other computers connect. While the listener exists the status bar shows
 a "Profiling :8086" chip, and About lists the state in the environment table (and
-in the diagnostic bundle's `environment.txt`).
+in the support bundle's `environment.txt`).
 
 ### Turning it off
 
