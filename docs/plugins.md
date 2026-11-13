@@ -174,19 +174,64 @@ Plugins page shows it (`screens/10-plugins.md`).
 - **Reserved ids.** An id that starts with `com.virtualserialstudio.` is accepted only with an official
   signature. Anything else that uses it is `rejected: reserved_id`.
 
-**Studio installed for one user (open, section 17).** Studio itself may be installed for everyone or for one
-user, depending on the rights a person has on the computer. When it is installed for one user, that user can
-write to the install root, to the launcher and to the agent. What is already clear:
+**Studio installed for one user.** Studio itself may be installed for everyone or for one user, depending on the
+rights a person has on the computer. This was investigated on 13 November 2026 by reading the packaging in
+`cmake/packaging/`, `docs/releasing.md` and `docs/agent.md`. Nothing was installed on a computer to try it; the
+tests of section 16 do that when the host exists.
 
-- The install root is then checked as the per-user root is: owned by the user, not writable by others.
-- An official plugin loses nothing, because its trust comes from its signature and not from its folder.
-- The machine root and the policy file are still read when they exist, and are still an administrator's.
-- A policy cannot be enforced against a user who can replace Studio's own programs. An administrator who needs
-  the policy to hold installs Studio for everyone. The page says which kind of install is running.
+What the packages do today:
 
-To be investigated before the installers are changed: what each platform's installer does for one user, whether
-an install for everyone and an install for one user can be on one computer and which agent then runs, and where
-the driver fits, since it needs an administrator on every platform.
+| | For everyone | For one user |
+|---|---|---|
+| Windows | The NSIS installer. It asks for an administrator once and installs into `%ProgramFiles%`. It has no mode for one user, on purpose (`VssPackage-windows.cmake` says why) | The zip, unpacked anywhere the user can write. Nothing is registered |
+| Linux | The deb or rpm, into `/opt/virtual-serial-studio`, owned by root | The release archive, unpacked anywhere the user can write |
+| macOS | The app in `/Applications`, when root owns it (a management tool put it there) | The app dragged from the disk image, into `~/Applications` or into `/Applications`. A person who drags it owns it and can change it, so it counts as for one user wherever it lies |
+
+So an install for one user already exists on every platform, as an archive. **No installer gets a second mode.**
+What changes is that Studio works out which kind it is and behaves accordingly.
+
+- **How Studio tells.** By the folder, not by a registry value or a file that says so. The install is *for
+  everyone* when nobody but an administrator can write to the folder that holds the programs or to any folder
+  above it (Windows: only Administrators, SYSTEM and TrustedInstaller have write access; Linux and macOS: root
+  owns them and no group or other has write access). Anything else is *for one user*. The check is the one
+  already written for a plugin directory, run once when the agent starts. A build tree is for one user.
+- **The install root** of an install for one user is checked as the per-user root is: owned by the user, not
+  writable by others. Its plugins still show as "Came with Studio".
+- **An official plugin loses nothing**, because its trust comes from its signature and not from its folder.
+- **The machine root and the policy file** are read by both kinds when they exist, and are an administrator's.
+- **A policy binds Studio, not the person.** A user who may run their own programs can run a copy of Studio that
+  ignores the policy, whatever this design does. A policy holds where the administrator also controls which
+  programs run (AppLocker or App Control on Windows, and the like elsewhere). The page says which kind of
+  install is running, and a diagnostic bundle records it.
+- **Running without isolation** (section 9.2) follows the kind: an install for one user offers the override
+  unless a policy file is there and forbids it; an install for everyone offers it only where the policy allows.
+- **The sandbox needs no administrator** on any of the three systems (the mechanisms of section 9.2 are all
+  open to an ordinary user), so the launcher works the same in both kinds and is never installed with special
+  rights.
+
+**Both kinds on one computer.** This is possible and will happen: the installer for everyone, and a zip of a
+newer version in a user's folder. There is one agent for each user (`docs/agent.md`, section 2), and a client
+starts the agent that lies beside it only when none is running. So today the agent that runs is the one whose
+window or command was started first, and a window from the other copy would talk to it. For plugins that is not
+good enough, because the agent decides the install root, the launcher and the kind of install. Needed, as an
+addition to the agent's `hello` when the host is built:
+
+- The agent's reply to `hello` carries the folder it runs from and the kind of install.
+- A client that finds an agent from another folder says so ("Another copy of Studio is running the ports:
+  `<folder>`") and offers the restart that `docs/agent.md` already plans for a version mismatch. It does not
+  carry on silently. Where the protocol numbers differ, the existing `version_mismatch` path already does this.
+- The Plugins page shows the folder and the kind of the agent it is connected to, since that is the copy whose
+  plugins run.
+
+**The driver** is only on Windows, is per machine, and needs an administrator to set up, from the installer or
+from "Set up Virtual Serial Studio". A Studio from the zip uses the driver and the helper service when they are
+there and works without driver ports when they are not, as it does today. No plugin and no part of the plugin
+host talks to the driver or to the helper service, and neither is started by the launcher. "Studio never raises
+its own rights" above is about plugins; the driver set-up keeps the prompt it has.
+
+**Left for the installers' own work, not this design:** adding `vss_agent` and `vss_plugin_launcher` to the
+four packages and their signing lists (`docs/agent.md`, step 9), and creating the machine plugin directory with
+the right owner in the installer for everyone, so that it never has to be made by a program a user runs.
 
 ### 5.3 Verify
 
@@ -525,8 +570,21 @@ and gives the stage the result.
 - When an instance goes away, its part of the stage is removed and the bytes it held are released in order,
   ahead of anything routed later, as that page says for an `inline` set that is removed.
 - With nothing installed the stage is a null pointer and a link behaves as it does today.
-- When a link has both a rule set and modifiers, the rule set runs first and the modifiers follow in the order of
-  the link's bindings (section 7.8). This order is proposed here and is to be agreed with that page (section 17).
+- When a link has both a rule set and modifiers, **the rule set runs first** and the modifiers follow in the
+  order of the link's bindings (section 7.8). The reasons:
+  - A rule then matches the bytes the program sent, at the time the engine read them. What a rule set does on a
+    run does not depend on a plugin being fast, slow or stopped, which is what `docs/response-timing.md` promises
+    for rules. The other order would put a plugin's round trip and its failures in front of every rule.
+  - A modifier that fails open passes bytes unchanged. With rules first that changes nothing for the rules.
+  - A recording replays into the rules as it was recorded.
+  - The cost: a rule's delay is no longer the last thing before the wire, because the modifier's round trip
+    follows it. So a link direction that has a modifier is marked "not exactly repeatable" in a run, and the
+    run's report names the modifier.
+  - Weighed and not taken: refusing a rule set and a modifier on the same link direction. It is simpler, and it
+    stops the common case of a scripted fault with a plugin that corrupts frames.
+
+  This is the recommendation of this page. `docs/response-timing.md` owns the stage, and one sentence there has
+  to say the same before the modifier slice starts (section 17).
 - The capability `route_hook` says the engine has the stage and the host can use it for modifiers. Without it a
   modifier is `disabled: capability_missing` and the page says "Not available in this build".
 
@@ -811,7 +869,14 @@ There is no network, so:
 - A revoked plugin or key is `rejected: revoked` at the next check. A running plugin is stopped within a second of
   the list being applied.
 - **Expiry.** The manifest has `not_after` (a date; official plugins get a bounded lifetime, and the owner's signing job
-  chooses it). An expired plugin is `rejected: expired`. There is a grace choice: the page offers "Run anyway for this
+  chooses it). **How long is not settled.** The owner's first thought was 28 days. This page recommends against
+  a period that short: an expired official plugin does not run and has no "Run anyway", and there is no network,
+  so every official plugin, the ones that come with Studio included, would stop 28 days after it was signed
+  until the person fetched and installed a new copy by hand, every month, and a computer that is kept offline
+  would lose them for good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
+  years in the example of section 8.9), that a plugin signed with a mistake is stopped by the revocation list,
+  and that anything meant to lapse monthly is the licence's period (`docs/licensing.md`), which has a grace
+  period and a renewal path built for it. An expired plugin is `rejected: expired`. There is a grace choice: the page offers "Run anyway for this
   session" only for **unsigned and third-party** plugins, never for an official one, since an official plugin has an
   update path and a user can always take it.
 - **The clock.** The wall clock is only trusted to go forward. The ledger keeps the highest time seen (from the
@@ -965,8 +1030,11 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   a next root is compiled in beside the current one.
 - **A key's dates cover what it signs.** The signing job refuses to sign a plugin whose `not_after` is later than
   its key's `valid_to`.
-- **Licence keys.** The list can carry keys of other purposes. Whether licence files use it is for
-  `docs/licensing.md` to say, and nothing here changes that page.
+- **Licence keys are not in this list.** The owner decided on 13 November 2026 that licence files do not use
+  the plugin key list. The list holds the purposes `plugin` and `plugin-revocations` only, and the verifier
+  refuses a line with any other purpose. How a licence key is trusted is for `docs/licensing.md` to say, and
+  nothing here changes that page. The two share only the `vss::signed_file` envelope, whose purpose string keeps
+  a signature of one kind from passing as the other.
 
 **The owner's procedure, in outline.** The owner runs these; nothing in this work creates or holds a key. OpenSSL 3
 makes and uses Ed25519 keys, so no other tool is needed for the keys themselves.
@@ -1057,7 +1125,8 @@ plugin asks again. Whether it is offered depends on the install:
 - Studio installed for everyone: only when the administrator's policy has `allow_no_sandbox: true`. With no
   policy file it is not offered. A plugin a user installed for themselves does not get free rein on a computer
   someone else administers.
-- Studio installed for one user: offered, because that user already controls everything Studio is.
+- Studio installed for one user (section 5.2 says how Studio tells): offered, because that user already
+  controls everything Studio is, unless a policy file is there and says `allow_no_sandbox: false`.
 
 An administrator can raise the minimum to `full`, and can lower it to `none` for everyone, which is the old
 behaviour and is their choice to make.
@@ -1420,13 +1489,19 @@ The owner went through these on 13 November 2026. Each line says what was decide
 
 **Still open:**
 
-1. **Studio installed for one user** (section 5.2): the investigation.
-2. **From the owner, when ready:** the root public key and the first official key list as public files, and how
-   long an official plugin's `not_after` runs.
-3. **The order of a rule set and modifiers on one route stage** (section 7.6), to agree with
-   `docs/response-timing.md`.
-4. **Whether licence files use the key list** of section 8.9: the licensing page's decision.
-5. **The screens for decoding and triggers** (section 20.9).
+1. **From the owner, when the verifier and its signing script exist:** the root public key (and a next one) and
+   the first official key list, as public files. Nothing is needed before then (section 8.9).
+2. **How long an official plugin's `not_after` runs.** The owner's first thought was 28 days; this page
+   recommends the signing key's `valid_to` and gives the reasons (section 8.5). To be confirmed.
+3. **The order of a rule set and modifiers on one route stage.** This page recommends the rule set first
+   (section 7.6). `docs/response-timing.md` has to say the same.
+4. **The screens for decoding and triggers** (section 20.9). They are not written yet.
+
+**Closed since the review:**
+
+- **Studio installed for one user**: investigated (section 5.2). No installer gets a second mode; Studio tells
+  the kind of install from its folder; the agent's `hello` has to say which copy it is.
+- **Licence files and the key list**: the owner decided that licence files do not use it (section 8.9).
 
 ## 18. Order of work after review
 
