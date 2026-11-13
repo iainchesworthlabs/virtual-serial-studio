@@ -427,7 +427,7 @@ int report_with_code(const char* what, const vss::error_code& error,
         message += " (";
         message += vss::control::code_name(
             static_cast<vss::control::api_errc>(error.value()));
-        message += ")";
+        message += ')';
     }
     std::fprintf(stderr, "control %s failed: %s\n", what, message.c_str());
     return exit_refused;
