@@ -135,9 +135,10 @@ try
         bool declined =
             qEnvironmentVariable("VSS_PROFILE") == QLatin1String("0");
         for (int index = 1; index < argc; ++index)
-            declined =
-                declined || std::strcmp(argv[index], "--no-profile") == 0;
-        if (!declined && vss::gui::support::load_ui_settings().profile_on_start)
+            declined = declined ||
+                       std::strcmp(argv[index], "--no-profile") == 0;
+        if (!declined &&
+            vss::gui::support::load_ui_settings().profile_on_start)
         {
             auto remembered = profile;
             remembered.enable = true;
@@ -257,12 +258,13 @@ try
         }
         if (parser.isSet(version_option))
         {
-            std::fprintf(
-                stdout, "%s %s\n",
-                QCoreApplication::applicationName().toLocal8Bit().constData(),
-                QCoreApplication::applicationVersion()
-                    .toLocal8Bit()
-                    .constData());
+            std::fprintf(stdout, "%s %s\n",
+                         QCoreApplication::applicationName()
+                             .toLocal8Bit()
+                             .constData(),
+                         QCoreApplication::applicationVersion()
+                             .toLocal8Bit()
+                             .constData());
             std::fflush(stdout);
             return 0;
         }
