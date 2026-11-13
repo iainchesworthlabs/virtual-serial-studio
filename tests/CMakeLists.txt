@@ -29,6 +29,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_targets.cpp
   unit/test_hub_targets_stress.cpp
   unit/test_hub_topology.cpp
+  unit/test_license.cpp
+  unit/test_license_signature.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
   unit/test_rfc2217.cpp
@@ -78,7 +80,7 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
-  vss_agent_proto vss_agent_core)
+  vss_agent_proto vss_agent_core vss_license_test_keys Vss::Monocypher)
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE
@@ -150,7 +152,7 @@ add_subdirectory(fuzz)
 # A packaging smoke test: the public headers compile on their own.
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
-  vss_agent_proto vss_agent_core)
+  vss_agent_proto vss_agent_core vss_license_test_keys)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 

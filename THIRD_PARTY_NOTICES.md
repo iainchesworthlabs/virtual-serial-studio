@@ -12,6 +12,7 @@ redistributing the combined application under GPL-3.0-or-later.
 | [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) | v0.1.0-beta.2 | Boost Software License 1.0 | Header-only; the serial transport, backends and mock fixture behind every endpoint |
 | [Boost](https://boost.org) | 1.92 headers | Boost Software License 1.0 | Asio, System, JSON |
 | [Qt](https://qt.io) | 6.10.3 | LGPL-3.0-only OR GPL-3.0-only OR commercial | The GUI; linked dynamically |
+| [Monocypher](https://monocypher.org) | 4.0.2 | BSD-2-Clause OR CC0-1.0 | Vendored unchanged in `third_party/monocypher`; the Ed25519 signature check behind licence files (`libs/vss_license`) |
 | [Tracy](https://github.com/wolfpld/tracy) | 0.14.1 (vcpkg) | BSD-3-Clause | Optional profiling client, compiled in only with `VSS_TRACY=ON`, built from an overlay of the vcpkg port (`cmake/vcpkg-ports/tracy`, MIT, adds the manual-lifetime and no-broadcast features); the capture and CSV tools are built from source in CI |
 
 BSL-1.0 is a permissive licence whose only requirement is to keep the
@@ -24,6 +25,7 @@ GPL-3.0-or-later application is one of the uses Qt's own GPLv3 option permits.
 | Component | Licence | How it is used |
 |---|---|---|
 | [com0com](https://sourceforge.net/projects/com0com/) | GPL (as distributed by the project) | An optional Windows kernel driver. The application detects installed pairs, opens their COM ports, and may invoke `setupc.exe` (with elevation) to create a pair. Nothing from com0com is linked into this application. |
+| [Project Wycheproof](https://github.com/C2SP/wycheproof) test vectors | Apache-2.0 | `tests/data/wycheproof/ed25519_test.json`, unchanged. Read by the unit tests only; not distributed with the application. |
 | CMake, Ninja, LLVM/Clang | BSD-3-Clause, Apache-2.0, Apache-2.0 with LLVM exception | Build and coverage tooling only; not distributed with the application. |
 
 ## Files derived from the Boost.VirtualSerial repository

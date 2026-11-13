@@ -112,11 +112,13 @@ include(VssFuzz)
 # Subprojects
 # ---------------------------------------------------------------------------
 
+# Monocypher (third_party) and the portable core of the Windows driver are C.
+enable_language(C)
+add_subdirectory(third_party/monocypher)
 add_subdirectory(libs)
 
-# The portable core of the Windows driver is C. It is built for the tests only.
+# The driver core is built for the tests only.
 if(VSS_BUILD_TESTS)
-  enable_language(C)
   add_subdirectory(drivers/windows/vsscom/core)
 endif()
 
@@ -150,6 +152,7 @@ if(VSS_INSTALL)
     DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio
     COMPONENT runtime)
   install(FILES LICENSES/BSL-1.0.txt LICENSES/GPL-3.0-or-later.txt
+    LICENSES/BSD-2-Clause.txt LICENSES/CC0-1.0.txt
     DESTINATION ${CMAKE_INSTALL_DATADIR}/virtual_serial_studio/LICENSES
     COMPONENT runtime)
 

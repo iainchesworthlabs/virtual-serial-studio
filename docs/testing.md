@@ -54,8 +54,8 @@ of every selected case.
   `gui_support`, `gui_dialogs`, `gui_flows`), and the UI suite described
   [below](#the-ui-suite). They exist only when Qt was found and run on
   `QT_QPA_PLATFORM=offscreen`.
-* **Fuzz replays** — `fuzz_topology`, `fuzz_endpoint_uri` and `fuzz_agent_frame`
-  replay the corpora once per build; see [Fuzzing](fuzzing.md).
+* **Fuzz replays** — `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame` and
+  `fuzz_licence` replay the corpora once per build; see [Fuzzing](fuzzing.md).
 * **Tools** — `headers` (every public header compiles on its own),
   `matrix_tools` (the Python under `tools/matrix`), the `vm_*` tests (the
   PowerShell scripts of the [guest harness](vm-testing.md), checked against a
