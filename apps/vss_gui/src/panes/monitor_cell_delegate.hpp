@@ -20,9 +20,9 @@ namespace vss::gui
 /// Qt lays a cell's whole text out before it cuts it to the cell, and that
 /// costs about 2 microseconds a character: a 256 byte preview is 256
 /// characters as text and 767 as hex, of which a cell shows the first hundred
-/// or so. For the cells of one column, in a font whose ASCII characters all
-/// have one width, the delegate hands Qt only as many characters as are sure
-/// to overflow the cell. Qt cuts those where it would have cut the whole
+/// or so. For the cells of one column, when the text is all ASCII and the
+/// font's ASCII characters all have one width, the delegate hands Qt only as
+/// many characters as are sure to overflow the cell. Qt cuts those where it would have cut the whole
 /// text and draws the same ellipsis, so the cell looks the same. The model,
 /// the tooltip and the accessible text keep the whole text.
 class MonitorCellDelegate final : public QStyledItemDelegate

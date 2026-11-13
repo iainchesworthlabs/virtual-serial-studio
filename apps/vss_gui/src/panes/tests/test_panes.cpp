@@ -553,8 +553,13 @@ TEST_CASE("monitor: a long preview is drawn as Qt draws the whole text")
         text += QLatin1Char(static_cast<char>('A' + index % 26));
         hex += QStringLiteral("%1 ").arg(index, 2, 16, QLatin1Char('0'));
     }
-    const QStringList previews{text, hex, QStringLiteral("short"),
+    const QStringList previews{text,
+                               hex,
+                               QStringLiteral("short"),
                                text.left(90) + QChar(0x05e9) + text,
+                               text.left(90) + QChar(0x4e2d) + text,
+                               text.left(90) + QChar(0x0e01) + text,
+                               text.left(90) + QChar(0x0915) + text,
                                QString(600, QLatin1Char('i'))};
     QStandardItemModel model(static_cast<int>(previews.size()), 2);
     for (int row = 0; row < previews.size(); ++row)

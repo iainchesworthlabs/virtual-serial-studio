@@ -313,9 +313,10 @@ one of the costs that were removed. The bench prints the display's refresh rate 
   The cost of a painted cell is for each cell, so a pane with 20 rows visible pays about 8 times as much for a paint.
 - Whether the cut preview is the same picture in every font: the test compares it with Qt's own drawing of the whole
   text at 61 widths in three fonts of the machine (the first whose ASCII characters all measure one width, the first
-  the system calls fixed-width, and the application's). The cut is made only when the characters measure one width;
-  the font's own word is not enough, because the letters of a fixed-width emoji font come from another font. In any
-  other font the cell costs what it did.
+  the system calls fixed-width, and the application's). The cut is made only when the text is all ASCII and the
+  font's ASCII characters measure one width. A character of another font anywhere in the text, even in the part that
+  is cut off, moves the line Qt draws (the Linux runners and then a test on Windows showed it), so such text is left
+  whole. In any other font the cell costs what it did.
 - Why a block of memory is so dear on the GUI thread under this traffic (the heap shared with the engine's threads, or
   memory out of the cache): the profile shows where, not why.
 - The `gui.gpu.frame` zone was checked to appear when asked for (2029 zones in a bench run with `--gpu-timing`, 7 to

@@ -92,10 +92,12 @@ void MonitorCellDelegate::initStyleOption(QStyleOptionViewItem* option,
     const qsizetype keep = characters_kept(option->rect.width(), advance_);
     if (option->text.size() <= keep)
         return;
-    // Payload previews are ASCII. Other text (the translated sentence of a
-    // dropped row) may hold characters of other widths and is left whole.
-    const QStringView kept = QStringView(option->text).first(keep);
-    if (std::all_of(kept.begin(), kept.end(),
+    // Payload previews are ASCII. Any other character, in the part that is
+    // shown or the part that is not, leaves the text whole: it may come from
+    // another font, and a taller font anywhere in the text moves the line
+    // that Qt draws, even when the character itself is cut off.
+    const QString& whole = option->text;
+    if (std::all_of(whole.begin(), whole.end(),
                     [](QChar character) { return character.unicode() < 0x80; }))
         option->text.truncate(keep);
 }
