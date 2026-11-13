@@ -8,6 +8,7 @@
 #define VSS_GUI_ADVANCED_JSON_EDITOR_HPP
 
 #include "advanced/json_validation.hpp"
+#include "backend/background_work.hpp"
 #include "backend/studio_backend.hpp"
 
 #include <QPlainTextEdit>
@@ -73,7 +74,11 @@ public:
 
     bool is_dirty() const;
     bool can_apply() const;
+    /// Starts applying the text to the engine on a worker thread and returns
+    /// true; `applied` or an error message follows on the GUI thread.  False
+    /// when nothing can be applied or an apply is already running.
     bool apply();
+    bool busy() const noexcept { return work_.busy(); }
     void revert();
     void format();
 
@@ -115,6 +120,9 @@ private:
     json_validation validation_;
     QString apply_error_summary_;
     QString apply_error_detail_;
+    /// Applying makes ports, which takes seconds in Windows, so it runs on a
+    /// worker thread.
+    BackgroundWork work_;
     bool applying_ = false;
 
     JsonCodeEdit* editor_ = nullptr;

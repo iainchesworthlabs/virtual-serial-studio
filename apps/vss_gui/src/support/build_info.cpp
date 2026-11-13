@@ -7,6 +7,7 @@
 #include "support/build_info.hpp"
 
 #include "language/language_choice.hpp"
+#include "rendering/render_state.hpp"
 
 #include <QCoreApplication>
 #include <QSysInfo>
@@ -70,6 +71,7 @@ build_info current_build_info()
     info.profiling = QString::fromStdString(
         vss::profiling::describe(vss::profiling::current()));
     info.language = vss::gui::language_choice_description();
+    info.renderer = vss::gui::rendering::describe();
     return info;
 }
 
@@ -89,6 +91,7 @@ QVector<environment_row> environment_rows(const build_info& info)
          QStringLiteral("%1, kernel %2").arg(info.architecture, info.kernel)},
         {QStringLiteral("Profiling"), info.profiling},
         {QStringLiteral("Language"), info.language},
+        {QStringLiteral("Renderer"), info.renderer},
     };
 }
 

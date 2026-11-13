@@ -31,7 +31,9 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include <memory>
 #include <utility>
+#include <vector>
 
 namespace vss::gui
 {
@@ -785,59 +787,103 @@ void AttachDialog::attach()
     const bool capture = capture_->isChecked();
     const QString name = name_->text().trimmed();
 
-    const auto physical = backend_.attach_serial(
-        name + QStringLiteral("-input"), uri, serial, capture);
-    if (!physical)
-    {
-        flow_error error;
-        error.title = error_title(tr("open"), device_path);
-        error.body = error_body(
-            physical.error(),
-            tr("Another program may be using the device, or it may have been "
-               "unplugged."),
-            tr(" Close the other program or check the cable, then try again."));
-        error.details = error_text(physical.error());
-        show_error(error, device_path, true);
+    if (busy())
         return;
-    }
 
-    const auto logical = backend_.create_auto_port(name, capture);
-    if (!logical)
+    // Opening the device and making the port take seconds where Windows
+    // installs a device, so they run on a worker thread.
+    enum class stage
     {
-        static_cast<void>(backend_.remove_port(*physical));
-        flow_error error;
-        error.title = tr("Could not create the port for %1").arg(device_path);
-        error.body = error_body(
-            logical.error(),
-            tr("Studio opened the device but could not create the port your "
-               "programs open. Nothing was changed."),
-            tr(" Try again, or choose another device."));
-        error.details = error_text(logical.error());
-        show_error(error, device_path, true);
-        return;
-    }
-
-    const auto link =
-        backend_.split(*physical, std::vector<vss::endpoint_id>{*logical}, {});
-    if (!link)
+        done,
+        physical,
+        logical,
+        link
+    };
+    struct outcome
     {
-        static_cast<void>(backend_.remove_port(*logical));
-        static_cast<void>(backend_.remove_port(*physical));
-        flow_error error;
-        error.title = tr("Could not create the port for %1").arg(device_path);
-        error.body = error_body(
-            link.error(),
-            tr("Studio opened the device but could not give your programs a "
-               "port. Nothing was changed."),
-            tr(" Try again, or choose another device."));
-        error.details = error_text(link.error());
-        show_error(error, device_path, true);
-        return;
-    }
-
-    physical_port_ = *physical;
-    logical_port_ = *logical;
-    accept();
+        stage failed = stage::done;
+        vss::error_code error;
+        vss::endpoint_id physical = 0;
+        vss::endpoint_id logical = 0;
+    };
+    auto state = std::make_shared<outcome>();
+    run_in_background(
+        [this, state, uri, serial, capture, name]
+        {
+            const auto physical = backend_.attach_serial(
+                name + QStringLiteral("-input"), uri, serial, capture);
+            if (!physical)
+            {
+                state->failed = stage::physical;
+                state->error = physical.error();
+                return;
+            }
+            const auto logical = backend_.create_auto_port(name, capture);
+            if (!logical)
+            {
+                static_cast<void>(backend_.remove_port(*physical));
+                state->failed = stage::logical;
+                state->error = logical.error();
+                return;
+            }
+            const auto link = backend_.split(
+                *physical, std::vector<vss::endpoint_id>{*logical}, {});
+            if (!link)
+            {
+                static_cast<void>(backend_.remove_port(*logical));
+                static_cast<void>(backend_.remove_port(*physical));
+                state->failed = stage::link;
+                state->error = link.error();
+                return;
+            }
+            state->physical = *physical;
+            state->logical = *logical;
+        },
+        [this, state, device_path]
+        {
+            backend_.refresh();
+            if (state->failed == stage::done)
+            {
+                physical_port_ = state->physical;
+                logical_port_ = state->logical;
+                accept();
+                return;
+            }
+            flow_error error;
+            if (state->failed == stage::physical)
+            {
+                error.title = error_title(tr("open"), device_path);
+                error.body = error_body(
+                    state->error,
+                    tr("Another program may be using the device, or it may "
+                       "have been unplugged."),
+                    tr(" Close the other program or check the cable, then "
+                       "try again."));
+            }
+            else if (state->failed == stage::logical)
+            {
+                error.title =
+                    tr("Could not create the port for %1").arg(device_path);
+                error.body = error_body(
+                    state->error,
+                    tr("Studio opened the device but could not create the "
+                       "port your programs open. Nothing was changed."),
+                    tr(" Try again, or choose another device."));
+            }
+            else
+            {
+                error.title =
+                    tr("Could not create the port for %1").arg(device_path);
+                error.body = error_body(
+                    state->error,
+                    tr("Studio opened the device but could not give your "
+                       "programs a port. Nothing was changed."),
+                    tr(" Try again, or choose another device."));
+            }
+            error.details = error_text(state->error);
+            show_error(error, device_path, true);
+        },
+        tr("Attaching"), setting_up_text());
 }
 
 void AttachDialog::show_error(const flow_error& error,

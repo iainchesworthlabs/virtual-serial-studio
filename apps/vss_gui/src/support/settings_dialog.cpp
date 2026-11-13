@@ -7,6 +7,7 @@
 #include "support/settings_dialog.hpp"
 
 #include "profiling/profiling_controller.hpp"
+#include "rendering/render_state.hpp"
 #include "support/setup_facts.hpp"
 #include "support/sign_in_start.hpp"
 #include "theme/theme.hpp"
@@ -498,6 +499,49 @@ void SettingsDialog::build()
         refresh_holder));
     performance_layout->addWidget(refresh_holder);
 
+    // -- Rendering ---------------------------------------------------------
+    // How the canvas is drawn. The choice is read at start-up, so a change
+    // only takes effect after a restart.
+    performance_layout->addWidget(section_title(
+        QCoreApplication::translate("Settings", "Rendering"), performance));
+    auto* render_holder = new QWidget(performance);
+    render_holder->setMaximumWidth(460);
+    auto* render_layout = new QVBoxLayout(render_holder);
+    render_layout->setContentsMargins(0, 0, 0, 0);
+    render_layout->setSpacing(8);
+    render_ = new SegmentedControl(render_holder);
+    render_->setObjectName(QStringLiteral("renderControl"));
+    render_->setAccessibleName(
+        QCoreApplication::translate("Settings", "Rendering"));
+    render_->add_item(QCoreApplication::translate("Settings", "Automatic"),
+                      static_cast<int>(rendering::render_mode::automatic));
+    render_->add_item(QCoreApplication::translate("Settings", "Hardware (GPU)"),
+                      static_cast<int>(rendering::render_mode::hardware));
+    render_->add_item(QCoreApplication::translate("Settings", "Software (CPU)"),
+                      static_cast<int>(rendering::render_mode::software));
+    render_->set_current(static_cast<int>(settings_.render_mode));
+    render_layout->addWidget(render_);
+    render_layout->addWidget(hint_label(
+        QCoreApplication::translate(
+            "Settings",
+            "Hardware draws the canvas on the graphics card, which keeps it "
+            "smooth with many ports. Software draws it on the processor. "
+            "Automatic uses the graphics card when there is a usable one."),
+        render_holder));
+    render_status_ = hint_label({}, render_holder);
+    render_status_->setObjectName(QStringLiteral("renderStatus"));
+    render_layout->addWidget(render_status_);
+    performance_layout->addWidget(render_holder);
+    connect(render_, &SegmentedControl::current_changed, this,
+            [this](int id)
+            {
+                settings_.render_mode = static_cast<rendering::render_mode>(id);
+                render_changed_ = true;
+                sync_render_status();
+                persist();
+            });
+    sync_render_status();
+
     // -- Profiling ---------------------------------------------------------
     performance_layout->addWidget(section_title(
         QCoreApplication::translate("Settings", "Profiling"), performance));
@@ -715,6 +759,32 @@ void SettingsDialog::sync_profiling()
     profiling_status_->setAccessibleName(text);
 }
 
+void SettingsDialog::sync_render_status()
+{
+    const auto& state = rendering::current();
+    QString text = QCoreApplication::translate("Settings", "Drawing now: %1")
+                       .arg(rendering::describe());
+    const bool overridden = state.source != rendering::request_source::setting;
+    if (render_changed_ ||
+        (!overridden && settings_.render_mode != state.requested))
+    {
+        text += QLatin1Char('\n') +
+                QCoreApplication::translate("Settings",
+                                            "Restart Studio to use this "
+                                            "choice.");
+    }
+    if (overridden)
+    {
+        text += QLatin1Char('\n') +
+                QCoreApplication::translate(
+                    "Settings",
+                    "VSS_RENDER or --render is set, so it overrides this "
+                    "choice.");
+    }
+    render_status_->setText(text);
+    render_status_->setAccessibleName(text);
+}
+
 void SettingsDialog::apply_refresh()
 {
     settings_.refresh_ms =
@@ -758,7 +828,10 @@ void SettingsDialog::reset_to_defaults()
         density_->set_current(0);
         const QSignalBlocker block_links(link_style_);
         link_style_->set_current(0);
+        const QSignalBlocker block_render(render_);
+        render_->set_current(static_cast<int>(settings_.render_mode));
     }
+    sync_render_status();
     {
         const QSignalBlocker block_system(theme_system_);
         const QSignalBlocker block_light(theme_light_);

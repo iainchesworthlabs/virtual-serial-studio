@@ -3136,7 +3136,7 @@ Networks: %5</source>
             <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1497" />
+            <location filename="../src/simple/job_form.cpp" line="1577" />
             <source>Copy details</source>
             <translation>詳細をコピー</translation>
         </message>
@@ -5975,6 +5975,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>グラフィックスシステムを開始できませんでした (%1)。</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>理由は示されていません</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>見つかったグラフィックスデバイスはソフトウェアレンダラーだけです (%1)。</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>ハードウェア (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>ハードウェア (GPU): %1, %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>ソフトウェア (CPU)、理由: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ソフトウェア (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>グラフィックスデバイスが動作を停止しました。</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>グラフィックスデバイスが作成されませんでした</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6295,52 +6334,84 @@ Networks: %5</source>
             <translation>Studio が遅い原因を調べるための機能です。記録するのは処理時間だけで、何も送信しません。Studio はこのコンピューターだけで待ち受け、ここで Tracy プロファイラーを起動して上のアドレスに接続したときにだけタイムラインが表示されます。このスイッチは記憶され、次回の起動時にも記録されます。他のコンピューターからの接続を許可するには再起動が必要です。</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="165" />
+            <source>Rendering</source>
+            <translation>描画</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>自動</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>ハードウェア (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>ソフトウェア (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>ハードウェアはキャンバスをグラフィックスカードで描画します。ポートが多くても滑らかに動きます。ソフトウェアはプロセッサーで描画します。自動は、使えるグラフィックスカードがあればそれを使います。</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>現在の描画方法: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>この選択を使うには Studio を再起動してください。</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>VSS_RENDER または --render が設定されているため、この選択より優先されます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="166" />
             <source>Running</source>
             <translation>実行中</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="251" />
+            <location filename="../src/support/settings_dialog.cpp" line="252" />
             <source>Your ports run on this computer until you quit Studio or open another setup. The window is only for setting them up and watching them.</source>
             <translation>ポートは、Studio を終了するか別のセットアップを開くまで、このコンピューターで動き続けます。ウィンドウはポートの設定と監視のためだけのものです。</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="261" />
+            <location filename="../src/support/settings_dialog.cpp" line="262" />
             <source>When I close the window</source>
             <translation>ウィンドウを閉じたとき</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="270" />
+            <location filename="../src/support/settings_dialog.cpp" line="271" />
             <source>Keep the ports running in the background</source>
             <translation>ポートをバックグラウンドで動かし続ける</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="275" />
+            <location filename="../src/support/settings_dialog.cpp" line="276" />
             <source>Stop the ports and quit</source>
             <translation>ポートを停止して終了</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="288" />
+            <location filename="../src/support/settings_dialog.cpp" line="289" />
             <source>Start when I sign in</source>
             <translation>サインイン時に起動</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="295" />
+            <location filename="../src/support/settings_dialog.cpp" line="296" />
             <source>Not available in this build</source>
             <translation>このビルドでは利用できません</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="299" />
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
             <source>Studio starts in the notification area and starts the ports that were running before the computer restarted.</source>
             <translation>Studio は通知領域で起動し、コンピューターの再起動前に動いていたポートを開始します。</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="580" />
+            <location filename="../src/support/settings_dialog.cpp" line="624" />
             <source>Could not change start at sign-in</source>
             <translation>サインイン時の起動を変更できませんでした</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="582" />
+            <location filename="../src/support/settings_dialog.cpp" line="626" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio はサインイン用のエントリを書き込めませんでした。何も変更されていません。</translation>
         </message>
@@ -8980,157 +9051,161 @@ Networks: %5</source>
             <translation>Virtual Serial Studio のセットアップが完了しました。新しいポートを他のプログラムから開けます。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="382" />
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>キャンバスはプロセッサーで描画されています: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="384" />
             <source>canvas new port</source>
             <translation>キャンバス 新しいポート</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="389" />
+            <location filename="../src/shell/shell_window.cpp" line="391" />
             <source>Add fixture</source>
             <translation>フィクスチャを追加</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="390" />
+            <location filename="../src/shell/shell_window.cpp" line="392" />
             <source>canvas new mock fixture</source>
             <translation>キャンバス 新しいモックフィクスチャ</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="397" />
+            <location filename="../src/shell/shell_window.cpp" line="399" />
             <source>Add pair</source>
             <translation>ペアを追加</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="398" />
+            <location filename="../src/shell/shell_window.cpp" line="400" />
             <source>canvas bundle two ports null modem</source>
             <translation>キャンバス バンドル 2つのポート ヌルモデム</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="406" />
+            <location filename="../src/shell/shell_window.cpp" line="408" />
             <source>Duplicate</source>
             <translation>複製</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="407" />
+            <location filename="../src/shell/shell_window.cpp" line="409" />
             <source>copy ports canvas</source>
             <translation>ポート コピー キャンバス</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="421" />
+            <location filename="../src/shell/shell_window.cpp" line="423" />
             <source>Show toolbox</source>
             <translation>ツールボックスを表示</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="422" />
+            <location filename="../src/shell/shell_window.cpp" line="424" />
             <source>canvas tiles palette</source>
             <translation>キャンバス タイル パレット</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="760" />
+            <location filename="../src/shell/shell_window.cpp" line="764" />
             <source>Start again</source>
             <translation>もう一度開始</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3204" />
+            <location filename="../src/shell/shell_window.cpp" line="3305" />
             <source>This stops %1 ports and %2 links. Studio offers to start them again the next time it opens.</source>
             <translation>%1個のポートと%2個のリンクを停止します。次に Studio を開いたときに、もう一度開始するか確認します。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3208" />
+            <location filename="../src/shell/shell_window.cpp" line="3309" />
             <source>Stop the ports and quit?</source>
             <translation>ポートを停止して終了しますか?</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3209" />
+            <location filename="../src/shell/shell_window.cpp" line="3310" />
             <source>Stop the ports and quit</source>
             <translation>ポートを停止して終了</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3210" />
+            <location filename="../src/shell/shell_window.cpp" line="3311" />
             <source>Keep running</source>
             <translation>動かし続ける</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3248" />
+            <location filename="../src/shell/shell_window.cpp" line="3356" />
             <source>Keep the ports running?</source>
             <translation>ポートを動かし続けますか?</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3249" />
+            <location filename="../src/shell/shell_window.cpp" line="3357" />
             <source>This desktop has no notification area to keep Studio in. Minimise the window to keep the ports running, or stop them and quit.</source>
             <translation>このデスクトップには Studio を置いておく通知領域がありません。ポートを動かし続けるにはウィンドウを最小化してください。または、ポートを停止して終了してください。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3256" />
+            <location filename="../src/shell/shell_window.cpp" line="3364" />
             <source>Minimise instead</source>
             <translation>代わりに最小化</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3336" />
+            <location filename="../src/shell/shell_window.cpp" line="3444" />
             <source>Could not change start at sign-in</source>
             <translation>サインイン時の起動を変更できませんでした</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3337" />
+            <location filename="../src/shell/shell_window.cpp" line="3445" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio はサインイン用のエントリを書き込めませんでした。何も変更されていません。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3359" />
+            <location filename="../src/shell/shell_window.cpp" line="3467" />
             <source>The ports from last time could not be read, so Studio started without them.</source>
             <translation>前回のポートを読み込めなかったため、Studio はポートなしで起動しました。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3436" />
+            <location filename="../src/shell/shell_window.cpp" line="3547" />
             <source>Could not start the ports from last time: %1</source>
             <translation>前回のポートを開始できませんでした: %1</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3441" />
+            <location filename="../src/shell/shell_window.cpp" line="3553" />
             <source>Could not start the ports from last time</source>
             <translation>前回のポートを開始できませんでした</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3442" />
+            <location filename="../src/shell/shell_window.cpp" line="3554" />
             <source>Open Studio to see why and start them again.</source>
             <translation>Studio を開いて理由を確認し、もう一度開始してください。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3460" />
+            <location filename="../src/shell/shell_window.cpp" line="3572" />
             <source>Started the ports that were running before: %1 ports, %2 links.</source>
             <translation>以前動いていたポートを開始しました: ポート%1個、リンク%2個。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3464" />
+            <location filename="../src/shell/shell_window.cpp" line="3576" />
             <source>Started the ports again: %1 ports, %2 links.</source>
             <translation>ポートをもう一度開始しました: ポート%1個、リンク%2個。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3492" />
+            <location filename="../src/shell/shell_window.cpp" line="3605" />
             <source>When you last quit, %1 ports and %2 links were running.</source>
             <translation>前回終了したとき、ポート%1個とリンク%2個が動いていました。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3507" />
+            <location filename="../src/shell/shell_window.cpp" line="3620" />
             <source>Some COM ports were lost</source>
             <translation>一部のCOMポートが失われました</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3508" />
+            <location filename="../src/shell/shell_window.cpp" line="3621" />
             <source>Open Studio to recreate them.</source>
             <translation>Studio を開いて作り直してください。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3522" />
+            <location filename="../src/shell/shell_window.cpp" line="3635" />
             <source>Studio is still running your ports</source>
             <translation>Studio はポートを動かし続けています</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3524" />
+            <location filename="../src/shell/shell_window.cpp" line="3637" />
             <source>Open it again from this icon, or quit it there to stop the ports. To have them back after a restart, choose Start when I sign in in the same menu.</source>
             <translation>このアイコンからもう一度開くか、ここで終了するとポートが停止します。再起動後にポートを元に戻すには、同じメニューで「サインイン時に起動」を選んでください。</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3527" />
+            <location filename="../src/shell/shell_window.cpp" line="3640" />
             <source>Open it again from this icon, or quit it there to stop the ports.</source>
             <translation>このアイコンからもう一度開くか、ここで終了するとポートが停止します。</translation>
         </message>
@@ -11482,6 +11557,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation>別の名前または種類を試してから、もう一度やり直してください。</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11777,6 +11856,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>別のものを選ぶ</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>接続中</translation>
         </message>
     </context>
     <context>
@@ -12874,6 +12957,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>スクロール</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>進行状況</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13935,6 +14026,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>ペアを作成</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
         </message>
     </context>
     <context>
@@ -16518,6 +16613,14 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>レイアウトをリセットしました。</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>進行状況</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -16953,6 +17056,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>%1を保存しました。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>適用中</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
         </message>
     </context>
     <context>
@@ -17703,6 +17814,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>適用中</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>作成中</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>変更を適用しています。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>セットアップ中です。Windows が新しいポートをそれぞれインストールするため、最大 1 分かかることがあります。</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>セットアップの進行状況</translation>
         </message>
     </context>
     <context>
@@ -19415,161 +19546,161 @@ Networks: %5</source>
     <context>
         <name>TopologyView</name>
         <message numerus="yes">
-            <location filename="../src/topology/topology_view.cpp" line="829" />
+            <location filename="../src/topology/topology_view.cpp" line="919" />
             <source>%n selected: %1</source>
             <translation>
                 <numerusform>%n個を選択: %1</numerusform>
             </translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2233" />
+            <location filename="../src/topology/topology_view.cpp" line="2363" />
             <source>Drag a port or bundle from the toolbox, or press Enter on one.</source>
             <translation>ツールボックスからポートまたはバンドルをドラッグするか、選んでEnterキーを押してください。</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2442" />
+            <location filename="../src/topology/topology_view.cpp" line="2572" />
             <source>Choose the port to link %1 to, then press Enter. Esc cancels.</source>
             <translation>%1のリンク先のポートを選び、Enterキーを押してください。Escで取り消します。</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2574" />
+            <location filename="../src/topology/topology_view.cpp" line="2704" />
             <source>Two-way</source>
             <translation>双方向</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2575" />
+            <location filename="../src/topology/topology_view.cpp" line="2705" />
             <source>One way, from %1 to %2</source>
             <translation>一方向、%1から%2へ</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2576" />
+            <location filename="../src/topology/topology_view.cpp" line="2706" />
             <source>Monitor %1 on %2</source>
             <translation>%2の%1を監視</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2597" />
+            <location filename="../src/topology/topology_view.cpp" line="2727" />
             <source>Link %1 and %2</source>
             <translation>%1と%2をリンク</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2631" />
+            <location filename="../src/topology/topology_view.cpp" line="2761" />
             <source>New port here</source>
             <translation>ここに新しいポート</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2634" />
+            <location filename="../src/topology/topology_view.cpp" line="2764" />
             <source>New fixture here</source>
             <translation>ここに新しいフィクスチャ</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2635" />
+            <location filename="../src/topology/topology_view.cpp" line="2765" />
             <source>New loopback here</source>
             <translation>ここに新しいループバック</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2641" />
+            <location filename="../src/topology/topology_view.cpp" line="2771" />
             <source>One way, to the new port</source>
             <translation>一方向、新しいポートへ</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2642" />
+            <location filename="../src/topology/topology_view.cpp" line="2772" />
             <source>Monitor on the new port</source>
             <translation>新しいポートで監視</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2682" />
+            <location filename="../src/topology/topology_view.cpp" line="2812" />
             <source>Settings...</source>
             <translation>設定...</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2688" />
+            <location filename="../src/topology/topology_view.cpp" line="2818" />
             <source>A network port has no line settings.</source>
             <translation>ネットワークポートには回線設定がありません。</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2697" />
+            <location filename="../src/topology/topology_view.cpp" line="2827" />
             <source>Duplicate</source>
             <translation>複製</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2703" />
+            <location filename="../src/topology/topology_view.cpp" line="2833" />
             <source>This port can only be opened once.</source>
             <translation>このポートは一度しか開けません。</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2717" />
+            <location filename="../src/topology/topology_view.cpp" line="2847" />
             <source>Delete</source>
             <translation>削除</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2725" />
+            <location filename="../src/topology/topology_view.cpp" line="2855" />
             <source>Link selected</source>
             <translation>リンクを選択</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2741" />
+            <location filename="../src/topology/topology_view.cpp" line="2871" />
             <source>Select exactly two ports.</source>
             <translation>ポートをちょうど2つ選んでください。</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2742" />
+            <location filename="../src/topology/topology_view.cpp" line="2872" />
             <source>Split from %1</source>
             <translation>%1から分割</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2743" />
+            <location filename="../src/topology/topology_view.cpp" line="2873" />
             <source>Join into %1</source>
             <translation>%1に結合</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2744" />
+            <location filename="../src/topology/topology_view.cpp" line="2874" />
             <source>Bus</source>
             <translation>バス</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2745" />
+            <location filename="../src/topology/topology_view.cpp" line="2875" />
             <source>Switch on %1</source>
             <translation>%1のスイッチ</translation>
         </message>
         <message numerus="yes">
-            <location filename="../src/topology/topology_view.cpp" line="2768" />
+            <location filename="../src/topology/topology_view.cpp" line="2898" />
             <source>Settings for %n ports...</source>
             <translation>
                 <numerusform>%n個のポートの設定...</numerusform>
             </translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2788" />
+            <location filename="../src/topology/topology_view.cpp" line="2918" />
             <source>A monitor link has no settings.</source>
             <translation>モニターリンクには設定がありません。</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2792" />
+            <location filename="../src/topology/topology_view.cpp" line="2922" />
             <source>Reverse direction</source>
             <translation>向きを反転</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2819" />
+            <location filename="../src/topology/topology_view.cpp" line="2949" />
             <source>Add port</source>
             <translation>ポートを追加</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2820" />
+            <location filename="../src/topology/topology_view.cpp" line="2950" />
             <source>Add fixture</source>
             <translation>フィクスチャを追加</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2821" />
+            <location filename="../src/topology/topology_view.cpp" line="2951" />
             <source>Add loopback</source>
             <translation>ループバックを追加</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2822" />
+            <location filename="../src/topology/topology_view.cpp" line="2952" />
             <source>Add bundle</source>
             <translation>バンドルを追加</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2829" />
+            <location filename="../src/topology/topology_view.cpp" line="2959" />
             <source>Select all</source>
             <translation>すべて選択</translation>
         </message>

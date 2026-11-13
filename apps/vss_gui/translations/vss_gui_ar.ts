@@ -3141,7 +3141,7 @@ Networks: %5</source>
             <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
         </message>
         <message>
-            <location filename="../src/simple/job_form.cpp" line="1497" />
+            <location filename="../src/simple/job_form.cpp" line="1577" />
             <source>Copy details</source>
             <translation>نسخ التفاصيل</translation>
         </message>
@@ -5985,6 +5985,45 @@ Networks: %5</source>
         </message>
     </context>
     <context>
+        <name>Rendering</name>
+        <message>
+            <source>The graphics system could not be started (%1).</source>
+            <translation>تعذر بدء نظام الرسوميات (%1).</translation>
+        </message>
+        <message>
+            <source>no reason given</source>
+            <translation>لم يُذكر سبب</translation>
+        </message>
+        <message>
+            <source>The only graphics device found is a software renderer (%1).</source>
+            <translation>جهاز الرسوميات الوحيد الذي عُثر عليه هو معالج عرض برمجي (%1).</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>الأجهزة (GPU)</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU): %1, %2</source>
+            <translation>الأجهزة (GPU): %1، %2</translation>
+        </message>
+        <message>
+            <source>Software (CPU), because: %1</source>
+            <translation>البرمجيات (CPU)، بسبب: %1</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>البرمجيات (CPU)</translation>
+        </message>
+        <message>
+            <source>The graphics device stopped working.</source>
+            <translation>توقف جهاز الرسوميات عن العمل.</translation>
+        </message>
+        <message>
+            <source>no graphics device was created</source>
+            <translation>لم يتم إنشاء جهاز رسوميات</translation>
+        </message>
+    </context>
+    <context>
         <name>SendPanel</name>
         <message>
             <location filename="../src/panes/send_panel.cpp" line="71" />
@@ -6310,52 +6349,84 @@ Networks: %5</source>
             <translation>لمعرفة سبب بطء Studio. يسجّل الأزمنة فقط ولا يرسل شيئًا إلى أي مكان: يستمع Studio على هذا الحاسوب فقط، ولا يظهر مخطط زمني إلا عندما تشغّل محلل Tracy هنا وتوصله بالعنوان أعلاه. يتذكّر Studio هذا المفتاح ويسجّل مجددًا عند بدء تشغيله في المرة التالية. السماح لحواسيب أخرى بالاتصال يتطلب إعادة التشغيل.</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="165" />
+            <source>Rendering</source>
+            <translation>العرض</translation>
+        </message>
+        <message>
+            <source>Automatic</source>
+            <translation>تلقائي</translation>
+        </message>
+        <message>
+            <source>Hardware (GPU)</source>
+            <translation>الأجهزة (GPU)</translation>
+        </message>
+        <message>
+            <source>Software (CPU)</source>
+            <translation>البرمجيات (CPU)</translation>
+        </message>
+        <message>
+            <source>Hardware draws the canvas on the graphics card, which keeps it smooth with many ports. Software draws it on the processor. Automatic uses the graphics card when there is a usable one.</source>
+            <translation>وضع الأجهزة يرسم اللوحة على بطاقة الرسوميات، فتبقى سلسة مع المنافذ الكثيرة. وضع البرمجيات يرسمها على المعالج. الوضع التلقائي يستخدم بطاقة الرسوميات عند وجود بطاقة صالحة للاستخدام.</translation>
+        </message>
+        <message>
+            <source>Drawing now: %1</source>
+            <translation>الرسم الحالي: %1</translation>
+        </message>
+        <message>
+            <source>Restart Studio to use this choice.</source>
+            <translation>أعد تشغيل Studio لاستخدام هذا الاختيار.</translation>
+        </message>
+        <message>
+            <source>VSS_RENDER or --render is set, so it overrides this choice.</source>
+            <translation>تم تعيين VSS_RENDER أو ‎--render، لذلك يتجاوز هذا الاختيار.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="166" />
             <source>Running</source>
             <translation>قيد التشغيل</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="251" />
+            <location filename="../src/support/settings_dialog.cpp" line="252" />
             <source>Your ports run on this computer until you quit Studio or open another setup. The window is only for setting them up and watching them.</source>
             <translation>تعمل منافذك على هذا الحاسوب إلى أن تنهي Studio أو تفتح إعداداً آخر. النافذة مخصصة لإعداد المنافذ ومراقبتها فقط.</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="261" />
+            <location filename="../src/support/settings_dialog.cpp" line="262" />
             <source>When I close the window</source>
             <translation>عند إغلاق النافذة</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="270" />
+            <location filename="../src/support/settings_dialog.cpp" line="271" />
             <source>Keep the ports running in the background</source>
             <translation>إبقاء المنافذ تعمل في الخلفية</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="275" />
+            <location filename="../src/support/settings_dialog.cpp" line="276" />
             <source>Stop the ports and quit</source>
             <translation>إيقاف المنافذ والإنهاء</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="288" />
+            <location filename="../src/support/settings_dialog.cpp" line="289" />
             <source>Start when I sign in</source>
             <translation>البدء عند تسجيل الدخول</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="295" />
+            <location filename="../src/support/settings_dialog.cpp" line="296" />
             <source>Not available in this build</source>
             <translation>غير متاح في هذا الإصدار</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="299" />
+            <location filename="../src/support/settings_dialog.cpp" line="300" />
             <source>Studio starts in the notification area and starts the ports that were running before the computer restarted.</source>
             <translation>يبدأ Studio في منطقة الإشعارات ويشغّل المنافذ التي كانت تعمل قبل إعادة تشغيل الحاسوب.</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="580" />
+            <location filename="../src/support/settings_dialog.cpp" line="624" />
             <source>Could not change start at sign-in</source>
             <translation>تعذر تغيير البدء عند تسجيل الدخول</translation>
         </message>
         <message>
-            <location filename="../src/support/settings_dialog.cpp" line="582" />
+            <location filename="../src/support/settings_dialog.cpp" line="626" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>تعذر على Studio كتابة إدخال تسجيل الدخول. لم يتغير شيء.</translation>
         </message>
@@ -9010,157 +9081,161 @@ Networks: %5</source>
             <translation>تم إعداد Virtual Serial Studio. يمكن للبرامج الأخرى فتح المنافذ الجديدة.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="382" />
+            <source>The canvas is drawn on the processor: %1</source>
+            <translation>تُرسم اللوحة على المعالج: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="384" />
             <source>canvas new port</source>
             <translation>لوحة منفذ جديد</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="389" />
+            <location filename="../src/shell/shell_window.cpp" line="391" />
             <source>Add fixture</source>
             <translation>إضافة جهاز محاكاة</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="390" />
+            <location filename="../src/shell/shell_window.cpp" line="392" />
             <source>canvas new mock fixture</source>
             <translation>لوحة جهاز محاكاة جديد</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="397" />
+            <location filename="../src/shell/shell_window.cpp" line="399" />
             <source>Add pair</source>
             <translation>إضافة زوج</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="398" />
+            <location filename="../src/shell/shell_window.cpp" line="400" />
             <source>canvas bundle two ports null modem</source>
             <translation>لوحة حزمة منفذين null-modem</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="406" />
+            <location filename="../src/shell/shell_window.cpp" line="408" />
             <source>Duplicate</source>
             <translation>تكرار</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="407" />
+            <location filename="../src/shell/shell_window.cpp" line="409" />
             <source>copy ports canvas</source>
             <translation>نسخ منافذ لوحة</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="421" />
+            <location filename="../src/shell/shell_window.cpp" line="423" />
             <source>Show toolbox</source>
             <translation>إظهار صندوق الأدوات</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="422" />
+            <location filename="../src/shell/shell_window.cpp" line="424" />
             <source>canvas tiles palette</source>
             <translation>لوحة بلاطات صندوق الأدوات</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="760" />
+            <location filename="../src/shell/shell_window.cpp" line="764" />
             <source>Start again</source>
             <translation>البدء مجدداً</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3204" />
+            <location filename="../src/shell/shell_window.cpp" line="3305" />
             <source>This stops %1 ports and %2 links. Studio offers to start them again the next time it opens.</source>
             <translation>يوقف هذا %1 منفذاً و%2 ارتباطاً. يعرض Studio تشغيلها مجدداً عند فتحه في المرة التالية.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3208" />
+            <location filename="../src/shell/shell_window.cpp" line="3309" />
             <source>Stop the ports and quit?</source>
             <translation>إيقاف المنافذ والإنهاء؟</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3209" />
+            <location filename="../src/shell/shell_window.cpp" line="3310" />
             <source>Stop the ports and quit</source>
             <translation>إيقاف المنافذ والإنهاء</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3210" />
+            <location filename="../src/shell/shell_window.cpp" line="3311" />
             <source>Keep running</source>
             <translation>إبقاء التشغيل</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3248" />
+            <location filename="../src/shell/shell_window.cpp" line="3356" />
             <source>Keep the ports running?</source>
             <translation>إبقاء المنافذ تعمل؟</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3249" />
+            <location filename="../src/shell/shell_window.cpp" line="3357" />
             <source>This desktop has no notification area to keep Studio in. Minimise the window to keep the ports running, or stop them and quit.</source>
             <translation>لا تحتوي سطح المكتب هذا على منطقة إشعارات لإبقاء Studio فيها. صغّر النافذة لإبقاء المنافذ تعمل، أو أوقفها وأنهِ البرنامج.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3256" />
+            <location filename="../src/shell/shell_window.cpp" line="3364" />
             <source>Minimise instead</source>
             <translation>تصغير بدلاً من ذلك</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3336" />
+            <location filename="../src/shell/shell_window.cpp" line="3444" />
             <source>Could not change start at sign-in</source>
             <translation>تعذر تغيير البدء عند تسجيل الدخول</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3337" />
+            <location filename="../src/shell/shell_window.cpp" line="3445" />
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>تعذر على Studio كتابة إدخال تسجيل الدخول. لم يتغير شيء.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3359" />
+            <location filename="../src/shell/shell_window.cpp" line="3467" />
             <source>The ports from last time could not be read, so Studio started without them.</source>
             <translation>تعذرت قراءة المنافذ من المرة السابقة، لذا بدأ Studio بدونها.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3436" />
+            <location filename="../src/shell/shell_window.cpp" line="3547" />
             <source>Could not start the ports from last time: %1</source>
             <translation>تعذر تشغيل المنافذ من المرة السابقة: %1</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3441" />
+            <location filename="../src/shell/shell_window.cpp" line="3553" />
             <source>Could not start the ports from last time</source>
             <translation>تعذر تشغيل المنافذ من المرة السابقة</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3442" />
+            <location filename="../src/shell/shell_window.cpp" line="3554" />
             <source>Open Studio to see why and start them again.</source>
             <translation>افتح Studio لمعرفة السبب وتشغيلها مجدداً.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3460" />
+            <location filename="../src/shell/shell_window.cpp" line="3572" />
             <source>Started the ports that were running before: %1 ports, %2 links.</source>
             <translation>تم تشغيل المنافذ التي كانت تعمل سابقاً: %1 منفذاً، %2 ارتباطاً.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3464" />
+            <location filename="../src/shell/shell_window.cpp" line="3576" />
             <source>Started the ports again: %1 ports, %2 links.</source>
             <translation>تم تشغيل المنافذ مجدداً: %1 منفذاً، %2 ارتباطاً.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3492" />
+            <location filename="../src/shell/shell_window.cpp" line="3605" />
             <source>When you last quit, %1 ports and %2 links were running.</source>
             <translation>عند آخر إنهاء كان %1 منفذاً و%2 ارتباطاً قيد التشغيل.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3507" />
+            <location filename="../src/shell/shell_window.cpp" line="3620" />
             <source>Some COM ports were lost</source>
             <translation>فُقدت بعض منافذ COM</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3508" />
+            <location filename="../src/shell/shell_window.cpp" line="3621" />
             <source>Open Studio to recreate them.</source>
             <translation>افتح Studio لإعادة إنشائها.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3522" />
+            <location filename="../src/shell/shell_window.cpp" line="3635" />
             <source>Studio is still running your ports</source>
             <translation>لا يزال Studio يشغّل منافذك</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3524" />
+            <location filename="../src/shell/shell_window.cpp" line="3637" />
             <source>Open it again from this icon, or quit it there to stop the ports. To have them back after a restart, choose Start when I sign in in the same menu.</source>
             <translation>افتحه مجدداً من هذه الأيقونة، أو أنهِه من هناك لإيقاف المنافذ. لاستعادتها بعد إعادة التشغيل، اختر «البدء عند تسجيل الدخول» في القائمة نفسها.</translation>
         </message>
         <message>
-            <location filename="../src/shell/shell_window.cpp" line="3527" />
+            <location filename="../src/shell/shell_window.cpp" line="3640" />
             <source>Open it again from this icon, or quit it there to stop the ports.</source>
             <translation>افتحه مجدداً من هذه الأيقونة، أو أنهِه من هناك لإيقاف المنافذ.</translation>
         </message>
@@ -11517,6 +11592,10 @@ Networks: %5</source>
             <source> Try a different name or kind, then try again.</source>
             <translation> جرّب اسماً أو نوعاً آخر، ثم أعد المحاولة.</translation>
         </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::AttachDialog</name>
@@ -11812,6 +11891,10 @@ Networks: %5</source>
             <location filename="../src/flows/attach_dialog.cpp" line="823" />
             <source>Choose another</source>
             <translation>اختيار آخر</translation>
+        </message>
+        <message>
+            <source>Attaching</source>
+            <translation>جارٍ التوصيل</translation>
         </message>
     </context>
     <context>
@@ -12909,6 +12992,14 @@ Networks: %5</source>
             <source>Scroll</source>
             <translation>تمرير</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>التقدم</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::InlineError</name>
@@ -13970,6 +14061,10 @@ Networks: %5</source>
             <location filename="../src/flows/pair_dialog.cpp" line="31" />
             <source>Create pair</source>
             <translation>إنشاء الزوج</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
         </message>
     </context>
     <context>
@@ -16573,6 +16668,14 @@ Networks: %5</source>
             <source>Layout reset.</source>
             <translation>أُعيد ضبط التخطيط.</translation>
         </message>
+        <message>
+            <source>Progress</source>
+            <translation>التقدم</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -17008,6 +17111,14 @@ Networks: %5</source>
             <location filename="../src/advanced/json_editor.cpp" line="688" />
             <source>Saved %1.</source>
             <translation>تم حفظ %1.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>جارٍ التطبيق</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
         </message>
     </context>
     <context>
@@ -17763,6 +17874,26 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
+        </message>
+        <message>
+            <source>Applying</source>
+            <translation>جارٍ التطبيق</translation>
+        </message>
+        <message>
+            <source>Creating</source>
+            <translation>جارٍ الإنشاء</translation>
+        </message>
+        <message>
+            <source>Applying the change. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ تطبيق التغيير. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
+        <message>
+            <source>Setting up. Windows installs each new port, which can take up to a minute.</source>
+            <translation>جارٍ الإعداد. يثبّت Windows كل منفذ جديد، وقد يستغرق ذلك حتى دقيقة.</translation>
+        </message>
+        <message>
+            <source>Setting up progress</source>
+            <translation>تقدم الإعداد</translation>
         </message>
     </context>
     <context>
@@ -19525,7 +19656,7 @@ Networks: %5</source>
     <context>
         <name>TopologyView</name>
         <message numerus="yes">
-            <location filename="../src/topology/topology_view.cpp" line="829" />
+            <location filename="../src/topology/topology_view.cpp" line="919" />
             <source>%n selected: %1</source>
             <translation>
                 <numerusform>لا شيء محدد: %1</numerusform>
@@ -19537,117 +19668,117 @@ Networks: %5</source>
             </translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2233" />
+            <location filename="../src/topology/topology_view.cpp" line="2363" />
             <source>Drag a port or bundle from the toolbox, or press Enter on one.</source>
             <translation>اسحب منفذاً أو حزمة من صندوق الأدوات، أو اضغط Enter على أحدها.</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2442" />
+            <location filename="../src/topology/topology_view.cpp" line="2572" />
             <source>Choose the port to link %1 to, then press Enter. Esc cancels.</source>
             <translation>اختر المنفذ المراد ربط %1 به، ثم اضغط Enter. يلغي Esc العملية.</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2574" />
+            <location filename="../src/topology/topology_view.cpp" line="2704" />
             <source>Two-way</source>
             <translation>ثنائي الاتجاه</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2575" />
+            <location filename="../src/topology/topology_view.cpp" line="2705" />
             <source>One way, from %1 to %2</source>
             <translation>في اتجاه واحد، من %1 إلى %2</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2576" />
+            <location filename="../src/topology/topology_view.cpp" line="2706" />
             <source>Monitor %1 on %2</source>
             <translation>مراقبة %1 على %2</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2597" />
+            <location filename="../src/topology/topology_view.cpp" line="2727" />
             <source>Link %1 and %2</source>
             <translation>ربط %1 و%2</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2631" />
+            <location filename="../src/topology/topology_view.cpp" line="2761" />
             <source>New port here</source>
             <translation>منفذ جديد هنا</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2634" />
+            <location filename="../src/topology/topology_view.cpp" line="2764" />
             <source>New fixture here</source>
             <translation>جهاز محاكاة جديد هنا</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2635" />
+            <location filename="../src/topology/topology_view.cpp" line="2765" />
             <source>New loopback here</source>
             <translation>حلقة عودة جديدة هنا</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2641" />
+            <location filename="../src/topology/topology_view.cpp" line="2771" />
             <source>One way, to the new port</source>
             <translation>في اتجاه واحد، إلى المنفذ الجديد</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2642" />
+            <location filename="../src/topology/topology_view.cpp" line="2772" />
             <source>Monitor on the new port</source>
             <translation>مراقبة على المنفذ الجديد</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2682" />
+            <location filename="../src/topology/topology_view.cpp" line="2812" />
             <source>Settings...</source>
             <translation>الإعدادات...</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2688" />
+            <location filename="../src/topology/topology_view.cpp" line="2818" />
             <source>A network port has no line settings.</source>
             <translation>لا تملك المنافذ الشبكية إعدادات خط.</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2697" />
+            <location filename="../src/topology/topology_view.cpp" line="2827" />
             <source>Duplicate</source>
             <translation>تكرار</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2703" />
+            <location filename="../src/topology/topology_view.cpp" line="2833" />
             <source>This port can only be opened once.</source>
             <translation>يمكن فتح هذا المنفذ مرة واحدة فقط.</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2717" />
+            <location filename="../src/topology/topology_view.cpp" line="2847" />
             <source>Delete</source>
             <translation>Delete</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2725" />
+            <location filename="../src/topology/topology_view.cpp" line="2855" />
             <source>Link selected</source>
             <translation>ربط المحدد</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2741" />
+            <location filename="../src/topology/topology_view.cpp" line="2871" />
             <source>Select exactly two ports.</source>
             <translation>حدد منفذين بالضبط.</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2742" />
+            <location filename="../src/topology/topology_view.cpp" line="2872" />
             <source>Split from %1</source>
             <translation>فصل من %1</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2743" />
+            <location filename="../src/topology/topology_view.cpp" line="2873" />
             <source>Join into %1</source>
             <translation>ضم إلى %1</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2744" />
+            <location filename="../src/topology/topology_view.cpp" line="2874" />
             <source>Bus</source>
             <translation>ناقل</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2745" />
+            <location filename="../src/topology/topology_view.cpp" line="2875" />
             <source>Switch on %1</source>
             <translation>مبدّل على %1</translation>
         </message>
         <message numerus="yes">
-            <location filename="../src/topology/topology_view.cpp" line="2768" />
+            <location filename="../src/topology/topology_view.cpp" line="2898" />
             <source>Settings for %n ports...</source>
             <translation>
                 <numerusform>إعدادات %n منفذ...</numerusform>
@@ -19659,37 +19790,37 @@ Networks: %5</source>
             </translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2788" />
+            <location filename="../src/topology/topology_view.cpp" line="2918" />
             <source>A monitor link has no settings.</source>
             <translation>لا إعدادات لارتباط المراقبة.</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2792" />
+            <location filename="../src/topology/topology_view.cpp" line="2922" />
             <source>Reverse direction</source>
             <translation>عكس الاتجاه</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2819" />
+            <location filename="../src/topology/topology_view.cpp" line="2949" />
             <source>Add port</source>
             <translation>إضافة منفذ</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2820" />
+            <location filename="../src/topology/topology_view.cpp" line="2950" />
             <source>Add fixture</source>
             <translation>إضافة جهاز محاكاة</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2821" />
+            <location filename="../src/topology/topology_view.cpp" line="2951" />
             <source>Add loopback</source>
             <translation>إضافة حلقة عودة</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2822" />
+            <location filename="../src/topology/topology_view.cpp" line="2952" />
             <source>Add bundle</source>
             <translation>إضافة حزمة</translation>
         </message>
         <message>
-            <location filename="../src/topology/topology_view.cpp" line="2829" />
+            <location filename="../src/topology/topology_view.cpp" line="2959" />
             <source>Select all</source>
             <translation>تحديد الكل</translation>
         </message>

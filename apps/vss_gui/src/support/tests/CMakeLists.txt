@@ -7,10 +7,13 @@
 if(VSS_BUILD_TESTS)
   add_executable(vss_gui_support_tests
     main.cpp
+    test_app_identity.cpp
     test_driver_setup.cpp
     test_permission_dialog.cpp
     test_permission_rows.cpp
     test_profiling.cpp
+    test_render_settings.cpp
+    test_rendering.cpp
     test_running.cpp
     test_support.cpp)
 

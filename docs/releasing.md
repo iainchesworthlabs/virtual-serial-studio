@@ -411,7 +411,7 @@ folder that matter after it is gone, and a real uninstall (not an upgrade) deals
   registry hive is loaded (the users who are signed in), and only when it starts the
   program in this install folder. An entry of a user who is not signed in stays; it starts
   nothing, because the program is gone, and Windows says nothing about it.
-- `running-setup.json` in each profile's `AppData\Roaming\Virtual Serial Studio\Virtual
+- `running-setup.json` in each profile's `AppData\Roaming\iainchesworthlabs\Virtual
   Serial Studio`. It is **not deleted**, because it can be the only copy of a setup nobody
   saved. The uninstaller records in it that the ports were stopped, which is what File,
   Quit does, so a Studio that is installed again shows "When you last quit, ..." with
@@ -420,7 +420,7 @@ folder that matter after it is gone, and a real uninstall (not an upgrade) deals
 The uninstaller runs as an administrator and these files are in folders that ordinary
 users own, so it never deletes there, skips a folder or file that is a link, and writes a
 file only when it holds the exact text `"stopped": false`. Settings in
-`HKCU\Software\Virtual Serial Studio` and saved setups are left, as before.
+`HKCU\Software\iainchesworthlabs\Virtual Serial Studio` and saved setups are left, as before.
 `tools/test_stop_studio.py` tests the script against scratch folders and a scratch
 registry key.
 

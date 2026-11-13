@@ -34,6 +34,7 @@
 #include "theme/theme.hpp"
 #include "widgets/dialogs.hpp"
 #include "widgets/notes.hpp"
+#include "widgets/controls.hpp"
 
 #include <QAction>
 #include <QApplication>
@@ -41,7 +42,9 @@
 #include <QDir>
 #include <QDockWidget>
 #include <QLabel>
+#include <QLineEdit>
 #include <QMenu>
+#include <QMenuBar>
 #include <QPushButton>
 #include <QSettings>
 #include <QTemporaryDir>
@@ -49,6 +52,7 @@
 #include <QToolBar>
 #include <QToolButton>
 
+#include <chrono>
 #include <cmath>
 
 namespace
@@ -58,6 +62,12 @@ void clear_settings()
 {
     QSettings settings;
     settings.clear();
+}
+
+/// Waits for the ports a window is starting on its worker thread.
+void wait_applied(vss::gui::ShellWindow& window)
+{
+    REQUIRE(vss_test::wait_until([&window] { return !window.applying(); }));
 }
 
 } // namespace
@@ -318,6 +328,62 @@ TEST_CASE("palette: renders a review screenshot in both themes")
         QDir(directory).filePath(QStringLiteral("palette-dark.png"))));
     vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
     palette.close();
+}
+
+TEST_CASE("shell: the search and the level switch are centred in the header")
+{
+    clear_settings();
+    const QFont original = QApplication::font();
+    const QString directory = QDir(QCoreApplication::applicationDirPath())
+                                  .filePath(QStringLiteral("../gui-shots"));
+    REQUIRE(QDir().mkpath(directory));
+    for (const double scale : {1.0, 1.5, 2.0})
+    {
+        QFont font = original;
+        font.setPointSizeF(original.pointSizeF() * scale);
+        QApplication::setFont(font);
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::ShellWindow window(backend);
+        window.resize(1280, 800);
+        window.show();
+        QApplication::processEvents();
+
+        QMenuBar* bar = window.menuBar();
+        QWidget* corner = bar->cornerWidget(Qt::TopRightCorner);
+        REQUIRE(corner != nullptr);
+        auto* search = corner->findChild<QLineEdit*>();
+        auto* level = corner->findChild<vss::gui::SegmentedControl*>();
+        REQUIRE(search != nullptr);
+        REQUIRE(level != nullptr);
+        if (scale == 1.0)
+        {
+            for (const auto mode : {vss::gui::theme_mode::light,
+                                    vss::gui::theme_mode::dark})
+            {
+                vss::gui::Theme::instance().set_mode(mode);
+                QApplication::processEvents();
+                const bool dark = mode == vss::gui::theme_mode::dark;
+                REQUIRE(bar->grab().save(QDir(directory).filePath(
+                    dark ? QStringLiteral("header-dark.png")
+                         : QStringLiteral("header-light.png"))));
+            }
+            vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
+        }
+        for (QWidget* child : {static_cast<QWidget*>(search),
+                               static_cast<QWidget*>(level)})
+        {
+            const QRect box(child->mapTo(bar, QPoint(0, 0)), child->size());
+            REQUIRE(box.top() > 0);
+            REQUIRE(box.bottom() < bar->height() - 1);
+            REQUIRE(box.height() >= 24);
+            // Centred to within a pixel of rounding.
+            REQUIRE(std::abs(box.top() - (bar->height() - 1 - box.bottom())) <=
+                    1);
+            REQUIRE(box.height() < bar->height());
+        }
+        window.close();
+    }
+    QApplication::setFont(original);
 }
 
 TEST_CASE("shell: every toolbar action has a name and a unique shortcut")
@@ -1468,6 +1534,7 @@ TEST_CASE("background: the ports that ran before a restart start again")
     vss::gui::FakeStudioBackend backend;
     vss::gui::ShellWindow window(backend);
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(window.background_enabled());
     REQUIRE(backend.ports().size() == 2);
@@ -1489,6 +1556,7 @@ TEST_CASE("background: a hidden start with nothing to run has no reason to "
         vss::gui::FakeStudioBackend backend;
         vss::gui::ShellWindow window(backend);
         window.enable_background(running_file(directory), false);
+        wait_applied(window);
         QApplication::processEvents();
         REQUIRE(!window.needed_in_background());
     }
@@ -1499,10 +1567,32 @@ TEST_CASE("background: a hidden start with nothing to run has no reason to "
         vss::gui::FakeStudioBackend backend;
         vss::gui::ShellWindow window(backend);
         window.enable_background(running_file(directory), false);
+        wait_applied(window);
         QApplication::processEvents();
         REQUIRE(backend.ports().empty());
         REQUIRE(!window.needed_in_background());
     }
+    clear_settings();
+}
+
+TEST_CASE("background: a hidden start stays while the ports are being started")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_running(running_file(directory), false);
+
+    vss::gui::FakeStudioBackend backend;
+    backend.set_create_delay(std::chrono::milliseconds(200));
+    vss::gui::ShellWindow window(backend);
+    window.enable_background(running_file(directory), false);
+    // Installing the ports takes seconds on Windows and runs off the GUI
+    // thread.  `vss_gui --background` asks this straight away, and quitting
+    // on "no ports yet" would throw the restore away.
+    REQUIRE(window.applying());
+    REQUIRE(window.needed_in_background());
+    wait_applied(window);
+    REQUIRE(backend.ports().size() == 2);
+    REQUIRE(window.needed_in_background());
     clear_settings();
 }
 
@@ -1517,6 +1607,7 @@ TEST_CASE("background: a hidden start stays when the ports could not start")
     vss::gui::ShellWindow window(backend);
     // Not shown: this is what `vss_gui --background` does at sign-in.
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     // Quitting now would take the notification with it, and nobody would
@@ -1526,6 +1617,7 @@ TEST_CASE("background: a hidden start stays when the ports could not start")
     // Start again from the banner works, and then the ports are the reason.
     REQUIRE(window.resume_banner()->action_button() != nullptr);
     window.resume_banner()->action_button()->click();
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().size() == 2);
     REQUIRE(window.needed_in_background());
@@ -1542,6 +1634,7 @@ TEST_CASE("background: after a Quit Studio offers to start the ports again")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     auto* banner = window.resume_banner();
@@ -1554,6 +1647,7 @@ TEST_CASE("background: after a Quit Studio offers to start the ports again")
 
     REQUIRE(banner->action_button() != nullptr);
     banner->action_button()->click();
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().size() == 2);
     REQUIRE(!banner->isVisible());
@@ -1571,6 +1665,7 @@ TEST_CASE("background: a setup that cannot start is offered again")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
     REQUIRE(backend.ports().empty());
     REQUIRE(window.resume_banner()->isVisible());
@@ -1616,6 +1711,7 @@ TEST_CASE("background: Quit asks before it stops the ports")
     vss::gui::ShellWindow window(backend);
     window.show();
     window.enable_background(running_file(directory), false);
+    wait_applied(window);
     QApplication::processEvents();
 
     remove_probe probe;
