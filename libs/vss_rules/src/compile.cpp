@@ -130,6 +130,20 @@ private:
             out_->slot_values.push_back(value);
         }
 
+        if (source_.signals.size() > max_signals)
+            bad("signals", "more than " + std::to_string(max_signals) +
+                               " signals");
+        for (std::size_t i = 0; i < source_.signals.size(); ++i)
+        {
+            const std::string path = "signals[" + std::to_string(i) + "]";
+            const std::string& name = source_.signals[i];
+            if (!good_name(name, path, "a signal"))
+                continue;
+            if (index_of(out_->signals, name) != no_index)
+                bad(path, "the signal \"" + name + "\" is listed twice");
+            out_->signals.push_back(name);
+        }
+
         if (source_.rules.size() > max_rules)
             bad("rules", "more than " + std::to_string(max_rules) + " rules");
         if (source_.timeline.size() > max_timeline)
@@ -150,6 +164,7 @@ private:
             bad(path + ".name", "two rules are named \"" + in.name + "\"");
 
         const std::size_t pattern = one_trigger(in.when, path + ".when", out);
+        kind_ = out.kind;
 
         if (in.sequence.empty())
             bad(path, "a rule needs a \"do\" list or a \"sequence\"");
@@ -176,15 +191,18 @@ private:
         out_->rules.push_back(std::move(out));
     }
 
-    /// Returns the length of the pattern, or zero for a rule with none.
+    /// Returns how many bytes the rule's actions may refer to: the length of
+    /// the pattern, the most a signal carries, or zero for a rule with none.
     std::size_t one_trigger(const trigger& in, const std::string& path,
                             compiled_rule& out)
     {
         const int kinds = (in.bytes.empty() ? 0 : 1) +
-                          (in.lines.empty() ? 0 : 1) + (in.port ? 1 : 0);
+                          (in.lines.empty() ? 0 : 1) + (in.port ? 1 : 0) +
+                          (in.quiet.count() != 0 ? 1 : 0) +
+                          (in.signal.empty() ? 0 : 1);
         if (kinds != 1)
-            bad(path, "a rule matches exactly one of \"bytes\", \"lines\" "
-                      "and \"port\"");
+            bad(path, "a rule matches exactly one of \"bytes\", \"lines\", "
+                      "\"port\", \"quiet_us\" and \"signal\"");
 
         if (!in.state.empty())
         {
@@ -205,11 +223,28 @@ private:
             out.kind = trigger_kind::port;
             out.port = *in.port;
         }
+        std::size_t carried = 0;
+        if (in.quiet.count() != 0)
+        {
+            out.kind = trigger_kind::quiet;
+            out.quiet = in.quiet;
+            if (in.quiet.count() < 0 || in.quiet > max_delay)
+                bad(path + ".quiet_us", "must be between 1 and 60000000");
+        }
+        if (!in.signal.empty())
+        {
+            out.kind = trigger_kind::signal;
+            out.signal = index_of(out_->signals, in.signal);
+            if (out.signal == no_index)
+                bad(path + ".signal",
+                    "\"" + in.signal + "\" is not in \"signals\"");
+            carried = max_signal_bytes;
+        }
         if (in.bytes.empty())
         {
             if (in.gap.count() != 0 || !in.mask.empty())
                 bad(path, "\"gap_us\" and \"mask\" need \"bytes\"");
-            return 0;
+            return carried;
         }
 
         out.kind = trigger_kind::bytes;
@@ -264,8 +299,9 @@ private:
 
     // -- actions -------------------------------------------------------------
 
-    /// `pattern` is the length of the rule's pattern, zero when the actions
-    /// have no matched bytes to refer to.  `nested` is true inside an
+    /// `pattern` is how many bytes the actions may refer to: the length of
+    /// the rule's pattern, the most a signal carries, or zero when there are
+    /// none.  `nested` is true inside an
     /// `on_timeout` list, and `timed` is false on the timeline, where the
     /// entry gives the time.
     std::vector<compiled_action> action_list(const std::vector<action>& in,
@@ -313,7 +349,7 @@ private:
             if (sends)
                 bad(path, "only an inline set passes, holds or changes the "
                           "bytes it matched");
-            if (pattern == 0)
+            if (pattern == 0 || kind_ != trigger_kind::bytes)
                 bad(path, "this action needs a rule that matches \"bytes\"");
             one_fault(in.fault, path + ".fault");
             break;
@@ -363,6 +399,11 @@ private:
             in.fault.kind != fault_kind::none)
             bad(path + ".fault", "only a reply or passing bytes take a fault");
 
+        if (timed && in.when.after == edge::cause &&
+            kind_ != trigger_kind::signal)
+            bad(path + ".after",
+                "\"cause\" is for a rule that matches a \"signal\"");
+
         const bool instant = in.kind == action_kind::set_state ||
                              in.kind == action_kind::set_slot;
         const bool plain = in.when.after == edge::match_end &&
@@ -385,10 +426,16 @@ private:
                      const std::string& path)
     {
         if (pattern == 0)
-            bad(path, "bytes of the match need a rule that matches \"bytes\"");
+            bad(path, "bytes of the match need a rule that matches \"bytes\" "
+                      "or a \"signal\"");
         else if (first > last || last >= pattern)
-            bad(path, "the range must lie inside the pattern's " +
-                          std::to_string(pattern) + " bytes");
+            bad(path,
+                std::string("the range must lie inside ") +
+                    (kind_ == trigger_kind::signal ? "the " : "the pattern's ") +
+                    std::to_string(pattern) +
+                    (kind_ == trigger_kind::signal
+                         ? " bytes a signal may carry"
+                         : " bytes"));
     }
 
     std::vector<compiled_part> parts(const std::vector<reply_part>& in,
@@ -528,6 +575,7 @@ private:
                                      std::to_string(max_run_time.count()));
         if (in.actions.empty())
             bad(path + ".do", "no action");
+        kind_ = trigger_kind::bytes;
         out.actions = action_list(in.actions, path + ".do", 0, false, false);
         out_->timeline.push_back(std::move(out));
     }
@@ -555,6 +603,8 @@ private:
         std::size_t total = sizeof(compiled_rule_set);
         for (const auto& name : set.states)
             total += sizeof(std::string) + name.size();
+        for (const auto& name : set.signals)
+            total += sizeof(std::string) + name.size();
         for (std::size_t i = 0; i < set.slot_names.size(); ++i)
             total += sizeof(std::string) + set.slot_names[i].size() +
                      max_slot_bytes;
@@ -574,6 +624,8 @@ private:
     std::vector<problem>& problems_;
     compiled_rule_set* out_ = nullptr;
     std::set<std::string> rule_names_;
+    /// What the rule whose actions are being checked matches.
+    trigger_kind kind_ = trigger_kind::bytes;
 };
 
 } // namespace
