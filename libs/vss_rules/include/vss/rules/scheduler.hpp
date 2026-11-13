@@ -31,6 +31,7 @@
 #include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -76,6 +77,9 @@ struct scheduler_stats
     std::uint64_t late = 0;
     std::uint64_t overrun = 0;
     std::uint64_t cancelled = 0;
+    /// Chunks the set was shown and could not match, because the machine
+    /// ran out of memory.  The traffic is not touched; the set missed them.
+    std::uint64_t missed_chunks = 0;
     /// The most any action was done after it was due.
     clock_type::duration worst_lateness{0};
 };
@@ -185,6 +189,8 @@ private:
     /// one each time.
     std::vector<firing> scratch_;
     scheduler_stats stats_;
+    /// Counted outside `mutex_`: the lock itself may be what failed.
+    std::atomic<std::uint64_t> missed_chunks_{0};
 };
 
 } // namespace vss::rules

@@ -57,15 +57,25 @@ void scheduler::start(time_point origin)
 
 void scheduler::on_read(endpoint_id, bytes_view data, time_point when) noexcept
 {
+    // The stage is on the path of the port's bytes and must not throw.  The
+    // one thing that can go wrong here is memory, and then the chunk goes on
+    // its way unmatched and is counted.
+    try
     {
-        std::lock_guard lock(mutex_);
-        if (!started_ || closed_)
-            return;
-        scratch_.clear();
-        machine_.feed(data, when, scratch_);
-        schedule(scratch_);
+        {
+            std::lock_guard lock(mutex_);
+            if (!started_ || closed_)
+                return;
+            scratch_.clear();
+            machine_.feed(data, when, scratch_);
+            schedule(scratch_);
+        }
+        wake_if_sooner();
     }
-    wake_if_sooner();
+    catch (...)
+    {
+        missed_chunks_.fetch_add(1, std::memory_order_relaxed);
+    }
 }
 
 void scheduler::lines_changed(control_lines before, control_lines after,
@@ -134,6 +144,7 @@ scheduler_stats scheduler::stats() const
     std::lock_guard lock(mutex_);
     scheduler_stats out = stats_;
     out.machine = machine_.stats();
+    out.missed_chunks = missed_chunks_.load(std::memory_order_relaxed);
     return out;
 }
 

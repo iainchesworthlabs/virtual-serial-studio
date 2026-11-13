@@ -23,6 +23,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <future>
 #include <initializer_list>
 #include <memory>
@@ -206,8 +207,8 @@ control_lines lines_of(std::initializer_list<control_line> high)
 class joined_thread
 {
 public:
-    template <class Work>
-    explicit joined_thread(Work&& work) : thread_(std::forward<Work>(work))
+    explicit joined_thread(std::function<void()> work)
+        : thread_(std::move(work))
     {
     }
 
