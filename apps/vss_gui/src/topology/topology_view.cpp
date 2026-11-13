@@ -253,10 +253,14 @@ void TopologyView::enable_gpu()
     apply_gpu_style();
     gpu_->lower();
     gpu_->show();
-    // The canvas draws the whole frame itself; there is nothing to gain from
-    // drawing only the changed rectangle, and the viewport must not scroll
-    // its children (the canvas is one of them).
-    setViewportUpdateMode(QGraphicsView::FullViewportUpdate);
+    // The canvas draws the whole frame itself, so the view never repaints its
+    // viewport for a change in the scene: the canvas hears of the change from
+    // the scene (`GpuCanvas::scene_changed`) and of a scroll from
+    // `scrollContentsBy`. A viewport repaint would redraw the overlay widgets
+    // and upload the viewport's part of the window to the GPU again for every
+    // frame of the canvas, which cost more than the frame itself
+    // (docs/gui-design/docs/12-render-profiling.md).
+    setViewportUpdateMode(QGraphicsView::NoViewportUpdate);
     connect(gpu_, &rendering::GpuCanvas::device_ready, this,
             [this](const rendering::gpu_report& report)
             {
@@ -312,6 +316,22 @@ void TopologyView::paintEvent(QPaintEvent* event)
     timer.start();
     QGraphicsView::paintEvent(event);
     software_paint_ms_ = static_cast<double>(timer.nsecsElapsed()) / 1e6;
+}
+
+void TopologyView::request_frame()
+{
+    if (gpu_ != nullptr)
+        gpu_->update();
+    else
+        viewport()->update();
+}
+
+void TopologyView::scrollContentsBy(int dx, int dy)
+{
+    QGraphicsView::scrollContentsBy(dx, dy);
+    // With the GPU canvas the view does not update its viewport itself.
+    if (gpu_ != nullptr)
+        gpu_->update();
 }
 
 double TopologyView::last_paint_ms() const noexcept

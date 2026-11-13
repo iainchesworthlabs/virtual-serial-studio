@@ -128,10 +128,12 @@ Generic coverage, so slow work shows up without a hand-placed zone:
   the busy time of each pass (a discontinuous frame), and `gui.paint` marks each
   top-level window paint.
 - **`gui.render.*`, `gui.gpu.frame` and `gui.render_mode`**: how the canvas is drawn
-  on the GPU (frame, draw, texture upload, sync, plots of item textures and their
-  memory), the GPU's time for a frame, and a message with the renderer chosen at
-  start-up or after a fallback. See `docs/gui-design/docs/11-rendering.md`; the GPU
-  time needs the profiler to be recording at start-up.
+  on the GPU (the widget's frame, draw, texture upload, sync, plots of item
+  textures and their memory), the GPU's time for a frame, and a message with the
+  renderer chosen at start-up or after a fallback. See
+  `docs/gui-design/docs/11-rendering.md`. The GPU time is recorded only when
+  `VSS_PROFILE_GPU=1` is set and the profiler is recording at start-up, because
+  reading it slows every frame of the canvas.
 - **`gui.paint.*`** zones for the custom painting: port rows, topology nodes and
   links, the canvas background. Every other widget's paint is a `gui.event` zone
   with the class name.
@@ -254,6 +256,29 @@ The report prints a Markdown table of the hottest zones:
 | `perf.e2e.tcp` | 1 | 26.85 | 26851.1 | 26851.1 | 3.97% |
 | `hub.route` | 8448 | 14.47 | 1.7 | 99.3 | 2.14% |
 ```
+
+### Time inside Qt, and one table per phase
+
+The aggregated export has one `gui.event` row for every event the window
+delivered. `tools/tracy_phases.py` reads the unwrapped export (`tracy-csvexport
+-u`) instead: it splits `gui.event` by its text, gives every zone its self time
+(its time less the zones inside it) and prints one table per phase of the render
+bench (`bench.repaint`, `bench.pan`, `bench.resize`, `bench.move`, `bench.idle`,
+`bench.traffic`), or one for the whole capture.
+
+```bash
+tracy-csvexport -u trace.tracy > trace.u.csv
+python tools/tracy_phases.py trace.u.csv --gui --phase bench.resize
+```
+
+The self time of an event is where time inside Qt shows. The self time of the
+top-level window's `UpdateRequest` and `Expose` events is the compose and
+present of the window; that of `gui.render.widget` is Qt's part of a canvas
+frame. `--gui` keeps the GUI thread only and `--match` keeps the zones whose
+name holds one of the given words.
+
+`docs/gui-design/docs/12-render-profiling.md` is a profile of the whole
+application made this way, with the hotspots ranked.
 
 `--areas` adds the totals per area. `--require a,b,c` fails when an expected zone
 is missing, and `area.*` is met by any zone of that area.
