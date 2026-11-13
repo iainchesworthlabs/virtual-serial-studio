@@ -252,7 +252,41 @@ struct request_writer
     void operator()(const status_request&) const {}
     void operator()(const ports_list_request&) const {}
     void operator()(const endpoint_stop_request&) const {}
+    void write_stream(const stream_options& options) const
+    {
+        header["interval_ms"] = options.interval_ms;
+        header["ports"] = text_list(options.ports);
+    }
+    void operator()(const events_subscribe_request& body) const
+    {
+        write_stream(body.options);
+    }
+    void operator()(const traffic_subscribe_request& body) const
+    {
+        write_stream(body.options);
+    }
+    void operator()(const events_unsubscribe_request&) const {}
+    void operator()(const traffic_unsubscribe_request&) const {}
+    void operator()(const sessions_list_request&) const {}
+    void operator()(const sessions_kick_request& body) const
+    {
+        header["session"] = body.session;
+    }
 };
+
+/// Both fields may be left out.  A list of ports that is too long, or holds
+/// something that is not a text, is a mistake; whether each text names a
+/// port is for the gateway to say, with an error the caller can read.
+bool read_stream(const json::object& header, stream_options& out)
+{
+    if (header.contains("interval_ms") &&
+        !read_u32(header, "interval_ms", out.interval_ms))
+        return false;
+    if (!header.contains("ports"))
+        return true;
+    return read_text_list(header, "ports", out.ports) &&
+           out.ports.size() <= max_port_filter_size;
+}
 
 result<request_body> read_request_body(operation wanted,
                                        const json::object& header)
@@ -299,6 +333,33 @@ result<request_body> read_request_body(operation wanted,
         return request_body{ports_list_request{}};
     case operation::endpoint_stop:
         return request_body{endpoint_stop_request{}};
+    case operation::events_subscribe:
+    {
+        events_subscribe_request body;
+        if (!read_stream(header, body.options))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::traffic_subscribe:
+    {
+        traffic_subscribe_request body;
+        if (!read_stream(header, body.options))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::events_unsubscribe:
+        return request_body{events_unsubscribe_request{}};
+    case operation::traffic_unsubscribe:
+        return request_body{traffic_unsubscribe_request{}};
+    case operation::sessions_list:
+        return request_body{sessions_list_request{}};
+    case operation::sessions_kick:
+    {
+        sessions_kick_request body;
+        if (!read_u64(header, "session", body.session))
+            return malformed();
+        return request_body{body};
+    }
     }
     return make_error_code(api_errc::unsupported);
 }
@@ -386,9 +447,68 @@ bool read_token(const json::value& item, token_entry& out)
            read_bool(object, "revoked", out.revoked);
 }
 
+json::object write_session(const session_entry& session)
+{
+    json::object out;
+    out["number"] = session.number;
+    out["principal"] = clean_text(session.principal);
+    out["transport"] = clean_text(session.transport);
+    out["client"] = clean_text(session.client);
+    out["program"] = clean_text(session.program);
+    out["process"] = session.process;
+    out["opened_ms"] = session.opened_ms;
+    out["requests"] = session.requests;
+    out["events"] = session.events;
+    out["traffic"] = session.traffic;
+    out["events_sent"] = session.events_sent;
+    out["bytes_sent"] = session.bytes_sent;
+    out["events_dropped"] = session.events_dropped;
+    return out;
+}
+
+bool read_session(const json::value& item, session_entry& out)
+{
+    if (!item.is_object())
+        return false;
+    const json::object& object = item.get_object();
+    return read_u64(object, "number", out.number) &&
+           read_text(object, "principal", out.principal) &&
+           read_text(object, "transport", out.transport) &&
+           read_text(object, "client", out.client) &&
+           read_text(object, "program", out.program) &&
+           read_u64(object, "process", out.process) &&
+           read_u64(object, "opened_ms", out.opened_ms) &&
+           read_u64(object, "requests", out.requests) &&
+           read_bool(object, "events", out.events) &&
+           read_bool(object, "traffic", out.traffic) &&
+           read_u64(object, "events_sent", out.events_sent) &&
+           read_u64(object, "bytes_sent", out.bytes_sent) &&
+           read_u64(object, "events_dropped", out.events_dropped);
+}
+
 struct reply_writer
 {
     json::object& header;
+
+    void operator()(const subscribed_reply& body) const
+    {
+        header["reply"] = "subscribed";
+        header["interval_ms"] = body.interval_ms;
+        header["next_seq"] = body.next_seq;
+    }
+
+    void operator()(const sessions_reply& body) const
+    {
+        header["reply"] = "sessions";
+        json::array sessions;
+        for (const session_entry& session : body.sessions)
+        {
+            if (sessions.size() == max_list_size)
+                break;
+            sessions.emplace_back(write_session(session));
+        }
+        header["sessions"] = std::move(sessions);
+    }
 
     void operator()(const token_created_reply& body) const
     {
@@ -549,6 +669,121 @@ result<reply_body> read_tokens_reply(const json::object& header)
     return reply_body{std::move(body)};
 }
 
+result<reply_body> read_subscribed_reply(const json::object& header)
+{
+    subscribed_reply body;
+    if (!read_u32(header, "interval_ms", body.interval_ms) ||
+        !read_u64(header, "next_seq", body.next_seq))
+        return malformed();
+    return reply_body{body};
+}
+
+result<reply_body> read_sessions_reply(const json::object& header)
+{
+    sessions_reply body;
+    const json::array* const sessions = read_array(header, "sessions");
+    if (sessions == nullptr)
+        return malformed();
+    body.sessions.reserve(sessions->size());
+    for (const json::value& item : *sessions)
+    {
+        session_entry session;
+        if (!read_session(item, session))
+            return malformed();
+        body.sessions.push_back(std::move(session));
+    }
+    return reply_body{std::move(body)};
+}
+
+// -- events ------------------------------------------------------------------
+
+/// A field of an event is left out when it has nothing to say, which is most
+/// of them for most events: a busy port sends thousands a second.
+json::object write_event(const event_entry& event)
+{
+    json::object out;
+    out["kind"] = clean_text(event.kind);
+    if (!event.port.empty())
+        out["port"] = clean_text(event.port);
+    if (!event.name.empty())
+        out["name"] = clean_text(event.name);
+    if (!event.direction.empty())
+        out["direction"] = clean_text(event.direction);
+    if (event.size != 0)
+        out["size"] = event.size;
+    if (!event.data.empty())
+        out["stored"] = event.data.size();
+    if (event.lines != 0)
+        out["lines"] = event.lines;
+    if (!event.message.empty())
+        out["message"] = clean_text(event.message);
+    if (!event.error.empty())
+        out["error"] = clean_text(event.error);
+    if (event.mono_ns != 0)
+        out["mono_ns"] = event.mono_ns;
+    return out;
+}
+
+/// Reads one event and takes its bytes from `blob` at `cursor`.  The events
+/// of a batch use the blob in order and without gaps, so a small frame cannot
+/// name the same bytes many times and ask the reader for more than it sent.
+bool read_event(const json::value& item, const byte_buffer& blob,
+                std::size_t& cursor, event_entry& out)
+{
+    if (!item.is_object())
+        return false;
+    const json::object& event = item.get_object();
+    std::uint64_t stored = 0;
+    if (!read_text(event, "kind", out.kind) ||
+        !read_optional_text(event, "port", out.port) ||
+        !read_optional_text(event, "name", out.name) ||
+        !read_optional_text(event, "direction", out.direction) ||
+        !read_optional_text(event, "message", out.message) ||
+        !read_optional_text(event, "error", out.error))
+        return false;
+    if ((event.contains("size") && !read_u64(event, "size", out.size)) ||
+        (event.contains("stored") && !read_u64(event, "stored", stored)) ||
+        (event.contains("lines") && !read_u32(event, "lines", out.lines)) ||
+        (event.contains("mono_ns") && !read_u64(event, "mono_ns", out.mono_ns)))
+        return false;
+    if (stored > blob.size() - cursor)
+        return false;
+    const auto first = blob.begin() + static_cast<std::ptrdiff_t>(cursor);
+    out.data.assign(first, first + static_cast<std::ptrdiff_t>(stored));
+    cursor += static_cast<std::size_t>(stored);
+    return true;
+}
+
+result<server_message> read_batch(const json::object& header,
+                                  const frame& value)
+{
+    event_batch batch;
+    const json::array* const events = read_array(header, "events");
+    const json::value* const time = header.if_contains("time");
+    if (events == nullptr || time == nullptr || !time->is_object() ||
+        !read_u64(header, "seq", batch.seq) ||
+        !read_u64(header, "revision", batch.revision) ||
+        !read_u64(header, "dropped", batch.dropped) ||
+        !read_u64(time->get_object(), "mono_ns", batch.mono_ns) ||
+        !read_u64(time->get_object(), "wall_ms", batch.wall_ms))
+        return malformed();
+    batch.events.resize(events->size());
+    std::size_t cursor = 0;
+    for (std::size_t index = 0; index < events->size(); ++index)
+    {
+        if (!read_event((*events)[index], value.blob, cursor,
+                        batch.events[index]))
+            return malformed();
+    }
+    if (cursor != value.blob.size())
+        return malformed();
+    return server_message{std::move(batch)};
+}
+
+/// The body of a reply of the kind `kind`.
+result<reply_body> read_reply_body(const json::object& header,
+                                   std::string_view kind);
+
 result<reply_body> read_error_reply(const json::object& header)
 {
     error_reply body;
@@ -559,6 +794,30 @@ result<reply_body> read_error_reply(const json::object& header)
         !read_bool(error->get_object(), "retryable", body.error.retryable))
         return malformed();
     return reply_body{std::move(body)};
+}
+
+result<reply_body> read_reply_body(const json::object& header,
+                                   std::string_view kind)
+{
+    if (kind == "done")
+        return reply_body{done_reply{}};
+    if (kind == "hello")
+        return read_hello_reply(header);
+    if (kind == "status")
+        return read_status_reply(header);
+    if (kind == "ports")
+        return read_ports_reply(header);
+    if (kind == "token")
+        return read_token_created_reply(header);
+    if (kind == "tokens")
+        return read_tokens_reply(header);
+    if (kind == "subscribed")
+        return read_subscribed_reply(header);
+    if (kind == "sessions")
+        return read_sessions_reply(header);
+    if (kind == "error")
+        return read_error_reply(header);
+    return malformed();
 }
 
 } // namespace
@@ -595,6 +854,30 @@ operation operation_of(const request_body& body)
         {
             return operation::tokens_revoke;
         }
+        operation operator()(const events_subscribe_request&) const noexcept
+        {
+            return operation::events_subscribe;
+        }
+        operation operator()(const events_unsubscribe_request&) const noexcept
+        {
+            return operation::events_unsubscribe;
+        }
+        operation operator()(const traffic_subscribe_request&) const noexcept
+        {
+            return operation::traffic_subscribe;
+        }
+        operation operator()(const traffic_unsubscribe_request&) const noexcept
+        {
+            return operation::traffic_unsubscribe;
+        }
+        operation operator()(const sessions_list_request&) const noexcept
+        {
+            return operation::sessions_list;
+        }
+        operation operator()(const sessions_kick_request&) const noexcept
+        {
+            return operation::sessions_kick;
+        }
     };
     return std::visit(visitor{}, body);
 }
@@ -616,6 +899,30 @@ frame encode(const reply& value)
     header["id"] = value.id;
     std::visit(reply_writer{header}, value.body);
     frame out;
+    out.header = json::serialize(header);
+    return out;
+}
+
+frame encode(const event_batch& value)
+{
+    json::object header;
+    header["event"] = "batch";
+    header["seq"] = value.seq;
+    header["revision"] = value.revision;
+    header["dropped"] = value.dropped;
+    json::object time;
+    time["mono_ns"] = value.mono_ns;
+    time["wall_ms"] = value.wall_ms;
+    header["time"] = std::move(time);
+    json::array events;
+    events.reserve(value.events.size());
+    frame out;
+    for (const event_entry& event : value.events)
+    {
+        events.emplace_back(write_event(event));
+        out.blob.insert(out.blob.end(), event.data.begin(), event.data.end());
+    }
+    header["events"] = std::move(events);
     out.header = json::serialize(header);
     return out;
 }
@@ -654,25 +961,28 @@ result<reply> decode_reply(const frame& value)
         !read_text(*header, "reply", kind) || !value.blob.empty())
         return malformed();
 
-    result<reply_body> body = malformed();
-    if (kind == "done")
-        body = reply_body{done_reply{}};
-    else if (kind == "hello")
-        body = read_hello_reply(*header);
-    else if (kind == "status")
-        body = read_status_reply(*header);
-    else if (kind == "ports")
-        body = read_ports_reply(*header);
-    else if (kind == "token")
-        body = read_token_created_reply(*header);
-    else if (kind == "tokens")
-        body = read_tokens_reply(*header);
-    else if (kind == "error")
-        body = read_error_reply(*header);
+    auto body = read_reply_body(*header, kind);
     if (!body)
         return body.error();
     out.body = std::move(*body);
     return out;
+}
+
+result<server_message> decode_server_message(const frame& value)
+{
+    const auto header = parse_header(value.header);
+    if (!header)
+        return malformed();
+    if (const json::value* const event = header->if_contains("event"))
+    {
+        if (!event->is_string() || event->get_string() != "batch")
+            return malformed();
+        return read_batch(*header, value);
+    }
+    auto answer = decode_reply(value);
+    if (!answer)
+        return answer.error();
+    return server_message{std::move(*answer)};
 }
 
 std::uint64_t peek_request_id(const frame& value) noexcept
@@ -700,6 +1010,27 @@ std::string port_id_text(std::uint64_t endpoint)
 std::string link_id_text(std::uint64_t link)
 {
     return "l_" + std::to_string(link);
+}
+
+std::optional<std::uint64_t> parse_port_id(std::string_view text) noexcept
+{
+    // "p_" and one to twenty digits: the longest 64 bit number has twenty.
+    if (text.size() < 3 || text.size() > 22 || text.substr(0, 2) != "p_")
+        return std::nullopt;
+    const std::string_view digits = text.substr(2);
+    if (digits.size() > 1 && digits.front() == '0')
+        return std::nullopt;
+    std::uint64_t value = 0;
+    for (const char digit : digits)
+    {
+        if (digit < '0' || digit > '9')
+            return std::nullopt;
+        const auto next = static_cast<std::uint64_t>(digit - '0');
+        if (value > (std::numeric_limits<std::uint64_t>::max() - next) / 10)
+            return std::nullopt;
+        value = value * 10 + next;
+    }
+    return value;
 }
 
 } // namespace vss::control
