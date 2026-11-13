@@ -24,7 +24,7 @@ Items marked **A** are visible only in Advanced mode and hidden in Simple. **new
 | Topology | Connect ports (Ctrl+L), Share a device *(new)*, Watch traffic *(new)*, Add a program port, Remove link, Link wiring **A** *(new)*, Owner **A** *(new)*, Fit (Ctrl+0) **A** |
 | Tools | Search actions (Ctrl+K) *(new)*, Setup check *(new)*, Benchmark **A** *(new)*, Refresh now (F5), Settings (Ctrl+,) |
 | View | Advanced mode (Ctrl+Shift+A) *(new shortcut)*, Monitor, Log **A**, Topology JSON **A**, Theme, Density *(new)*, Reset layout *(new)*, Show launcher *(new)* |
-| Help | Help contents (F1) *(new)*, Why is nothing arriving? *(new)*, Keyboard shortcuts *(new)*, Copy environment, About |
+| Help | Help contents (F1) *(new)*, Why is nothing arriving? *(new)*, Keyboard shortcuts *(new)*, Copy diagnostic information, About |
 
 The old Scenarios menu is retired. Share and bridge live under Topology and Ports, and the null-modem demo becomes a template. Menu items hidden in Simple still appear in the command palette with a "Needs Advanced mode" prompt.
 

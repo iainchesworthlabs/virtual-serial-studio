@@ -530,7 +530,7 @@ TEST_CASE("edge: About shows the application icon, the version and the source")
             bool icon_drawn = false;
             bool version_shown = false;
             bool source_linked = false;
-            const QString version = support::current_build_info().version;
+            const QString version = support::current_version_string();
             for (auto* label : dialog->findChildren<QLabel*>())
             {
                 if (!label->pixmap(Qt::ReturnByValue).isNull())
