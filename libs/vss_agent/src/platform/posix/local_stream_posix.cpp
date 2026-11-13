@@ -396,8 +396,7 @@ listen_local(const boost::asio::any_io_executor& executor,
     if (const error_code failed = ensure_private_directory(directory))
         return failed;
 
-    std::string socket_path =
-        file_path(directory, endpoint, instance, ".sock");
+    std::string socket_path = file_path(directory, endpoint, instance, ".sock");
     if (socket_path.size() > longest_socket_path)
         return make_error_code(errc::invalid_argument);
 

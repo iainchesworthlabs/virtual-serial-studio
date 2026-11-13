@@ -46,9 +46,8 @@ std::string process_program(std::uint64_t process)
     if (process == 0)
         return {};
     std::array<char, PROC_PIDPATHINFO_MAXSIZE> path{};
-    const int size =
-        ::proc_pidpath(static_cast<int>(process), path.data(),
-                       static_cast<std::uint32_t>(path.size()));
+    const int size = ::proc_pidpath(static_cast<int>(process), path.data(),
+                                    static_cast<std::uint32_t>(path.size()));
     if (size <= 0)
         return {};
     return {path.data(), static_cast<std::size_t>(size)};

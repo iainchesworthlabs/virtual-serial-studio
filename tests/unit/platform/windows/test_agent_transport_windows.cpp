@@ -222,10 +222,10 @@ TEST_CASE("control transport: the pipes are named for the endpoint, the user "
         agent::local_address(agent::local_endpoint::control_admin, instance);
     REQUIRE(control);
     REQUIRE(admin);
-    REQUIRE(to_wide(*control) == L"\\\\.\\pipe\\vss-control-" + sid + L"-" +
-                                     to_wide(instance));
-    REQUIRE(to_wide(*admin) == L"\\\\.\\pipe\\vss-control_admin-" + sid +
-                                   L"-" + to_wide(instance));
+    REQUIRE(to_wide(*control) ==
+            L"\\\\.\\pipe\\vss-control-" + sid + L"-" + to_wide(instance));
+    REQUIRE(to_wide(*admin) == L"\\\\.\\pipe\\vss-control_admin-" + sid + L"-" +
+                                   to_wide(instance));
 }
 
 TEST_CASE("agent transport: a second listener on a name in use is refused")
