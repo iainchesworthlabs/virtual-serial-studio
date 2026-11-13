@@ -73,7 +73,7 @@ std::string name_list(std::string_view prefix, std::size_t count)
             out += ", ";
         out += "\"" + std::string(prefix) + std::to_string(index) + "\"";
     }
-    out += "]";
+    out += ']';
     return out;
 }
 
@@ -2083,7 +2083,7 @@ TEST_CASE("plugin manifest: enum parameters")
         many += "{ \"value\": \"v" + std::to_string(index) +
                 "\", \"label\": \"L\" }";
     }
-    many += "]";
+    many += ']';
     expect_invalid(param_text(head + "\"options\": " + many),
                    at_param(".options: has more than 64 items"));
 
@@ -2142,7 +2142,11 @@ TEST_CASE("plugin manifest: bytes parameters")
         "02 31 0"};
     for (const std::string& text : bad)
     {
-        expect_invalid(param_text(head + "\"default\": \"" + text + "\""),
+        std::string member = head;
+        member += "\"default\": \"";
+        member += text;
+        member += '"';
+        expect_invalid(param_text(member),
                        at_param(".default: must be hexadecimal bytes"), text);
     }
     expect_invalid(param_text(head + "\"max_length\": 2, "
@@ -2181,7 +2185,11 @@ TEST_CASE("plugin manifest: duration parameters")
         "1000000000000000000000s"};
     for (const std::string& text : bad)
     {
-        expect_invalid(param_text(head + "\"default\": \"" + text + "\""),
+        std::string member = head;
+        member += "\"default\": \"";
+        member += text;
+        member += '"';
+        expect_invalid(param_text(member),
                        at_param(".default: must be a whole number and a unit"),
                        text);
     }
