@@ -24,7 +24,7 @@ namespace vss::config {
 constexpr std::size_t max_plugin_bindings = 16;
 /// The most bytes the parameters of one binding may take, written as compact
 /// JSON, and how deep they may nest.
-constexpr std::size_t max_binding_params_size = 64 * 1024;
+constexpr std::size_t max_binding_params_size = std::size_t{64} * 1024;
 constexpr std::size_t max_binding_params_depth = 8;
 
 /// What a plugin provides at a port or a link, as a saved topology records

@@ -1057,12 +1057,13 @@ TEST_CASE("document: the texts of a binding are plain and have limits")
     REQUIRE(!with(&plugin_binding::name, "Z\xc3\xa4hler f\xc3\xbcr Modbus"));
 
     // A control character, a line separator, a byte order mark or a mark
-    // that changes the direction of the text is not.
+    // that changes the direction of the text is not.  The two marks that
+    // open a run are closed again, so that this file itself reads in order.
     for (const char* bad :
          {"two\nlines", "tab\there", "bell\x07", "del\x7f", "c1\xc2\x85x",
           "alm\xd8\x9cx", "lrm\xe2\x80\x8ex", "ls\xe2\x80\xa8x",
-          "rlo\xe2\x80\xae" "gpj.exe", "iso\xe2\x81\xa6x",
-          "\xef\xbb\xbf" "bom"})
+          "rlo\xe2\x80\xaegpj.exe\xe2\x80\xac",
+          "iso\xe2\x81\xa6x\xe2\x81\xa9", "\xef\xbb\xbfmark"})
     {
         REQUIRE(with(&plugin_binding::name, bad) == refused);
         REQUIRE(with(&plugin_binding::publisher, bad) == refused);
@@ -1107,7 +1108,10 @@ TEST_CASE("document: the parameters of a binding are one object with limits")
     {
         std::string text = "{}";
         for (std::size_t i = 1; i < levels; ++i)
-            text = R"({"a":)" + text + "}";
+        {
+            text.insert(0, R"({"a":)");
+            text += '}';
+        }
         return text;
     };
     REQUIRE(!with(nested(max_binding_params_depth)));
