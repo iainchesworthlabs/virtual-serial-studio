@@ -83,6 +83,9 @@ enum class action_kind
 struct control_arguments
 {
     action_kind action = action_kind::none;
+    /// For the commands on the public endpoint: connect over TCP to this
+    /// port on the loopback address instead.  Needs `token_file`.
+    std::optional<std::uint16_t> loopback_port;
     std::string instance;
     std::string label;
     std::vector<std::string> scopes;
@@ -92,9 +95,6 @@ struct control_arguments
     std::vector<std::string> transports;
     std::optional<std::string> out_file;
     std::optional<std::string> token_file;
-    /// For the commands on the public endpoint: connect over TCP to this
-    /// port on the loopback address instead.  Needs `token_file`.
-    std::optional<std::uint16_t> loopback_port;
     std::string token_id;
     /// For `watch`: the bytes as well, the ports to hear about (empty for
     /// all), the time between batches, and when to stop.  0 seconds or
