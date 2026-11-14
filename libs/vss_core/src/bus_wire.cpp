@@ -133,17 +133,26 @@ void bus_wire::fire()
     // Only this strand and close() take it, so it is free unless the hub is
     // replacing the wire.
     std::lock_guard delivering(deliver_mutex_);
-    std::vector<item> ready;
-    {
-        std::lock_guard lock(mutex_);
-        const time_point current = now();
-        while (!queue_.empty() && queue_.begin()->first <= current)
-        {
-            ready.push_back(std::move(queue_.begin()->second));
-            queue_.erase(queue_.begin());
-        }
-    }
+    std::vector<item> ready = take_due();
+    deliver(ready);
+    arm();
+}
 
+std::vector<bus_wire::item> bus_wire::take_due()
+{
+    std::vector<item> ready;
+    std::lock_guard lock(mutex_);
+    const time_point current = now();
+    while (!queue_.empty() && queue_.begin()->first <= current)
+    {
+        ready.push_back(std::move(queue_.begin()->second));
+        queue_.erase(queue_.begin());
+    }
+    return ready;
+}
+
+void bus_wire::deliver(std::vector<item>& ready)
+{
     for (auto& chunk : ready)
     {
         // Read here and not when the chunk was queued: a chunk that ran into
@@ -162,8 +171,6 @@ void bus_wire::fire()
                 entry.target->write(bytes_view(chunk.data));
         }
     }
-
-    arm();
 }
 
 } // namespace vss
