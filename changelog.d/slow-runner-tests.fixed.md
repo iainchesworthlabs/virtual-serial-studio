@@ -1,0 +1,1 @@
+**Two tests that checked their results too early on a slow computer now wait.** The setup-change journey in the interface tests read the steps text before the setup had finished building, and the responder reply-margin test judged one timing on a busy runner. Neither was a fault in the app; only the tests changed.
