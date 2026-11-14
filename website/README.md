@@ -61,7 +61,7 @@ both themes and at a phone's width.
 
 ## Writing for the site
 
-- British English, plain words, short sentences. Say what the program does today. Anything that is planned says so,
+- Australian English (colour, licence as a noun, organise, behaviour), plain words, short sentences. Say what the program does today. Anything that is planned says so,
   with an "In development" chip.
 - No marketing language. A heading names the thing ("Features", "Sharing a device"). A sentence states a fact. No
   slogans, no "not this, but that", no invented quotations, no exaggeration and no closing flourish. The readers are
