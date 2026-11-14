@@ -20130,13 +20130,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>Site licence</source>
-            <translation>סײַט־דערלויבעניש</translation>
+            <source>Not counted by seat</source>
+            <translation>נישט געציילט לויט פּלעצער</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>אַ פּלאַץ איז אײַער קאָמפּיוטער, פּלוס איין אַנדער קאָמפּיוטער וואָס איר נוצט צו מאָניטאָרירן אים.</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>אַ פּלאַץ איז צוויי קאָמפּיוטערס: דער וואָס איר אַרבעט אויף אים און נאָך איינער וואָס איר קאָנטראָלירט אָדער מאָניטאָרט פֿון אים. דער סעריעלער דעווייס קען זײַן אויף יעדן פֿון זיי.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20430,6 +20430,11 @@ Networks: %5</source>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>licence number</source>
             <translation>דערלויבעניש־נומער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>As agreed in your Enterprise licence.</source>
+            <translation>ווי אָפּגערעדט אין אײַער Enterprise־דערלויבעניש.</translation>
         </message>
     </context>
     <context>

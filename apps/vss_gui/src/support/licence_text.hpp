@@ -106,9 +106,12 @@ QString state_sentence(const vss::license::status& status,
 /// The note under the summary card, for the states that need one.
 std::optional<licence_banner> state_note(const vss::license::status& status);
 
-/// "<n> seats", "1 seat" or "Site licence".
+/// "<n> seats", "1 seat", or "Not counted by seat" for a licence with no
+/// seat count.
 QString seats_text(int seats);
-QString seat_explanation();
+/// The muted line under the seat count: what a Pro seat is, or that an
+/// Enterprise licence's seats are as agreed. Empty when there is no count.
+QString seat_explanation(const vss::license::licence& value);
 /// "<start date> to <expiry date>".
 QString term_text(const vss::license::licence& value);
 

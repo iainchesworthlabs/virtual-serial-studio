@@ -28,7 +28,8 @@ struct licence_store_options
 {
     /// Where Import copies a licence. Made when the first file is imported.
     QString user_directory;
-    /// Where an administrator puts a site licence. Only read. May be empty.
+    /// Where an administrator puts a licence for the computers they manage.
+    /// Only read. May be empty.
     QString machine_directory;
     /// The file that keeps the latest time seen and the clock resets used.
     /// Empty keeps them in memory only.
