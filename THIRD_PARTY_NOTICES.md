@@ -49,6 +49,19 @@ not in the package does not belong in that table; it goes under "Optional extern
 
 The BSL-1.0 text is kept at [LICENSES/BSL-1.0.txt](LICENSES/BSL-1.0.txt).
 
+## Bundled fonts
+
+Three font families are built into the program so that Hebrew, Yiddish, Arabic
+and fixed-width text draw the same on every system. All are licensed under the
+SIL Open Font License 1.1; each licence text sits beside the font files in
+`apps/vss_gui/assets/fonts`. The About window's Fonts tab lists them too.
+
+| Family | Version | Licence | Source |
+|---|---|---|---|
+| IBM Plex Mono | 2.005 | SIL Open Font License 1.1 | https://github.com/IBM/plex |
+| Noto Sans Hebrew | 3.001 | SIL Open Font License 1.1 | https://github.com/notofonts/hebrew |
+| Noto Sans Arabic | 2.012 | SIL Open Font License 1.1 | https://github.com/notofonts/arabic |
+
 ## Notes on GPL compliance
 
 * Each source file starts with an SPDX licence line naming GPL-3.0-or-later,
