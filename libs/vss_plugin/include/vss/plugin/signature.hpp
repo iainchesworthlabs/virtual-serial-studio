@@ -64,13 +64,13 @@ using key_bytes = std::array<std::uint8_t, 32>;
 /// nothing else.
 struct root_key
 {
-    std::string key_id;
+    /// The id is text that outlives the key: a literal in the program.
+    std::string_view key_id;
     key_bytes public_key{};
 };
 
-/// The root keys built into this program.  Empty until the owner adds the
-/// real public keys; while it is empty no key list is accepted, so no plugin
-/// is official.
+/// The root keys built into this program: the one in use and the next one.
+/// Only public keys.  A key list signed by neither is not accepted.
 std::span<const root_key> builtin_root_keys() noexcept;
 
 /// One key of the official key list.

@@ -14,6 +14,7 @@
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/manifest.hpp>
+#include <vss/plugin/policy.hpp>
 #include <vss/plugin/revocations.hpp>
 #include <vss/plugin/signature.hpp>
 #include <vss/plugin/verify.hpp>
@@ -23,6 +24,9 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <span>
 #include <string>
 #include <string_view>
@@ -45,6 +49,26 @@ signing::seed test_seed(std::uint8_t fill)
     signing::seed seed{};
     seed.fill(fill);
     return seed;
+}
+
+/// The first official key list as text, and the same list once the owner
+/// has signed it, from the top of the repository.
+constexpr std::string_view key_list_payload_file =
+    "libs/vss_plugin/keys/official-keys.payload.json";
+constexpr std::string_view signed_key_list_file =
+    "libs/vss_plugin/keys/official-keys.json";
+
+/// The bytes of a file of the repository, or nothing when it is not there.
+/// The test data directory is two levels below the top.
+std::string read_repository_file(std::string_view name)
+{
+    const std::filesystem::path path =
+        std::filesystem::path(VSS_TEST_DATA_DIR) / ".." / ".." / name;
+    std::ifstream file(path, std::ios::binary);
+    if (!file)
+        return {};
+    return std::string(std::istreambuf_iterator<char>(file),
+                       std::istreambuf_iterator<char>());
 }
 
 key_bytes public_of(std::uint8_t fill)
@@ -204,9 +228,90 @@ void require_invalid(const plugin_under_test& plugin, std::string_view part,
 
 // -- the key list -----------------------------------------------------------
 
-TEST_CASE("plugin signature: no root key is built in yet")
+TEST_CASE("plugin signature: the owner's two root keys are built in")
 {
-    REQUIRE(builtin_root_keys().empty());
+    // The public halves the owner gave on 14 November 2026.  They are
+    // written here a second time on purpose: a change to a root key has to
+    // be made in two places that agree.
+    const std::span<const root_key> built_in = builtin_root_keys();
+    REQUIRE_EQ(built_in.size(), std::size_t{2});
+    REQUIRE(built_in[0].key_id == "root-2026");
+    REQUIRE_EQ(
+        hex_of(built_in[0].public_key),
+        "3a94dda0542ec5631e0ce810151baa831dd7f128ff9c393a68fef153026b0ca1");
+    REQUIRE(built_in[1].key_id == "root-next");
+    REQUIRE_EQ(
+        hex_of(built_in[1].public_key),
+        "648b4ce8ef09b6ce5d959d741e81e1063e73af05d3d156c5a0072b78c7503e1c");
+    for (const root_key& key : built_in)
+        REQUIRE(is_key_id(key.key_id));
+    // No test key is a root.
+    REQUIRE(built_in[0].public_key != public_of(root_fill));
+    REQUIRE(built_in[1].public_key != public_of(root_fill));
+}
+
+TEST_CASE("plugin signature: the first key list names the owner's two "
+          "signing keys")
+{
+    // The text that the owner signs, as it is in the repository.
+    const std::string payload = read_repository_file(key_list_payload_file);
+    std::string detail;
+    const auto parsed = parse_key_list(payload, &detail);
+    REQUIRE(detail.empty());
+    REQUIRE(parsed.has_value());
+    const key_list& list = parsed.value();
+    REQUIRE_EQ(list.serial, std::uint64_t{1});
+    REQUIRE_EQ(list.keys.size(), std::size_t{2});
+    REQUIRE(list.revoked.empty());
+
+    const official_key* const plugins =
+        list.find("plugins-2026", plugin_purpose);
+    REQUIRE(plugins != nullptr);
+    REQUIRE_EQ(
+        hex_of(plugins->public_key),
+        "0b94598447ecf7fa42609642f82542367efab0ec27ebde097e8e1a397963cb21");
+    const official_key* const revocations =
+        list.find("revocations-2026", revocations_purpose);
+    REQUIRE(revocations != nullptr);
+    REQUIRE_EQ(
+        hex_of(revocations->public_key),
+        "ecdb7521bfd8c088d31d904fd6f5b89da3ed9c593415f885307795db592868b1");
+
+    // Both count for two years from the day the list is dated.
+    for (const official_key* key : {plugins, revocations})
+    {
+        REQUIRE(key->valid_from == list.issued);
+        REQUIRE(key->valid_from == 2026y / 11 / 14);
+        REQUIRE(key->valid_to == 2028y / 11 / 14);
+    }
+    // A signing key is not a root key, and the two differ.
+    for (const root_key& root : builtin_root_keys())
+    {
+        REQUIRE(root.public_key != plugins->public_key);
+        REQUIRE(root.public_key != revocations->public_key);
+    }
+    REQUIRE(plugins->public_key != revocations->public_key);
+}
+
+TEST_CASE("plugin signature: the signed key list is accepted by the built-in "
+          "root")
+{
+    // The owner signs the list with the root private key, which is not
+    // here.  Until the signed file is in the repository there is nothing to
+    // check.
+    const std::string file = read_repository_file(signed_key_list_file);
+    if (file.empty())
+        VSS_SKIP("the owner has not signed the key list yet");
+
+    std::string detail;
+    const auto signed_list = read_key_list(file, builtin_root_keys(), &detail);
+    REQUIRE(detail.empty());
+    REQUIRE(signed_list.has_value());
+    // What was signed is the text in the repository.
+    const auto payload =
+        parse_key_list(read_repository_file(key_list_payload_file));
+    REQUIRE(payload.has_value());
+    REQUIRE(signed_list.value() == payload.value());
 }
 
 TEST_CASE("plugin signature: a key list reads and answers")
@@ -358,7 +463,8 @@ TEST_CASE("plugin signature: a key list counts only when a root signed it")
     refused(signed_text(key_list_purpose, "root-2026", payload,
                         stranger_fill),
             "does not hold");
-    // With no root at all, as this program is built today.
+    // The roots built into this program are not the test root: a list
+    // signed with the test key under a built-in root's id does not pass.
     {
         std::string why;
         const auto read = read_key_list(
