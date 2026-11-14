@@ -113,7 +113,33 @@ api_error to_api_error(api_errc value)
 
 error_code from_api_error(const api_error& error) noexcept
 {
-    return make_error_code(parse_code(error.code).value_or(api_errc::internal));
+    if (const auto known = parse_code(error.code))
+        return make_error_code(*known);
+    try
+    {
+        for (int value = 1; value <= static_cast<int>(errc::internal); ++value)
+        {
+            const error_code candidate =
+                vss::make_error_code(static_cast<errc>(value));
+            if (engine_error_name(candidate) == error.code)
+                return candidate;
+        }
+        return make_error_code(api_errc::internal);
+    }
+    catch (...)
+    {
+        // Out of memory while comparing names.
+        return make_error_code(api_errc::internal);
+    }
+}
+
+api_error engine_api_error(const error_code& error)
+{
+    api_error out;
+    out.code = engine_error_name(error);
+    out.message = "the engine refused the request";
+    out.retryable = false;
+    return out;
 }
 
 std::string engine_error_name(const error_code& error)

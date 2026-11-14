@@ -23,6 +23,7 @@ Card "Try this": numbered steps "In your program, choose **COM7** as the serial 
 Chips use text plus shape. The checks come from endpoint state, counters and events. If the engine cannot know whether a program has opened a port, mark checks 4 and 5 "Not checked yet" and explain, see 08-engine-gaps.md.
 
 ## Diagnostic bundle (Bundle.html), width 760
+The diagnostic bundle is now the support bundle, with a preview, new sections and no traffic contents. See `09-licence-and-support.md`, "Support bundle", for the current screen; this section is the earlier design.
 Title "Create a diagnostic bundle". Sub "Collects your setup, event log and environment details into one file. Nothing is sent anywhere. You choose where to save it." Checklist "Include": Setup (setup.json), Event log (log.txt), Environment (environment.txt: build information and environment), Port counters (counters.csv), all default on; **Traffic contents** default **off**, amber row: "The actual bytes sent and received. They may include passwords or personal data." with chip "Off by default". Info: "Nothing is sent. The file is a zip that you can open and read before you share it." Shows the file name `vss-bundle-<date>.zip` and its file count. Footer: "Copy diagnostic information", Cancel, primary "Save bundle" (native save dialog). The zip is written locally only.
 
 ## Feedback and error patterns (Feedback.html)

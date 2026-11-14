@@ -196,7 +196,12 @@ enum class operation
     traffic_subscribe,
     traffic_unsubscribe,
     sessions_list,
-    sessions_kick
+    sessions_kick,
+    ports_create,
+    ports_remove,
+    links_connect,
+    ports_send,
+    expect_bytes
 };
 
 struct operation_info

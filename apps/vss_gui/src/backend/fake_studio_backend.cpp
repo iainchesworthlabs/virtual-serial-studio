@@ -1411,4 +1411,44 @@ void FakeStudioBackend::set_refresh_interval(int milliseconds)
     refresh_interval_ms_ = milliseconds;
 }
 
+void FakeStudioBackend::set_licence(licence_view view)
+{
+    licence_ = std::move(view);
+    Q_EMIT licence_changed();
+}
+
+void FakeStudioBackend::set_import_result(licence_import_result result,
+                                          std::optional<licence_view> then)
+{
+    import_result_ = std::move(result);
+    licence_after_import_ = std::move(then);
+}
+
+licence_import_result FakeStudioBackend::import_licence(const QString& path)
+{
+    imported_paths_ << path;
+    if (import_result_.outcome == licence_import_outcome::imported &&
+        licence_after_import_)
+        set_licence(*licence_after_import_);
+    return import_result_;
+}
+
+bool FakeStudioBackend::remove_licence(const QString& file_name)
+{
+    removed_licences_ << file_name;
+    const auto before = licence_.files.size();
+    std::erase_if(licence_.files, [&](const licence_file_view& file)
+                  { return file.file_name == file_name && !file.machine_wide; });
+    if (licence_.files.size() == before)
+        return false;
+    // The fake keeps no folders: with the file in use gone, what is left is
+    // the Community edition unless the test sets another licence.
+    const bool any_in_use =
+        std::ranges::any_of(licence_.files, &licence_file_view::in_use);
+    if (!any_in_use)
+        licence_.status = vss::license::no_licence();
+    Q_EMIT licence_changed();
+    return true;
+}
+
 } // namespace vss::gui

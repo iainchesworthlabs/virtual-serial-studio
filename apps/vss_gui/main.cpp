@@ -5,6 +5,7 @@
 //
 
 #include "backend/engine_studio_backend.hpp"
+#include "backend/licence_store.hpp"
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
@@ -25,6 +26,7 @@
 
 #include <vss/core/profile.hpp>
 #include <vss/core/profiling.hpp>
+#include <vss/license/license.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <QAction>
@@ -43,6 +45,7 @@
 #include <exception>
 #include <memory>
 #include <thread>
+#include <utility>
 
 namespace
 {
@@ -187,7 +190,7 @@ try
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-        QStringLiteral("Virtual Serial Studio - a playground for real, virtual "
+        QStringLiteral("Virtual Serial Studio - a tool for real, virtual "
                        "and networked serial ports."));
     const QCommandLineOption help_option = parser.addHelpOption();
     const QCommandLineOption version_option = parser.addVersionOption();
@@ -304,6 +307,19 @@ try
         vss::studio_options options;
         auto studio = std::make_unique<vss::studio>(options);
         vss::gui::EngineStudioBackend backend(*studio);
+        {
+            // The licence files on this computer. They are read from disk
+            // and checked here; nothing is fetched or sent.
+            vss::gui::licence_store_options licences =
+                vss::gui::default_licence_store_options();
+            const auto built =
+                vss::license::parse_time(vss::gui::support::current_build_info()
+                                             .build_time.toStdString());
+            if (built)
+                licences.build_time = *built;
+            backend.set_licence_store(
+                std::make_unique<vss::gui::licence_store>(std::move(licences)));
+        }
         if (parser.isSet(screenshot_option))
         {
             // Review images must be repeatable regardless of the user's saved

@@ -242,7 +242,8 @@ result<const trusted_key*> verify(const envelope& file,
     {
         return errc::unknown_key;
     }
-    if (key->revoked_from && *key->revoked_from == time_point::min())
+    // An optional equals a value only when it holds one.
+    if (key->revoked_from == time_point::min())
     {
         return errc::key_not_valid;
     }

@@ -1,0 +1,1 @@
+**The features page of the website shows the application.** It has pictures of Simple mode and of Advanced mode, each in the light and the dark theme, taken from the application with sample ports. The pictures of dialogs are still placeholders.

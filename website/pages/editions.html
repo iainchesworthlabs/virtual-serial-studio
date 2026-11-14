@@ -1,6 +1,6 @@
 <!--
 title: Editions and pricing
-description: Community is free and complete. Pro is an annual licence per seat with plugins for test automation, a Microsoft-signed driver and support. Enterprise is a site licence.
+description: Community is free and complete. Pro is an annual licence per seat with plugins for test automation, a Microsoft-signed driver and support. Enterprise is a licence negotiated with the customer.
 -->
 <section class="band pane" aria-labelledby="page-title">
 <div class="head">
@@ -34,21 +34,19 @@ description: Community is free and complete. Pro is an annual licence per seat w
 <li>Response timing and fault injection set from your tests</li>
 <li>The Windows driver signed through Microsoft</li>
 <li>Support included</li>
-<li>A seat is your computer, plus one other computer that you monitor</li>
+<li>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either</li>
 </ul>
 <p class="more"><a class="btn primary" href="support.html#sales">Ask about Pro and the trial</a></p>
 </article>
 <article class="card plan">
 <span class="chip info hollow">In development</span>
 <h2>Enterprise</h2>
-<p class="price">Price on application<small>A site licence, not counted by seat</small></p>
-<p>For a lab or a company that wants a site licence.</p>
+<p class="price">Price on application<small>The licence is negotiated with you</small></p>
+<p>For a lab or a company that wants terms of its own.</p>
 <ul>
 <li>Everything in Pro</li>
-<li>A site licence, or a licence that names machines</li>
+<li>What the licence covers, how long it runs and the price are negotiated with you</li>
 <li>A support agreement</li>
-<li>A policy that allows official plugins only</li>
-<li>A custom term</li>
 </ul>
 <p class="more"><a class="btn" href="support.html#sales">Ask about Enterprise</a></p>
 </article>
@@ -70,13 +68,13 @@ description: Community is free and complete. Pro is an annual licence per seat w
 </thead>
 <tbody>
 <tr><th scope="row">Price</th><td>Free</td><td>Annual licence</td><td>Price on application</td></tr>
-<tr><th scope="row">Seats</th><td>Unlimited</td><td>For each seat: your computer, plus one other that you monitor</td><td>Site licence</td></tr>
+<tr><th scope="row">Seats</th><td>Unlimited</td><td>For each seat. A seat is two computers: the one you work at and one other that you control or monitor from it</td><td>Negotiated</td></tr>
 <tr><th scope="row">Studio and the command line tool</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td></tr>
 <tr><th scope="row">Simple and Advanced modes, Monitor, captures, network bridges</th><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td></tr>
 <tr><th scope="row">Windows driver</th><td>Test-signed by Iain Chesworth Labs, built from source</td><td>Signed through Microsoft</td><td>Signed through Microsoft</td></tr>
 <tr><th scope="row">Official plugins, signed by us</th><td><span class="no">No</span></td><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td></tr>
 <tr><th scope="row">Test harness, scripting and remote monitoring plugins</th><td><span class="no">No</span></td><td><span class="yes">Yes</span></td><td><span class="yes">Yes</span></td></tr>
-<tr><th scope="row">Third-party plugins</th><td>Yes, with a warning</td><td>Yes, with a warning</td><td>Yes, with an optional &ldquo;official only&rdquo; policy</td></tr>
+<tr><th scope="row">Third-party plugins</th><td>Yes, with a warning</td><td>Yes, with a warning</td><td>Yes, with a warning</td></tr>
 <tr><th scope="row">Support</th><td>Community</td><td>Included</td><td>Support agreement</td></tr>
 <tr><th scope="row">Licence</th><td>GPL, version 3 or later</td><td>Commercial terms for the Pro parts</td><td>Commercial terms and a support agreement</td></tr>
 </tbody>
@@ -92,8 +90,8 @@ description: Community is free and complete. Pro is an annual licence per seat w
 <dl class="rows">
 <div><dt>Trial</dt><dd>14 days, with every Pro feature. A trial licence is issued when you ask for one.</dd></div>
 <div><dt>Annual</dt><dd>One year. You renew by loading a new file.</dd></div>
-<div><dt>Enterprise</dt><dd>A term we agree with you, as a site licence or bound to named machines.</dd></div>
-<div><dt>When a licence ends</dt><dd>Studio says &ldquo;licence expired&rdquo; and shows how to renew. The plugins carry on for a further 28 days, and then Studio goes back to being the Community edition. It keeps every port, setup and file.</dd></div>
+<div><dt>Enterprise</dt><dd>Negotiated with you: what the licence covers, how long it runs and the price.</dd></div>
+<div><dt>When a licence ends</dt><dd>Studio shows that the licence has ended and how to renew. The official plugins carry on for a further 28 days, and then they switch off and Studio goes back to being the Community edition. A trial has no further days. Studio keeps every port, setup and file.</dd></div>
 <div><dt>The signed driver</dt><dd>The Community driver is test-signed: Windows trusts it only on a machine where our certificate authority has been installed. The Pro driver is signed through Microsoft and installs on an ordinary Windows machine. The source of both is the same and is published.</dd></div>
 </dl>
 </section>
@@ -106,8 +104,8 @@ description: Community is free and complete. Pro is an annual licence per seat w
 <div><dt>Can I use Community at work?</dt><dd>Yes. The GPL allows commercial use. If you change the program and pass it on, the GPL asks you to pass on your source as well. <a href="licence.html">Licence</a>.</dd></div>
 <div><dt>Can I buy Pro today?</dt><dd>Not yet. The plugins, the licence files and the signed driver are being built. This page describes the plan.</dd></div>
 <div><dt>What will Pro cost?</dt><dd>The price has not been set. It will be published here before Pro goes on sale.</dd></div>
-<div><dt>Can I write my own plugin without Pro?</dt><dd>Yes. The plugin protocol is documented and free to use, and Community loads third-party plugins after it has warned you. Pro is the maintained, supported and tested set. <a href="plugins.html">Plugins</a>.</dd></div>
-<div><dt>Does Studio contact a server to count seats?</dt><dd>No. A seat is kept by the licence file and the licence terms. A lab that wants a hard count asks for an Enterprise licence that names machines.</dd></div>
+<div><dt>Can I write my own plugin without Pro?</dt><dd>Yes. The plugin API is documented and free to use, and Community loads third-party plugins after it has warned you. The official plugins that we build on it, such as remote control, are the Pro edition. <a href="plugins.html">Plugins</a>.</dd></div>
+<div><dt>Does Studio contact a server to count seats?</dt><dd>No. A seat is kept by the licence file and the licence terms.</dd></div>
 </dl>
 <p class="draft">DRAFT</p>
 <p class="quiet">The editions, the terms and the prices on this page are a proposal. They are not an offer and they may change before Pro and Enterprise are released.</p>

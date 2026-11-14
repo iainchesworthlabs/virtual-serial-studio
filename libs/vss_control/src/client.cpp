@@ -62,7 +62,8 @@ public:
 
     /// Sends a request and waits for its reply.  An error reply comes back
     /// as the error it carries.
-    result<reply_body> call(request_body body)
+    result<reply_body> call(request_body body,
+                            std::chrono::milliseconds longer = {})
     {
         if (broken_)
             return agent::make_error_code(
@@ -70,7 +71,7 @@ public:
         request asked;
         asked.id = next_id_++;
         asked.body = std::move(body);
-        const auto deadline = steady::now() + options_.timeout;
+        const auto deadline = steady::now() + options_.timeout + longer;
 
         const error_code unsent = send(encode(asked), deadline);
         if (unsent == errc::timeout)
@@ -334,6 +335,68 @@ result<ports_reply> client::list_ports()
     if (listed == nullptr)
         return make_error_code(api_errc::invalid_argument);
     return std::move(*listed);
+}
+
+namespace
+{
+
+result<std::string> made(result<reply_body> answer)
+{
+    if (!answer)
+        return answer.error();
+    auto* created = std::get_if<created_reply>(&*answer);
+    if (created == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(created->id);
+}
+
+result<void> carried_out(const result<reply_body>& answer)
+{
+    if (!answer)
+        return answer.error();
+    if (!std::holds_alternative<done_reply>(*answer))
+        return make_error_code(api_errc::invalid_argument);
+    return {};
+}
+
+} // namespace
+
+result<std::string> client::create_port(const std::string& name,
+                                        const std::string& kind)
+{
+    return made(impl_->call(ports_create_request{name, kind}));
+}
+
+result<void> client::remove_port(const std::string& port)
+{
+    return carried_out(impl_->call(ports_remove_request{port}));
+}
+
+result<std::string> client::connect_ports(const std::string& first,
+                                          const std::string& second,
+                                          bool one_way)
+{
+    return made(impl_->call(links_connect_request{first, second, one_way}));
+}
+
+result<void> client::send(const std::string& port, bytes_view data)
+{
+    ports_send_request asking;
+    asking.port = port;
+    asking.data.assign(data.begin(), data.end());
+    return carried_out(impl_->call(std::move(asking)));
+}
+
+result<matched_reply> client::expect_bytes(const expect_bytes_request& wanted)
+{
+    auto answer =
+        impl_->call(wanted, std::chrono::milliseconds(wanted.timeout_ms));
+    if (!answer)
+        return answer.error();
+    const auto* found = std::get_if<matched_reply>(&*answer);
+    if (found == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return *found;
 }
 
 result<void> client::stop()

@@ -58,11 +58,12 @@ constexpr std::array<named<after_sequence>, 3> then_names{
      {"hold", after_sequence::hold},
      {"stop", after_sequence::stop}}};
 
-constexpr std::array<named<edge>, 4> edge_names{
+constexpr std::array<named<edge>, 5> edge_names{
     {{"match_end", edge::match_end},
      {"match_start", edge::match_start},
      {"previous", edge::previous},
-     {"run_start", edge::run_start}}};
+     {"run_start", edge::run_start},
+     {"cause", edge::cause}}};
 
 constexpr std::array<named<precision>, 2> precision_names{
     {{"normal", precision::normal}, {"tight", precision::tight}}};
@@ -481,7 +482,7 @@ rule_set_source reader::document(const json::object& root)
     rule_set_source out;
     unknown_keys(root,
                  {"version", "name", "attach", "seed", "late_after_us", "order",
-                  "states", "slots", "rules", "timeline"},
+                  "states", "signals", "slots", "rules", "timeline"},
                  "");
 
     if (const json::value* version = root.if_contains("version"))
@@ -521,6 +522,20 @@ rule_set_source reader::document(const json::object& root)
                 std::string state;
                 text_of((*list)[i], index_of("states", i), state);
                 out.states.push_back(std::move(state));
+            }
+        }
+    }
+
+    if (const json::value* signals = root.if_contains("signals"))
+    {
+        if (const json::array* list =
+                array_of(*signals, "signals", max_signals))
+        {
+            for (std::size_t i = 0; i < list->size(); ++i)
+            {
+                std::string signal;
+                text_of((*list)[i], index_of("signals", i), signal);
+                out.signals.push_back(std::move(signal));
             }
         }
     }
@@ -655,7 +670,8 @@ trigger reader::trigger_of(const json::value& value, const std::string& path)
     if (object == nullptr)
         return out;
     unknown_keys(*object,
-                 {"bytes", "mask", "gap_us", "gap", "lines", "port", "state"},
+                 {"bytes", "mask", "gap_us", "gap", "lines", "port", "quiet_us",
+                  "signal", "state"},
                  path);
 
     bool wildcard = false;
@@ -692,6 +708,16 @@ trigger reader::trigger_of(const json::value& value, const std::string& path)
         if (choice_of(*port, join(path, "port"), port_names, what))
             out.port = what;
     }
+    if (const json::value* quiet = object->if_contains("quiet_us"))
+    {
+        // Zero is how the model says "not a rule on silence", so it is
+        // refused here and not left to look like a missing trigger.
+        const std::string where = join(path, "quiet_us");
+        if (time_of(*quiet, where, out.quiet) && out.quiet.count() == 0)
+            bad(where, "must be at least 1");
+    }
+    if (const json::value* signal = object->if_contains("signal"))
+        text_of(*signal, join(path, "signal"), out.signal);
     if (const json::value* state = object->if_contains("state"))
         text_of(*state, join(path, "state"), out.state);
     return out;

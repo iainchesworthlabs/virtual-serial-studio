@@ -24,7 +24,7 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <thead><tr><th scope="col">Binding</th><th scope="col">What it gives you</th></tr></thead>
 <tbody>
 <tr><th scope="row">Python and pytest</th><td>A library, and a pytest plugin with fixtures for ports and links.</td></tr>
-<tr><th scope="row">C and C++</th><td>A stable C interface. Every other binding wraps it, so a lab can bind a language of its own.</td></tr>
+<tr><th scope="row">C and C++</th><td>A stable C interface. The C#, Java and Node.js bindings wrap it, so a lab can bind a language of its own.</td></tr>
 <tr><th scope="row">C# and .NET</th><td>A library for .NET test projects.</td></tr>
 <tr><th scope="row">Java</th><td>A library for JVM test projects.</td></tr>
 <tr><th scope="row">Node.js</th><td>A package for JavaScript and TypeScript tests.</td></tr>
@@ -56,15 +56,15 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 </article>
 <article class="card on-ground">
 <h3>Repeatable runs</h3>
-<p>A deterministic mode with a seeded random source, so a failing run can be repeated exactly.</p>
+<p>A deterministic mode with a seeded random source, so a repeated run makes the same decisions. Real times still depend on the machine.</p>
 </article>
 <article class="card on-ground">
 <h3>One clock</h3>
 <p>A timestamp on everything the harness sees, from a single clock, so events on different ports can be put in order.</p>
 </article>
 <article class="card on-ground">
-<h3>Exact timing</h3>
-<p>Timing that has to be exact, such as RS-485 turnaround, is carried out by the engine and not by a plugin, so a plugin is never in a microsecond path.</p>
+<h3>Timing in the engine</h3>
+<p>The engine carries out the delays, replies and faults that a test sets as rules, and the RS-485 turnaround delay, without waiting for a plugin. An action is never early, and the engine records how late each one was.</p>
 </article>
 </div>
 </section>
@@ -92,7 +92,7 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <thead><tr><th scope="col">Kind of plugin</th><th scope="col">Loads</th><th scope="col">What you see</th></tr></thead>
 <tbody>
 <tr><th scope="row">Official, signed by us</th><td>Yes, with a Pro or Enterprise licence</td><td>A Virtual Serial Studio badge</td></tr>
-<tr><th scope="row">Third-party, signed by its author</th><td>After you trust that author</td><td>The author's name and &ldquo;not verified by Virtual Serial Studio&rdquo;</td></tr>
+<tr><th scope="row">Third-party, signed by its author</th><td>After you approve it</td><td>The author's name and &ldquo;Not verified by Virtual Serial Studio&rdquo;</td></tr>
 <tr><th scope="row">Third-party, unsigned</th><td>After you confirm</td><td>&ldquo;Unofficial plugin. It can do anything Studio can.&rdquo;</td></tr>
 </tbody>
 </table>
@@ -100,7 +100,7 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <dl class="rows">
 <div><dt>A changed plugin asks again</dt><dd>Your decision to trust a plugin is tied to the exact file. If the file changes, Studio asks you again.</dd></div>
 <div><dt>Official only, if you want</dt><dd>An administrator can set a policy that allows only official plugins.</dd></div>
-<div><dt>Write your own</dt><dd>The plugin protocol is documented and free to use in every edition. A plugin declares what it extends, its settings and its permissions in a manifest, and its author chooses its licence. We do not support third-party plugins.</dd></div>
+<div><dt>Write your own</dt><dd>The plugin API is documented and free to use in every edition. The official plugins that we build on it are commercial. A plugin declares what it extends, its settings and its permissions in a manifest, and its author chooses its licence. We do not support third-party plugins.</dd></div>
 <div><dt>What a plugin can extend</dt><dd>Generators that put bytes or traffic patterns onto a port, fixture types that answer like a real instrument or modem, behaviour modifiers that delay, corrupt, filter or rewrite traffic on a link, and adapters that let other tools drive Studio.</dd></div>
 </dl>
 <div class="actions">
