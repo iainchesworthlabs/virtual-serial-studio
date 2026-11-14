@@ -38,6 +38,7 @@ nav:
   - How it works:
       - Architecture: architecture.md
       - The per-user agent: agent.md
+      - The plugin framework (design): plugins.md
       - Remote control and monitoring (proposal): remote-control.md
       - The plugin framework (design): plugins.md
       - Response timing rules (design): response-timing.md
