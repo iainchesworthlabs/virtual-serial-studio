@@ -397,6 +397,14 @@ std::string inline_text(std::string_view timing)
     return with_inline_permission(point_text("modifier", timing));
 }
 
+/// A decoder of the timing object `timing`, or none when `timing` is empty,
+/// that holds the permission "traffic.tap" in place of "faults".
+std::string decoder_text(std::string_view timing)
+{
+    return replaced(point_text("decoder", timing), faults_json,
+                    R"j({ "name": "traffic.tap" })j");
+}
+
 std::string with_instances(std::string_view count)
 {
     return replaced(minimal_text(), "\"id\": \"slave\",",
@@ -1835,6 +1843,47 @@ TEST_CASE("plugin manifest: inline needs the permission modifier.inline")
     REQUIRE(parse_manifest(inline_text(timing)).has_value());
 }
 
+TEST_CASE("plugin manifest: a decoder is async and needs traffic.tap")
+{
+    // No timing: a decoder reads as async, as the other kinds do.
+    const manifest implicit = parse_ok(decoder_text(""));
+    REQUIRE(implicit.extension_points[0].kind == extension_kind::decoder);
+    REQUIRE(implicit.extension_points[0].timing.type == timing_class::async);
+    const permission_request* const tap =
+        implicit.find(permission::traffic_tap);
+    REQUIRE(tap != nullptr);
+    REQUIRE(tap->required);
+
+    const manifest explicit_async =
+        parse_ok(decoder_text(R"j({ "class": "async" })j"));
+    REQUIRE(explicit_async.extension_points[0].kind ==
+            extension_kind::decoder);
+    REQUIRE(explicit_async.extension_points[0].timing.type ==
+            timing_class::async);
+
+    // Nothing but async.
+    expect_invalid(decoder_text(R"j({ "class": "rules" })j"),
+                   at_point(".timing.class: \"rules\" is not allowed for "
+                            "the kind decoder"));
+    expect_invalid(decoder_text(R"j({ "class": "inline",
+                                    "budget_us": 100 })j"),
+                   at_point(".timing.class: \"inline\" is not allowed for "
+                            "the kind decoder"));
+
+    // The tap is required: not asked for, asked for as optional, or another
+    // permission in its place.
+    const std::string wanted = at_point(
+        ".kind: needs the permission \"traffic.tap\", as required");
+    expect_invalid(point_text("decoder", ""), wanted);
+    expect_invalid(replaced(point_text("decoder", ""), faults_json,
+                            R"j({ "name": "traffic.tap",
+                                  "required": false })j"),
+                   wanted);
+    expect_invalid(replaced(point_text("decoder", ""), faults_json,
+                            R"j({ "name": "ports.write" })j"),
+                   wanted);
+}
+
 TEST_CASE("plugin manifest: the number of instances")
 {
     for (const char* const count : {"0", "257", "1000", "-1"})
@@ -2706,6 +2755,7 @@ TEST_CASE("plugin manifest: names of kinds, classes and types")
     REQUIRE_EQ(to_string(extension_kind::fixture), "fixture");
     REQUIRE_EQ(to_string(extension_kind::modifier), "modifier");
     REQUIRE_EQ(to_string(extension_kind::adapter), "adapter");
+    REQUIRE_EQ(to_string(extension_kind::decoder), "decoder");
 
     REQUIRE_EQ(to_string(timing_class::rules), "rules");
     REQUIRE_EQ(to_string(timing_class::in_line), "inline");

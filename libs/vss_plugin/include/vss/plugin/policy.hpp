@@ -18,6 +18,7 @@
 #include <vss/core/error.hpp>
 #include <vss/plugin/manifest.hpp>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -55,11 +56,28 @@ enum class sandbox_level { none, partial, full };
 std::string_view to_string(allow_level value) noexcept;
 std::string_view to_string(sandbox_level value) noexcept;
 
+/// A third-party signing key that the administrator approves for everyone
+/// on the computer.  It carries the public key itself: a signature names
+/// its key by id only, so the key has to be on the computer already.
+struct policy_key
+{
+    /// By the rule of `is_key_id`.
+    std::string key_id;
+    /// The 32 bytes of the Ed25519 public key.
+    std::array<std::uint8_t, 32> public_key{};
+    /// The author's name, shown to the user.  Plain text; may be empty.
+    std::string name;
+
+    friend bool operator==(const policy_key&, const policy_key&) = default;
+};
+
 struct policy
 {
     allow_level allow = allow_level::any;
     /// Third-party signing keys the administrator approves for everyone.
-    std::vector<std::string> allow_keys;
+    /// In the file each is an object: `key_id`, `public_key` as 64
+    /// lower-case hex characters, and optionally `name`.
+    std::vector<policy_key> allow_keys;
     /// Plugins that never run, by id.
     std::vector<std::string> deny_plugins;
     /// A plugin that is not official runs only when this computer can keep
@@ -97,7 +115,9 @@ result<policy> parse_policy(std::string_view text,
 policy official_only_policy();
 
 /// Whether `text` may be the id of a signing key: 1 to `max_key_id_length`
-/// ASCII letters, digits, dots, hyphens and underscores.
+/// lower-case ASCII letters, digits and hyphens.  It is the rule of the
+/// signed envelope, which names its key by this id, so that no key list,
+/// policy or trust store can hold an id that a signature could never name.
 bool is_key_id(std::string_view text) noexcept;
 
 } // namespace vss::plugin

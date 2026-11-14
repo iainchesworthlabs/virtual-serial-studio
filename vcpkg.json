@@ -2,7 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "virtual-serial-studio",
   "version-string": "0.1.0",
-  "description": "A playground for real, virtual and networked serial ports.",
+  "description": "A tool for real, virtual and networked serial ports.",
   "homepage": "https://github.com/iainchesworth/virtual-serial-studio",
   "license": "GPL-3.0-or-later",
   "builtin-baseline": "9eec002df1cd109f8f104cd966a763daf9751489",

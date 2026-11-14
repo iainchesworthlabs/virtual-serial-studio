@@ -62,7 +62,9 @@ enum class trigger_kind
 {
     bytes,
     lines,
-    port
+    port,
+    quiet,
+    signal
 };
 
 struct compiled_rule
@@ -82,10 +84,17 @@ struct compiled_rule
 
     std::vector<line_value> lines;
     port_event port = port_event::opened;
+    /// `quiet`: how long nothing must have arrived.
+    microseconds quiet{0};
+    /// `signal`: which of the set's signals.
+    std::size_t signal = no_index;
 
     /// The state the rule needs, or #no_index for any.
     std::size_t state = no_index;
     std::vector<compiled_step> sequence;
+    /// The rule was written with a `do` list and no `sequence`, so a problem
+    /// found later is reported at `rules[i].do[j]`.
+    bool written_as_do = false;
     after_sequence then = after_sequence::repeat;
     std::uint64_t count = 0;
 };
@@ -107,6 +116,7 @@ struct compiled_rule_set
     std::vector<std::string> states;
     std::vector<std::string> slot_names;
     std::vector<byte_buffer> slot_values;
+    std::vector<std::string> signals;
     std::vector<compiled_rule> rules;
     std::vector<compiled_timeline_entry> timeline;
 

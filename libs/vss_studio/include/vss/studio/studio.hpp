@@ -17,9 +17,12 @@
 #include <vss/ports/stable_link.hpp>
 #include <vss/ports/vcom_driver.hpp>
 #include <vss/ports/virtual_port.hpp>
+#include <vss/rules/compile.hpp>
+#include <vss/rules/scheduler.hpp>
 #include <vss/studio/format_check.hpp>
 #include <vss/studio/reconnect.hpp>
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -52,6 +55,24 @@ enum class fault_kind
     break_condition,
     hangup,
     disconnect,
+};
+
+/// What `studio::install_rules` is told besides the set.
+struct rules_install_options
+{
+    /// The seed for a set that has none of its own.
+    std::uint64_t run_seed = 0;
+};
+
+/// A rule set that was installed.
+struct rules_installation
+{
+    /// The port the set is on.
+    endpoint_id place = 0;
+    /// Counts the installations of this studio, from 1.
+    std::uint64_t generation = 0;
+    /// The seed the set draws from: its own, or the run's.
+    std::uint64_t seed = 0;
 };
 
 struct studio_options
@@ -171,6 +192,39 @@ public:
 
     /// True while the fixture echoes.
     bool fixture_echo(endpoint_id id) const;
+
+    // -- response timing rules ---------------------------------------------
+
+    /// Installs a compiled rule set on the port it names (see
+    /// docs/response-timing.md).  From the next chunk the port reads, the
+    /// set matches what the program on the port wrote and answers by
+    /// writing to the port.  The set's run starts at the call: its timeline
+    /// and its seed are counted from it.
+    ///
+    /// This build installs `peer` sets whose rules match `bytes` or
+    /// `quiet_us`.  Anything else is refused with `errc::unsupported` and
+    /// never approximated: another role, a rule on `lines`, `port` or a
+    /// `signal`, an `ask`, a `line_error` on a port that takes none, a line
+    /// a device does not drive.  `errc::not_found` for a port that does not
+    /// exist and `errc::already_exists` for one that has a set.  `problems`,
+    /// when given, says what was refused and where.
+    result<rules_installation> install_rules(
+        std::shared_ptr<const rules::compiled_rule_set> set,
+        const rules_install_options& options = {},
+        std::vector<rules::problem>* problems = nullptr);
+
+    /// Removes the rule set of a port.  What it had scheduled is discarded,
+    /// and when the call returns the set does nothing more: an action that
+    /// was under way has finished.  The traffic is not touched.
+    /// `errc::not_found` for a port with no set.  Removing a port removes
+    /// its set.
+    result<void> remove_rules(endpoint_id place);
+
+    /// The counters of a port's rule set, exact at the instant of the call.
+    result<rules::scheduler_stats> rule_stats(endpoint_id place) const;
+
+    /// The generation of the set on a port, if it has one.
+    std::optional<std::uint64_t> rules_generation(endpoint_id place) const;
 
     /// Gives a port new serial settings and keeps its name, id and links.
     /// What happens depends on how the port was made:
@@ -367,6 +421,12 @@ public:
 
     // -- persistence -------------------------------------------------------
 
+    /// `apply` makes the ports and links of a setup, and `snapshot` writes
+    /// down the ones that are running.  The plugin bindings of a setup (the
+    /// `plugins` list of a port or a link) pass through both: `apply` keeps
+    /// each list with the port or link it made and runs none of it, and
+    /// `snapshot` writes the list back.  A list goes when its port or link
+    /// is removed, and a port or link made in any other way has none.
     result<void> apply(const config::document& value,
                        bool rollback_on_error = true);
     config::document snapshot() const;
@@ -398,6 +458,9 @@ private:
         subscriber_id echo = 0;
         /// The device a mock fixture plays, so it can be made again.
         std::string mock_target;
+        /// What plugins provide at this port, as the setup that was applied
+        /// said.  Kept for `snapshot`; the studio runs none of it.
+        std::vector<config::plugin_binding> plugins;
         /// For a port of the Windows driver: the number it was asked to have
         /// (0 for whichever Windows picked), and its transport, which the
         /// number is changed through.
@@ -407,6 +470,20 @@ private:
         /// a reopen gives them again; otherwise the address alone describes it.
         bool settings_given = false;
     };
+
+    struct rules_record
+    {
+        std::shared_ptr<rules::scheduler> scheduler;
+        std::uint64_t generation = 0;
+    };
+
+    /// Does one action of a rule set on its port.  Called on the set's
+    /// scheduler strand.
+    void carry_out_rule_action(endpoint_id id,
+                               const std::shared_ptr<endpoint>& port,
+                               const rules::planned_action& action);
+    /// Closes every rule set, so that none calls the studio again.
+    void close_all_rules();
 
     /// The transport behind a mock port: `errc::not_found` for an unknown id
     /// and `errc::unsupported` for a port that is not a fixture.
@@ -433,6 +510,9 @@ private:
     bool path_in_use(const std::string& path) const;
     void claim_paths(const std::string& target, const std::string& advertised);
 
+    /// Drops the plugin bindings of links that are gone: a link goes with
+    /// its ports, and nothing tells the studio when it does.
+    void forget_plugins_of_removed_links();
     /// One try of the retry policy for a lost connection.
     result<void> reconnect_attempt(endpoint_id id);
     /// True for an endpoint the retry policy applies to.
@@ -444,7 +524,14 @@ private:
     subscriber_id reconnect_subscription_ = 0;
     mutable std::mutex record_mutex_;
     std::unordered_map<endpoint_id, port_record> records_;
+    /// The plugin bindings of links, by link, kept for `snapshot` as a
+    /// port's are.  Guarded by `record_mutex_`.
+    std::unordered_map<link_id, std::vector<config::plugin_binding>>
+        link_plugins_;
     std::unordered_set<std::string> claimed_paths_;
+    mutable std::mutex rules_mutex_;
+    std::unordered_map<endpoint_id, rules_record> rules_;
+    std::uint64_t next_rules_generation_ = 1;
 };
 
 } // namespace vss

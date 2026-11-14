@@ -8,11 +8,12 @@
 // rule set in JSON; what comes after is traffic. Any bytes may arrive from a
 // file a person opened, so the reader must reject bad input with an error and
 // never crash. A set that compiles is run on the traffic, fed in pieces of 1
-// to 7 bytes 100 microseconds apart, with line and port changes driven by the
-// traffic, and must keep to its promises: nothing is due before its match
-// (unless it is timed from the start of the run), no reply is longer than the
-// limit, the bytes kept for a successor are fewer than the longest pattern,
-// and every byte fed is counted.
+// to 7 bytes 100 microseconds apart, with line and port changes and signals
+// driven by the traffic, and must keep to its promises: nothing is due before
+// its match (unless it is timed from the start of the run or, for a signal,
+// from its cause), no reply is longer than the limit, a signal carries no more
+// than the limit, the bytes kept for a successor are fewer than the longest
+// pattern, and every byte fed is counted.
 //
 
 #include <vss/rules/compile.hpp>
@@ -44,7 +45,8 @@ void check_firings(const std::vector<rules::firing>& firings)
         {
             const bool from_start =
                 planned.source != nullptr &&
-                planned.source->when.after == rules::edge::run_start;
+                (planned.source->when.after == rules::edge::run_start ||
+                 planned.source->when.after == rules::edge::cause);
             if (!from_start && planned.due < fired.start)
             {
                 std::abort();
@@ -53,6 +55,11 @@ void check_firings(const std::vector<rules::firing>& firings)
             {
                 std::abort();
             }
+        }
+        if (fired.signal_bytes > rules::max_signal_bytes ||
+            (fired.signal == rules::no_index && fired.signal_bytes != 0))
+        {
+            std::abort();
         }
     }
 }
@@ -106,6 +113,13 @@ void run(const std::shared_ptr<const rules::compiled_rule_set>& set,
             machine.port_changed((last & 1U) != 0 ? rules::port_event::opened
                                                   : rules::port_event::closed,
                                  now, firings);
+        }
+        if ((last & 0x20U) != 0 && !machine.set().signals.empty())
+        {
+            // The rest of the traffic is what the signal carries, so that a
+            // long input is cut at the limit.  Its cause is a little before.
+            machine.signal(last % machine.set().signals.size(),
+                           traffic.subspan(at), now - 50us, now, firings);
         }
 
         check_firings(firings);

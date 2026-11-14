@@ -229,8 +229,10 @@ cli_result run_cli(const std::string& group, const std::string& instance,
 {
     const auto child = start_cli(group, instance, words);
     cli_result outcome;
+    // The output is read first: a command that says more than a pipe holds,
+    // as the usage text does, waits for its reader before it ends.
+    outcome.output = child->read_all(long_limit);
     outcome.code = child->wait(long_limit);
-    outcome.output = child->read_all(5000ms);
     return outcome;
 }
 
@@ -605,6 +607,45 @@ std::string finish_watch(child_process& watch, int expected, const char* what)
                                 "; output: " + output);
     }
     return output;
+}
+
+// -- changing ports ----------------------------------------------------------
+
+/// The one line of `output`, which is an id: `p_` or `l_` and a number.  Fails
+/// the test for anything else.
+std::string id_line(const cli_result& outcome, const std::string& prefix,
+                    const char* what)
+{
+    require_exit(outcome, 0, what);
+    const std::vector<std::string> lines = lines_of(outcome.output);
+    if (lines.size() != 1 || !lines[0].starts_with(prefix) ||
+        !all_digits(lines[0].substr(prefix.size())))
+    {
+        throw vss_test::failure(
+            std::string(what) +
+            " did not print one id; output: " + outcome.output);
+    }
+    return lines[0];
+}
+
+/// Makes the port `name` with `vss_cli control port create`, with the options
+/// in `more`, and returns its id.
+std::string control_create_port(const std::string& instance,
+                                const std::string& name,
+                                const std::vector<std::string>& more = {})
+{
+    std::vector<std::string> words{"port", "create", name};
+    words.insert(words.end(), more.begin(), more.end());
+    return id_line(run_cli("control", instance, words), "p_",
+                   "vss_cli control port create");
+}
+
+/// True when `vss_cli agent ports` lists a port called `name`.
+bool agent_lists_port(const std::string& instance, const std::string& name)
+{
+    const auto ports = run_cli("agent", instance, {"ports"});
+    require_exit(ports, 0, "vss_cli agent ports");
+    return contains(ports.output, name);
 }
 
 } // namespace
@@ -1078,4 +1119,288 @@ TEST_CASE("system control: sessions lists a watch and kick ends it")
     const auto unusable = run_cli("control", instance, {"kick", "first"});
     require_exit(unusable, 2, "vss_cli control kick of a word");
     REQUIRE(contains(unusable.output, "vss_cli control kick"));
+}
+
+TEST_CASE("system control: ports are made, linked, written to and removed")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+
+    const std::string a_id =
+        control_create_port(instance, "alpha", {"--kind=loopback"});
+    const std::string b_id = control_create_port(instance, "beta");
+    REQUIRE(a_id != b_id);
+    REQUIRE(agent_lists_port(instance, "alpha"));
+    REQUIRE(agent_lists_port(instance, "beta"));
+
+    const auto linked =
+        run_cli("control", instance, {"link", a_id, b_id, "--one-way"});
+    const std::string link_id =
+        id_line(linked, "l_", "vss_cli control link --one-way");
+    REQUIRE(!link_id.empty());
+
+    // The watch hears only the second port; it is subscribed when its
+    // session shows a stream, and not before.
+    const auto watch = start_cli(
+        "control", instance,
+        {"watch", "--data", "--ports=" + b_id, "--count=1", "--interval=20"});
+    REQUIRE_EQ(wait_for_streams(instance, 1).size(), std::size_t{1});
+
+    const std::string sent = "00ff68690d0a";
+    const auto wrote =
+        run_cli("control", instance, {"send", a_id, "--hex=" + sent});
+    require_exit(wrote, 0, "vss_cli control send");
+    REQUIRE(wrote.output.empty());
+
+    const auto events =
+        parse_events(finish_watch(*watch, 0, "vss_cli control watch --data"));
+    REQUIRE_EQ(events.size(), std::size_t{1});
+    REQUIRE_EQ(events[0].port, b_id);
+    // A loopback port both receives the bytes and gives them back, so the
+    // first event on it may be either; the bytes are the same.
+    REQUIRE_EQ(events[0].kind, std::string("data"));
+    REQUIRE_EQ(events[0].size, std::string("6"));
+    REQUIRE_EQ(events[0].bytes, sent);
+
+    // Removing a port succeeds once and says no the second time, with the
+    // name of the engine's error.
+    const auto removed = run_cli("control", instance, {"port", "remove", a_id});
+    require_exit(removed, 0, "vss_cli control port remove");
+    REQUIRE(removed.output.empty());
+    REQUIRE(!agent_lists_port(instance, "alpha"));
+    REQUIRE(agent_lists_port(instance, "beta"));
+
+    const auto again = run_cli("control", instance, {"port", "remove", a_id});
+    require_exit(again, 1, "vss_cli control port remove of a removed port");
+    REQUIRE(contains(again.output, "control port remove failed"));
+    REQUIRE(contains(again.output, "engine.not_found"));
+
+    // An id that is no id is the gateway's refusal, not the engine's.
+    const auto not_an_id =
+        run_cli("control", instance, {"port", "remove", "alpha"});
+    require_exit(not_an_id, 1, "vss_cli control port remove of a name");
+    REQUIRE(contains(not_an_id.output, "invalid_argument"));
+}
+
+TEST_CASE("system control: a monitor can change nothing")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    // The default role holds the scope monitor and nothing else.
+    gate_process gate(instance);
+
+    const std::vector<std::vector<std::string>> refused{
+        {"port", "create", "denied"},
+        {"port", "remove", "p_1"},
+        {"link", "p_1", "p_2"},
+        {"send", "p_1", "--hex=00"}};
+    for (const auto& words : refused)
+    {
+        const auto outcome = run_cli("control", instance, words);
+        require_exit(outcome, 1, "vss_cli control as a monitor");
+        REQUIRE(contains(outcome.output, "forbidden"));
+        REQUIRE(contains(outcome.output, "control " + words[0]));
+    }
+    REQUIRE(!agent_lists_port(instance, "denied"));
+
+    // The gateway is still there, and so is its answer to a monitor.
+    const auto status = run_cli("control", instance, {"status"});
+    require_exit(status, 0, "vss_cli control status");
+    REQUIRE(contains(status.output, "You may: monitor"));
+}
+
+TEST_CASE("system control: expect waits for the bytes that a send brings")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+
+    const std::string a_id =
+        control_create_port(instance, "alpha", {"--kind=loopback"});
+    const std::string b_id = control_create_port(instance, "beta");
+    const auto linked =
+        run_cli("control", instance, {"link", a_id, b_id, "--one-way"});
+    static_cast<void>(id_line(linked, "l_", "vss_cli control link --one-way"));
+
+    // `noise OK` and a line ending is sent to the first port; the pattern
+    // is `OK` and a line ending, so six bytes go by before it.  The gateway
+    // listens before it sends, so nothing is missed.
+    const auto matched =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=4f4b0d0a", "--send-to=" + a_id,
+                 "--send=6e6f697365204f4b0d0a", "--timeout=20000"});
+    require_exit(matched, 0, "vss_cli control expect");
+    const std::vector<std::string> lines = lines_of(matched.output);
+    REQUIRE_EQ(lines.size(), std::size_t{1});
+    const std::vector<std::string> words = words_of(lines[0]);
+    REQUIRE_EQ(words.size(), std::size_t{4});
+    REQUIRE_EQ(words[0], std::string("matched"));
+    REQUIRE_EQ(words[1], std::string("6"));
+    REQUIRE(all_digits(words[2]));
+    REQUIRE_EQ(words[3], std::string("0"));
+
+    // A pattern that does not come is a failure of the command with the
+    // name of the gateway's answer.
+    const auto missed =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=4e45564552", "--send-to=" + a_id,
+                 "--send=00", "--timeout=200"});
+    require_exit(missed, 1, "vss_cli control expect of a pattern that is late");
+    REQUIRE(contains(missed.output, "control expect failed"));
+    REQUIRE(contains(missed.output, "timeout"));
+    REQUIRE(!contains(missed.output, "matched"));
+}
+
+TEST_CASE("system control: a monitor may not wait for bytes")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    // The default role holds the scope monitor, which is not monitor.data.
+    gate_process gate(instance);
+
+    const auto refused =
+        run_cli("control", instance,
+                {"expect", "p_1", "--pattern=00", "--timeout=100"});
+    require_exit(refused, 1, "vss_cli control expect as a monitor");
+    REQUIRE(contains(refused.output, "forbidden"));
+    REQUIRE(contains(refused.output, "control expect failed"));
+}
+
+TEST_CASE("system control: the commands on ports refuse a bad command line")
+{
+    // No gateway runs: a command line that is wrong ends in a usage error
+    // before anything is connected, where a good one would find that no
+    // gateway runs and exit with 3.
+    const std::string instance = unique_instance();
+
+    const std::vector<std::vector<std::string>> unusable{
+        {"send", "p_1", "--hex=abc"},
+        {"send", "p_1", "--hex="},
+        {"send", "p_1", "--hex=zz"},
+        {"send", "p_1", "--hex=00ff", "--hex=00ff"},
+        {"send", "p_1", "--hex=0x00"},
+        {"send", "p_1", "--hex=00 ff"},
+        {"send", "p_1"},
+        {"send", "--hex=00"},
+        {"send", "p_1", "p_2", "--hex=00"},
+        {"send", "p_1", "--hex=00", "--one-way"},
+        {"send", "p_1", "--hex=00", "--kind=loopback"},
+        {"port", "create"},
+        {"port", "create", "a", "b"},
+        {"port", "create", "a", "--kind="},
+        {"port", "create", "a", "--hex=00"},
+        {"port", "create", "a", "--one-way"},
+        {"port", "remove"},
+        {"port", "remove", "p_1", "p_2"},
+        {"port", "remove", "p_1", "--kind=loopback"},
+        {"port", "frobnicate", "p_1"},
+        {"link", "p_1"},
+        {"link"},
+        {"link", "p_1", "p_2", "p_3"},
+        {"link", "p_1", "p_2", "--hex=00"},
+        {"link", "p_1", "p_2", "--kind=loopback"},
+        {"link", "p_1", "p_2", "--one-way", "--one-way"},
+        {"status", "--one-way"},
+        {"sessions", "--hex=00"},
+        {"watch", "--kind=loopback"},
+        {"token", "list", "--one-way"},
+        {"expect", "p_1", "--pattern=abc"},
+        {"expect", "p_1", "--pattern="},
+        {"expect", "p_1", "--pattern=zz"},
+        {"expect", "p_1", "--pattern=00", "--pattern=00"},
+        {"expect", "p_1"},
+        {"expect", "p_1", "--timeout=100"},
+        {"expect", "--pattern=00"},
+        {"expect", "p_1", "p_2", "--pattern=00"},
+        {"expect", "p_1", "--pattern=00", "--send=00"},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2"},
+        {"expect", "p_1", "--pattern=00", "--send-to=", "--send=00"},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send="},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send=0"},
+        {"expect", "p_1", "--pattern=00", "--timeout=0"},
+        {"expect", "p_1", "--pattern=00", "--timeout=x"},
+        {"expect", "p_1", "--pattern=00", "--timeout="},
+        {"expect", "p_1", "--pattern=00", "--timeout=-5"},
+        {"expect", "p_1", "--pattern=00", "--timeout=100", "--timeout=100"},
+        {"expect", "p_1", "--pattern=00", "--tx", "--tx"},
+        {"expect", "p_1", "--pattern=00", "--hex=00"},
+        {"expect", "p_1", "--pattern=00", "--kind=loopback"},
+        {"expect", "p_1", "--pattern=00", "--one-way"},
+        {"expect", "p_1", "--pattern=00", "--data"},
+        {"expect", "p_1", "--pattern=00", "--ports=p_1"},
+        {"send", "p_1", "--hex=00", "--pattern=00"},
+        {"send", "p_1", "--hex=00", "--send=00"},
+        {"link", "p_1", "p_2", "--send-to=p_3"},
+        {"port", "remove", "p_1", "--timeout=100"},
+        {"watch", "--tx"},
+        {"status", "--timeout=100"},
+        {"sessions", "--pattern=00"},
+        {"kick", "1", "--tx"},
+        {"token", "list", "--send=00"}};
+    for (const auto& words : unusable)
+    {
+        const auto outcome = run_cli("control", instance, words);
+        require_exit(outcome, 2, "vss_cli control with a bad command line");
+        REQUIRE(contains(outcome.output, "vss_cli control"));
+    }
+
+    // The same words, right, get as far as looking for the gateway.
+    const std::vector<std::vector<std::string>> usable{
+        {"send", "p_1", "--hex=00FFab"},
+        {"port", "create", "a", "--kind=loopback"},
+        {"port", "remove", "p_1"},
+        {"link", "p_1", "p_2", "--one-way"},
+        {"expect", "p_1", "--pattern=00"},
+        {"expect", "p_1", "--pattern=00FFab", "--timeout=100000", "--tx"},
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send=AB"}};
+    for (const auto& words : usable)
+    {
+        const auto outcome = run_cli("control", instance, words);
+        require_exit(outcome, 3, "vss_cli control with no gateway");
+        REQUIRE(contains(outcome.output, "Remote control: off"));
+    }
+}
+
+TEST_CASE("system control: a token with control.ports makes ports and no more")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    // The local user is a monitor; the token is what may arrange ports.
+    gate_process gate(instance);
+
+    const std::filesystem::path file = gate.scratch_dir() / "ports.token";
+    const auto made =
+        run_cli("control", instance,
+                {"token", "create", "--label=t",
+                 "--scope=monitor,control.ports", "--out=" + file.string()});
+    require_exit(made, 0, "vss_cli control token create --out");
+    const std::string token_option = "--token-file=" + file.string();
+
+    const std::string id =
+        control_create_port(instance, "tokport", {token_option});
+    REQUIRE(agent_lists_port(instance, "tokport"));
+    const std::string other_id =
+        control_create_port(instance, "tokother", {token_option});
+    const auto linked =
+        run_cli("control", instance, {"link", id, other_id, token_option});
+    static_cast<void>(id_line(linked, "l_", "vss_cli control link"));
+
+    // Bytes need control.data, which the token does not hold.
+    const auto sent =
+        run_cli("control", instance, {"send", id, "--hex=00", token_option});
+    require_exit(sent, 1, "vss_cli control send with a token");
+    REQUIRE(contains(sent.output, "forbidden"));
+    REQUIRE(contains(sent.output, "control send failed"));
+
+    // And the local user may not do what the token may.
+    const auto refused = run_cli("control", instance, {"port", "remove", id});
+    require_exit(refused, 1, "vss_cli control port remove as a monitor");
+    REQUIRE(contains(refused.output, "forbidden"));
+    REQUIRE(agent_lists_port(instance, "tokport"));
+
+    const auto removed =
+        run_cli("control", instance, {"port", "remove", id, token_option});
+    require_exit(removed, 0, "vss_cli control port remove with a token");
+    REQUIRE(!agent_lists_port(instance, "tokport"));
 }
