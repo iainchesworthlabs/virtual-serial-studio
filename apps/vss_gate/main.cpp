@@ -209,7 +209,7 @@ try
                            stderr);
                 return exit_usage;
             }
-            options.loopback_port = *port;
+            options.loopback_port = port;
             continue;
         }
         std::fprintf(stderr, "vss_gate: unknown option %s\n", argv[index]);

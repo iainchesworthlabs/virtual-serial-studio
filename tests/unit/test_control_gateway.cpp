@@ -3801,8 +3801,10 @@ TEST_CASE("control gateway: over TCP nobody is the local user")
     reader.feed(vss::bytes_view(answer));
     const auto frame = reader.next();
     REQUIRE(frame);
-    REQUIRE(frame->has_value());
-    const auto message = control::decode_reply(**frame);
+    const auto& whole = *frame;
+    if (!whole)
+        throw vss_test::failure("the reply is not a whole frame");
+    const auto message = control::decode_reply(*whole);
     REQUIRE(message);
     REQUIRE_EQ(error_of(*message).code, std::string("unauthenticated"));
 
@@ -3937,8 +3939,10 @@ TEST_CASE("control gateway: a TCP connection that does not begin with the "
     reader.feed(vss::bytes_view(welcome));
     const auto frame = reader.next();
     REQUIRE(frame);
-    REQUIRE(frame->has_value());
-    const auto message = control::decode_reply(**frame);
+    const auto& whole = *frame;
+    if (!whole)
+        throw vss_test::failure("the reply is not a whole frame");
+    const auto message = control::decode_reply(*whole);
     REQUIRE(message);
     REQUIRE(std::holds_alternative<control::hello_reply>(message->body));
 }

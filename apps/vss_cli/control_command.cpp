@@ -750,7 +750,7 @@ control_arguments parse(const std::vector<std::string>& arguments)
     if (!port || is_administration(parsed.action) || !parsed.token_file)
         parsed.valid = false;
     else
-        parsed.loopback_port = *port;
+        parsed.loopback_port = port;
     return parsed;
 }
 

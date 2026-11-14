@@ -166,7 +166,18 @@ public:
             accept_on(state_, index);
     }
 
-    ~loopback_listener() override { stop(); }
+    ~loopback_listener() override
+    {
+        try
+        {
+            stop();
+        }
+        catch (...)
+        {
+            // Whatever could not be closed, nothing more is handed on.
+            state_->closed = true;
+        }
+    }
 
     loopback_listener(const loopback_listener&) = delete;
     loopback_listener& operator=(const loopback_listener&) = delete;
@@ -186,7 +197,7 @@ public:
     std::string address() const override { return state_->address; }
 
 private:
-    void stop() noexcept
+    void stop()
     {
         if (state_->closed)
             return;
