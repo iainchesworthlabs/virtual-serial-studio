@@ -32,16 +32,34 @@ namespace sample = vss::gui::test_licence;
 namespace
 {
 
-const QString kComputerMarker = QStringLiteral("MARKERHOST");
-const QString kUserMarker = QStringLiteral("markeruser");
-const QString kSerialMarker = QStringLiteral("SERIALMARK123");
-const QString kPayloadMarker = QStringLiteral("PAYLOADMARK");
-const QString kLicenseeMarker = QStringLiteral("Licensee Marker Pty Ltd");
-const QString kSecretMarker = QStringLiteral("hunter2marker");
+QString kComputerMarker()
+{
+    return QStringLiteral("MARKERHOST");
+}
+QString kUserMarker()
+{
+    return QStringLiteral("markeruser");
+}
+QString kSerialMarker()
+{
+    return QStringLiteral("SERIALMARK123");
+}
+QString kPayloadMarker()
+{
+    return QStringLiteral("PAYLOADMARK");
+}
+QString kLicenseeMarker()
+{
+    return QStringLiteral("Licensee Marker Pty Ltd");
+}
+QString kSecretMarker()
+{
+    return QStringLiteral("hunter2marker");
+}
 
 support::bundle_identity markers()
 {
-    return {kComputerMarker, kUserMarker};
+    return {kComputerMarker(), kUserMarker()};
 }
 
 QDateTime created()
@@ -58,21 +76,21 @@ struct seeded
     seeded()
     {
         const auto port = backend.create_virtual_port(
-            QStringLiteral("rig on ") + kComputerMarker,
+            QStringLiteral("rig on ") + kComputerMarker(),
             vss::virtual_port_kind::loopback, true);
         REQUIRE(port.has_value());
-        REQUIRE(backend.send(*port, kPayloadMarker.toUtf8()));
+        REQUIRE(backend.send(*port, kPayloadMarker().toUtf8()));
 
         device_view usb;
         usb.path = QStringLiteral("COM7");
         usb.description = QStringLiteral("USB Serial Port");
         usb.hardware_id =
-            QStringLiteral("USB\\VID_0403&PID_6001\\") + kSerialMarker;
+            QStringLiteral("USB\\VID_0403&PID_6001\\") + kSerialMarker();
         device_view by_id;
         by_id.path = QStringLiteral("/dev/serial/by-id/usb-FTDI_FT232R_") +
-                     kSerialMarker + QStringLiteral("-if00-port0");
+                     kSerialMarker() + QStringLiteral("-if00-port0");
         by_id.description = QStringLiteral("FT232R USB UART");
-        by_id.hardware_id = QStringLiteral("usb:0403:6001:") + kSerialMarker;
+        by_id.hardware_id = QStringLiteral("usb:0403:6001:") + kSerialMarker();
         device_view made;
         made.path = QStringLiteral("COM21");
         made.description = QStringLiteral("Virtual Serial Studio port");
@@ -80,20 +98,20 @@ struct seeded
         made.virtual_device = true;
         backend.set_devices({usb, by_id, made});
 
-        add_log(QStringLiteral("opened by ") + kUserMarker +
-                QStringLiteral(" on ") + kComputerMarker);
-        add_log(QStringLiteral("password=") + kSecretMarker);
+        add_log(QStringLiteral("opened by ") + kUserMarker() +
+                QStringLiteral(" on ") + kComputerMarker());
+        add_log(QStringLiteral("password=") + kSecretMarker());
         add_log(QStringLiteral("saved ") +
                 QDir::toNativeSeparators(QDir::homePath()) +
                 QStringLiteral("/setups/lab.json"));
         add_log(QDir::homePath() + QStringLiteral("/setups/lab.json"));
 
         lic::licence value = sample::annual();
-        value.licensee_name = kLicenseeMarker.toStdString();
-        value.machines = {kComputerMarker.toStdString() + "*"};
+        value.licensee_name = kLicenseeMarker().toStdString();
+        value.machines = {kComputerMarker().toStdString() + "*"};
         licence_view view = sample::view_of(sample::judge(
-            value, "2027-01-01T00:00:00Z", {}, kComputerMarker.toStdString()));
-        view.computer_name = kComputerMarker;
+            value, "2027-01-01T00:00:00Z", {}, kComputerMarker().toStdString()));
+        view.computer_name = kComputerMarker();
         backend.set_licence(view);
     }
 
@@ -152,12 +170,12 @@ TEST_CASE("support bundle: the default bundle holds nothing that names the "
 
     // The markers were seeded: the port name, the log, the devices and the
     // licence all carry them.
-    REQUIRE(!bytes.contains(kComputerMarker, Qt::CaseInsensitive));
-    REQUIRE(!bytes.contains(kUserMarker, Qt::CaseInsensitive));
-    REQUIRE(!bytes.contains(kSerialMarker, Qt::CaseInsensitive));
-    REQUIRE(!bytes.contains(kPayloadMarker));
-    REQUIRE(!bytes.contains(kLicenseeMarker));
-    REQUIRE(!bytes.contains(kSecretMarker));
+    REQUIRE(!bytes.contains(kComputerMarker(), Qt::CaseInsensitive));
+    REQUIRE(!bytes.contains(kUserMarker(), Qt::CaseInsensitive));
+    REQUIRE(!bytes.contains(kSerialMarker(), Qt::CaseInsensitive));
+    REQUIRE(!bytes.contains(kPayloadMarker()));
+    REQUIRE(!bytes.contains(kLicenseeMarker()));
+    REQUIRE(!bytes.contains(kSecretMarker()));
     REQUIRE(!bytes.contains(QDir::homePath()));
     REQUIRE(!bytes.contains(QDir::toNativeSeparators(QDir::homePath())));
     // Nothing of a licence file: no envelope, no signature.
@@ -272,7 +290,7 @@ TEST_CASE("support bundle: without a licence there is no licence section")
     const support::bundle_contents contents =
         support::build_bundle(backend, log, selection, markers(), created());
     REQUIRE(!manifest_ids(contents).contains(QStringLiteral("licence")));
-    REQUIRE(!all_bytes(contents).contains(kComputerMarker));
+    REQUIRE(!all_bytes(contents).contains(kComputerMarker()));
 
     const support::bundle_file* environment =
         file_named(contents, QStringLiteral("environment.txt"));
@@ -301,9 +319,9 @@ TEST_CASE("support bundle: the amber rows add only what they name")
     const QString licence = QString::fromUtf8(
         file_named(with_name, QStringLiteral("licence.txt"))->data);
     REQUIRE(
-        licence.contains(QStringLiteral("Licensed to: ") + kLicenseeMarker));
+        licence.contains(QStringLiteral("Licensed to: ") + kLicenseeMarker()));
     REQUIRE(
-        !all_bytes(with_name).contains(kComputerMarker, Qt::CaseInsensitive));
+        !all_bytes(with_name).contains(kComputerMarker(), Qt::CaseInsensitive));
     const QJsonObject manifest =
         QJsonDocument::fromJson(with_name.manifest.data).object();
     REQUIRE(manifest.value(QLatin1String("sections"))
@@ -320,29 +338,29 @@ TEST_CASE("support bundle: the amber rows add only what they name")
     const QString named_computer = QString::fromUtf8(
         file_named(with_computer, QStringLiteral("licence.txt"))->data);
     REQUIRE(named_computer.contains(QStringLiteral("This computer: ") +
-                                    kComputerMarker));
+                                    kComputerMarker()));
     REQUIRE(
         named_computer.contains(QStringLiteral("Computers in the licence: ") +
-                                kComputerMarker + QLatin1Char('*')));
-    REQUIRE(!named_computer.contains(kLicenseeMarker));
+                                kComputerMarker() + QLatin1Char('*')));
+    REQUIRE(!named_computer.contains(kLicenseeMarker()));
     // Only licence.txt gains the name. The log and the setup stay clean.
     for (const QString& other :
          {QStringLiteral("log.txt"), QStringLiteral("setup.json"),
           QStringLiteral("counters.csv"), QStringLiteral("environment.txt")})
     {
         REQUIRE(!QString::fromUtf8(file_named(with_computer, other)->data)
-                     .contains(kComputerMarker, Qt::CaseInsensitive));
+                     .contains(kComputerMarker(), Qt::CaseInsensitive));
     }
 
     // A licence that names no computer never gains the computer's name.
     licence_view anywhere = sample::view_of(
         sample::judge(sample::annual(), "2027-01-01T00:00:00Z"));
-    anywhere.computer_name = kComputerMarker;
+    anywhere.computer_name = kComputerMarker();
     s.backend.set_licence(anywhere);
     REQUIRE(!support::bundle_licence_names_computers(s.backend));
     REQUIRE(!all_bytes(support::build_bundle(s.backend, s.log, computer,
                                              markers(), created()))
-                 .contains(kComputerMarker, Qt::CaseInsensitive));
+                 .contains(kComputerMarker(), Qt::CaseInsensitive));
 }
 
 TEST_CASE("support bundle: a hardware id gives its vendor and product and "
