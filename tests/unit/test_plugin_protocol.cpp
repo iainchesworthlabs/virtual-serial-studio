@@ -754,7 +754,16 @@ TEST_CASE("plugin protocol: id and re of a request and of an answer")
 TEST_CASE("plugin protocol: an id or a re that is not a number from 1 to "
           "2^53-1 is refused")
 {
-    for (const std::string_view key : {"id"sv, "re"sv})
+    struct member
+    {
+        std::string_view key;
+        std::string_view fragment;
+    };
+    for (const member& which :
+         {member{"id"sv,
+                 "id: must be a whole number from 1 to 9007199254740991"sv},
+          member{"re"sv,
+                 "re: must be a whole number from 1 to 9007199254740991"sv}})
     {
         for (const std::string_view value :
              {"0"sv, "-1"sv, "-0"sv, "9007199254740992"sv, "9007199254740993"sv,
@@ -763,10 +772,7 @@ TEST_CASE("plugin protocol: an id or a re that is not a number from 1 to "
               "0.5"sv, "\"1\""sv, "\"\""sv, "null"sv, "true"sv, "false"sv,
               "[1]"sv, "{}"sv})
         {
-            std::string fragment(key);
-            fragment += ": must be a whole number from 1 to ";
-            fragment += "9007199254740991";
-            require_refused(ping_with(key, value), fragment);
+            require_refused(ping_with(which.key, value), which.fragment);
         }
     }
 }
