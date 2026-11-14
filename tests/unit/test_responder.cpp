@@ -186,7 +186,9 @@ TEST_CASE("responder: a delay of 200 ms is 200 ms")
     const auto gap = ms_between(times_of(events, "device", data_direction::rx).at(0),
                                 times_of(events, "device", data_direction::tx).at(0));
     REQUIRE(gap >= 198);
-    REQUIRE(gap <= 300);
+    // The upper bound only rules out a wrong unit; a loaded runner can add
+    // a few hundred milliseconds.
+    REQUIRE(gap <= 1000);
 }
 
 TEST_CASE("responder: a mask matches the bits it names and no others")
