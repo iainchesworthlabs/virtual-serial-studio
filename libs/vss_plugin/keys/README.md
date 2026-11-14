@@ -5,7 +5,7 @@ Public files only. No private key is ever in this folder or anywhere in this rep
 | File | What it is |
 |---|---|
 | `official-keys.payload.json` | The first official key list, as the text that is signed. It names the key that signs official plugins and the key that signs revocation lists, with the days each counts on |
-| `official-keys.json` | The same list, signed with the root key. It is not here until the owner has signed it |
+| `official-keys.json` | The same list, signed with the root key `root-2026` on 14 November 2026. Studio accepts it with the root key it is built with |
 
 The root public keys are in `../src/official_roots.cpp`, built into Studio. `docs/plugins.md`, section 8.9, says how the keys relate.
 
@@ -25,7 +25,7 @@ Then check the result with the root public key, which needs no private key:
 python3 tools/plugin_sign.py verify --public-key 3a94dda0542ec5631e0ce810151baa831dd7f128ff9c393a68fef153026b0ca1 --purpose key-list libs/vss_plugin/keys/official-keys.json
 ```
 
-It prints `ok`. Commit `official-keys.json`. The test `plugin signature: the signed key list is accepted by the built-in root` then runs; until the file is there it is skipped.
+It prints `ok`. Commit `official-keys.json`. The test `plugin signature: the signed key list is accepted by the built-in root` reads the file and checks it against the root key built into Studio and against the payload file.
 
 ## Changing the list
 
