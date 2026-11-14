@@ -49,6 +49,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_access.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
+  unit/test_plugin_locations.cpp
   unit/test_plugin_manifest.cpp
   unit/test_plugin_measure.cpp
   unit/test_plugin_trust_store.cpp
@@ -85,6 +86,7 @@ if(WIN32)
     unit/platform/windows/test_helper_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
     unit/platform/windows/test_plugin_access_windows.cpp
+    unit/platform/windows/test_plugin_locations_windows.cpp
     unit/platform/windows/test_ports_windows.cpp
     unit/platform/windows/test_timer_period_windows.cpp)
 elseif(UNIX)
@@ -92,7 +94,16 @@ elseif(UNIX)
     unit/platform/posix/test_agent_transport_posix.cpp
     unit/platform/posix/test_control_storage_posix.cpp
     unit/platform/posix/test_permissions_posix.cpp
-    unit/platform/posix/test_plugin_access_posix.cpp)
+    unit/platform/posix/test_plugin_access_posix.cpp
+    unit/platform/posix/test_plugin_locations_posix.cpp)
+  # The folders differ between Linux and macOS, so each has its own file.
+  if(APPLE)
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/macos/test_plugin_locations_macos.cpp)
+  else()
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/linux/test_plugin_locations_linux.cpp)
+  endif()
 endif()
 
 # The commands of vss_license, run in the test process.
@@ -147,10 +158,11 @@ if(NOT WIN32 AND TARGET vss_cli)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_vport.cpp)
 endif()
 
-# The agent tests start vss_agent and vss_cli as separate processes, on every
-# system. CMake chooses the file that knows how to start one.
-if(TARGET vss_agent AND TARGET vss_cli)
-  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_agent.cpp)
+# The tests that start vss_cli (the plugin list) and vss_agent (the agent) as
+# separate processes run on every system. CMake chooses the file that knows
+# how to start one.
+if(TARGET vss_cli)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_cli.cpp)
   if(WIN32)
     list(APPEND VSS_SYSTEM_TEST_SOURCES
       support/platform/windows/child_process_windows.cpp)
@@ -158,6 +170,9 @@ if(TARGET vss_agent AND TARGET vss_cli)
     list(APPEND VSS_SYSTEM_TEST_SOURCES
       support/platform/posix/child_process_posix.cpp)
   endif()
+endif()
+if(TARGET vss_agent AND TARGET vss_cli)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_agent.cpp)
 endif()
 
 # The control tests start vss_gate beside them.
@@ -170,7 +185,8 @@ target_include_directories(vss_system_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/framework
   ${CMAKE_CURRENT_SOURCE_DIR}/support)
-target_link_libraries(vss_system_tests PRIVATE vss_studio vss_testkit)
+target_link_libraries(vss_system_tests PRIVATE vss_studio vss_testkit
+  Vss::BoostJson)
 vss_set_warnings(vss_system_tests)
 vss_enable_coverage(vss_system_tests)
 
@@ -181,6 +197,12 @@ if(NOT WIN32 AND TARGET vss_cli)
   add_dependencies(vss_system_tests vss_cli)
   target_compile_definitions(vss_system_tests PRIVATE
     VSS_CLI_PATH="$<TARGET_FILE:vss_cli>")
+endif()
+
+if(TARGET vss_cli)
+  add_dependencies(vss_system_tests vss_cli)
+  target_compile_definitions(vss_system_tests PRIVATE
+    VSS_CLI_PROGRAM="$<TARGET_FILE:vss_cli>")
 endif()
 
 if(TARGET vss_agent AND TARGET vss_cli)

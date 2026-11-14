@@ -1585,6 +1585,7 @@ again.
 | Measure throughput | `vss_cli bench --from=… --to=…` |
 | Self-test the wiring | `vss_cli selftest` |
 | Check what the system may block | `vss_cli permissions check` |
+| List the installed plugins | `vss_cli plugin list` (add `--json` for a script) |
 
 `virtual`, `vport`, `bus` and `capture` keep running until `Ctrl-C` or `SIGTERM`,
 or for `--seconds=N`. `run`, `share`, `join`, `bridge` and `loopback` keep their
@@ -1699,6 +1700,82 @@ is an error that names it, so a misspelt `delay_ms` is found and not ignored.
 Delays are limited to one hour. `respond` runs until `Ctrl-C` or `--seconds`, or,
 for a poll-only script with a number of cycles, until the last step has gone,
 and prints how many requests it matched and what it sent.
+
+### Listing plugins with `vss_cli plugin list`
+
+```bash
+vss_cli plugin list [--json] [--root <folder>]...
+```
+
+`plugin list` shows the plugins that are installed on this computer. It only
+reads. It runs no plugin, checks no signature and changes nothing. This build
+does not run plugins.
+
+It starts with whether Studio is installed for everyone on this computer or for
+you only, and with the administrator's policy file, if there is one. Then it
+prints one block for each plugin:
+
+```text
+com.example.modbus-fixture  1.2.0  Modbus fixture
+  Folder:       C:/Users/me/AppData/Local/VirtualSerialStudio/plugins/modbus-fixture
+  Installed for: you only
+  Fingerprint:  3f9a1c0d2b7e4a61
+  Signature:    not signed
+  State:        found
+```
+
+- **Folder** is the plugin's own folder.
+- **Installed for** is `everyone on this computer`, `you only` or `came with
+  Studio`, from the folder the plugin was found in.
+- **Fingerprint** is the first 16 characters of a hash of all the plugin's
+  files. A change to any file gives a different fingerprint.
+- **Signature** is `not signed` when the plugin has no `plugin.sig`. When it has
+  one, it is `present, not checked by this build`.
+- **State** is `found` when the plugin's files are in order, and nothing more.
+  Otherwise it is the reason, such as `manifest_invalid`, and a line that says
+  what is wrong. When two folders hold a plugin with the same id, the copy found
+  first counts. The other is `shadowed`, and a `Not used` line names the folder
+  of the copy that counts.
+
+A plugin whose `plugin.json` cannot be read is shown by the name of its folder.
+A plugin folder that cannot be looked through is named after the plugins. Text
+that comes from a plugin is printed as plain text, and each byte that is not
+printable ASCII is shown as `?`. The JSON keeps valid UTF-8 as it is.
+
+`--json` prints one JSON object and nothing else: `install` (`for_everyone`,
+`for_one_user` or `null`), `policy` (`file`, `present`, `used` and `detail`),
+`plugins` (one object for each plugin, with `id`, `version`, `name`, `folder`,
+`scope`, `fingerprint`, `signature`, `state`, `detail` and `shadowed_by`) and
+`roots_not_read`. A value that is not known is `null`.
+
+`--root <folder>` looks in the folders you give instead of the usual ones, and
+may be repeated. Each folder counts as your own, and the policy file is not
+read. Use it to look at a folder of plugins by hand.
+
+The exit code is 0 when the command ran, whatever it found: a plugin with a
+problem is a finding, not a failure of the command. It is 2 for a command line
+the program does not understand.
+
+### Where Studio looks for plugins
+
+Studio looks in three folders, widest first. When two of them hold a plugin with
+the same id, the first counts.
+
+| | Windows | Linux | macOS |
+|---|---|---|---|
+| Studio's own | `<program_directory>/../studio-plugins` | the same | the same |
+| Machine | `%ProgramData%\VirtualSerialStudio\plugins` | `/usr/local/share/virtual-serial-studio/plugins` | `/Library/Application Support/VirtualSerialStudio/plugins` |
+| User | `%LOCALAPPDATA%\VirtualSerialStudio\plugins` | `$XDG_DATA_HOME/virtual-serial-studio/plugins`, or `$HOME/.local/share/virtual-serial-studio/plugins` when `XDG_DATA_HOME` is unset, empty or not an absolute path | `$HOME/Library/Application Support/VirtualSerialStudio/plugins` |
+| Policy file | `%ProgramData%\VirtualSerialStudio\policy.json` | `/etc/virtual-serial-studio/policy.json` | `/Library/Application Support/VirtualSerialStudio/policy.json` |
+
+`<program_directory>` is the folder that holds Studio's programs, such as
+`<install>/bin`. Studio's own folder is next to it. It is called
+`studio-plugins` and not `plugins`, because the Linux package already keeps
+Qt's own plug-ins in `<install>/plugins`.
+
+A value from the environment is used only when it is an absolute path. When the
+user's folder cannot be worked out, it is left out. A folder that is not there
+is passed over.
 
 See [ux.md](ux.md) for the design reasoning, [scenarios.md](scenarios.md) for
 worked examples and [the screen specifications](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/docs/gui-design/docs/00-product-brief.md) for the
