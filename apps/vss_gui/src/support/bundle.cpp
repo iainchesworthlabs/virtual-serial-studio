@@ -273,7 +273,7 @@ QString licence_file_text(const StudioBackend& backend,
                        lic::format_time(value.expires_at)));
         out += QStringLiteral("Grace days: %1\n").arg(value.grace_days);
         out += value.seats == 0
-                   ? QStringLiteral("Seats: not counted by seat\n")
+                   ? QStringLiteral("Seats: site licence\n")
                    : QStringLiteral("Seats: %1\n").arg(value.seats);
         QStringList features;
         for (const std::string& feature : value.features)

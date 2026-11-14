@@ -535,7 +535,8 @@ void LicenceDialog::refresh()
 
     const bool seated = has_value;
     seats_->setText(seated ? seats_text(status.value->seats) : QString());
-    seats_note_->setText(seated ? seat_explanation(*status.value) : QString());
+    seats_note_->setText(seated && status.value->seats > 0 ? seat_explanation()
+                                                           : QString());
     seats_note_->setVisible(!seats_note_->text().isEmpty());
     set_row_visible(seats_row_, seated);
 

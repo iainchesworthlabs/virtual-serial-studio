@@ -257,7 +257,7 @@ void print_licence(std::ostream& out, const licence& value)
         << "Expires: " << format_time(value.expires_at) << '\n'
         << "Grace days: " << value.grace_days << '\n';
     if (value.seats == 0)
-        out << "Seats: not counted by seat\n";
+        out << "Seats: site licence\n";
     else
         out << "Seats: " << value.seats << '\n';
     out << "Features: " << joined(value.features) << '\n';

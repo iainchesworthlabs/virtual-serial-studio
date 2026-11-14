@@ -67,7 +67,7 @@ struct licence
     time_point expires_at;
     /// Days after `expires_at` during which the features still work.
     int grace_days = 0;
-    /// 0 is a licence that is not counted by seat.
+    /// 0 is a site licence with no seat count.
     int seats = 1;
     /// Exact names, or a prefix that ends in `.*`.
     std::vector<std::string> features;

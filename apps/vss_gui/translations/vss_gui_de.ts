@@ -20130,13 +20130,13 @@ Netzwerke: %5</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>Not counted by seat</source>
-            <translation>Nicht nach Lizenzplätzen gezählt</translation>
+            <source>Site licence</source>
+            <translation>Standortlizenz</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
-            <translation>Ein Lizenzplatz umfasst zwei Computer: den, an dem Sie arbeiten, und einen weiteren, den Sie von dort aus steuern oder überwachen. Das serielle Gerät kann an jedem der beiden angeschlossen sein.</translation>
+            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
+            <translation>Ein Lizenzplatz ist Ihr Computer plus ein weiterer Computer, mit dem Sie ihn überwachen.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
@@ -20430,11 +20430,6 @@ Netzwerke: %5</translation>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>licence number</source>
             <translation>Lizenznummer</translation>
-        </message>
-        <message>
-            <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>As agreed in your Enterprise licence.</source>
-            <translation>Wie in Ihrer Enterprise-Lizenz vereinbart.</translation>
         </message>
     </context>
     <context>
