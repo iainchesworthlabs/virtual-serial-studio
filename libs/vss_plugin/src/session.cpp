@@ -576,9 +576,10 @@ session_output host_session::on_bytes(bytes_view data, session_time now)
             }
             break;
         }
-        if (!next->has_value())
+        const std::optional<agent::frame>& frame = *next;
+        if (!frame.has_value())
             break;
-        self.take_frame(out, **next, now);
+        self.take_frame(out, *frame, now);
     }
     return out;
 }

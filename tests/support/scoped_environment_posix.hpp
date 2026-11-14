@@ -36,7 +36,7 @@ public:
     {
         // NOLINTBEGIN(concurrency-mt-unsafe)
         if (old_.has_value())
-            static_cast<void>(::setenv(name_.c_str(), old_.value().c_str(), 1));
+            static_cast<void>(::setenv(name_.c_str(), old_->c_str(), 1));
         else
             static_cast<void>(::unsetenv(name_.c_str()));
         // NOLINTEND(concurrency-mt-unsafe)
