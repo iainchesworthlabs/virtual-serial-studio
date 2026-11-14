@@ -92,7 +92,7 @@ The payload is UTF-8 JSON:
 | `issued_at` | When the owner signed it. Used for key rotation and the clock check |
 | `starts_at`, `expires_at` | The term, in UTC. A renewal bought early starts when the old one ends, so no days are lost |
 | `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual, 0 for trial, and whatever was agreed for enterprise (28 unless the agreement says otherwise) |
-| `seats` | Number of seats agreed. `0` means the licence is not counted by seat |
+| `seats` | Number of seats agreed. `0` means the licence is not counted by seat; the Licence page then shows the label "Site licence" |
 | `features` | What the licence turns on. See below |
 | `machines` | Optional list of computer names. Empty means any computer. See [Seats](#seats) |
 | `updates_until` | Optional date for the version window. See [The version window](#the-version-window) |
@@ -613,3 +613,8 @@ The owner settled three more points on 14 November 2026:
 12. **The plugin API.** It is public, documented and free. The official plugins
     built on it, and the agent's internal protocol, are private with no
     compatibility promise.
+
+13. **The "Site licence" label.** The Licence page shows "Site licence" for a
+    licence with no seat count, and "<n> seats" otherwise. It is the name of the
+    label, not a description of Enterprise: what an Enterprise licence covers,
+    how long it runs and its price are still negotiated with each customer.
