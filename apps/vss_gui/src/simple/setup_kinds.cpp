@@ -5,6 +5,7 @@
 //
 
 #include "simple/setup_kinds.hpp"
+#include "language/bidi.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -305,7 +306,7 @@ QString program_label(const port_view& port)
         return {};
     if (!port.path.isEmpty() && port.name == port.path)
         return {};
-    return port.name;
+    return isolate_name(port.name);
 }
 
 QString port_shown_name(const port_view& port)
@@ -314,7 +315,7 @@ QString port_shown_name(const port_view& port)
     // A device opened by address reads "serial://COM3?baud=115200".
     if (path.startsWith(QStringLiteral("serial://")))
         path = path.mid(9).section(QLatin1Char('?'), 0, 0);
-    return path.isEmpty() ? port.name : path;
+    return isolate_name(path.isEmpty() ? port.name : path);
 }
 
 QString job_title(job kind)

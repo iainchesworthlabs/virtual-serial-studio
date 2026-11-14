@@ -20,6 +20,7 @@
 #include "panes/send_panel.hpp"
 #include "widgets/notes.hpp"
 #include "widgets/port_menu.hpp"
+#include "theme/theme.hpp"
 #include "widgets/surfaces.hpp"
 
 #include <QAction>
@@ -40,6 +41,7 @@
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSettings>
 #include <QSpinBox>
 #include <QStandardItemModel>
@@ -1418,4 +1420,114 @@ TEST_CASE("inspector: Release port is an Advanced action for a held port")
     panel.refresh();
     QApplication::processEvents();
     REQUIRE(!panel.release_button()->isEnabled());
+}
+
+namespace
+{
+
+/// Sets the layout direction for one test and puts it back.
+struct layout_direction_guard
+{
+    explicit layout_direction_guard(Qt::LayoutDirection direction)
+        : before_(QGuiApplication::layoutDirection())
+    {
+        QGuiApplication::setLayoutDirection(direction);
+    }
+    ~layout_direction_guard() { QGuiApplication::setLayoutDirection(before_); }
+    layout_direction_guard(const layout_direction_guard&) = delete;
+    layout_direction_guard& operator=(const layout_direction_guard&) = delete;
+
+private:
+    Qt::LayoutDirection before_;
+};
+
+} // namespace
+
+TEST_CASE("right to left: the monitor table and log stay left to right")
+{
+    const layout_direction_guard guard(Qt::RightToLeft);
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::MonitorPanel panel(backend);
+    panel.resize(900, 240);
+    panel.set_advanced(true);
+    panel.show();
+    QApplication::processEvents();
+
+    // The panel mirrors, and the rows of bytes, times and ports do not.
+    REQUIRE_EQ(panel.layoutDirection(), Qt::RightToLeft);
+    auto* table = panel.findChild<QTableView*>();
+    REQUIRE(table != nullptr);
+    REQUIRE_EQ(table->layoutDirection(), Qt::LeftToRight);
+    bool found_log = false;
+    for (QPlainTextEdit* edit : panel.findChildren<QPlainTextEdit*>())
+    {
+        REQUIRE_EQ(edit->layoutDirection(), Qt::LeftToRight);
+        found_log = true;
+    }
+    REQUIRE(found_log);
+}
+
+TEST_CASE("right to left: the send box for bytes stays left to right")
+{
+    const layout_direction_guard guard(Qt::RightToLeft);
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SendPanel panel(backend);
+    panel.resize(400, 300);
+    panel.show();
+    QApplication::processEvents();
+    REQUIRE_EQ(panel.layoutDirection(), Qt::RightToLeft);
+    auto* input = panel.findChild<QLineEdit*>();
+    REQUIRE(input != nullptr);
+    REQUIRE_EQ(input->layoutDirection(), Qt::LeftToRight);
+}
+
+TEST_CASE("right to left: the copy button follows the end of the path")
+{
+    QStandardItemModel model;
+    auto* item = new QStandardItem;
+    item->setData(QStringLiteral("loopback:console"),
+                  vss::gui::PortModel::path_role);
+    model.appendRow(item);
+    const QModelIndex index = model.index(0, 0);
+    const QFontMetrics metrics(
+        vss::gui::Theme::instance().font(vss::gui::text_style::data));
+    const int path_width =
+        metrics.horizontalAdvance(QStringLiteral("loopback:console"));
+
+    vss::gui::PortDelegate delegate;
+    QStyleOptionViewItem option;
+    option.rect = QRect(0, 0, 400, 78);
+
+    option.direction = Qt::LeftToRight;
+    const QRect after = delegate.copy_rect_for(option, index);
+    REQUIRE(after.left() >= 16 + path_width);
+    REQUIRE(after.right() <= option.rect.right());
+
+    option.direction = Qt::RightToLeft;
+    const QRect before = delegate.copy_rect_for(option, index);
+    // The path is drawn from the right edge, so the button is left of it and
+    // does not overlap it.
+    REQUIRE(before.right() <= option.rect.right() - 16 - path_width);
+    REQUIRE(before.left() >= option.rect.left());
+}
+
+TEST_CASE("right to left: the inspector fits its pane in a narrow column")
+{
+    const layout_direction_guard guard(Qt::RightToLeft);
+    vss::gui::FakeStudioBackend backend;
+    const auto id = backend.create_virtual_port(
+        QStringLiteral("inspector-rtl"), vss::virtual_port_kind::pty, true);
+    REQUIRE(id.has_value());
+    vss::gui::InspectorPanel panel(backend);
+    panel.set_advanced(true);
+    panel.set_selected_port(*id);
+    panel.resize(300, 600);
+    panel.show();
+    QApplication::processEvents();
+
+    auto* scroll = panel.findChild<QScrollArea*>();
+    REQUIRE(scroll != nullptr);
+    // Nothing is wider than the pane, so nothing is cut off at the edge.
+    REQUIRE(scroll->widget()->minimumSizeHint().width() <=
+            scroll->viewport()->width());
 }

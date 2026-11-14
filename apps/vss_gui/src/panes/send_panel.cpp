@@ -5,6 +5,7 @@
 //
 
 #include "panes/send_panel.hpp"
+#include "language/bidi.hpp"
 
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -113,6 +114,7 @@ void SendPanel::build()
     // The input is read as text or, with Hex ticked, as hex pairs. The error
     // label stays hidden until validate_hex() finds bad hex.
     input_ = new QLineEdit(this);
+    keep_left_to_right(input_);
     input_->setAccessibleName(tr("Bytes to send"));
     input_->setPlaceholderText(tr("Type text, or hex if Hex is ticked"));
     input_->setFont(Theme::instance().font(text_style::data));
@@ -513,8 +515,10 @@ QString SendPanel::port_label(vss::endpoint_id id) const
     const auto port = backend_.port(id);
     if (!port)
         return {};
-    return port->path.isEmpty() ? port->name
-                                : tr("%1 (%2)").arg(port->name, port->path);
+    return port->path.isEmpty()
+               ? isolate_name(port->name)
+               : tr("%1 (%2)")
+                     .arg(isolate_name(port->name), isolate_name(port->path));
 }
 
 QString SendPanel::target_text() const

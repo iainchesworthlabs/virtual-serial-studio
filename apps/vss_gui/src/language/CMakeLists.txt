@@ -5,6 +5,8 @@
 #
 
 add_library(vss_gui_language STATIC
+  bidi.cpp
+  bidi.hpp
   language_choice.cpp
   language_choice.hpp)
 

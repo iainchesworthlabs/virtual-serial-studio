@@ -5,6 +5,7 @@
 //
 
 #include "advanced/json_editor.hpp"
+#include "language/bidi.hpp"
 
 #include "advanced/chrome.hpp"
 #include "advanced/command_panel.hpp"
@@ -74,6 +75,7 @@ JsonCodeEdit::JsonCodeEdit(QWidget* parent) : QPlainTextEdit(parent)
 {
     setObjectName(QStringLiteral("topologyJsonEditor"));
     setAccessibleName(tr("Topology JSON editor"));
+    keep_left_to_right(this);
     setFont(Theme::instance().font(text_style::data));
     setLineWrapMode(QPlainTextEdit::NoWrap);
     setTabStopDistance(

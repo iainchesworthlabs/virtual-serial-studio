@@ -5,6 +5,7 @@
 //
 
 #include "advanced/line_matrix_panel.hpp"
+#include "language/bidi.hpp"
 
 #include "advanced/chrome.hpp"
 #include "widgets/chips.hpp"
@@ -651,7 +652,7 @@ QString LineMatrixPanel::caption_text() const
 QString LineMatrixPanel::port_name(vss::endpoint_id id) const
 {
     if (const auto port = backend_.port(id))
-        return port->name;
+        return isolate_name(port->name);
     return tr("Port %1").arg(static_cast<qulonglong>(id));
 }
 

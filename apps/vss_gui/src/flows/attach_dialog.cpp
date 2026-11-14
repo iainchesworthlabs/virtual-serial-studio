@@ -5,6 +5,7 @@
 //
 
 #include "flows/attach_dialog.hpp"
+#include "language/bidi.hpp"
 
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -162,6 +163,7 @@ void AttachDialog::build()
     body_layout()->addWidget(address_);
 
     address_edit_ = new QLineEdit(this);
+    keep_left_to_right(address_edit_);
     address_edit_->setObjectName(QStringLiteral("attachAddressEdit"));
     address_edit_->setFont(Theme::instance().font(text_style::data));
     address_edit_->setAccessibleName(tr("Address"));
@@ -265,6 +267,7 @@ void AttachDialog::build_device_section()
     body_layout()->addLayout(manual_line);
 
     manual_path_ = new QLineEdit(this);
+    keep_left_to_right(manual_path_);
     manual_path_->setObjectName(QStringLiteral("attachManualPath"));
     manual_path_->setFont(Theme::instance().font(text_style::data));
     manual_path_->setPlaceholderText(tr("COM3 or /dev/ttyUSB0"));
