@@ -8,7 +8,7 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <p class="lead">Everything on this page is in the Community edition. The window has two levels. Simple is a list of your setups and a page of jobs. Advanced is a diagram with the panes an integrator or a diagnostician needs. Both show the same studio, and switching does not change what you have built.</p>
 </div>
 <div class="note warn wide">
-<p><strong>About the pictures.</strong> The pictures on this page are made by the application drawing its own window off screen with sample ports, and they follow your light or dark theme. A dashed frame marks a picture that is not here yet.</p>
+<p><strong>About the pictures.</strong> The pictures on this page are made by the application drawing its own window off screen with sample ports, and they follow your light or dark theme.</p>
 </div>
 </section>
 
@@ -47,11 +47,10 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 </ul>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of sharing a device">
-<span class="chip warn hollow">Picture to come</span>
-<span>The Advanced diagram with one real device split to three virtual ports, and the page that says the ports are ready with their names.</span>
-<code>shot: share-device</code>
-</div>
+<picture>
+<source srcset="img/shots/share-device-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/share-device-light.png" width="760" height="640" loading="lazy" alt="The last page of sharing a device. The heading says COM3 is shared with 3 programs. A table lists each program, the port it opens and its state: terminal on COM7 and test-tool on COM8 are open, and logger is for Studio only. A line below says that everything COM3 receives is copied to all 3 ports.">
+</picture>
 <figcaption>One real device shared with three programs.</figcaption>
 </figure>
 </div>
@@ -70,12 +69,11 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 </ul>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of the Monitor">
-<span class="chip warn hollow">Picture to come</span>
-<span>The Monitor pane with traffic in hex, the RX and TX tags, the port filter and the Send panel beside it.</span>
-<code>shot: monitor-hex</code>
-</div>
-<figcaption>The Monitor and the Send panel.</figcaption>
+<picture>
+<source srcset="img/shots/monitor-hex-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/monitor-hex-light.png" width="1280" height="420" loading="lazy" alt="The Monitor pane with ten rows of traffic between two ports named terminal and modem. Each row has the time, the port, the direction, the number of bytes and the bytes in hex. Above the rows are the port filter, the RX, TX and Dropped boxes, the search box, the choice of ASCII or hex, and the Pause, Clear, Follow and Export buttons.">
+</picture>
+<figcaption>The Monitor with traffic in hex.</figcaption>
 </figure>
 </div>
 </section>
@@ -116,11 +114,10 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <p>These protocols carry no encryption and no login of their own. The user guide explains how to keep an endpoint safe.</p>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of the network endpoint dialog">
-<span class="chip warn hollow">Picture to come</span>
-<span>The Network endpoint dialog with the protocol, the address, and the sentence that says who will be able to connect.</span>
-<code>shot: network-endpoint</code>
-</div>
+<picture>
+<source srcset="img/shots/network-endpoint-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/network-endpoint-light.png" width="760" height="760" loading="lazy" alt="The dialog for putting a device on the network. It has the device to share, a choice of TCP, UDP or RFC 2217, a choice of server or client, the interface and the port. A sentence says that other computers can connect to this PC on port 4001 and talk to COM3. Below are a warning about Windows Firewall, the address and the same thing as a command.">
+</picture>
 <figcaption>Making a network endpoint.</figcaption>
 </figure>
 </div>
@@ -140,11 +137,10 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <p>The <a href="plugins.html">Pro plugins</a> will let a test harness set these during a run.</p>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of faults and control lines">
-<span class="chip warn hollow">Picture to come</span>
-<span>A mock fixture selected on the diagram, with the control line switches and the fault tiles in the Inspector.</span>
-<code>shot: fixture-faults</code>
-</div>
+<picture>
+<source srcset="img/shots/fixture-faults-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/fixture-faults-light.png" width="1280" height="760" loading="lazy" alt="The line wiring and faults dialog for a mock fixture named modem. On the left is the wiring: which of DSR, CTS, DCD and RI the DTR and RTS lines drive on the other port, and the state of each line now. On the right are six faults to inject: parity error, framing error, overrun, break, hang-up and disconnect, with a list of the faults injected so far.">
+</picture>
 <figcaption>Control lines and faults on a mock fixture.</figcaption>
 </figure>
 </div>
@@ -184,11 +180,10 @@ vss_cli bridge serial://COM3 tcp-listen://0.0.0.0:4001</code></pre>
 </ul>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of the troubleshooter">
-<span class="chip warn hollow">Picture to come</span>
-<span>The &ldquo;Why is nothing arriving?&rdquo; dialog: one group of checks, each with a tile in the colour of its state and a sentence.</span>
-<code>shot: troubleshoot</code>
-</div>
+<picture>
+<source srcset="img/shots/troubleshoot-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/troubleshoot-light.png" width="640" height="760" loading="lazy" alt="The dialog that asks why nothing is arriving on a port. It lists five checks, each with its state and a sentence: the port exists and is open, the port is linked to the device, the device is sending, a program has opened the port, and data reaches the program. Below is a list of things to try, with buttons to copy the port name and to check again.">
+</picture>
 <figcaption>The &ldquo;Why is nothing arriving?&rdquo; dialog.</figcaption>
 </figure>
 </div>
