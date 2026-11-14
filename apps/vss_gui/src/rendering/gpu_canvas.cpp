@@ -322,7 +322,9 @@ void GpuCanvas::draw_items(QCanvasPainter& painter, const QTransform& to_view,
     const qreal zoom = to_view.m11();
     for (QGraphicsItem* item : items)
     {
-        if (!item->isVisible())
+        // The scene never hands out a null item; the check keeps that
+        // visible to a reader and to the analysis.
+        if (item == nullptr || !item->isVisible())
             continue;
         const QRectF local = item->boundingRect();
         if (local.isEmpty())
