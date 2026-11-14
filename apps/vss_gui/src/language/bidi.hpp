@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_GUI_LANGUAGE_BIDI_HPP
-#define VSS_GUI_LANGUAGE_BIDI_HPP
+#pragma once
 
 #include <QString>
 
@@ -46,4 +45,3 @@ void keep_left_to_right(QWidget* widget);
 
 } // namespace vss::gui
 
-#endif
