@@ -424,7 +424,7 @@ def render_downloads(release: Release, rules: tuple[DownloadRule, ...]) -> str:
             '<table class="dl">',
             f'<caption class="visually-hidden">{title} downloads</caption>',
             '<thead><tr><th scope="col">File</th><th scope="col">Size</th>'
-            '<th scope="col">Signature</th></tr></thead>',
+            + '<th scope="col">Signature</th></tr></thead>',
             "<tbody>",
         ]
         for _, name, label, asset in rows:

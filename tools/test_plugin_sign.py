@@ -25,9 +25,9 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 from typing import Any, Dict, List
-from unittest import mock
 
 HERE = Path(__file__).resolve().parent
 TOOL = HERE / "plugin_sign.py"
@@ -427,7 +427,7 @@ class RevocationChecks(unittest.TestCase):
 
 class FindOpenSslTests(unittest.TestCase):
     def test_a_missing_program_is_a_usage_error(self) -> None:
-        with mock.patch.object(ps.shutil, "which", return_value=None):
+        with unittest.mock.patch.object(ps.shutil, "which", return_value=None):
             with self.assertRaises(ps.Refusal) as caught:
                 ps.find_openssl()
         self.assertEqual(caught.exception.code, ps.EXIT_USAGE)
@@ -436,8 +436,8 @@ class FindOpenSslTests(unittest.TestCase):
     def test_a_version_before_3_is_refused(self) -> None:
         for line in (b"OpenSSL 1.1.1w  11 Sep 2023\n", b"LibreSSL 3.8.2\n", b""):
             done = subprocess.CompletedProcess([], 0, stdout=line, stderr=b"")
-            with mock.patch.object(ps.shutil, "which", return_value="openssl"):
-                with mock.patch.object(ps.subprocess, "run", return_value=done):
+            with unittest.mock.patch.object(ps.shutil, "which", return_value="openssl"):
+                with unittest.mock.patch.object(ps.subprocess, "run", return_value=done):
                     with self.assertRaises(ps.Refusal, msg=line) as caught:
                         ps.find_openssl()
             self.assertEqual(caught.exception.code, ps.EXIT_USAGE)
@@ -446,8 +446,8 @@ class FindOpenSslTests(unittest.TestCase):
     def test_version_3_is_accepted(self) -> None:
         line = b"OpenSSL 3.0.0 7 Sep 2021 (Library: OpenSSL 3.0.0 7 Sep 2021)\n"
         done = subprocess.CompletedProcess([], 0, stdout=line, stderr=b"")
-        with mock.patch.object(ps.shutil, "which", return_value="/x/openssl"):
-            with mock.patch.object(ps.subprocess, "run", return_value=done):
+        with unittest.mock.patch.object(ps.shutil, "which", return_value="/x/openssl"):
+            with unittest.mock.patch.object(ps.subprocess, "run", return_value=done):
                 self.assertEqual(ps.find_openssl(), "/x/openssl")
 
 

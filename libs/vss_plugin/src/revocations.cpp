@@ -168,15 +168,22 @@ bool revocation_list::revokes_plugin(
     });
 }
 
+/// Reads a revocation list from its JSON text.  Nothing is kept unless the
+/// whole list is good: a fault gives `config_error`, and `explain`, when it is
+/// not null, then holds the first problem in words for a person.
 result<revocation_list> parse_revocations(std::string_view payload,
                                           std::string* explain)
 {
+    // The first problem found is kept in `state` and reported at the end, or
+    // as soon as the rest cannot be read.
     reading state;
     const auto failure = [&]() -> result<revocation_list> {
         if (explain != nullptr)
             *explain = state.problem;
         return make_error_code(errc::config_error);
     };
+    // The size is checked before the text is parsed, so that a very large
+    // file is not read into a tree.
     if (payload.size() > max_revocations_size)
     {
         state.fail("revocations",
@@ -207,6 +214,8 @@ result<revocation_list> parse_revocations(std::string_view payload,
         return failure();
     }
 
+    // The serial only goes up, so that an older list cannot replace a newer
+    // one.  It is a positive whole number that fits in 64 bits.
     revocation_list out;
     const json::value* const serial = object->if_contains("serial");
     if (serial == nullptr || !serial->is_int64() || serial->get_int64() < 1 ||
@@ -227,6 +236,9 @@ result<revocation_list> parse_revocations(std::string_view payload,
             state.fail("issued_at", "must be a date such as 2026-11-13");
     }
 
+    // Three lists follow: signing keys by key id, plugins by the hash of the
+    // plugin, and plugins by id up to a version.  Each stops at its first bad
+    // entry, and the list as a whole is then refused.
     for (const json::value& item : list_of(state, *object, "key_ids"))
     {
         if (!item.is_string() || !is_key_id(view_of(item.get_string())))
@@ -252,6 +264,8 @@ result<revocation_list> parse_revocations(std::string_view payload,
     }
     for (const json::value& item : list_of(state, *object, "plugins"))
     {
+        // A plugin entry names the plugin and the newest version that is
+        // revoked, and every version up to that one is.
         const json::object* const entry =
             object_of(state, item, "plugins", plugin_keys);
         if (entry == nullptr)

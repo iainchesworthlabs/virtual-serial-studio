@@ -366,7 +366,10 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
 
         // No real driver or hub is touched. The fake gets two virtual ports to
         // link and a mock port to act as a fixture.
-        FakeStudioBackend backend;
+        // Each fake backend is large, so they live on the heap and not all in
+        // this function's stack frame.
+        const auto backend_owner = std::make_unique<FakeStudioBackend>();
+        FakeStudioBackend& backend = *backend_owner;
         configure_fake(backend);
         const auto alpha = backend.create_virtual_port(
             QStringLiteral("alpha"), vss::virtual_port_kind::pty, true);
@@ -468,7 +471,8 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
             checker.run(dialog, QStringLiteral("support-bundle"));
         }
         {
-            FakeStudioBackend licensed;
+            const auto licensed_owner = std::make_unique<FakeStudioBackend>();
+            FakeStudioBackend& licensed = *licensed_owner;
             configure_fake(licensed);
             licensed.set_licence(sample_licence());
             support::EventLog log;
@@ -481,13 +485,15 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
             checker.run(dialog, QStringLiteral("support-community"));
         }
         {
-            FakeStudioBackend licensed;
+            const auto licensed_owner = std::make_unique<FakeStudioBackend>();
+            FakeStudioBackend& licensed = *licensed_owner;
             licensed.set_licence(sample_licence());
             support::SupportDialog dialog(licensed);
             checker.run(dialog, QStringLiteral("support-included"));
         }
         {
-            FakeStudioBackend ended;
+            const auto ended_owner = std::make_unique<FakeStudioBackend>();
+            FakeStudioBackend& ended = *ended_owner;
             ended.set_licence(sample_licence("2027-01-05T00:00:00Z"));
             support::SupportDialog dialog(ended);
             checker.run(dialog, QStringLiteral("support-ended"));
@@ -511,7 +517,8 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
         }
         {
             // The Licence page, with a licence so that every part shows.
-            FakeStudioBackend licensed;
+            const auto licensed_owner = std::make_unique<FakeStudioBackend>();
+            FakeStudioBackend& licensed = *licensed_owner;
             capabilities caps;
             caps.licences = true;
             licensed.set_capabilities(caps);

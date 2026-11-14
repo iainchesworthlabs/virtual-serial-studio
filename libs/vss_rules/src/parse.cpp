@@ -189,7 +189,7 @@ private:
         bool clean = true;
         for (const auto& entry : object)
         {
-            const std::string_view key = entry.key();
+            const std::string_view key{entry.key().data(), entry.key().size()};
             if (std::find(allowed.begin(), allowed.end(), key) != allowed.end())
                 continue;
             bad(join(path, shown(key)), "unknown key");
@@ -477,9 +477,14 @@ private:
 
 // -- the document ------------------------------------------------------------
 
+/// Reads the whole rule set document.  Every member is optional except
+/// "attach".  A member that is wrong is reported with its path and the read
+/// goes on, so that one pass lists every fault in the document.
 rule_set_source reader::document(const json::object& root)
 {
     rule_set_source out;
+    // A key that is not one of these is a fault, so a misspelt name is not
+    // quietly ignored.
     unknown_keys(root,
                  {"version", "name", "attach", "seed", "late_after_us", "order",
                   "states", "signals", "slots", "rules", "timeline"},
@@ -494,11 +499,14 @@ rule_set_source reader::document(const json::object& root)
     if (const json::value* name = root.if_contains("name"))
         text_of(*name, "name", out.name);
 
+    // The set must say which port it sits at, so there is no default.
     if (const json::value* attach = root.if_contains("attach"))
         attach_of(*attach, out.attach);
     else
         bad("attach", "the set needs an \"attach\": the port it sits at");
 
+    // The seed is any 64-bit number.  JSON holds it as signed when it fits and
+    // as unsigned above that, so both are accepted.
     if (const json::value* seed = root.if_contains("seed"))
     {
         if (const std::int64_t* signed_seed = seed->if_int64())
@@ -513,6 +521,8 @@ rule_set_source reader::document(const json::object& root)
     if (const json::value* order = root.if_contains("order"))
         choice_of(*order, "order", order_names, out.order);
 
+    // The names of the states and of the signals are lists of text, kept in
+    // the order they are written.
     if (const json::value* states = root.if_contains("states"))
     {
         if (const json::array* list = array_of(*states, "states", max_states))
@@ -540,6 +550,8 @@ rule_set_source reader::document(const json::object& root)
         }
     }
 
+    // The slots are named byte strings written as hex.  The count is checked
+    // first so that a very large object is not walked.
     if (const json::value* slots = root.if_contains("slots"))
     {
         if (const json::object* object = object_of(*slots, "slots"))
@@ -562,6 +574,8 @@ rule_set_source reader::document(const json::object& root)
         }
     }
 
+    // Rules and timeline entries are read one at a time, each with its place in
+    // the document so that a message says which entry is at fault.
     if (const json::value* rules = root.if_contains("rules"))
     {
         if (const json::array* list = array_of(*rules, "rules", max_rules))
@@ -639,7 +653,7 @@ std::vector<line_value> reader::lines_of(const json::value& value,
         return out;
     for (const auto& entry : *object)
     {
-        const std::string_view key = entry.key();
+        const std::string_view key{entry.key().data(), entry.key().size()};
         const auto found =
             std::find_if(line_names.begin(), line_names.end(),
                          [key](const auto& each) { return each.first == key; });
@@ -1195,7 +1209,7 @@ void reader::delay_of(const json::value& value, const std::string& path,
         return;
     for (const auto& entry : *body)
     {
-        const std::string_view key = entry.key();
+        const std::string_view key{entry.key().data(), entry.key().size()};
         const bool known =
             std::any_of(members.begin(), members.end(),
                         [key](const member& each) { return each.key == key; });

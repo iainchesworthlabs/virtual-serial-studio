@@ -717,6 +717,7 @@ def viewport_problems(content: str) -> list[str]:
         if float(items["maximum-scale"]) < 2:
             found.append("maximum-scale below 2 stops people zooming")
     except (KeyError, ValueError):
+        # No maximum-scale, or one that is not a number, does not stop zoom.
         pass
     return found
 

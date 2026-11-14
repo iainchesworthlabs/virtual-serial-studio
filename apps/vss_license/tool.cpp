@@ -92,9 +92,12 @@ std::optional<arguments> parse_arguments(std::span<const std::string> words,
                                          std::ostream& err)
 {
     arguments parsed;
-    for (std::size_t index = 0; index < words.size(); ++index)
+    // The index moves past a word as it is taken, and past its value too when
+    // the word is an option, so it is not the counter of a `for` loop.
+    std::size_t index = 0;
+    while (index < words.size())
     {
-        const std::string& word = words[index];
+        const std::string& word = words[index++];
         if (!word.starts_with("--"))
         {
             parsed.positional.push_back(word);
@@ -105,12 +108,12 @@ std::optional<arguments> parse_arguments(std::span<const std::string> words,
         }
         else if (options.contains(word))
         {
-            if (index + 1 >= words.size())
+            if (index >= words.size())
             {
                 err << word << " needs a value.\n";
                 return std::nullopt;
             }
-            if (!parsed.options.emplace(word, words[++index]).second)
+            if (!parsed.options.emplace(word, words[index++]).second)
             {
                 err << word << " is given twice.\n";
                 return std::nullopt;

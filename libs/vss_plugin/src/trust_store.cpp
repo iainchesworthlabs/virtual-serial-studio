@@ -66,11 +66,12 @@ std::string_view view_of(const json::string& text) noexcept
     return {text.data(), text.size()};
 }
 
-/// The parts one after the other, for a message to a person.
-std::string join(std::initializer_list<std::string_view> parts)
+/// The parts one after the other, for a message to a person. The parts are
+/// strings, not views, so a part built on the spot lives as long as the list.
+std::string join(std::initializer_list<std::string> parts)
 {
     std::string out;
-    for (const std::string_view part : parts)
+    for (const std::string& part : parts)
         out.append(part);
     return out;
 }
@@ -984,7 +985,7 @@ result<trust_store> load_trust_store(const fs::path& path, std::string* explain)
 {
     const auto unreadable = [&](std::string_view why) -> result<trust_store> {
         if (explain != nullptr)
-            *explain = join({"trust store: ", why});
+            *explain = join({"trust store: ", std::string(why)});
         return make_error_code(errc::io_error);
     };
 

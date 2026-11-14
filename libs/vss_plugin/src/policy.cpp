@@ -243,14 +243,22 @@ policy official_only_policy()
     return out;
 }
 
+/// Reads the policy file from its JSON text.  Every member is optional except
+/// the version, and one that is missing keeps the default of `policy`.  A
+/// fault gives `config_error`, and `explain`, when it is not null, then holds
+/// the first problem in words for a person.
 result<policy> parse_policy(std::string_view text, std::string* explain)
 {
+    // The first problem found is kept in `state` and reported at the end, or
+    // as soon as the rest cannot be read.
     reading state;
     const auto failure = [&]() -> result<policy> {
         if (explain != nullptr)
             *explain = state.problem;
         return make_error_code(errc::config_error);
     };
+    // The size is checked before the text is parsed, so that a very large
+    // file is not read into a tree.
     if (text.size() > max_policy_size)
     {
         state.fail("policy", "is larger than " +
@@ -270,6 +278,8 @@ result<policy> parse_policy(std::string_view text, std::string* explain)
         state.fail("policy", "must be an object");
         return failure();
     }
+    // A key that is not known is a fault, so that a misspelt name does not
+    // quietly leave a restriction off.
     const json::object& object = root->get_object();
     for (const auto& entry : object)
     {
@@ -297,6 +307,8 @@ result<policy> parse_policy(std::string_view text, std::string* explain)
         return failure();
     }
 
+    // What follows reads one member at a time into `out`.  A member that is
+    // not there keeps its default, and one that is wrong adds to `state`.
     policy out;
     if (const json::value* const value = object.if_contains("allow"))
     {
@@ -344,6 +356,7 @@ result<policy> parse_policy(std::string_view text, std::string* explain)
         out.user_plugins =
             flag(state, *value, "user_plugins", out.user_plugins);
     }
+    // `on_timeout` may be null, which keeps the default.
     if (const json::value* const value = object.if_contains("on_timeout");
         value != nullptr && !value->is_null())
     {
@@ -361,6 +374,8 @@ result<policy> parse_policy(std::string_view text, std::string* explain)
     if (const json::value* const value =
             object.if_contains("permissions_denied"))
     {
+        // Each name was checked as a permission by `names`, so the second
+        // parse here only turns the text into the enumerator.
         const std::vector<std::string> listed = names(
             state, *value, "permissions_denied", max_permissions,
             [](std::string_view name) {

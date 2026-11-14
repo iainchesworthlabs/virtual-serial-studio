@@ -146,6 +146,19 @@ control::secret_string altered(const control::secret_string& token,
     return control::secret_string(text);
 }
 
+/// A secret made by moving from `source`, which is left moved from.
+control::secret_string move_construct_from(control::secret_string& source)
+{
+    return control::secret_string(std::move(source));
+}
+
+/// `target` takes the secret of `source` by move assignment.
+void move_assign_from(control::secret_string& target,
+                      control::secret_string& source)
+{
+    target = std::move(source);
+}
+
 } // namespace
 
 // -- the secret type ---------------------------------------------------------
@@ -173,15 +186,16 @@ TEST_CASE("control secret: it holds what it was given and gives it up only "
 
 TEST_CASE("control secret: moving and assigning leave nothing behind")
 {
+    // The test looks at each source after it was moved from, which is the
+    // point of it.  The moves are done by the two functions above, so that
+    // what is looked at later is a source that was passed by reference.
     control::secret_string first(std::string_view("first secret"));
-    control::secret_string moved(std::move(first));
-    // NOLINTNEXTLINE(bugprone-use-after-move): the point of the test.
+    control::secret_string moved = move_construct_from(first);
     REQUIRE(first.empty());
     REQUIRE_EQ(moved.expose(), std::string_view("first secret"));
 
     control::secret_string target(std::string_view("old"));
-    target = std::move(moved);
-    // NOLINTNEXTLINE(bugprone-use-after-move): the point of the test.
+    move_assign_from(target, moved);
     REQUIRE(moved.empty());
     REQUIRE_EQ(target.expose(), std::string_view("first secret"));
 
