@@ -20,8 +20,8 @@ import json
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -700,7 +700,7 @@ class CommandLineTests(SiteCase):
         self.write(files)
         config = self.root.parent / "site.json"
         config.write_text("{}", encoding="utf-8")
-        with mock.patch.object(site_check, "fetch_url", return_value=503) as fetch:
+        with unittest.mock.patch.object(site_check, "fetch_url", return_value=503) as fetch:
             code, out, _ = self.run_main(str(self.root), "--config", str(config), "--external")
         self.assertEqual(code, 1)
         fetch.assert_called_once_with("https://x.example/")

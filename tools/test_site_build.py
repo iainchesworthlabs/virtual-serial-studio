@@ -20,8 +20,8 @@ import os
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
-from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -582,7 +582,7 @@ class MainTests(SiteTestCase):
             "tag_name": "v9.9.9", "prerelease": False, "published_at": "2027-01-02T03:04:05Z",
             "html_url": RELEASE_PREFIX + "tag/v9.9.9", "assets": [],
         }]
-        with mock.patch.object(site_build, "fetch_releases", return_value=api) as fake:
+        with unittest.mock.patch.object(site_build, "fetch_releases", return_value=api) as fake:
             with contextlib.redirect_stdout(io.StringIO()):
                 code = site_build.main(["--root", str(self.root), "--refresh-release"])
         self.assertEqual(code, 0)
@@ -692,8 +692,8 @@ class RefreshTests(SiteTestCase):
 
         for token in ("s3cret", ""):
             with self.subTest(token=token):
-                with mock.patch.dict(os.environ, {"GITHUB_TOKEN": token}), \
-                        mock.patch("urllib.request.urlopen", fake_urlopen):
+                with unittest.mock.patch.dict(os.environ, {"GITHUB_TOKEN": token}), \
+                        unittest.mock.patch("urllib.request.urlopen", fake_urlopen):
                     self.assertEqual(site_build.fetch_releases(REPO), [])
                 request = captured["request"]
                 self.assertEqual(request.full_url,
