@@ -1,0 +1,1 @@
+**The hash of a plugin and the check of its files.** `libs/vss_plugin` works out the hash that a decision about a plugin is tied to, from every file of the plugin, and checks the files in a plugin's folder against the list in its manifest. A changed file, a missing file and a file the manifest does not list are each refused. Nothing in Studio uses this yet.
