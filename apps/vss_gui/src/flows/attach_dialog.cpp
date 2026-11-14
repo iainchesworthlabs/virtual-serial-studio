@@ -761,9 +761,16 @@ vss::serial_settings AttachDialog::current_settings() const
     return settings;
 }
 
+/// Attaches the chosen device as a port.  It checks the name and the device
+/// on the GUI thread and shows the problem next to the field that needs it.
+/// Then it makes three things on a worker thread, in order: the physical port
+/// for the device, the logical port that programs open, and the link that
+/// joins them.  If a step fails, the ports made before it are removed so that
+/// nothing is left behind, and the dialog shows which step failed.
 void AttachDialog::attach()
 {
     VSS_PROFILE_ZONE("gui.flows.attach.attach");
+    // The primary button may be out of date if a field changed a moment ago.
     update_primary_state();
     if (name_->text().trimmed().isEmpty())
     {
@@ -782,6 +789,8 @@ void AttachDialog::attach()
         return;
     }
 
+    // Read every field now.  The worker thread must not touch the widgets,
+    // so it gets copies of these values and nothing else from the dialog.
     const QString device_path = current_device_path();
     const vss::serial_settings serial = current_settings();
     const bool capture = capture_->isChecked();
@@ -806,6 +815,8 @@ void AttachDialog::attach()
         vss::endpoint_id physical = 0;
         vss::endpoint_id logical = 0;
     };
+    // The worker writes its result here and the finish step reads it.  It is a
+    // shared_ptr because the dialog may close before the worker returns.
     auto state = std::make_shared<outcome>();
     run_in_background(
         [this, state, uri, serial, capture, name]
@@ -826,6 +837,8 @@ void AttachDialog::attach()
                 state->error = logical.error();
                 return;
             }
+            // Undo in the reverse order of making, so a failed link leaves
+            // neither port behind.
             const auto link = backend_.split(
                 *physical, std::vector<vss::endpoint_id>{*logical}, {});
             if (!link)
