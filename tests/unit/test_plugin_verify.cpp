@@ -88,9 +88,8 @@ struct scene
     std::vector<std::string> capabilities{"engine_rules"};
     verify_input input;
 
-    scene()
+    scene() : declared(good_manifest())
     {
-        declared = good_manifest();
         input.hash = hash_plugin(declared.files);
         input.today = today;
         input.host_api = api_version{1, 0};
