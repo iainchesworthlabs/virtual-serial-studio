@@ -143,6 +143,7 @@ endif()
 if(VSS_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
+  add_subdirectory(adapters)
 endif()
 
 if(VSS_BUILD_PERF)

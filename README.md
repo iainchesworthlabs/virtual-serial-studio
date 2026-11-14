@@ -112,6 +112,24 @@ vss_cli control run begin smoke     # open a named run; every `expect` of this u
 
 Run `vss_cli --help` for the full list.
 
+### From Python
+
+A test script can talk to the same gateway with `adapters/python`, which needs
+Python 3.9 and no other package. Start `vss_agent` and `vss_gate --local-role=control`, then:
+
+```python
+import sys; sys.path.insert(0, "adapters/python")
+from vss_control import Client
+
+with Client.connect() as c:
+    a, b = c.create_port("a"), c.create_port("b")
+    c.connect_ports(a, b, one_way=True)
+    found = c.expect_bytes(port=b, pattern=b"OK\r\n", timeout_ms=2000, send_port=a, send=b"AT\r\nOK\r\n")
+    print(found["offset"])   # 4: the bytes that went by before the pattern
+```
+
+`adapters/python/README.md` has the calls, the errors and what the client checks before it sends.
+
 ### A topology file
 
 ```json
