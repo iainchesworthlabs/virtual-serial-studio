@@ -12,7 +12,6 @@ add_library(vss_control_core
   src/failure_limiter.cpp
   src/gateway.cpp
   src/junit.cpp
-  src/junit.cpp
   src/loopback.cpp
   src/token_file.cpp
   src/token_store.cpp)
