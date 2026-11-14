@@ -611,7 +611,8 @@ TEST_CASE("control policy: the whole matrix of caller and operation")
                 bool should = false;
                 if (!needed.has_value())
                     should = true;
-                else if (needed.value() == control::scope::admin)
+                else if (std::to_underlying(needed.value()) ==
+                         std::to_underlying(control::scope::admin))
                     should = via == control::transport::local_admin &&
                              held.contains(control::scope::admin);
                 else

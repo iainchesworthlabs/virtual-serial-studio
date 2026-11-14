@@ -8,6 +8,7 @@
 
 #include <array>
 #include <exception>
+#include <utility>
 
 namespace vss::control
 {
@@ -161,7 +162,10 @@ decision authorise(const principal& caller,
     if (!wanted.required)
         return {true, std::nullopt};
     const scope needed = *wanted.required;
-    if (needed == scope::admin && caller.via != transport::local_admin)
+    // Compared as numbers: a scope is one value to match, not a flag to test
+    // for in a set.
+    if (std::to_underlying(needed) == std::to_underlying(scope::admin) &&
+        caller.via != transport::local_admin)
         return {false, needed};
     if (!caller.scopes.contains(needed))
         return {false, needed};

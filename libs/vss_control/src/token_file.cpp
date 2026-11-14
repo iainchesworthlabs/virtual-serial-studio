@@ -139,7 +139,11 @@ std::optional<scope_set> as_scopes(const json::value* item)
         if (!text)
             return std::nullopt;
         const std::optional<scope> parsed = parse_scope(*text);
-        if (!parsed || *parsed == scope::admin || members.contains(*parsed))
+        // Compared as numbers: a scope is one value to match, not a flag to
+        // test for in a set.
+        if (!parsed ||
+            std::to_underlying(*parsed) == std::to_underlying(scope::admin) ||
+            members.contains(*parsed))
             return std::nullopt;
         members = members | scope_set{*parsed};
     }
