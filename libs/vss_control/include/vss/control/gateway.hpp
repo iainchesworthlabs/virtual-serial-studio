@@ -72,6 +72,15 @@ struct gateway_options
     /// The most a token may do on the public local endpoint, whatever its
     /// own scopes say.
     scope_set local_ceiling = every_scope();
+
+    /// Listen for the control API on TCP as well, on `127.0.0.1` and `::1`
+    /// at this port; nothing for no TCP at all, which is the default.  0
+    /// takes any free port, for tests.  Every connection there must begin
+    /// with the preface and present a token made for `loopback`: who is at
+    /// the other end of a TCP connection is not known.
+    std::optional<std::uint16_t> loopback_port;
+    /// The most a token may do over loopback TCP.
+    scope_set loopback_ceiling = role_control();
     /// How wrong tokens slow down whoever presents them.
     failure_limits auth_limits;
     /// The time the token store goes by; empty for the system clock.
@@ -92,6 +101,9 @@ struct gateway_counters
     std::uint64_t refused_busy = 0;
     std::uint64_t protocol_errors = 0;
     std::uint64_t handshake_timeouts = 0;
+    /// TCP connections that did not begin with the preface.  They were
+    /// closed and told nothing.
+    std::uint64_t bad_preface = 0;
     /// Tokens that were presented and refused, for any reason.
     std::uint64_t auth_failures = 0;
     std::uint64_t forbidden = 0;
@@ -154,6 +166,8 @@ public:
     /// The pipe names or socket paths, once started.
     std::string address() const;
     std::string admin_address() const;
+    /// `127.0.0.1:<port>` when the gateway listens on TCP, else empty.
+    std::string loopback_address() const;
 
     /// Asks whoever waits in `wait_for_stop_request` to stop the gateway.
     /// Safe from any thread.

@@ -12,6 +12,8 @@ add_library(vss_control_core
   src/failure_limiter.cpp
   src/gateway.cpp
   src/junit.cpp
+  src/junit.cpp
+  src/loopback.cpp
   src/token_file.cpp
   src/token_store.cpp)
 add_library(Vss::control_core ALIAS vss_control_core)
@@ -32,6 +34,7 @@ icl_platform_sources(vss_control_core)
 # state is in src/platform/linux and src/platform/macos.
 if(UNIX)
   target_sources(vss_control_core PRIVATE
+    src/platform/posix/loopback_posix.cpp
     src/platform/posix/private_storage_posix.cpp)
 endif()
 
