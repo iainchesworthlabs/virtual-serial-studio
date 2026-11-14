@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_BACKEND_ENGINE_STUDIO_BACKEND_HPP
 #define VSS_GUI_BACKEND_ENGINE_STUDIO_BACKEND_HPP
 
+#include "backend/licence_store.hpp"
 #include "backend/studio_backend.hpp"
 
 #include <chrono>
@@ -80,6 +81,15 @@ public:
     }
     std::vector<traffic_view> traffic(int limit) const override;
     setup_facts facts() const override;
+
+    /// Gives the backend its licence files. Without a store the backend is
+    /// the Community edition and `caps().licences` is false. The store is
+    /// read at once and again every hour, so a licence that ends while the
+    /// window is open is noticed.
+    void set_licence_store(std::unique_ptr<licence_store> store);
+    licence_view licence() const override;
+    licence_import_result import_licence(const QString& path) override;
+    bool remove_licence(const QString& file_name) override;
     driver_check check_driver() const override;
     std::chrono::milliseconds probe_cache_age() const override
     {
@@ -175,6 +185,8 @@ private:
     /// Looks for a program that opened a pseudo terminal; null where the
     /// platform cannot tell.
     QTimer* peer_timer_ = nullptr;
+    std::unique_ptr<licence_store> licences_;
+    QTimer* licence_timer_ = nullptr;
     bool rebuild_scheduled_ = false;
     /// Guards `ports_` and `links_`: a job that runs off the GUI thread (making
     /// a port installs a device and takes seconds) rebuilds them too.

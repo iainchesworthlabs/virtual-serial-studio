@@ -131,6 +131,12 @@ result<revocation_list>
 read_revocations(std::string_view file_text,
                  std::span<const signed_file::trusted_key> keys);
 
+/// The revocation list built into this release
+/// (`revocations_release.cpp`). Empty, with sequence 0, until the owner
+/// withdraws a licence or a key. A signed list with a higher sequence number
+/// takes its place.
+revocation_list builtin_revocations();
+
 /// The newer of the two lists; `current` when `candidate` is not newer.
 revocation_list newer(const revocation_list& current,
                       const revocation_list& candidate);

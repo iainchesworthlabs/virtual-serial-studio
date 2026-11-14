@@ -499,6 +499,22 @@ TEST_CASE("licence: revocation lists")
     REQUIRE_EQ(newer(list, list).sequence, 7U);
 }
 
+TEST_CASE("licence: the list built into this release withdraws nothing yet")
+{
+    const revocation_list built_in = builtin_revocations();
+    REQUIRE_EQ(built_in.sequence, 0U);
+    REQUIRE(built_in.licence_ids.empty());
+    REQUIRE(built_in.keys.empty());
+
+    // Any signed list is newer than it, so a file a customer is sent takes
+    // its place.
+    revocation_list sent;
+    sent.sequence = 1;
+    sent.licence_ids = {"VSS-2026-000123"};
+    REQUIRE_EQ(newer(built_in, sent).sequence, 1U);
+    REQUIRE_EQ(newer(sent, built_in).sequence, 1U);
+}
+
 TEST_CASE("licence: computer names")
 {
     REQUIRE(machine_matches("LAB-RIG-07", "LAB-RIG-07"));

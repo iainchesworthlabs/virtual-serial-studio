@@ -316,6 +316,21 @@
             <source>Renderer</source>
             <translation>レンダラー</translation>
         </message>
+        <message>
+            <location filename="../src/support/third_party.cpp" line="1" />
+            <source>BSD 2-Clause License, or Creative Commons Zero, version 1.0.</source>
+            <translation>BSD 2-Clause License、または Creative Commons Zero バージョン1.0。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
+            <translation>バージョン %1。GNU General Public License バージョン3以降に基づくフリーソフトウェアです。エディション: %2。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>サポートバンドルを作成</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -9374,6 +9389,31 @@ Networks: %5</source>
             <source>Open it again from this icon, or quit it there to stop the ports.</source>
             <translation>このアイコンからもう一度開くか、ここで終了するとポートが停止します。</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>ライセンス...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>ライセンス エディション pro community プラグイン インポート 更新</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>サポート...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>サポート ヘルプ 連絡 バンドル アドレス 問題</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>サポートバンドル</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -9574,13 +9614,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>ハブ実行中</translation>
+            <source>Engine running</source>
+            <translation>エンジン実行中</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>ハブ停止中</translation>
+            <source>Engine stopped</source>
+            <translation>エンジン停止中</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -10941,6 +10981,16 @@ Networks: %5</source>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="369" />
             <source>%1 copied.</source>
             <translation>%1をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>サポートバンドルを作成</translation>
+        </message>
+        <message>
+            <location filename="../src/support/troubleshoot_dialog.cpp" line="1" />
+            <source>Still stuck? A support bundle gathers the setup, the log and the environment for whoever helps you. The bytes your ports sent and received are never included.</source>
+            <translation>解決しませんか? サポートバンドルには、ヘルプを依頼する相手に必要なセットアップ、ログ、環境情報がまとめられます。ポートが送受信したバイトは含まれません。</translation>
         </message>
     </context>
     <context>
@@ -16804,6 +16854,31 @@ Networks: %5</source>
             <source>Diagnostic information copied.</source>
             <translation>診断情報をコピーしました。</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Licence...</source>
+            <translation>ライセンス...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>licence edition pro community plugins import renew</source>
+            <translation>ライセンス エディション pro community プラグイン インポート 更新</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support...</source>
+            <translation>サポート...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>support help contact bundle address issues</source>
+            <translation>サポート ヘルプ 連絡 バンドル アドレス 問題</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>サポートバンドル</translation>
+        </message>
     </context>
     <context>
         <name>vss::gui::StatusBar</name>
@@ -16860,13 +16935,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>ハブ実行中</translation>
+            <source>Engine running</source>
+            <translation>エンジン実行中</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>ハブ停止中</translation>
+            <source>Engine stopped</source>
+            <translation>エンジン停止中</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -19891,6 +19966,969 @@ Networks: %5</source>
             <location filename="../src/topology/topology_view.cpp" line="2959" />
             <source>Select all</source>
             <translation>すべて選択</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceChip</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro trial</source>
+            <translation>Pro 体験版</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, 1 day left</source>
+            <translation>%1、残り1日</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, ends today</source>
+            <translation>%1、本日終了</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, licence ended</source>
+            <translation>%1、ライセンス期間終了</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Edition: %1. Open the licence page.</source>
+            <translation>エディション: %1。ライセンスのページを開きます。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1, %n days left</source>
+            <translation>
+                <numerusform>%1、残り%n日</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceDialog</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Available</source>
+            <translation>利用可能</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>閉じる</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>このビルドでは利用できません</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not started</source>
+            <translation>未開始</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not valid</source>
+            <translation>無効</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove</source>
+            <translation>削除</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Community</source>
+            <translation>Community</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro (trial)</source>
+            <translation>Pro (体験版)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%1 to %2</source>
+            <translation>%1〜%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>1 seat</source>
+            <translation>1シート</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>%n seats</source>
+            <translation>
+                <numerusform>%nシート</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Seats</source>
+            <translation>シート数</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Site licence</source>
+            <translation>サイトライセンス</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
+            <translation>1シートは、お使いのコンピューターと、それを監視するために使うもう1台のコンピューターです。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>A licence is renewed by installing a new licence file. Write to %1 and quote your licence number, %2. Studio does not open a web page or send anything itself.</source>
+            <translation>ライセンスの更新は、新しいライセンスファイルをインストールして行います。%1宛てに連絡し、ライセンス番号%2をお伝えください。StudioがWebページを開いたり、何かを送信したりすることはありません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Check the date</source>
+            <translation>日付を確認</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Computers</source>
+            <translation>コンピューター</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>アドレスをコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>ライセンス番号をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>エディション</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended</source>
+            <translation>終了</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Official plugins keep working until %2, then switch off.</source>
+            <translation>%1に終了しました。公式プラグインは%2まで動作し、その後オフになります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ended on %1. Studio is running as the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>%1に終了しました。StudioはCommunityエディションで動作しています。ポート、セットアップ、ファイルは変わりません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Ends soon</source>
+            <translation>まもなく終了</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Feature</source>
+            <translation>機能</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>更新の方法</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import licence...</source>
+            <translation>ライセンスをインポート...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Includes</source>
+            <translation>含まれるもの</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Installed by an administrator</source>
+            <translation>管理者がインストールしました</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>ライセンス</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>ライセンス番号</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licensed to</source>
+            <translation>ライセンス取得者</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Microsoft-signed driver</source>
+            <translation>Microsoft署名済みドライバー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Needs a Pro licence.</source>
+            <translation>Proライセンスが必要です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>No licence is installed. This is the Community edition: free software, complete for capturing, monitoring and sharing serial ports.</source>
+            <translation>ライセンスはインストールされていません。これはCommunityエディションです。フリーソフトウェアで、シリアルポートのキャプチャ、監視、共有に必要な機能がそろっています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Not available</source>
+            <translation>利用できません</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins</source>
+            <translation>公式プラグイン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Official plugins are off. Nothing you made is lost: every port, setup and file still opens and saves.</source>
+            <translation>公式プラグインはオフです。作成したものは失われません。すべてのポート、セットアップ、ファイルは、これまでどおり開いて保存できます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Other licences on this computer (%1)</source>
+            <translation>このコンピューター上のほかのライセンス (%1)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove licence</source>
+            <translation>ライセンスを削除</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Remove this licence?</source>
+            <translation>このライセンスを削除しますか?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Renew your licence</source>
+            <translation>ライセンスを更新する</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Shows which edition this is and what your licence includes. Studio checks a licence on this computer and never contacts a server.</source>
+            <translation>このエディションと、ライセンスに含まれる内容を表示します。Studioはこのコンピューター上でライセンスを確認し、サーバーには接続しません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Starts on %1.</source>
+            <translation>%1に開始します。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>状態</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio returns to the Community edition. Your ports, setups and files are unchanged. Keep the licence file so you can import it again.</source>
+            <translation>StudioはCommunityエディションに戻ります。ポート、セットアップ、ファイルは変わりません。もう一度インポートできるように、ライセンスファイルを保管してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Studio uses the licence that gives you the most.</source>
+            <translation>Studioは、最も多くの機能を使えるライセンスを利用します。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Support</source>
+            <translation>サポート</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Term</source>
+            <translation>期間</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong.</source>
+            <translation>このコンピューターの日付が正しくないようです。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong. Official plugins are off until the date is right. If the date is right, create a support bundle and contact support.</source>
+            <translation>このコンピューターの日付が正しくないようです。日付が正しくなるまで、公式プラグインはオフになります。日付が正しい場合は、サポートバンドルを作成してサポートに連絡してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The installed licence is not valid.</source>
+            <translation>インストールされているライセンスは無効です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>This computer is %1.</source>
+            <translation>このコンピューターは%1です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This file is not a valid Virtual Serial Studio licence. It may be damaged or incomplete. Ask for the file again.</source>
+            <translation>このファイルは、有効なVirtual Serial Studioのライセンスではありません。破損しているか、不完全な可能性があります。ファイルをもう一度入手してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This is a 14 day trial of the Pro edition. It ends on %1. Nothing you make during the trial is lost.</source>
+            <translation>これはProエディションの14日間の体験版です。%1に終了します。体験期間中に作成したものは失われません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence is for other computers. This computer is %1. Ask your administrator for a licence that names it.</source>
+            <translation>このライセンスは、ほかのコンピューター用です。このコンピューターは%1です。このコンピューターを指定したライセンスを管理者に依頼してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence needs a newer version of Studio. Install the latest version, then import the licence again.</source>
+            <translation>このライセンスには、より新しいバージョンのStudioが必要です。最新バージョンをインストールしてから、もう一度ライセンスをインポートしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence was withdrawn. Contact support.</source>
+            <translation>このライセンスは取り消されました。サポートに連絡してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid</source>
+            <translation>有効</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1.</source>
+            <translation>%1まで有効です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. 1 day left.</source>
+            <translation>%1まで有効です。残り1日です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. Ends today.</source>
+            <translation>%1まで有効です。本日終了します。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Valid until %1. %n days left.</source>
+            <translation>
+                <numerusform>%1まで有効です。残り%n日です。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>What this edition includes</source>
+            <translation>このエディションに含まれるもの</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Why</source>
+            <translation>理由</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence does not include this.</source>
+            <translation>お持ちのライセンスには含まれていません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1.</source>
+            <translation>ライセンスは%1に終了しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off on %2.</source>
+            <translation>ライセンスは%1に終了しました。公式プラグインは%2にオフになります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1. Renew to keep official plugins and support.</source>
+            <translation>ライセンスは%1に終了します。公式プラグインとサポートを引き続き利用するには、更新してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence is for other computers.</source>
+            <translation>お持ちのライセンスは、ほかのコンピューター用です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence starts on %1.</source>
+            <translation>ライセンスは%1に開始します。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>licence number</source>
+            <translation>ライセンス番号</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceImport</name>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>All files (*)</source>
+            <translation>すべてのファイル (*)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Choose another file</source>
+            <translation>別のファイルを選択</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Could not import the licence</source>
+            <translation>ライセンスをインポートできませんでした</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Enterprise</source>
+            <translation>Enterprise</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Pro</source>
+            <translation>Pro</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Import a licence</source>
+            <translation>ライセンスをインポート</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Licence files (*.vsslic)</source>
+            <translation>ライセンスファイル (*.vsslic)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Licence imported. This is now the %1 edition.</source>
+            <translation>ライセンスをインポートしました。現在のエディションは%1です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Studio could not read %1. Check that the file still exists and that you are allowed to open it.</source>
+            <translation>Studioは%1を読み取れませんでした。ファイルが存在し、開く権限があることを確認してください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>That licence is already installed.</source>
+            <translation>そのライセンスはすでにインストールされています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence ended on %1. It was imported, but it does not turn anything on.</source>
+            <translation>このライセンスは%1に終了しました。インポートされましたが、何もオンにはなりません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>This licence starts on %1.</source>
+            <translation>このライセンスは%1に開始します。</translation>
+        </message>
+    </context>
+    <context>
+        <name>LicenceNotice</name>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Dismiss</source>
+            <translation>非表示</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/licence_notice.cpp" line="1" />
+            <source>Licence</source>
+            <translation>ライセンス</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Remind me tomorrow</source>
+            <translation>明日もう一度通知</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>The date on this computer looks wrong, so official plugins are off.</source>
+            <translation>このコンピューターの日付が正しくないようなので、公式プラグインはオフになっています。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off today.</source>
+            <translation>ライセンスは%1に終了しました。公式プラグインは本日オフになります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off tomorrow.</source>
+            <translation>ライセンスは%1に終了しました。公式プラグインは明日オフになります。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ends on %1.</source>
+            <translation>ライセンスは%1に終了します。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence has ended, so official plugins are off. Studio is now the Community edition. Your ports, setups and files are unchanged.</source>
+            <translation>ライセンスが終了したため、公式プラグインはオフです。StudioはCommunityエディションになりました。ポート、セットアップ、ファイルは変わりません。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/licence_text.cpp" line="1" />
+            <source>Your licence ended on %1. Official plugins switch off in %n days.</source>
+            <translation>
+                <numerusform>ライセンスは%1に終了しました。公式プラグインは%n日後にオフになります。</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportBundleDialog</name>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>1 file</source>
+            <translation>1ファイル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Could not save the bundle</source>
+            <translation>バンドルを保存できませんでした</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>詳細をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Off by default</source>
+            <translation>既定ではオフ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>ヘルプを依頼する相手がセットアップを把握するために必要な情報を集めます。何も送信されません。保存先はご自身で選びます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Include</source>
+            <translation>含める内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Setup</source>
+            <translation>セットアップ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Ports, links and their settings, as a topology file.</source>
+            <translation>ポートとリンクおよびその設定を、トポロジーファイルとして含めます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Event log</source>
+            <translation>イベントログ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State changes and errors since the setup was opened.</source>
+            <translation>セットアップを開いてからの状態変化とエラーです。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Port counters</source>
+            <translation>ポートのカウンター</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>State, bytes in and out, and bytes dropped for each port.</source>
+            <translation>各ポートの状態、入出力のバイト数、破棄されたバイト数。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview</source>
+            <translation>プレビュー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Copy environment only</source>
+            <translation>環境情報のみコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save bundle</source>
+            <translation>バンドルを保存</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bundle has too many files.</source>
+            <translation>バンドルのファイル数が多すぎます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>ZIP archives (*.zip)</source>
+            <translation>ZIPアーカイブ (*.zip)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Saved %1.</source>
+            <translation>%1を保存しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Environment copied.</source>
+            <translation>環境情報をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>キャンセル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>このビルドでは利用できません</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence</source>
+            <translation>ライセンス</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Studio could not write to that folder. Choose another place, such as your Documents folder.</source>
+            <translation>Studioはそのフォルダーに書き込めませんでした。ドキュメントフォルダーなど、別の場所を選んでください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Choose another place</source>
+            <translation>別の場所を選択</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Create a support bundle</source>
+            <translation>サポートバンドルを作成</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Creating a support bundle is not available in this build.</source>
+            <translation>このビルドではサポートバンドルを作成できません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Version and environment</source>
+            <translation>バージョンと環境</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Build, compiler, Qt version, operating system, architecture and edition.</source>
+            <translation>ビルド、コンパイラー、Qtのバージョン、オペレーティングシステム、アーキテクチャ、エディション。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Driver state</source>
+            <translation>ドライバーの状態</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service&apos;s state and the results of the setup check.</source>
+            <translation>Studioドライバーとcom0comがあるかどうか、それぞれのバージョン、ドライバーの署名方法、ヘルパーサービスの状態、セットアップチェックの結果です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Serial ports on this computer</source>
+            <translation>このコンピューター上のシリアルポート</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>One line for each serial port: name, description, vendor and product ids, and driver.</source>
+            <translation>シリアルポートごとに1行です。名前、説明、ベンダーIDとプロダクトID、ドライバーを含みます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licence number, edition, term and state. Not the licence file.</source>
+            <translation>ライセンス番号、エディション、期間、状態です。ライセンスファイル自体は含まれません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Licensee name</source>
+            <translation>ライセンス取得者名</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The name your licence was issued to. Turn this on if you are writing to support about the licence itself.</source>
+            <translation>ライセンスの発行先の名前です。ライセンス自体についてサポートに連絡する場合は、オンにしてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This computer&apos;s name</source>
+            <translation>このコンピューターの名前</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Needed when a licence names computers.</source>
+            <translation>ライセンスがコンピューターを指定している場合に必要です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Always left out</source>
+            <translation>常に除外されるもの</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>The bytes your ports sent and received are never included. Passwords, tokens and keys are replaced with [redacted]. The path of your home folder is shortened to ~. The name of this computer and your user name are not included. Serial numbers of devices are not included. The licence file itself is never included.</source>
+            <translation>ポートが送受信したバイトは含まれません。パスワード、トークン、キーは[redacted]に置き換えられます。ホームフォルダーのパスは~に短縮されます。このコンピューターの名前とユーザー名は含まれません。デバイスのシリアル番号は含まれません。ライセンスファイル自体も含まれません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Nothing leaves this computer until you share the file yourself.</source>
+            <translation>ご自身でファイルを共有するまで、このコンピューターから外部へは何も送信されません。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Files in the bundle</source>
+            <translation>バンドル内のファイル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>This is exactly what the file will contain.</source>
+            <translation>ファイルに含まれる内容そのものです。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview shortened. The saved file is complete.</source>
+            <translation>プレビューは短縮されています。保存されるファイルは完全です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Preview of %1</source>
+            <translation>%1のプレビュー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Save support bundle</source>
+            <translation>サポートバンドルを保存</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>Show in folder</source>
+            <translation>フォルダーで表示</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
+            <source>%n files</source>
+            <translation>
+                <numerusform>%nファイル</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>SupportDialog</name>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>%1 copied.</source>
+            <translation>%1をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>閉じる</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Version</source>
+            <translation>バージョン</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Operating system</source>
+            <translation>オペレーティングシステム</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy</source>
+            <translation>コピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Help contents</source>
+            <translation>ヘルプの目次</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Why is nothing arriving?</source>
+            <translation>なぜ何も届かないのですか?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy address</source>
+            <translation>アドレスをコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy licence number</source>
+            <translation>ライセンス番号をコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Edition</source>
+            <translation>エディション</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>How to renew</source>
+            <translation>更新の方法</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Licence number</source>
+            <translation>ライセンス番号</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support</source>
+            <translation>サポート</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support bundle</source>
+            <translation>サポートバンドル</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Where to get help, and what to send so a helper can understand your setup.</source>
+            <translation>ヘルプを得る方法と、ヘルプを依頼する相手がセットアップを把握できるように送る情報です。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your support</source>
+            <translation>お客様のサポート</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy documents address</source>
+            <translation>ドキュメントのアドレスをコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy issues address</source>
+            <translation>課題一覧のアドレスをコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Studio never sends anything itself. You choose what to share.</source>
+            <translation>Studio自身が何かを送信することはありません。共有する内容はご自身で選びます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Before you write</source>
+            <translation>連絡する前に</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say what you expected and what happened instead.</source>
+            <translation>期待した動作と、実際に起きたことを書いてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Say which port or program it happened with.</source>
+            <translation>どのポートやプログラムで起きたかを書いてください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Attach a support bundle. It answers most first questions.</source>
+            <translation>サポートバンドルを添付してください。最初の質問の大半はこれで解決します。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>A support bundle is one zip file with the version, the driver state, your setup, the log and the list of serial ports on this computer. You see everything in it before you save it.</source>
+            <translation>サポートバンドルは、バージョン、ドライバーの状態、セットアップ、ログ、このコンピューターのシリアルポートの一覧をまとめた1つのZIPファイルです。保存する前に、中身をすべて確認できます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Create support bundle</source>
+            <translation>サポートバンドルを作成</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>This copy of Studio</source>
+            <translation>このStudio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Copy the version, edition and operating system</source>
+            <translation>バージョン、エディション、オペレーティングシステムをコピー</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Details copied.</source>
+            <translation>詳細をコピーしました。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support included</source>
+            <translation>サポート付き</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Your %1 licence includes support until %2. Write to %3 and quote your licence number, %4.</source>
+            <translation>%1ライセンスには%2までのサポートが含まれます。%3宛てに連絡し、ライセンス番号%4をお伝えください。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Community support</source>
+            <translation>Communityサポート</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>The Community edition is supported by its users. Search the documents and the issue list first, then open an issue. Support from the developer comes with a Pro or Enterprise licence.</source>
+            <translation>Communityエディションは、ユーザー同士で支え合うものです。まずドキュメントと課題一覧を検索し、それから課題を登録してください。開発者によるサポートは、ProまたはEnterpriseのライセンスに含まれます。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended</source>
+            <translation>サポート終了</translation>
+        </message>
+        <message>
+            <location filename="../src/support/support_dialog.cpp" line="1" />
+            <source>Support ended with your licence on %1.</source>
+            <translation>サポートはライセンスとともに%1に終了しました。</translation>
         </message>
     </context>
 </TS>

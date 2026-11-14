@@ -137,6 +137,13 @@ struct capabilities
     /// after they agree (Linux with pkexec installed).  False elsewhere; the
     /// dialog then only explains and shows the command.
     bool serial_group_step = false;
+    /// Read, import and remove licence files (`StudioBackend::licence`). A
+    /// backend without it is the Community edition: the Licence page says so
+    /// and shows Import disabled with "Not available in this build".
+    bool licences = false;
+    /// Name the driver behind each serial device in the support bundle. No
+    /// backend can yet, so the bundle writes "not known" and never guesses.
+    bool device_driver_names = false;
 };
 
 } // namespace vss::gui

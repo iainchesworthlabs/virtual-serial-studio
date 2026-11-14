@@ -91,8 +91,8 @@ The payload is UTF-8 JSON:
 | `licensee.contact` | Optional. A team or role, not a personal e-mail address |
 | `issued_at` | When the owner signed it. Used for key rotation and the clock check |
 | `starts_at`, `expires_at` | The term, in UTC. A renewal bought early starts when the old one ends, so no days are lost |
-| `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual and enterprise, 0 for trial. It is in the file so an Enterprise agreement can differ |
-| `seats` | Number of seats bought. `0` means a site licence with no seat count |
+| `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual, 0 for trial, and whatever was agreed for enterprise (28 unless the agreement says otherwise) |
+| `seats` | Number of seats agreed. `0` means the licence is not counted by seat |
 | `features` | What the licence turns on. See below |
 | `machines` | Optional list of computer names. Empty means any computer. See [Seats](#seats) |
 | `updates_until` | Optional date for the version window. See [The version window](#the-version-window) |
@@ -122,10 +122,23 @@ A feature is a dotted name. A licence lists exact names or a prefix ending in
 | `plugins.<id>` | One official plugin, for a licence that sells plugins singly |
 | `driver.signed` | Entitlement to the Microsoft-signed driver package (a term of the licence; see [What never degrades](#what-never-degrades)) |
 | `support` | Support. Shown on the Support page |
-| `policy.official-only` | Enterprise: the administrator policy that allows only official plugins |
 
 The plugin framework owns the plugin ids. This library only answers "does the
 current licence grant feature X, and if not, why".
+
+A licence gates the official plugins, not the plugin API: the API is public,
+documented and free. The official plugins built on it, and the agent's internal
+protocol, are private with no compatibility promise.
+
+The administrator policy that allows official plugins only is not a licence
+feature. It is the policy of [the plugin framework](plugins.md), section 8.6,
+and it works in every edition. No feature name stands for it.
+
+Pro and Enterprise licences turn on the same plugins. An Enterprise licence has
+no fixed shape: what it covers, how long it runs and the price are negotiated
+with each customer. `edition: enterprise` marks such a licence and adds no
+feature of its own. The fields of the file (`seats`, `machines`, the dates,
+`grace_days`, `updates_until`) carry whatever was agreed.
 
 ## Signatures and keys
 
@@ -234,6 +247,14 @@ installs. There are two carriers:
    package between releases. Studio keeps the list with the highest sequence
    number it has seen and never goes back to a lower one.
 
+The release's own list is in `libs/vss_license/src/revocations_release.cpp`,
+which `builtin_revocations()` returns. Today it is empty, with sequence 0. When
+a licence or a key is withdrawn, the owner adds its id there and sets the
+sequence number to that of the signed list of the same day, so that the release
+and the file say the same thing. Studio also reads signed lists (`.vssrev`
+files) from the licence folders. A signed list replaces the release's list only
+when its sequence number is higher, so signed lists start at 1.
+
 A revoked licence shows as invalid, with the reason "This licence was withdrawn.
 Contact support." Revocation is for refunds, chargebacks, a leaked file and a
 licence issued in error. It takes effect when the customer next updates, which
@@ -245,7 +266,7 @@ revocation list only ever holds ids, never names.
 | Place | Used for |
 |---|---|
 | Per-user data directory, `licences/` | What Help, Licence, Import licence copies the file to |
-| Per-machine directory (`%ProgramData%\Virtual Serial Studio\licences`, `/etc/virtual-serial-studio/licences`, `/Library/Application Support/Virtual Serial Studio/licences`) | An administrator deploying a site licence. Studio only reads it |
+| Per-machine directory (`%ProgramData%\Virtual Serial Studio\licences`, `/etc/virtual-serial-studio/licences`, `/Library/Application Support/Virtual Serial Studio/licences`) | An administrator installing a licence for the computers they manage. Studio only reads it |
 
 Studio reads every `.vsslic` in both places and uses the best one: a valid
 licence beats one in grace, which beats an expired one; then Enterprise beats
@@ -358,7 +379,8 @@ one.
 
 ## Seats
 
-A Pro seat is "your computer, plus one other computer you monitor". There is no
+One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
+Controlling one of the two from the other is part of the seat. There is no
 server, and the GUI makes no network connection, so nothing can count
 installations. The options:
 
@@ -377,14 +399,16 @@ installations. The options:
   page and in the support bundle. The terms say what a seat is. This matches
   "enforced by the licence file and the licence terms, not by a server" in the
   editions page.
-* **Enterprise: option A by default, option C on request.** `machines` holds
+* **Enterprise: whatever is agreed.** The file can carry a seat count
+  (option A), computer names (option C), both or neither. `machines` holds
   computer names, compared without regard to case, where a trailing `*` matches
   a prefix (`LAB-RIG-*`). A computer that is not listed gets `invalid` with
   "This licence is for other computers" and the list of names, so the
   administrator can see why.
 * **Not D and not E.**
 
-The second computer of a seat, the one that monitors, installs the same file.
+The second computer of a seat installs the same file, whichever of the two has
+the serial device.
 Studio does not tell the two apart. If the remote monitoring plugin later wants
 to check that both ends hold the same licence id when they connect, that is a
 check inside a connection the user has already set up, and it belongs to the
@@ -439,19 +463,49 @@ shared notes folder.
 
 ### `vss_license`
 
-A command line tool, offline, in this repository.
+A command line tool, offline, in this repository. It is built with the other
+tools (`VSS_BUILD_TOOLS`) as the target `vss_license_program`, and the file is
+named `vss_license`. It is not installed with Studio.
 
 | Command | Does |
 |---|---|
-| `vss_license inspect <file>` | Prints the envelope and payload as text. Says whether the signature verifies, and against which key. Never fails on an expired licence |
-| `vss_license verify <file> [--at <date>] [--machine <name>] [--revocations <file>]` | Runs the same check Studio runs and prints the state and reason. Exit status 0 for valid or grace, 1 for any other state, 2 for a usage error. `--at` answers "what will this say in March?" |
-| `vss_license issue --request <file> --key-file <path> \| --key-env <name> --out <file>` | Checks a request (the payload fields without the signature), signs it, verifies its own output and writes the licence. Refuses to overwrite a file, refuses a licence id that is in the ledger it is given, and refuses a `test-` key unless `--test` is passed |
-| `vss_license revocations --request <file> ...` | Signs a revocation list in the same way |
-| `vss_license keygen --out-private <path> --key-id <id>` | Makes a key pair on the owner's own computer, writes the private half to a file only the owner can read, and prints the public half as the line to add to the trust list. It never prints a private key |
+| `vss_license inspect <file> [--test]` | Prints the envelope and payload as text. Says whether the signature verifies. When it does not, it says that nothing below can be trusted and still prints the payload. Never fails on an expired licence. Exit status 0 whenever the file can be read as a signed file |
+| `vss_license verify <file> [--at <date>] [--machine <name>] [--revocations <file>] [--test]` | Runs the same check Studio runs and prints the state, the reason and the time it judged at. Exit status 0 when the licence's features work (valid, expiring or grace), 1 for any other state, 2 for a usage error. `--at` answers "what will this say in March?" and takes `2027-03-01` or `2027-03-01T00:00:00Z` |
+| `vss_license issue --request <file> --out <file> --key-id <id> (--key-file <path> \| --key-env <name>) [--ledger <file>]` | Checks a request (the payload fields, without the signature), signs it, checks its own output as a reader would and writes the licence |
+| `vss_license issue --request <file> --dry-run [--ledger <file>]` | Checks the request and prints what the licence will say. Uses no key and writes nothing |
+| `vss_license issue --request <file> --out <file> --test` | Signs with the published RFC 8032 test key. No product accepts the result |
+| `vss_license revocations --request <file> --out <file> ...` | Signs a revocation list. It takes the options of `issue` except `--ledger`, including `--dry-run` and `--test` |
+| `vss_license keygen --key-id <id> --out-private <path>` | Makes a key pair on the owner's own computer, writes the private half to a new file that only the owner can read, and prints the public half as base64url and as the bytes to put in the trust list. It never prints a private key |
+
+The options of `issue` and `revocations`:
+
+| Option | Meaning |
+|---|---|
+| `--request` | The request file. Required |
+| `--out` | The file to write. Required unless `--dry-run` is given. It is never overwritten |
+| `--key-id` | The id of the signing key: lower-case letters, digits and hyphens, at most 64. Required with `--key-file` or `--key-env` |
+| `--key-file`, `--key-env` | Where the private key is: a file, or the name of an environment variable. Exactly one of them |
+| `--ledger` | `issue` only. A JSON Lines file with one JSON object on each line. A line with a `licence_id` puts that id in the ledger, and a licence id that is in the ledger is refused. A ledger that cannot be read, or has a line that is not an object, stops the command |
+| `--dry-run` | Checks and prints. Uses no key |
+| `--test` | Signs with the published test key, key id `test-rfc8032-1`. It takes no `--key-id`, `--key-file` or `--key-env`. A `--key-id` that starts with `test-` is refused without it |
+
+Exit statuses are those of `tool.hpp`: 0 for success, 1 when the file is not
+valid or the command could not do what was asked, and 2 for a usage error.
+Run with no command, the tool prints its usage and exits with 2. `--help` or
+`help` prints it and exits with 0.
 
 The private key is read from a file or an environment variable, never from the
 command line, where it would appear in the process list and the shell history.
-The tool never prints key material and has no network code.
+Its text is the base64url of the 32 byte seed, 43 characters, with white space
+around it ignored, so the file may end with a new line. `keygen` writes it in
+that form. The tool never prints key material and has no network code.
+
+`issue` and `revocations` check their own output against the trust list of the
+build they run in, with the same check a reader makes, and refuse to write a
+file that does not pass. So the public half of a real key must be in
+`trusted_keys_release.cpp` of that build before the key can issue. The key's
+`not_before` and `not_after` window must also include the `issued_at` of what
+it signs. `--test` adds the test key to the list for that one check.
 
 The editions page puts "licence verification and issuing tools" in the private
 `virtual-serial-studio-pro` repository. This design uses a different
@@ -581,3 +635,19 @@ The owner accepted the recommendations of this page on 13 November 2026:
 9. **One bundle.** The diagnostic bundle becomes the support bundle. It holds
    no traffic, so the "Traffic contents" option is removed, and it gains a
    manifest of sections that the Pro replay plugin extends.
+
+The owner settled three more points on 14 November 2026:
+
+10. **What a seat is.** One Pro licence is one seat. A seat is two computers:
+    the one you work at and one other that you control or monitor from it. The
+    serial device can be on either. Remote control between the two is part of
+    the seat.
+11. **Enterprise.** It has no fixed shape: what the licence covers, how long it
+    runs and the price are negotiated with each customer. The plugins are the
+    same as Pro, and it has no feature of its own. The file carries whatever
+    is agreed, such as seats, computer names and dates. The
+    administrator policy that allows official plugins only is not a licence
+    feature and is not gated.
+12. **The plugin API.** It is public, documented and free. The official plugins
+    built on it, and the agent's internal protocol, are private with no
+    compatibility promise.

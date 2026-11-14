@@ -1293,8 +1293,18 @@ void choose_entry(QMenu* menu, const QString& text)
             throw vss_test::failure("the menu entry \"" + text.toStdString() +
                                     "\" is disabled");
         Probe::instance().beat();
-        QTest::mouseClick(menu, Qt::LeftButton, {},
-                          menu->actionGeometry(entry).center());
+        // A menu taller than the screen scrolls, and an entry past the edge
+        // cannot be clicked: choose it with the keys, as a person would.
+        const QPoint centre = menu->actionGeometry(entry).center();
+        if (menu->rect().contains(centre))
+        {
+            QTest::mouseClick(menu, Qt::LeftButton, {}, centre);
+        }
+        else
+        {
+            menu->setActiveAction(entry);
+            QTest::keyClick(menu, Qt::Key_Return);
+        }
         Probe::instance().beat();
         QApplication::processEvents();
         Probe::instance().beat();
