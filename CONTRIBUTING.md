@@ -78,7 +78,7 @@ python tools/changelog.py --dry-run
 * Tests are deterministic: wait for a condition, never assume a sleep is long
   enough.
 
-## License
+## Licence
 
 Virtual Serial Studio is released under the **GNU General Public License,
 version 3 or later**. By submitting a contribution you agree that it may be
