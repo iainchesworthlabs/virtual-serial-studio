@@ -133,7 +133,7 @@ Search roots, in this order, the first to hold an id wins and a second is report
 
 | Root | Holds | Writable by |
 |---|---|---|
-| `<install>/plugins/` | Official plugins that come with Studio or with a Pro install | Administrator |
+| `<install>/studio-plugins/` | Official plugins that come with Studio or with a Pro install. It is not `<install>/plugins/`: the Linux package keeps Qt's own plug-ins there | Administrator |
 | Machine plugin directory (`%ProgramData%\VirtualSerialStudio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins an administrator installs for everyone | Administrator |
 | Per-user plugin directory (`%LOCALAPPDATA%\VirtualSerialStudio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins the user installs | The user |
 
@@ -151,7 +151,7 @@ Plugins page shows it (`screens/10-plugins.md`).
 
 | | Came with Studio | For everyone on this computer | For this user |
 |---|---|---|---|
-| Root | `<install>/plugins/` | The machine plugin directory | The per-user plugin directory |
+| Root | `<install>/studio-plugins/` | The machine plugin directory | The per-user plugin directory |
 | Put there by | The installer | An administrator | The user |
 | Removed or replaced by | The installer | An administrator | The user |
 | Listed for | Every user | Every user | That user |
@@ -770,7 +770,7 @@ doing it for 10 seconds is killed as `misbehaving` with the limit's name.
 | Official | The signature verifies with a key that the **official key list** names for plugins (section 8.9) | The Virtual Serial Studio badge and "Signed by Iain Chesworth Labs" | Yes (if the licence permits) |
 | Third-party signed | The signature verifies with a key that is not official, and the user has trusted that key | The author's name from the key's record and "not verified by Virtual Serial Studio" | After the user trusts the key and the plugin |
 | Third-party unsigned | No signature | "Unofficial plugin. It can do anything Studio can." | After an explicit confirmation, and only in a sandbox of at least `partial` unless that is overridden (section 9.2) |
-| Signed, key unknown | A signature that verifies only against a key in the file | Treated as unsigned for the decision, with the key shown: "Signed by an author you have not trusted" | As unsigned, or after the key is trusted |
+| Signed, key unknown | A signature that names a key found nowhere on this computer. It **cannot be checked**: a signature names its key by id only, and the key itself is not in the file | Treated as unsigned for the decision, with the key's id shown: "Signed by an author you have not trusted" | As unsigned, or after the key is trusted |
 
 A signature **proves who signed it and that the files were not changed afterwards**. It does not prove that the plugin
 is safe, and the interface never says "verified" about anything else.
@@ -901,7 +901,9 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
 {
   "policy_version": 1,
   "allow": "official_only",         // official_only | signed | any (default: any)
-  "allow_keys": ["<key_id>"],       // with "signed": these third-party keys are pre-trusted
+  "allow_keys": [                   // with "signed": these third-party keys are pre-trusted
+    { "key_id": "<key id>", "public_key": "<64 hex characters>", "name": "<author>" }
+  ],
   "deny_plugins": ["<plugin_id>"],
   "min_sandbox": "partial",         // none | partial | full (default: partial)
   "allow_no_sandbox": false,        // may a user override the minimum for one plugin (section 9.2)
@@ -916,7 +918,10 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   `SYSTEM` and no write for `Users`; elsewhere: owned by root, no group or other write bit). **A policy file that
   fails that test, or does not parse, is treated as `official_only`**: fail closed, with a banner: "A policy file was
   found and could not be trusted, so only official plugins will run." A missing file is the default.
-- `allow_keys` is how an organisation adds its own signing keys: the administrator lists them here. A user who
+- `allow_keys` is how an organisation adds its own signing keys: the administrator lists them here, each with
+  its public key, because a signature names its key by id only and the key has to be on the computer already.
+  A key id, here and everywhere, is 1 to 64 lower-case letters, digits and hyphens: what a signed file can carry.
+  A user who
   controls their own computer approves a key in their own trust store (section 8.4). Neither looks in the
   operating system's certificate store, which trusts every public web authority and would let in far more than
   is meant.
@@ -1012,7 +1017,7 @@ certificate authority with the certificate replaced by one line of a signed list
 So there are two secrets, and neither is ever on a computer that runs Studio or in this repository.
 
 ```json
-{ "serial": 4, "issued": "2026-11-13",
+{ "key_list_version": 1, "serial": 4, "issued": "2026-11-13",
   "keys": [
     { "key_id": "plugins-2026", "public_key": "<64 hex characters>", "purpose": "plugin",
       "name": "Virtual Serial Studio plugins", "valid_from": "2026-11-01", "valid_to": "2028-11-01" },
@@ -1066,6 +1071,17 @@ first key list are placed in the repository by the owner, as public files.
 **Other people's keys.** A third-party author makes an Ed25519 key in the same way and signs with it. No root is
 involved: the key is trusted by a user in their own store, or by an administrator in `allow_keys`. A key on a
 hardware token works where the token can sign with Ed25519.
+
+**Open: how a user gets an author's public key.** `plugin.sig` carries no public key, on purpose: a key taken
+from the file being checked proves nothing. So a user who wants to approve an author's key needs the key from
+somewhere else, and this page does not yet say from where. The likely answer is a small public key file that the
+author publishes and the user imports, with its fingerprint shown before it is approved. Until that is decided a
+plugin signed with an unknown key can only be run as an unsigned one.
+
+**What exists.** The root public keys are in `libs/vss_plugin/src/official_roots.cpp` (`root-2026` and
+`root-next`). The first key list, as the text that is signed, is `libs/vss_plugin/keys/official-keys.payload.json`;
+the README beside it has the owner's command to sign it. `tools/plugin_sign.py` builds the three signed files
+around an OpenSSL call.
 
 ## 9. Permissions and sandboxing
 
@@ -1493,10 +1509,12 @@ The owner went through these on 13 November 2026. Each line says what was decide
 
 **Still open:**
 
-1. **From the owner, when the verifier and its signing script exist:** the root public key (and a next one) and
-   the first official key list, as public files. Nothing is needed before then (section 8.9).
+1. **From the owner:** signing the first official key list with the root private key. The public keys are in
+   (section 8.9); the command is in `libs/vss_plugin/keys/README.md`.
 2. **How long an official plugin's `not_after` runs.** The owner's first thought was 28 days; this page
-   recommends the signing key's `valid_to` and gives the reasons (section 8.5). To be confirmed.
+   recommends the signing key's `valid_to` and gives the reasons (section 8.5). The first key list gives the
+   signing keys two years, 14 November 2026 to 14 November 2028. To be confirmed.
+3. **How a user gets an unknown author's public key** in order to approve it (section 8.9).
 
 **Closed since the review:**
 
