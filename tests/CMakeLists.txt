@@ -30,12 +30,15 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_options.cpp
   unit/test_hub_options_stress.cpp
   unit/test_hub_owner.cpp
+  unit/test_hub_read_stage.cpp
   unit/test_hub_sources.cpp
   unit/test_hub_sources_stress.cpp
   unit/test_hub_targets.cpp
   unit/test_hub_targets_stress.cpp
   unit/test_hub_timers.cpp
   unit/test_hub_topology.cpp
+  unit/test_license.cpp
+  unit/test_license_signature.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
   unit/test_rfc2217.cpp
@@ -95,7 +98,7 @@ target_include_directories(vss_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_control_proto vss_control_core vss_rules
-  Vss::BoostJson)
+  vss_license_test_keys Vss::Monocypher Vss::BoostJson)
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE
@@ -213,7 +216,7 @@ endif()
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
   vss_agent_proto vss_agent_core vss_control_proto vss_control_core
-  vss_rules)
+  vss_rules vss_license_test_keys)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 
