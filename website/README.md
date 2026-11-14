@@ -79,8 +79,14 @@ both themes and at a phone's width.
 
   and the same with `VSS_SCREENSHOT_THEME=dark`. The option sets the saved Simple or Advanced mode of the user who
   runs it, so finish with a run that does not set `VSS_SCREENSHOT_ADVANCED`. Look at each picture before you commit
-  it. A `figure.shot` that still holds a `shot:` name is a placeholder: the option draws only the main window, so
-  the pictures of dialogs wait for a way to grab them.
+  it.
+
+  The pictures of dialogs come from the review pictures that the tests and the self-test write, which use sample
+  ports too. `vss_gui_dialogs_tests` writes `share-step3` and `network` to `gui-shots/` beside the build's `bin/`,
+  `vss_gui_panes_tests` writes `monitor-hex`, `vss_gui_advanced_tests` writes `fixture-faults`, and
+  `vss_gui --selftest` with `VSS_QA_SHOTS=<folder>` writes `troubleshoot`, each as `-light.png` and `-dark.png`.
+  A `figure.shot` that holds a `shot:` name is a placeholder for a picture that is not taken yet. The page has none
+  now.
 
 ## Publishing: steps for the owner
 

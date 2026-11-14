@@ -38,7 +38,11 @@
       "condition": "profiling"
     }
   ],
-  "fonts": [],
+  "fonts": [
+    {"family": "IBM Plex Mono", "version": "2.005", "spdx": "OFL-1.1", "licence_text": "apps/vss_gui/assets/fonts/IBMPlexMono-OFL.txt", "url": "https://github.com/IBM/plex"},
+    {"family": "Noto Sans Arabic", "version": "2.012", "spdx": "OFL-1.1", "licence_text": "apps/vss_gui/assets/fonts/NotoSansArabic-OFL.txt", "url": "https://github.com/notofonts/arabic"},
+    {"family": "Noto Sans Hebrew", "version": "3.001", "spdx": "OFL-1.1", "licence_text": "apps/vss_gui/assets/fonts/NotoSansHebrew-OFL.txt", "url": "https://github.com/notofonts/hebrew"}
+  ],
   "fonts_comment": "Font families shipped with the program, one object each: family, version, spdx (the licence id), licence_text (path of the licence text from the repository root) and url (where the font comes from). The About window's Fonts tab lists them; with none, it says no fonts are bundled.",
   "not_shipped": [
     {

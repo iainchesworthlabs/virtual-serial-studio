@@ -27,6 +27,7 @@
 #include <QSettings>
 
 #include <chrono>
+#include <cstddef>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -102,15 +103,21 @@ TEST_CASE("profiling: the Settings switch starts it, pauses it and resumes it")
 TEST_CASE("profiling: the stall watchdog names the event a frozen GUI thread "
           "was in and says when it recovers")
 {
+    // The threshold is several heartbeats long. The watchdog compares the age
+    // of the last heartbeat with it, and a heartbeat is `kHeartbeatMs` old
+    // just before the next one, so a threshold of one heartbeat calls any
+    // late timer a stall. Studio itself uses 2000 ms.
+    constexpr int kThresholdMs = 4 * vss::gui::StallWatchdog::kHeartbeatMs;
+    constexpr int kFreezeMs = 3 * kThresholdMs;
+
     std::mutex mutex;
     std::vector<std::string> lines;
-    vss::gui::StallWatchdog watchdog(
-        100,
-        [&](const std::string& line)
-        {
-            const std::lock_guard lock(mutex);
-            lines.push_back(line);
-        });
+    vss::gui::StallWatchdog watchdog(kThresholdMs,
+                                     [&](const std::string& line)
+                                     {
+                                         const std::lock_guard lock(mutex);
+                                         lines.push_back(line);
+                                     });
     vss_test::spin(250);
     {
         const std::lock_guard lock(mutex);
@@ -121,13 +128,26 @@ TEST_CASE("profiling: the stall watchdog names the event a frozen GUI thread "
     // Hold the GUI thread without running its event loop, as a slow resize
     // would, with an event published as the one being handled.
     vss::gui::publish_current_event("FrozenWidget", QEvent::Resize);
-    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    std::this_thread::sleep_for(std::chrono::milliseconds(kFreezeMs));
     vss::gui::publish_current_event(nullptr, -1);
-    vss_test::spin(400);
+    // The loop runs again: wait for the line that says so, then a little
+    // longer, so that a second report would have had time to appear.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const std::lock_guard lock(mutex);
+            return lines.size() >= 2;
+        },
+        5000));
+    vss_test::spin(kThresholdMs);
 
+    // One stall, reported once: a line that names the event, then the line
+    // that says the loop is running again, and nothing else.
     REQUIRE_EQ(watchdog.reported(), 1);
     const std::lock_guard lock(mutex);
-    REQUIRE(lines.size() >= 2);
+    REQUIRE_EQ(lines.size(), std::size_t{2});
+    REQUIRE(lines.front().find("has not run its event loop") !=
+            std::string::npos);
     REQUIRE(lines.front().find("FrozenWidget / Resize") != std::string::npos);
     REQUIRE(lines.back().find("running again") != std::string::npos);
 }

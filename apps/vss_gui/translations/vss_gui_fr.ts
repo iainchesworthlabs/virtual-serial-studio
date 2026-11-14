@@ -20135,8 +20135,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>Un poste est votre ordinateur, plus un autre ordinateur que vous utilisez pour le surveiller.</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>Un poste correspond à deux ordinateurs : celui sur lequel vous travaillez et un autre que vous contrôlez ou surveillez depuis celui-ci. Le périphérique série peut se trouver sur l&apos;un ou l&apos;autre.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />

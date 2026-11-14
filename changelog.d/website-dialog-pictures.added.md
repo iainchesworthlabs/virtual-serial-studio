@@ -1,0 +1,1 @@
+**The features page of the website has a picture for every feature.** The five placeholders are now pictures of sharing a device, of putting a device on the network, of the "Why is nothing arriving?" dialog, of the Monitor with traffic in hex and of the line wiring and faults dialog, each in the light and the dark theme, with sample ports.

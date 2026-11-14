@@ -18,6 +18,7 @@
 #include "panes/ports_panel.hpp"
 #include "panes/selection_service.hpp"
 #include "panes/send_panel.hpp"
+#include "theme/theme.hpp"
 #include "widgets/notes.hpp"
 #include "widgets/port_menu.hpp"
 #include "theme/theme.hpp"
@@ -28,6 +29,8 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QComboBox>
+#include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFontDatabase>
 #include <QFontInfo>
@@ -1530,4 +1533,79 @@ TEST_CASE("right to left: the inspector fits its pane in a narrow column")
     // Nothing is wider than the pane, so nothing is cut off at the edge.
     REQUIRE(scroll->widget()->minimumSizeHint().width() <=
             scroll->viewport()->width());
+
+TEST_CASE("monitor panel: review screenshots in both themes")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto terminal = backend.create_virtual_port(
+        QStringLiteral("terminal"), vss::virtual_port_kind::pty, true);
+    const auto modem = backend.create_virtual_port(
+        QStringLiteral("modem"), vss::virtual_port_kind::pty, true);
+    REQUIRE(terminal.has_value());
+    REQUIRE(modem.has_value());
+
+    vss::gui::Pane pane(QStringLiteral("Monitor"));
+    auto* panel = new vss::gui::MonitorPanel(backend);
+    pane.set_body(panel);
+    panel->attach_header(pane.header());
+    panel->set_advanced(true);
+    panel->set_show_advanced_tabs(false);
+    panel->set_commit_interval(0);
+    pane.resize(1280, 420);
+    pane.show();
+    QApplication::processEvents();
+
+    // A short exchange of commands and replies between two ports.
+    struct exchange
+    {
+        const char* command;
+        const char* reply;
+    };
+    vss::gui::event_batch events;
+    int step = 0;
+    for (const exchange& item :
+         {exchange{"AT\r", "\r\nOK\r\n"},
+          exchange{"ATI\r", "\r\nSample modem 1.0\r\n\r\nOK\r\n"},
+          exchange{"AT+CSQ\r", "\r\n+CSQ: 21,0\r\n\r\nOK\r\n"},
+          exchange{"AT+CREG?\r", "\r\n+CREG: 0,1\r\n\r\nOK\r\n"},
+          exchange{"ATD5550100;\r", "\r\nNO CARRIER\r\n"}})
+    {
+        for (const bool sent : {true, false})
+        {
+            auto event = data_event(
+                sent ? *terminal : *modem,
+                sent ? QStringLiteral("terminal") : QStringLiteral("modem"),
+                sent ? vss::data_direction::tx : vss::data_direction::rx,
+                QByteArray(sent ? item.command : item.reply));
+            event.when += std::chrono::milliseconds(137 * ++step);
+            events.push_back(event);
+        }
+    }
+    panel->handle_events(events);
+    QApplication::processEvents();
+
+    QCheckBox* hex = nullptr;
+    for (QCheckBox* candidate : pane.findChildren<QCheckBox*>())
+    {
+        if (candidate->text() == QStringLiteral("Hex"))
+            hex = candidate;
+    }
+    REQUIRE(hex != nullptr);
+    hex->setChecked(true);
+    QApplication::processEvents();
+    auto* table = pane.findChild<QTableView*>();
+    REQUIRE(table != nullptr);
+    REQUIRE_EQ(table->model()->rowCount(), 10);
+
+    const QString directory = QDir(QCoreApplication::applicationDirPath())
+                                  .filePath(QStringLiteral("../gui-shots"));
+    REQUIRE(QDir().mkpath(directory));
+    REQUIRE(pane.grab().save(
+        QDir(directory).filePath(QStringLiteral("monitor-hex-light.png"))));
+    vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::dark);
+    QApplication::processEvents();
+    REQUIRE(pane.grab().save(
+        QDir(directory).filePath(QStringLiteral("monitor-hex-dark.png"))));
+    vss::gui::Theme::instance().set_mode(vss::gui::theme_mode::light);
+    QApplication::processEvents();
 }
