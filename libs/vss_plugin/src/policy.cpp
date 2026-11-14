@@ -121,6 +121,87 @@ std::vector<std::string> names(reading& state, const json::value& value,
     return out;
 }
 
+/// The keys the administrator approves: objects with `key_id`,
+/// `public_key` and, optionally, `name`.  An id is listed once.
+std::vector<policy_key> keys(reading& state, const json::value& value)
+{
+    constexpr std::string_view where = "allow_keys";
+    std::vector<policy_key> out;
+    if (!value.is_array())
+    {
+        state.fail(where, "must be a list");
+        return out;
+    }
+    const json::array& list = value.get_array();
+    if (list.size() > max_policy_keys)
+    {
+        state.fail(where, "has more than " + std::to_string(max_policy_keys) +
+                              " entries");
+        return out;
+    }
+    for (const json::value& item : list)
+    {
+        if (!item.is_object())
+        {
+            state.fail(where, "must hold objects");
+            return out;
+        }
+        const json::object& entry = item.get_object();
+        for (const auto& member : entry)
+        {
+            const std::string_view key{member.key().data(),
+                                       member.key().size()};
+            if (key != "key_id" && key != "public_key" && key != "name")
+            {
+                state.fail(where, "unknown key " + detail::quoted(key));
+                return out;
+            }
+        }
+
+        policy_key key;
+        const json::value* const id = entry.if_contains("key_id");
+        if (id == nullptr || !id->is_string() ||
+            !is_key_id(view_of(id->get_string())))
+        {
+            state.fail("allow_keys.key_id", "must be a key id");
+            return out;
+        }
+        key.key_id = std::string(view_of(id->get_string()));
+
+        const json::value* const bytes = entry.if_contains("public_key");
+        if (bytes == nullptr || !bytes->is_string() ||
+            !detail::hex_to_bytes(view_of(bytes->get_string()),
+                                  key.public_key))
+        {
+            state.fail("allow_keys.public_key",
+                       "must be 64 lower-case hex characters");
+            return out;
+        }
+
+        if (const json::value* const name = entry.if_contains("name"))
+        {
+            if (!name->is_string() ||
+                name->get_string().size() > max_name_length ||
+                !detail::clean_text(view_of(name->get_string())))
+            {
+                state.fail("allow_keys.name", "must be a short plain text");
+                return out;
+            }
+            key.name = std::string(view_of(name->get_string()));
+        }
+
+        if (std::ranges::find(out, key.key_id, &policy_key::key_id) !=
+            out.end())
+        {
+            state.fail(where, "holds " + detail::quoted(key.key_id) +
+                                  " twice");
+            return out;
+        }
+        out.push_back(std::move(key));
+    }
+    return out;
+}
+
 } // namespace
 
 std::string_view to_string(allow_level value) noexcept
@@ -148,8 +229,7 @@ bool is_key_id(std::string_view text) noexcept
     if (text.empty() || text.size() > max_key_id_length)
         return false;
     return std::ranges::all_of(text, [](char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-               (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '_';
+        return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
     });
 }
 
@@ -233,10 +313,7 @@ result<policy> parse_policy(std::string_view text, std::string* explain)
         }
     }
     if (const json::value* const value = object.if_contains("allow_keys"))
-    {
-        out.allow_keys =
-            names(state, *value, "allow_keys", max_policy_keys, is_key_id);
-    }
+        out.allow_keys = keys(state, *value);
     if (const json::value* const value = object.if_contains("deny_plugins"))
     {
         out.deny_plugins = names(state, *value, "deny_plugins",

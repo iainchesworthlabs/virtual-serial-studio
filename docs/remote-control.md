@@ -11,8 +11,13 @@ describes it.
 
 Pro adds a control endpoint. A test harness (pytest, the C ABI and its wrappers for C#/.NET, Java and Node.js,
 LabVIEW, TestStand, Robot Framework, the JUnit report writer) drives Studio through it. The same endpoint lets one
-other computer watch a running Studio. That turns a program that today has no listener into one that accepts
-commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+other computer control or watch a running Studio. That turns a program that today has no listener into one that
+accepts commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+
+**What a seat covers.** One Pro licence is one seat, and a seat is two computers: the one you work at and one other
+that you control or monitor from it, in either direction. Remote control and monitoring between those two is part
+of the seat; the far computer needs no licence of its own. Enterprise has the same features as Pro and differs in
+its terms only (a site licence, with price and term on application).
 
 Three access levels were decided, each needing more set-up than the last:
 
@@ -102,7 +107,7 @@ than `StudioBackend` on purpose (section 9), and no operation takes a path to re
 
 The agent stays what agent.md says: per user, no network, one local pipe or socket. The control endpoint is a
 **separate per-user program, `vss_gate`** (the gateway), which is an ordinary client of the agent. It owns the
-listeners, authentication, authorisation, rate limits and the audit log, and translates the public API
+listeners, authentication, authorisation, rate limits and the audit log, and translates the control API
 (section 9) into agent requests.
 
 | Option | For | Against | Verdict |
@@ -121,8 +126,13 @@ The gateway connects to the agent as a normal local client, one connection **per
 read-only connection. This slice therefore depends on decision 10 of agent.md being taken as recommended and on its
 PR 5.
 
-The agent protocol is private and carries no compatibility promise (agent.md, section 2). The public API of
-section 9 is stable. The gateway is where the two meet, so the agent protocol can change without breaking scripts.
+**What is public and what is private.** The plugin API is public, documented and free. The official plugins built
+on it, remote control and monitoring among them, and the agent's internal protocol (agent.md, section 2) are
+private and carry no compatibility promise. The control API of section 9 is what `vss_gate` speaks to a harness;
+it belongs to the remote control plugin and so is private in the same sense. It has a version and its changes are
+meant to be additive, so that scripts keep working from one release to the next, but that is how we work and not a
+promise. The gateway is where the control API and the agent protocol meet, so the agent protocol can change
+without a script noticing.
 
 ### Transports
 
@@ -554,7 +564,8 @@ validates the resulting access token. No sign-in page exists in Studio and none 
   Within a major version changes are additive: new operations, new optional fields, new event kinds, new error
   codes in the documented categories. Clients must ignore unknown fields and event kinds. A breaking change is a new
   major version; the gateway can serve two majors at once for a release so that scripts have a migration window.
-  **Unlike the agent protocol, this one is a public contract.**
+  These rules are how the API is changed. They are not a compatibility promise: the API belongs to an official
+  plugin, which is private (section 3).
 - **Format.** The agent's framing (length-prefixed, JSON header, blob for bytes), so the C ABI is a thin wrapper and
   bytes stay out of JSON. Requests carry a client-chosen `id`; replies echo it.
 - **Naming.** `noun.verb` in lower case: `ports.create`, `ports.list`, `links.connect`, `traffic.subscribe`.
@@ -829,7 +840,7 @@ policy check, the token code and the peer-credential code are not delegated.
 | One function decides, and `admin` exists only on the administration endpoint | The whole matrix (4 operations x 256 sets of scopes x 4 transports) against a rule written out by hand; a gateway told to give the public endpoint every scope still refuses `endpoint.stop` there | Ceilings for L2 and L3, own-ports rules |
 | A client can slow only itself | Tests for the hello size limit, a wrong length, a silent client, the session and waiting limits, the request allowance, and a client that never reads; a stress case stops the gateway under six busy clients | The request pool has two threads and one agent call can take ten seconds, so two sessions that wait for a hung agent hold up the others' agent requests for that long |
 | The audit log records it and cannot be written by a client | Records for start, stop, each session, each refusal and `endpoint.stop` are checked field by field; a client name that tries to end the line and start a forged one stays text inside one record; the chain verifies after every such test; a flood of refusals writes one record and a count | On Windows an audit directory that already exists is accepted when this user owns it; its access list is not read back |
-| The API is the public one, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
+| The API is the control API, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
 
 Not built in this slice, and the reason: `vss_cli control` has `status` and `stop` only, because nothing starts
 `vss_gate` on demand yet; the gateway is in this repository and is built with the tools, where the editions page puts
@@ -912,6 +923,48 @@ Differences from sections 9, 10 and 12 as first written, and why:
   `vss_cli control kick` are how a person sees who is connected and ends it.
 - **Engine errors by name**, which slice 1 left on paper, are in: an error event carries `engine.<name>`, and what
   the operating system said becomes `engine.io_error`, without its number or its text.
+
+### What the control operations built
+
+The first part of slice 4, on the local endpoint: `ports.create`, `ports.remove` and `links.connect` under
+`control.ports`, and `ports.send` under `control.data`. Loopback TCP, `expect.bytes`, runs and the report are
+separate changes.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Arranging ports and speaking on them are two rights | A session with `control.ports` and no `control.data` makes a port and is refused a send; one with `control.data` alone sends and is refused a port; a monitor, with or without `monitor.data`, is refused all four and the agent is never asked. The same for a token, and a ceiling takes the scope away again | "Own ports only": a caller may change any port of the agent, not only the ones it made |
+| What the engine refuses crosses by name only | A port that is not there, a kind the agent does not make and a link to nothing come back as `engine.not_found` and `engine.unsupported` with the gateway's own message; the client library turns the name back into the engine's code. Each costs an error and not the session | |
+| An id that is not one is not passed on | Five texts that are no port id get `invalid_argument` for each operation, without the agent being asked, and are not written to the audit log as they came | |
+| A send is bounded | 64 KiB is taken and one byte more is answered `limit_exceeded`; nothing to send is `invalid_argument`. The session stays in both cases | A rate for bytes sent: only the request rate of the session limits it (200 a second) |
+| Every change is recorded, and the bytes are not | One record for each of the four operations, with who, which port, and the outcome, also when it was refused by the engine or was no request at all; the bytes of a send are searched for in everything the gateway keeps and are not there, only their number | |
+| Without an agent nothing is half done | A change says `unavailable` and the session stays; when the agent is back the same session makes a port | |
+
+Not built here, and why: `links.disconnect`, `ports.rename`, `ports.settings` and `lines.set` have no request in
+the agent yet; `idempotency_key` waits for the first operation whose repeat would do harm (a second `ports.create`
+makes a second port, which a caller can see and remove).
+
+### What `expect.bytes` built
+
+The second part of slice 4: a harness waits, inside the gateway, for a pattern on a port, and can have bytes sent
+in the same request. Runs and the JUnit report are a separate change.
+
+```
+{"id": 7, "op": "expect.bytes", "port": "p_2", "pattern": "4f4b0d0a", "timeout_ms": 2000,
+ "send_port": "p_1"}                                  + blob: the bytes to send
+{"id": 7, "reply": "matched", "offset": 6, "mono_ns": 81234000001, "events_lost": 0}
+```
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Nothing is missed between sending and listening | The gateway asks its agent connection for the bytes and then for the send, in that order, on the session's own queue. A pattern that the sent bytes produce is found every time, with how many bytes went by before it | Bytes that went by before the request are not seen: there is no ring to look back in. A stimulus from another connection can only be sent after the wait is known to have started, which that connection cannot see |
+| A pattern cut by a chunk boundary is found | Another session sends the pattern a byte at a time while this one waits | |
+| Waiting is reading, and sending with it is sending | Refused without `monitor.data`; with it and without `control.data` a wait works and a wait that sends is refused before anything is sent, which the ports' counters show | |
+| A wait is bounded and ends cleanly | 1 to 256 bytes, 1 ms to 60 s, one wait at a time for a connection (`conflict` for a second). A pattern that does not come is `timeout` and the session stays; a send the engine refuses ends the wait at once with the engine's error | |
+| It does not change what the client's own stream carries | With an events stream running, the stream goes on in order through a wait and carries no bytes, although the gateway itself was reading them | A wait keeps the pace of a stream the client already has, so its answer can be two of that stream's intervals late |
+| Neither the pattern nor the bytes sent are recorded | One audit record for each wait with the port, the two sizes and how it ended; both texts are searched for in everything the gateway keeps | |
+
+The direction of a pattern (`rx`, the usual, or `tx`) is the engine's: a loopback port reports what is written to
+it as received and sends it on to whatever it is linked to.
 
 ## 14. Decisions for the owner
 

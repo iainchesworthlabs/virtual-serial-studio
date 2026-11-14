@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_SUPPORT_ABOUT_DIALOG_HPP
 #define VSS_GUI_SUPPORT_ABOUT_DIALOG_HPP
 
+#include "backend/studio_backend.hpp"
 #include "support/build_info.hpp"
 
 #include <QDialog>
@@ -24,7 +25,8 @@ class AboutDialog final : public QDialog
     Q_OBJECT
 
 public:
-    explicit AboutDialog(QWidget* parent = nullptr);
+    /// The backend tells which edition this is.
+    explicit AboutDialog(StudioBackend& backend, QWidget* parent = nullptr);
 
     /// Where the source of this program is published.
     static QString source_url();
@@ -48,6 +50,7 @@ private:
                        const QString& copy_text, void (AboutDialog::*copy)());
 
     build_info info_;
+    QString edition_;
     QTabWidget* tabs_ = nullptr;
 };
 

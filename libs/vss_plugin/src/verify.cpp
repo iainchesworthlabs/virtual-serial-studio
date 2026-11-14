@@ -23,21 +23,17 @@ result<verify_result> refuse(plugin_errc code, std::string* explain,
     return make_error_code(code);
 }
 
+/// The level of a plugin whose signature is not `invalid`, and not `valid`
+/// with an unknown origin: the caller refuses those first.
 trust_level level_of(const signature_finding& signature) noexcept
 {
+    if (signature.state == signature_state::unknown_key)
+        return trust_level::signed_unknown_key;
     if (signature.state != signature_state::valid)
         return trust_level::unsigned_plugin;
-    switch (signature.origin)
-    {
-    case key_origin::official:
-        return trust_level::official;
-    case key_origin::administrator:
-    case key_origin::user:
-        return trust_level::third_party_signed;
-    case key_origin::unknown:
-        break;
-    }
-    return trust_level::signed_unknown_key;
+    return signature.origin == key_origin::official
+               ? trust_level::official
+               : trust_level::third_party_signed;
 }
 
 } // namespace
@@ -85,7 +81,17 @@ result<verify_result> verify(const verify_input& input, std::string* explain)
                       "the signature does not match the plugin");
     }
     const bool is_signed = input.signature.state == signature_state::valid;
-    if (is_signed && input.signature.key_id.empty())
+    // A signature that holds was checked with a key, and the key came from
+    // somewhere.  A finding that says otherwise is not believed.
+    if (is_signed && input.signature.origin == key_origin::unknown)
+    {
+        return refuse(plugin_errc::signature_invalid, explain,
+                      "the signature is said to hold with a key that is not "
+                      "known");
+    }
+    const bool names_key =
+        is_signed || input.signature.state == signature_state::unknown_key;
+    if (names_key && input.signature.key_id.empty())
     {
         return refuse(plugin_errc::signature_invalid, explain,
                       "the signature names no key");
@@ -98,7 +104,7 @@ result<verify_result> verify(const verify_input& input, std::string* explain)
 
     verify_result out;
     out.level = level_of(input.signature);
-    if (is_signed)
+    if (names_key)
         out.key_id = input.signature.key_id;
     const bool official = out.level == trust_level::official;
 
@@ -121,7 +127,7 @@ result<verify_result> verify(const verify_input& input, std::string* explain)
     if (input.revocations != nullptr)
     {
         const revocation_list& revoked = *input.revocations;
-        if (is_signed && revoked.revokes_key(out.key_id))
+        if (names_key && revoked.revokes_key(out.key_id))
         {
             return refuse(plugin_errc::revoked, explain,
                           "its signing key was withdrawn");

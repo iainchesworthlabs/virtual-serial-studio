@@ -1,0 +1,107 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "signals": [
+  "a",
+  "a",
+  ""
+ ],
+ "rules": [
+  {
+   "name": "too long",
+   "when": {
+    "quiet_us": 60000001
+   },
+   "do": [
+    {
+     "mark": "m"
+    }
+   ]
+  },
+  {
+   "name": "undeclared",
+   "when": {
+    "signal": "missing"
+   },
+   "do": [
+    {
+     "mark": "m"
+    }
+   ]
+  },
+  {
+   "name": "two kinds",
+   "when": {
+    "bytes": "01",
+    "quiet_us": 5
+   },
+   "do": [
+    {
+     "mark": "m"
+    }
+   ]
+  },
+  {
+   "name": "cause on bytes",
+   "when": {
+    "bytes": "02"
+   },
+   "do": [
+    {
+     "mark": "m",
+     "after": "cause"
+    }
+   ]
+  },
+  {
+   "name": "cause on silence",
+   "when": {
+    "quiet_us": 5
+   },
+   "do": [
+    {
+     "mark": "m",
+     "after": "cause"
+    }
+   ]
+  },
+  {
+   "name": "range",
+   "when": {
+    "signal": "a"
+   },
+   "do": [
+    {
+     "reply": [
+      {
+       "match": [
+        0,
+        256
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "copy from silence",
+   "when": {
+    "quiet_us": 7
+   },
+   "do": [
+    {
+     "reply": [
+      {
+       "match": [
+        0,
+        0
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -13,6 +13,7 @@
 #include <QHash>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 #include <chrono>
 #include <cstdint>
@@ -257,6 +258,23 @@ public:
                                      const QString& to_uri) override;
     vss::result<void> create_com0com_pair() override;
 
+    // -- licence ------------------------------------------------------------
+
+    /// What `licence()` returns next. Emits `licence_changed`.
+    void set_licence(licence_view view);
+    /// What `import_licence` returns next. When the outcome is `imported`
+    /// and `then` is given, the licence becomes `then`.
+    void set_import_result(licence_import_result result,
+                           std::optional<licence_view> then = std::nullopt);
+    /// The paths `import_licence` was called with, oldest first.
+    const QStringList& imported_paths() const { return imported_paths_; }
+    /// The file names `remove_licence` was called with, oldest first.
+    const QStringList& removed_licences() const { return removed_licences_; }
+
+    licence_view licence() const override { return licence_; }
+    licence_import_result import_licence(const QString& path) override;
+    bool remove_licence(const QString& file_name) override;
+
     bool hub_running() const override { return true; }
     void refresh() override;
     void set_refresh_interval(int milliseconds) override;
@@ -272,6 +290,11 @@ private:
                           const vss::link_options& options);
 
     capabilities caps_;
+    licence_view licence_;
+    licence_import_result import_result_;
+    std::optional<licence_view> licence_after_import_;
+    QStringList imported_paths_;
+    QStringList removed_licences_;
     std::uint64_t benchmark_lost_ = 0;
     std::chrono::milliseconds benchmark_duration_{0};
     std::optional<vss::benchmark_options> benchmark_seen_;

@@ -4,7 +4,7 @@
 #
 # Virtual Serial Studio
 #
-# A playground for real, virtual and networked serial ports, built on
+# A tool for real, virtual and networked serial ports, built on
 # Boost.Asio and the Boost.VirtualSerial extension library.
 #
 #   libs/vss_core        topology, routing, control lines, events
@@ -29,7 +29,7 @@ cmake_minimum_required(VERSION 3.21)
 project(
   virtual_serial_studio
   VERSION 0.1.0
-  DESCRIPTION "Playground for real, virtual and networked serial ports"
+  DESCRIPTION "Tool for real, virtual and networked serial ports"
   HOMEPAGE_URL "https://github.com/iainchesworthlabs/virtual-serial-studio"
   LANGUAGES CXX)
 
@@ -133,6 +133,7 @@ if(VSS_BUILD_TOOLS)
   add_subdirectory(apps/vss_cli)
   add_subdirectory(apps/vss_agent)
   add_subdirectory(apps/vss_gate)
+  add_subdirectory(apps/vss_license)
 endif()
 
 if(VSS_BUILD_GUI)

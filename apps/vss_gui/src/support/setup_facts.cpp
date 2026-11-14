@@ -616,6 +616,11 @@ bool open_com0com_project_page()
     return QDesktopServices::openUrl(QUrl(com0com_project_url()));
 }
 
+bool open_folder(const QString& folder)
+{
+    return QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+}
+
 QString dialout_add_command()
 {
     return QStringLiteral("sudo usermod -aG dialout $USER");

@@ -10,7 +10,8 @@ add_library(vss_rules
   src/compile.cpp
   src/machine.cpp
   src/parse.cpp
-  src/random.cpp)
+  src/random.cpp
+  src/scheduler.cpp)
 add_library(Vss::rules ALIAS vss_rules)
 
 target_include_directories(vss_rules PUBLIC
