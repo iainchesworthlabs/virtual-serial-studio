@@ -1,0 +1,24 @@
+{
+  "key_list_version": 1,
+  "serial": 1,
+  "issued": "2026-11-14",
+  "keys": [
+    {
+      "key_id": "plugins-2026",
+      "public_key": "0b94598447ecf7fa42609642f82542367efab0ec27ebde097e8e1a397963cb21",
+      "purpose": "plugin",
+      "name": "Virtual Serial Studio plugins",
+      "valid_from": "2026-11-14",
+      "valid_to": "2028-11-14"
+    },
+    {
+      "key_id": "revocations-2026",
+      "public_key": "ecdb7521bfd8c088d31d904fd6f5b89da3ed9c593415f885307795db592868b1",
+      "purpose": "plugin-revocations",
+      "name": "Virtual Serial Studio revocations",
+      "valid_from": "2026-11-14",
+      "valid_to": "2028-11-14"
+    }
+  ],
+  "revoked": []
+}

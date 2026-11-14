@@ -17,7 +17,9 @@
 
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 
@@ -47,5 +49,10 @@ date_from_text(std::string_view text) noexcept;
 /// `text` in quotes for a message to a person: cut short, and with anything
 /// that is not plain ASCII replaced.
 std::string quoted(std::string_view text);
+
+/// Fills `out` from twice as many lower-case hex characters.  False, with
+/// `out` in an unspecified state, when the text has another length or holds
+/// anything else.  Upper case is refused, so one value has one spelling.
+bool hex_to_bytes(std::string_view text, std::span<std::uint8_t> out) noexcept;
 
 } // namespace vss::plugin::detail

@@ -15,8 +15,10 @@ add_library(vss_plugin
   src/locations.cpp
   src/manifest.cpp
   src/measure.cpp
+  src/official_roots.cpp
   src/policy.cpp
   src/revocations.cpp
+  src/signature.cpp
   src/trust_store.cpp
   src/verify.cpp)
 add_library(Vss::plugin ALIAS vss_plugin)
@@ -26,7 +28,10 @@ target_include_directories(vss_plugin PUBLIC
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_include_directories(vss_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_features(vss_plugin PUBLIC cxx_std_23)
-target_link_libraries(vss_plugin PUBLIC vss_core PRIVATE Vss::BoostJson)
+# The signed envelope and the Ed25519 check are the licence library's; a
+# plugin signature is that envelope with a purpose of its own.
+target_link_libraries(vss_plugin PUBLIC vss_core
+  PRIVATE Vss::license Vss::BoostJson)
 
 # Where the plugin folders and the policy file are, and who owns a file and
 # who may write to it, are asked of the operating system.  CMake picks the
