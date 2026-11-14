@@ -48,6 +48,11 @@
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/revocations.hpp>
 #include <vss/plugin/verify.hpp>
+#include <vss/rules/compile.hpp>
+#include <vss/rules/machine.hpp>
+#include <vss/rules/model.hpp>
+#include <vss/rules/parse.hpp>
+#include <vss/rules/random.hpp>
 
 #include <vss/studio/studio.hpp>
 

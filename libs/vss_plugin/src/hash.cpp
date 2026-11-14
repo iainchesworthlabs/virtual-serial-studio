@@ -101,11 +101,20 @@ sha512_hasher::~sha512_hasher() = default;
 
 void sha512_hasher::update(std::span<const std::byte> bytes)
 {
+    // An empty span may carry a null pointer, which the hash passes to memcpy.
+    if (bytes.empty())
+    {
+        return;
+    }
     state_->hash.update(bytes.data(), bytes.size());
 }
 
 void sha512_hasher::update(std::string_view text)
 {
+    if (text.empty())
+    {
+        return;
+    }
     state_->hash.update(text.data(), text.size());
 }
 

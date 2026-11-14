@@ -160,9 +160,9 @@ QString error_body(const vss::error_code& error, const QString& cause,
         {
             return QObject::tr(
                 "The system did not allow this. Nothing was changed. Open "
-                "Tools, Setup check: it says whether your account is missing "
-                "the serial device group or AppArmor, SELinux or a sandbox is "
-                "in the way, and shows the command to fix it.");
+                "Tools, Setup check to see whether the cause is a missing "
+                "group, AppArmor, SELinux or a sandbox. It shows the command "
+                "to fix it.");
         }
         return QObject::tr("Windows did not allow this change. Nothing was "
                            "changed. Open Tools, Setup check to see what is "

@@ -228,7 +228,7 @@ void SetupCheckDialog::build()
         header);
     header_layout->addLayout(heading, 1);
     header_chip_ =
-        new StatusChip(QCoreApplication::translate("SetupCheck", "All set"),
+        new StatusChip(QCoreApplication::translate("SetupCheck", "Ready"),
                        StatusChip::kind::healthy, header);
     header_layout->addWidget(header_chip_, 0, Qt::AlignTop);
     outer->addWidget(header);

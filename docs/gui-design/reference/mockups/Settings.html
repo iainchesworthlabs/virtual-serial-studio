@@ -60,8 +60,8 @@
         <div style="max-width: 460px">
           <div style="display: flex; align-items: center; margin-bottom: 4px"><label class="lbl" for="rf" style="margin: 0">Refresh interval</label><span class="grow"></span><span class="mono strong">250 ms</span></div>
           <input id="rf" type="range" min="50" max="5000" value="250" style="width: 100%; accent-color: var(--accent); height: 28px">
-          <div style="display: flex; justify-content: space-between" class="hint"><span>50 ms, live</span><span>5000 ms, light</span></div>
-          <p class="hint">How often counters and states are read. Shorter feels live. Longer is lighter on a busy machine.</p>
+          <div style="display: flex; justify-content: space-between" class="hint"><span>50 ms, most frequent</span><span>5000 ms, least frequent</span></div>
+          <p class="hint">A shorter interval updates more often. A longer interval uses less CPU.</p>
         </div>
       </section>
     </div>

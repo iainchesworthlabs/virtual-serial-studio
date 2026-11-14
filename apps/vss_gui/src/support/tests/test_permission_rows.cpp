@@ -147,7 +147,7 @@ TEST_CASE("permission rows: the firewall row says what it knows")
     REQUIRE_EQ(row->chip, QStringLiteral("Not checked yet"));
 }
 
-TEST_CASE("permission rows: the firewall row sits before Carry on without a "
+TEST_CASE("permission rows: the firewall row sits before Continue without a "
           "driver")
 {
     const auto report =
