@@ -87,8 +87,14 @@ struct control_arguments
     std::string label;
     std::vector<std::string> scopes;
     std::uint64_t life_s = 0;
+    /// For `token create`: the transports the token is for (`local`,
+    /// `loopback`); none for the gateway's default, which is `local`.
+    std::vector<std::string> transports;
     std::optional<std::string> out_file;
     std::optional<std::string> token_file;
+    /// For the commands on the public endpoint: connect over TCP to this
+    /// port on the loopback address instead.  Needs `token_file`.
+    std::optional<std::uint16_t> loopback_port;
     std::string token_id;
     /// For `watch`: the bytes as well, the ports to hear about (empty for
     /// all), the time between batches, and when to stop.  0 seconds or
@@ -140,6 +146,9 @@ struct raw_arguments
     std::optional<std::string> days;
     std::optional<std::string> out_file;
     std::optional<std::string> token_file;
+    std::optional<std::string> loopback_port;
+    /// Every `--transport=`; unlike the other options it may come twice.
+    std::vector<std::string> transports;
     std::optional<std::string> ports;
     std::optional<std::string> interval;
     std::optional<std::string> seconds;
@@ -185,6 +194,8 @@ raw_arguments read_words(const std::vector<std::string>& arguments)
             take_option(word, "--days=", raw.days, raw.valid) ||
             take_option(word, "--out=", raw.out_file, raw.valid) ||
             take_option(word, "--token-file=", raw.token_file, raw.valid) ||
+            take_option(word, "--loopback-port=", raw.loopback_port,
+                        raw.valid) ||
             take_option(word, "--ports=", raw.ports, raw.valid) ||
             take_option(word, "--interval=", raw.interval, raw.valid) ||
             take_option(word, "--seconds=", raw.seconds, raw.valid) ||
@@ -199,6 +210,12 @@ raw_arguments read_words(const std::vector<std::string>& arguments)
             take_option(word, "--message=", raw.message, raw.valid) ||
             take_option(word, "--duration=", raw.duration, raw.valid))
             continue;
+        constexpr std::string_view transport_prefix = "--transport=";
+        if (word.starts_with(transport_prefix))
+        {
+            raw.transports.emplace_back(word.substr(transport_prefix.size()));
+            continue;
+        }
         if (word == "--data")
         {
             if (raw.data)
@@ -272,6 +289,16 @@ std::optional<Number> whole_number(std::string_view text)
     const char* const end = first + text.size();
     const auto parsed = std::from_chars(first, end, number);
     if (parsed.ec != std::errc{} || parsed.ptr != end)
+        return std::nullopt;
+    return number;
+}
+
+/// The port of `--loopback-port=`: all digits, 1 to 65535.  Nothing for
+/// anything else.
+std::optional<std::uint16_t> loopback_port_from(std::string_view text)
+{
+    const auto number = whole_number<std::uint16_t>(text);
+    if (!number || *number == 0)
         return std::nullopt;
     return number;
 }
@@ -353,6 +380,16 @@ bool read_create_options(const raw_arguments& raw, control_arguments& parsed)
             return false;
         parsed.life_s = *life;
     }
+    // One or both of the two transports, each once.
+    parsed.transports.reserve(raw.transports.size());
+    for (const std::string& name : raw.transports)
+    {
+        if ((name != "local" && name != "loopback") ||
+            std::ranges::find(parsed.transports, name) !=
+                parsed.transports.end())
+            return false;
+        parsed.transports.push_back(name);
+    }
     parsed.out_file = raw.out_file;
     return true;
 }
@@ -360,7 +397,8 @@ bool read_create_options(const raw_arguments& raw, control_arguments& parsed)
 /// True when none of the options that only `token create` takes is there.
 bool no_create_options(const raw_arguments& raw)
 {
-    return !raw.label && !raw.role && !raw.scope && !raw.days && !raw.out_file;
+    return !raw.label && !raw.role && !raw.scope && !raw.days &&
+           !raw.out_file && raw.transports.empty();
 }
 
 /// True when none of the options that only `watch` takes is there.
@@ -387,7 +425,8 @@ bool no_expect_options(const raw_arguments& raw)
 /// but the label, which `expect` takes as well.
 bool no_create_options_but_label(const raw_arguments& raw)
 {
-    return !raw.role && !raw.scope && !raw.days && !raw.out_file;
+    return !raw.role && !raw.scope && !raw.days && !raw.out_file &&
+           raw.transports.empty();
 }
 
 /// True when none of the options that only `run record` takes is there.
@@ -489,8 +528,8 @@ bool read_run_command(const raw_arguments& raw, control_arguments& parsed)
 {
     const std::vector<std::string>& words = raw.words;
     if (words.size() < 2 || raw.label || raw.role || raw.scope || raw.days ||
-        !no_watch_options(raw) || !no_port_options(raw) ||
-        !no_expect_options(raw))
+        !raw.transports.empty() || !no_watch_options(raw) ||
+        !no_port_options(raw) || !no_expect_options(raw))
         return false;
     const std::string& what = words[1];
     parsed.token_file = raw.token_file;
@@ -544,10 +583,9 @@ bool read_run_command(const raw_arguments& raw, control_arguments& parsed)
     return false;
 }
 
-control_arguments parse(const std::vector<std::string>& arguments)
+control_arguments parse_command(const raw_arguments& raw)
 {
     control_arguments parsed;
-    const raw_arguments raw = read_words(arguments);
     parsed.valid = false;
     if (!raw.valid || raw.words.empty())
         return parsed;
@@ -688,6 +726,34 @@ control_arguments parse(const std::vector<std::string>& arguments)
     return parsed;
 }
 
+/// True for the commands that are for this user on the administration
+/// endpoint, which takes no token and is not served over TCP.  The others use
+/// the public endpoint.
+bool is_administration(action_kind action) noexcept
+{
+    return action == action_kind::stop || action == action_kind::token_create ||
+           action == action_kind::token_list ||
+           action == action_kind::token_revoke ||
+           action == action_kind::sessions || action == action_kind::kick;
+}
+
+/// What the command line says, as `parse_command` understood it and with
+/// `--loopback-port=` read.  It belongs to the commands on the public
+/// endpoint and needs a token file: over TCP nobody is the local user.
+control_arguments parse(const std::vector<std::string>& arguments)
+{
+    const raw_arguments raw = read_words(arguments);
+    control_arguments parsed = parse_command(raw);
+    if (!parsed.valid || !raw.loopback_port)
+        return parsed;
+    const auto port = loopback_port_from(*raw.loopback_port);
+    if (!port || is_administration(parsed.action) || !parsed.token_file)
+        parsed.valid = false;
+    else
+        parsed.loopback_port = *port;
+    return parsed;
+}
+
 const char* action_name(action_kind action) noexcept
 {
     switch (action)
@@ -744,15 +810,11 @@ int report(const char* what, const vss::error_code& error,
     return exit_refused;
 }
 
-/// As `report`, and for a refusal of the gateway or of the engine its code
-/// name too, as in `not allowed (forbidden)` or `the engine refused the
-/// request (engine.not_found)`: the wording alone does not say which it was.
-int report_with_code(const char* what, const vss::error_code& error,
-                     const client& gateway)
+/// `message`, and for a refusal of the gateway or of the engine its code name
+/// too, as in `not allowed (forbidden)` or `the engine refused the request
+/// (engine.not_found)`: the wording alone does not say which it was.
+std::string with_code_name(std::string message, const vss::error_code& error)
 {
-    std::string message = !gateway.last_error_message().empty()
-                              ? gateway.last_error_message()
-                              : error.message();
     if (error.category() == vss::control::api_category())
     {
         message += " (";
@@ -766,6 +828,27 @@ int report_with_code(const char* what, const vss::error_code& error,
         message += vss::control::engine_error_name(error);
         message += ')';
     }
+    return message;
+}
+
+/// As `report`, with the code name as `with_code_name` gives it.
+int report_with_code(const char* what, const vss::error_code& error,
+                     const client& gateway)
+{
+    std::string message = !gateway.last_error_message().empty()
+                              ? gateway.last_error_message()
+                              : error.message();
+    message = with_code_name(std::move(message), error);
+    std::fprintf(stderr, "control %s failed: %s\n", what, message.c_str());
+    return exit_refused;
+}
+
+/// As `report` for a connection that was refused, with the code name as
+/// `with_code_name` gives it: a token that is wrong, revoked or made for the
+/// other transport is told `not authenticated (unauthenticated)`.
+int report_refused(const char* what, const vss::error_code& error)
+{
+    const std::string message = with_code_name(error.message(), error);
     std::fprintf(stderr, "control %s failed: %s\n", what, message.c_str());
     return exit_refused;
 }
@@ -902,8 +985,8 @@ bool write_token_file(const std::string& path, const secret_string& token)
 
 int token_create(client& gateway, const control_arguments& args)
 {
-    const auto made =
-        gateway.create_token(args.label, args.scopes, args.life_s);
+    const auto made = gateway.create_token(args.label, args.scopes, args.life_s,
+                                           args.transports);
     if (!made)
         return report("token create", made.error(), &gateway);
     const vss::control::token_entry& entry = made->entry;
@@ -960,6 +1043,8 @@ int token_list(client& gateway)
         if (entry.last_used_ms != 0)
             std::printf("  last used %s",
                         date_text(entry.last_used_ms).c_str());
+        std::printf("  transports %s",
+                    plain_word(join_names(entry.transports, ",")).c_str());
         std::puts("");
     }
     return exit_ok;
@@ -1276,6 +1361,7 @@ const char* control_usage() noexcept
            "           (--role=monitor|control|control-apply |\n"
            "            --scope=<name>[,<name>...])\n"
            "           [--days=<n>] [--out=<file>] [--instance=<name>]\n"
+           "           [--transport=local|loopback]...\n"
            "  vss_cli control token list [--instance=<name>]\n"
            "  vss_cli control token revoke <id> [--instance=<name>]\n"
            "      Make, list and revoke the tokens that let a program connect\n"
@@ -1283,8 +1369,12 @@ const char* control_usage() noexcept
            "      and either a role or a list of scope names.  The token\n"
            "      lives --days days (1 to 365, 30 by default).  It is shown\n"
            "      once, on the screen or, with --out, in a file; keep it like\n"
-           "      a password.  list shows the records, never the tokens.\n"
-           "      revoke ends a token and its sessions.\n"
+           "      a password.  --transport says where the token is good: "
+           "local\n"
+           "      (the pipe or socket, which is the default), loopback (TCP,\n"
+           "      see --loopback-port below), or both when it is given twice.\n"
+           "      list shows the records, never the tokens, and where each is\n"
+           "      good.  revoke ends a token and its sessions.\n"
            "\n"
            "  vss_cli control watch [--data] [--ports=<id>[,<id>...]]\n"
            "           [--interval=<ms>] [--seconds=<n>] [--count=<n>]\n"
@@ -1369,6 +1459,18 @@ const char* control_usage() noexcept
            "      id is given, on the screen or with --out in a file that is\n"
            "      made or emptied first.  Only the user or token that opened\n"
            "      a run can read it.  These need the scope monitor.\n"
+           "\n"
+           "  vss_cli control <command> ... --loopback-port=<port>\n"
+           "           --token-file=<file>\n"
+           "      status, watch, port, link, send, expect and run can connect\n"
+           "      over TCP to 127.0.0.1 at the port (1 to 65535) that\n"
+           "      `vss_gate --loopback-port=<port>` listens on, instead of "
+           "the\n"
+           "      pipe or socket.  Nobody is known by the system over TCP, so\n"
+           "      --token-file is needed, and the token must have been made\n"
+           "      with token create --transport=loopback: a token made for\n"
+           "      one transport is refused on the other.  token, sessions,\n"
+           "      kick and stop cannot be used over TCP.\n"
            "\n";
 }
 
@@ -1387,12 +1489,8 @@ int command_control(const std::vector<std::string>& arguments)
     // `status`, `watch`, `expect`, `run` and the four commands on ports are
     // for any caller; the rest are for this user on the administration
     // endpoint.
-    options.admin = args.action == action_kind::stop ||
-                    args.action == action_kind::token_create ||
-                    args.action == action_kind::token_list ||
-                    args.action == action_kind::token_revoke ||
-                    args.action == action_kind::sessions ||
-                    args.action == action_kind::kick;
+    options.admin = is_administration(args.action);
+    options.loopback_port = args.loopback_port;
     if (args.token_file)
     {
         auto token = read_token_file(*args.token_file);
@@ -1412,7 +1510,7 @@ int command_control(const std::vector<std::string>& arguments)
             std::puts("Remote control: off");
             return exit_not_running;
         }
-        return report(action_name(args.action), connected.error(), nullptr);
+        return report_refused(action_name(args.action), connected.error());
     }
 
     client& gateway = **connected;

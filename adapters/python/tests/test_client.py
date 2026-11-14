@@ -13,6 +13,7 @@ deadline.
 import os
 import secrets
 import shutil
+import socket
 import subprocess
 import sys
 import tempfile
@@ -55,6 +56,14 @@ def unique_name(prefix):
         _counter[0] += 1
         number = _counter[0]
     return "%s%s%d" % (prefix, secrets.token_hex(3), number)
+
+
+def free_port():
+    """A port on 127.0.0.1 that nothing holds a moment later: the system
+    hands one to a socket, which is closed again before this returns."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
 
 
 class Program:
@@ -106,9 +115,14 @@ class Program:
 
 
 class Rig:
-    """An agent and a gateway that serves it, and a scratch directory."""
+    """An agent and a gateway that serves it, and a scratch directory.  With
+    `loopback` the gateway listens on TCP as well, at `loopback_port`."""
 
-    def __init__(self, local_role=None):
+    # Tries to start the gateway on a port that was free a moment before.
+    START_ATTEMPTS = 5
+
+    def __init__(self, local_role=None, loopback=False):
+        self.loopback_port = None
         self.instance = unique_name("py")
         self.directory = tempfile.mkdtemp(prefix="vsspy")
         self.programs = []
@@ -125,12 +139,28 @@ class Rig:
             ]
             if local_role:
                 arguments.append("--local-role=" + local_role)
-            gate = Program(arguments, "administration on")
-            self.programs.append(gate)
-            gate.wait_ready()
+            self.programs.append(self._start_gate(arguments, loopback))
         except BaseException:
             self.stop()
             raise
+
+    def _start_gate(self, arguments, loopback):
+        """Starts the gateway.  The port that is picked for TCP may be taken
+        by the time the gateway wants it, and the gateway then ends without
+        listening; another port is tried."""
+        for attempt in range(self.START_ATTEMPTS):
+            more = []
+            if loopback:
+                self.loopback_port = free_port()
+                more = ["--loopback-port=%d" % self.loopback_port]
+            gate = Program(arguments + more, "administration on")
+            try:
+                gate.wait_ready()
+            except AssertionError:
+                if not loopback or attempt == self.START_ATTEMPTS - 1:
+                    raise
+                continue
+            return gate
 
     def stop(self):
         for program in reversed(self.programs):
@@ -154,11 +184,12 @@ class Rig:
 
 class RigCase(unittest.TestCase):
     local_role = None
+    loopback = False
     rig = None
 
     @classmethod
     def setUpClass(cls):
-        cls.rig = Rig(cls.local_role)
+        cls.rig = Rig(cls.local_role, cls.loopback)
         cls.addClassCleanup(cls.rig.stop)
 
     def connect(self, **options):
@@ -242,7 +273,13 @@ class ControlRoleTests(RigCase):
         self.assertEqual(found["events_lost"], 0)
         # Plain send, and the counters see it.
         client.send(first, b"\x00\xff\r\n")
-        ports = {port["id"]: port for port in client.list_ports()["ports"]}
+        # The bytes are counted a moment after the send is answered.
+        deadline = time.monotonic() + LONG
+        while True:
+            ports = {port["id"]: port for port in client.list_ports()["ports"]}
+            if ports[second]["bytes_rx"] >= 14 or time.monotonic() > deadline:
+                break
+            time.sleep(0.01)
         self.assertGreaterEqual(ports[second]["bytes_rx"], 14)
 
     def test_expect_that_does_not_come_is_a_timeout_and_the_connection_lives(self):
@@ -495,13 +532,10 @@ class DefaultRoleTests(RigCase):
         self.assertTrue(client.status()["agent"]["running"])
 
 
-@unittest.skipUnless(CLI_EXE, "VSS_CLI_EXE is not set; a token is made with vss_cli")
-class TokenTests(RigCase):
-    """A token made with the real `vss_cli control token create`."""
+class TokenMaker:
+    """Makes tokens with the real `vss_cli control token create`."""
 
-    local_role = None
-
-    def make_token_file(self, role="control"):
+    def make_token_file(self, role="control", transports=()):
         path = os.path.join(self.rig.directory, "t%s.token" % secrets.token_hex(3))
         done = subprocess.run(
             [
@@ -513,7 +547,8 @@ class TokenTests(RigCase):
                 "--role=" + role,
                 "--out=" + path,
                 "--instance=" + self.rig.instance,
-            ],
+            ]
+            + ["--transport=" + name for name in transports],
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -526,6 +561,13 @@ class TokenTests(RigCase):
             text = stream.read().decode("ascii")
         self.assertTrue(text.endswith("\n"), "the token file ends with a line ending")
         return path, text.rstrip("\n")
+
+
+@unittest.skipUnless(CLI_EXE, "VSS_CLI_EXE is not set; a token is made with vss_cli")
+class TokenTests(TokenMaker, RigCase):
+    """A token made with the real `vss_cli control token create`."""
+
+    local_role = None
 
     def test_a_token_file_connects_as_the_token(self):
         path, token = self.make_token_file("control")
@@ -560,6 +602,66 @@ class TokenTests(RigCase):
             self.assertNotIn(token[-52:], text)
         # The real one still works.
         self.assertTrue(self.connect(token=token).hello["principal"].startswith("token:"))
+
+
+@unittest.skipUnless(CLI_EXE, "VSS_CLI_EXE is not set; a token is made with vss_cli")
+class LoopbackTests(TokenMaker, RigCase):
+    """A gateway that listens on TCP at 127.0.0.1 as well."""
+
+    local_role = None
+    loopback = True
+
+    def connect_tcp(self, **options):
+        options.setdefault("name", "vss_control tests")
+        options.setdefault("timeout", 10.0)
+        client = Client.connect(loopback_port=self.rig.loopback_port, **options)
+        self.addCleanup(client.close)
+        return client
+
+    def test_a_loopback_token_connects_over_tcp(self):
+        path, token = self.make_token_file("control", ["loopback"])
+        client = self.connect_tcp(token_file=path)
+        self.assertTrue(client.hello["principal"].startswith("token:"), client.hello["principal"])
+        self.assertTrue(client.status()["agent"]["running"])
+        port = client.create_port(unique_name("tcp"))
+        self.addCleanup(self.remove_quietly, port)
+        self.assertTrue(port.startswith("p_"))
+        self.assertNotIn(token, repr(vars(client)))
+        self.assertNotIn(token, repr(client))
+
+    def test_a_token_for_both_transports_connects_on_both(self):
+        path, _token = self.make_token_file("monitor", ["local", "loopback"])
+        self.assertTrue(self.connect_tcp(token_file=path).status()["agent"]["running"])
+        self.assertTrue(self.connect(token_file=path).status()["agent"]["running"])
+
+    def test_without_a_token_nothing_is_connected(self):
+        for options in ({}, {"token": None}):
+            with mock.patch.object(socket, "socket", side_effect=AssertionError("connected")):
+                with self.assertRaises(ValueError):
+                    Client.connect(loopback_port=self.rig.loopback_port, **options)
+
+    def test_a_token_for_the_local_endpoint_alone_is_unauthenticated_over_tcp(self):
+        path, token = self.make_token_file("control")
+        with self.assertRaises(ControlError) as caught:
+            self.connect_tcp(token_file=path)
+        self.assertEqual(caught.exception.code, "unauthenticated")
+        self.assertNotIsInstance(caught.exception, TransportError)
+        for text in (str(caught.exception), repr(caught.exception), caught.exception.message):
+            self.assertNotIn(token, text)
+        # It is still good where it was made for.
+        self.assertTrue(self.connect(token_file=path).hello["principal"].startswith("token:"))
+
+    def test_a_loopback_token_is_unauthenticated_on_the_local_endpoint(self):
+        path, _token = self.make_token_file("control", ["loopback"])
+        with self.assertRaises(ControlError) as caught:
+            self.rig.connect(token_file=path)
+        self.assertEqual(caught.exception.code, "unauthenticated")
+
+    def test_nothing_listening_on_the_port_is_not_running(self):
+        path, _token = self.make_token_file("control", ["loopback"])
+        with self.assertRaises(TransportError) as caught:
+            Client.connect(loopback_port=free_port(), token_file=path, timeout=5.0)
+        self.assertEqual(caught.exception.code, "not_running")
 
 
 if __name__ == "__main__":

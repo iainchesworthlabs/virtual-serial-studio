@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The connection to the gateway: a Unix domain socket or a named pipe, with
-real timeouts on both.
+real timeouts on both, or TCP to 127.0.0.1 for a caller that brings a token.
 
 A transport has three calls and no thread:
 
@@ -37,8 +37,18 @@ import time
 
 from . import _address, _peer
 from ._errors import TransportError
+from ._wire import API_VERSION
 
 _NO_WAIT = 0.0
+
+# What every connection over TCP begins with: `VSSCTL`, a 0 and the major
+# version of the API (libs/vss_control/include/vss/control/loopback.hpp).  A
+# gateway closes a connection that begins with anything else, and says
+# nothing.
+LOOPBACK_PREFACE = b"VSSCTL\x00" + bytes([API_VERSION])
+# The only host this client connects to over TCP.  A token is not sent over a
+# connection that is not encrypted to a host that may be another computer.
+LOOPBACK_HOST = "127.0.0.1"
 
 
 def _remaining(deadline):
@@ -49,8 +59,8 @@ def _remaining(deadline):
 
 
 class SocketTransport:
-    """A connected stream socket.  Used for the Unix domain socket; it asks
-    nothing of the socket but send, recv and a timeout."""
+    """A connected stream socket.  Used for the Unix domain socket and for
+    TCP; it asks nothing of the socket but send, recv and a timeout."""
 
     def __init__(self, sock):
         self._sock = sock
@@ -115,6 +125,44 @@ def _open_socket(instance, timeout):
         sock.close()
         raise
     return SocketTransport(sock)
+
+
+def _open_loopback(port, timeout):
+    """Connects to 127.0.0.1 at `port` and sends the preface, which is the
+    first thing on the connection.
+
+    Nothing is checked about whoever answers: over TCP nobody is identified,
+    and the system does not say which user owns the other end without a race.
+    That is why a token is required, and why this host is the only one that
+    can be named.  The gateway decides whether the token is good for TCP."""
+    deadline = time.monotonic() + timeout
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.settimeout(timeout)
+        try:
+            sock.connect((LOOPBACK_HOST, port))
+        except ConnectionRefusedError:
+            raise TransportError("not_running", "nothing listens on that port") from None
+        except socket.timeout:
+            raise TransportError("client_timeout", "connecting took too long") from None
+        except OSError as error:
+            raise TransportError("io_error", "cannot connect: %s" % error.strerror) from None
+        try:
+            # The preface and the hello are two small writes in a row.
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        except OSError:
+            pass
+        transport = SocketTransport(sock)
+        try:
+            transport.send_all(LOOPBACK_PREFACE, deadline)
+        except TimeoutError:
+            raise TransportError("client_timeout", "connecting took too long") from None
+        except OSError:
+            raise TransportError("connection_closed", "the gateway closed the connection") from None
+    except BaseException:
+        sock.close()
+        raise
+    return transport
 
 
 # -- Windows -----------------------------------------------------------------
@@ -284,8 +332,12 @@ def _open_pipe(instance, timeout):
         raise
 
 
-def open_transport(instance, timeout):
-    """Connects to this user's gateway and checks who serves the endpoint."""
+def open_transport(instance, timeout, loopback_port=None):
+    """Connects to this user's gateway and checks who serves the endpoint.
+    With `loopback_port` it connects over TCP to 127.0.0.1 at that port
+    instead, where nobody is checked and the gateway asks for a token."""
+    if loopback_port is not None:
+        return _open_loopback(loopback_port, timeout)
     if os.name == "nt":
         return _open_pipe(instance, timeout)
     return _open_socket(instance, timeout)

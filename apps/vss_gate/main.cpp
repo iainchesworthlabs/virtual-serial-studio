@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // vss_gate - serves the control API to this user's programs over a local pipe
-// or socket, and is itself a client of this user's agent.  The ports stay the
-// agent's, so stopping the gateway closes none of them.  docs/remote-control.md
-// has the design; this is its first slice.
+// or socket, and is itself a client of this user's agent.  With
+// `--loopback-port` it serves the API on TCP at 127.0.0.1 and ::1 as well, to
+// callers that bring a token.  The ports stay the agent's, so stopping the
+// gateway closes none of them.  docs/remote-control.md has the design.
 //
 
 #include "platform/stop_signals_platform.hpp"
@@ -19,9 +20,12 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/signal_set.hpp>
 
+#include <charconv>
 #include <csignal>
+#include <cstdint>
 #include <cstdio>
 #include <exception>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -35,6 +39,21 @@ constexpr int exit_failed = 1;
 constexpr int exit_usage = 2;
 constexpr int exit_already_running = 3;
 
+/// The port that `--loopback-port=` names: all digits, 1 to 65535.  Nothing
+/// for anything else.
+std::optional<std::uint16_t> loopback_port_from(std::string_view text)
+{
+    if (text.empty())
+        return std::nullopt;
+    std::uint16_t port = 0;
+    const char* const first = &text.front();
+    const char* const end = first + text.size();
+    const auto parsed = std::from_chars(first, end, port);
+    if (parsed.ec != std::errc{} || parsed.ptr != end || port == 0)
+        return std::nullopt;
+    return port;
+}
+
 void print_usage()
 {
     std::printf(
@@ -42,7 +61,7 @@ void print_usage()
         "\n"
         "  vss_gate [--instance=<name>] [--agent-instance=<name>]\n"
         "           [--local-role=monitor|control] [--audit-dir=<path>]\n"
-        "           [--token-file=<path>]\n"
+        "           [--token-file=<path>] [--loopback-port=<port>]\n"
         "      Serve the control API to this user's programs over a pipe or\n"
         "      socket that only this user can open.  Nothing listens on the\n"
         "      network.  It needs a running `vss_agent`, which owns the\n"
@@ -56,6 +75,12 @@ void print_usage()
         "      --token-file names the file that holds the records of the\n"
         "      tokens (their hashes, never the tokens); by default it is\n"
         "      tokens.json beside the audit log.\n"
+        "      --loopback-port (1 to 65535) also serves the API on TCP, at\n"
+        "      127.0.0.1 and ::1 and at no other address; it is off unless\n"
+        "      given.  Who connects over TCP is not known, so every\n"
+        "      connection there needs a token made for it (`vss_cli control\n"
+        "      token create --transport=loopback`).  A port that is taken is\n"
+        "      an error.\n"
         "\n"
         "  vss_gate --version\n"
         "\n"
@@ -122,6 +147,7 @@ try
         constexpr std::string_view role_option = "--local-role=";
         constexpr std::string_view audit_option = "--audit-dir=";
         constexpr std::string_view token_option = "--token-file=";
+        constexpr std::string_view loopback_option = "--loopback-port=";
         if (argument == "--help" || argument == "-h")
         {
             print_usage();
@@ -172,6 +198,20 @@ try
             options.token_file = argument.substr(token_option.size());
             continue;
         }
+        if (argument.starts_with(loopback_option))
+        {
+            const auto port =
+                loopback_port_from(argument.substr(loopback_option.size()));
+            if (!port)
+            {
+                std::fputs("vss_gate: a loopback port is a whole number from "
+                           "1 to 65535\n",
+                           stderr);
+                return exit_usage;
+            }
+            options.loopback_port = *port;
+            continue;
+        }
         std::fprintf(stderr, "vss_gate: unknown option %s\n", argv[index]);
         print_usage();
         return exit_usage;
@@ -207,6 +247,9 @@ try
         std::printf("vss_gate %s listening on %s\n",
                     vss::control::gateway_version().c_str(),
                     gateway.address().c_str());
+        const std::string loopback = gateway.loopback_address();
+        if (!loopback.empty())
+            std::printf("vss_gate loopback on %s\n", loopback.c_str());
         std::printf("vss_gate administration on %s\n",
                     gateway.admin_address().c_str());
         std::fflush(stdout);
