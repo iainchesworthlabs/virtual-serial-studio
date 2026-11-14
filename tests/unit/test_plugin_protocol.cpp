@@ -2135,3 +2135,47 @@ TEST_CASE("plugin protocol: a header has a size limit, and many keys cost "
     REQUIRE_EQ(exact.size(), max_header_size);
     REQUIRE(decode_message(frame_of(exact)).has_value());
 }
+
+TEST_CASE("plugin protocol: the ids of a message can be set, in the header "
+          "of an unknown message too")
+{
+    // A message this file knows: the two fields.
+    api_message ping;
+    ping.body = ping_message{};
+    const auto asked = with_ids(ping, 7, 0);
+    REQUIRE(asked.has_value());
+    REQUIRE_EQ(asked.value().id, std::uint64_t{7});
+    REQUIRE_EQ(asked.value().re, std::uint64_t{0});
+    REQUIRE(encode_message(asked.value()).has_value());
+
+    // An unknown message: its header carries them, in place of what it
+    // had, and the rest of the header is kept.
+    api_message vendor;
+    vendor.op = "vendor.start";
+    vendor.body =
+        other_message{R"({"op":"vendor.start","id":99,"rate":5})"};
+    const auto numbered = with_ids(vendor, 12, 0);
+    REQUIRE(numbered.has_value());
+    const auto frame = encode_message(numbered.value());
+    REQUIRE(frame.has_value());
+    REQUIRE_EQ(frame.value().header,
+               R"({"op":"vendor.start","rate":5,"id":12})");
+
+    const auto answer = with_ids(vendor, 0, 31);
+    REQUIRE(answer.has_value());
+    REQUIRE_EQ(encode_message(answer.value()).value().header,
+               R"({"op":"vendor.start","rate":5,"re":31})");
+
+    const auto plain = with_ids(vendor, 0, 0);
+    REQUIRE(plain.has_value());
+    REQUIRE_EQ(encode_message(plain.value()).value().header,
+               R"({"op":"vendor.start","rate":5})");
+
+    // A header that is not an object cannot be numbered.
+    api_message broken;
+    broken.op = "vendor.start";
+    broken.body = other_message{"[1,2]"};
+    const auto refused = with_ids(broken, 1, 0);
+    REQUIRE(refused.has_error());
+    REQUIRE(refused.error() == api_errc::bad_request);
+}

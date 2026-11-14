@@ -53,6 +53,7 @@
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/protocol.hpp>
 #include <vss/plugin/revocations.hpp>
+#include <vss/plugin/session.hpp>
 #include <vss/plugin/signature.hpp>
 #include <vss/plugin/trust_store.hpp>
 #include <vss/plugin/verify.hpp>

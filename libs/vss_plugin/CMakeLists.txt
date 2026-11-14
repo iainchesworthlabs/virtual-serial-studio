@@ -20,6 +20,7 @@ add_library(vss_plugin
   src/policy.cpp
   src/protocol.cpp
   src/revocations.cpp
+  src/session.cpp
   src/signature.cpp
   src/trust_store.cpp
   src/verify.cpp)

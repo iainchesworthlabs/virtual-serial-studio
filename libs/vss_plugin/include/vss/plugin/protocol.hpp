@@ -308,6 +308,15 @@ result<api_message> decode_message(const agent::frame& frame,
 /// own size limit is the agent's.
 result<agent::frame> encode_message(const api_message& message);
 
+/// The message with its "id" and "re" set to these.  For a message this
+/// file knows that is the two fields of `api_message`.  For an
+/// `other_message` the header text carries them too, so they are written
+/// into it, in place of any it had; the rest of the header is kept, in
+/// compact form.  `api_errc::bad_request` when the header of an
+/// `other_message` is not one JSON object.
+result<api_message> with_ids(api_message message, std::uint64_t id,
+                             std::uint64_t re);
+
 /// An "error" answer to the request `re`, for an `api_errc` value.
 api_message make_error(std::uint64_t re, api_errc value,
                        std::string_view message);

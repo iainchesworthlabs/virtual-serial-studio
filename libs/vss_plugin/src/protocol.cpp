@@ -1157,6 +1157,38 @@ result<agent::frame> encode_message(const api_message& message)
     }
 }
 
+result<api_message> with_ids(api_message message, std::uint64_t id,
+                             std::uint64_t re)
+{
+    message.id = id;
+    message.re = re;
+    auto* const other = std::get_if<other_message>(&message.body);
+    if (other == nullptr)
+        return message;
+    try
+    {
+        std::string what;
+        std::optional<json::value> root =
+            detail::parse_strict(other->header, max_header_depth, what);
+        if (!root || !root->is_object())
+            return make_error_code(api_errc::bad_request);
+        json::object& object = root->get_object();
+        object.erase("id");
+        object.erase("re");
+        if (id != 0)
+            object["id"] = id;
+        if (re != 0)
+            object["re"] = re;
+        other->header = json::serialize(object);
+        return message;
+    }
+    catch (...)
+    {
+        // Only running out of memory gets here.
+        return make_error_code(errc::internal);
+    }
+}
+
 api_message make_error(std::uint64_t re, api_errc value,
                        std::string_view message)
 {
