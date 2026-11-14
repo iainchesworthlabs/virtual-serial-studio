@@ -289,7 +289,7 @@ docs/                user guide, design notes and scenario recipes
 3. **macOS `/dev/cu.*` aliases** — an opt-in helper that creates a symlink with
    authorisation, for software that hardcodes the name.
 
-## License
+## Licence
 
 Virtual Serial Studio is free software: you can redistribute it and/or modify
 it under the terms of the **GNU General Public License, version 3 or later**
