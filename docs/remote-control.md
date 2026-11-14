@@ -11,8 +11,13 @@ describes it.
 
 Pro adds a control endpoint. A test harness (pytest, the C ABI and its wrappers for C#/.NET, Java and Node.js,
 LabVIEW, TestStand, Robot Framework, the JUnit report writer) drives Studio through it. The same endpoint lets one
-other computer watch a running Studio. That turns a program that today has no listener into one that accepts
-commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+other computer control or watch a running Studio. That turns a program that today has no listener into one that
+accepts commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+
+**What a seat covers.** One Pro licence is one seat, and a seat is two computers: the one you work at and one other
+that you control or monitor from it, in either direction. Remote control and monitoring between those two is part
+of the seat; the far computer needs no licence of its own. Enterprise has the same features as Pro and differs in
+its terms only (a site licence, with price and term on application).
 
 Three access levels were decided, each needing more set-up than the last:
 
@@ -102,7 +107,7 @@ than `StudioBackend` on purpose (section 9), and no operation takes a path to re
 
 The agent stays what agent.md says: per user, no network, one local pipe or socket. The control endpoint is a
 **separate per-user program, `vss_gate`** (the gateway), which is an ordinary client of the agent. It owns the
-listeners, authentication, authorisation, rate limits and the audit log, and translates the public API
+listeners, authentication, authorisation, rate limits and the audit log, and translates the control API
 (section 9) into agent requests.
 
 | Option | For | Against | Verdict |
@@ -121,8 +126,13 @@ The gateway connects to the agent as a normal local client, one connection **per
 read-only connection. This slice therefore depends on decision 10 of agent.md being taken as recommended and on its
 PR 5.
 
-The agent protocol is private and carries no compatibility promise (agent.md, section 2). The public API of
-section 9 is stable. The gateway is where the two meet, so the agent protocol can change without breaking scripts.
+**What is public and what is private.** The plugin API is public, documented and free. The official plugins built
+on it, remote control and monitoring among them, and the agent's internal protocol (agent.md, section 2) are
+private and carry no compatibility promise. The control API of section 9 is what `vss_gate` speaks to a harness;
+it belongs to the remote control plugin and so is private in the same sense. It has a version and its changes are
+meant to be additive, so that scripts keep working from one release to the next, but that is how we work and not a
+promise. The gateway is where the control API and the agent protocol meet, so the agent protocol can change
+without a script noticing.
 
 ### Transports
 
@@ -554,7 +564,8 @@ validates the resulting access token. No sign-in page exists in Studio and none 
   Within a major version changes are additive: new operations, new optional fields, new event kinds, new error
   codes in the documented categories. Clients must ignore unknown fields and event kinds. A breaking change is a new
   major version; the gateway can serve two majors at once for a release so that scripts have a migration window.
-  **Unlike the agent protocol, this one is a public contract.**
+  These rules are how the API is changed. They are not a compatibility promise: the API belongs to an official
+  plugin, which is private (section 3).
 - **Format.** The agent's framing (length-prefixed, JSON header, blob for bytes), so the C ABI is a thin wrapper and
   bytes stay out of JSON. Requests carry a client-chosen `id`; replies echo it.
 - **Naming.** `noun.verb` in lower case: `ports.create`, `ports.list`, `links.connect`, `traffic.subscribe`.
@@ -829,7 +840,7 @@ policy check, the token code and the peer-credential code are not delegated.
 | One function decides, and `admin` exists only on the administration endpoint | The whole matrix (4 operations x 256 sets of scopes x 4 transports) against a rule written out by hand; a gateway told to give the public endpoint every scope still refuses `endpoint.stop` there | Ceilings for L2 and L3, own-ports rules |
 | A client can slow only itself | Tests for the hello size limit, a wrong length, a silent client, the session and waiting limits, the request allowance, and a client that never reads; a stress case stops the gateway under six busy clients | The request pool has two threads and one agent call can take ten seconds, so two sessions that wait for a hung agent hold up the others' agent requests for that long |
 | The audit log records it and cannot be written by a client | Records for start, stop, each session, each refusal and `endpoint.stop` are checked field by field; a client name that tries to end the line and start a forged one stays text inside one record; the chain verifies after every such test; a flood of refusals writes one record and a count | On Windows an audit directory that already exists is accepted when this user owns it; its access list is not read back |
-| The API is the public one, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
+| The API is the control API, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
 
 Not built in this slice, and the reason: `vss_cli control` has `status` and `stop` only, because nothing starts
 `vss_gate` on demand yet; the gateway is in this repository and is built with the tools, where the editions page puts
