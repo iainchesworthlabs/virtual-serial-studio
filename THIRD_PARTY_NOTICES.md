@@ -24,6 +24,8 @@ GPL-3.0-or-later application is one of the uses Qt's own GPLv3 option permits.
 | Component | Licence | How it is used |
 |---|---|---|
 | [com0com](https://sourceforge.net/projects/com0com/) | GPL (as distributed by the project) | An optional Windows kernel driver. The application detects installed pairs, opens their COM ports, and may invoke `setupc.exe` (with elevation) to create a pair. Nothing from com0com is linked into this application. |
+| [Monocypher](https://monocypher.org) 4.0.2 | BSD-2-Clause OR CC0-1.0 | Vendored unchanged in `third_party/monocypher`; the Ed25519 signature check behind licence files (`libs/vss_license`). No program in the packages links that library yet, so it is not distributed with the application. It moves to the table above when Studio starts to check licences. |
+| [Project Wycheproof](https://github.com/C2SP/wycheproof) test vectors | Apache-2.0 | `tests/data/wycheproof/ed25519_test.json`, unchanged. Read by the unit tests only; not distributed with the application. |
 | CMake, Ninja, LLVM/Clang | BSD-3-Clause, Apache-2.0, Apache-2.0 with LLVM exception | Build and coverage tooling only; not distributed with the application. |
 
 ## Files derived from the Boost.VirtualSerial repository

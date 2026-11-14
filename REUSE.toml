@@ -15,6 +15,21 @@ precedence = "override"
 SPDX-FileCopyrightText = "Microsoft Corporation and vcpkg contributors"
 SPDX-License-Identifier = "MIT"
 
+# Monocypher is vendored unchanged. Its source files carry their own SPDX lines;
+# this covers the licence text that came with them.
+[[annotations]]
+path = "third_party/monocypher/LICENCE.md"
+precedence = "override"
+SPDX-FileCopyrightText = "Loup Vaillant, Michael Savage, Fabio Scotoni"
+SPDX-License-Identifier = "BSD-2-Clause OR CC0-1.0"
+
+# Test vectors of Project Wycheproof (github.com/C2SP/wycheproof), unchanged. Test data only.
+[[annotations]]
+path = "tests/data/wycheproof/**"
+precedence = "override"
+SPDX-FileCopyrightText = "Google LLC and the Wycheproof contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
 # The bundled fonts and their licence texts (apps/vss_gui/assets/fonts/README.md says where each comes from).
 [[annotations]]
 path = "apps/vss_gui/assets/fonts/**"

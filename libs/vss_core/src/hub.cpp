@@ -596,7 +596,8 @@ std::shared_ptr<delay_line> hub::make_delay(endpoint_id to,
     if (target == endpoints_.end())
         return nullptr;
     return std::make_shared<delay_line>(io_.get_executor(), target->second,
-                                        options.delay_ms, options.jitter_ms);
+                                        options.delay_ms, options.jitter_ms,
+                                        options_.clock);
 }
 
 hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
@@ -1396,6 +1397,13 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
 
 void hub::route_data(endpoint_id from, bytes_view data)
 {
+    if (data.empty())
+        return;
+    route_data(from, data, now());
+}
+
+void hub::route_data(endpoint_id from, bytes_view data, time_point when)
+{
     VSS_PROFILE_ZONE("hub.route");
 
     if (data.empty())
@@ -1455,7 +1463,7 @@ void hub::route_data(endpoint_id from, bytes_view data)
                 if (!wire)
                 {
                     wire = record.wire;
-                    verdict = record.line->transmit(from, data.size(), now());
+                    verdict = record.line->transmit(from, data.size(), when);
                     if (verdict.fault != bus_fault::none)
                     {
                         const auto name_of = [this](endpoint_id id)
@@ -1513,7 +1521,7 @@ void hub::route_data(endpoint_id from, bytes_view data)
                    std::move(on_wire));
     if (fault)
     {
-        fault->when = clock_type::now();
+        fault->when = when;
         publish(std::move(*fault));
     }
 }

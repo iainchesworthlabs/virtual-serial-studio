@@ -10,13 +10,14 @@ crashes in `regressions/`.
 | `libs/vss_ports/fuzz/fuzz_endpoint_uri.cpp` | An endpoint URI such as `tcp://host:4001` or `serial://COM3?baud=9600` |
 | `libs/vss_agent_proto/fuzz/fuzz_agent_frame.cpp` | The bytes of a connection to the agent: frames, requests, replies and event batches. They must be refused or accepted without a crash, read the same whole or in pieces, and what decodes must encode and decode again to the same value |
 | `libs/vss_control_proto/fuzz/fuzz_control_message.cpp` | The bytes of a connection to the control gateway: a first frame held to the size a `hello` may have, then requests and replies. They must be refused or accepted without a crash, and what decodes must encode and decode again to the same value |
+| `libs/vss_license/fuzz/fuzz_licence.cpp` | A licence file, which is whatever a person chose to import, and the payloads inside one. The signature keeps a fuzzer away from the payload readers, so the same bytes go to them directly as well. Everything must be refused or accepted without a crash, and what a reader accepts must write back and read again as the same value |
 | `libs/vss_plugin/fuzz/fuzz_plugin_manifest.cpp` | The manifest of a plugin (`plugin.json`), and a path inside a plugin. A manifest must be refused or accepted without a crash; an accepted one is inside every limit, reads the same a second time and names only paths that stay inside the plugin |
 
 ## Where it runs
 
 | Run | When | What |
 |---|---|---|
-| Replay in the normal tests | Every build | CTest tests `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame`, `fuzz_control_message` and `fuzz_plugin_manifest` (label `fuzz`) run each corpus and regression file once, through the `fuzz_topology_replay`, `fuzz_endpoint_uri_replay`, `fuzz_agent_frame_replay`, `fuzz_control_message_replay` and `fuzz_plugin_manifest_replay` programs. They work with any compiler, and run under AddressSanitizer and UBSan in the `AddressSanitizer and UBSan` job |
+| Replay in the normal tests | Every build | CTest tests `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame`, `fuzz_control_message`, `fuzz_licence` and `fuzz_plugin_manifest` (label `fuzz`) run each corpus and regression file once, through the `fuzz_topology_replay`, `fuzz_endpoint_uri_replay`, `fuzz_agent_frame_replay`, `fuzz_control_message_replay`, `fuzz_licence_replay` and `fuzz_plugin_manifest_replay` programs. They work with any compiler, and run under AddressSanitizer and UBSan in the `AddressSanitizer and UBSan` job |
 | `Fuzz regression replay` (`fuzz-regress` in `ci.yml`) | Every ready pull request and merge-queue entry | Builds the `linux-fuzz` targets and replays the same files under libFuzzer with `tools/fuzz.py --mode regress`, then runs the unit tests of that script |
 | `Fuzz` in `.github/workflows/fuzz.yml` | Push to `develop`: 60 seconds a target | Replays the files, then fuzzes each target |
 | | Every night: 10 minutes a target | The same; the working corpus is kept between runs in the Actions cache |
