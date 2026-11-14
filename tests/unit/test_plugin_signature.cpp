@@ -672,11 +672,13 @@ TEST_CASE("plugin signature: a key nobody knows cannot be checked")
     signature_input input;
     input.manifest_bytes = plugin.manifest_bytes;
     input.declared = &plugin.declared;
-    input.signature_text = *plugin.signature;
+    std::string first_text = plugin.signature.value_or(std::string());
+    input.signature_text = first_text;
     input.today = today;
     REQUIRE(check_signature(input).state == signature_state::unknown_key);
     plugin.sign_with("plugins-2026", plugins_fill);
-    input.signature_text = *plugin.signature;
+    std::string second_text = plugin.signature.value_or(std::string());
+    input.signature_text = second_text;
     REQUIRE(check_signature(input).state == signature_state::unknown_key);
 }
 
@@ -749,8 +751,8 @@ TEST_CASE("plugin signature: what was signed must be this plugin")
         // A payload changed after it was signed.
         plugin_under_test plugin;
         plugin.sign_with("plugins-2026", plugins_fill);
-        signed_file::envelope changed =
-            signed_file::parse(*plugin.signature).value();
+        const std::string written = plugin.signature.value_or(std::string());
+        signed_file::envelope changed = signed_file::parse(written).value();
         plugin.manifest_bytes = "other bytes";
         const std::string claim = plugin.claim();
         changed.payload.assign(claim.begin(), claim.end());
@@ -762,7 +764,8 @@ TEST_CASE("plugin signature: what was signed must be this plugin")
         plugin.sign_with("plugins-2026", plugins_fill);
         signature_input input;
         input.manifest_bytes = plugin.manifest_bytes;
-        input.signature_text = *plugin.signature;
+        const std::string text = plugin.signature.value_or(std::string());
+        input.signature_text = text;
         input.official = &plugin.official;
         input.today = today;
         std::string detail;

@@ -21,6 +21,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <string_view>
 
 namespace vss::plugin
@@ -29,18 +30,25 @@ namespace vss::plugin
 namespace
 {
 
+/// Calling this in a constant expression does not compile, which is how a
+/// wrong key is refused at build time.  It is not constexpr on purpose.
+[[noreturn]] void a_public_key_is_wrong()
+{
+    std::terminate();
+}
+
 /// The 32 bytes written as 64 lower-case hex characters.  Anything else
 /// does not compile.
 consteval key_bytes key_from_hex(std::string_view text)
 {
     if (text.size() != 64)
-        throw "a public key is 64 hex characters";
+        a_public_key_is_wrong();
     const auto value = [](char c) -> std::uint8_t {
         if (c >= '0' && c <= '9')
             return static_cast<std::uint8_t>(c - '0');
         if (c >= 'a' && c <= 'f')
             return static_cast<std::uint8_t>(c - 'a' + 10);
-        throw "a public key is written in lower-case hex";
+        a_public_key_is_wrong();
     };
     key_bytes out{};
     for (std::size_t i = 0; i < out.size(); ++i)

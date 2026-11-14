@@ -358,7 +358,7 @@ TEST_CASE("plugin discover: a copy with a problem of its own still shadows")
     REQUIRE(!found.plugins[0].shadowed_by.has_value());
     require_problem(found.plugins[1], plugin_errc::shadowed);
     REQUIRE(found.plugins[1].shadowed_by.has_value());
-    REQUIRE_EQ(*found.plugins[1].shadowed_by, std::size_t{0});
+    REQUIRE_EQ(found.plugins[1].shadowed_by.value_or(99), std::size_t{0});
 }
 
 TEST_CASE("plugin discover: a shadowed copy keeps a problem of its own")
@@ -378,7 +378,7 @@ TEST_CASE("plugin discover: a shadowed copy keeps a problem of its own")
     require_good(found.plugins[0], "com.example.same");
     require_problem(found.plugins[1], plugin_errc::file_missing);
     REQUIRE(found.plugins[1].shadowed_by.has_value());
-    REQUIRE_EQ(*found.plugins[1].shadowed_by, std::size_t{0});
+    REQUIRE_EQ(found.plugins[1].shadowed_by.value_or(99), std::size_t{0});
     REQUIRE(found.plugins[1].declared.has_value());
 }
 
@@ -545,7 +545,8 @@ TEST_CASE("plugin discover: a plugin.sig of the largest size is accepted")
     REQUIRE_EQ(found.plugins.size(), std::size_t{1});
     require_good(found.plugins[0], "com.example.alpha");
     REQUIRE(found.plugins[0].signature_bytes.has_value());
-    REQUIRE_EQ(*found.plugins[0].signature_bytes, signature);
+    REQUIRE_EQ(found.plugins[0].signature_bytes.value_or(std::string()),
+               signature);
 }
 
 TEST_CASE("plugin discover: plugins past the limit are not read")
