@@ -21,9 +21,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -425,9 +428,11 @@ TEST_CASE("signed file: key windows and revocation")
 
 TEST_CASE("signed file: a product trusts no test key")
 {
-    // Nothing is built in until the owner adds the real public keys.
-    REQUIRE(sf::builtin_keys().empty());
-    REQUIRE(sf::product_trust_list().empty());
+    // No built-in key is a test key, and the product's list is the built-in
+    // one.
+    for (const sf::trusted_key& key : sf::builtin_keys())
+        REQUIRE(!key.key_id.starts_with(sf::test_key_prefix));
+    REQUIRE_EQ(sf::product_trust_list().size(), sf::builtin_keys().size());
 
     std::vector<sf::trusted_key> keys(test_keys::trusted().begin(),
                                       test_keys::trusted().end());
@@ -437,6 +442,73 @@ TEST_CASE("signed file: a product trusts no test key")
     const auto kept = sf::without_test_keys(keys);
     REQUIRE_EQ(kept.size(), std::size_t{1});
     REQUIRE_EQ(kept[0].key_id, std::string("lic-2026-a"));
+}
+
+TEST_CASE("signed file: the release trusts the owner's two licence keys")
+{
+    // The two ids, each for licences and for revocation lists, with the
+    // public halves the owner supplied (written here in their base64url
+    // form, so a slip in the byte table shows).
+    const auto keys = sf::product_trust_list();
+    REQUIRE_EQ(keys.size(), std::size_t{4});
+    const auto find = [&](std::string_view id, std::string_view purpose)
+    {
+        return std::ranges::find_if(
+            keys, [&](const sf::trusted_key& key)
+            { return key.key_id == id && key.purpose == purpose; });
+    };
+    for (const std::string_view purpose : {"licence", "revocations"})
+    {
+        const auto first = find("lic-2026-a", purpose);
+        REQUIRE(first != keys.end());
+        REQUIRE_EQ(sf::base64url_encode(first->key),
+                   std::string("7yaM1JZlHf0zkoch3l1F_HBlo2Ha52GsaWVoqTITQDU"));
+        const auto standby = find("lic-2026-b", purpose);
+        REQUIRE(standby != keys.end());
+        REQUIRE_EQ(sf::base64url_encode(standby->key),
+                   std::string("JZxSM-Dqrdsz-SSSltoDVefb3Ky79bEAzVXL_aBHhd0"));
+        // No window and no revocation yet.
+        for (const auto& key : {*first, *standby})
+        {
+            REQUIRE(key.not_before == sf::time_point::min());
+            REQUIRE(key.not_after == sf::time_point::max());
+            REQUIRE(!key.revoked_from);
+        }
+    }
+    // The two keys differ, and neither is the published test key.
+    REQUIRE(find("lic-2026-a", "licence")->key !=
+            find("lic-2026-b", "licence")->key);
+    for (const sf::trusted_key& key : keys)
+        REQUIRE(key.key != test_keys::trusted()[0].key);
+}
+
+TEST_CASE("signed file: the test key signs nothing a release accepts")
+{
+    const std::string payload = "{\"any\":\"payload\"}";
+    const std::span<const std::uint8_t> bytes{
+        reinterpret_cast<const std::uint8_t*>(payload.data()), payload.size()};
+    const auto release = sf::product_trust_list();
+
+    // Under its own id the test key is unknown to a release.
+    const sf::envelope own = signing::sign("licence", test_keys::key_id, bytes,
+                                           test_keys::private_key());
+    const auto unknown = sf::verify(own, "licence", release);
+    REQUIRE(!unknown);
+    REQUIRE(unknown.error() == errc::unknown_key);
+
+    // Under the id of a real key its signature does not verify.
+    for (const std::string_view id : {"lic-2026-a", "lic-2026-b"})
+    {
+        const sf::envelope forged =
+            signing::sign("licence", id, bytes, test_keys::private_key());
+        const auto refused = sf::verify(forged, "licence", release);
+        REQUIRE(!refused);
+        REQUIRE(refused.error() == errc::bad_signature);
+    }
+
+    // The same file verifies where the test key is trusted, so the refusal
+    // above is the trust list and not a broken file.
+    REQUIRE(sf::verify(own, "licence", test_keys::trusted()));
 }
 
 TEST_CASE("licence errors: every code has its own message")
