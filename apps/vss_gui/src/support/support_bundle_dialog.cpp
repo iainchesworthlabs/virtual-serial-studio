@@ -5,6 +5,7 @@
 //
 
 #include "support/support_bundle_dialog.hpp"
+#include "language/bidi.hpp"
 
 #include "support/build_info.hpp"
 #include "support/setup_facts.hpp"
@@ -530,6 +531,7 @@ void SupportBundleDialog::build()
     right_layout->addWidget(exact);
 
     preview_ = new QPlainTextEdit(right);
+    keep_left_to_right(preview_);
     preview_->setObjectName(QStringLiteral("bundlePreview"));
     preview_->setReadOnly(true);
     preview_->setLineWrapMode(QPlainTextEdit::NoWrap);

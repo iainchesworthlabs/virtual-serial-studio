@@ -5,6 +5,7 @@
 //
 
 #include "advanced/owner_bar.hpp"
+#include "language/bidi.hpp"
 
 #include "advanced/chrome.hpp"
 #include "advanced/line_presets.hpp"
@@ -185,7 +186,7 @@ std::optional<vss::link_id> OwnerBar::link_id() const
 QString OwnerBar::port_name(vss::endpoint_id id) const
 {
     if (const auto port = backend_.port(id))
-        return port->name;
+        return isolate_name(port->name);
     return QCoreApplication::translate("OwnerBar", "Port %1")
         .arg(static_cast<qulonglong>(id));
 }

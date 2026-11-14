@@ -5,6 +5,7 @@
 //
 
 #include "panes/fixture_panel.hpp"
+#include "language/bidi.hpp"
 
 #include "panes/format.hpp"
 #include "theme/theme.hpp"
@@ -90,6 +91,7 @@ void FixturePanel::build()
     text_label_ = caption(tr("Line"), this);
     grid->addWidget(text_label_, row, 0);
     text_ = new QLineEdit(this);
+    keep_left_to_right(text_);
     text_->setAccessibleName(tr("Generator bytes"));
     text_->setFont(Theme::instance().font(text_style::data));
     grid->addWidget(text_, row++, 1);

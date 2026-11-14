@@ -5,6 +5,7 @@
 //
 
 #include "dialogs/share_wizard.hpp"
+#include "language/bidi.hpp"
 
 #include "backend/share_edit.hpp"
 #include "dialogs/common.hpp"
@@ -1150,9 +1151,11 @@ QString ShareWizard::source_name() const
     if (network_mode_)
     {
         const auto parsed = parse_network_uri(network_address_->text());
-        return parsed ? parsed->host : network_address_->text().trimmed();
+        return isolate_name(parsed ? parsed->host
+                                   : network_address_->text().trimmed());
     }
-    return selected_device_.isEmpty() ? tr("the device") : selected_device_;
+    return selected_device_.isEmpty() ? tr("the device")
+                                      : isolate_name(selected_device_);
 }
 
 QString ShareWizard::source_uri() const

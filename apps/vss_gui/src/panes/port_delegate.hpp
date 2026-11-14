@@ -40,15 +40,18 @@ public:
     QSize sizeHint(const QStyleOptionViewItem& option,
                    const QModelIndex& index) const override;
 
+    /// Where the copy button of the path is: after the end of the path, which
+    /// is on the right in a left-to-right row and on the left in a
+    /// right-to-left one.
+    QRect copy_rect_for(const QStyleOptionViewItem& option,
+                        const QModelIndex& index) const;
+
 protected:
     bool editorEvent(QEvent* event, QAbstractItemModel* model,
                      const QStyleOptionViewItem& option,
                      const QModelIndex& index) override;
 
 private:
-    QRect copy_rect_for(const QStyleOptionViewItem& option,
-                        const QModelIndex& index) const;
-
     bool compact_ = false;
     bool table_ = false;
     mutable QRect copy_rect_;

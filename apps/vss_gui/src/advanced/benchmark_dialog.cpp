@@ -5,6 +5,7 @@
 //
 
 #include "advanced/benchmark_dialog.hpp"
+#include "language/bidi.hpp"
 
 #include "advanced/chrome.hpp"
 #include "theme/icon_provider.hpp"
@@ -42,9 +43,9 @@ namespace
 QString port_label(const port_view& port)
 {
     if (port.path.isEmpty())
-        return port.name;
+        return isolate_name(port.name);
     return QCoreApplication::translate("Benchmark", "%1 (%2)")
-        .arg(port.name, port.path);
+        .arg(isolate_name(port.name), isolate_name(port.path));
 }
 
 } // namespace

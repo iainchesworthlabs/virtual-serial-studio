@@ -5,6 +5,7 @@
 //
 
 #include "topology/topology_text.hpp"
+#include "language/bidi.hpp"
 
 #include <QCoreApplication>
 #include <QStringList>
@@ -22,7 +23,7 @@ QString port_name(const QVector<vss::endpoint_id>& ids,
     QStringList list;
     for (const vss::endpoint_id id : ids)
     {
-        const QString name = names.value(id);
+        const QString name = isolate_name(names.value(id));
         if (!name.isEmpty())
             list.append(name);
     }
