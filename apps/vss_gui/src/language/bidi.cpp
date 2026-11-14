@@ -15,13 +15,13 @@ namespace vss::gui
 QString isolate_name(const QString& name, bool right_to_left)
 {
     if (!right_to_left || name.isEmpty() ||
-        name.front() == QChar(first_strong_isolate))
+        name.front() == QChar(kFirstStrongIsolate))
         return name;
     QString result;
     result.reserve(name.size() + 2);
-    result += QChar(first_strong_isolate);
+    result += QChar(kFirstStrongIsolate);
     result += name;
-    result += QChar(pop_directional_isolate);
+    result += QChar(kPopDirectionalIsolate);
     return result;
 }
 

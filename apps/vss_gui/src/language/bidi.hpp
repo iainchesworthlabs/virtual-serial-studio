@@ -14,8 +14,8 @@ namespace vss::gui
 {
 
 /// U+2068 FIRST STRONG ISOLATE and U+2069 POP DIRECTIONAL ISOLATE.
-inline constexpr char16_t first_strong_isolate = 0x2068;
-inline constexpr char16_t pop_directional_isolate = 0x2069;
+inline constexpr char16_t kFirstStrongIsolate = 0x2068;
+inline constexpr char16_t kPopDirectionalIsolate = 0x2069;
 
 /// Puts a name that is not part of the sentence (a port name, a path such as
 /// `loopback:logger` or `COM3`, a file name, an address) in a bidirectional
