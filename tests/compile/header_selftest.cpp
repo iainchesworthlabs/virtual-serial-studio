@@ -47,6 +47,7 @@
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/licence.hpp>
+#include <vss/plugin/locations.hpp>
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/measure.hpp>
 #include <vss/plugin/policy.hpp>

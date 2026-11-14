@@ -13,6 +13,7 @@ add_library(vss_plugin
   src/error.cpp
   src/hash.cpp
   src/licence.cpp
+  src/locations.cpp
   src/manifest.cpp
   src/measure.cpp
   src/official_roots.cpp
@@ -34,13 +35,18 @@ target_compile_features(vss_plugin PUBLIC cxx_std_23)
 target_link_libraries(vss_plugin PUBLIC vss_core Vss::license
   PRIVATE Vss::BoostJson)
 
-# Who owns a file and who may write to it is asked of the operating system.
-# Linux and macOS share one implementation; Windows has its own.
-if(WIN32)
-  target_sources(vss_plugin PRIVATE src/platform/windows/access_windows.cpp)
-  target_link_libraries(vss_plugin PRIVATE advapi32)
-else()
+# Where the plugin folders and the policy file are, and who owns a file and
+# who may write to it, are asked of the operating system.  CMake picks the
+# files in src/platform/<windows|linux|macos>.  Linux and macOS share one
+# implementation of the access check.
+icl_platform_sources(vss_plugin)
+if(UNIX)
   target_sources(vss_plugin PRIVATE src/platform/posix/access_posix.cpp)
+endif()
+if(WIN32)
+  # advapi32 for owners and access lists; shell32 and ole32 for the folders
+  # Windows names (ProgramData, LocalAppData).
+  target_link_libraries(vss_plugin PRIVATE advapi32 shell32 ole32)
 endif()
 
 vss_set_warnings(vss_plugin)
