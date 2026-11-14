@@ -966,15 +966,16 @@ in the same request. Runs and the JUnit report are a separate change.
 The direction of a pattern (`rx`, the usual, or `tx`) is the engine's: a loopback port reports what is written to
 it as received and sends it on to whatever it is linked to.
 
-### What runs and the report built
+### What runs, the report and the Python adapter built
 
-The rest of slice 4 on the local endpoint.
+The rest of slice 4 on the local endpoint, and the first adapter of slice 8.
 
 | Claim | Proven by | Still paper |
 |---|---|---|
 | A run collects what a harness checked | `runs.begin` opens a named run; each `expect.bytes` of the same principal is noted with its label, how it ended and how long it took (found: passed; not in time: failed; anything else: error); `runs.record` adds a check of the harness's own; `runs.end` gives the counts | Runs are kept in memory: the eight newest, a thousand checks each. A gateway that restarts has none |
 | A run belongs to who opened it | It is filled and ended from other connections of the same principal, as a harness does that connects for each step. Another principal cannot end it, fill it, or read its report by id or as "the latest"; the administration endpoint reads any run by id | The audit records of port changes are not labelled with the run; those of `expect.bytes` and of the run itself are |
 | A report cannot be changed by what a harness calls its checks | Names and messages that try to end an attribute, close the suite, open a CDATA section or declare an entity leave a document with exactly one suite and one case; the writer is tested character by character for the five characters XML gives a meaning, bytes that are not UTF-8 and the characters XML 1.0 does not allow | The document is checked for its shape, not parsed by an XML library |
+| A program in another language can use the API | `adapters/python`: a client in the standard library alone, which checks who serves the endpoint before it sends anything, as the C++ client does, and fails closed when it cannot tell. Its tests start a real agent and gateway on Windows and Linux | macOS has not been run. The C ABI and the other languages are not built |
 
 Differences from sections 5 and 9 as first written, and why:
 
@@ -983,6 +984,24 @@ Differences from sections 5 and 9 as first written, and why:
 - **`expect.bytes` can send.** The table has it as a read only. Sending in the same request is what closes the gap
   between a stimulus and the start of listening, and it is refused without `control.data`.
 - **The time of day in a report** is the gateway's clock at `runs.begin`, written as XML Schema writes it.
+
+### What loopback TCP built
+
+L2 of section 3: `vss_gate --loopback-port=<port>` also serves the API on TCP at `127.0.0.1` and `::1`.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| It is off unless asked for, and loopback only | Without a port the gateway has no TCP address. The listener takes a port and never an address, so nothing in the options or the command line can make it face a network; its address is read back as `127.0.0.1:<port>`. A connection from an address that is not loopback would be closed by the listener itself | That last check cannot be reached in a test: the listener is bound to loopback |
+| The port is the gateway's alone | A second gateway given the same port does not start and does not start elsewhere. On Windows the port is taken exclusively, so no other program can bind beside it | Refusal of a second listener on `::1` alone was not run: it needs a program that holds the port on `::1` only |
+| A connection that is not a client of this API learns nothing | A good `hello` with a good token and no preface, three HTTP requests and a TLS record, a lone line end, the preface wrong at each of its eight bytes, and the next major version: each is closed without one byte of reply and without a session or an authentication attempt, and each is in the audit log. A connection that says nothing, or half a preface, is closed in time, also without a byte | |
+| Nobody is the local user over TCP | A `hello` without a token gets the answer every failed authentication gets; the client library refuses to connect without one | Who is at the other end is not looked for at all. Another user of the computer can connect and needs the token (T1) |
+| A token is good only where it was made for | A token says its transports. One made for the local endpoint is refused over TCP and one made for TCP is refused on the local endpoint, both as a wrong token is; one made for both works on both; a transport that is not one is refused when the token is made | A list of source addresses in a token: every TCP peer is loopback here. It comes with L3 |
+| TCP has its own ceiling, and no administration | The same token holds `control.ports` on the local endpoint and only `monitor` over TCP under a `monitor` ceiling; the token operations and the session list are refused over TCP whatever the scopes | The ceiling is an option of the gateway, not yet a setting a person can change |
+| Guessing is slowed down for TCP as a whole | After the configured failures the next attempt over TCP is not looked at, while a local connection of the user is served and a TCP session that is already open goes on | Every TCP connection is one source, so one program's wrong tokens hold up every program's TCP connections for the delay |
+
+Differences from section 3 as first written: the token crosses loopback in clear, as that section says; TLS on
+loopback comes with L3 and is not offered yet. The default ceiling for TCP is the control role without
+`control.apply`.
 
 ## 14. Decisions for the owner
 

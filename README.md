@@ -100,8 +100,10 @@ vss_cli selftest
 vss_agent &                         # keep ports after the command that made them (a first slice)
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
 vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
+vss_gate --loopback-port=5800 &     # also serve the control API on TCP at 127.0.0.1 and ::1 (off unless given); every TCP connection needs a token made for it
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
+vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a token over TCP; make it with `token create --transport=loopback --out=rig.token`
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
 vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
@@ -111,6 +113,24 @@ vss_cli control run begin smoke     # open a named run; every `expect` of this u
 ```
 
 Run `vss_cli --help` for the full list.
+
+### From Python
+
+A test script can talk to the same gateway with `adapters/python`, which needs
+Python 3.9 and no other package. Start `vss_agent` and `vss_gate --local-role=control`, then:
+
+```python
+import sys; sys.path.insert(0, "adapters/python")
+from vss_control import Client
+
+with Client.connect() as c:
+    a, b = c.create_port("a"), c.create_port("b")
+    c.connect_ports(a, b, one_way=True)
+    found = c.expect_bytes(port=b, pattern=b"OK\r\n", timeout_ms=2000, send_port=a, send=b"AT\r\nOK\r\n")
+    print(found["offset"])   # 4: the bytes that went by before the pattern
+```
+
+`adapters/python/README.md` has the calls, the errors and what the client checks before it sends.
 
 ### A topology file
 

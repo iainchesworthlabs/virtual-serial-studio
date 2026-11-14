@@ -21,6 +21,7 @@
 #include <vss/control/audit_log.hpp>
 #include <vss/control/client.hpp>
 #include <vss/control/gateway.hpp>
+#include <vss/control/loopback.hpp>
 #include <vss/control/proto/message.hpp>
 #include <vss/control/proto/secret.hpp>
 #include <vss/control/proto/token.hpp>
@@ -33,9 +34,12 @@
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/write.hpp>
 #include <boost/json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -3571,4 +3575,470 @@ TEST_CASE("control gateway: only so many runs are kept, and an open one is "
     const auto latest = harness->report_junit();
     REQUIRE(latest);
     REQUIRE(latest->find("name=\"run 9\"") != std::string::npos);
+}
+
+// -- loopback TCP ------------------------------------------------------------
+
+namespace
+{
+
+using boost::asio::ip::tcp;
+
+/// A TCP connection that speaks bytes, so a test can send what no client of
+/// the API would: no preface, half of one, an HTTP request.
+class raw_tcp
+{
+public:
+    raw_tcp() : socket_(io_) {}
+
+    bool connect(const boost::asio::ip::address& address, std::uint16_t port)
+    {
+        boost::system::error_code failed;
+        socket_.connect(tcp::endpoint(address, port), failed);
+        return !failed;
+    }
+
+    bool send(const vss::byte_buffer& bytes)
+    {
+        boost::system::error_code failed;
+        boost::asio::write(socket_, boost::asio::buffer(bytes), failed);
+        return !failed;
+    }
+
+    bool send(std::string_view text) { return send(vss::to_bytes(text)); }
+
+    /// Reads until the other end closes or the time is up.  `closed` says
+    /// which; what arrived is returned either way.
+    vss::byte_buffer read_to_end(bool& closed,
+                                 std::chrono::milliseconds limit = long_wait)
+    {
+        vss::byte_buffer all;
+        closed = false;
+        const auto deadline = steady::now() + limit;
+        while (!closed && steady::now() < deadline)
+        {
+            bool done = false;
+            boost::system::error_code failed;
+            std::size_t got = 0;
+            socket_.async_read_some(
+                boost::asio::buffer(chunk_),
+                [&](boost::system::error_code error, std::size_t size)
+                {
+                    done = true;
+                    failed = error;
+                    got = size;
+                });
+            const bool finished = run_until(
+                io_, [&] { return done; },
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    deadline - steady::now()));
+            if (!finished)
+            {
+                // The read is still out; it is cancelled and waited for, so
+                // its handler never runs after this function has gone.
+                boost::system::error_code ignored;
+                socket_.cancel(ignored);
+                run_until(io_, [&] { return done; }, long_wait);
+                break;
+            }
+            if (failed)
+                closed = true;
+            else
+                all.insert(all.end(), chunk_.begin(),
+                           chunk_.begin() + static_cast<std::ptrdiff_t>(got));
+        }
+        return all;
+    }
+
+private:
+    boost::asio::io_context io_;
+    tcp::socket socket_;
+    std::array<vss::byte, 4096> chunk_{};
+};
+
+vss::byte_buffer preface_bytes()
+{
+    vss::byte_buffer out;
+    for (const std::uint8_t value : control::control_preface)
+        out.push_back(static_cast<vss::byte>(value));
+    return out;
+}
+
+control::gateway_options with_loopback(control::gateway_options options = {})
+{
+    options.loopback_port = std::uint16_t{0};
+    return options;
+}
+
+std::uint16_t port_of(const fixture& env)
+{
+    const std::uint16_t port =
+        control::loopback_port_of(env.gate.loopback_address());
+    REQUIRE(port != 0);
+    return port;
+}
+
+control::token_created_reply make_loopback_token(fixture& env,
+                                                 control::scope_set scopes)
+{
+    auto admin = env.connect(true, "token maker");
+    auto made = admin->create_token("tcp token", control::scope_names(scopes),
+                                    0, {"loopback"});
+    REQUIRE(made);
+    return std::move(*made);
+}
+
+vss::result<std::unique_ptr<control::client>>
+connect_over_tcp(const fixture& env, const control::secret_string& token)
+{
+    control::client_options options;
+    options.name = "tcp client";
+    options.token = token;
+    options.loopback_port = port_of(env);
+    return control::client::connect(options);
+}
+
+/// What a connection that sent `first` got back before it was closed.
+vss::byte_buffer answer_to(const fixture& env, const vss::byte_buffer& first,
+                           bool& closed)
+{
+    raw_tcp raw;
+    REQUIRE(raw.connect(boost::asio::ip::address_v4::loopback(), port_of(env)));
+    REQUIRE(raw.send(first));
+    return raw.read_to_end(closed);
+}
+
+} // namespace
+
+TEST_CASE("control gateway: TCP is off unless a port is given, and then it "
+          "is loopback only")
+{
+    {
+        fixture env;
+        REQUIRE(env.gate.loopback_address().empty());
+    }
+    fixture env(with_loopback());
+    const std::string address = env.gate.loopback_address();
+    REQUIRE_EQ(address.rfind("127.0.0.1:", 0), std::size_t{0});
+    const std::uint16_t port = port_of(env);
+
+    // The port is the gateway's alone: a second one that asks for it does
+    // not start, and does not start somewhere else instead.
+    control::gateway_options same;
+    same.loopback_port = port;
+    const scoped_instance other_name;
+    same.instance = other_name.name();
+    same.agent_instance = other_name.name();
+    same.audit_directory = env.scratch.path() / "second";
+    control::gateway second(same);
+    REQUIRE(!second.start());
+    REQUIRE(second.loopback_address().empty());
+
+    // The first is as it was.
+    const control::token_created_reply made =
+        make_loopback_token(env, control::role_monitor());
+    REQUIRE(connect_over_tcp(env, made.token));
+}
+
+TEST_CASE("control gateway: over TCP a token made for it is its own "
+          "principal")
+{
+    fixture env(with_loopback());
+    const control::token_created_reply made = make_loopback_token(
+        env, {control::scope::monitor, control::scope::control_ports});
+    REQUIRE_EQ(made.entry.transports, std::vector<std::string>{"loopback"});
+
+    auto connected = connect_over_tcp(env, made.token);
+    REQUIRE(connected);
+    auto& client = **connected;
+    REQUIRE_EQ(client.gateway().principal, "token:" + made.entry.id);
+    REQUIRE(has_scope(client.gateway(), "monitor"));
+    REQUIRE(has_scope(client.gateway(), "control.ports"));
+    REQUIRE(!has_scope(client.gateway(), "admin"));
+    REQUIRE(client.status());
+    const auto port = client.create_port("over tcp");
+    REQUIRE(port);
+    // Bytes were not granted, over TCP as anywhere.
+    const auto written = client.send(*port, vss::to_bytes("x"));
+    REQUIRE(!written);
+    REQUIRE_EQ(written.error(), code(control::api_errc::forbidden));
+    // Administration is never reachable over TCP.
+    const auto listed = client.list_tokens();
+    REQUIRE(!listed);
+    REQUIRE_EQ(listed.error(), code(control::api_errc::forbidden));
+    REQUIRE(!client.list_sessions());
+
+    const auto opened =
+        records_of(audit_records(env.audit_directory), "session.opened");
+    REQUIRE_EQ(text_of(opened.back(), "transport"), std::string("loopback"));
+    REQUIRE_EQ(text_of(opened.back(), "principal"), "token:" + made.entry.id);
+    REQUIRE_EQ(text_of(opened.back(), "program").rfind("tcp 127.0.0.1:", 0),
+               std::size_t{0});
+}
+
+TEST_CASE("control gateway: over TCP nobody is the local user")
+{
+    fixture env(with_loopback());
+
+    // The client library does not even connect without a token.
+    control::client_options bare;
+    bare.loopback_port = port_of(env);
+    const auto refused = control::client::connect(bare);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(),
+               vss::make_error_code(vss::errc::invalid_argument));
+    REQUIRE_EQ(env.gate.counters().accepted, std::uint64_t{0});
+
+    // A program that sends the preface and a hello without a token gets the
+    // one answer every failed authentication gets, and is closed.
+    vss::byte_buffer first = preface_bytes();
+    const control::hello_request greeting{control::api_version, "no token"};
+    append(first, wire_of(control::request{1, greeting}));
+    bool closed = false;
+    const vss::byte_buffer answer = answer_to(env, first, closed);
+    REQUIRE(closed);
+    agent::frame_reader reader;
+    reader.feed(vss::bytes_view(answer));
+    const auto frame = reader.next();
+    REQUIRE(frame);
+    REQUIRE(frame->has_value());
+    const auto message = control::decode_reply(**frame);
+    REQUIRE(message);
+    REQUIRE_EQ(error_of(*message).code, std::string("unauthenticated"));
+
+    const auto failures =
+        records_of(audit_records(env.audit_directory), "auth.failed");
+    REQUIRE_EQ(failures.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(failures.front(), "reason"),
+               std::string("token_required"));
+    REQUIRE_EQ(text_of(failures.front(), "transport"), std::string("loopback"));
+    REQUIRE(records_of(audit_records(env.audit_directory), "session.opened")
+                .empty());
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{0});
+}
+
+TEST_CASE("control gateway: a token is good only where it was made for")
+{
+    control::gateway_options every_record = with_loopback();
+    every_record.audit_burst_period = 0ms;
+    fixture env(every_record);
+    const control::token_created_reply for_local =
+        make_token(env, control::role_monitor());
+    const control::token_created_reply for_tcp =
+        make_loopback_token(env, control::role_monitor());
+
+    // Each works on its own transport.
+    REQUIRE(connect_with(env, for_local.token));
+    REQUIRE(connect_over_tcp(env, for_tcp.token));
+
+    // And is refused on the other, with the answer a wrong token gets.
+    const auto local_over_tcp = connect_over_tcp(env, for_local.token);
+    REQUIRE(!local_over_tcp);
+    REQUIRE_EQ(local_over_tcp.error(),
+               code(control::api_errc::unauthenticated));
+    const auto tcp_over_local = connect_with(env, for_tcp.token);
+    REQUIRE(!tcp_over_local);
+    REQUIRE_EQ(tcp_over_local.error(),
+               code(control::api_errc::unauthenticated));
+
+    std::vector<std::string> reasons;
+    for (const json::object& record :
+         records_of(audit_records(env.audit_directory), "auth.failed"))
+        reasons.push_back(text_of(record, "reason"));
+    REQUIRE_EQ(reasons, (std::vector<std::string>{"wrong_transport",
+                                                  "wrong_transport"}));
+
+    // A token may be made for both, and a transport that is not one is
+    // refused when the token is made.
+    auto admin = env.connect(true);
+    const auto both =
+        admin->create_token("both", {"monitor"}, 0, {"local", "loopback"});
+    REQUIRE(both);
+    REQUIRE(connect_with(env, both->token));
+    REQUIRE(connect_over_tcp(env, both->token));
+    for (const char* const bad : {"tls", "local-admin", "internet", ""})
+    {
+        const auto refused = admin->create_token("bad", {"monitor"}, 0, {bad});
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(control::api_errc::invalid_argument));
+    }
+}
+
+TEST_CASE("control gateway: a TCP connection that does not begin with the "
+          "preface is closed and told nothing")
+{
+    control::gateway_options options = with_loopback();
+    options.audit_burst_period = 0ms;
+    fixture env(options);
+    const control::token_created_reply made =
+        make_loopback_token(env, control::role_monitor());
+    const vss::byte_buffer hello = hello_with(made.token);
+
+    std::vector<vss::byte_buffer> attempts;
+    // A good hello with a good token, and no preface before it.
+    attempts.push_back(hello);
+    // What a browser, a script and a scanner send.
+    attempts.push_back(
+        vss::to_bytes("GET / HTTP/1.1\r\nHost: localhost\r\n\r\n"));
+    attempts.push_back(vss::to_bytes(
+        "POST /hello HTTP/1.1\r\nOrigin: https://example.com\r\n\r\n"));
+    attempts.push_back(
+        vss::to_bytes(std::string_view("\x16\x03\x01\x02\x00", 5)));
+    attempts.push_back(vss::to_bytes("\n"));
+    // The preface with one byte wrong, at each place, and then a good hello.
+    for (std::size_t at = 0; at < control::control_preface.size(); ++at)
+    {
+        vss::byte_buffer wrong = preface_bytes();
+        wrong[at] = static_cast<vss::byte>(
+            static_cast<std::uint8_t>(wrong[at]) ^ 0x20u);
+        append(wrong, hello);
+        attempts.push_back(std::move(wrong));
+    }
+    // Another major version.
+    vss::byte_buffer next_major = preface_bytes();
+    next_major.back() = vss::byte{2};
+    append(next_major, hello);
+    attempts.push_back(std::move(next_major));
+
+    for (const vss::byte_buffer& attempt : attempts)
+    {
+        bool closed = false;
+        const vss::byte_buffer answer = answer_to(env, attempt, closed);
+        REQUIRE(closed);
+        // Not one byte: nothing says what listens here.
+        REQUIRE(answer.empty());
+    }
+    REQUIRE_EQ(env.gate.counters().bad_preface, attempts.size());
+    REQUIRE(wait_until([&] { return env.gate.counters().connections == 0; }));
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{0});
+    REQUIRE_EQ(env.gate.counters().auth_failures, std::uint64_t{0});
+    const auto records = audit_records(env.audit_directory);
+    REQUIRE(records_of(records, "session.opened").size() == 1); // the maker
+    std::size_t rejected = 0;
+    for (const json::object& record :
+         records_of(records, "connection.rejected"))
+    {
+        if (text_of(record, "reason") == "bad_preface")
+            ++rejected;
+    }
+    REQUIRE_EQ(rejected, attempts.size());
+
+    // The preface in pieces is still the preface.
+    raw_tcp slow;
+    REQUIRE(
+        slow.connect(boost::asio::ip::address_v4::loopback(), port_of(env)));
+    for (const std::uint8_t value : control::control_preface)
+        REQUIRE(slow.send(vss::byte_buffer{static_cast<vss::byte>(value)}));
+    REQUIRE(slow.send(hello));
+    bool closed = false;
+    const vss::byte_buffer welcome = slow.read_to_end(closed, 2000ms);
+    REQUIRE(!welcome.empty());
+    agent::frame_reader reader;
+    reader.feed(vss::bytes_view(welcome));
+    const auto frame = reader.next();
+    REQUIRE(frame);
+    REQUIRE(frame->has_value());
+    const auto message = control::decode_reply(**frame);
+    REQUIRE(message);
+    REQUIRE(std::holds_alternative<control::hello_reply>(message->body));
+}
+
+TEST_CASE("control gateway: a TCP connection that says nothing, or half a "
+          "preface, is closed in time and told nothing")
+{
+    control::gateway_options options = with_loopback();
+    options.handshake_timeout = 300ms;
+    fixture env(options);
+
+    for (const std::size_t sent :
+         {std::size_t{0}, std::size_t{4}, control::control_preface.size()})
+    {
+        raw_tcp quiet;
+        REQUIRE(quiet.connect(boost::asio::ip::address_v4::loopback(),
+                              port_of(env)));
+        vss::byte_buffer part = preface_bytes();
+        part.resize(sent);
+        if (!part.empty())
+            REQUIRE(quiet.send(part));
+        bool closed = false;
+        const vss::byte_buffer answer = quiet.read_to_end(closed);
+        REQUIRE(closed);
+        REQUIRE(answer.empty());
+    }
+    REQUIRE_EQ(env.gate.counters().handshake_timeouts, std::uint64_t{3});
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{0});
+}
+
+TEST_CASE("control gateway: TCP has its own ceiling")
+{
+    control::gateway_options options = with_loopback();
+    options.loopback_ceiling = control::role_monitor();
+    options.local_ceiling = control::every_scope();
+    fixture env(options);
+    auto admin = env.connect(true);
+    const auto made = admin->create_token(
+        "wide", control::scope_names(control::role_control()), 0,
+        {"local", "loopback"});
+    REQUIRE(made);
+
+    // The same token: everything it holds on the local endpoint, and only
+    // what the ceiling leaves over TCP.
+    auto local = connect_with(env, made->token);
+    REQUIRE(local);
+    REQUIRE(has_scope((*local)->gateway(), "control.ports"));
+    REQUIRE((*local)->create_port("local"));
+
+    auto over_tcp = connect_over_tcp(env, made->token);
+    REQUIRE(over_tcp);
+    REQUIRE_EQ((*over_tcp)->gateway().scopes,
+               std::vector<std::string>{"monitor"});
+    const auto refused = (*over_tcp)->create_port("tcp");
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), code(control::api_errc::forbidden));
+    REQUIRE((*over_tcp)->list_ports());
+}
+
+TEST_CASE("control gateway: wrong tokens over TCP slow down TCP, and a "
+          "stream runs over it as over the local endpoint")
+{
+    control::gateway_options options = with_loopback();
+    options.auth_limits.free_failures = 3;
+    options.audit_burst_period = 0ms;
+    fixture env(options);
+    const traffic_rig rig(env);
+    const control::token_created_reply made =
+        make_loopback_token(env, monitor_with_data());
+
+    auto connected = connect_over_tcp(env, made.token);
+    REQUIRE(connected);
+    auto& tap = **connected;
+    const auto started = tap.subscribe_traffic(every(10));
+    REQUIRE(started);
+    rig.send(rig.a, "over tcp");
+    std::string seen;
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(
+        tap, next_seq,
+        [&](const control::event_batch& batch)
+        {
+            for (const control::event_entry& event : batch.events)
+            {
+                if (is_rx_on(event, rig.b))
+                    seen += vss::to_string(vss::bytes_view(event.data));
+            }
+            return seen.size() >= 8;
+        }));
+    REQUIRE_EQ(seen, std::string("over tcp"));
+
+    // Three wrong tokens, and the next attempt is not even looked at; a
+    // local connection of the user is not held up by it.
+    for (int attempt = 0; attempt < 3; ++attempt)
+        REQUIRE(!connect_over_tcp(env, wrong_id(made.token)));
+    REQUIRE(!connect_over_tcp(env, made.token));
+    REQUIRE(env.connect()->status());
+    const auto failures =
+        records_of(audit_records(env.audit_directory), "auth.failed");
+    REQUIRE_EQ(text_of(failures.back(), "reason"), std::string("backoff"));
+    // The session that was already open is not touched.
+    REQUIRE(tap.status());
 }

@@ -284,6 +284,8 @@ struct request_writer
         header["label"] = clean_text(body.label);
         header["scopes"] = text_list(body.scopes);
         header["life_s"] = body.life_s;
+        if (!body.transports.empty())
+            header["transports"] = text_list(body.transports);
     }
     void operator()(const tokens_list_request&) const {}
     void operator()(const tokens_revoke_request& body) const
@@ -403,6 +405,9 @@ result<request_body> read_request_body(operation wanted,
         if (!read_text(header, "label", body.label) ||
             !read_text_list(header, "scopes", body.scopes) ||
             !read_u64(header, "life_s", body.life_s))
+            return malformed();
+        if (header.contains("transports") &&
+            !read_text_list(header, "transports", body.transports))
             return malformed();
         return request_body{std::move(body)};
     }
