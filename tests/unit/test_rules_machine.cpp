@@ -2304,3 +2304,105 @@ TEST_CASE("rules: machine lets a signal rule change the state, and the signal "
     REQUIRE_EQ(each.state(), std::size_t{0});
     REQUIRE_EQ(raise(each, 0, "", us(5), us(6))[0].rule, std::size_t{0});
 }
+
+// -- after a gap -----------------------------------------------------------
+
+TEST_CASE("rules: machine does not match a pattern across a resync")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a", "when": {"bytes": "01 02 03"},
+                          "do": [{"mark": "A"}]})j")),
+                 1);
+    REQUIRE(feed(each, "01 02", ms(1)).empty());
+    each.resync();
+    // The first half arrived before the gap and the second half after it.
+    REQUIRE(feed(each, "03", ms(2)).empty());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{0});
+
+    // Half a pattern before, and the rest of it after, in two chunks.
+    REQUIRE(feed(each, "01", ms(3)).empty());
+    each.resync();
+    REQUIRE(feed(each, "02 03", ms(4)).empty());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{0});
+
+    // The whole pattern after the gap is matched.
+    const auto got = feed(each, "01 02 03", ms(5));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE_EQ(got[0].ordinal, std::uint64_t{1});
+    REQUIRE_EQ(got[0].length, std::size_t{3});
+    REQUIRE(got[0].start == ms(5));
+    REQUIRE(got[0].end == ms(5));
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{1});
+    // The bytes that were seen are still counted: 2 + 1 + 1 + 2 + 3.
+    REQUIRE_EQ(each.stats().bytes_seen, std::uint64_t{9});
+}
+
+TEST_CASE("rules: machine counts no silence from before a resync")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "Q"}]})j")),
+                 1);
+    REQUIRE(feed(each, "01", ms(10)).empty());
+    REQUIRE(each.next_deadline() == ms(15));
+
+    each.resync();
+    // The silence that was being counted is forgotten.
+    REQUIRE(!each.next_deadline().has_value());
+    REQUIRE(tick(each, ms(15)).empty());
+    REQUIRE(tick(each, ms(100000)).empty());
+    REQUIRE(!each.next_deadline().has_value());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{0});
+
+    // A new byte, and the silence after it fires the rule.
+    REQUIRE(feed(each, "02", ms(200)).empty());
+    REQUIRE(each.next_deadline() == ms(205));
+    REQUIRE(tick(each, ms(204)).empty());
+    const auto got = tick(each, ms(205));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE(got[0].start == ms(205));
+    REQUIRE(got[0].end == ms(205));
+    REQUIRE_EQ(got[0].ordinal, std::uint64_t{1});
+    REQUIRE(!each.next_deadline().has_value());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{1});
+}
+
+TEST_CASE("rules: machine keeps its state, slots and counts across a resync")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "once", "when": {"bytes": "10 ??"},
+                          "count": 1,
+                          "do": [{"set_slot": {"slot": "s", "match": [1, 1]}},
+                                 {"set_state": "b"}]},
+                         {"name": "then", "when": {"bytes": "10 ??"},
+                          "do": [{"mark": "then"}]})j",
+                     R"j("states": ["a", "b"], "slots": {"s": "aa"}, )j")),
+                 1);
+    REQUIRE_EQ(each.state(), std::size_t{0});
+    REQUIRE(bytes_equal(each.slot(0), hex("aa")));
+
+    const auto first = feed(each, "10 5c", ms(1));
+    REQUIRE_EQ(first.size(), std::size_t{1});
+    REQUIRE_EQ(first[0].rule, std::size_t{0});
+    const auto second = feed(each, "10 01", ms(2));
+    REQUIRE_EQ(second.size(), std::size_t{1});
+    REQUIRE_EQ(second[0].rule, std::size_t{1});
+    REQUIRE_EQ(second[0].ordinal, std::uint64_t{1});
+    REQUIRE_EQ(each.state(), std::size_t{1});
+    REQUIRE(bytes_equal(each.slot(0), hex("5c")));
+
+    each.resync();
+
+    REQUIRE_EQ(each.state(), std::size_t{1});
+    REQUIRE(bytes_equal(each.slot(0), hex("5c")));
+    // The rule that was finished stays finished, and the one that went on
+    // counts from where it was.
+    const auto after = feed(each, "10 02", ms(3));
+    REQUIRE_EQ(after.size(), std::size_t{1});
+    REQUIRE_EQ(after[0].rule, std::size_t{1});
+    REQUIRE_EQ(after[0].ordinal, std::uint64_t{2});
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{3});
+    REQUIRE(bytes_equal(each.slot(0), hex("5c")));
+}

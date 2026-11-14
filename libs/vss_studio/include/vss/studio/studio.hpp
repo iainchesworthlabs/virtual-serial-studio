@@ -62,6 +62,8 @@ struct rules_install_options
 {
     /// The seed for a set that has none of its own.
     std::uint64_t run_seed = 0;
+    /// How fast the set may fire before it is suspended.
+    rules::scheduler_limits limits;
 };
 
 /// A rule set that was installed.
@@ -201,13 +203,16 @@ public:
     /// writing to the port.  The set's run starts at the call: its timeline
     /// and its seed are counted from it.
     ///
-    /// This build installs `peer` sets whose rules match `bytes` or
-    /// `quiet_us`.  Anything else is refused with `errc::unsupported` and
-    /// never approximated: another role, a rule on `lines`, `port` or a
-    /// `signal`, an `ask`, a `line_error` on a port that takes none, a line
-    /// a device does not drive.  `errc::not_found` for a port that does not
-    /// exist and `errc::already_exists` for one that has a set.  `problems`,
-    /// when given, says what was refused and where.
+    /// This build installs `peer` sets whose rules match `bytes`,
+    /// `quiet_us` or a `signal`.  Anything else is refused with
+    /// `errc::unsupported` and never approximated: another role, a rule on
+    /// `lines` or `port`, an `ask`, a `line_error` on a port that takes
+    /// none, a line a device does not drive.  `errc::not_found` for a port
+    /// that does not exist, `errc::already_exists` for one that has a set,
+    /// and `errc::queue_full` when the studio has `rules::max_hub_sets`
+    /// sets already or the set would take their compiled sizes past
+    /// `rules::max_hub_bytes`.  `problems`, when given, says what was
+    /// refused and where.
     result<rules_installation> install_rules(
         std::shared_ptr<const rules::compiled_rule_set> set,
         const rules_install_options& options = {},
@@ -219,6 +224,29 @@ public:
     /// `errc::not_found` for a port with no set.  Removing a port removes
     /// its set.
     result<void> remove_rules(endpoint_id place);
+
+    /// Raises a signal of a port's rule set: the first rule listed that
+    /// matches it fires, as if the bytes it carries had been matched.
+    /// `cause` is the time, on the hub's clock, of the event that the
+    /// signal is the answer to; a rule may time its actions from it.  A
+    /// signal counts against the set's budget of firings.
+    ///
+    /// `errc::not_found` for a port with no set or a signal the set does
+    /// not declare, and `errc::invalid_argument` for more than
+    /// `rules::max_signal_bytes` or a `cause` that is in the future or more
+    /// than `rules::max_signal_age` old.  A set that is suspended ignores
+    /// the signal, and the call succeeds.
+    result<void> raise_signal(endpoint_id place, std::string_view signal,
+                              bytes_view carried, time_point cause);
+
+    /// Suspends a port's rule set, and ends a suspension (see
+    /// `rules::scheduler::suspend`).  A set that fires faster than its
+    /// budget is suspended by the engine and stays so until it is resumed;
+    /// `rule_stats` says whether it is, and why.  `errc::not_found` for a
+    /// port with no set.  Suspending a suspended set and resuming a running
+    /// one do nothing and succeed.
+    result<void> suspend_rules(endpoint_id place);
+    result<void> resume_rules(endpoint_id place);
 
     /// The counters of a port's rule set, exact at the instant of the call.
     result<rules::scheduler_stats> rule_stats(endpoint_id place) const;
@@ -477,6 +505,9 @@ private:
         std::uint64_t generation = 0;
     };
 
+    /// The set of a port, if it has one.
+    std::shared_ptr<rules::scheduler> rules_of(endpoint_id place) const;
+
     /// Does one action of a rule set on its port.  Called on the set's
     /// scheduler strand.
     void carry_out_rule_action(endpoint_id id,
@@ -532,6 +563,8 @@ private:
     mutable std::mutex rules_mutex_;
     std::unordered_map<endpoint_id, rules_record> rules_;
     std::uint64_t next_rules_generation_ = 1;
+    /// The compiled sizes of the installed sets, together.
+    std::size_t rules_bytes_ = 0;
 };
 
 } // namespace vss
