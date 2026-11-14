@@ -82,7 +82,7 @@ signature_finding signed_by_unknown(std::string key_id)
 /// a computer that can keep it partly apart, and no policy file.
 struct scene
 {
-    manifest declared = good_manifest();
+    manifest declared;
     policy rules;
     revocation_list revoked;
     std::vector<std::string> capabilities{"engine_rules"};
@@ -90,6 +90,7 @@ struct scene
 
     scene()
     {
+        declared = good_manifest();
         input.hash = hash_plugin(declared.files);
         input.today = today;
         input.host_api = api_version{1, 0};

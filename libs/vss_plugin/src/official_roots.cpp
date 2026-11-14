@@ -39,7 +39,7 @@ namespace
 
 /// The 32 bytes written as 64 lower-case hex characters.  Anything else
 /// does not compile.
-consteval key_bytes key_from_hex(std::string_view text)
+constexpr key_bytes key_from_hex(std::string_view text)
 {
     if (text.size() != 64)
         a_public_key_is_wrong();

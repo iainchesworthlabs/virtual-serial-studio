@@ -160,12 +160,12 @@ std::size_t messages(const event_recorder& events, const std::string& port,
 struct studio_bench
 {
     hand_clock clock;
-    studio app{options_on(clock)};
+    studio app;
     event_recorder events;
     std::shared_ptr<endpoint> device;
     endpoint_id id = 0;
 
-    studio_bench()
+    studio_bench() : app{options_on(clock)}
     {
         const auto created = app.create_mock_port("device");
         REQUIRE(created);
