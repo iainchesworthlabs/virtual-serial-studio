@@ -12,6 +12,7 @@
 #include "agent_command.hpp"
 #include "control_command.hpp"
 #include "permissions_command.hpp"
+#include "plugin_command.hpp"
 
 #include <vss/core/profile.hpp>
 #include <vss/core/profiling.hpp>
@@ -91,7 +92,7 @@ struct arguments
 
 void print_usage()
 {
-    // One string literal, split across lines.  Only the three %s conversions
+    // One string literal, split across lines.  Only the five %s conversions
     // near the end take arguments; keep a literal % out of the text.
     std::printf(
         "Virtual Serial Studio command line\n"
@@ -220,10 +221,12 @@ void print_usage()
         "%s"
         // Third %s: the permission options, supplied by permissions_usage().
         "%s"
+        // Fourth %s: the plugin command, supplied by plugin_usage().
+        "%s"
         "  Common: --verbose, --quiet\n"
         "\n"
         "  Profiling (Tracy; off unless asked, this computer only):\n"
-        // Fourth %s: the profiling options from vss::profiling::usage().
+        // Fifth %s: the profiling options from vss::profiling::usage().
         "%s"
         "\n"
         // The licence notice is the standard GPL interactive-program text.
@@ -231,7 +234,7 @@ void print_usage()
         "License, version 3 or later.  This program comes with ABSOLUTELY NO\n"
         "WARRANTY; see LICENSE for details.\n",
         vss_cli::agent_usage(), vss_cli::control_usage(),
-        vss_cli::permissions_usage(),
+        vss_cli::permissions_usage(), vss_cli::plugin_usage(),
         // usage() is a string_view; copy it to get a terminated %s string.
         std::string(vss::profiling::usage()).c_str());
 }
@@ -1583,6 +1586,12 @@ try
         {
             VSS_PROFILE_ZONE("cli.permissions");
             return vss_cli::command_permissions(
+                std::vector<std::string>(argv + 1, argv + argc));
+        }
+        if (command == "plugin")
+        {
+            VSS_PROFILE_ZONE("cli.plugin");
+            return vss_cli::command_plugin(
                 std::vector<std::string>(argv + 1, argv + argc));
         }
     }
