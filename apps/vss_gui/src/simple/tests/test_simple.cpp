@@ -813,9 +813,10 @@ TEST_CASE("simple: a failed change of a combine leaves the setup as it was")
     with_devices(backend);
     REQUIRE(build_setup(backend, combine_plan(3)).has_value());
     const auto found = setups(backend);
-    const vss::link_id link_id = backend.links().front().id;
+    const auto made_links = backend.links();
+    const vss::link_id link_id = made_links.front().id;
     const std::size_t ports = backend.ports().size();
-    const auto senders = backend.links().front().sources;
+    const auto senders = made_links.front().sources;
     REQUIRE_EQ(senders.size(), qsizetype{3});
 
     // A sender is added and another taken off; the second step fails, and the
@@ -913,9 +914,10 @@ TEST_CASE("simple: a failed change of a bus leaves the setup as it was")
     backend.set_capabilities(windows_caps());
     REQUIRE(build_setup(backend, bus_plan(3)).has_value());
     const auto found = setups(backend);
-    const vss::link_id link_id = backend.links().front().id;
+    const auto made_links = backend.links();
+    const vss::link_id link_id = made_links.front().id;
     const std::size_t ports = backend.ports().size();
-    const auto members = backend.links().front().sources;
+    const auto members = made_links.front().sources;
 
     // A member is added and another taken off; the second step fails.
     job_plan plan = plan_from(found[0], backend.ports());
