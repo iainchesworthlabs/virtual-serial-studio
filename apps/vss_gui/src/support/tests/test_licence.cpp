@@ -367,7 +367,7 @@ TEST_CASE("licence text: the summary rows and the notes under the card")
 
     REQUIRE_EQ(s::seats_text(3), QStringLiteral("3 seats"));
     REQUIRE_EQ(s::seats_text(1), QStringLiteral("1 seat"));
-    REQUIRE_EQ(s::seats_text(0), QStringLiteral("Site licence"));
+    REQUIRE_EQ(s::seats_text(0), QStringLiteral("Not counted by seat"));
     REQUIRE_EQ(s::term_text(sample::annual()),
                QStringLiteral("%1 to %2")
                    .arg(sample::date("2026-11-13T00:00:00Z"), ends));
@@ -673,8 +673,9 @@ TEST_CASE("licence dialog: the summary leaves out rows with no value")
     REQUIRE_EQ(label_named(dialog, "licenceRowSeats")->text(),
                QStringLiteral("3 seats"));
     REQUIRE_EQ(label_named(dialog, "licenceRowSeatsNote")->text(),
-               QStringLiteral("A seat is your computer, plus one other "
-                              "computer you use to monitor it."));
+               QStringLiteral("A seat is two computers: the one you work at "
+                              "and one other that you control or monitor "
+                              "from it. The serial device can be on either."));
     REQUIRE_EQ(label_named(dialog, "licenceRowComputers")->text(),
                QStringLiteral("LAB-*\nRIG-01"));
     REQUIRE_EQ(label_named(dialog, "licenceRowThisComputer")->text(),
@@ -683,13 +684,34 @@ TEST_CASE("licence dialog: the summary leaves out rows with no value")
                QStringLiteral("Official plugins\nMicrosoft-signed driver\n"
                               "Support"));
 
-    // A site licence, and a licence that does not name computers.
+    // A licence with no seat count, which also names no computers. The page
+    // says only what the file carries and never calls it a site licence.
     lic::licence site = sample::annual();
     site.seats = 0;
     backend.set_licence(
         sample::view_of(sample::judge(site, "2027-03-01T12:00:00Z")));
     REQUIRE_EQ(label_named(dialog, "licenceRowSeats")->text(),
-               QStringLiteral("Site licence"));
+               QStringLiteral("Not counted by seat"));
+    REQUIRE(!label_named(dialog, "licenceRowSeatsNote")->isVisibleTo(&dialog));
+
+    // An Enterprise licence with a seat count: the count, and no definition
+    // of a seat, because what it covers was negotiated.
+    lic::licence agreed = sample::annual();
+    agreed.kind = lic::licence_kind::enterprise;
+    agreed.edition = lic::edition::enterprise;
+    agreed.seats = 25;
+    backend.set_licence(
+        sample::view_of(sample::judge(agreed, "2027-03-01T12:00:00Z")));
+    REQUIRE_EQ(label_named(dialog, "licenceRowSeats")->text(),
+               QStringLiteral("25 seats"));
+    REQUIRE_EQ(label_named(dialog, "licenceRowSeatsNote")->text(),
+               QStringLiteral("As agreed in your Enterprise licence."));
+    REQUIRE(label_named(dialog, "licenceRowSeatsNote")->isVisibleTo(&dialog));
+    agreed.seats = 0;
+    backend.set_licence(
+        sample::view_of(sample::judge(agreed, "2027-03-01T12:00:00Z")));
+    REQUIRE_EQ(label_named(dialog, "licenceRowSeats")->text(),
+               QStringLiteral("Not counted by seat"));
     REQUIRE(!label_named(dialog, "licenceRowSeatsNote")->isVisibleTo(&dialog));
     REQUIRE(!shown("licenceRowComputers"));
     lic::licence single = sample::annual();

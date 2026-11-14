@@ -331,19 +331,28 @@ std::optional<licence_banner> state_note(const lic::status& status)
 QString seats_text(int seats)
 {
     if (seats <= 0)
-        return QCoreApplication::translate("LicenceDialog", "Site licence");
+        return QCoreApplication::translate("LicenceDialog",
+                                           "Not counted by seat");
     if (seats == 1)
         return QCoreApplication::translate("LicenceDialog", "1 seat");
     return QCoreApplication::translate("LicenceDialog", "%n seats", nullptr,
                                        seats);
 }
 
-QString seat_explanation()
+QString seat_explanation(const lic::licence& value)
 {
+    // A licence that is not counted by seat has nothing to explain.
+    if (value.seats <= 0)
+        return {};
+    // What a seat covers in an Enterprise licence is part of what was
+    // negotiated, so the page does not define it.
+    if (value.edition == lic::edition::enterprise)
+        return QCoreApplication::translate(
+            "LicenceDialog", "As agreed in your Enterprise licence.");
     return QCoreApplication::translate(
         "LicenceDialog",
-        "A seat is your computer, plus one other computer you use to monitor "
-        "it.");
+        "A seat is two computers: the one you work at and one other that you "
+        "control or monitor from it. The serial device can be on either.");
 }
 
 QString term_text(const lic::licence& value)
