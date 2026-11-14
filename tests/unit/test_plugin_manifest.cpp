@@ -2835,3 +2835,32 @@ TEST_CASE("plugin manifest: the error of a refused manifest has the category")
     REQUIRE(without_detail.has_error());
     REQUIRE(without_detail.error() == refused.error());
 }
+
+TEST_CASE("plugin manifest: a document of very many keys is refused quickly")
+{
+    // Tens of thousands of different keys in one object.  The check for a
+    // key given twice once took time that grew with the square of their
+    // number; a manifest of the largest size then held the reader for
+    // minutes.
+    std::string text = "{";
+    std::size_t count = 0;
+    while (text.size() + 32 < max_manifest_size)
+    {
+        if (count != 0)
+            text += ',';
+        text += "\"key";
+        text += std::to_string(count++);
+        text += "\":0";
+    }
+    REQUIRE(count > 15000);
+    std::string detail;
+    auto parsed = parse_manifest(text + "}", &detail);
+    REQUIRE(parsed.has_error());
+    REQUIRE(parsed.error() == plugin_errc::manifest_invalid);
+    REQUIRE(detail.find("given twice") == std::string::npos);
+
+    // And the first key again at the very end is still found.
+    parsed = parse_manifest(text + ",\"key0\":1}", &detail);
+    REQUIRE(parsed.has_error());
+    REQUIRE(detail.find("given twice") != std::string::npos);
+}

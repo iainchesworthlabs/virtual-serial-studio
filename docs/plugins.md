@@ -466,9 +466,11 @@ in this build". Nothing pretends to carry out a rule it cannot.
   `socketpair` (elsewhere, with close-on-exec set on every other descriptor). There is **no name** to guess, no
   listening socket and no way for another process to connect. The plugin is told the handle number in its
   environment variable `VSS_PLUGIN_CHANNEL`.
-- **Framing is the agent's** (`libs/vss_agent_proto`): `u32 size`, `u32 header size`, a JSON header, a blob, with the
-  same limits (frame at most 1 MiB, JSON depth 8, text 1024 bytes, lists 4096). The same decoder, and the same fuzz
-  harness, is reused. Bytes of traffic travel in the blob, never in JSON.
+- **Framing is the agent's** (`libs/vss_agent_proto`): `u32 size`, `u32 header size`, a JSON header, a blob, with
+  a frame of at most 1 MiB. The same frame reader is reused. Bytes of traffic travel in the blob, never in JSON.
+  The plugin API has limits of its own on the header: at most 64 KiB, JSON depth 8, a text of at most 1024
+  bytes and a list of at most 256 entries in the messages of section 7.3. A header is small because the bytes
+  are in the blob, and the limit bounds the work one message can ask of the host.
 - A plugin's standard input is closed. Its standard output and error are read by the host and kept as log lines
   (section 7.3), at most 64 KiB per second, truncated, never trusted as markup.
 - No shell, no environment other than the minimum (`VSS_PLUGIN_CHANNEL`, `VSS_PLUGIN_DATA`, `VSS_PLUGIN_ID`, a
@@ -508,7 +510,7 @@ exceptions) is failed with `error: timeout` and, for the host, counts as a miss 
 | `params.changed` | host | Instance id, the changed parameters with validated values. The plugin acknowledges with a reply (`ok`, or `error` with a reason that Studio shows beside the parameter) |
 | `instance.create` / `instance.stop` | host | Section 7.4 and after |
 | `shutdown`, `bye` | host, plugin | Section 5.6 |
-| `error` | either | `{category, value, message}`. Categories: `vss.plugin` (the plugin API's own: `unknown_op`, `bad_request`, `refused`, `not_granted`, `not_declared`, `timeout`, `busy`, `unsupported`, `plugin_unavailable`), `vss` (the engine's, passed through) |
+| `error` | either | `{category, value, message}`. Categories: `vss.plugin.api` (the plugin API's own: `unknown_op`, `bad_request`, `refused`, `not_granted`, `not_declared`, `timeout`, `busy`, `unsupported`, `plugin_unavailable`), `vss` (the engine's, passed through) |
 
 `clock`: the host gives the plugin a monotonic base: `{"epoch_ns": n}` and every timestamp in the API is nanoseconds
 since that base on the **host's** clock. A plugin does not tell the host what time it is, and a timestamp it sends

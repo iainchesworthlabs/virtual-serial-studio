@@ -18,6 +18,7 @@ add_library(vss_plugin
   src/measure.cpp
   src/official_roots.cpp
   src/policy.cpp
+  src/protocol.cpp
   src/revocations.cpp
   src/signature.cpp
   src/trust_store.cpp
@@ -32,7 +33,9 @@ target_compile_features(vss_plugin PUBLIC cxx_std_23)
 # The signed envelope and the Ed25519 check are the licence library's; a
 # plugin signature is that envelope with a purpose of its own.  licence.hpp
 # takes a licence status in its interface, so the licence library is public.
-target_link_libraries(vss_plugin PUBLIC vss_core Vss::license
+# protocol.hpp carries a message in the agent's frame, so the frame library is
+# public too; it does not link this library back.
+target_link_libraries(vss_plugin PUBLIC vss_core Vss::agent_proto Vss::license
   PRIVATE Vss::BoostJson)
 
 # Where the plugin folders and the policy file are, and who owns a file and
@@ -52,7 +55,7 @@ endif()
 vss_set_warnings(vss_plugin)
 # boost::system::error_category deliberately has a non-virtual destructor and
 # is meant to be derived from; GCC warns about the base anyway.
-set_source_files_properties(src/error.cpp PROPERTIES
+set_source_files_properties(src/error.cpp src/protocol.cpp PROPERTIES
   COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wno-non-virtual-dtor>")
 vss_enable_coverage(vss_plugin)
 vss_mark_coverage_subject(vss_plugin)
