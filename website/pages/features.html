@@ -47,11 +47,10 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 </ul>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of sharing a device">
-<span class="chip warn hollow">Picture to come</span>
-<span>The Advanced diagram with one real device split to three virtual ports, and the page that says the ports are ready with their names.</span>
-<code>shot: share-device</code>
-</div>
+<picture>
+<source srcset="img/shots/share-device-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/share-device-light.png" width="760" height="640" loading="lazy" alt="The last page of sharing a device. The heading says COM3 is shared with 3 programs. A table lists each program, the port it opens and its state: terminal on COM7 and test-tool on COM8 are open, and logger is for Studio only. A line below says that everything COM3 receives is copied to all 3 ports.">
+</picture>
 <figcaption>One real device shared with three programs.</figcaption>
 </figure>
 </div>
@@ -116,11 +115,10 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <p>These protocols carry no encryption and no login of their own. The user guide explains how to keep an endpoint safe.</p>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of the network endpoint dialog">
-<span class="chip warn hollow">Picture to come</span>
-<span>The Network endpoint dialog with the protocol, the address, and the sentence that says who will be able to connect.</span>
-<code>shot: network-endpoint</code>
-</div>
+<picture>
+<source srcset="img/shots/network-endpoint-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/network-endpoint-light.png" width="760" height="760" loading="lazy" alt="The dialog for putting a device on the network. It has the device to share, a choice of TCP, UDP or RFC 2217, a choice of server or client, the interface and the port. A sentence says that other computers can connect to this PC on port 4001 and talk to COM3. Below are a warning about Windows Firewall, the address and the same thing as a command.">
+</picture>
 <figcaption>Making a network endpoint.</figcaption>
 </figure>
 </div>
@@ -184,11 +182,10 @@ vss_cli bridge serial://COM3 tcp-listen://0.0.0.0:4001</code></pre>
 </ul>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of the troubleshooter">
-<span class="chip warn hollow">Picture to come</span>
-<span>The &ldquo;Why is nothing arriving?&rdquo; dialog: one group of checks, each with a tile in the colour of its state and a sentence.</span>
-<code>shot: troubleshoot</code>
-</div>
+<picture>
+<source srcset="img/shots/troubleshoot-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/troubleshoot-light.png" width="640" height="760" loading="lazy" alt="The dialog that asks why nothing is arriving on a port. It lists five checks, each with its state and a sentence: the port exists and is open, the port is linked to the device, the device is sending, a program has opened the port, and data reaches the program. Below is a list of things to try, with buttons to copy the port name and to check again.">
+</picture>
 <figcaption>The &ldquo;Why is nothing arriving?&rdquo; dialog.</figcaption>
 </figure>
 </div>

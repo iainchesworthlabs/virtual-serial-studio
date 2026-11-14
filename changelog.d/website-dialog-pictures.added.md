@@ -1,0 +1,1 @@
+**The features page of the website shows three dialogs.** It has pictures of sharing a device, of putting a device on the network and of the "Why is nothing arriving?" dialog, each in the light and the dark theme, with sample ports. The pictures of the Monitor and of fixture faults are still placeholders.
