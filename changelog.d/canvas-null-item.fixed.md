@@ -1,0 +1,1 @@
+**The GPU canvas skips an item that is not there instead of reading through a null pointer.** The draw loop now checks each canvas item before it asks whether the item is visible. No crash was seen; the check was added because code analysis could not rule one out.
