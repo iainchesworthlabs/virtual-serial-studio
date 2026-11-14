@@ -12,6 +12,7 @@ add_library(vss_plugin
   src/discover.cpp
   src/error.cpp
   src/hash.cpp
+  src/licence.cpp
   src/manifest.cpp
   src/measure.cpp
   src/official_roots.cpp
@@ -28,9 +29,10 @@ target_include_directories(vss_plugin PUBLIC
 target_include_directories(vss_plugin PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_features(vss_plugin PUBLIC cxx_std_23)
 # The signed envelope and the Ed25519 check are the licence library's; a
-# plugin signature is that envelope with a purpose of its own.
-target_link_libraries(vss_plugin PUBLIC vss_core
-  PRIVATE Vss::license Vss::BoostJson)
+# plugin signature is that envelope with a purpose of its own.  licence.hpp
+# takes a licence status in its interface, so the licence library is public.
+target_link_libraries(vss_plugin PUBLIC vss_core Vss::license
+  PRIVATE Vss::BoostJson)
 
 # Who owns a file and who may write to it is asked of the operating system.
 # Linux and macOS share one implementation; Windows has its own.

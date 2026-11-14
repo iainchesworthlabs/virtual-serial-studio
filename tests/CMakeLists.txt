@@ -49,6 +49,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_access.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
+  unit/test_plugin_licence.cpp
   unit/test_plugin_manifest.cpp
   unit/test_plugin_measure.cpp
   unit/test_plugin_signature.cpp
