@@ -20135,8 +20135,8 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>Un puesto es su equipo, más otro equipo que use para supervisarlo.</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>Un puesto son dos equipos: aquel en el que trabaja y otro que controla o supervisa desde él. El dispositivo serie puede estar en cualquiera de los dos.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />

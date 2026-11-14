@@ -20109,8 +20109,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>1シートは、お使いのコンピューターと、それを監視するために使うもう1台のコンピューターです。</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>1 シートはコンピューター 2 台分です。作業に使う 1 台と、そこから制御または監視するもう 1 台です。シリアルデバイスはどちらにあってもかまいません。</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />

@@ -673,8 +673,9 @@ TEST_CASE("licence dialog: the summary leaves out rows with no value")
     REQUIRE_EQ(label_named(dialog, "licenceRowSeats")->text(),
                QStringLiteral("3 seats"));
     REQUIRE_EQ(label_named(dialog, "licenceRowSeatsNote")->text(),
-               QStringLiteral("A seat is your computer, plus one other "
-                              "computer you use to monitor it."));
+               QStringLiteral("A seat is two computers: the one you work at "
+                              "and one other that you control or monitor "
+                              "from it. The serial device can be on either."));
     REQUIRE_EQ(label_named(dialog, "licenceRowComputers")->text(),
                QStringLiteral("LAB-*\nRIG-01"));
     REQUIRE_EQ(label_named(dialog, "licenceRowThisComputer")->text(),

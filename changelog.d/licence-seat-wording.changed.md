@@ -1,0 +1,1 @@
+**The Licence page says what a seat is in the settled words.** Under the seat count it now reads "A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either."

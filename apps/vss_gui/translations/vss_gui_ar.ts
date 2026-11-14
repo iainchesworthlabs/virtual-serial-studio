@@ -20239,8 +20239,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>المقعد هو حاسوبك، إضافة إلى حاسوب آخر واحد تستخدمه لمراقبته.</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>المقعد هو حاسوبان: الحاسوب الذي تعمل عليه وحاسوب آخر تتحكم فيه أو تراقبه منه. يمكن أن يكون الجهاز التسلسلي على أيٍّ منهما.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
