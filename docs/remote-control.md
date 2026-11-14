@@ -966,6 +966,24 @@ in the same request. Runs and the JUnit report are a separate change.
 The direction of a pattern (`rx`, the usual, or `tx`) is the engine's: a loopback port reports what is written to
 it as received and sends it on to whatever it is linked to.
 
+### What runs and the report built
+
+The rest of slice 4 on the local endpoint.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| A run collects what a harness checked | `runs.begin` opens a named run; each `expect.bytes` of the same principal is noted with its label, how it ended and how long it took (found: passed; not in time: failed; anything else: error); `runs.record` adds a check of the harness's own; `runs.end` gives the counts | Runs are kept in memory: the eight newest, a thousand checks each. A gateway that restarts has none |
+| A run belongs to who opened it | It is filled and ended from other connections of the same principal, as a harness does that connects for each step. Another principal cannot end it, fill it, or read its report by id or as "the latest"; the administration endpoint reads any run by id | The audit records of port changes are not labelled with the run; those of `expect.bytes` and of the run itself are |
+| A report cannot be changed by what a harness calls its checks | Names and messages that try to end an attribute, close the suite, open a CDATA section or declare an entity leave a document with exactly one suite and one case; the writer is tested character by character for the five characters XML gives a meaning, bytes that are not UTF-8 and the characters XML 1.0 does not allow | The document is checked for its shape, not parsed by an XML library |
+
+Differences from sections 5 and 9 as first written, and why:
+
+- **Runs need `monitor`, not `control.ports`.** A run changes nothing of the ports; a harness that may only watch and
+  wait for bytes still wants a report.
+- **`expect.bytes` can send.** The table has it as a read only. Sending in the same request is what closes the gap
+  between a stimulus and the start of listening, and it is refused without `control.data`.
+- **The time of day in a report** is the gateway's clock at `runs.begin`, written as XML Schema writes it.
+
 ## 14. Decisions for the owner
 
 All twelve were accepted as recommended.

@@ -399,6 +399,47 @@ result<matched_reply> client::expect_bytes(const expect_bytes_request& wanted)
     return *found;
 }
 
+namespace
+{
+
+result<run_reply> run_of(result<reply_body> answer)
+{
+    if (!answer)
+        return answer.error();
+    auto* run = std::get_if<run_reply>(&*answer);
+    if (run == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(*run);
+}
+
+} // namespace
+
+result<run_reply> client::begin_run(const std::string& name)
+{
+    return run_of(impl_->call(runs_begin_request{name}));
+}
+
+result<run_reply> client::end_run()
+{
+    return run_of(impl_->call(runs_end_request{}));
+}
+
+result<void> client::record_in_run(const runs_record_request& noted)
+{
+    return carried_out(impl_->call(noted));
+}
+
+result<std::string> client::report_junit(const std::string& run)
+{
+    auto answer = impl_->call(report_junit_request{run});
+    if (!answer)
+        return answer.error();
+    auto* report = std::get_if<report_reply>(&*answer);
+    if (report == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(report->xml);
+}
+
 result<void> client::stop()
 {
     auto answer = impl_->call(endpoint_stop_request{});

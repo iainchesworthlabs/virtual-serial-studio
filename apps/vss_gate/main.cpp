@@ -85,9 +85,18 @@ public:
 
     ~stop_signals()
     {
-        io_.stop();
-        if (thread_.joinable())
-            thread_.join();
+        try
+        {
+            io_.stop();
+            if (thread_.joinable())
+                thread_.join();
+        }
+        catch (...)
+        {
+            // The thread could not be joined, so it may still use this
+            // object: there is nothing to go on with.
+            std::terminate();
+        }
     }
 
     stop_signals(const stop_signals&) = delete;

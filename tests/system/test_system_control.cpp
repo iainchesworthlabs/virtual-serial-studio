@@ -1267,6 +1267,96 @@ TEST_CASE("system control: a monitor may not wait for bytes")
     REQUIRE(contains(refused.output, "control expect failed"));
 }
 
+TEST_CASE("system control: a run is filled by separate commands and comes "
+          "back as a JUnit report")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+
+    const std::string a_id =
+        control_create_port(instance, "alpha", {"--kind=loopback"});
+    const std::string b_id = control_create_port(instance, "beta");
+    const auto linked =
+        run_cli("control", instance, {"link", a_id, b_id, "--one-way"});
+    static_cast<void>(id_line(linked, "l_", "vss_cli control link --one-way"));
+
+    // Every step is a process of its own: the run belongs to the user, not
+    // to a connection.
+    const std::string run_id =
+        id_line(run_cli("control", instance, {"run", "begin", "smoke"}), "r_",
+                "vss_cli control run begin");
+
+    const auto answered =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=4f4b", "--send-to=" + a_id,
+                 "--send=4f4b", "--timeout=20000", "--label=it answers"});
+    require_exit(answered, 0, "vss_cli control expect --label");
+
+    const auto silent =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=4e4f", "--send-to=" + a_id,
+                 "--send=00", "--timeout=200"});
+    REQUIRE(silent.code.has_value() && silent.code != 0);
+
+    const auto noted = run_cli("control", instance,
+                               {"run", "record", "by hand", "--outcome=skipped",
+                                "--message=nobody looked"});
+    require_exit(noted, 0, "vss_cli control run record");
+    REQUIRE(noted.output.empty());
+
+    // The command reports the counts and does not judge them: the exit code
+    // is 0 although one check failed.
+    const auto ended = run_cli("control", instance, {"run", "end"});
+    require_exit(ended, 0, "vss_cli control run end");
+    const std::vector<std::string> end_lines = lines_of(ended.output);
+    REQUIRE_EQ(end_lines.size(), std::size_t{1});
+    const std::vector<std::string> end_words = words_of(end_lines[0]);
+    REQUIRE_EQ(end_words.size(), std::size_t{6});
+    REQUIRE_EQ(end_words[0], run_id);
+    REQUIRE_EQ(end_words[1], std::string("tests=3"));
+    REQUIRE_EQ(end_words[2], std::string("failures=1"));
+    REQUIRE_EQ(end_words[3], std::string("errors=0"));
+    REQUIRE_EQ(end_words[4], std::string("skipped=1"));
+    const std::string duration_key = "duration_ms=";
+    REQUIRE(end_words[5].starts_with(duration_key));
+    REQUIRE(all_digits(end_words[5].substr(duration_key.size())));
+
+    // The report in a file, and the same report on the screen.
+    const std::filesystem::path file = gate.scratch_dir() / "report.xml";
+    const auto written = run_cli("control", instance,
+                                 {"run", "report", "--out=" + file.string()});
+    require_exit(written, 0, "vss_cli control run report --out");
+    REQUIRE(written.output.empty());
+    const std::string xml = read_text(file);
+    REQUIRE(contains(xml, "<testsuite name=\"smoke\" tests=\"3\" "
+                          "failures=\"1\" errors=\"0\" skipped=\"1\""));
+    REQUIRE(contains(xml, "<testcase name=\"it answers\""));
+    REQUIRE(contains(xml, "<skipped message=\"nobody looked\"/>"));
+
+    const auto shown = run_cli("control", instance, {"run", "report", run_id});
+    require_exit(shown, 0, "vss_cli control run report <id>");
+    // A text stream on Windows ends a line with a carriage return and a line
+    // feed; the report holds no carriage return of its own.
+    std::string shown_text = shown.output;
+    std::erase(shown_text, '\r');
+    REQUIRE_EQ(shown_text, xml);
+
+    // The run is closed: it cannot be ended twice, and a new one may begin.
+    const auto again = run_cli("control", instance, {"run", "end"});
+    require_exit(again, 1, "vss_cli control run end of a closed run");
+    REQUIRE(contains(again.output, "not_found"));
+    REQUIRE(contains(again.output, "control run end failed"));
+
+    // One run is open at a time.
+    static_cast<void>(
+        id_line(run_cli("control", instance, {"run", "begin", "x"}), "r_",
+                "vss_cli control run begin"));
+    const auto second = run_cli("control", instance, {"run", "begin", "y"});
+    require_exit(second, 1, "vss_cli control run begin of a second run");
+    REQUIRE(contains(second.output, "conflict"));
+}
+
 TEST_CASE("system control: the commands on ports refuse a bad command line")
 {
     // No gateway runs: a command line that is wrong ends in a usage error
@@ -1337,7 +1427,39 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"status", "--timeout=100"},
         {"sessions", "--pattern=00"},
         {"kick", "1", "--tx"},
-        {"token", "list", "--send=00"}};
+        {"token", "list", "--send=00"},
+        {"run"},
+        {"run", "begin"},
+        {"run", "begin", "a", "b"},
+        {"run", "begin", ""},
+        {"run", "frobnicate"},
+        {"run", "end", "extra"},
+        {"run", "record", "x"},
+        {"run", "record", "x", "--outcome=maybe"},
+        {"run", "record", "x", "--outcome="},
+        {"run", "record", "x", "--outcome=PASSED"},
+        {"run", "record", "--outcome=passed"},
+        {"run", "record", "x", "--outcome=passed", "--outcome=failed"},
+        {"run", "record", "x", "--outcome=passed", "--duration=x"},
+        {"run", "record", "x", "--outcome=passed", "--duration=-1"},
+        {"run", "record", "x", "--outcome=passed", "--out=f.xml"},
+        {"run", "report", "r_1", "r_2"},
+        {"run", "report", "--out="},
+        {"run", "report", "--outcome=passed"},
+        {"run", "report", "--out=f.xml", "--out=g.xml"},
+        {"run", "begin", "x", "--out=f.xml"},
+        {"run", "begin", "x", "--message=m"},
+        {"run", "begin", "x", "--label=l"},
+        {"run", "begin", "x", "--pattern=00"},
+        {"run", "end", "--duration=5"},
+        {"expect", "p_1", "--pattern=00", "--label="},
+        {"expect", "p_1", "--pattern=00", "--label=a", "--label=b"},
+        {"expect", "p_1", "--pattern=00", "--outcome=passed"},
+        {"expect", "p_1", "--pattern=00", "--out=f.xml"},
+        {"expect", "p_1", "--pattern=00", "--role=monitor"},
+        {"send", "p_1", "--hex=00", "--label=l"},
+        {"status", "--outcome=passed"},
+        {"token", "list", "--message=m"}};
     for (const auto& words : unusable)
     {
         const auto outcome = run_cli("control", instance, words);
@@ -1353,7 +1475,17 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"link", "p_1", "p_2", "--one-way"},
         {"expect", "p_1", "--pattern=00"},
         {"expect", "p_1", "--pattern=00FFab", "--timeout=100000", "--tx"},
-        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send=AB"}};
+        {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send=AB"},
+        {"expect", "p_1", "--pattern=00", "--label=it answers"},
+        {"run", "begin", "smoke"},
+        {"run", "end"},
+        {"run", "record", "by hand", "--outcome=skipped"},
+        {"run", "record", "by hand", "--outcome=failed",
+         "--message=", "--duration=0"},
+        {"run", "report"},
+        {"run", "report", "r_1"},
+        {"run", "report", "--out=f.xml"},
+        {"run", "report", "r_1", "--out=f.xml"}};
     for (const auto& words : usable)
     {
         const auto outcome = run_cli("control", instance, words);
