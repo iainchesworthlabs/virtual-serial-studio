@@ -122,10 +122,21 @@ A feature is a dotted name. A licence lists exact names or a prefix ending in
 | `plugins.<id>` | One official plugin, for a licence that sells plugins singly |
 | `driver.signed` | Entitlement to the Microsoft-signed driver package (a term of the licence; see [What never degrades](#what-never-degrades)) |
 | `support` | Support. Shown on the Support page |
-| `policy.official-only` | Enterprise: the administrator policy that allows only official plugins |
 
 The plugin framework owns the plugin ids. This library only answers "does the
 current licence grant feature X, and if not, why".
+
+A licence gates the official plugins, not the plugin API: the API is public,
+documented and free. The official plugins built on it, and the agent's internal
+protocol, are private with no compatibility promise.
+
+The administrator policy that allows official plugins only is not a licence
+feature. It is the policy of [the plugin framework](plugins.md), section 8.6,
+and it works in every edition. No feature name stands for it.
+
+Pro and Enterprise licences turn on the same features. `edition: enterprise`
+marks a site licence whose price and term were agreed with the customer; it adds
+no feature of its own.
 
 ## Signatures and keys
 
@@ -358,7 +369,8 @@ one.
 
 ## Seats
 
-A Pro seat is "your computer, plus one other computer you monitor". There is no
+One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
+Controlling one of the two from the other is part of the seat. There is no
 server, and the GUI makes no network connection, so nothing can count
 installations. The options:
 
@@ -384,7 +396,8 @@ installations. The options:
   administrator can see why.
 * **Not D and not E.**
 
-The second computer of a seat, the one that monitors, installs the same file.
+The second computer of a seat installs the same file, whichever of the two has
+the serial device.
 Studio does not tell the two apart. If the remote monitoring plugin later wants
 to check that both ends hold the same licence id when they connect, that is a
 check inside a connection the user has already set up, and it belongs to the
@@ -581,3 +594,17 @@ The owner accepted the recommendations of this page on 13 November 2026:
 9. **One bundle.** The diagnostic bundle becomes the support bundle. It holds
    no traffic, so the "Traffic contents" option is removed, and it gains a
    manifest of sections that the Pro replay plugin extends.
+
+The owner settled three more points on 14 November 2026:
+
+10. **What a seat is.** One Pro licence is one seat. A seat is two computers:
+    the one you work at and one other that you control or monitor from it. The
+    serial device can be on either. Remote control between the two is part of
+    the seat.
+11. **Enterprise.** It differs from Pro in its terms only: a site licence, with
+    price and term on application. It has no feature of its own. The
+    administrator policy that allows official plugins only is not a licence
+    feature and is not gated.
+12. **The plugin API.** It is public, documented and free. The official plugins
+    built on it, and the agent's internal protocol, are private with no
+    compatibility promise.

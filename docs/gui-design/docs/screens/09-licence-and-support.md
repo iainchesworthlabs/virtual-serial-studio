@@ -38,7 +38,7 @@ A card with the edition in display type, a StatusChip, and a definition list. Ro
 | "Licence number" | `<licence id>` in the fixed font, with a CopyButton (toast "<licence id> copied.") |
 | "Term" | "<start date> to <expiry date>" |
 | "Status" | The state sentence below |
-| "Seats" | "<n> seats" (`%n`; "1 seat"), then on the next line in muted text "A seat is your computer, plus one other computer you use to monitor it." For a site licence: "Site licence" |
+| "Seats" | "<n> seats" (`%n`; "1 seat"), then on the next line in muted text "A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either." For a site licence: "Site licence" |
 | "Computers" | Only when the licence names computers: the names in the fixed font, then "This computer is <computer name>." |
 | "Includes" | One line for each: "Official plugins", "Microsoft-signed driver", "Support" |
 
