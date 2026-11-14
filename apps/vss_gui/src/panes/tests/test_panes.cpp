@@ -1533,6 +1533,7 @@ TEST_CASE("right to left: the inspector fits its pane in a narrow column")
     // Nothing is wider than the pane, so nothing is cut off at the edge.
     REQUIRE(scroll->widget()->minimumSizeHint().width() <=
             scroll->viewport()->width());
+}
 
 TEST_CASE("monitor panel: review screenshots in both themes")
 {
