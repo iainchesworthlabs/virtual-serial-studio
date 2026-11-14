@@ -1179,7 +1179,10 @@ TEST_CASE("plugin trust store: a file that repeats a decision is refused")
 {
     const std::string one = decision_object("com.example.plugin", 1);
     const std::string two = decision_object("com.example.plugin", 2);
-    REQUIRE(parse_trust_store(with_decision(one + ", " + two)).has_value());
+    std::string both = one;
+    both += ", ";
+    both += two;
+    REQUIRE(parse_trust_store(with_decision(both)).has_value());
 
     // The same id, hash and key id twice, whatever else differs.
     require_refused(with_decision(one + ", " + one),
@@ -1191,8 +1194,14 @@ TEST_CASE("plugin trust store: a file that repeats a decision is refused")
     const std::string free =
         replaced(replaced(one, R"("key_id": "acme-2026", )", ""),
                  "third_party_signed", "unsigned");
-    REQUIRE(parse_trust_store(with_decision(one + ", " + free)).has_value());
-    require_refused(with_decision(free + ", " + free), "plugins[1]");
+    std::string pair = one;
+    pair += ", ";
+    pair += free;
+    REQUIRE(parse_trust_store(with_decision(pair)).has_value());
+    std::string twice = free;
+    twice += ", ";
+    twice += free;
+    require_refused(with_decision(twice), "plugins[1]");
 
     // Eight for one id is the most, and a ninth is not dropped silently.
     std::string eight;

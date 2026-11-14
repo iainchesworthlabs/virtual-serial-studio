@@ -92,7 +92,7 @@ std::string peer_set(std::string_view rules_json, std::string_view extra = "",
     text += extra;
     text += R"j("rules": )j";
     text += rules_json;
-    text += "}";
+    text += '}';
     return text;
 }
 
@@ -381,7 +381,7 @@ void require_refused(studio& app, std::string_view port, std::string_view text,
         wanted += path + '\n';
     REQUIRE_EQ(found, wanted);
 
-    const auto place = app.find(std::string(port));
+    const auto place = app.find(port);
     REQUIRE(place != nullptr);
     REQUIRE(!app.rules_generation(place->id()).has_value());
     REQUIRE_EQ(app.rule_stats(place->id()).error(), not_found);

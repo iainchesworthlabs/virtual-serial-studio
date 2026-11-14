@@ -1421,7 +1421,8 @@ private:
         const bool sends = !wanted.send_port.empty();
         // Sending is a right of its own, asked of the same table.
         if (sends &&
-            !authorise(*client->who, info_of(operation::ports_send)).allowed)
+            (!client->who ||
+             !authorise(*client->who, info_of(operation::ports_send)).allowed))
         {
             forbidden_.fetch_add(1);
             refuse(api_errc::forbidden);
@@ -1550,6 +1551,8 @@ private:
     bool look_for_pattern(const session_ptr& client,
                           const agent::event_record& event)
     {
+        if (!client->expecting)
+            return false;
         session::expectation& wait = *client->expecting;
         if (event.kind != event_kind::data || event.endpoint != wait.port ||
             event.direction != wait.direction)
@@ -1594,6 +1597,8 @@ private:
     /// let go when nothing else wants it.
     void end_expectation(const session_ptr& client, std::string_view outcome)
     {
+        if (!client->expecting)
+            return;
         const session::expectation& wait = *client->expecting;
         record_expect(*client, port_id_text(wait.port), wait.pattern.size(),
                       wait.sent_bytes, outcome);
