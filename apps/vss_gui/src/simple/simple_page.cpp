@@ -242,8 +242,7 @@ void SimplePage::build()
             {
                 if (setups_.empty())
                 {
-                    Q_EMIT message(tr("Nothing is set up yet, so there is no "
-                                      "port to look at. Set something up "
+                    Q_EMIT message(tr("Nothing is set up yet. Set up a port "
                                       "first."));
                     return;
                 }

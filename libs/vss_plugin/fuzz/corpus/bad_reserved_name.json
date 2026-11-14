@@ -1,0 +1,11 @@
+{
+  "manifest_version": 1,
+  "id": "com.example.minimal",
+  "name": "Minimal",
+  "version": "1.0.0",
+  "requires": { "api": { "min": "1.0", "max": "1.x" } },
+  "run": { "executable": "bin/nul.txt", "platforms": ["windows-x64"] },
+  "extension_points": [
+    { "kind": "generator", "id": "pulse", "name": "Pulse" }
+  ]
+}

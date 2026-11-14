@@ -132,8 +132,8 @@ void BenchmarkDialog::build()
     // chosen ports are linked.
     layout->addWidget(new NoteBanner(
         NoteBanner::kind::info,
-        tr("Do not link these two ports in Studio. The data has to travel "
-           "through the cable or driver pair, so the count means something."),
+        tr("Do not link these ports in Studio. The data must travel through "
+           "the cable or driver pair to be counted."),
         this));
 
     linked_note_ = new NoteBanner(
