@@ -13,6 +13,7 @@ import sys
 import threading
 import time
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
@@ -486,12 +487,116 @@ class ConnectArgumentTests(unittest.TestCase):
             {"timeout": -1},
             {"token": ""},
             {"token": "x" * 200},
+            # Over TCP a token is needed, and the port is a port.
+            {"loopback_port": 5000},
+            {"loopback_port": 5000, "token": None},
+            {"loopback_port": 0, "token": "vsst1_zzz"},
+            {"loopback_port": 65536, "token": "vsst1_zzz"},
+            {"loopback_port": -1, "token": "vsst1_zzz"},
+            {"loopback_port": "5000", "token": "vsst1_zzz"},
+            {"loopback_port": 5000.0, "token": "vsst1_zzz"},
+            {"loopback_port": True, "token": "vsst1_zzz"},
+            {"loopback_port": 5000, "token": "vsst1_zzz", "instance": "other"},
         ):
             with self.assertRaises(ValueError, msg=arguments) as caught:
                 Client.connect(**arguments)
             token = arguments.get("token")
             if token:
                 self.assertNotIn(token, str(caught.exception))
+
+
+class LoopbackPrefaceTests(unittest.TestCase):
+    """The client over TCP, against a server that this test plays: a plain
+    socket on 127.0.0.1.  No program of the project is started."""
+
+    def setUp(self):
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.addCleanup(self.server.close)
+        self.server.bind(("127.0.0.1", 0))
+        self.server.listen(1)
+        self.server.settimeout(5)
+        self.port = self.server.getsockname()[1]
+
+    def serve_one(self, answer, seen):
+        """Accepts one connection and reads the preface, and then the first
+        frame; notes both in `seen`, answers and keeps the connection open
+        until the client closes it."""
+        try:
+            peer, _address = self.server.accept()
+        except OSError as error:
+            seen["error"] = error
+            return
+        with peer:
+            peer.settimeout(5)
+            received = b""
+            reader = FrameReader()
+            try:
+                while len(received) < 8:
+                    chunk = peer.recv(8 - len(received))
+                    if not chunk:
+                        return
+                    received += chunk
+                seen["preface"] = received
+                request = None
+                while request is None:
+                    chunk = peer.recv(4096)
+                    if not chunk:
+                        return
+                    reader.feed(chunk)
+                    request = reader.next()
+                seen["request"] = json.loads(request.header.decode("utf-8"))
+                seen["left_over"] = reader.buffered
+                peer.sendall(answer)
+                # The client closes the connection when the test ends.
+                while peer.recv(4096):
+                    pass
+            except OSError as error:
+                seen["error"] = error
+
+    def start_server(self, answer):
+        seen = {}
+        thread = threading.Thread(target=self.serve_one, args=(answer, seen), daemon=True)
+        thread.start()
+        return seen, thread
+
+    def test_the_server_sees_the_preface_and_then_a_frame_and_nothing_else(self):
+        seen, thread = self.start_server(reply(1, "hello", **HELLO))
+        token = "vsst1_" + "a" * 13 + "_" + "a" * 52
+        client = Client.connect(loopback_port=self.port, token=token, timeout=5.0)
+        client.close()
+        thread.join(10)
+        self.assertNotIn("error", seen)
+        # `VSSCTL`, a 0 and the major version of the API, and then the hello.
+        self.assertEqual(seen["preface"], b"VSSCTL\x00\x01")
+        self.assertEqual(seen["request"]["op"], "hello")
+        self.assertEqual(seen["request"]["id"], 1)
+        self.assertEqual(seen["request"]["token"], token)
+        self.assertEqual(seen["left_over"], 0)
+        self.assertEqual(client.hello["principal"], "local:1000")
+
+    def test_a_token_is_not_in_the_error_of_a_refused_hello(self):
+        seen, thread = self.start_server(error(1, "unauthenticated", "not authenticated"))
+        token = "vsst1_" + "b" * 13 + "_" + "b" * 52
+        with self.assertRaises(ControlError) as caught:
+            Client.connect(loopback_port=self.port, token=token, timeout=5.0)
+        thread.join(10)
+        self.assertEqual(caught.exception.code, "unauthenticated")
+        self.assertNotIn(token, str(caught.exception) + repr(caught.exception))
+        self.assertEqual(seen["preface"], b"VSSCTL\x00\x01")
+
+    def test_the_connection_is_always_to_127_0_0_1(self):
+        connected = []
+        real = socket.socket.connect
+
+        def spy(sock, address):
+            connected.append(address)
+            return real(sock, address)
+
+        _seen, thread = self.start_server(reply(1, "hello", **HELLO))
+        with mock.patch.object(socket.socket, "connect", spy):
+            Client.connect(loopback_port=self.port, token="vsst1_zzz", timeout=5.0).close()
+        thread.join(10)
+        self.assertEqual(connected, [("127.0.0.1", self.port)])
 
 
 class SocketTransportTests(unittest.TestCase):

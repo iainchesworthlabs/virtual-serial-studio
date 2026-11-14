@@ -7,10 +7,11 @@ see `docs/remote-control.md`). It makes and links ports, sends bytes, waits for
 bytes, and reads the event and traffic streams, from a test script.
 
 It needs Python 3.9 or later and nothing else: only the standard library. It
-talks to this user's gateway over a Windows named pipe or a Unix domain socket
-and has no network code. The package can be used from this directory without
-installing it (`sys.path.insert(0, "adapters/python")`), or installed with
-`pip install ./adapters/python`.
+talks to this user's gateway over a Windows named pipe or a Unix domain socket.
+With `loopback_port` it connects over TCP to `127.0.0.1` and nowhere else (see
+"Over TCP" below); it has no other network code. The package can be used from
+this directory without installing it (`sys.path.insert(0, "adapters/python")`),
+or installed with `pip install ./adapters/python`.
 
 ## Use
 
@@ -72,8 +73,8 @@ open at a time (`conflict` for a second), and only its owner can read its
 report.
 
 `Client.connect(instance=None, token=None, token_file=None, name="python",
-timeout=10.0)` connects. `instance` is the name given to `vss_gate --instance=`.
-`token` is a token as text, `token_file` the path of a file whose first line is
+timeout=10.0, loopback_port=None)` connects. `instance` is the name given to
+`vss_gate --instance=`. `token` is a token as text, `token_file` the path of a file whose first line is
 one (`vss_cli control token create --label=rig --role=control --out=rig.token`).
 With neither, the connection is the local user. `timeout` is the seconds one
 call may take.
@@ -132,6 +133,26 @@ this user's, and the kernel's record of the serving process (`SO_PEERCRED`)
 must say this user. macOS does the same with `getpeereid`. On any other
 system the check cannot be made and the connection is refused. A check that
 fails for any reason refuses the connection.
+
+## Over TCP
+
+`Client.connect(loopback_port=5800, token_file="rig.token")` connects to
+`127.0.0.1` at that port, where `vss_gate --loopback-port=5800` listens. There
+is no host parameter: the client cannot be pointed at another computer, because
+a token must not be sent over a connection that is not encrypted. The client
+sends the 8 bytes `VSSCTL` 0 1 first, and then says hello as usual.
+
+Nobody is identified over TCP: the checks of the section above (who serves the
+endpoint) cannot be made, and any program on the computer may have opened the
+port. So a token is required, and `connect` raises `ValueError` before it
+connects without one, or with an `instance` name, which does not apply. The
+token must have been made for TCP, with `vss_cli control token create
+--transport=loopback --out=rig.token`; a token made for the local pipe or socket
+alone is refused with the code `unauthenticated`, as every wrong token is, and a
+token made for TCP is refused on the local endpoint. A port nothing listens on
+is a `TransportError` with the code `not_running`. Everything else is as on the
+local endpoint: the limits on frames, the time limit of each call, and that the
+token is never in an error or an attribute.
 
 ## Tokens
 

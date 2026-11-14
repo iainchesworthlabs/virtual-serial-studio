@@ -29,8 +29,12 @@
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
 
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
+
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -646,6 +650,70 @@ bool agent_lists_port(const std::string& instance, const std::string& name)
     const auto ports = run_cli("agent", instance, {"ports"});
     require_exit(ports, 0, "vss_cli agent ports");
     return contains(ports.output, name);
+}
+
+// -- loopback TCP ------------------------------------------------------------
+
+/// A TCP port on 127.0.0.1 that nothing holds a moment later: the system
+/// hands one to a listener, which is closed again before this returns.
+std::uint16_t pick_free_port()
+{
+    boost::asio::io_context context;
+    const boost::asio::ip::tcp::acceptor acceptor(
+        context, boost::asio::ip::tcp::endpoint(
+                     boost::asio::ip::address_v4::loopback(), 0));
+    return acceptor.local_endpoint().port();
+}
+
+/// A gateway that serves the control API over TCP as well, and the port.
+struct loopback_gate
+{
+    std::unique_ptr<gate_process> gate;
+    std::uint16_t port = 0;
+};
+
+/// Starts `vss_gate --loopback-port=<port>` with the options in `more`.  The
+/// port is picked before the gateway starts, so something may take it in
+/// between and the gateway then says it cannot start; another port is tried,
+/// five times at most.
+loopback_gate start_loopback_gate(const std::string& instance,
+                                  const std::vector<std::string>& more)
+{
+    constexpr int attempts = 5;
+    for (int attempt = 1;; ++attempt)
+    {
+        loopback_gate started;
+        started.port = pick_free_port();
+        std::vector<std::string> options = more;
+        options.push_back("--loopback-port=" + std::to_string(started.port));
+        try
+        {
+            started.gate = std::make_unique<gate_process>(instance, options);
+            return started;
+        }
+        catch (const vss_test::failure& failed)
+        {
+            if (attempt == attempts || !contains(failed.what(), "cannot start"))
+                throw;
+        }
+    }
+}
+
+/// Makes a token for `label` with the scopes of a program that arranges ports,
+/// and the options in `more`, writes it to `file` and returns the option that
+/// names the file.
+std::string make_token_file(const std::string& instance,
+                            const std::string& label,
+                            const std::filesystem::path& file,
+                            const std::vector<std::string>& more)
+{
+    std::vector<std::string> words{"token", "create", "--label=" + label,
+                                   "--scope=monitor,control.ports",
+                                   "--out=" + file.string()};
+    words.insert(words.end(), more.begin(), more.end());
+    require_exit(run_cli("control", instance, words), 0,
+                 "vss_cli control token create --out");
+    return "--token-file=" + file.string();
 }
 
 } // namespace
@@ -1459,7 +1527,44 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"expect", "p_1", "--pattern=00", "--role=monitor"},
         {"send", "p_1", "--hex=00", "--label=l"},
         {"status", "--outcome=passed"},
-        {"token", "list", "--message=m"}};
+        {"token", "list", "--message=m"},
+        {"status", "--loopback-port=0", "--token-file=t.token"},
+        {"status", "--loopback-port=65536", "--token-file=t.token"},
+        {"status", "--loopback-port=x", "--token-file=t.token"},
+        {"status", "--loopback-port=", "--token-file=t.token"},
+        {"status", "--loopback-port=-1", "--token-file=t.token"},
+        {"status", "--loopback-port=+1", "--token-file=t.token"},
+        {"status", "--loopback-port=1", "--loopback-port=2",
+         "--token-file=t.token"},
+        {"status", "--loopback-port=1"},
+        {"watch", "--loopback-port=5000"},
+        {"port", "create", "a", "--loopback-port=5000"},
+        {"send", "p_1", "--hex=00", "--loopback-port=5000"},
+        {"expect", "p_1", "--pattern=00", "--loopback-port=5000"},
+        {"run", "begin", "x", "--loopback-port=5000"},
+        {"sessions", "--loopback-port=5000"},
+        {"sessions", "--loopback-port=5000", "--token-file=t.token"},
+        {"kick", "1", "--loopback-port=5000", "--token-file=t.token"},
+        {"stop", "--loopback-port=5000", "--token-file=t.token"},
+        {"token", "list", "--loopback-port=5000"},
+        {"token", "create", "--label=a", "--scope=monitor",
+         "--loopback-port=5000"},
+        {"token", "create", "--label=a", "--scope=monitor", "--transport=tls"},
+        {"token", "create", "--label=a", "--scope=monitor", "--transport="},
+        {"token", "create", "--label=a", "--scope=monitor",
+         "--transport=Local"},
+        {"token", "create", "--label=a", "--scope=monitor", "--transport=local",
+         "--transport=local"},
+        {"token", "create", "--label=a", "--scope=monitor", "--transport=local",
+         "--transport=loopback", "--transport=loopback"},
+        {"token", "list", "--transport=loopback"},
+        {"token", "revoke", "aaaaaaaaaaaaa", "--transport=loopback"},
+        {"status", "--transport=loopback"},
+        {"watch", "--transport=loopback"},
+        {"port", "create", "a", "--transport=local"},
+        {"expect", "p_1", "--pattern=00", "--transport=local"},
+        {"run", "begin", "x", "--transport=local"},
+        {"sessions", "--transport=local"}};
     for (const auto& words : unusable)
     {
         const auto outcome = run_cli("control", instance, words);
@@ -1467,7 +1572,35 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         REQUIRE(contains(outcome.output, "vss_cli control"));
     }
 
-    // The same words, right, get as far as looking for the gateway.
+    // The same words, right, get as far as looking for the gateway.  A token
+    // that is read from a file is read first, so there is one.
+    const scratch_directory scratch;
+    const std::filesystem::path token_file = scratch.path() / "t.token";
+    write_text(token_file, "not-a-token\n");
+    const std::string token_option = "--token-file=" + token_file.string();
+    const std::string port_option =
+        "--loopback-port=" + std::to_string(pick_free_port());
+    const std::vector<std::vector<std::string>> usable_over_tcp{
+        {"status", port_option, token_option},
+        {"watch", port_option, token_option},
+        {"port", "create", "a", port_option, token_option},
+        {"port", "remove", "p_1", port_option, token_option},
+        {"link", "p_1", "p_2", port_option, token_option},
+        {"send", "p_1", "--hex=00", port_option, token_option},
+        {"expect", "p_1", "--pattern=00", port_option, token_option},
+        {"run", "begin", "smoke", port_option, token_option},
+        {"run", "report", port_option, token_option},
+        {"token", "create", "--label=a", "--scope=monitor",
+         "--transport=loopback"},
+        {"token", "create", "--label=a", "--scope=monitor", "--transport=local",
+         "--transport=loopback"}};
+    for (const auto& words : usable_over_tcp)
+    {
+        const auto outcome = run_cli("control", instance, words);
+        require_exit(outcome, 3, "vss_cli control with no gateway");
+        REQUIRE(contains(outcome.output, "Remote control: off"));
+    }
+
     const std::vector<std::vector<std::string>> usable{
         {"send", "p_1", "--hex=00FFab"},
         {"port", "create", "a", "--kind=loopback"},
@@ -1535,4 +1668,129 @@ TEST_CASE("system control: a token with control.ports makes ports and no more")
         run_cli("control", instance, {"port", "remove", id, token_option});
     require_exit(removed, 0, "vss_cli control port remove with a token");
     REQUIRE(!agent_lists_port(instance, "tokport"));
+}
+
+TEST_CASE("system control: a token made for loopback works over TCP and "
+          "nowhere else")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    const loopback_gate started =
+        start_loopback_gate(instance, {"--local-role=control"});
+    const gate_process& gate = *started.gate;
+    const std::string port_option =
+        "--loopback-port=" + std::to_string(started.port);
+
+    const std::string tcp_option =
+        make_token_file(instance, "tcp", gate.scratch_dir() / "tcp.token",
+                        {"--transport=loopback"});
+    const std::string local_option = make_token_file(
+        instance, "local", gate.scratch_dir() / "local.token", {});
+
+    // The token made for loopback is somebody, and may make a port.
+    const auto status =
+        run_cli("control", instance, {"status", port_option, tcp_option});
+    require_exit(status, 0, "vss_cli control status over TCP");
+    REQUIRE(contains(status.output, "You are: token:"));
+    static_cast<void>(
+        control_create_port(instance, "viaTcp", {port_option, tcp_option}));
+    REQUIRE(agent_lists_port(instance, "viaTcp"));
+
+    // The listing of the tokens says where each is good.
+    const auto listed = run_cli("control", instance, {"token", "list"});
+    require_exit(listed, 0, "vss_cli control token list");
+    REQUIRE(contains(listed.output, "transports loopback"));
+    REQUIRE(contains(listed.output, "transports local"));
+
+    // The same token on the local pipe or socket is refused, and so is a
+    // token made for the local pipe or socket over TCP.  Both are told what
+    // every wrong token is told.
+    const auto on_local = run_cli("control", instance, {"status", tcp_option});
+    require_exit(on_local, 1,
+                 "vss_cli control status, a loopback token, local");
+    REQUIRE(contains(on_local.output, "unauthenticated"));
+    REQUIRE(!contains(on_local.output, "You are:"));
+    const auto on_tcp =
+        run_cli("control", instance, {"status", port_option, local_option});
+    require_exit(on_tcp, 1, "vss_cli control status, a local token, over TCP");
+    REQUIRE(contains(on_tcp.output, "unauthenticated"));
+    REQUIRE(!contains(on_tcp.output, "You are:"));
+    // The local token is still good where it was made for.
+    const auto still_local =
+        run_cli("control", instance, {"status", local_option});
+    require_exit(still_local, 0, "vss_cli control status, a local token");
+
+    // Without a token file there is nobody to be over TCP, and the command
+    // line is refused before anything is connected.
+    const auto no_token = run_cli("control", instance, {"status", port_option});
+    require_exit(no_token, 2, "vss_cli control status over TCP, no token");
+    REQUIRE(contains(no_token.output, "vss_cli control"));
+
+    // A token for both is good on both.
+    const std::string both_option =
+        make_token_file(instance, "both", gate.scratch_dir() / "both.token",
+                        {"--transport=local", "--transport=loopback"});
+    require_exit(run_cli("control", instance, {"status", both_option}), 0,
+                 "vss_cli control status, a token for both, local");
+    require_exit(
+        run_cli("control", instance, {"status", port_option, both_option}), 0,
+        "vss_cli control status, a token for both, over TCP");
+}
+
+TEST_CASE("system control: vss_gate refuses a loopback port that is not one")
+{
+    for (const char* const option :
+         {"--loopback-port=0", "--loopback-port=70000", "--loopback-port=abc",
+          "--loopback-port=65536", "--loopback-port=", "--loopback-port=-1",
+          "--loopback-port=+80", "--loopback-port=80x"})
+    {
+        const scratch_directory scratch;
+        const std::string instance = unique_instance();
+        child_process gate(
+            VSS_GATE_PROGRAM,
+            {"--instance=" + instance, "--agent-instance=" + instance,
+             "--audit-dir=" + (scratch.path() / "audit").string(),
+             std::string(option)});
+        const auto code = gate.wait(long_limit);
+        const std::string output = gate.read_all(5000ms);
+        if (code != 2)
+        {
+            throw vss_test::failure(std::string(option) +
+                                    " did not make vss_gate exit with 2; "
+                                    "output: " +
+                                    output);
+        }
+        REQUIRE(contains(output, "loopback port"));
+        REQUIRE(!contains(output, "listening on"));
+    }
+}
+
+TEST_CASE("system control: vss_gate does not start on a port that is taken")
+{
+    // Held with no sharing, so that the gateway cannot take it as well.
+    boost::asio::io_context context;
+    const boost::asio::ip::tcp::acceptor held(
+        context,
+        boost::asio::ip::tcp::endpoint(boost::asio::ip::address_v4::loopback(),
+                                       0),
+        false);
+    const std::uint16_t port = held.local_endpoint().port();
+
+    const scratch_directory scratch;
+    const std::string instance = unique_instance();
+    child_process gate(VSS_GATE_PROGRAM,
+                       {"--instance=" + instance,
+                        "--agent-instance=" + instance,
+                        "--audit-dir=" + (scratch.path() / "audit").string(),
+                        "--loopback-port=" + std::to_string(port)});
+    const auto code = gate.wait(long_limit);
+    const std::string output = gate.read_all(5000ms);
+    if (code != 1)
+    {
+        throw vss_test::failure(
+            "vss_gate did not exit with 1 on a port that is taken; output: " +
+            output);
+    }
+    REQUIRE(contains(output, "cannot start"));
+    REQUIRE(!contains(output, "listening on"));
 }

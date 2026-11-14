@@ -127,6 +127,10 @@ struct tokens_create_request
     std::vector<std::string> scopes;
     /// How long it lives, in seconds; 0 for the usual 30 days.
     std::uint64_t life_s = 0;
+    /// The names of the transports it may be used on (`local`, `loopback`);
+    /// empty for `local` alone.  A token is good only where it was made
+    /// for.
+    std::vector<std::string> transports;
 
     friend bool operator==(const tokens_create_request&,
                            const tokens_create_request&) = default;

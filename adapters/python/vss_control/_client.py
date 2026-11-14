@@ -121,7 +121,13 @@ class Client:
 
     @classmethod
     def connect(
-        cls, instance=None, token=None, token_file=None, name="python", timeout=10.0
+        cls,
+        instance=None,
+        token=None,
+        token_file=None,
+        name="python",
+        timeout=10.0,
+        loopback_port=None,
     ):
         """Connects to this user's gateway and says hello.
 
@@ -130,6 +136,14 @@ class Client:
         `token_file` the path of a file whose first line is one; with neither
         the connection is the local user.  `name` is what the audit log calls
         this program.  `timeout` is the seconds one call may take.
+
+        `loopback_port` (1 to 65535) connects over TCP to 127.0.0.1 at that
+        port, where `vss_gate --loopback-port` listens, instead of to the
+        local pipe or socket.  There is no way to name another host.  Nobody
+        is identified over TCP, so a token is required (`token` or
+        `token_file`), made for it with `vss_cli control token create
+        --transport=loopback`, and `instance` does not apply; ValueError
+        otherwise, before anything is connected.
 
         TransportError (`not_running`, `not_same_user`, ...) when the gateway
         cannot be reached or is not this user's, and ControlError
@@ -147,9 +161,21 @@ class Client:
             token = _read_token_file(token_file)
         if token is not None:
             token = _check_token(token)
+        if loopback_port is not None:
+            if (
+                isinstance(loopback_port, bool)
+                or not isinstance(loopback_port, int)
+                or not 1 <= loopback_port <= 65535
+            ):
+                raise ValueError("a loopback port is a whole number from 1 to 65535")
+            if instance:
+                raise ValueError("an instance name does not apply over TCP")
+            if token is None:
+                raise ValueError("a connection over TCP needs a token")
 
         # Who serves the endpoint is checked inside; nothing is sent first.
-        transport = _transport.open_transport(instance, float(timeout))
+        # Over TCP nothing can be checked, and the preface goes first.
+        transport = _transport.open_transport(instance, float(timeout), loopback_port)
         return cls._greet(transport, timeout, name, token)
 
     @classmethod

@@ -5,6 +5,7 @@
 //
 
 #include <vss/control/client.hpp>
+#include <vss/control/loopback.hpp>
 
 #include <vss/agent/local_stream.hpp>
 #include <vss/agent/proto/error.hpp>
@@ -49,6 +50,22 @@ public:
 
     error_code open()
     {
+        if (options_.loopback_port)
+        {
+            // Never without a token: over TCP nobody is the local user.
+            if (options_.admin || options_.token.empty())
+                return make_error_code(errc::invalid_argument);
+            auto reached =
+                connect_loopback(io_.get_executor(), *options_.loopback_port);
+            if (!reached)
+                return agent::make_error_code(
+                    agent::protocol_errc::not_running);
+            stream_ = std::move(*reached);
+            return send_raw(bytes_view(reinterpret_cast<const byte*>(
+                                           control_preface.data()),
+                                       control_preface.size()),
+                            steady::now() + options_.timeout);
+        }
         auto connected = agent::connect_local(
             io_.get_executor(),
             options_.admin ? agent::local_endpoint::control_admin
@@ -200,10 +217,15 @@ private:
         auto encoded = agent::encode_frame(value);
         if (!encoded)
             return encoded.error();
+        return send_raw(bytes_view(*encoded), deadline);
+    }
+
+    error_code send_raw(bytes_view raw, steady::time_point deadline)
+    {
         // Shared with the handler: a write that is given up on may still be
         // looking at the bytes when this function has returned.
         const auto bytes =
-            std::make_shared<const byte_buffer>(std::move(*encoded));
+            std::make_shared<const byte_buffer>(raw.begin(), raw.end());
         std::size_t offset = 0;
         while (offset < bytes->size())
         {
@@ -450,15 +472,15 @@ result<void> client::stop()
     return {};
 }
 
-result<token_created_reply>
-client::create_token(const std::string& label,
-                     const std::vector<std::string>& scopes,
-                     std::uint64_t life_s)
+result<token_created_reply> client::create_token(
+    const std::string& label, const std::vector<std::string>& scopes,
+    std::uint64_t life_s, const std::vector<std::string>& transports)
 {
     tokens_create_request asking;
     asking.label = label;
     asking.scopes = scopes;
     asking.life_s = life_s;
+    asking.transports = transports;
     auto answer = impl_->call(std::move(asking));
     if (!answer)
         return answer.error();

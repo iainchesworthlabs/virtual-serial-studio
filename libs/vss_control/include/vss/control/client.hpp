@@ -30,6 +30,11 @@ struct client_options
     /// A token to connect as; empty to connect as the local user.  The
     /// administration endpoint takes none.
     secret_string token;
+    /// Connect over TCP to `127.0.0.1` at this port instead of the local
+    /// pipe or socket.  It needs a token made for `loopback`; `connect`
+    /// fails with `errc::invalid_argument` without one, before it connects.
+    /// There is no way to name another host.
+    std::optional<std::uint16_t> loopback_port;
     /// How long one request may take before the connection is given up.
     std::chrono::milliseconds timeout{10000};
 };
@@ -84,7 +89,8 @@ public:
     result<token_created_reply>
     create_token(const std::string& label,
                  const std::vector<std::string>& scopes,
-                 std::uint64_t life_s = 0);
+                 std::uint64_t life_s = 0,
+                 const std::vector<std::string>& transports = {});
     /// The records of every token, revoked ones included.  Administration
     /// endpoint only.
     result<tokens_reply> list_tokens();
