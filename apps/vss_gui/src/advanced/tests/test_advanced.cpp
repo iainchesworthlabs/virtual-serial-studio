@@ -1184,6 +1184,23 @@ TEST_CASE("advanced: render review screenshots in both themes")
     WiringDialog wiring(backend, modem);
     shoot(wiring, QStringLiteral("wiring"), QSize(1100, 760));
 
+    // The same dialog where the build can inject faults, wide enough that
+    // no label is cut.
+    FakeStudioBackend fault_backend;
+    capabilities fault_caps;
+    fault_caps.faults = true;
+    fault_backend.set_capabilities(fault_caps);
+    const vss::endpoint_id fault_modem =
+        make_fixture(fault_backend, QStringLiteral("modem"));
+    const vss::endpoint_id fault_terminal =
+        make_port(fault_backend, QStringLiteral("terminal"));
+    REQUIRE(fault_backend.connect_ports(fault_modem, fault_terminal, {})
+                .has_value());
+    WiringDialog faults(fault_backend, fault_modem);
+    REQUIRE(faults.panel() != nullptr);
+    REQUIRE(faults.panel()->inject_button(0)->isEnabled());
+    shoot(faults, QStringLiteral("fixture-faults"), QSize(1280, 760));
+
     AddFixtureDialog fixture(backend, terminal);
     shoot(fixture, QStringLiteral("add-fixture"), QSize(760, 620));
 

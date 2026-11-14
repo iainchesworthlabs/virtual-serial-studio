@@ -83,9 +83,10 @@ both themes and at a phone's width.
 
   The pictures of dialogs come from the review pictures that the tests and the self-test write, which use sample
   ports too. `vss_gui_dialogs_tests` writes `share-step3` and `network` to `gui-shots/` beside the build's `bin/`,
-  and `vss_gui --selftest` with `VSS_QA_SHOTS=<folder>` writes `troubleshoot`, each as `-light.png` and `-dark.png`.
-  A `figure.shot` that still holds a `shot:` name is a placeholder: nothing draws the Monitor with traffic or the
-  faults of a fixture yet.
+  `vss_gui_panes_tests` writes `monitor-hex`, `vss_gui_advanced_tests` writes `fixture-faults`, and
+  `vss_gui --selftest` with `VSS_QA_SHOTS=<folder>` writes `troubleshoot`, each as `-light.png` and `-dark.png`.
+  A `figure.shot` that holds a `shot:` name is a placeholder for a picture that is not taken yet. The page has none
+  now.
 
 ## Publishing: steps for the owner
 
