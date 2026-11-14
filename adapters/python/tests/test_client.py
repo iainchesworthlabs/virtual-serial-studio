@@ -382,6 +382,28 @@ class ControlRoleTests(RigCase):
             client.end_run()
         self.assertEqual(caught.exception.code, "not_found")
 
+    def test_a_run_begun_on_one_connection_is_filled_and_ended_on_another(self):
+        self.addCleanup(self.end_run_quietly)
+        with self.rig.connect() as beginner:
+            run = beginner.begin_run("across connections")
+        # The first connection is closed; the run belongs to the user.
+        filler = self.connect()
+        filler.record_in_run("from the second", "failed", message="late", duration_ms=2)
+        with self.assertRaises(ControlError) as caught:
+            filler.begin_run("another")
+        self.assertEqual(caught.exception.code, "conflict")
+
+        finisher = self.connect()
+        ended = finisher.end_run()
+        self.assertEqual(ended["run"], run["run"])
+        self.assertFalse(ended["open"])
+        self.assertEqual((ended["tests"], ended["failures"]), (1, 1))
+        root = ElementTree.fromstring(finisher.report_junit(run["run"]))
+        self.assertEqual(root.find("testsuite").get("name"), "across connections")
+        cases = {case.get("name"): case for case in root.iter("testcase")}
+        self.assertEqual(set(cases), {"from the second"})
+        self.assertEqual(cases["from the second"].find("failure").get("message"), "late")
+
     def end_run_quietly(self):
         try:
             with self.rig.connect() as client:

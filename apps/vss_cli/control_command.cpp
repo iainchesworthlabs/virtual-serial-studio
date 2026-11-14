@@ -73,7 +73,11 @@ enum class action_kind
     port_remove,
     link,
     send,
-    expect
+    expect,
+    run_begin,
+    run_end,
+    run_record,
+    run_report
 };
 
 struct control_arguments
@@ -113,6 +117,15 @@ struct control_arguments
     bool tx = false;
     std::string send_port;
     vss::byte_buffer send_data;
+    /// For `run begin`, `run record` and `run report`: the name of the run or
+    /// of the check, the id of the run to report (empty for the latest), how
+    /// the check ended, what it says and how long it took in ms.  `expect`
+    /// uses `label` for what the check is called in the report.
+    std::string run_name;
+    std::string run_id;
+    std::string outcome;
+    std::string message;
+    std::uint64_t duration_ms = 0;
     bool valid = true;
 };
 
@@ -137,6 +150,9 @@ struct raw_arguments
     std::optional<std::string> timeout;
     std::optional<std::string> send_to;
     std::optional<std::string> send;
+    std::optional<std::string> outcome;
+    std::optional<std::string> message;
+    std::optional<std::string> duration;
     bool data = false;
     bool one_way = false;
     bool tx = false;
@@ -178,7 +194,10 @@ raw_arguments read_words(const std::vector<std::string>& arguments)
             take_option(word, "--pattern=", raw.pattern, raw.valid) ||
             take_option(word, "--timeout=", raw.timeout, raw.valid) ||
             take_option(word, "--send-to=", raw.send_to, raw.valid) ||
-            take_option(word, "--send=", raw.send, raw.valid))
+            take_option(word, "--send=", raw.send, raw.valid) ||
+            take_option(word, "--outcome=", raw.outcome, raw.valid) ||
+            take_option(word, "--message=", raw.message, raw.valid) ||
+            take_option(word, "--duration=", raw.duration, raw.valid))
             continue;
         if (word == "--data")
         {
@@ -364,12 +383,25 @@ bool no_expect_options(const raw_arguments& raw)
     return !raw.pattern && !raw.timeout && !raw.send_to && !raw.send && !raw.tx;
 }
 
-/// True when none of the options of `token create`, of `watch` and of
-/// `expect` is there.
+/// True when none of the options that only `token create` takes is there,
+/// but the label, which `expect` takes as well.
+bool no_create_options_but_label(const raw_arguments& raw)
+{
+    return !raw.role && !raw.scope && !raw.days && !raw.out_file;
+}
+
+/// True when none of the options that only `run record` takes is there.
+bool no_run_options(const raw_arguments& raw)
+{
+    return !raw.outcome && !raw.message && !raw.duration;
+}
+
+/// True when none of the options of `token create`, of `watch`, of `expect`
+/// and of `run record` is there.
 bool no_foreign_options(const raw_arguments& raw)
 {
     return no_create_options(raw) && no_watch_options(raw) &&
-           no_expect_options(raw);
+           no_expect_options(raw) && no_run_options(raw);
 }
 
 /// Reads the options of `watch` into `parsed`.  False when they are not what
@@ -424,6 +456,12 @@ bool read_expect_options(const raw_arguments& raw, control_arguments& parsed)
         parsed.timeout_ms = *timeout;
     }
     parsed.tx = raw.tx;
+    if (raw.label)
+    {
+        if (raw.label->empty())
+            return false;
+        parsed.label = *raw.label;
+    }
     if (raw.send_to && raw.send)
     {
         auto data = hex_bytes(*raw.send);
@@ -433,6 +471,77 @@ bool read_expect_options(const raw_arguments& raw, control_arguments& parsed)
         parsed.send_data = std::move(*data);
     }
     return true;
+}
+
+/// True when `outcome` is one of the four ways a check may end.
+bool is_outcome(std::string_view outcome) noexcept
+{
+    return outcome == "passed" || outcome == "failed" || outcome == "error" ||
+           outcome == "skipped";
+}
+
+/// Reads the words and options of `run <what> ...` into `parsed`.  False when
+/// they are not what the command takes: a name or an id that is empty, an
+/// outcome that is missing or not one of the four, a duration that is not a
+/// number, or an option that belongs to another command.  Whether a name is
+/// too long is for the gateway to say.
+bool read_run_command(const raw_arguments& raw, control_arguments& parsed)
+{
+    const std::vector<std::string>& words = raw.words;
+    if (words.size() < 2 || raw.label || raw.role || raw.scope || raw.days ||
+        !no_watch_options(raw) || !no_port_options(raw) ||
+        !no_expect_options(raw))
+        return false;
+    const std::string& what = words[1];
+    parsed.token_file = raw.token_file;
+    // Only `report` writes to a file.
+    if (raw.out_file && what != "report")
+        return false;
+    if (what == "begin")
+    {
+        if (words.size() != 3 || words[2].empty() || !no_run_options(raw))
+            return false;
+        parsed.action = action_kind::run_begin;
+        parsed.run_name = words[2];
+        return true;
+    }
+    if (what == "end")
+    {
+        if (words.size() != 2 || !no_run_options(raw))
+            return false;
+        parsed.action = action_kind::run_end;
+        return true;
+    }
+    if (what == "record")
+    {
+        if (words.size() != 3 || words[2].empty() || !raw.outcome ||
+            !is_outcome(*raw.outcome))
+            return false;
+        parsed.action = action_kind::run_record;
+        parsed.run_name = words[2];
+        parsed.outcome = *raw.outcome;
+        parsed.message = raw.message.value_or(std::string());
+        if (raw.duration)
+        {
+            const auto duration = whole_number<std::uint64_t>(*raw.duration);
+            if (!duration)
+                return false;
+            parsed.duration_ms = *duration;
+        }
+        return true;
+    }
+    if (what == "report")
+    {
+        if (words.size() > 3 || (words.size() == 3 && words[2].empty()) ||
+            !no_run_options(raw) || (raw.out_file && raw.out_file->empty()))
+            return false;
+        parsed.action = action_kind::run_report;
+        parsed.out_file = raw.out_file;
+        if (words.size() == 3)
+            parsed.run_id = words[2];
+        return true;
+    }
+    return false;
 }
 
 control_arguments parse(const std::vector<std::string>& arguments)
@@ -462,7 +571,7 @@ control_arguments parse(const std::vector<std::string>& arguments)
     if (words.size() == 1 && words[0] == "watch")
     {
         if (!no_create_options(raw) || !no_port_options(raw) ||
-            !no_expect_options(raw))
+            !no_expect_options(raw) || !no_run_options(raw))
             return parsed;
         parsed.action = action_kind::watch;
         parsed.token_file = raw.token_file;
@@ -541,8 +650,8 @@ control_arguments parse(const std::vector<std::string>& arguments)
     }
     if (words.size() == 2 && words[0] == "expect")
     {
-        if (!no_create_options(raw) || !no_watch_options(raw) ||
-            !no_port_options(raw))
+        if (!no_create_options_but_label(raw) || !no_watch_options(raw) ||
+            !no_port_options(raw) || !no_run_options(raw))
             return parsed;
         parsed.action = action_kind::expect;
         parsed.port = words[1];
@@ -550,9 +659,14 @@ control_arguments parse(const std::vector<std::string>& arguments)
         parsed.valid = read_expect_options(raw, parsed);
         return parsed;
     }
+    if (!words.empty() && words[0] == "run")
+    {
+        parsed.valid = read_run_command(raw, parsed);
+        return parsed;
+    }
     if (words.size() < 2 || words[0] != "token" || raw.token_file ||
         !no_watch_options(raw) || !no_port_options(raw) ||
-        !no_expect_options(raw))
+        !no_expect_options(raw) || !no_run_options(raw))
         return parsed;
     if (words.size() == 2 && words[1] == "create")
     {
@@ -604,6 +718,14 @@ const char* action_name(action_kind action) noexcept
         return "send";
     case action_kind::expect:
         return "expect";
+    case action_kind::run_begin:
+        return "run begin";
+    case action_kind::run_end:
+        return "run end";
+    case action_kind::run_record:
+        return "run record";
+    case action_kind::run_report:
+        return "run report";
     case action_kind::none:
         break;
     }
@@ -1014,11 +1136,92 @@ int expect_bytes(client& gateway, const control_arguments& args)
     wanted.timeout_ms = args.timeout_ms;
     wanted.send_port = args.send_port;
     wanted.send = args.send_data;
+    wanted.label = args.label;
     const auto matched = gateway.expect_bytes(wanted);
     if (!matched)
         return report_with_code("expect", matched.error(), gateway);
     std::printf("matched %llu %llu %llu\n", number_of(matched->offset),
                 number_of(matched->mono_ns), number_of(matched->events_lost));
+    return exit_ok;
+}
+
+/// Opens the run and prints its id.
+int run_begin(client& gateway, const control_arguments& args)
+{
+    const auto begun = gateway.begin_run(args.run_name);
+    if (!begun)
+        return report_with_code("run begin", begun.error(), gateway);
+    std::printf("%s\n", plain_word(begun->run).c_str());
+    return exit_ok;
+}
+
+/// Ends the run and prints its counts on one line.  The command reports and
+/// does not judge: the exit code is 0 whatever the counts are.
+int run_end(client& gateway)
+{
+    const auto ended = gateway.end_run();
+    if (!ended)
+        return report_with_code("run end", ended.error(), gateway);
+    std::printf("%s tests=%llu failures=%llu errors=%llu skipped=%llu "
+                "duration_ms=%llu\n",
+                plain_word(ended->run).c_str(), number_of(ended->tests),
+                number_of(ended->failures), number_of(ended->errors),
+                number_of(ended->skipped), number_of(ended->duration_ms));
+    return exit_ok;
+}
+
+int run_record(client& gateway, const control_arguments& args)
+{
+    vss::control::runs_record_request noted;
+    noted.name = args.run_name;
+    noted.outcome = args.outcome;
+    noted.message = args.message;
+    noted.duration_ms = args.duration_ms;
+    const auto recorded = gateway.record_in_run(noted);
+    if (!recorded)
+        return report_with_code("run record", recorded.error(), gateway);
+    return exit_ok;
+}
+
+/// Writes `text` to `path`, byte for byte.  The file is made or emptied
+/// first.  False when it cannot be written.
+bool write_report_file(const std::string& path, const std::string& text)
+{
+    std::ofstream file(path, std::ios::binary | std::ios::trunc);
+    if (!file)
+        return false;
+    file.write(text.data(), static_cast<std::streamsize>(text.size()));
+    file.close();
+    return !file.fail();
+}
+
+/// Gives the report of a run: to the file named by `--out`, or to the
+/// screen.  Nothing else is printed, so that the output is the report.
+int run_report(client& gateway, const control_arguments& args)
+{
+    const auto xml = gateway.report_junit(args.run_id);
+    if (!xml)
+        return report_with_code("run report", xml.error(), gateway);
+    if (args.out_file)
+    {
+        if (!write_report_file(*args.out_file, *xml))
+        {
+            std::fprintf(stderr,
+                         "control run report failed: cannot write the "
+                         "report to %s\n",
+                         args.out_file->c_str());
+            return exit_refused;
+        }
+        return exit_ok;
+    }
+    const std::size_t written =
+        std::fwrite(xml->data(), 1, xml->size(), stdout);
+    if (written != xml->size() || std::fflush(stdout) != 0)
+    {
+        std::fputs("control run report failed: cannot write the report\n",
+                   stderr);
+        return exit_refused;
+    }
     return exit_ok;
 }
 
@@ -1140,6 +1343,32 @@ const char* control_usage() noexcept
            "      ends with (timeout) and the exit code is 1.  It needs the\n"
            "      scope monitor.data, and control.data as well to send; the\n"
            "      default role of this user (monitor) has neither.\n"
+           "\n"
+           "  vss_cli control expect ... --label=<text>\n"
+           "  vss_cli control run begin <name> [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "  vss_cli control run end [--instance=<name>] "
+           "[--token-file=<file>]\n"
+           "  vss_cli control run record <name>\n"
+           "           --outcome=passed|failed|error|skipped\n"
+           "           [--message=<text>] [--duration=<ms>]\n"
+           "           [--instance=<name>] [--token-file=<file>]\n"
+           "  vss_cli control run report [<run id>] [--out=<file>]\n"
+           "           [--instance=<name>] [--token-file=<file>]\n"
+           "      Keep a report of a test run.  run begin opens a run with a\n"
+           "      name and prints its id (r_3).  One run is open for a user\n"
+           "      or token at a time, and it stays open across commands.\n"
+           "      While it is open, each expect of that user or token is\n"
+           "      noted with how it ended, and --label is its name in the\n"
+           "      report (expect and the port when there is none).  run\n"
+           "      record adds a check of your own: a name, how it ended, a\n"
+           "      message and how long it took in ms.  run end closes the run\n"
+           "      and prints its id, tests, failures, errors, skipped and\n"
+           "      duration_ms; the exit code is 0 whatever the counts.  run\n"
+           "      report gives the run as JUnit XML, the latest one when no\n"
+           "      id is given, on the screen or with --out in a file that is\n"
+           "      made or emptied first.  Only the user or token that opened\n"
+           "      a run can read it.  These need the scope monitor.\n"
            "\n";
 }
 
@@ -1155,8 +1384,9 @@ int command_control(const std::vector<std::string>& arguments)
     vss::control::client_options options;
     options.instance = args.instance;
     options.name = "vss_cli";
-    // `status`, `watch`, `expect` and the four commands on ports are for any
-    // caller; the rest are for this user on the administration endpoint.
+    // `status`, `watch`, `expect`, `run` and the four commands on ports are
+    // for any caller; the rest are for this user on the administration
+    // endpoint.
     options.admin = args.action == action_kind::stop ||
                     args.action == action_kind::token_create ||
                     args.action == action_kind::token_list ||
@@ -1212,6 +1442,14 @@ int command_control(const std::vector<std::string>& arguments)
         return send_bytes(gateway, args);
     case action_kind::expect:
         return expect_bytes(gateway, args);
+    case action_kind::run_begin:
+        return run_begin(gateway, args);
+    case action_kind::run_end:
+        return run_end(gateway);
+    case action_kind::run_record:
+        return run_record(gateway, args);
+    case action_kind::run_report:
+        return run_report(gateway, args);
     case action_kind::status:
     case action_kind::none:
         break;
