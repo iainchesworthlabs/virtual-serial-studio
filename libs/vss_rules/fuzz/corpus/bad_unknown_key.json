@@ -1,0 +1,17 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "colour": "red",
+ "rules": [
+  {
+   "name": "r",
+   "when": {
+    "bytes": "01"
+   },
+   "dely": 1,
+   "do": []
+  }
+ ]
+}

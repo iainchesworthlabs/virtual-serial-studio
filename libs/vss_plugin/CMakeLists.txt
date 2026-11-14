@@ -7,7 +7,11 @@
 
 add_library(vss_plugin
   src/error.cpp
-  src/manifest.cpp)
+  src/hash.cpp
+  src/manifest.cpp
+  src/policy.cpp
+  src/revocations.cpp
+  src/verify.cpp)
 add_library(Vss::plugin ALIAS vss_plugin)
 
 target_include_directories(vss_plugin PUBLIC

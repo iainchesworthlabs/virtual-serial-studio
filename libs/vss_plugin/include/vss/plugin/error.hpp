@@ -81,7 +81,10 @@ enum class plugin_errc
     start_failed,
     /// The plugin failed too often and is not started again until the user
     /// asks.
-    quarantined
+    quarantined,
+    /// The plugin's id is one that only official plugins may use, and the
+    /// plugin is not official.
+    reserved_id
 };
 
 /// The category of `plugin_errc`, named `vss.plugin`.

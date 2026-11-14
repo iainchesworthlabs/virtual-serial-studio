@@ -389,8 +389,8 @@ QString job_description(job kind)
         return tr_simple(
             QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
                               "Type to the device and read its replies here, "
-                              "without another program. Good for a first check "
-                              "that it works."));
+                              "without another program. Use it to check that "
+                              "the device works."));
     case job::network:
         return tr_simple(
             QT_TRANSLATE_NOOP("vss::gui::simple::SetupKinds",
