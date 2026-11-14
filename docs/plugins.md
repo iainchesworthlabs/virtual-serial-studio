@@ -448,6 +448,17 @@ in this build". Nothing pretends to carry out a rule it cannot.
 
 ## 7. The plugin API
 
+**What is public and what is not** (decided by the owner).
+
+- **The plugin API is public, documented and free to use.** Anyone may write a plugin against it, in any
+  language, and need ask nobody. This section, the manifest of section 13 and the formats of sections 19 and 20
+  are its documentation, and they are part of this repository under its licence.
+- **The official plugins built on it are private.** Their source is not part of this repository. They use the
+  same API as everyone else: no part of it is kept for them.
+- **The agent's own protocol is private.** How Studio, `vss_cli` and the agent talk to each other
+  (`libs/vss_agent_proto`) is an internal matter that changes without notice, and a plugin never speaks it. The
+  plugin API borrows its framing (below) and nothing else.
+
 ### 7.1 Transport and framing
 
 - **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: an
@@ -768,12 +779,13 @@ doing it for 10 seconds is killed as `misbehaving` with the limit's name.
 | Level | Condition | The user sees | Loads |
 |---|---|---|---|
 | Official | The signature verifies with a key that the **official key list** names for plugins (section 8.9) | The Virtual Serial Studio badge and "Signed by Iain Chesworth Labs" | Yes (if the licence permits) |
-| Third-party signed | The signature verifies with a key that is not official, and the user has trusted that key | The author's name from the key's record and "not verified by Virtual Serial Studio" | After the user trusts the key and the plugin |
+| Third-party signed | The signature verifies with a key that is not official, and the user has trusted that key | The author's name from the key's record and the label "Not verified by Virtual Serial Studio" | After the user trusts the key and the plugin |
 | Third-party unsigned | No signature | "Unofficial plugin. It can do anything Studio can." | After an explicit confirmation, and only in a sandbox of at least `partial` unless that is overridden (section 9.2) |
 | Signed, key unknown | A signature that names a key found nowhere on this computer. It **cannot be checked**: a signature names its key by id only, and the key itself is not in the file | Treated as unsigned for the decision, with the key's id shown: "Signed by an author you have not trusted" | As unsigned, or after the key is trusted |
 
 A signature **proves who signed it and that the files were not changed afterwards**. It does not prove that the plugin
-is safe, and the interface never says "verified" about anything else.
+is safe. The interface never says that a plugin is verified. The word appears in one place only, the label of a
+plugin that someone else signed: "Not verified by Virtual Serial Studio" (decided by the owner).
 
 ### 8.2 Files and the signature
 

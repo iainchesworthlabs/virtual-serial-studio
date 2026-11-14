@@ -2,7 +2,7 @@
 
 No mockups yet. The design behind these screens is `docs/plugins.md`; it is under review, and nothing here is built until the owner has agreed it. Dialog anatomy, components and voice are as in screens 01 and `07-copy-deck.md`. Every string below is wrapped in `tr()` with the context named in its section. `<...>` is a value filled at run time. Text that comes from a plugin (its name, description, author, parameter labels, status text) is shown as plain text, exactly as given after control and direction-override characters are removed, and is never passed through `tr()` or used as a format string.
 
-The words: a **plugin** adds something to Studio. It is **installed** when Studio has found it on this computer, **on** when the user has switched it on, and **available** when it is on and can be used now. "Official" means signed by Virtual Serial Studio. Never "verified", "safe" or "trusted" as a claim about a plugin: a signature says who made it, not that it is safe. Never "activate" or "unlock" (the Licence screens' rule).
+The words: a **plugin** adds something to Studio. It is **installed** when Studio has found it on this computer, **on** when the user has switched it on, and **available** when it is on and can be used now. "Official" means signed by Virtual Serial Studio. Never "safe" or "trusted" as a claim about a plugin, and never that a plugin "is verified": a signature says who made it, not that it is safe. The one place the word appears is the fixed label for a plugin signed by someone else, "Not verified by Virtual Serial Studio" (decided by the owner; `docs/plugins.md`, section 8.1). Never "activate" or "unlock" (the Licence screens' rule).
 
 Decided by the owner: a plugin's fixture types appear in the Advanced toolbox, only while the plugin is installed and on, and are marked as provided by a plugin, with the plugin's name and trust level.
 
@@ -118,7 +118,7 @@ There is never a way to run a plugin whose signature failed or that was withdraw
 
 Signature sentences:
 - Official: "Signed by Virtual Serial Studio." with the Virtual Serial Studio badge.
-- Third-party, approved: "Signed by <author name>. Not checked by Virtual Serial Studio."
+- Third-party, approved: "Signed by <author name>. Not verified by Virtual Serial Studio."
 - Third-party, not approved: "Signed by an author you have not approved."
 - Unsigned: "Not signed. Studio cannot tell who made it or whether it was changed."
 
@@ -176,8 +176,8 @@ Title, by trust level:
 
 Top NoteBanner:
 - Official (info): "Signed by Virtual Serial Studio."
-- Signed, author approved before (info): "Signed by <author name>, whose plugins you have approved before. Not checked by Virtual Serial Studio."
-- Signed, author not approved (warn): "Signed by <author name>. Not checked by Virtual Serial Studio. Only run it if you know who that is."
+- Signed, author approved before (info): "Signed by <author name>, whose plugins you have approved before. Not verified by Virtual Serial Studio."
+- Signed, author not approved (warn): "Signed by <author name>. Not verified by Virtual Serial Studio. Only run it if you know who that is."
 - Unsigned (danger): "Unofficial plugin. It can do anything Studio can." Second line: "Studio cannot tell who made it or whether it was changed."
 
 A changed plugin adds, above the list (warn): "This is a different version from the one you approved." and, when it asks for more, "It asks for more than before:" with the new permission sentences.
