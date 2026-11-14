@@ -11,9 +11,12 @@
 
 #include <vss/studio/studio.hpp>
 
+#include <chrono>
 #include <cstddef>
 #include <string>
+#include <string_view>
 #include <utility>
+#include <vector>
 
 namespace vss {
 
@@ -61,6 +64,7 @@ public:
             {
             case rules::trigger_kind::bytes:
             case rules::trigger_kind::quiet:
+            case rules::trigger_kind::signal:
                 break;
             case rules::trigger_kind::lines:
                 bad(path + ".when.lines",
@@ -69,11 +73,6 @@ public:
             case rules::trigger_kind::port:
                 bad(path + ".when.port",
                     "a rule on \"port\" cannot be installed in this build");
-                break;
-            case rules::trigger_kind::signal:
-                bad(path + ".when.signal",
-                    "a rule on a \"signal\" cannot be installed in this "
-                    "build");
                 break;
             }
             // The path the writer of the document will find the action at.
@@ -204,9 +203,24 @@ result<rules_installation> studio::install_rules(
                                    "\" has a rule set already"});
             return refuse(errc::already_exists);
         }
+        if (rules_.size() >= rules::max_hub_sets)
+        {
+            found.push_back(rules::problem{
+                "", "the studio has " + std::to_string(rules::max_hub_sets) +
+                        " rule sets already"});
+            return refuse(errc::queue_full);
+        }
+        if (set->size_bytes > rules::max_hub_bytes - rules_bytes_)
+        {
+            found.push_back(rules::problem{
+                "", "the rule sets of the studio would take more than " +
+                        std::to_string(rules::max_hub_bytes) + " bytes"});
+            return refuse(errc::queue_full);
+        }
+        rules_bytes_ += set->size_bytes;
         made = std::make_shared<rules::scheduler>(
             hub_->executor(), std::move(set), options.run_seed,
-            std::move(hooks));
+            std::move(hooks), options.limits);
         installed.generation = next_rules_generation_++;
         installed.seed = made->seed();
         rules_.emplace(id, rules_record{made, installed.generation});
@@ -233,6 +247,7 @@ result<void> studio::remove_rules(endpoint_id place)
             return make_error_code(errc::not_found);
         removed = std::move(it->second.scheduler);
         rules_.erase(it);
+        rules_bytes_ -= removed->set().size_bytes;
         // Asked under the lock, so that the stage of a set installed right
         // after this one is not the one taken off.
         if (const auto endpoint = hub_->find_endpoint(place))
@@ -245,13 +260,63 @@ result<void> studio::remove_rules(endpoint_id place)
     return {};
 }
 
-result<rules::scheduler_stats> studio::rule_stats(endpoint_id place) const
+std::shared_ptr<rules::scheduler> studio::rules_of(endpoint_id place) const
 {
     std::lock_guard lock(rules_mutex_);
     const auto it = rules_.find(place);
-    if (it == rules_.end())
+    return it == rules_.end() ? nullptr : it->second.scheduler;
+}
+
+result<void> studio::raise_signal(endpoint_id place, std::string_view signal,
+                                  bytes_view carried, time_point cause)
+{
+    const std::shared_ptr<rules::scheduler> rules = rules_of(place);
+    if (!rules)
         return make_error_code(errc::not_found);
-    return it->second.scheduler->stats();
+    const std::vector<std::string>& declared = rules->set().signals;
+    std::size_t index = 0;
+    while (index < declared.size() && declared[index] != signal)
+        ++index;
+    if (index == declared.size())
+        return make_error_code(errc::not_found);
+    if (carried.size() > rules::max_signal_bytes)
+        return make_error_code(errc::invalid_argument);
+    // The cause is an event the engine reported, so it is on the hub's
+    // clock and in the past.  One from the future, or a stale one, is a
+    // mistake of the caller and is not acted on.
+    const time_point now = hub_->now();
+    if (cause > now ||
+        now - cause >
+            std::chrono::duration_cast<clock_type::duration>(
+                rules::max_signal_age))
+        return make_error_code(errc::invalid_argument);
+    return rules->signal(index, carried, cause, now);
+}
+
+result<void> studio::suspend_rules(endpoint_id place)
+{
+    const std::shared_ptr<rules::scheduler> rules = rules_of(place);
+    if (!rules)
+        return make_error_code(errc::not_found);
+    rules->suspend(hub_->now());
+    return {};
+}
+
+result<void> studio::resume_rules(endpoint_id place)
+{
+    const std::shared_ptr<rules::scheduler> rules = rules_of(place);
+    if (!rules)
+        return make_error_code(errc::not_found);
+    static_cast<void>(rules->resume(hub_->now()));
+    return {};
+}
+
+result<rules::scheduler_stats> studio::rule_stats(endpoint_id place) const
+{
+    const std::shared_ptr<rules::scheduler> rules = rules_of(place);
+    if (!rules)
+        return make_error_code(errc::not_found);
+    return rules->stats();
 }
 
 std::optional<std::uint64_t> studio::rules_generation(endpoint_id place) const
@@ -269,6 +334,7 @@ void studio::close_all_rules()
     {
         std::lock_guard lock(rules_mutex_);
         all.swap(rules_);
+        rules_bytes_ = 0;
     }
     for (auto& [id, record] : all)
     {

@@ -25,12 +25,16 @@ constexpr std::chrono::milliseconds foreign_clock_poll{1};
 
 scheduler::scheduler(const boost::asio::any_io_executor& executor,
                      std::shared_ptr<const compiled_rule_set> set,
-                     std::uint64_t run_seed, scheduler_hooks hooks)
+                     std::uint64_t run_seed, scheduler_hooks hooks,
+                     scheduler_limits limits)
     : strand_(boost::asio::make_strand(executor))
     , timer_(strand_)
     , set_(std::move(set))
     , hooks_(std::move(hooks))
+    , firings_per_second_(
+          std::max<std::uint32_t>(limits.firings_per_second, 1))
     , machine_(set_, run_seed)
+    , budget_(firings_per_second_)
 {
     queue_.reserve(max_waiting_actions);
 }
@@ -49,8 +53,9 @@ void scheduler::start(time_point origin)
         if (started_ || closed_)
             return;
         started_ = true;
+        budget_at_ = origin;
         std::vector<firing> timeline = machine_.start(origin);
-        schedule(timeline);
+        schedule(timeline, origin);
     }
     wake_if_sooner();
 }
@@ -64,11 +69,12 @@ void scheduler::on_read(endpoint_id, bytes_view data, time_point when) noexcept
     {
         {
             std::lock_guard lock(mutex_);
-            if (!started_ || closed_)
+            if (!started_ || closed_ ||
+                suspended_ != suspend_reason::none)
                 return;
             scratch_.clear();
             machine_.feed(data, when, scratch_);
-            schedule(scratch_);
+            schedule(scratch_, when);
         }
         wake_if_sooner();
     }
@@ -83,11 +89,11 @@ void scheduler::lines_changed(control_lines before, control_lines after,
 {
     {
         std::lock_guard lock(mutex_);
-        if (!started_ || closed_)
+        if (!started_ || closed_ || suspended_ != suspend_reason::none)
             return;
         scratch_.clear();
         machine_.lines_changed(before, after, when, scratch_);
-        schedule(scratch_);
+        schedule(scratch_, when);
     }
     wake_if_sooner();
 }
@@ -96,11 +102,11 @@ void scheduler::port_changed(port_event what, time_point when)
 {
     {
         std::lock_guard lock(mutex_);
-        if (!started_ || closed_)
+        if (!started_ || closed_ || suspended_ != suspend_reason::none)
             return;
         scratch_.clear();
         machine_.port_changed(what, when, scratch_);
-        schedule(scratch_);
+        schedule(scratch_, when);
     }
     wake_if_sooner();
 }
@@ -112,14 +118,37 @@ result<void> scheduler::signal(std::size_t index, bytes_view carried,
         return make_error_code(errc::not_found);
     {
         std::lock_guard lock(mutex_);
-        if (!started_ || closed_)
+        if (!started_ || closed_ || suspended_ != suspend_reason::none)
             return {};
         scratch_.clear();
         machine_.signal(index, carried, cause, when, scratch_);
-        schedule(scratch_);
+        schedule(scratch_, when);
     }
     wake_if_sooner();
     return {};
+}
+
+void scheduler::suspend(time_point when)
+{
+    std::lock_guard lock(mutex_);
+    if (!started_ || closed_ || suspended_ != suspend_reason::none)
+        return;
+    suspend_locked(suspend_reason::asked, when);
+}
+
+bool scheduler::resume(time_point when)
+{
+    {
+        std::lock_guard lock(mutex_);
+        if (closed_ || suspended_ == suspend_reason::none)
+            return false;
+        suspended_ = suspend_reason::none;
+        budget_ = firings_per_second_;
+        budget_at_ = when;
+        machine_.resync();
+    }
+    wake_if_sooner();
+    return true;
 }
 
 void scheduler::close()
@@ -145,6 +174,7 @@ scheduler_stats scheduler::stats() const
     scheduler_stats out = stats_;
     out.machine = machine_.stats();
     out.missed_chunks = missed_chunks_.load(std::memory_order_relaxed);
+    out.suspended = suspended_;
     return out;
 }
 
@@ -154,12 +184,87 @@ std::size_t scheduler::waiting() const
     return queue_.size();
 }
 
+// Called with `mutex_` held.  True when the set may fire once more at
+// `when`, which uses up one firing of its budget.
+bool scheduler::take_firing(time_point when)
+{
+    using std::chrono::nanoseconds;
+    constexpr std::uint64_t second = 1000000000;
+    if (when > budget_at_)
+    {
+        const auto elapsed = static_cast<std::uint64_t>(
+            std::chrono::duration_cast<nanoseconds>(when - budget_at_)
+                .count());
+        // Whole firings only: the time that earned less than one stays
+        // counted, so a slow trickle is not rounded away.
+        const std::uint64_t gained =
+            elapsed >= second ? firings_per_second_
+                              : elapsed * firings_per_second_ / second;
+        if (budget_ + gained >= firings_per_second_)
+        {
+            budget_ = firings_per_second_;
+            budget_at_ = when;
+        }
+        else if (gained != 0)
+        {
+            budget_ += static_cast<std::uint32_t>(gained);
+            budget_at_ += std::chrono::duration_cast<clock_type::duration>(
+                nanoseconds(static_cast<std::int64_t>(
+                    gained * second / firings_per_second_)));
+        }
+    }
+    if (budget_ == 0)
+        return false;
+    --budget_;
+    return true;
+}
+
 // Called with `mutex_` held.
-void scheduler::schedule(std::vector<firing>& firings)
+void scheduler::suspend_locked(suspend_reason why, time_point when)
+{
+    suspended_ = why;
+    ++stats_.suspensions;
+    stats_.cancelled += queue_.size();
+    queue_.clear();
+    if (!hooks_.suspended)
+        return;
+    // Told on the scheduler's strand, never on the path of the bytes.
+    boost::asio::post(strand_, [weak = weak_from_this(), why, when]
+                      {
+                          const auto self = weak.lock();
+                          if (!self)
+                              return;
+                          // As for an action: a close waits for it, and
+                          // nothing is told after one.
+                          std::lock_guard delivering(self->deliver_mutex_);
+                          {
+                              std::lock_guard lock(self->mutex_);
+                              if (self->closed_)
+                                  return;
+                          }
+                          self->hooks_.suspended(why, when);
+                      });
+}
+
+// Called with `mutex_` held.
+void scheduler::schedule(std::vector<firing>& firings, time_point when)
 {
     for (firing& fired : firings)
     {
         const bool timeline = fired.rule == no_index;
+        // The timeline is the set's own plan and is not counted.  A rule's
+        // firing is, and the one that finds the budget spent suspends the
+        // set: it and those behind it are decided but not scheduled.
+        if (!timeline)
+        {
+            if (suspended_ == suspend_reason::none && !take_firing(when))
+                suspend_locked(suspend_reason::budget, when);
+            if (suspended_ != suspend_reason::none)
+            {
+                ++stats_.suspended_firings;
+                continue;
+            }
+        }
         for (planned_action& planned : fired.actions)
         {
             // A rule's state and slot changed at the match, in the machine.
@@ -190,6 +295,8 @@ void scheduler::schedule(std::vector<firing>& firings)
 // Called with `mutex_` held.
 std::optional<time_point> scheduler::next_wake() const
 {
+    if (suspended_ != suspend_reason::none)
+        return std::nullopt;
     std::optional<time_point> next = machine_.next_deadline();
     if (!queue_.empty() && (!next || queue_.front().due < *next))
         next = queue_.front().due;
@@ -259,14 +366,17 @@ void scheduler::fire()
     std::vector<item> ready;
     {
         std::lock_guard lock(mutex_);
-        if (closed_)
+        if (closed_ || suspended_ != suspend_reason::none)
+        {
+            armed_for_.reset();
             return;
+        }
         const time_point current = hooks_.now();
         // Silence that is complete may fire a rule, whose actions may be
         // due already.
         scratch_.clear();
         machine_.tick(current, scratch_);
-        schedule(scratch_);
+        schedule(scratch_, current);
         while (!queue_.empty() && queue_.front().due <= current)
         {
             std::pop_heap(queue_.begin(), queue_.end(), &scheduler::later);

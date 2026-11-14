@@ -179,6 +179,12 @@ public:
     /// replaces this one is fed them first.
     byte_buffer unmatched_tail() const;
 
+    /// The set was not shown what arrived for a while (it was suspended).
+    /// Forgets every partial match and the time of the last byte, so that
+    /// nothing is matched across the gap and no silence is counted from
+    /// before it.  States, slots, counts and draws are kept.
+    void resync();
+
     const machine_stats& stats() const noexcept { return stats_; }
 
 private:

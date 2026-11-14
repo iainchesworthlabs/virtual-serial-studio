@@ -363,11 +363,12 @@ signals in, the firings it decided out) and the scheduler. The format is in
 docs/response-timing.md.
 
 A set is installed on a port with `studio::install_rules` and taken off with
-`remove_rules`. This build installs a `peer` set whose rules match `bytes` or
-`quiet_us`. Another role, a rule on `lines`, `port` or a signal, an `ask`, a
+`remove_rules`. This build installs a `peer` set whose rules match `bytes`,
+`quiet_us` or a signal. Another role, a rule on `lines` or `port`, an `ask`, a
 `line_error` on a port that takes none, or a line a device does not drive is
 refused with `unsupported`, and the problems say where. A port has one set at
-most, and removing the port removes its set.
+most, and removing the port removes its set. A studio holds at most 256 sets and
+16 MiB of compiled sets; one more is refused with `queue_full`.
 
 The scheduler is the port's read stage. It matches each chunk on the endpoint's
 strand, under a short lock, and does no I/O there. What a rule does is queued by
@@ -376,6 +377,22 @@ clock reaches that time, never before. At most 1024 actions wait at a port; more
 are counted as `overrun` and not done. `remove_rules` returns only when the set
 does nothing more: an action under way has finished, what was waiting is
 discarded and counted, and nothing starts after.
+
+A set has a budget of firings: 20 000 a second by default, refilled at that rate
+from the times the scheduler is given, and never more than one second's worth.
+The timeline does not use it. The firing that finds the budget spent suspends
+the set: that firing is not scheduled, what was waiting is discarded and
+counted, and the set matches nothing until `resume_rules`. The traffic is not
+touched. `suspend_rules` does the same when asked. A set that is resumed has a
+full budget and no memory of the stream, so a frame that was under way is not
+matched and silence is counted from the next byte; its states, slots and counts
+are kept. `rule_stats` says whether a set is suspended and why.
+
+`raise_signal` fires the first rule that matches a signal the set declares, with
+up to 256 bytes that the rule's actions use as they use the bytes of a match. It
+takes the time of the event the signal answers, which must be on the hub's
+clock, not in the future and not more than a minute old. A signal uses the
+budget like any firing.
 
 ### Link delay
 

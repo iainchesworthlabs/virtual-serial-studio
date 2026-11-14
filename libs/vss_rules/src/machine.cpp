@@ -484,6 +484,13 @@ time_point machine::time_of(std::uint64_t offset) const
     return boundaries_.empty() ? time_point{} : boundaries_.front().when;
 }
 
+void machine::resync()
+{
+    consume();
+    boundaries_.clear();
+    any_seen_ = false;
+}
+
 void machine::consume()
 {
     std::fill(shift_.begin(), shift_.end(), std::uint64_t{0});
