@@ -1084,11 +1084,36 @@ first key list are placed in the repository by the owner, as public files.
 involved: the key is trusted by a user in their own store, or by an administrator in `allow_keys`. A key on a
 hardware token works where the token can sign with Ed25519.
 
-**Open: how a user gets an author's public key.** `plugin.sig` carries no public key, on purpose: a key taken
-from the file being checked proves nothing. So a user who wants to approve an author's key needs the key from
-somewhere else, and this page does not yet say from where. The likely answer is a small public key file that the
-author publishes and the user imports, with its fingerprint shown before it is approved. Until that is decided a
-plugin signed with an unknown key can only be run as an unsigned one.
+**How a user gets an author's public key** (decided by the owner). `plugin.sig` carries no public key, on
+purpose: a key taken from the file being checked proves nothing. The author publishes a small **public key
+file**, and the user imports it on the Plugins page.
+
+```json
+{ "key_file_version": 1,
+  "key_id": "acme-2026",
+  "public_key": "<64 hex characters>",
+  "name": "Acme Ltd" }
+```
+
+- The file holds a key id, the 32 bytes of the Ed25519 public key as 64 lower-case hex characters, and the
+  author's name. Nothing in it is secret. It is read as strictly as every other file here: an unknown key, a key
+  given twice or a wrong type is an error.
+- **Import, then compare, then approve.** The user chooses the file on the Plugins page. Studio shows the key
+  id, the name and the key's **fingerprint** (the first 16 hex characters of the SHA-512 of the 32 key bytes, in
+  groups of four). The user compares the fingerprint with the one the author published somewhere the user
+  trusts: the author's site, a download page, a message from the author. Only when the user confirms is the key
+  stored in the trust store (section 8.4), and only from then on does a signature made with it count.
+- **The file may be bundled.** An author may ship the key file next to the plugin, or inside its folder, so that
+  the user has it to hand. That is a convenience for the import and nothing more: **Studio never approves a key
+  because it lies in the plugin's own folder**, never imports one by itself, and never ticks the confirmation
+  for the user. Whoever changed the plugin could have changed a key beside it, so the comparison with what the
+  author published elsewhere is the step that counts. Studio says so in the import dialog when the file comes
+  from inside a plugin folder.
+- A key id that an official key or an administrator's key already has cannot be imported. A key id the user
+  already approved with a different key is refused as well: an id never silently changes its key.
+- Until the key is imported, a plugin signed with it is treated as unsigned, with the key's id shown, and can
+  be run only by the decision an unsigned plugin gets.
+- An administrator does the same for everyone with `allow_keys` in the policy (section 8.6).
 
 **What exists.** The root public keys are in `libs/vss_plugin/src/official_roots.cpp` (`root-2026` and
 `root-next`). The first key list, as the text that is signed, is `libs/vss_plugin/keys/official-keys.payload.json`;
@@ -1526,13 +1551,15 @@ The owner went through these on 13 November 2026. Each line says what was decide
 2. **How long an official plugin's `not_after` runs.** The owner's first thought was 28 days; this page
    recommends the signing key's `valid_to` and gives the reasons (section 8.5). The first key list gives the
    signing keys two years, 14 November 2026 to 14 November 2028. To be confirmed.
-3. **How a user gets an unknown author's public key** in order to approve it (section 8.9).
 
 **Closed since the review:**
 
 - **Studio installed for one user**: investigated (section 5.2). No installer gets a second mode; Studio tells
   the kind of install from its folder; the agent's `hello` has to say which copy it is.
 - **Licence files and the key list**: the owner decided that licence files do not use it (section 8.9).
+- **How a user gets an unknown author's public key**: the author publishes a small public key file, the user
+  imports it on the Plugins page and compares its fingerprint, and only then is it approved. The file may be
+  bundled with the plugin, and a key is never trusted because it lies in the plugin's own folder (section 8.9).
 - **The order of a rule set and modifiers on one route stage**: the rule set first, agreed by the owner and
   written in both pages (section 7.6). The stage itself is not built yet; it is slice 4 of
   `docs/response-timing.md`.
