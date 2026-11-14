@@ -13,11 +13,14 @@ add_library(vss_plugin
   src/error.cpp
   src/hash.cpp
   src/licence.cpp
+  src/locations.cpp
   src/manifest.cpp
   src/measure.cpp
   src/official_roots.cpp
   src/policy.cpp
+  src/protocol.cpp
   src/revocations.cpp
+  src/session.cpp
   src/signature.cpp
   src/trust_store.cpp
   src/verify.cpp)
@@ -31,22 +34,29 @@ target_compile_features(vss_plugin PUBLIC cxx_std_23)
 # The signed envelope and the Ed25519 check are the licence library's; a
 # plugin signature is that envelope with a purpose of its own.  licence.hpp
 # takes a licence status in its interface, so the licence library is public.
-target_link_libraries(vss_plugin PUBLIC vss_core Vss::license
+# protocol.hpp carries a message in the agent's frame, so the frame library is
+# public too; it does not link this library back.
+target_link_libraries(vss_plugin PUBLIC vss_core Vss::agent_proto Vss::license
   PRIVATE Vss::BoostJson)
 
-# Who owns a file and who may write to it is asked of the operating system.
-# Linux and macOS share one implementation; Windows has its own.
-if(WIN32)
-  target_sources(vss_plugin PRIVATE src/platform/windows/access_windows.cpp)
-  target_link_libraries(vss_plugin PRIVATE advapi32)
-else()
+# Where the plugin folders and the policy file are, and who owns a file and
+# who may write to it, are asked of the operating system.  CMake picks the
+# files in src/platform/<windows|linux|macos>.  Linux and macOS share one
+# implementation of the access check.
+icl_platform_sources(vss_plugin)
+if(UNIX)
   target_sources(vss_plugin PRIVATE src/platform/posix/access_posix.cpp)
+endif()
+if(WIN32)
+  # advapi32 for owners and access lists; shell32 and ole32 for the folders
+  # Windows names (ProgramData, LocalAppData).
+  target_link_libraries(vss_plugin PRIVATE advapi32 shell32 ole32)
 endif()
 
 vss_set_warnings(vss_plugin)
 # boost::system::error_category deliberately has a non-virtual destructor and
 # is meant to be derived from; GCC warns about the base anyway.
-set_source_files_properties(src/error.cpp PROPERTIES
+set_source_files_properties(src/error.cpp src/protocol.cpp PROPERTIES
   COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wno-non-virtual-dtor>")
 vss_enable_coverage(vss_plugin)
 vss_mark_coverage_subject(vss_plugin)
