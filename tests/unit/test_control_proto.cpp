@@ -162,7 +162,7 @@ TEST_CASE("control proto: every request survives the wire")
     REQUIRE(round_trip(tokened) == tokened);
     const control::request create{
         12, control::tokens_create_request{
-                "Lab rig 3", {"monitor", "monitor.data"}, 86400}};
+                "Lab rig 3", {"monitor", "monitor.data"}, 86400, {"loopback"}}};
     REQUIRE(round_trip(create) == create);
     const control::request listing{13, control::tokens_list_request{}};
     REQUIRE(round_trip(listing) == listing);
