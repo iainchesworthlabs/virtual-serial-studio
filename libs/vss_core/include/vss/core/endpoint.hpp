@@ -30,6 +30,22 @@ namespace vss {
 
 class hub;
 
+/// Something that is shown what an endpoint reads, with the time it was
+/// read: the place where response rules watch a port (docs/response-timing.md).
+class read_stage
+{
+public:
+    virtual ~read_stage() = default;
+
+    /// A chunk `from` read at `when` (#hub::now, taken once for the chunk).
+    /// Called on the endpoint's strand, in the order the chunks were read,
+    /// before the chunk is routed and before its data event is published.
+    /// It delays every byte of the port by as long as it takes, so it must
+    /// not block; what takes time is handed to another strand.
+    virtual void on_read(endpoint_id from, bytes_view data,
+                         time_point when) noexcept = 0;
+};
+
 /// How much a single endpoint buffers and records.
 struct endpoint_options
 {
@@ -144,6 +160,15 @@ public:
     /// Applies the modem inputs a peer drives (CTS/DSR/DCD/RI).
     void set_peer_inputs(control_lines inputs);
 
+    /// Puts `stage` where it is shown every chunk the endpoint reads (see
+    /// #read_stage), in place of the one there; null removes it.  The change
+    /// is made on the endpoint's strand, so between two chunks: the old stage
+    /// has seen every chunk before it and the new one sees every chunk after.
+    /// `done`, when given, runs on the strand once the change is made, and
+    /// the old stage is not called again after that.  Safe from any thread.
+    void set_read_stage(std::shared_ptr<read_stage> stage,
+                        std::function<void()> done = {});
+
 private:
     friend class hub;
 
@@ -176,7 +201,7 @@ private:
     void emit(error_code ec, std::string message,
               event_kind kind = event_kind::error);
     void emit_data(data_direction direction,
-                   std::shared_ptr<const byte_buffer> data);
+                   std::shared_ptr<const byte_buffer> data, time_point when);
     void emit_lines();
 
     hub& owner_;
@@ -195,6 +220,8 @@ private:
     const boost::asio::strand<boost::asio::any_io_executor> strand_;
 
     byte_buffer read_buffer_;
+    /// Read and written on the strand only, so a read costs one test of it.
+    std::shared_ptr<read_stage> read_stage_;
     mutable std::mutex write_mutex_;
     std::deque<std::shared_ptr<pending_write>> write_queue_;
     std::size_t write_queue_bytes_ = 0;
