@@ -294,8 +294,15 @@ std::string format_time(time_point value)
     return text.data();
 }
 
+/// Reads the signed JSON payload of a licence.  This does not check the
+/// signature or the dates against the clock, only that every field is there,
+/// of the right kind and of a size and form that is allowed.  Any fault gives
+/// `malformed`, with no detail, so that a bad file says nothing about how
+/// close it came.
 result<licence> parse_payload(std::span<const std::uint8_t> payload)
 {
+    // A field this reader does not know, and that the file marks as critical,
+    // is a refusal, so that an old reader never half understands a new file.
     const auto object = payload_object(payload);
     if (!object)
     {
@@ -309,6 +316,7 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
 
     licence value;
 
+    // The identity of the licence: its id, its kind and its edition.
     const auto id =
         detail::required_string(*object, "licence_id", max_id_length);
     const auto kind = detail::required_string(*object, "kind", 16);
@@ -349,6 +357,8 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
         return errc::malformed;
     }
 
+    // The licensee is a nested object with a name and an optional contact.
+    // Both are text for a person to read, so control characters are refused.
     const auto licensee = object->find("licensee");
     if (licensee == object->end() || !licensee->value().is_object())
     {
@@ -366,6 +376,7 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
     value.licensee_name = *name;
     value.licensee_contact = *contact;
 
+    // The dates.  A licence that ends before it starts is not valid.
     const auto issued = required_time(*object, "issued_at");
     const auto starts = required_time(*object, "starts_at");
     const auto expires = required_time(*object, "expires_at");
@@ -377,6 +388,7 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
     value.starts_at = *starts;
     value.expires_at = *expires;
 
+    // How many days of grace after the end, and how many seats.
     const auto grace =
         detail::required_integer(*object, "grace_days", 0, max_grace_days);
     const auto seats = detail::required_integer(*object, "seats", 0, max_seats);
@@ -387,6 +399,8 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
     value.grace_days = static_cast<int>(*grace);
     value.seats = static_cast<int>(*seats);
 
+    // The features and the machines are lists of short text, each entry in
+    // the form that `is_feature_entry` or `is_machine_entry` allows.
     auto features = detail::string_list(*object, "features", max_features,
                                         max_feature_length + 2);
     auto machines = detail::string_list(*object, "machines", max_machines,
@@ -400,6 +414,7 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
     value.features = std::move(*features);
     value.machines = std::move(*machines);
 
+    // The optional fields follow.  An empty text means the field was left out.
     const auto updates = detail::optional_string(*object, "updates_until", 20);
     if (!updates)
     {

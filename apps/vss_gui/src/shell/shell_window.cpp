@@ -601,8 +601,14 @@ void ShellWindow::build_actions()
         registry_.action(QStringLiteral("view.density.compact")));
 }
 
+/// Builds the menu bar.  Every entry is an action that the registry already
+/// owns, looked up by its id, so a menu item, a toolbar button and a shortcut
+/// are one action with one state.  A separator marks a group of related
+/// entries.
 void ShellWindow::build_menus()
 {
+    // An id that the registry does not know is skipped, not an error, so a
+    // menu never shows an entry that does nothing.
     const auto add = [this](QMenu* menu, const QString& id)
     {
         if (QAction* action = registry_.action(id))
@@ -611,6 +617,7 @@ void ShellWindow::build_menus()
     const auto add_menu = [this](const QString& title)
     { return menuBar()->addMenu(title); };
 
+    // File: documents first, then export, then quit.
     QMenu* file = add_menu(tr("&File"));
     add(file, QStringLiteral("file.new"));
     add(file, QStringLiteral("file.open"));
@@ -633,6 +640,7 @@ void ShellWindow::build_menus()
     add(edit, QStringLiteral("edit.duplicate"));
     add(edit, QStringLiteral("topology.removeSetup"));
 
+    // Ports: make one, then the ones that need a port chosen, then remove.
     QMenu* ports = add_menu(tr("&Ports"));
     add(ports, QStringLiteral("ports.add"));
     add(ports, QStringLiteral("ports.virtual"));
@@ -643,11 +651,14 @@ void ShellWindow::build_menus()
     add(ports, QStringLiteral("ports.mock"));
     ports->addSeparator();
     add(ports, QStringLiteral("ports.copyName"));
+    // Renaming is offered only when the engine can do it.
     if (backend_.caps().rename_port)
         add(ports, QStringLiteral("ports.rename"));
     add(ports, QStringLiteral("ports.remove"));
     add(ports, QStringLiteral("topology.removeSetup"));
 
+    // Topology: links between ports, what a link does, then adding to the
+    // canvas and the canvas view.
     QMenu* topology = add_menu(tr("&Topology"));
     add(topology, QStringLiteral("topology.connect"));
     add(topology, QStringLiteral("topology.share"));
@@ -673,6 +684,7 @@ void ShellWindow::build_menus()
     add(tools, QStringLiteral("tools.refresh"));
     add(tools, QStringLiteral("tools.settings"));
 
+    // View: panes first, then the theme and the density, then the layout.
     QMenu* view = add_menu(tr("&View"));
     add(view, QStringLiteral("view.advanced"));
     view->addSeparator();
@@ -693,6 +705,7 @@ void ShellWindow::build_menus()
     add(view, QStringLiteral("view.resetLayout"));
     add(view, QStringLiteral("view.showLauncher"));
 
+    // Help: the guides first, then licence, support and the about box.
     QMenu* help = add_menu(tr("&Help"));
     add(help, QStringLiteral("help.contents"));
     add(help, QStringLiteral("help.why"));
