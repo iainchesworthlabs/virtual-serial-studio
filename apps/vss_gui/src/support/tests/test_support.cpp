@@ -388,7 +388,12 @@ TEST_CASE("support: licences match the bundled components")
         REQUIRE(!font.url.isEmpty());
         REQUIRE(!read_repository_file(font.licence_text).isEmpty());
         REQUIRE(support::licence_text(font.spdx) != font.spdx);
+        // THIRD_PARTY_NOTICES.md names it too.
+        REQUIRE(read_repository_file(QStringLiteral("THIRD_PARTY_NOTICES.md"))
+                    .contains(font.family));
     }
+    // The fonts the program bundles are all listed.
+    REQUIRE_EQ(support::third_party_fonts().size(), 3);
 
     // A component that is only installed separately is never listed.
     for (const QString& name : support::third_party_not_shipped())

@@ -699,7 +699,7 @@ Fonts tab is read from the same file (`fonts`), so adding a bundled font is one 
 none, it keeps the text the spec has. The Licences tab summarises each licence (component, licence name,
 one line of context) instead of embedding the full licence texts; the
 product's own GPLv3 notice and warranty disclaimer are in the About tab, and
-no font is bundled. The standard GPLv3 "This program is free software..."
+the bundled fonts are on the Fonts tab. The standard GPLv3 "This program is free software..."
 paragraphs are the one place new copy is used, because the About tab has to
 carry the licence notice.
 
