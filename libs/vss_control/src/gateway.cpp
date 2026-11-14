@@ -41,6 +41,7 @@
 #include <vss/agent/proto/frame.hpp>
 #include <vss/control/audit_log.hpp>
 #include <vss/control/junit.hpp>
+#include <vss/control/loopback.hpp>
 #include <vss/control/proto/secret.hpp>
 #include <vss/control/proto/token.hpp>
 #include <vss/core/event.hpp>
@@ -162,6 +163,9 @@ struct session
     std::string close_reason;
     /// Requests handed to the pool whose replies are not queued yet.
     std::size_t pending = 0;
+    /// Bytes of the preface a TCP connection still owes.  Nothing it sends
+    /// is looked at as a frame before they have all come and are right.
+    std::size_t preface_owed = 0;
 
     /// Set by `hello`, once, and never changed.
     std::optional<principal> who;
@@ -357,6 +361,17 @@ public:
             options_.instance);
         if (!administering)
             return administering.error();
+        // TCP is off unless a port was given.  A port that is taken is an
+        // error: the gateway does not start somewhere the user did not say.
+        std::unique_ptr<agent::local_listener> tcp_listener;
+        if (options_.loopback_port)
+        {
+            auto opened_tcp =
+                listen_loopback(io_.get_executor(), *options_.loopback_port);
+            if (!opened_tcp)
+                return opened_tcp.error();
+            tcp_listener = std::move(*opened_tcp);
+        }
 
         // No audit log, no gateway: nothing is served that is not recorded.
         audit_options where;
@@ -382,18 +397,27 @@ public:
         audit_ = std::move(*opened);
         tokens_ = std::move(*tokens);
 
+        doors_.clear();
+        doors_.resize(options_.loopback_port ? 3 : 2);
         doors_[0].listener = std::move(*listening);
         doors_[0].via = transport::local;
         doors_[1].listener = std::move(*administering);
         doors_[1].via = transport::local_admin;
         address_ = doors_[0].listener->address();
         admin_address_ = doors_[1].listener->address();
+        if (options_.loopback_port)
+        {
+            doors_[2].listener = std::move(tcp_listener);
+            doors_[2].via = transport::loopback;
+            loopback_address_ = doors_[2].listener->address();
+        }
         started_at_ = steady::now();
 
         audit_->record("gateway.started",
                        {{"version", gateway_version()},
                         {"address", address_},
                         {"admin_address", admin_address_},
+                        {"loopback_address", loopback_address_},
                         {"local_scopes", joined(scope_names(local_scopes()))}});
 
         pool_ = std::make_unique<boost::asio::thread_pool>(request_threads);
@@ -460,6 +484,12 @@ public:
         return admin_address_;
     }
 
+    std::string loopback_address() const
+    {
+        const std::lock_guard lock(state_mutex_);
+        return loopback_address_;
+    }
+
     void request_stop()
     {
         {
@@ -490,6 +520,7 @@ public:
         out.refused_busy = refused_busy_.load();
         out.protocol_errors = protocol_errors_.load();
         out.handshake_timeouts = handshake_timeouts_.load();
+        out.bad_preface = bad_preface_.load();
         out.auth_failures = auth_failures_.load();
         out.forbidden = forbidden_.load();
         out.rate_limited = rate_limited_.load();
@@ -577,7 +608,11 @@ private:
     void admit(transport via, std::unique_ptr<agent::local_stream> stream)
     {
         auto asked = stream->peer();
-        if (!asked || !asked->same_user)
+        // Over TCP the system cannot say who connected, so nobody is taken
+        // for this user there: the connection is let in to present a token,
+        // and without one it gets nothing.
+        const bool anonymous = via == transport::loopback;
+        if (!asked || (!anonymous && !asked->same_user))
         {
             refused_peer_.fetch_add(1);
             record_burst(
@@ -595,6 +630,8 @@ private:
                                       ++last_session_, io_, *pool_);
         client->tokens = options_.request_burst;
         client->refilled = steady::now();
+        if (anonymous)
+            client->preface_owed = control_preface.size();
         client->event_allowance =
             static_cast<double>(options_.max_event_bytes_per_second);
         client->event_refilled = client->refilled;
@@ -617,7 +654,12 @@ private:
         {
             refused_busy_.fetch_add(1);
             reject(client, "too_many_waiting");
-            fail(client, 0, api_errc::busy);
+            // A TCP connection that has not sent the preface is told
+            // nothing, not even that the gateway is busy.
+            if (anonymous)
+                close(client, "too_many_waiting");
+            else
+                fail(client, 0, api_errc::busy);
         }
         else
         {
@@ -698,8 +740,27 @@ private:
                     close(client, "peer_closed");
                     return;
                 }
-                client->reader.feed(
-                    bytes_view(client->read_buffer.data(), size));
+                std::size_t taken = 0;
+                while (client->preface_owed != 0 && taken < size)
+                {
+                    const std::size_t at =
+                        control_preface.size() - client->preface_owed;
+                    if (static_cast<std::uint8_t>(client->read_buffer[taken]) !=
+                        control_preface[at])
+                    {
+                        // Not a client of this API: an HTTP request, a
+                        // scanner, another major version.  It is closed and
+                        // told nothing.
+                        bad_preface_.fetch_add(1);
+                        reject(client, "bad_preface");
+                        close(client, "bad_preface");
+                        return;
+                    }
+                    --client->preface_owed;
+                    ++taken;
+                }
+                client->reader.feed(bytes_view(
+                    client->read_buffer.data() + taken, size - taken));
                 pump(client);
             });
     }
@@ -911,6 +972,21 @@ private:
         }
 
         principal made;
+        if (hello.token.empty() && client->via == transport::loopback)
+        {
+            // Nobody is the local user over TCP.  The same answer as for a
+            // wrong token.
+            auth_failures_.fetch_add(1);
+            record_burst(auth_burst_, "auth.failed",
+                         {{"transport", transport_name(client->via)},
+                          {"reason", "token_required"},
+                          {"token", std::string()},
+                          {"process", client->peer.process_id},
+                          {"program", client->peer.program}});
+            refuse_connection(client, id, api_errc::unauthenticated,
+                              "auth_failed");
+            return;
+        }
         if (hello.token.empty())
         {
             made.id = "local:" + client->peer.user;
@@ -975,7 +1051,11 @@ private:
                                           const secret_string& token)
     {
         const auto now = steady::now();
-        const std::string source = "local:" + client.peer.user;
+        // Every TCP connection is one source: who made it is not known, so
+        // wrong tokens there slow down everyone who comes that way.
+        const std::string source = client.via == transport::loopback
+                                       ? std::string("loopback")
+                                       : "local:" + client.peer.user;
         std::string token_id;
         std::string_view reason;
         if (client.via == transport::local_admin)
@@ -1007,8 +1087,11 @@ private:
                     principal made;
                     made.id = "token:" + verdict.id;
                     made.via = client.via;
-                    made.scopes = effective_scopes(verdict.scopes, client.via,
-                                                   options_.local_ceiling);
+                    made.scopes =
+                        effective_scopes(verdict.scopes, client.via,
+                                         client.via == transport::loopback
+                                             ? options_.loopback_ceiling
+                                             : options_.local_ceiling);
                     return made;
                 }
                 reason = token_check_name(verdict.outcome);
@@ -1063,6 +1146,19 @@ private:
         api_errc refused = api_errc::success;
         token_request asked;
         asked.label = wanted.label;
+        if (!wanted.transports.empty())
+        {
+            asked.transports.clear();
+            for (const std::string& name : wanted.transports)
+            {
+                if (name == transport_name(transport::local))
+                    asked.transports.push_back(transport::local);
+                else if (name == transport_name(transport::loopback))
+                    asked.transports.push_back(transport::loopback);
+                else
+                    refused = api_errc::invalid_argument;
+            }
+        }
         for (const std::string& name : wanted.scopes)
         {
             const auto parsed = parse_scope(name);
@@ -2639,7 +2735,9 @@ private:
     // The client thread only.
     std::deque<run_state> runs_;
     std::uint64_t last_run_ = 0;
-    std::array<door, 2> doors_;
+    /// Sized once, before the first accept, and not after: an accept in
+    /// flight holds a reference to its door.
+    std::vector<door> doors_;
     std::unordered_set<session_ptr> sessions_;
     std::uint64_t last_session_ = 0;
     audit_burst refused_burst_;
@@ -2652,6 +2750,7 @@ private:
     std::condition_variable stop_signal_;
     std::string address_;
     std::string admin_address_;
+    std::string loopback_address_;
     bool started_ = false;
     bool stopped_ = false;
     bool stop_requested_ = false;
@@ -2661,6 +2760,7 @@ private:
     std::atomic<std::uint64_t> refused_busy_{0};
     std::atomic<std::uint64_t> protocol_errors_{0};
     std::atomic<std::uint64_t> handshake_timeouts_{0};
+    std::atomic<std::uint64_t> bad_preface_{0};
     std::atomic<std::uint64_t> auth_failures_{0};
     std::atomic<std::uint64_t> forbidden_{0};
     std::atomic<std::uint64_t> rate_limited_{0};
@@ -2698,6 +2798,11 @@ std::string gateway::address() const
 std::string gateway::admin_address() const
 {
     return impl_->admin_address();
+}
+
+std::string gateway::loopback_address() const
+{
+    return impl_->loopback_address();
 }
 
 void gateway::request_stop()
