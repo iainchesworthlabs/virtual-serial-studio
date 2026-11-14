@@ -102,21 +102,27 @@ TEST_CASE("reopen: a started event follows, and the state goes through opening")
 {
     dead_endpoint dead;
 
-    std::mutex mutex;
-    std::vector<std::string> events;
+    // A delivery that is already running cannot be recalled by unsubscribe, so
+    // what the sink writes to must outlive the test body.
+    struct seen_events
+    {
+        std::mutex mutex;
+        std::vector<std::string> events;
+    };
+    const auto seen = std::make_shared<seen_events>();
     const auto subscription = dead.hub->subscribe(
         event_filter{dead.device->id(), std::nullopt},
-        [&](const endpoint_event& event) {
-            std::lock_guard lock(mutex);
-            events.push_back(std::string(to_string(event.kind)) + ":" +
-                             event.message);
+        [seen](const endpoint_event& event) {
+            std::lock_guard lock(seen->mutex);
+            seen->events.push_back(std::string(to_string(event.kind)) + ":" +
+                                   event.message);
         });
 
     REQUIRE(dead.device->reopen(make_fresh(*dead.hub, "device")));
     REQUIRE(wait_until(
         [&] {
-            std::lock_guard lock(mutex);
-            for (const auto& event : events)
+            std::lock_guard lock(seen->mutex);
+            for (const auto& event : seen->events)
             {
                 if (event.find("started") == 0)
                     return true;
