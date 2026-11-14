@@ -1104,7 +1104,7 @@ std::string heavy_set(std::string_view port, std::size_t rule_count)
                       R"j(", "when": {"bytes": "01"}, "do": [{"reply": [")j" +
                       reply + R"j("]}]})j";
     }
-    rules_json += "]";
+    rules_json += ']';
     return peer_set(rules_json, "", port);
 }
 
