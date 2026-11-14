@@ -202,9 +202,11 @@ framework has its own purpose and its own file.
 The list is a source file chosen by CMake, not by the preprocessor:
 `trusted_keys_release.cpp` in the library. The test key is in a separate
 target, `vss_license_test_keys`, that only the test programs and the test mode
-of `vss_license` link. Until the owner generates the real keys, the release list
-is empty, so every licence is invalid and Studio is the Community edition. That
-is the safe state to ship by accident.
+of `vss_license` link. The release list holds the owner's two
+licence keys, `lic-2026-a` (which signs) and the standby `lic-2026-b`, each for
+licences and for revocation lists. A build with an empty list accepts no
+licence and is the Community edition, which is the safe way for a list to be
+wrong.
 
 Test keys. The tests use the key pair of test vector 1 of RFC 8032, whose
 private key is published in the RFC, under the key id `test-rfc8032-1`. It is a

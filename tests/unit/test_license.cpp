@@ -379,6 +379,22 @@ TEST_CASE("licence: a product build refuses a licence signed with the test key")
     const status result = evaluate(signed_text(annual()), where);
     REQUIRE(result.state == state::invalid);
     REQUIRE(!result.active());
+    REQUIRE(!result.value);
+
+    // The same licence, signed with the test key under the id of each real
+    // key, is refused for its signature.
+    const auto payload = write_payload(annual());
+    REQUIRE(payload);
+    for (const std::string_view id : {"lic-2026-a", "lic-2026-b"})
+    {
+        const std::string forged = sf::write(signing::sign(
+            licence_purpose, id, bytes_of(*payload), test_keys::private_key()));
+        const status refused = evaluate(forged, where);
+        REQUIRE(refused.state == state::invalid);
+        REQUIRE(refused.reason == reason::bad_signature);
+        REQUIRE(!refused.value);
+        REQUIRE(!check(refused, "plugins.official").granted);
+    }
 }
 
 TEST_CASE("licence: revocation by licence id and by key")

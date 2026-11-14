@@ -1516,11 +1516,6 @@ right and the warning goes. If the date is already right, create a support
 bundle (**File → Support bundle**) and contact support, who can send a new
 licence file that sets Studio's record of the time right.
 
-### This version
-
-This version of Studio does not trust any licence key yet, so every build is the
-Community edition until a release adds the key.
-
 ## Keyboard shortcuts
 
 `Ctrl` is `Cmd` on macOS.
