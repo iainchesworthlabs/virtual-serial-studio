@@ -8,11 +8,20 @@ built except the benchmark that produced the numbers in
 
 ## The decision
 
-A harness or plugin does not sit in the path of the bytes. It hands the engine a
-**rule set**: a small, declarative, bounded program that says what to match, what
-to do and when. The engine checks it, compiles it, and carries it out on its own
-threads. The plugin hears about every rule that fired, with a timestamp, after
-the fact.
+The fast cases do not go through a plugin. A harness or plugin hands the engine
+a **rule set**: a small, declarative, bounded program that says what to match,
+what to do and when. The engine checks it, compiles it, and carries it out on its
+own threads, with no round trip to anything. So a plugin is never in a path
+measured in microseconds, such as the turn-around of an RS-485 bus. The plugin
+hears about every rule that fired, with a timestamp, after the fact.
+
+A plugin can sit in the path of the bytes. A behaviour modifier
+(`docs/plugins.md`, section 7.6) is given the bytes of one direction of a link
+and answers with what is to go on, and each batch of bytes costs it a round
+trip. That is for changes that have the time. Where a direction of a link has an
+`inline` rule set and modifiers, the rule set runs first and the modifiers
+follow (see [Where a rule set sits](#where-a-rule-set-sits)), so what the rules
+do never waits for a plugin.
 
 Three things make this the answer and not just one option:
 
@@ -165,11 +174,11 @@ the plugin.
 ### Triggers from a plugin
 
 A decoding plugin reads traffic and understands it: framing, fields, a checksum
-that failed, a message type it does not know, a reply out of sequence. It never
-sits in the path, so it learns of bytes after they have passed. When it decides
-something is worth acting on it raises a **signal**, and a rule that matches the
-signal does the acting: a fault, a line change, a reply. This is how a trigger
-fires an engine action without the plugin doing I/O of its own.
+that failed, a message type it does not know, a reply out of sequence. It
+watches and is not a modifier, so it learns of bytes after they have passed.
+When it decides something is worth acting on it raises a **signal**, and a rule
+that matches the signal does the acting: a fault, a line change, a reply. This
+is how a trigger fires an engine action without the plugin doing I/O of its own.
 
 ```json
 { "name": "answer a bad checksum with a break",
@@ -608,7 +617,9 @@ The decision rule, in the order to apply it:
    worked out from a model of the instrument, anything that reads a file, a
    database or another device, a protocol with real state. The plugin then uses
    the rules as its hands: slots for what to say next, `ask` where it has the
-   time, events to follow what happened.
+   time, events to follow what happened. A change to the bytes crossing a link
+   that needs the meaning of a message is a plugin modifier, which sits in the
+   path of that link after its `inline` rules.
 
 A behaviour is *added to the engine* (a new match kind, action, distribution or
 check value) only when all three hold: it is needed inside the round-trip time,
@@ -815,8 +826,10 @@ that combination) and 8 (rule sets stay out of the topology file). The section
 matcher and `bus_fault` into the engine path, all in slice 2. Nothing on this
 list is open.
 
-1. **Rules are data the engine runs; a plugin never sits in the path.** `ask` is
-   the only wait, bounded and refused under the floor. (Recommended: yes.)
+1. **Rules are data the engine runs, with no round trip to a plugin.** `ask` is
+   the only wait a rule makes, bounded and refused under the floor. A plugin
+   modifier can sit in the path of a link's bytes, after the link's `inline`
+   rules; it is never what a fast case depends on. (Recommended: yes.)
 2. **Three small additions to `vss_core`:** the stage seam, the read time taken
    before routing (which moves a data event's `when` earlier by the time routing
    took), and `hub::now` in the delay line. The alternative keeps `vss_core`

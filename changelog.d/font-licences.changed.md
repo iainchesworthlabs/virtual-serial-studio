@@ -1,0 +1,1 @@
+**About now lists the bundled fonts.** The **Fonts** tab names IBM Plex Mono, Noto Sans Arabic and Noto Sans Hebrew with their version, the SIL Open Font License and where each comes from, and `THIRD_PARTY_NOTICES.md` has a matching table.

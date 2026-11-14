@@ -20135,8 +20135,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>עמדה היא המחשב שלכם, ועוד מחשב אחד נוסף שבאמצעותו אתם מנטרים אותו.</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>עמדה היא שני מחשבים: זה שאתם עובדים בו ומחשב נוסף שאתם שולטים בו או מנטרים אותו ממנו. ההתקן הטורי יכול להיות בכל אחד מהם.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />

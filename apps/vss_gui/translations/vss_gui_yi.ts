@@ -20135,8 +20135,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>אַ פּלאַץ איז אײַער קאָמפּיוטער, פּלוס איין אַנדער קאָמפּיוטער וואָס איר נוצט צו מאָניטאָרירן אים.</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>אַ פּלאַץ איז צוויי קאָמפּיוטערס: דער וואָס איר אַרבעט אויף אים און נאָך איינער וואָס איר קאָנטראָלירט אָדער מאָניטאָרט פֿון אים. דער סעריעלער דעווייס קען זײַן אויף יעדן פֿון זיי.</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />

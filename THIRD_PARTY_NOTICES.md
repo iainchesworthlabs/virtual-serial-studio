@@ -20,6 +20,18 @@ copyright notice; it may be combined with GPLv3 code. Qt is linked dynamically,
 so the LGPL relinking requirement is satisfied by the dynamic link, and a
 GPL-3.0-or-later application is one of the uses Qt's own GPLv3 option permits.
 
+## Bundled fonts
+
+Three fonts are embedded in `vss_gui` (Qt resources) and registered at start-up. Each is licensed under the SIL Open
+Font License, version 1.1; the licence text of each sits beside its files in `apps/vss_gui/assets/fonts/` and is
+installed with the other licences. `third_party.json` lists them and the **About, Fonts** tab shows them.
+
+| Font | Version | Licence | How it is used |
+|---|---|---|---|
+| [IBM Plex Mono](https://github.com/IBM/plex) | 2.005 | OFL-1.1 | The fixed font: hex, bytes and monitor columns |
+| [Noto Sans Arabic](https://github.com/notofonts/arabic) | 2.012 | OFL-1.1 | Arabic glyphs the system font lacks; static regular and bold, cut from the variable font and subset |
+| [Noto Sans Hebrew](https://github.com/notofonts/hebrew) | 3.001 | OFL-1.1 | Hebrew and Yiddish glyphs the system font lacks; static regular and semi-bold |
+
 ## Optional external components
 
 | Component | Licence | How it is used |
