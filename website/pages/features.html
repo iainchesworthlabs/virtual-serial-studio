@@ -8,7 +8,7 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 <p class="lead">Everything on this page is in the Community edition. The window has two levels. Simple is a list of your setups and a page of jobs. Advanced is a diagram with the panes an integrator or a diagnostician needs. Both show the same studio, and switching does not change what you have built.</p>
 </div>
 <div class="note warn wide">
-<p><strong>About the pictures.</strong> Each dashed frame below marks where a picture of the application will go. The pictures will be made by the application drawing its own window off screen, in the light and the dark theme. They are not on this page yet.</p>
+<p><strong>About the pictures.</strong> The pictures on this page are made by the application drawing its own window off screen with sample ports, and they follow your light or dark theme. A dashed frame marks a picture that is not here yet.</p>
 </div>
 </section>
 
@@ -25,11 +25,10 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 </ul>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of Simple mode">
-<span class="chip warn hollow">Picture to come</span>
-<span>The window at the Simple level: the list of your setups on the left and the page of jobs on the right, in the light theme.</span>
-<code>shot: simple-jobs</code>
-</div>
+<picture>
+<source srcset="img/shots/simple-jobs-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/simple-jobs-light.png" width="1280" height="800" loading="lazy" alt="The Studio window in Simple mode. An empty list of setups is on the left. On the right is the page of jobs, in groups: my program needs a serial port, I have a serial device, and several programs or devices at once.">
+</picture>
 <figcaption>Simple mode: your setups and the jobs.</figcaption>
 </figure>
 </div>
@@ -94,12 +93,11 @@ description: What Virtual Serial Studio does: virtual ports, sharing one device 
 </ul>
 </div>
 <figure class="shot">
-<div class="frame" role="img" aria-label="Placeholder for a picture of Advanced mode">
-<span class="chip warn hollow">Picture to come</span>
-<span>The Advanced level in the dark theme: the toolbox, a diagram of five ports and their links, and the Inspector showing one link.</span>
-<code>shot: advanced-diagram-dark</code>
-</div>
-<figcaption>Advanced mode, in the dark theme.</figcaption>
+<picture>
+<source srcset="img/shots/advanced-diagram-dark.png" media="(prefers-color-scheme: dark)">
+<img src="img/shots/advanced-diagram-light.png" width="1280" height="800" loading="lazy" alt="The Studio window in Advanced mode. The list of three ports is on the left. In the middle is the toolbox and a diagram of two linked loopback ports and one fixture. The Inspector and the Send panel are on the right, and the Monitor below lists each transfer with its time, port, direction and bytes.">
+</picture>
+<figcaption>Advanced mode: the ports, the diagram, the Inspector and the Monitor.</figcaption>
 </figure>
 </div>
 </section>

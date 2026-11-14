@@ -68,9 +68,19 @@ both themes and at a phone's width.
   engineers. Prefer the wording of `docs/index.md` and the user guide.
 - Do not state a price, an email address or a date that the owner has not decided.
 - The licence and privacy pages are drafts for a solicitor. Keep the DRAFT mark until the owner says it can go.
-- Pictures of the application are not committed. Each `figure.shot` on the features page is a placeholder with a
-  `shot:` name, to be replaced by an offscreen grab of the application (`vss_gui --screenshot`) in the light and dark
-  themes when the owner asks for them.
+- Pictures of the application are part of the site and are committed under `static/img/shots/`, one PNG for the
+  light theme and one for the dark theme. Take them with the application's own option, which draws the window
+  off screen with sample ports, so that no real port name, user name or path appears:
+
+  ```
+  VSS_SCREENSHOT_THEME=light VSS_SCREENSHOT_EMPTY=1    vss_gui --screenshot=simple-jobs-light.png
+  VSS_SCREENSHOT_THEME=light VSS_SCREENSHOT_ADVANCED=1 vss_gui --screenshot=advanced-diagram-light.png
+  ```
+
+  and the same with `VSS_SCREENSHOT_THEME=dark`. The option sets the saved Simple or Advanced mode of the user who
+  runs it, so finish with a run that does not set `VSS_SCREENSHOT_ADVANCED`. Look at each picture before you commit
+  it. A `figure.shot` that still holds a `shot:` name is a placeholder: the option draws only the main window, so
+  the pictures of dialogs wait for a way to grab them.
 
 ## Publishing: steps for the owner
 
