@@ -6,6 +6,7 @@
 
 #include "panes/inspector_panel.hpp"
 
+#include "language/bidi.hpp"
 #include "panes/fixture_behaviour.hpp"
 #include "panes/fixture_panel.hpp"
 #include "panes/format.hpp"
@@ -186,6 +187,7 @@ void InspectorPanel::build()
     path_layout->setSpacing(6);
     path_ = new QLabel(path_row);
     path_->setFont(Theme::instance().font(text_style::data));
+    keep_left_to_right(path_);
     path_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     path_->setWordWrap(true);
     copy_ = new CopyButton(path_row);
@@ -210,6 +212,7 @@ void InspectorPanel::build()
     com_layout->setContentsMargins(0, 0, 0, 0);
     com_layout->setSpacing(6);
     com_value_ = new QLabel(com_row_);
+    keep_left_to_right(com_value_);
     com_value_->setFont(Theme::instance().font(text_style::data));
     com_change_ = new QPushButton(tr("Change..."), com_row_);
     com_change_->setObjectName(QStringLiteral("inspectorComChange"));
@@ -230,6 +233,7 @@ void InspectorPanel::build()
     form->addWidget(caption(tr("Total traffic"), content_), row, 0,
                     Qt::AlignVCenter);
     traffic_ = new QLabel(content_);
+    keep_left_to_right(traffic_);
     traffic_->setFont(Theme::instance().font(text_style::data));
     form->addWidget(traffic_, row++, 1);
 
@@ -241,6 +245,7 @@ void InspectorPanel::build()
     serial_layout->setSpacing(8);
     serial_layout->addWidget(caption(tr("Serial"), content_));
     serial_label_ = new QLabel(content_);
+    keep_left_to_right(serial_label_);
     serial_label_->setFont(Theme::instance().font(text_style::data));
     serial_label_->setWordWrap(true);
     serial_layout->addWidget(serial_label_, 1);
@@ -294,7 +299,7 @@ void InspectorPanel::build()
     auto* controls_title = caption(tr("Control lines"), content_);
     layout->addWidget(controls_title);
 
-    // Simple mode shows the control lines as read-only chips, three to a row.
+    // Simple mode shows the control lines as read-only chips, two to a row.
     simple_lines_ = new QWidget(content_);
     auto* simple_grid = new QGridLayout(simple_lines_);
     simple_grid->setContentsMargins(0, 0, 0, 0);
@@ -304,7 +309,7 @@ void InspectorPanel::build()
         auto* chip = new StatusChip(simple_lines_);
         chip->set_small(true);
         line_chips_[static_cast<std::size_t>(index)] = chip;
-        simple_grid->addWidget(chip, index / 3, index % 3);
+        simple_grid->addWidget(chip, index / 2, index % 2);
     }
     layout->addWidget(simple_lines_);
 
@@ -335,7 +340,7 @@ void InspectorPanel::build()
         auto* chip = new StatusChip(advanced_lines_);
         chip->set_small(true);
         input_chips_[static_cast<std::size_t>(index)] = chip;
-        input_grid->addWidget(chip, 0, index);
+        input_grid->addWidget(chip, index / 2, index % 2);
     }
     advanced_layout->addLayout(input_grid);
     layout->addWidget(advanced_lines_);

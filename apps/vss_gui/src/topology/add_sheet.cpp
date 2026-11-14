@@ -19,6 +19,7 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QIntValidator>
+#include <QGuiApplication>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
@@ -33,6 +34,14 @@ namespace vss::gui::topology
 {
 namespace
 {
+
+/// The arrow of a collapsed section points the way the text reads on.
+Qt::ArrowType collapsed_arrow()
+{
+    return QGuiApplication::layoutDirection() == Qt::RightToLeft
+               ? Qt::LeftArrow
+               : Qt::RightArrow;
+}
 
 constexpr int kKindNew = 0;
 constexpr int kKindFixture = 1;
@@ -166,7 +175,7 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
     more_->setText(tr("More settings"));
     more_->setCheckable(true);
     more_->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    more_->setArrowType(Qt::RightArrow);
+    more_->setArrowType(collapsed_arrow());
     layout->addWidget(more_);
 
     settings_ = new QWidget(this);
@@ -192,7 +201,7 @@ AddSheet::AddSheet(canvas_item item, const std::vector<port_view>& ports,
             [this](bool on)
             {
                 settings_->setVisible(on);
-                more_->setArrowType(on ? Qt::DownArrow : Qt::RightArrow);
+                more_->setArrowType(on ? Qt::DownArrow : collapsed_arrow());
                 adjustSize();
             });
 

@@ -40,6 +40,7 @@
 #include <vss/agent/proto/error.hpp>
 #include <vss/agent/proto/frame.hpp>
 #include <vss/control/audit_log.hpp>
+#include <vss/control/junit.hpp>
 #include <vss/control/proto/secret.hpp>
 #include <vss/control/proto/token.hpp>
 #include <vss/core/event.hpp>
@@ -238,6 +239,10 @@ struct session
         std::uint64_t events_lost = 0;
         std::uint64_t sent_bytes = 0;
         std::uint32_t timeout_ms = 0;
+        /// For the report of a run: what the check is called and when the
+        /// request came.
+        std::string label;
+        steady::time_point asked;
     };
     std::optional<expectation> expecting;
     /// Stream requests that are with the request pool.  Their plans were
@@ -835,6 +840,28 @@ private:
             expect_bytes(client, asked.id, *waiting);
             return;
         }
+        if (const auto* beginning =
+                std::get_if<runs_begin_request>(&asked.body))
+        {
+            begin_run(client, asked.id, *beginning);
+            return;
+        }
+        if (std::holds_alternative<runs_end_request>(asked.body))
+        {
+            end_run(client, asked.id);
+            return;
+        }
+        if (const auto* noting = std::get_if<runs_record_request>(&asked.body))
+        {
+            record_in_run(client, asked.id, *noting);
+            return;
+        }
+        if (const auto* reporting =
+                std::get_if<report_junit_request>(&asked.body))
+        {
+            report_run(client, asked.id, *reporting);
+            return;
+        }
         if (const auto* kicking =
                 std::get_if<sessions_kick_request>(&asked.body))
         {
@@ -928,7 +955,8 @@ private:
         welcome.principal = client->principal_id();
         welcome.scopes = scope_names(client->scopes());
         welcome.features = {"ports.read",  "events",     "traffic",
-                            "ports.write", "ports.send", "expect.bytes"};
+                            "ports.write", "ports.send", "expect.bytes",
+                            "runs"};
 
         audit_->record("session.opened",
                        {{"session", client->number},
@@ -1404,6 +1432,215 @@ private:
             lose_agent(client, 0);
     }
 
+    // -- runs ----------------------------------------------------------------
+
+    /// A named run of a harness: what it checked and how each check ended.
+    /// It belongs to a principal, not to a connection, so a harness that
+    /// connects for each step still fills one run.
+    struct run_state
+    {
+        std::uint64_t number = 0;
+        std::string principal;
+        junit_suite suite;
+        steady::time_point began;
+        bool open = true;
+        /// Checks that came after the run was full.
+        std::uint64_t left_out = 0;
+    };
+
+    /// Runs kept at once, open ones included.  The oldest ended run goes
+    /// when one more begins.
+    static constexpr std::size_t max_runs_ = 8;
+
+    static std::string run_id_text(std::uint64_t number)
+    {
+        return "r_" + std::to_string(number);
+    }
+
+    static std::uint64_t milliseconds_between(steady::time_point from,
+                                              steady::time_point to)
+    {
+        const auto passed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(to - from)
+                .count();
+        return passed < 0 ? 0 : static_cast<std::uint64_t>(passed);
+    }
+
+    run_state* open_run_of(std::string_view principal)
+    {
+        for (run_state& run : runs_)
+        {
+            if (run.open && run.principal == principal)
+                return &run;
+        }
+        return nullptr;
+    }
+
+    static void note_case(run_state& run, junit_case noted)
+    {
+        if (run.suite.cases.size() >= max_run_cases)
+        {
+            ++run.left_out;
+            return;
+        }
+        run.suite.cases.push_back(std::move(noted));
+    }
+
+    static run_reply summary_of(const run_state& run)
+    {
+        run_reply out;
+        out.run = run_id_text(run.number);
+        out.name = run.suite.name;
+        out.open = run.open;
+        out.tests = run.suite.cases.size();
+        for (const junit_case& one : run.suite.cases)
+        {
+            if (one.outcome == case_outcome::failed)
+                ++out.failures;
+            else if (one.outcome == case_outcome::error)
+                ++out.errors;
+            else if (one.outcome == case_outcome::skipped)
+                ++out.skipped;
+        }
+        out.duration_ms = run.suite.duration_ms;
+        return out;
+    }
+
+    void begin_run(const session_ptr& client, std::uint64_t id,
+                   const runs_begin_request& wanted)
+    {
+        api_errc refused = api_errc::success;
+        if (wanted.name.empty() || wanted.name.size() > max_run_name_size)
+        {
+            refused = api_errc::invalid_argument;
+        }
+        else if (open_run_of(client->principal_id()) != nullptr)
+        {
+            // One open run for a principal: the first is ended first.
+            refused = api_errc::conflict;
+        }
+        else if (runs_.size() >= max_runs_)
+        {
+            const auto ended = std::ranges::find_if(
+                runs_, [](const run_state& run) { return !run.open; });
+            if (ended == runs_.end())
+                refused = api_errc::limit_exceeded;
+            else
+                runs_.erase(ended);
+        }
+        if (refused != api_errc::success)
+        {
+            send_reply(client, error_reply_for(id, refused));
+            return;
+        }
+        run_state made;
+        made.number = ++last_run_;
+        made.principal = client->principal_id();
+        made.suite.name = wanted.name;
+        made.suite.started_ms = milliseconds_of(wall_clock::now());
+        made.began = steady::now();
+        audit_->record("run.started", {{"session", client->number},
+                                       {"principal", made.principal},
+                                       {"run", run_id_text(made.number)},
+                                       {"name", wanted.name}});
+        runs_.push_back(std::move(made));
+        send_reply(client, reply{id, summary_of(runs_.back())});
+    }
+
+    void end_run(const session_ptr& client, std::uint64_t id)
+    {
+        run_state* const run = open_run_of(client->principal_id());
+        if (run == nullptr)
+        {
+            send_reply(client, error_reply_for(id, api_errc::not_found));
+            return;
+        }
+        run->open = false;
+        run->suite.duration_ms =
+            milliseconds_between(run->began, steady::now());
+        const run_reply summary = summary_of(*run);
+        audit_->record("run.ended", {{"session", client->number},
+                                     {"principal", run->principal},
+                                     {"run", summary.run},
+                                     {"tests", summary.tests},
+                                     {"failures", summary.failures},
+                                     {"errors", summary.errors},
+                                     {"skipped", summary.skipped},
+                                     {"left_out", run->left_out}});
+        send_reply(client, reply{id, summary});
+    }
+
+    void record_in_run(const session_ptr& client, std::uint64_t id,
+                       const runs_record_request& wanted)
+    {
+        std::optional<case_outcome> outcome;
+        for (const case_outcome known :
+             {case_outcome::passed, case_outcome::failed, case_outcome::error,
+              case_outcome::skipped})
+        {
+            if (wanted.outcome == control::outcome_name(known))
+                outcome = known;
+        }
+        run_state* const run = open_run_of(client->principal_id());
+        api_errc refused = api_errc::success;
+        if (!outcome || wanted.name.empty() ||
+            wanted.name.size() > max_run_name_size ||
+            wanted.message.size() > max_case_message_size)
+            refused = api_errc::invalid_argument;
+        else if (run == nullptr)
+            refused = api_errc::not_found;
+        else if (run->suite.cases.size() >= max_run_cases)
+            refused = api_errc::limit_exceeded;
+        if (refused != api_errc::success || run == nullptr || !outcome)
+        {
+            send_reply(client, error_reply_for(id, refused == api_errc::success
+                                                       ? api_errc::internal
+                                                       : refused));
+            return;
+        }
+        junit_case noted;
+        noted.name = wanted.name;
+        noted.outcome = *outcome;
+        noted.message = wanted.message;
+        noted.duration_ms = wanted.duration_ms;
+        note_case(*run, std::move(noted));
+        send_reply(client, reply{id, done_reply{}});
+    }
+
+    /// `report.junit`: a run of the caller's own, or any run for the
+    /// administration endpoint.  The run of another principal is as if it
+    /// were not there.
+    void report_run(const session_ptr& client, std::uint64_t id,
+                    const report_junit_request& wanted)
+    {
+        const bool admin = client->via == transport::local_admin;
+        const run_state* found = nullptr;
+        for (const run_state& run : runs_)
+        {
+            if (!admin && run.principal != client->principal_id())
+                continue;
+            if (wanted.run.empty() || wanted.run == run_id_text(run.number))
+                found = &run;
+        }
+        if (found == nullptr)
+        {
+            send_reply(client, error_reply_for(id, api_errc::not_found));
+            return;
+        }
+        junit_suite suite = found->suite;
+        if (found->open)
+            suite.duration_ms =
+                milliseconds_between(found->began, steady::now());
+        report_reply answer;
+        answer.xml = write_junit(suite);
+        if (answer.xml.size() > max_report_size)
+        {
+            send_reply(client, error_reply_for(id, api_errc::limit_exceeded));
+            return;
+        }
+        send_reply(client, reply{id, std::move(answer)});
+    }
+
     // -- waiting for bytes ---------------------------------------------------
 
     /// `expect.bytes`.  The agent is asked for the bytes first and only then
@@ -1462,6 +1699,8 @@ private:
         armed.pattern = wanted.pattern;
         armed.sent_bytes = wanted.send.size();
         armed.timeout_ms = wanted.timeout_ms;
+        armed.label = wanted.label;
+        armed.asked = steady::now();
         // Set now, so a second request finds it; nothing is looked at until
         // the agent has agreed, because nothing arrives before that.
         client->expecting = std::move(armed);
@@ -1602,6 +1841,30 @@ private:
         const session::expectation& wait = *client->expecting;
         record_expect(*client, port_id_text(wait.port), wait.pattern.size(),
                       wait.sent_bytes, outcome);
+        if (run_state* const run = open_run_of(client->principal_id()))
+        {
+            junit_case noted;
+            noted.name = wait.label.empty()
+                             ? "expect " + port_id_text(wait.port)
+                             : wait.label;
+            noted.duration_ms = milliseconds_between(wait.asked, steady::now());
+            if (outcome == "matched")
+            {
+                noted.outcome = case_outcome::passed;
+            }
+            else if (outcome == code_name(api_errc::timeout))
+            {
+                noted.outcome = case_outcome::failed;
+                noted.message = "the bytes did not arrive within " +
+                                std::to_string(wait.timeout_ms) + " ms";
+            }
+            else
+            {
+                noted.outcome = case_outcome::error;
+                noted.message = std::string(outcome);
+            }
+            note_case(*run, std::move(noted));
+        }
         client->expecting.reset();
         client->expect_timer.cancel();
         if (client->streaming() || client->closed ||
@@ -2374,6 +2637,8 @@ private:
     steady::time_point started_at_;
 
     // The client thread only.
+    std::deque<run_state> runs_;
+    std::uint64_t last_run_ = 0;
     std::array<door, 2> doors_;
     std::unordered_set<session_ptr> sessions_;
     std::uint64_t last_session_ = 0;

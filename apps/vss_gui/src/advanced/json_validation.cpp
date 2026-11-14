@@ -308,6 +308,13 @@ struct half_duplex_issue
     QString detail;
 };
 
+/// Checks the `half_duplex` member of one link and returns the first problem
+/// found, or nothing if the member is absent or correct.  `mode` is the mode
+/// of the link and `available` says whether this build has half-duplex buses.
+/// The checks run from the general to the specific: whether the feature
+/// exists, whether the link is a bus, whether the member is an object, and
+/// then each field inside it in turn.  The first failure ends the check, so
+/// the person sees one thing to fix at a time.
 std::optional<half_duplex_issue> half_duplex_issue_of(const QJsonObject& link,
                                                       const QString& mode,
                                                       bool available)
@@ -351,6 +358,9 @@ std::optional<half_duplex_issue> half_duplex_issue_of(const QJsonObject& link,
     }
 
     const QJsonObject line = value.toObject();
+    // A missing field is fine because every field is optional.  A present
+    // field must be a number with no fraction, inside the given limits.  The
+    // comparison with the truncated value is what rejects a fraction.
     const auto whole_number =
         [&line](const QString& member, qint64 minimum, qint64 maximum)
     {
@@ -388,6 +398,8 @@ std::optional<half_duplex_issue> half_duplex_issue_of(const QJsonObject& link,
                 "TopologyJson",
                 "Set \"turnaround_ms\" to a whole number in that range.")};
     }
+    // The two fields left are not numbers: one is a choice of two words and
+    // the other is a flag.
     const QString collisions = QStringLiteral("collisions");
     if (line.contains(collisions))
     {

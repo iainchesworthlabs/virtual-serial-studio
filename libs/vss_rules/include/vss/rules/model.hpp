@@ -46,6 +46,11 @@ inline constexpr std::size_t max_name_bytes = 64;
 inline constexpr std::size_t max_text_bytes = 256;
 /// The compiled size of one set, in bytes.
 inline constexpr std::size_t max_compiled_bytes = std::size_t{1} << 20;
+/// The rule sets of one hub: how many, and their compiled sizes together.
+inline constexpr std::size_t max_hub_sets = 256;
+inline constexpr std::size_t max_hub_bytes = std::size_t{16} << 20;
+/// The oldest `cause` a signal may name.
+inline constexpr microseconds max_signal_age{60'000'000};
 /// The longest delay of an action after its edge: one minute, as a link's.
 inline constexpr microseconds max_delay{60'000'000};
 /// The latest time of an action on the `run_start` edge: 24 hours.

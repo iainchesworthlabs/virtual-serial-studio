@@ -232,9 +232,10 @@ recording shows the fault and what was done about it side by side.
 
 `quiet_us` and `signal` are in the model, the reader, the compiler and the
 matcher. A rule on `signal` fires when the engine calls the matcher with the
-signal; the plugin operation that raises a signal (`raise_signal`), and
-`bus_fault`, are not built yet and come with the engine path, because both need
-the hub. The capability names are `rules_signal` and `rules_bus_fault`.
+signal, and `studio::raise_signal` does that for a `peer` set. The plugin
+operation that reaches it, the check that the caller owns the set, and
+`bus_fault` are not built yet. The capability names are `rules_signal` and
+`rules_bus_fault`.
 
 ### What a rule does
 

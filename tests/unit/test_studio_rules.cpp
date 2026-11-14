@@ -427,7 +427,7 @@ TEST_CASE("studio rules: a set for another role is refused")
                     {"attach.role"});
 }
 
-TEST_CASE("studio rules: a rule on lines, the port or a signal is refused")
+TEST_CASE("studio rules: a rule on lines or the port is refused")
 {
     studio app;
     REQUIRE(app.create_mock_port("device"));
@@ -439,10 +439,6 @@ TEST_CASE("studio rules: a rule on lines, the port or a signal is refused")
     require_refused(app, "device",
                     peer_set(one_step(R"j({"port": "opened"})j", mark)),
                     {"rules[0].when.port"});
-    require_refused(app, "device",
-                    peer_set(one_step(R"j({"signal": "s"})j", mark),
-                             R"j("signals": ["s"], )j"),
-                    {"rules[0].when.signal"});
 
     // The third rule of the set is the one named, and the rule on silence
     // before it is not refused.
@@ -841,4 +837,332 @@ TEST_CASE("studio rules: a studio on a clock moved by hand goes with a reply "
     studio_bench b;
     REQUIRE(b.install(peer_set(reply_after_5ms)));
     b.speak("01 02");
+}
+
+// -- signals ----------------------------------------------------------------
+
+namespace
+{
+
+const char* const ping_head = R"j("signals": ["ping"], )j";
+
+const char* const reply_to_ping = R"j([
+  {"name": "on ping", "when": {"signal": "ping"},
+   "do": [{"reply": ["aa", {"match": [0, 1]}]}]}
+])j";
+
+const char* const mark_on_ping = R"j([
+  {"name": "on ping", "when": {"signal": "ping"}, "do": [{"mark": "pinged"}]}
+])j";
+
+const char* const answer_at_once = R"j([
+  {"name": "answer", "when": {"bytes": "01 02"},
+   "do": [{"reply": ["aa bb"]}]}
+])j";
+
+const char* const answer_one_byte = R"j([
+  {"name": "answer", "when": {"bytes": "01"}, "do": [{"reply": ["aa"]}]}
+])j";
+
+const auto queue_full = make_error_code(errc::queue_full);
+
+/// The fixture says `hex_text` to a set that is suspended, which is not shown
+/// it, and this returns once the port has read it.
+void speak_to_suspended(studio_bench& b, std::string_view hex_text)
+{
+    const std::string data = raw(hex_text);
+    const std::uint64_t want = b.device->stats().bytes_rx + data.size();
+    REQUIRE(b.app.inject_data(b.id, as_bytes(data)));
+    REQUIRE(
+        wait_until([&] { return b.device->stats().bytes_rx >= want; }, 5000ms));
+}
+
+} // namespace
+
+TEST_CASE("studio rules: a rule on a signal installs, and raising the signal "
+          "answers with what it carried")
+{
+    studio_bench b;
+    std::vector<rules::problem> problems;
+    REQUIRE(b.install(peer_set(reply_to_ping, ping_head),
+                      rules_install_options{}, &problems));
+    REQUIRE(problems.empty());
+
+    const std::string carried = raw("11 22");
+    REQUIRE(b.app.raise_signal(b.id, "ping", as_bytes(carried), b.clock.now()));
+    b.wait_sent("aa 11 22");
+    b.require_quiet("aa 11 22");
+
+    // A signal that carries nothing is answered with the rest of the reply.
+    REQUIRE(b.app.raise_signal(b.id, "ping", bytes_view{}, b.clock.now()));
+    b.wait_sent("aa 11 22 aa");
+
+    REQUIRE(
+        wait_until([&] { return b.app.rule_stats(b.id)->done == 2; }, 5000ms));
+    const auto stats = b.app.rule_stats(b.id);
+    REQUIRE(stats);
+    REQUIRE_EQ(stats->machine.firings, std::uint64_t{2});
+    REQUIRE_EQ(stats->machine.replies, std::uint64_t{2});
+    REQUIRE_EQ(stats->machine.reply_bytes, std::uint64_t{4});
+    // A signal is not traffic.
+    REQUIRE_EQ(stats->machine.bytes_seen, std::uint64_t{0});
+    REQUIRE(stats->suspended == rules::suspend_reason::none);
+}
+
+TEST_CASE("studio rules: raise_signal refuses a port with no set, a signal the "
+          "set does not declare, too many bytes and a cause out of range")
+{
+    studio_bench b;
+    const time_point now = b.clock.now();
+    REQUIRE_EQ(b.app.raise_signal(b.id, "ping", bytes_view{}, now).error(),
+               not_found);
+    REQUIRE_EQ(b.app.raise_signal(endpoint_id{4242}, "ping", bytes_view{}, now)
+                   .error(),
+               not_found);
+
+    REQUIRE(b.install(peer_set(mark_on_ping, ping_head)));
+    REQUIRE_EQ(b.app.raise_signal(b.id, "pong", bytes_view{}, now).error(),
+               not_found);
+    REQUIRE_EQ(b.app.raise_signal(b.id, "", bytes_view{}, now).error(),
+               not_found);
+
+    const std::string too_many(rules::max_signal_bytes + 1, 'x');
+    REQUIRE_EQ(
+        b.app.raise_signal(b.id, "ping", as_bytes(too_many), now).error(),
+        invalid_argument);
+    // A cause that has not happened yet, and one that is too old.
+    REQUIRE_EQ(
+        b.app.raise_signal(b.id, "ping", bytes_view{}, now + 1us).error(),
+        invalid_argument);
+    REQUIRE_EQ(b.app.raise_signal(b.id, "ping", bytes_view{}, now + 1s).error(),
+               invalid_argument);
+    REQUIRE_EQ(
+        b.app.raise_signal(b.id, "ping", bytes_view{}, now - 61s).error(),
+        invalid_argument);
+    REQUIRE_EQ(
+        b.app.raise_signal(b.id, "ping", bytes_view{}, now - 60s - 1us).error(),
+        invalid_argument);
+
+    // None of them reached the set.
+    b.require_quiet("");
+    REQUIRE_EQ(b.app.rule_stats(b.id)->machine.firings, std::uint64_t{0});
+    REQUIRE_EQ(messages(b.events, "device", "pinged"), std::size_t{0});
+
+    // The limits themselves are allowed: 256 bytes, a cause that is now, and
+    // one that is a minute old.
+    const std::string most(rules::max_signal_bytes, 'x');
+    REQUIRE(b.app.raise_signal(b.id, "ping", as_bytes(most), now));
+    REQUIRE(b.app.raise_signal(b.id, "ping", bytes_view{}, now));
+    REQUIRE(b.app.raise_signal(b.id, "ping", bytes_view{}, now - 60s));
+    REQUIRE(wait_until(
+        [&] { return messages(b.events, "device", "pinged") == 3; }, 5000ms));
+    REQUIRE_EQ(b.app.rule_stats(b.id)->machine.firings, std::uint64_t{3});
+}
+
+TEST_CASE("studio rules: a suspended set answers nothing until it is resumed")
+{
+    studio_bench b;
+    REQUIRE_EQ(b.app.suspend_rules(b.id), not_found);
+    REQUIRE_EQ(b.app.resume_rules(b.id), not_found);
+    REQUIRE_EQ(b.app.suspend_rules(endpoint_id{4242}), not_found);
+    REQUIRE_EQ(b.app.resume_rules(endpoint_id{4242}), not_found);
+
+    REQUIRE(b.install(peer_set(answer_at_once)));
+    b.speak("01 02");
+    b.wait_sent("aa bb");
+    REQUIRE(b.app.rule_stats(b.id)->suspended == rules::suspend_reason::none);
+
+    REQUIRE(b.app.suspend_rules(b.id));
+    auto stats = b.app.rule_stats(b.id);
+    REQUIRE(stats);
+    REQUIRE(stats->suspended == rules::suspend_reason::asked);
+    REQUIRE_EQ(stats->suspensions, std::uint64_t{1});
+
+    // What the program writes now is not answered, and the set is not shown
+    // it.
+    speak_to_suspended(b, "01 02");
+    b.clock.advance(1s);
+    b.require_quiet("aa bb");
+    stats = b.app.rule_stats(b.id);
+    REQUIRE_EQ(stats->machine.bytes_seen, std::uint64_t{2});
+    REQUIRE_EQ(stats->machine.firings, std::uint64_t{1});
+
+    // Suspending a suspended set is not an error and not another suspension.
+    REQUIRE(b.app.suspend_rules(b.id));
+    stats = b.app.rule_stats(b.id);
+    REQUIRE(stats->suspended == rules::suspend_reason::asked);
+    REQUIRE_EQ(stats->suspensions, std::uint64_t{1});
+
+    REQUIRE(b.app.resume_rules(b.id));
+    REQUIRE(b.app.rule_stats(b.id)->suspended == rules::suspend_reason::none);
+    // And neither is resuming one that is running.
+    REQUIRE(b.app.resume_rules(b.id));
+    REQUIRE(b.app.rule_stats(b.id)->suspended == rules::suspend_reason::none);
+
+    b.speak("01 02");
+    b.wait_sent("aa bb aa bb");
+    b.require_quiet("aa bb aa bb");
+    stats = b.app.rule_stats(b.id);
+    REQUIRE_EQ(stats->suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats->machine.firings, std::uint64_t{2});
+}
+
+TEST_CASE("studio rules: a set that fires faster than its budget is "
+          "suspended, and resume_rules brings it back")
+{
+    studio_bench b;
+    rules_install_options options;
+    options.limits.firings_per_second = 2;
+    REQUIRE(b.install(peer_set(answer_one_byte), options));
+
+    b.speak("01");
+    b.wait_sent("aa");
+    b.speak("01");
+    b.wait_sent("aa aa");
+    REQUIRE(
+        wait_until([&] { return b.app.rule_stats(b.id)->done == 2; }, 5000ms));
+    REQUIRE(b.app.rule_stats(b.id)->suspended == rules::suspend_reason::none);
+
+    // The third at the same instant finds the budget spent.
+    b.speak("01");
+    b.require_quiet("aa aa");
+    auto stats = b.app.rule_stats(b.id);
+    REQUIRE(stats);
+    REQUIRE(stats->suspended == rules::suspend_reason::budget);
+    REQUIRE_EQ(stats->suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats->suspended_firings, std::uint64_t{1});
+    REQUIRE_EQ(stats->machine.firings, std::uint64_t{3});
+    REQUIRE_EQ(stats->scheduled, std::uint64_t{2});
+    REQUIRE_EQ(stats->done, std::uint64_t{2});
+    REQUIRE_EQ(stats->cancelled, std::uint64_t{0});
+
+    REQUIRE(b.app.resume_rules(b.id));
+    stats = b.app.rule_stats(b.id);
+    REQUIRE(stats->suspended == rules::suspend_reason::none);
+    b.speak("01");
+    b.wait_sent("aa aa aa");
+    stats = b.app.rule_stats(b.id);
+    REQUIRE_EQ(stats->suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats->suspended_firings, std::uint64_t{1});
+}
+
+// -- what a studio takes -----------------------------------------------------
+
+TEST_CASE("studio rules: a studio takes no more than rules::max_hub_sets sets")
+{
+    studio app;
+    std::vector<endpoint_id> ids;
+    std::vector<std::string> names;
+    for (std::size_t i = 0; i <= rules::max_hub_sets; ++i)
+    {
+        names.push_back("port" + std::to_string(i));
+        const auto created = app.create_mock_port(names.back());
+        REQUIRE(created);
+        ids.push_back((*created)->id());
+    }
+    const auto tiny = [&](std::size_t i)
+    { return make_set(peer_set(idle_rules, "", names[i])); };
+
+    for (std::size_t i = 0; i < rules::max_hub_sets; ++i)
+        REQUIRE(app.install_rules(tiny(i)));
+
+    // One more is refused, and says why.
+    std::vector<rules::problem> problems;
+    const auto refused =
+        app.install_rules(tiny(rules::max_hub_sets), {}, &problems);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), queue_full);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE(!problems[0].message.empty());
+    REQUIRE(!app.rules_generation(ids[rules::max_hub_sets]).has_value());
+    REQUIRE_EQ(app.rule_stats(ids[rules::max_hub_sets]).error(), not_found);
+
+    // Taking one off makes room for one, and for no more than one.
+    REQUIRE(app.remove_rules(ids[0]));
+    REQUIRE(app.install_rules(tiny(rules::max_hub_sets)));
+    REQUIRE_EQ(app.install_rules(tiny(0)).error(), queue_full);
+    REQUIRE(!app.rules_generation(ids[0]).has_value());
+}
+
+namespace
+{
+
+/// A set on the port `port` of `rule_count` rules, each of which answers with
+/// the longest reply there is.  The document may be 1 MiB, so a set compiles
+/// to about half of that.
+std::string heavy_set(std::string_view port, std::size_t rule_count)
+{
+    std::string reply;
+    for (std::size_t i = 0; i < rules::max_reply_bytes; ++i)
+        reply += "ab";
+    std::string rules_json = "[";
+    for (std::size_t i = 0; i < rule_count; ++i)
+    {
+        if (i != 0)
+            rules_json += ", ";
+        rules_json += R"j({"name": "r)j" + std::to_string(i) +
+                      R"j(", "when": {"bytes": "01"}, "do": [{"reply": [")j" +
+                      reply + R"j("]}]})j";
+    }
+    rules_json += ']';
+    return peer_set(rules_json, "", port);
+}
+
+/// The names of ports whose sets are all of the same size.
+std::string heavy_name(std::size_t number)
+{
+    return std::string("heavy") + static_cast<char>('0' + number / 10) +
+           static_cast<char>('0' + number % 10);
+}
+
+} // namespace
+
+TEST_CASE("studio rules: a studio takes no more than rules::max_hub_bytes of "
+          "compiled sets")
+{
+    constexpr std::size_t rule_count = 120;
+    const auto sample = make_set(heavy_set(heavy_name(0), rule_count));
+    const std::size_t size = sample->size_bytes;
+    REQUIRE(size > rules::max_compiled_bytes / 3);
+    REQUIRE(size <= rules::max_compiled_bytes);
+    // How many of them the studio takes, worked out from what a set is.
+    const std::size_t fit = rules::max_hub_bytes / size;
+    REQUIRE(fit >= 2);
+    REQUIRE(fit + 2 < 100);
+
+    studio app;
+    std::vector<endpoint_id> ids;
+    for (std::size_t i = 0; i <= fit; ++i)
+    {
+        const auto created = app.create_mock_port(heavy_name(i));
+        REQUIRE(created);
+        ids.push_back((*created)->id());
+    }
+
+    for (std::size_t i = 0; i < fit; ++i)
+    {
+        const auto set = make_set(heavy_set(heavy_name(i), rule_count));
+        REQUIRE_EQ(set->size_bytes, size);
+        REQUIRE(app.install_rules(set));
+    }
+
+    // The next would take the sets past the limit.
+    const auto over = make_set(heavy_set(heavy_name(fit), rule_count));
+    REQUIRE(over->size_bytes > rules::max_hub_bytes - fit * size);
+    std::vector<rules::problem> problems;
+    const auto refused = app.install_rules(over, {}, &problems);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), queue_full);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE(!problems[0].message.empty());
+    REQUIRE(!app.rules_generation(ids[fit]).has_value());
+
+    // One taken off leaves room for one.
+    REQUIRE(app.remove_rules(ids[0]));
+    REQUIRE(app.install_rules(over));
+    REQUIRE(app.rules_generation(ids[fit]).has_value());
+    const auto again = make_set(heavy_set(heavy_name(0), rule_count));
+    problems.clear();
+    REQUIRE_EQ(app.install_rules(again, {}, &problems).error(), queue_full);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
 }

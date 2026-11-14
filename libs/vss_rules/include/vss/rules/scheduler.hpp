@@ -46,6 +46,29 @@ namespace vss::rules {
 /// it is counted (`overrun`) and never done.
 inline constexpr std::size_t max_waiting_actions = 1024;
 
+/// How many times a second a set may fire.  The budget refills at this rate
+/// and holds at most one second's worth, so a set may fire that many times
+/// at once and no faster than that for long.  A set that asks for more is
+/// suspended.
+inline constexpr std::uint32_t default_firings_per_second = 20000;
+
+struct scheduler_limits
+{
+    /// At least 1.
+    std::uint32_t firings_per_second = default_firings_per_second;
+};
+
+/// Why a set is suspended.
+enum class suspend_reason : std::uint8_t
+{
+    /// It is not.
+    none,
+    /// It fired faster than its budget.
+    budget,
+    /// The harness asked.
+    asked
+};
+
 /// One action that was carried out, for the log.
 struct action_report
 {
@@ -71,12 +94,19 @@ struct scheduler_stats
 {
     machine_stats machine;
     /// Actions given a time, done, done later than `late_after_us`, refused
-    /// because #max_waiting_actions were waiting, and dropped by #close.
+    /// because #max_waiting_actions were waiting, and dropped by #close or
+    /// by a suspension.
     std::uint64_t scheduled = 0;
     std::uint64_t done = 0;
     std::uint64_t late = 0;
     std::uint64_t overrun = 0;
     std::uint64_t cancelled = 0;
+    /// How often the set was suspended, and the firings that were decided
+    /// and not scheduled because the set was suspended by then.
+    std::uint64_t suspensions = 0;
+    std::uint64_t suspended_firings = 0;
+    /// Whether the set is suspended now, and why.
+    suspend_reason suspended = suspend_reason::none;
     /// Chunks the set was shown and could not match, because the machine
     /// ran out of memory.  The traffic is not touched; the set missed them.
     std::uint64_t missed_chunks = 0;
@@ -100,6 +130,10 @@ struct scheduler_hooks
     std::function<void(const planned_action&)> act;
     /// Told of each action once `act` has returned.  Same strand.  Optional.
     std::function<void(const action_report&)> done;
+    /// Told that the set was suspended, and when.  Same strand, after the
+    /// path of the bytes has moved on.  Not called once the scheduler is
+    /// closed.  Optional.
+    std::function<void(suspend_reason, time_point)> suspended;
 };
 
 class scheduler final : public read_stage,
@@ -109,7 +143,8 @@ public:
     /// `run_seed` is used when the set has no seed of its own.
     scheduler(const boost::asio::any_io_executor& executor,
               std::shared_ptr<const compiled_rule_set> set,
-              std::uint64_t run_seed, scheduler_hooks hooks);
+              std::uint64_t run_seed, scheduler_hooks hooks,
+              scheduler_limits limits = {});
 
     scheduler(const scheduler&) = delete;
     scheduler& operator=(const scheduler&) = delete;
@@ -134,6 +169,20 @@ public:
     /// thread.
     result<void> signal(std::size_t index, bytes_view carried,
                         time_point cause, time_point when);
+
+    /// Suspends the set: it matches nothing, what it had scheduled is
+    /// discarded and counted (`cancelled`), its timeline included, and the
+    /// traffic flows as if the set were not there.  The scheduler does this
+    /// itself when the set fires faster than its budget.  No effect on a set
+    /// that is suspended, closed or not started.  Safe from any thread.
+    void suspend(time_point when);
+
+    /// Ends a suspension.  The set starts again with a full budget and with
+    /// no memory of the stream: a frame that was under way while it was
+    /// suspended is not matched, and silence is counted from the next byte.
+    /// Its states, slots, counts and draws are as they were.  What was
+    /// discarded is not brought back.  False when the set was not suspended.
+    bool resume(time_point when);
 
     /// Stops the set.  What is waiting is discarded and counted, and what
     /// comes later is ignored.  When it returns the scheduler has carried
@@ -162,7 +211,9 @@ private:
     /// True when `a` is done after `b`.
     static bool later(const item& a, const item& b) noexcept;
 
-    void schedule(std::vector<firing>& firings);
+    void schedule(std::vector<firing>& firings, time_point when);
+    bool take_firing(time_point when);
+    void suspend_locked(suspend_reason why, time_point when);
     std::optional<time_point> next_wake() const;
     void wake_if_sooner();
     void arm();
@@ -172,6 +223,7 @@ private:
     boost::asio::steady_timer timer_;
     const std::shared_ptr<const compiled_rule_set> set_;
     const scheduler_hooks hooks_;
+    const std::uint32_t firings_per_second_;
 
     /// Held while actions that are due are carried out, and by #close, so
     /// that a close waits for one under way.  Always taken before `mutex_`.
@@ -180,6 +232,11 @@ private:
     machine machine_;
     bool started_ = false;
     bool closed_ = false;
+    suspend_reason suspended_ = suspend_reason::none;
+    /// The firings the set may still make, and the time they were counted
+    /// up to.
+    std::uint32_t budget_ = 0;
+    time_point budget_at_{};
     /// A heap on #later: the next action due is at the front.
     std::vector<item> queue_;
     std::uint64_t sequence_ = 0;

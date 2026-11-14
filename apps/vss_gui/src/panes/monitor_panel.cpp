@@ -5,6 +5,7 @@
 //
 
 #include "panes/monitor_panel.hpp"
+#include "language/bidi.hpp"
 
 #include "panes/monitor_cell_delegate.hpp"
 #include "panes/monitor_model.hpp"
@@ -280,6 +281,7 @@ void MonitorPanel::build()
     table_ = new QTableView(monitor_page_);
     table_->setModel(model_);
     table_->setAccessibleName(tr("Traffic"));
+    keep_left_to_right(table_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
     table_->setSelectionMode(QAbstractItemView::SingleSelection);
     table_->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -328,6 +330,7 @@ void MonitorPanel::build()
     log_ = new QPlainTextEdit(tabs_);
     log_->setReadOnly(true);
     log_->setAccessibleName(tr("Log"));
+    keep_left_to_right(log_);
     log_->setFont(Theme::instance().font(text_style::data));
     log_->setMaximumBlockCount(10'000);
     tabs_->addTab(log_, tr("Log"));

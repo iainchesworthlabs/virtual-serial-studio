@@ -11,6 +11,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_bytes.cpp
   unit/test_control_audit.cpp
   unit/test_control_gateway.cpp
+  unit/test_control_junit.cpp
   unit/test_control_limiter.cpp
   unit/test_control_lines.cpp
   unit/test_control_proto.cpp
@@ -49,6 +50,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_access.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
+  unit/test_plugin_licence.cpp
   unit/test_plugin_manifest.cpp
   unit/test_plugin_measure.cpp
   unit/test_plugin_signature.cpp

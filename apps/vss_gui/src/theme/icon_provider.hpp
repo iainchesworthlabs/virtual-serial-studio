@@ -40,6 +40,13 @@ public:
     /// and device pixel ratio like the other icons.
     QIcon app_icon();
 
+    /// True for the icons that show a direction of travel (an arrow, a fan out
+    /// or a fan in, a play triangle): in a right-to-left layout they are drawn
+    /// flipped, so they point the way the reading goes. Icons that show an
+    /// object (a port, a folder, a link) and vertical ones (export, chevron)
+    /// are never flipped.
+    [[nodiscard]] static bool mirrors_in_right_to_left(const QString& name);
+
     void flush();
     int cache_size() const noexcept { return static_cast<int>(cache_.size()); }
 

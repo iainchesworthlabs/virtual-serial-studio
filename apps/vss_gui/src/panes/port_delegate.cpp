@@ -161,10 +161,16 @@ QRect PortDelegate::copy_rect_for(const QStyleOptionViewItem& option,
     const QString path = index.data(PortModel::path_role).toString();
     const QFont mono = Theme::instance().font(text_style::data);
     const QFontMetrics metrics(mono);
-    const int left = option.rect.left() + (table_ ? 12 : 16);
+    const int pad = table_ ? 12 : 16;
     const int top = table_ ? option.rect.top() + 20
                            : option.rect.bottom() - (compact_ ? 28 : 30);
-    return QRect(left + metrics.horizontalAdvance(path) + 4, top, 24, 24);
+    // The path is as wide as the row lets it be, and the button follows its
+    // end: to the right of it, or to the left in a right-to-left layout.
+    const int room = std::max(0, option.rect.width() - 2 * pad - 34);
+    const int width = std::min(metrics.horizontalAdvance(path), room);
+    if (option.direction == Qt::RightToLeft)
+        return QRect(option.rect.right() - pad - width - 4 - 24, top, 24, 24);
+    return QRect(option.rect.left() + pad + width + 4, top, 24, 24);
 }
 
 void PortDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
@@ -241,15 +247,22 @@ void PortDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
     const int name_width =
         table_ ? std::max(0, right - left)
                : std::max(0, right - left - chip_width(state) - 8);
+    // In a right-to-left layout the chip is on the left, so the name starts
+    // after it.
+    const int name_left = (!table_ && option.direction == Qt::RightToLeft)
+                              ? left + chip_width(state) + 8
+                              : left;
     painter->drawText(
-        QRect(left, top, name_width, 20), Qt::AlignLeft | Qt::AlignVCenter,
+        QRect(name_left, top, name_width, 20), Qt::AlignLeft | Qt::AlignVCenter,
         QFontMetrics(name_font).elidedText(name, Qt::ElideRight, name_width));
     if (!table_)
     {
-        paint_chip(
-            painter,
-            QRect(right - chip_width(state), top - 1, chip_width(state), 20),
-            state, kind);
+        // The chip is at the end of the line, opposite the name.
+        const int chip_left = option.direction == Qt::RightToLeft
+                                  ? left
+                                  : right - chip_width(state);
+        paint_chip(painter, QRect(chip_left, top - 1, chip_width(state), 20),
+                   state, kind);
     }
 
     if (!compact_ && !table_)
@@ -276,7 +289,11 @@ void PortDelegate::paint(QPainter* painter, const QStyleOptionViewItem& option,
     painter->setFont(theme.font(text_style::data));
     painter->setPen(theme.colour(colour_role::ink2));
     const QFontMetrics mono(theme.font(text_style::data));
-    painter->drawText(QRect(left, path_y, right - left - 34, 24),
+    // The button takes the last 34 pixels of the line, so in a right-to-left
+    // row the path starts after it and ends at the right edge.
+    const int path_left =
+        option.direction == Qt::RightToLeft ? left + 34 : left;
+    painter->drawText(QRect(path_left, path_y, right - left - 34, 24),
                       Qt::AlignLeft | Qt::AlignVCenter,
                       mono.elidedText(path, Qt::ElideRight, right - left - 34));
 

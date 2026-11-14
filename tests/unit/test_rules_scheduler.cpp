@@ -131,18 +131,58 @@ private:
     std::shared_ptr<state> state_ = std::make_shared<state>();
 };
 
+/// What the scheduler said about suspensions, kept for the case to read.
+class suspension_log
+{
+public:
+    struct entry
+    {
+        suspend_reason why = suspend_reason::none;
+        time_point when;
+    };
+
+    void add(suspend_reason why, time_point when) const
+    {
+        std::lock_guard lock(state_->mutex);
+        state_->entries.push_back({why, when});
+    }
+
+    std::vector<entry> snapshot() const
+    {
+        std::lock_guard lock(state_->mutex);
+        return state_->entries;
+    }
+
+    std::size_t size() const
+    {
+        std::lock_guard lock(state_->mutex);
+        return state_->entries.size();
+    }
+
+private:
+    struct state
+    {
+        std::mutex mutex;
+        std::vector<entry> entries;
+    };
+    std::shared_ptr<state> state_ = std::make_shared<state>();
+};
+
 /// A scheduler for `port`, not yet started and not yet shown its chunks:
 /// replies are written to the port, which the mock records, and every action
-/// is logged.
-std::shared_ptr<scheduler> make_scheduler(vss::hub& hub,
-                                          const mock_endpoint& port,
-                                          std::string_view set_text,
-                                          const report_log& log,
-                                          bool poll_clock)
+/// is logged.  Suspensions are logged in `suspensions`.
+std::shared_ptr<scheduler>
+make_scheduler(vss::hub& hub, const mock_endpoint& port,
+               std::string_view set_text, const report_log& log,
+               bool poll_clock,
+               const suspension_log& suspensions = suspension_log{},
+               scheduler_limits limits = {})
 {
     scheduler_hooks hooks;
     hooks.now = [&hub] { return hub.now(); };
     hooks.poll_clock = poll_clock;
+    hooks.suspended = [suspensions](suspend_reason why, time_point when)
+    { suspensions.add(why, when); };
     hooks.act = [target = std::weak_ptr<vss::endpoint>(port.endpoint)](
                     const planned_action& action)
     {
@@ -155,7 +195,7 @@ std::shared_ptr<scheduler> make_scheduler(vss::hub& hub,
     hooks.done = [log](const action_report& report) { log.add(report); };
 
     return std::make_shared<scheduler>(hub.executor(), make_set(set_text), 1,
-                                       std::move(hooks));
+                                       std::move(hooks), limits);
 }
 
 /// Puts `stage` on `port` (null takes the one there off) and returns once the
@@ -170,12 +210,14 @@ void put_stage(const mock_endpoint& port, std::shared_ptr<read_stage> stage)
 }
 
 /// A started scheduler that is the read stage of `port`.
-std::shared_ptr<scheduler> put_scheduler(vss::hub& hub,
-                                         const mock_endpoint& port,
-                                         std::string_view set_text,
-                                         const report_log& log, bool poll_clock)
+std::shared_ptr<scheduler>
+put_scheduler(vss::hub& hub, const mock_endpoint& port,
+              std::string_view set_text, const report_log& log, bool poll_clock,
+              const suspension_log& suspensions = suspension_log{},
+              scheduler_limits limits = {})
 {
-    auto made = make_scheduler(hub, port, set_text, log, poll_clock);
+    auto made = make_scheduler(hub, port, set_text, log, poll_clock,
+                               suspensions, limits);
     made->start(hub.now());
     put_stage(port, made);
     return made;
@@ -241,12 +283,13 @@ struct bench
     std::shared_ptr<vss::hub> hub;
     mock_endpoint port;
     report_log log;
+    suspension_log suspensions;
     std::shared_ptr<scheduler> rules;
     time_point origin;
 
     explicit bench(std::string_view set_text,
                    clock_mode mode = clock_mode::by_hand, unsigned threads = 2,
-                   bool started = true)
+                   bool started = true, scheduler_limits limits = {})
         : hub(mode == clock_mode::by_hand ? start_hub_on(clock)
                                           : start_hub(threads)),
           port(add_mock(*hub, "port")), origin(hub->now())
@@ -254,11 +297,13 @@ struct bench
         const bool poll = mode == clock_mode::by_hand;
         if (started)
         {
-            rules = put_scheduler(*hub, port, set_text, log, poll);
+            rules = put_scheduler(*hub, port, set_text, log, poll, suspensions,
+                                  limits);
         }
         else
         {
-            rules = make_scheduler(*hub, port, set_text, log, poll);
+            rules = make_scheduler(*hub, port, set_text, log, poll, suspensions,
+                                   limits);
             put_stage(port, rules);
         }
     }
@@ -1189,4 +1234,394 @@ TEST_CASE("rules scheduler: many replies with random delays on the steady "
     REQUIRE_EQ(stats.done, std::uint64_t{chunks});
     REQUIRE_EQ(stats.overrun, std::uint64_t{0});
     REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+}
+
+// -- the budget and suspension -----------------------------------------------
+
+namespace
+{
+
+scheduler_limits budget_of(std::uint32_t firings_per_second)
+{
+    scheduler_limits limits;
+    limits.firings_per_second = firings_per_second;
+    return limits;
+}
+
+/// `hex_text` `count` times over, with a space between.
+std::string times(std::string_view hex_text, std::size_t count)
+{
+    std::string out;
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        if (i != 0)
+            out += ' ';
+        out += hex_text;
+    }
+    return out;
+}
+
+const char* const answer_now = R"j([
+  {"name": "answer", "when": {"bytes": "01"}, "do": [{"reply": ["aa"]}]}
+])j";
+
+const char* const answer_in_5ms = R"j([
+  {"name": "answer", "when": {"bytes": "01"},
+   "do": [{"reply": ["aa"], "delay": {"fixed_us": 5000}}]}
+])j";
+
+} // namespace
+
+TEST_CASE("rules scheduler: the match that finds the budget spent suspends the "
+          "set")
+{
+    bench b(peer_set(answer_now), bench::clock_mode::by_hand, 2, true,
+            budget_of(4));
+    const time_point at = b.clock.now();
+
+    // Four matches at one instant, each answered when it is due.
+    for (std::size_t matches = 1; matches <= 4; ++matches)
+    {
+        b.send("01");
+        b.wait_reports(matches);
+        b.wait_written(times("aa", matches));
+    }
+    REQUIRE(b.rules->stats().suspended == suspend_reason::none);
+    REQUIRE_EQ(b.suspensions.size(), std::size_t{0});
+
+    // The fifth is decided and not scheduled.
+    b.send("01");
+    REQUIRE(wait_until([&] { return b.suspensions.size() == 1; }, 5000ms));
+    b.require_still(4, "aa aa aa aa");
+
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{1});
+    REQUIRE(stats.suspended == suspend_reason::budget);
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{5});
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{4});
+    REQUIRE_EQ(stats.done, std::uint64_t{4});
+    REQUIRE_EQ(stats.cancelled, std::uint64_t{0});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+
+    // Told once, with the reason and the time of the chunk.
+    const auto told = b.suspensions.snapshot();
+    REQUIRE_EQ(told.size(), std::size_t{1});
+    REQUIRE(told[0].why == suspend_reason::budget);
+    REQUIRE(told[0].when == at);
+}
+
+TEST_CASE("rules scheduler: matches ahead of the overrun in one chunk are "
+          "discarded with the rest")
+{
+    bench b(peer_set(answer_now), bench::clock_mode::by_hand, 2, true,
+            budget_of(4));
+
+    // The chunk is decided as one: the fifth match suspends the set while the
+    // replies to the four before it are still waiting, so none is written.
+    b.send_raw(std::string(5, '\x01'));
+    REQUIRE(wait_until([&] { return b.suspensions.size() == 1; }, 5000ms));
+    b.require_still(0, "");
+
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{1});
+    REQUIRE(stats.suspended == suspend_reason::budget);
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{5});
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{4});
+    REQUIRE_EQ(stats.cancelled, std::uint64_t{4});
+    REQUIRE_EQ(stats.done, std::uint64_t{0});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+}
+
+TEST_CASE("rules scheduler: a suspension discards what was waiting")
+{
+    bench b(peer_set(answer_in_5ms), bench::clock_mode::by_hand, 2, true,
+            budget_of(4));
+
+    for (int matches = 0; matches < 4; ++matches)
+        b.send("01");
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{4});
+    b.clock.advance(4999us);
+    b.require_still(0, "");
+
+    // The budget is overrun before the replies are due.
+    b.send("01");
+    REQUIRE(wait_until([&] { return b.suspensions.size() == 1; }, 5000ms));
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{4});
+    REQUIRE_EQ(stats.cancelled, std::uint64_t{4});
+    REQUIRE_EQ(stats.done, std::uint64_t{0});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{1});
+
+    // Their time comes and goes, and nothing is written or reported.
+    b.clock.advance(1us);
+    b.require_still(0, "");
+    b.clock.advance(1s);
+    b.require_still(0, "");
+    REQUIRE_EQ(b.rules->stats().cancelled, std::uint64_t{4});
+    REQUIRE_EQ(b.rules->stats().done, std::uint64_t{0});
+}
+
+TEST_CASE("rules scheduler: a suspended set ignores the bytes it is shown")
+{
+    bench b(peer_set(answer_now), bench::clock_mode::by_hand, 2, true,
+            budget_of(1));
+    b.send("01");
+    b.wait_reports(1);
+    b.wait_written("aa");
+    b.send("01");
+    REQUIRE(b.rules->stats().suspended == suspend_reason::budget);
+    REQUIRE_EQ(b.rules->stats().machine.bytes_seen, std::uint64_t{2});
+
+    const std::uint64_t before = b.port.endpoint->stats().bytes_rx;
+    b.port.inject_read(raw("01 01 01"));
+    REQUIRE(wait_until(
+        [&] { return b.port.endpoint->stats().bytes_rx == before + 3; },
+        5000ms));
+    b.clock.advance(1s);
+    b.require_still(1, "aa");
+
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE_EQ(stats.machine.bytes_seen, std::uint64_t{2});
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{2});
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{1});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{1});
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+}
+
+TEST_CASE("rules scheduler: the budget refills with the time the set is given")
+{
+    bench b(peer_set(answer_now), bench::clock_mode::by_hand, 2, true,
+            budget_of(4));
+    for (std::size_t matches = 1; matches <= 4; ++matches)
+    {
+        b.send("01");
+        b.wait_reports(matches);
+    }
+
+    // A quarter of a second earns one firing at 4 a second.
+    b.clock.advance(250ms);
+    b.send("01");
+    b.wait_reports(5);
+    REQUIRE(b.rules->stats().suspended == suspend_reason::none);
+    REQUIRE_EQ(b.rules->stats().suspensions, std::uint64_t{0});
+
+    // A second earns the whole budget again.
+    b.clock.advance(1s);
+    for (std::size_t matches = 6; matches <= 9; ++matches)
+    {
+        b.send("01");
+        b.wait_reports(matches);
+    }
+    b.wait_written(times("aa", 9));
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE(stats.suspended == suspend_reason::none);
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{0});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{0});
+    REQUIRE_EQ(stats.done, std::uint64_t{9});
+    REQUIRE_EQ(b.suspensions.size(), std::size_t{0});
+}
+
+TEST_CASE("rules scheduler: resume ends a suspension by the budget, and a set "
+          "that is running is not resumed")
+{
+    bench b(peer_set(answer_now), bench::clock_mode::by_hand, 2, true,
+            budget_of(1));
+    REQUIRE(!b.rules->resume(b.clock.now()));
+    REQUIRE(b.rules->stats().suspended == suspend_reason::none);
+
+    b.send("01");
+    b.wait_reports(1);
+    b.wait_written("aa");
+    b.send("01");
+    REQUIRE(b.rules->stats().suspended == suspend_reason::budget);
+
+    REQUIRE(b.rules->resume(b.clock.now()));
+    REQUIRE(b.rules->stats().suspended == suspend_reason::none);
+    // Not suspended any more, so there is nothing to end.
+    REQUIRE(!b.rules->resume(b.clock.now()));
+
+    // The budget is whole again at the instant of the resume.
+    b.send("01");
+    b.wait_reports(2);
+    b.wait_written("aa aa");
+    b.require_still(2, "aa aa");
+
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{1});
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{3});
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{2});
+    REQUIRE_EQ(stats.done, std::uint64_t{2});
+}
+
+TEST_CASE("rules scheduler: a suspension the caller asks for discards the "
+          "timeline too, and asking twice counts once")
+{
+    bench b(peer_set("[]", R"j("timeline": [
+      {"at_us": 3000, "do": [{"reply": ["cc"]}]}
+    ], )j"));
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{1});
+
+    const time_point at = b.clock.now();
+    b.rules->suspend(at);
+    scheduler_stats stats = b.rules->stats();
+    REQUIRE(stats.suspended == suspend_reason::asked);
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{0});
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{1});
+    REQUIRE_EQ(stats.cancelled, std::uint64_t{1});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+    REQUIRE(wait_until([&] { return b.suspensions.size() == 1; }, 5000ms));
+    const auto told = b.suspensions.snapshot();
+    REQUIRE(told[0].why == suspend_reason::asked);
+    REQUIRE(told[0].when == at);
+
+    // The entry's time comes and nothing is done.
+    b.clock.advance(3000us);
+    b.require_still(0, "");
+    b.clock.advance(1s);
+    b.require_still(0, "");
+
+    // Asked again, it is the same suspension.
+    b.rules->suspend(b.clock.now());
+    b.require_still(0, "");
+    stats = b.rules->stats();
+    REQUIRE(stats.suspended == suspend_reason::asked);
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats.cancelled, std::uint64_t{1});
+    REQUIRE_EQ(b.suspensions.size(), std::size_t{1});
+    REQUIRE_EQ(stats.done, std::uint64_t{0});
+}
+
+TEST_CASE("rules scheduler: entries of the timeline do not use the budget")
+{
+    bench b(peer_set("[]", R"j("timeline": [
+      {"at_us": 1000, "do": [{"reply": ["01"]}]},
+      {"at_us": 2000, "do": [{"reply": ["02"]}]},
+      {"at_us": 3000, "do": [{"reply": ["03"]}]}
+    ], )j"),
+            bench::clock_mode::by_hand, 2, true, budget_of(1));
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{3});
+
+    b.clock.advance(3000us);
+    b.wait_reports(3);
+    b.wait_written("01 02 03");
+    b.require_still(3, "01 02 03");
+
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE(stats.suspended == suspend_reason::none);
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{0});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{0});
+    REQUIRE_EQ(stats.done, std::uint64_t{3});
+    REQUIRE_EQ(b.suspensions.size(), std::size_t{0});
+}
+
+TEST_CASE("rules scheduler: a signal counts against the budget")
+{
+    bench b(peer_set(R"j([
+      {"name": "alpha", "when": {"signal": "alpha"},
+       "do": [{"reply": ["aa"], "delay": {"fixed_us": 1000}}]}
+    ])j",
+                     R"j("signals": ["alpha"], )j"),
+            bench::clock_mode::by_hand, 2, true, budget_of(2));
+    const time_point now = b.clock.now();
+
+    REQUIRE(b.rules->signal(0, bytes_view{}, now, now));
+    REQUIRE(b.rules->signal(0, bytes_view{}, now, now));
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{2});
+    REQUIRE(b.rules->stats().suspended == suspend_reason::none);
+
+    // The third finds the budget spent.  It is accepted, and not scheduled.
+    REQUIRE(b.rules->signal(0, bytes_view{}, now, now));
+    scheduler_stats stats = b.rules->stats();
+    REQUIRE(stats.suspended == suspend_reason::budget);
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{1});
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{3});
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{2});
+    REQUIRE_EQ(stats.cancelled, std::uint64_t{2});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+    REQUIRE(wait_until([&] { return b.suspensions.size() == 1; }, 5000ms));
+    REQUIRE(b.suspensions.snapshot()[0].why == suspend_reason::budget);
+    REQUIRE(b.suspensions.snapshot()[0].when == now);
+
+    // A signal to a suspended set is ignored, and the call succeeds.
+    REQUIRE(b.rules->signal(0, bytes_view{}, now, now));
+    stats = b.rules->stats();
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{3});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{1});
+    b.clock.advance(1s);
+    b.require_still(0, "");
+}
+
+TEST_CASE("rules scheduler: a close after a suspension is not followed by a "
+          "call of the hook")
+{
+    for (int round = 0; round < 8; ++round)
+    {
+        bench b(peer_set(answer_now), bench::clock_mode::by_hand, 2, true,
+                budget_of(1));
+        b.send("01");
+        // The overrun, and a close straight after it.
+        b.send("01");
+        b.rules->close();
+
+        const std::size_t told = b.suspensions.size();
+        REQUIRE(told <= 1);
+        REQUIRE(b.rules->stats().suspended == suspend_reason::budget);
+        REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+
+        // The hub goes on running: the hook is not called later.
+        b.clock.advance(1s);
+        bench::settle();
+        REQUIRE_EQ(b.suspensions.size(), told);
+        REQUIRE(!b.rules->resume(b.clock.now()));
+    }
+}
+
+TEST_CASE("rules scheduler: a rule on silence does not fire while the set is "
+          "suspended, and counts its silence from a byte after the resume")
+{
+    bench b(peer_set(R"j([
+      {"name": "quiet", "when": {"quiet_us": 5000},
+       "do": [{"reply": ["ee"]}]}
+    ])j"));
+    b.send("01");
+    b.rules->suspend(b.clock.now());
+    REQUIRE(b.rules->stats().suspended == suspend_reason::asked);
+
+    // The silence that was being counted is complete, and nothing happens.
+    b.clock.advance(10ms);
+    b.require_still(0, "");
+    const std::uint64_t before = b.port.endpoint->stats().bytes_rx;
+    b.port.inject_read(raw("02"));
+    REQUIRE(wait_until(
+        [&] { return b.port.endpoint->stats().bytes_rx == before + 1; },
+        5000ms));
+    b.clock.advance(1s);
+    b.require_still(0, "");
+    REQUIRE_EQ(b.rules->stats().machine.firings, std::uint64_t{0});
+
+    // The silence from before the suspension is not counted after it.
+    REQUIRE(b.rules->resume(b.clock.now()));
+    b.clock.advance(1s);
+    b.require_still(0, "");
+    REQUIRE_EQ(b.rules->stats().machine.firings, std::uint64_t{0});
+
+    // A new byte, and the silence after it, fires the rule.
+    b.send("03");
+    b.clock.advance(4999us);
+    b.require_still(0, "");
+    b.clock.advance(1us);
+    b.wait_reports(1);
+    b.wait_written("ee");
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{1});
+    REQUIRE_EQ(stats.machine.bytes_seen, std::uint64_t{2});
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE(stats.suspended == suspend_reason::none);
 }

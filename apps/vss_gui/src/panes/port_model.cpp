@@ -7,6 +7,7 @@
 #include "panes/port_model.hpp"
 
 #include "panes/format.hpp"
+#include "language/bidi.hpp"
 
 #include <vss/core/profile.hpp>
 #include <vss/core/serial_settings.hpp>
@@ -62,6 +63,8 @@ QString other_endpoint_names(const port_view& port,
             }
         }
     }
+    for (QString& name : names)
+        name = isolate_name(name);
     return names.join(QStringLiteral(", "));
 }
 

@@ -201,7 +201,11 @@ enum class operation
     ports_remove,
     links_connect,
     ports_send,
-    expect_bytes
+    expect_bytes,
+    runs_begin,
+    runs_end,
+    runs_record,
+    report_junit
 };
 
 struct operation_info

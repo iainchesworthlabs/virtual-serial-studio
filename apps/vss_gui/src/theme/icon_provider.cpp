@@ -9,10 +9,13 @@
 #include <vss/core/profile.hpp>
 
 #include <QFile>
+#include <QFileInfo>
+#include <QGuiApplication>
 #include <QHash>
 #include <QIconEngine>
 #include <QPainter>
 #include <QPixmap>
+#include <QStringList>
 #include <QSvgRenderer>
 
 #include <algorithm>
@@ -32,6 +35,8 @@ struct svg_source
     QByteArray svg;
     std::optional<colour_role> role;
     QColor fixed;
+    /// Drawn flipped left to right (see mirrors_in_right_to_left).
+    bool mirror = false;
     mutable QHash<QRgb, std::shared_ptr<QSvgRenderer>> renderers;
 
     QColor colour(bool disabled) const
@@ -82,6 +87,11 @@ public:
         const QRectF target(rect.x() + (rect.width() - side) / 2.0,
                             rect.y() + (rect.height() - side) / 2.0, side,
                             side);
+        if (source_->mirror)
+        {
+            painter->translate(target.center().x() * 2.0, 0.0);
+            painter->scale(-1.0, 1.0);
+        }
         source_->renderer(mode == QIcon::Disabled).render(painter, target);
         painter->restore();
     }
@@ -103,6 +113,11 @@ public:
         result.fill(Qt::transparent);
         QPainter painter(&result);
         painter.setRenderHint(QPainter::Antialiasing);
+        if (source_->mirror)
+        {
+            painter.translate(side, 0.0);
+            painter.scale(-1.0, 1.0);
+        }
         // An explicit rectangle in logical units: without it the renderer
         // draws at device pixels and, above 100% scale, fills only a corner.
         source_->renderer(mode == QIcon::Disabled)
@@ -143,8 +158,10 @@ QIcon IconProvider::icon(const QString& name, colour_role role,
     // The engine draws at any size, so the size is only a hint for callers
     // that still pass one.
     static_cast<void>(logical_size);
-    const QString key =
-        QStringLiteral("%1|role%2").arg(name).arg(static_cast<int>(role));
+    const QString key = QStringLiteral("%1|role%2|%3")
+                            .arg(name)
+                            .arg(static_cast<int>(role))
+                            .arg(static_cast<int>(QGuiApplication::layoutDirection()));
     const auto cached = cache_.constFind(key);
     if (cached != cache_.constEnd())
         return cached.value();
@@ -158,7 +175,9 @@ QIcon IconProvider::icon(const QString& name, const QColor& colour,
                          int logical_size)
 {
     static_cast<void>(logical_size);
-    const QString key = QStringLiteral("%1|%2").arg(name, colour.name());
+    const QString key = QStringLiteral("%1|%2|%3")
+                            .arg(name, colour.name())
+                            .arg(static_cast<int>(QGuiApplication::layoutDirection()));
     const auto cached = cache_.constFind(key);
     if (cached != cache_.constEnd())
         return cached.value();
@@ -178,6 +197,15 @@ QIcon IconProvider::app_icon()
 void IconProvider::flush()
 {
     cache_.clear();
+}
+
+bool IconProvider::mirrors_in_right_to_left(const QString& name)
+{
+    static const QStringList names{
+        QStringLiteral("redirect"), QStringLiteral("split"),
+        QStringLiteral("join"),     QStringLiteral("share"),
+        QStringLiteral("loopback"), QStringLiteral("run")};
+    return names.contains(name);
 }
 
 QIcon IconProvider::render(const QString& name, std::optional<colour_role> role,
@@ -203,6 +231,10 @@ QIcon IconProvider::load(const QString& path, std::optional<colour_role> role,
     source->svg = file.readAll();
     source->role = role;
     source->fixed = colour;
+    source->mirror =
+        QGuiApplication::layoutDirection() == Qt::RightToLeft &&
+        IconProvider::mirrors_in_right_to_left(
+            QFileInfo(path).completeBaseName());
     if (!source->renderer(false).isValid())
     {
         qWarning("IconProvider: invalid SVG \"%s\"", path.toUtf8().constData());

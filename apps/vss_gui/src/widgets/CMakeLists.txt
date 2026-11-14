@@ -25,7 +25,7 @@ add_library(vss_gui_widgets STATIC
   surfaces.cpp
   surfaces.hpp)
 
-target_link_libraries(vss_gui_widgets PUBLIC vss_gui_theme)
+target_link_libraries(vss_gui_widgets PUBLIC vss_gui_theme vss_gui_language)
 
 target_compile_features(vss_gui_widgets PUBLIC cxx_std_23)
 target_compile_definitions(vss_gui_widgets PRIVATE QT_NO_KEYWORDS)

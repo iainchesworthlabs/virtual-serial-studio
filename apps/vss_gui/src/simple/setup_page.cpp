@@ -5,6 +5,7 @@
 //
 
 #include "simple/setup_page.hpp"
+#include "language/bidi.hpp"
 
 #include "theme/icon_provider.hpp"
 #include "widgets/chips.hpp"
@@ -60,6 +61,7 @@ QPlainTextEdit* text_view(const QString& name, QWidget* parent)
     auto* view = new QPlainTextEdit(parent);
     view->setReadOnly(true);
     view->setAccessibleName(name);
+    keep_left_to_right(view);
     view->setFont(Theme::instance().font(text_style::data));
     view->setMinimumHeight(140);
     view->setMaximumBlockCount(kMaxLines);
@@ -137,6 +139,7 @@ void SetupPage::build()
     type_layout->addWidget(received_);
     auto* type_row = new QHBoxLayout();
     input_ = new QLineEdit(type_box_);
+    keep_left_to_right(input_);
     input_->setObjectName(QStringLiteral("setupInput"));
     input_->setPlaceholderText(tr("Type, then press Enter"));
     input_->setAccessibleName(tr("Text to send"));

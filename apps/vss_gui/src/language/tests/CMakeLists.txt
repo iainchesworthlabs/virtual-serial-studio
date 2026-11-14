@@ -7,6 +7,7 @@
 if(VSS_BUILD_TESTS)
   add_executable(vss_gui_language_tests
     ${CMAKE_CURRENT_SOURCE_DIR}/../../shell/tests/main.cpp
+    test_bidi.cpp
     test_language_choice.cpp
     test_translations.cpp)
 

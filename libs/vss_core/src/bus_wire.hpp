@@ -82,6 +82,10 @@ private:
     time_point now() const;
     void arm();
     void fire();
+    /// Takes the chunks that have left the wire off the queue, in order.
+    std::vector<item> take_due();
+    /// Hands each chunk to its receivers.  Called with `deliver_mutex_` held.
+    void deliver(std::vector<item>& ready);
 
     const boost::asio::strand<boost::asio::any_io_executor> strand_;
     boost::asio::steady_timer timer_;

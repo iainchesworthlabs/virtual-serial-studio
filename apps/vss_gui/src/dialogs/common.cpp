@@ -5,6 +5,7 @@
 //
 
 #include "dialogs/common.hpp"
+#include "language/bidi.hpp"
 
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -162,10 +163,11 @@ QString serial_uri(const QString& path, const vss::serial_settings& settings)
 QString port_combo_label(const port_view& port)
 {
     if (port.path.startsWith(QStringLiteral("loopback:")))
-        return QObject::tr("%1 (Studio only)").arg(port.name);
+        return QObject::tr("%1 (Studio only)").arg(isolate_name(port.name));
     if (port.path.isEmpty() || port.path == port.name)
-        return port.name;
-    return QObject::tr("%1 (%2)").arg(port.name, port.path);
+        return isolate_name(port.name);
+    return QObject::tr("%1 (%2)")
+        .arg(isolate_name(port.name), isolate_name(port.path));
 }
 
 bool windows_platform(const setup_facts& facts)
@@ -209,7 +211,7 @@ QString html_escape(const QString& text)
 
 QString bold_name(const QString& text)
 {
-    return QStringLiteral("<b>%1</b>").arg(html_escape(text));
+    return QStringLiteral("<b>%1</b>").arg(html_escape(isolate_name(text)));
 }
 
 QFont semibold(QFont font)
