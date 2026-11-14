@@ -91,8 +91,8 @@ The payload is UTF-8 JSON:
 | `licensee.contact` | Optional. A team or role, not a personal e-mail address |
 | `issued_at` | When the owner signed it. Used for key rotation and the clock check |
 | `starts_at`, `expires_at` | The term, in UTC. A renewal bought early starts when the old one ends, so no days are lost |
-| `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual and enterprise, 0 for trial. It is in the file so an Enterprise agreement can differ |
-| `seats` | Number of seats bought. `0` means a site licence with no seat count |
+| `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual, 0 for trial, and whatever was agreed for enterprise (28 unless the agreement says otherwise) |
+| `seats` | Number of seats agreed. `0` means the licence is not counted by seat |
 | `features` | What the licence turns on. See below |
 | `machines` | Optional list of computer names. Empty means any computer. See [Seats](#seats) |
 | `updates_until` | Optional date for the version window. See [The version window](#the-version-window) |
@@ -134,9 +134,11 @@ The administrator policy that allows official plugins only is not a licence
 feature. It is the policy of [the plugin framework](plugins.md), section 8.6,
 and it works in every edition. No feature name stands for it.
 
-Pro and Enterprise licences turn on the same features. `edition: enterprise`
-marks a site licence whose price and term were agreed with the customer; it adds
-no feature of its own.
+Pro and Enterprise licences turn on the same plugins. An Enterprise licence has
+no fixed shape: what it covers, how long it runs and the price are negotiated
+with each customer. `edition: enterprise` marks such a licence and adds no
+feature of its own. The fields of the file (`seats`, `machines`, the dates,
+`grace_days`, `updates_until`) carry whatever was agreed.
 
 ## Signatures and keys
 
@@ -256,7 +258,7 @@ revocation list only ever holds ids, never names.
 | Place | Used for |
 |---|---|
 | Per-user data directory, `licences/` | What Help, Licence, Import licence copies the file to |
-| Per-machine directory (`%ProgramData%\Virtual Serial Studio\licences`, `/etc/virtual-serial-studio/licences`, `/Library/Application Support/Virtual Serial Studio/licences`) | An administrator deploying a site licence. Studio only reads it |
+| Per-machine directory (`%ProgramData%\Virtual Serial Studio\licences`, `/etc/virtual-serial-studio/licences`, `/Library/Application Support/Virtual Serial Studio/licences`) | An administrator installing a licence for the computers they manage. Studio only reads it |
 
 Studio reads every `.vsslic` in both places and uses the best one: a valid
 licence beats one in grace, which beats an expired one; then Enterprise beats
@@ -389,7 +391,8 @@ installations. The options:
   page and in the support bundle. The terms say what a seat is. This matches
   "enforced by the licence file and the licence terms, not by a server" in the
   editions page.
-* **Enterprise: option A by default, option C on request.** `machines` holds
+* **Enterprise: whatever is agreed.** The file can carry a seat count
+  (option A), computer names (option C), both or neither. `machines` holds
   computer names, compared without regard to case, where a trailing `*` matches
   a prefix (`LAB-RIG-*`). A computer that is not listed gets `invalid` with
   "This licence is for other computers" and the list of names, so the
@@ -601,8 +604,10 @@ The owner settled three more points on 14 November 2026:
     the one you work at and one other that you control or monitor from it. The
     serial device can be on either. Remote control between the two is part of
     the seat.
-11. **Enterprise.** It differs from Pro in its terms only: a site licence, with
-    price and term on application. It has no feature of its own. The
+11. **Enterprise.** It has no fixed shape: what the licence covers, how long it
+    runs and the price are negotiated with each customer. The plugins are the
+    same as Pro, and it has no feature of its own. The file carries whatever
+    is agreed, such as seats, computer names and dates. The
     administrator policy that allows official plugins only is not a licence
     feature and is not gated.
 12. **The plugin API.** It is public, documented and free. The official plugins

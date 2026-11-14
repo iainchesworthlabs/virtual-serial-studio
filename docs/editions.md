@@ -23,9 +23,9 @@ and Enterprise add plugins (connectivity, automation, monitoring), the Microsoft
 
 | | Community | Pro | Enterprise |
 |---|---|---|---|
-| Price | Free | Annual licence | Price on application |
-| Term | None | 1 year | On application |
-| Seats | Unlimited | One licence is one seat: two computers, the one you work at and one other that you control or monitor from it | Site licence, not per seat |
+| Price | Free | Annual licence | Negotiated |
+| Term | None | 1 year | Negotiated |
+| Seats | Unlimited | One licence is one seat: two computers, the one you work at and one other that you control or monitor from it | Negotiated |
 | Licence of the code | GPL-3.0-or-later | Commercial terms for the Pro parts | Commercial terms and a support agreement |
 | Studio and command line tool | Yes | Yes | Yes |
 | Windows driver | Test-signed by Iain Chesworth Labs, built from source | Signed through Microsoft | Signed through Microsoft |
@@ -41,13 +41,12 @@ from another computer.
 
 One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
 Controlling one of the two from the other is part of the seat. A seat is
-enforced by the licence file and the licence terms, not by a server, so a lab
-that wants a hard seat count asks for an Enterprise licence that can name
-machines.
+enforced by the licence file and the licence terms, not by a server.
 
-Enterprise differs from Pro in its terms only: it is a site licence, not a seat
-licence, and its price and term are on application. It has the same features as
-Pro. The administrator policy that allows official plugins only is not an
+An Enterprise licence has no fixed shape. What the licence covers, how long it runs and the price are negotiated with each customer.
+The plugins are the same as Pro. The licence file can carry whatever is agreed,
+such as a number of seats, the names of computers and the dates, but none of
+those is what Enterprise is. The administrator policy that allows official plugins only is not an
 Enterprise feature and needs no licence: it is the policy of
 [the plugin framework](plugins.md), section 8.6.
 
@@ -91,7 +90,7 @@ it. There is no activation server and no telemetry.
 |---|---|---|
 | Trial | 14 days | Full Pro features, issued on request |
 | Annual | 1 year | Renewed by sending a new file |
-| Enterprise | On application | A site licence with the same features as Pro. Price and term are agreed for each customer. May name machines |
+| Enterprise | Negotiated | The same plugins as Pro. What it covers, how long it runs and the price are negotiated with each customer |
 
 When a licence expires, the Pro features switch off with a visible "licence
 expired" notice and a renew link, and Studio falls back to Community. It keeps
@@ -235,12 +234,13 @@ It follows the design tokens of the application.
 ## Decisions made
 
 * Community is the base application plus the test-signed driver, with no plugins.
-  Pro adds plugins, the signed driver and support. Enterprise is a site licence.
+  Pro adds plugins, the signed driver and support.
 * One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
   Remote control between the two is part of the seat.
-* Enterprise differs from Pro in its terms only: a site licence, with price and
-  term on application. It has the same features as Pro. The administrator policy
-  that allows official plugins only is not an Enterprise feature and is not gated.
+* An Enterprise licence has no fixed shape: what it covers, how long it runs and
+  the price are negotiated with each customer. The plugins are the same as Pro.
+  The administrator policy that allows official plugins only is not an
+  Enterprise feature and is not gated.
 * The plugin API is public, documented and free. The official plugins built on
   it, and the agent's internal protocol, are private with no compatibility
   promise.
