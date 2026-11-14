@@ -186,6 +186,7 @@ private:
                                      false, true);
             out.sequence.push_back(std::move(to));
         }
+        out.written_as_do = in.written_as_do;
         out.then = in.then;
         out.count = in.count;
         out_->rules.push_back(std::move(out));

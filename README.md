@@ -104,6 +104,9 @@ vss_cli control status              # who you are to the gateway and what you ma
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
+vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
+vss_cli control send p_1 --hex=00ff0a   # send bytes to a port, two hex digits for each byte (scope control.data)
+vss_cli control expect p_2 --pattern=4f4b0d0a --send-to=p_1 --send=6f6b0d0a   # wait for bytes on a port, and send some once listening (scope monitor.data; control.data to send)
 ```
 
 Run `vss_cli --help` for the full list.
@@ -244,6 +247,7 @@ third_party          Monocypher, vendored unchanged (Ed25519)
 apps/vss_cli         headless command line
 apps/vss_agent       keeps ports running without the window (a first slice)
 apps/vss_gate        serves the control API to this user's programs (a first slice)
+apps/vss_license     reads, checks and issues licence files; the owner's tool, not installed
 apps/vss_gui         Qt 6 desktop application
 tests/               in-tree framework, unit and system suites
 perf/                performance suite and floors

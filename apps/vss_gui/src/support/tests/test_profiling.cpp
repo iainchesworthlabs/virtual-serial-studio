@@ -77,7 +77,7 @@ TEST_CASE("profiling: the Settings switch starts it, pauses it and resumes it")
     REQUIRE(controller.address().startsWith(QStringLiteral("127.0.0.1:")));
     REQUIRE(status->text().contains(QStringLiteral("this computer")));
     REQUIRE(!controller.chip_text().isEmpty());
-    // About and the diagnostic bundle report it.
+    // About and the support bundle report it.
     REQUIRE(support::current_build_info().profiling.contains(
         QStringLiteral("listening on 127.0.0.1")));
 

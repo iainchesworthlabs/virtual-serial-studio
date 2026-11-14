@@ -71,14 +71,19 @@ struct api_error
 /// The wire form of `value`, with the category's own message.
 api_error to_api_error(api_errc value);
 
-/// The error code a wire error stands for.  A name this build does not know
-/// becomes `api_errc::internal`.
+/// The error code a wire error stands for.  `engine.<name>` becomes the
+/// engine's own error (`vss::errc`), so a caller handles it as it would the
+/// studio's.  A name this build does not know becomes `api_errc::internal`.
 error_code from_api_error(const api_error& error) noexcept;
 
 /// The public name of an error of the engine: `engine.not_open`.  An error
 /// of the operating system or of anything else is `engine.io_error`, so no
 /// number or text of the computer crosses with it.  Empty for no error.
 std::string engine_error_name(const error_code& error);
+
+/// An error of the engine as a client receives it: the code is
+/// `engine_error_name`, and the message is ours, not the engine's.
+api_error engine_api_error(const error_code& error);
 
 } // namespace vss::control
 

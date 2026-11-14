@@ -92,6 +92,9 @@ struct compiled_rule
     /// The state the rule needs, or #no_index for any.
     std::size_t state = no_index;
     std::vector<compiled_step> sequence;
+    /// The rule was written with a `do` list and no `sequence`, so a problem
+    /// found later is reported at `rules[i].do[j]`.
+    bool written_as_do = false;
     after_sequence then = after_sequence::repeat;
     std::uint64_t count = 0;
 };

@@ -1108,3 +1108,204 @@ TEST_CASE("studio: a bus made through the facade takes a half-duplex line")
     REQUIRE_EQ(snapshot.links.size(), std::size_t{1});
     REQUIRE(snapshot.links[0].half_duplex == options.half_duplex);
 }
+
+namespace
+{
+
+config::plugin_binding binding(std::string id, std::string kind,
+                               std::string type)
+{
+    config::plugin_binding value;
+    value.id = std::move(id);
+    value.kind = std::move(kind);
+    value.type = std::move(type);
+    return value;
+}
+
+/// A setup of five loopback ports, a redirect and a bus, with plugin
+/// bindings on one port and on both links.  `spare` is on no link.
+config::document setup_with_plugins()
+{
+    config::document document;
+    document.name = "unit";
+    for (const char* name : {"left", "right", "third", "fourth", "spare"})
+    {
+        config::port_entry port;
+        port.name = name;
+        port.kind = "virtual";
+        port.virtual_kind = "loopback";
+        document.ports.push_back(port);
+    }
+
+    config::plugin_binding generator =
+        binding("com.example.generator", "generator", "ramp");
+    generator.name = "Ramp generator";
+    generator.publisher = "Example Ltd";
+    generator.key_id = "9f2c41d07a6be835";
+    generator.version = "1.2.0";
+    generator.get_it_from = "https://example.com/plugins";
+    generator.params = R"({"step":3,"values":[1,2,3]})";
+    document.ports[0].plugins = {
+        generator, binding("com.example.decoder", "decoder", "frames")};
+
+    config::link_entry redirect;
+    redirect.mode = "redirect";
+    redirect.sources = {"left"};
+    redirect.targets = {"right"};
+    config::plugin_binding modifier =
+        binding("com.example.noise", "modifier", "flip");
+    modifier.on_timeout = "fail_closed";
+    redirect.plugins = {
+        modifier, binding("com.example.second", "modifier", "drop")};
+    document.links.push_back(redirect);
+
+    config::link_entry bus;
+    bus.mode = "bus";
+    bus.members = {"third", "fourth"};
+    bus.emulate_modem_lines = false;
+    bus.plugins = {binding("com.example.decoder", "decoder", "frames")};
+    document.links.push_back(bus);
+    return document;
+}
+
+const config::port_entry& port_named(const config::document& document,
+                                     std::string_view name)
+{
+    const auto found = std::ranges::find(document.ports, name,
+                                         &config::port_entry::name);
+    REQUIRE(found != document.ports.end());
+    return *found;
+}
+
+const config::link_entry& link_of_mode(const config::document& document,
+                                       std::string_view mode)
+{
+    const auto found = std::ranges::find(document.links, mode,
+                                         &config::link_entry::mode);
+    REQUIRE(found != document.links.end());
+    return *found;
+}
+
+} // namespace
+
+TEST_CASE("studio: plugin bindings pass through apply and snapshot")
+{
+    const config::document document = setup_with_plugins();
+    REQUIRE(!config::validate(document));
+
+    studio app;
+    REQUIRE(app.apply(document));
+
+    const config::document saved = app.snapshot();
+    REQUIRE(!config::validate(saved));
+    REQUIRE(port_named(saved, "left").plugins == document.ports[0].plugins);
+    REQUIRE(port_named(saved, "right").plugins.empty());
+    REQUIRE(port_named(saved, "third").plugins.empty());
+    // The order of a link's bindings is the order they act in, and is kept.
+    REQUIRE(link_of_mode(saved, "redirect").plugins ==
+            document.links[0].plugins);
+    REQUIRE(link_of_mode(saved, "bus").plugins == document.links[1].plugins);
+
+    // What is saved reads back with the same lists, and a second studio
+    // made from it saves them again.
+    const auto text = config::to_json(saved, true);
+    REQUIRE(text.has_value());
+    const auto reread = config::from_json(*text);
+    REQUIRE(reread.has_value());
+    REQUIRE(port_named(*reread, "left").plugins ==
+            document.ports[0].plugins);
+
+    studio second;
+    REQUIRE(second.apply(*reread));
+    const config::document again = second.snapshot();
+    REQUIRE(port_named(again, "left").plugins == document.ports[0].plugins);
+    REQUIRE(link_of_mode(again, "redirect").plugins ==
+            document.links[0].plugins);
+    REQUIRE(link_of_mode(again, "bus").plugins == document.links[1].plugins);
+}
+
+TEST_CASE("studio: a link keeps its plugin bindings while it is changed in "
+          "place")
+{
+    studio app;
+    REQUIRE(app.apply(setup_with_plugins()));
+    const auto expected = setup_with_plugins();
+
+    link_id redirect = 0;
+    for (const link_info& link : app.link_infos())
+    {
+        if (link.mode == link_mode::one_way)
+            redirect = link.id;
+    }
+    REQUIRE(redirect != 0);
+
+    // New options, and one more source: the link keeps its id and its list.
+    link_options options;
+    options.delay_ms = 5;
+    REQUIRE(app.set_link_options(redirect, options));
+    REQUIRE(app.add_source(redirect, "spare"));
+    const config::document saved = app.snapshot();
+    REQUIRE(link_of_mode(saved, "join").plugins == expected.links[0].plugins);
+    REQUIRE(link_of_mode(saved, "bus").plugins == expected.links[1].plugins);
+}
+
+TEST_CASE("studio: plugin bindings go with their port or link")
+{
+    studio app;
+    REQUIRE(app.apply(setup_with_plugins()));
+
+    // A removed link takes its list with it, and a link made by hand in its
+    // place has none.
+    link_id redirect = 0;
+    for (const link_info& link : app.link_infos())
+    {
+        if (link.mode == link_mode::one_way)
+            redirect = link.id;
+    }
+    REQUIRE(app.disconnect(redirect));
+    REQUIRE(app.redirect("left", "right"));
+    config::document saved = app.snapshot();
+    REQUIRE(link_of_mode(saved, "redirect").plugins.empty());
+    REQUIRE(!link_of_mode(saved, "bus").plugins.empty());
+    REQUIRE(!port_named(saved, "left").plugins.empty());
+
+    // A removed port takes its list and its links with it.
+    REQUIRE(app.remove_port("left"));
+    REQUIRE(app.remove_port("third"));
+    saved = app.snapshot();
+    REQUIRE_EQ(saved.ports.size(), std::size_t{3});
+    for (const config::port_entry& entry : saved.ports)
+        REQUIRE(entry.plugins.empty());
+    REQUIRE(saved.links.empty());
+
+    // A port made by hand has none, and applying a setup later does not
+    // bring back the lists of links that are gone.
+    REQUIRE(app.create_virtual_port("left", virtual_port_kind::loopback));
+    config::document more;
+    config::port_entry port;
+    port.name = "third";
+    port.kind = "virtual";
+    port.virtual_kind = "loopback";
+    more.ports.push_back(port);
+    REQUIRE(app.apply(more));
+    saved = app.snapshot();
+    for (const config::port_entry& entry : saved.ports)
+        REQUIRE(entry.plugins.empty());
+    for (const config::link_entry& entry : saved.links)
+        REQUIRE(entry.plugins.empty());
+}
+
+TEST_CASE("studio: a setup without plugins is saved without the key")
+{
+    config::document document = setup_with_plugins();
+    for (config::port_entry& port : document.ports)
+        port.plugins.clear();
+    for (config::link_entry& link : document.links)
+        link.plugins.clear();
+
+    studio app;
+    REQUIRE(app.apply(document));
+    const auto text = config::to_json(app.snapshot(), true);
+    REQUIRE(text.has_value());
+    REQUIRE(text->find("plugins") == std::string::npos);
+}

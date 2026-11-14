@@ -913,6 +913,48 @@ Differences from sections 9, 10 and 12 as first written, and why:
 - **Engine errors by name**, which slice 1 left on paper, are in: an error event carries `engine.<name>`, and what
   the operating system said becomes `engine.io_error`, without its number or its text.
 
+### What the control operations built
+
+The first part of slice 4, on the local endpoint: `ports.create`, `ports.remove` and `links.connect` under
+`control.ports`, and `ports.send` under `control.data`. Loopback TCP, `expect.bytes`, runs and the report are
+separate changes.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Arranging ports and speaking on them are two rights | A session with `control.ports` and no `control.data` makes a port and is refused a send; one with `control.data` alone sends and is refused a port; a monitor, with or without `monitor.data`, is refused all four and the agent is never asked. The same for a token, and a ceiling takes the scope away again | "Own ports only": a caller may change any port of the agent, not only the ones it made |
+| What the engine refuses crosses by name only | A port that is not there, a kind the agent does not make and a link to nothing come back as `engine.not_found` and `engine.unsupported` with the gateway's own message; the client library turns the name back into the engine's code. Each costs an error and not the session | |
+| An id that is not one is not passed on | Five texts that are no port id get `invalid_argument` for each operation, without the agent being asked, and are not written to the audit log as they came | |
+| A send is bounded | 64 KiB is taken and one byte more is answered `limit_exceeded`; nothing to send is `invalid_argument`. The session stays in both cases | A rate for bytes sent: only the request rate of the session limits it (200 a second) |
+| Every change is recorded, and the bytes are not | One record for each of the four operations, with who, which port, and the outcome, also when it was refused by the engine or was no request at all; the bytes of a send are searched for in everything the gateway keeps and are not there, only their number | |
+| Without an agent nothing is half done | A change says `unavailable` and the session stays; when the agent is back the same session makes a port | |
+
+Not built here, and why: `links.disconnect`, `ports.rename`, `ports.settings` and `lines.set` have no request in
+the agent yet; `idempotency_key` waits for the first operation whose repeat would do harm (a second `ports.create`
+makes a second port, which a caller can see and remove).
+
+### What `expect.bytes` built
+
+The second part of slice 4: a harness waits, inside the gateway, for a pattern on a port, and can have bytes sent
+in the same request. Runs and the JUnit report are a separate change.
+
+```
+{"id": 7, "op": "expect.bytes", "port": "p_2", "pattern": "4f4b0d0a", "timeout_ms": 2000,
+ "send_port": "p_1"}                                  + blob: the bytes to send
+{"id": 7, "reply": "matched", "offset": 6, "mono_ns": 81234000001, "events_lost": 0}
+```
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| Nothing is missed between sending and listening | The gateway asks its agent connection for the bytes and then for the send, in that order, on the session's own queue. A pattern that the sent bytes produce is found every time, with how many bytes went by before it | Bytes that went by before the request are not seen: there is no ring to look back in. A stimulus from another connection can only be sent after the wait is known to have started, which that connection cannot see |
+| A pattern cut by a chunk boundary is found | Another session sends the pattern a byte at a time while this one waits | |
+| Waiting is reading, and sending with it is sending | Refused without `monitor.data`; with it and without `control.data` a wait works and a wait that sends is refused before anything is sent, which the ports' counters show | |
+| A wait is bounded and ends cleanly | 1 to 256 bytes, 1 ms to 60 s, one wait at a time for a connection (`conflict` for a second). A pattern that does not come is `timeout` and the session stays; a send the engine refuses ends the wait at once with the engine's error | |
+| It does not change what the client's own stream carries | With an events stream running, the stream goes on in order through a wait and carries no bytes, although the gateway itself was reading them | A wait keeps the pace of a stream the client already has, so its answer can be two of that stream's intervals late |
+| Neither the pattern nor the bytes sent are recorded | One audit record for each wait with the port, the two sizes and how it ended; both texts are searched for in everything the gateway keeps | |
+
+The direction of a pattern (`rx`, the usual, or `tx`) is the engine's: a loopback port reports what is written to
+it as received and sends it on to whatever it is linked to.
+
 ## 14. Decisions for the owner
 
 All twelve were accepted as recommended.

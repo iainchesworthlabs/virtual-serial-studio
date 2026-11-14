@@ -30,7 +30,10 @@ public:
         studio_only,
         closed,
         failed,
-        fixture
+        fixture,
+        /// A plain fact: grey with a filled dot, where `closed` has a hollow
+        /// one.
+        neutral
     };
 
     explicit StatusChip(QWidget* parent = nullptr);

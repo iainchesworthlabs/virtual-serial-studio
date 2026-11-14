@@ -15,6 +15,11 @@ StudioBackend::StudioBackend(QObject* parent) : QObject(parent) {}
 
 StudioBackend::~StudioBackend() = default;
 
+vss::license::entitlement StudioBackend::entitlement(const QString& feature) const
+{
+    return vss::license::check(licence().status, feature.toStdString());
+}
+
 std::vector<device_view> StudioBackend::other_program_ports() const
 {
     std::vector<device_view> out;

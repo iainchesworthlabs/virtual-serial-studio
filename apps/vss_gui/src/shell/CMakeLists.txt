@@ -16,6 +16,8 @@ add_library(vss_gui_shell STATIC
   format.hpp
   launcher.cpp
   launcher.hpp
+  licence_notice.cpp
+  licence_notice.hpp
   level_service.cpp
   level_service.hpp
   port_warnings.cpp
