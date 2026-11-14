@@ -147,8 +147,8 @@ void StatusBar::refresh()
     links_->setText(tr("Links %1").arg(static_cast<qulonglong>(links.size())));
     rates_->setText(
         tr("RX %1   TX %2").arg(format_rate(rx_rate), format_rate(tx_rate)));
-    hub_->setText(backend_.hub_running() ? tr("Hub running")
-                                         : tr("Hub stopped"));
+    hub_->setText(backend_.hub_running() ? tr("Engine running")
+                                         : tr("Engine stopped"));
     links_->setVisible(!empty);
     rates_->setVisible(!empty);
     hub_->setVisible(!empty);

@@ -1,0 +1,54 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "slots": {
+  "s": "xyz"
+ },
+ "rules": [
+  {
+   "name": "r",
+   "when": {
+    "bytes": "1 ??"
+   },
+   "do": [
+    {
+     "reply": [
+      "0g",
+      {
+       "match": [
+        3,
+        1
+       ]
+      },
+      {
+       "lrc": "x"
+      },
+      {
+       "slot": "nope"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "s",
+   "when": {
+    "bytes": "11 ??",
+    "mask": "ff ff"
+   },
+   "do": [
+    {
+     "set_slot": {
+      "slot": "s",
+      "match": [
+       0,
+       9
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

@@ -1,0 +1,8 @@
+{
+  "manifest_version": 2,
+  "id": "com.example.minimal",
+  "name": "Minimal",
+  "version": "1.0.0",
+  "something_new": { "from": "a newer format" },
+  "run": { "executable": "bin/minimal", "platforms": ["linux-x64"] }
+}

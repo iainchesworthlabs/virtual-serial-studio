@@ -74,6 +74,15 @@ seen) and before the half-duplex line and the link's delay line. So a link's
 `delay_ms` is added after an inline rule's own delay, and a byte an inline rule
 removed never reaches the wire or the counters of the line.
 
+A plugin modifier (`docs/plugins.md`, section 7.6) is a second user of the same
+stage. When one direction of a link has both, the `inline` set runs first and
+the modifiers follow, in the order of the link's plugin bindings. So a rule
+matches the bytes the program sent, at the time the engine read them, and what a
+rule set does never depends on a plugin being fast, slow or stopped. The stage
+keeps the bytes of a direction in order from one user to the next: when a
+modifier is removed, bytes a rule still holds go straight on when they are due,
+and bytes the modifier had not yet answered for are passed on unchanged first.
+
 ## The rule model
 
 A rule set is one JSON document, apart from the topology file, whose schema does
@@ -129,12 +138,21 @@ keep reading, so there is no compatibility reader).
 | `gap_us` beside `bytes` | The pattern counts only if nothing arrived for this long before its first byte, after its last byte, or both (`"gap": "before"`, `"after"`, `"both"`). This is how a frame that ends in silence (Modbus RTU) is told from the same bytes inside a longer one |
 | `lines` | An input line of the place took this value (an edge, not a level). On a `peer` these are the program's DTR, RTS and BREAK |
 | `port` | `opened` or `closed`: a program opened or closed the port, where the platform can tell (the peer-open capability) |
+| `quiet_us` | Nothing has arrived at the place for this long since the last byte. It fires once for each silence. With a state it is a timeout: a request moves the set to `waiting`, and silence in `waiting` is the reply that never came |
+| `bus_fault` | The half-duplex line gave a verdict other than a clean transmission: `overlap`, `too_soon`, `line_held`, `transmitter_off`, `overrun` or `any`, with `"from": "self"`, `"other"` or `"any"` (the default) for whose bytes they were |
+| `signal` | The plugin that owns the set raised the named signal (see [Triggers from a plugin](#triggers-from-a-plugin)) |
 | `state` | The rule is considered only while the set is in this state |
 
 Bytes are matched as a stream, so a pattern that arrives in two reads is found.
-When several rules match, the one whose match starts first wins, then the one
-listed first; the bytes up to the end of the match are used up. This is the
-responder's rule, kept. A rule with no `bytes` (lines, port) uses up nothing.
+A match is decided when its last byte arrives. Of the rules that complete on the
+same byte, the longest pattern wins (it started first), then the rule listed
+first; the match uses up the bytes, so every partial match is dropped. What
+matches therefore never depends on how the bytes were split into reads, which
+the responder's rule (the earliest start among the bytes in hand) did. A rule
+that needs silence after its pattern is decided when the silence has passed, and
+loses to a rule that completes on the same byte without that need. A rule with
+no `bytes` (lines, port) uses up nothing, and of those the first listed that
+matches a change is the one that fires.
 
 Patterns have a fixed length on purpose. The matcher is a table walked one byte
 at a time, with no backtracking and a known amount of memory, so its cost for
@@ -143,6 +161,71 @@ is in the frame, or whose reply needs a calculation the list below does not
 have, is matched on its fixed start and answered from a slot the plugin keeps
 filled (see [Staying one step ahead](#staying-one-step-ahead)), or it stays in
 the plugin.
+
+### Triggers from a plugin
+
+A decoding plugin reads traffic and understands it: framing, fields, a checksum
+that failed, a message type it does not know, a reply out of sequence. It never
+sits in the path, so it learns of bytes after they have passed. When it decides
+something is worth acting on it raises a **signal**, and a rule that matches the
+signal does the acting: a fault, a line change, a reply. This is how a trigger
+fires an engine action without the plugin doing I/O of its own.
+
+```json
+{ "name": "answer a bad checksum with a break",
+  "when": { "signal": "checksum_failed", "state": "armed" },
+  "do": [ { "line_error": "break", "after": "cause",
+            "delay": { "fixed_us": 20000 } } ] }
+```
+
+`raise_signal(set, name, cause_ns, bytes)` is one operation of the plugin's
+connection. The rules for it:
+
+* **The clock.** `cause_ns` is the time of the event the plugin decoded, copied
+  from that event, so it is on the run's one clock and the plugin's own clock is
+  never used. The engine also notes when the signal arrived. An action's edge is
+  `match_end` (the arrival) or `cause` (the decoded event's time). The firing's
+  event carries both, so the log shows how long the decision took outside the
+  engine. A `cause_ns` in the future, or more than a minute old, is refused.
+* **Lateness.** A signal has crossed a process boundary and waited for the
+  plugin, so an action timed from `cause` may be due already when the signal
+  arrives. It is then done at once and flagged `late`, like any late action. A
+  signal is therefore for reactions measured in tens of milliseconds. It is the
+  slow path, and the page's rule for choosing it stands.
+* **Bytes.** A signal may carry up to 256 bytes of decoded context (an address,
+  a sequence number). A reply uses them as it uses the bytes of a match.
+* **Limits.** A set declares its signals (`"signals": [...]`, at most 64). A
+  signal that is not declared, or raised by a connection that does not own the
+  set, is refused. Signals count against the set's budget of firings, so a
+  plugin that raises them in a loop suspends its own set and nothing else.
+* **Order.** A signal is handled on the place's strand, between two chunks,
+  like a line change. The first rule listed that matches it fires, and it uses
+  up no bytes.
+
+What stays in the engine and is never left to a signal:
+
+| Need | In the engine as |
+|---|---|
+| A frame that ends in silence | `gap_us` on the pattern |
+| A reply that did not come in time | `quiet_us` with a state |
+| Two stations sending at once, a reply inside the turn-around, a transmitter held or off | `bus_fault`, decided from the line's own verdict at the instant of the verdict, with no event queue between |
+| A fault or a reply at an exact time after a frame | Any rule on `bytes` |
+
+So the split with a decoding plugin is: what can be told from bytes, silence
+and the line is a rule and is exact; what needs the meaning of a message is the
+plugin's, arrives as a signal, and is honest about how late it was.
+
+`bus_fault` rules are for a `station` on a half-duplex bus and for an `inline`
+set on one of its links. The verdict already exists (`bus_line::transmit`), and
+the published `event_kind::bus_fault` is unchanged: the rule is run from the
+same verdict, and the rule's own event names the fault and the link, so a
+recording shows the fault and what was done about it side by side.
+
+Not built yet: `signal`, `bus_fault` and `quiet_us` are not in the first slice's
+model. `quiet_us` and `signal` are small additions to the machine (it already
+keeps a deadline for silence and already handles events that use up no bytes).
+`bus_fault` needs the hub and comes with the engine path. The capability names
+are `rules_signal` and `rules_bus_fault`.
 
 ### What a rule does
 
@@ -161,8 +244,8 @@ skipped and counted.
 | `pass`, `drop`, `corrupt`, `truncate`, `duplicate`, `hold` | `inline` | The same, on the matched bytes as they pass. `hold` keeps them for the action's delay. Bytes no rule matches pass untouched and at once |
 | `lines` | `peer`, `station` | Set output lines of the place (DCD, DSR, CTS, RI as the program sees them on a `peer`) |
 | `line_error` | `peer`, `station` | `parity`, `framing`, `overrun`, `break`, `hang_up`, `disconnect`: `studio::inject_fault`, on the ports that take it |
-| `set_state` | all | Move the set to a named state |
-| `set_slot` | all | Copy bytes of the match into a slot |
+| `set_state` | all | Move the set to a named state. It happens at the match and takes no delay, so the next byte is already matched in the new state |
+| `set_slot` | all | Copy bytes of the match into a slot, at the match |
 | `mark` | all | Publish an event with a text, and do nothing else |
 | `ask` | all | Hand the decision to the plugin, with a time limit (see [Rule or plugin](#rule-or-plugin)) |
 
@@ -176,6 +259,7 @@ Every action has a time, made of an edge and a delay.
 | `match_start` | The instant the first byte of the match arrived (on a half-duplex bus, started on the wire) |
 | `previous` | The time of the action before it in the same `do` list, for a reply in parts with gaps between them |
 | `run_start` | The start of the run. With `fixed_us` this is an absolute test time. The `timeline` list is shorthand for actions on this edge with no match |
+| `cause` | For a rule on a `signal`: the time of the event the plugin decoded |
 
 "Arrived" means the time the endpoint read the chunk that holds the byte, read
 once on the endpoint's strand before the chunk is routed. A virtual port hands
@@ -188,8 +272,13 @@ line rate and already does.
 | `fixed_us` | That long |
 | `uniform` | `min_us` to `max_us`, every microsecond as likely |
 | `normal` | `mean_us`, `sd_us`, cut off at `min_us` and `max_us` (both required) |
-| `exponential` | `mean_us`, cut off at `max_us` (required) |
+| `exponential` | `mean_us`, cut off at `max_us` (required) and at `min_us` (zero unless given) |
 | `table` | A list of values in microseconds, taken in order or picked by the seeded source: a recorded instrument's own timings |
+
+A reply's bytes are built at the match, from the slots as they are then, and
+sent at the due time. So the log can say at the match exactly what will be
+sent, and a slot changed between the match and the due time does not change a
+reply already promised.
 
 Delays are whole microseconds, zero to 60 seconds (`max_link_delay_ms`, the same
 limit as a link); a `run_start` time may be up to 24 hours. Every distribution
@@ -236,9 +325,11 @@ hidden.
 **The seeded source.** The set's `seed` (or the run's, when the set has none)
 feeds a generator the project owns: SplitMix64 to derive a stream for each rule
 from the seed, the set's name and the rule's name, and PCG32 for the draws. The
-distributions are the project's own integer code (a rejection loop for uniform,
-a fixed table for normal and exponential), never the standard library's, whose
-results differ between platforms. So a rule's n-th draw is the same number on
+distributions are the project's own whole-number code (a rejection loop for
+uniform, the sum of twelve uniform draws for normal, a fixed-point logarithm for
+exponential), never the standard library's, whose results differ between
+platforms. The tests pin the first draws of each as literal values, so a
+platform that drew differently would fail them. So a rule's n-th draw is the same number on
 every platform and compiler, and adding a rule does not shift the draws of the
 others. A set with no seed is given one, and the event that reports the
 installation says which, so any run can be repeated.
@@ -252,7 +343,12 @@ they are what the log records.
 **What it does not.** When the machine actually ran a timer, and in which order
 bytes arrived at two different places, depend on the machine. A rule that
 depends on time (`gap_us`) decides from real arrival times, so it can decide
-differently on a second run if the program under test was slower.
+differently on a second run if the program under test was slower. A link
+direction that has a plugin modifier is not exactly repeatable either: the
+modifier's round trip follows the rule's delay, so the rule's delay is no longer
+the last thing before the wire. A run marks that direction "not exactly
+repeatable" and its report names the modifier. The rules' own decisions on that
+direction still repeat.
 
 **Replay.** Two modes, and a run says which it was:
 
@@ -315,7 +411,7 @@ responder's parser does. Unknown keys are errors. The compiled set holds the
 match tables, the reply templates, the bounds (longest pattern, latest action,
 most bytes one match can send) and its size in bytes. Everything that can be
 refused is refused here: sizes over the limits, a delay with no upper bound, a
-state that no rule can leave, an action the role does not have.
+name that is not declared, an action the role does not have.
 
 **Install.** `install_rules(compiled, owner)` checks what depends on the running
 hub (the place exists, has no set already, the port takes the faults the set
@@ -408,7 +504,7 @@ other, after the path of the bytes has moved on.
 
 | Event | Carries |
 |---|---|
-| `rule_fired` | Place, set, generation, rule, step of the sequence, the stream offset and length of the match, the edge time, and for each action: kind, draw, due time, done time, bytes, and `late`, `dropped` or `suspended` if so |
+| `rule_fired` | Place, set, generation, rule, step of the sequence, the stream offset and length of the match (or the signal's name, arrival and cause times, or the bus fault and its link), the edge time, and for each action: kind, draw, due time, done time, bytes, and `late`, `dropped` or `suspended` if so |
 | `rule_set` | Installed, changed, removed, suspended, orphaned: generations, seed, the reason |
 | `run` | Started and ended: origin, seed, wall-clock time of the origin |
 
@@ -705,6 +801,19 @@ its tests in the project's framework:
    runs, in the order the plugin framework needs them.
 
 ## Decisions for the owner
+
+Decided on 13 November 2026: 2 (the additions to `vss_core`), 3 (the rule
+document replaces the responder script), 5 (rules are removed when their owner
+is lost) and the first half of 7 (the 1 ms Windows timer period while a hub
+runs). Decision 1 follows from approving the design.
+
+Decided later the same day, each as recommended: 4 (a run seeds link jitter),
+6 (fixed-length patterns only in the first version), the second half of 7 (the
+timing thread for `tight` actions, at most 16 in a rule set; slice 2 measures
+that combination) and 8 (rule sets stay out of the topology file). The section
+"Triggers from a plugin" is approved too: `quiet_us` and `signal` go into the
+matcher and `bus_fault` into the engine path, all in slice 2. Nothing on this
+list is open.
 
 1. **Rules are data the engine runs; a plugin never sits in the path.** `ask` is
    the only wait, bounded and refused under the floor. (Recommended: yes.)
