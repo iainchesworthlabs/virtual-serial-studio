@@ -1799,9 +1799,9 @@ void ShellWindow::open_connect_ports()
             });
     if (dialog.exec() != QDialog::Accepted)
         return;
-    if (dialog.created_link())
+    if (const auto created = dialog.created_link())
     {
-        if (const auto made = backend_.link(*dialog.created_link()))
+        if (const auto made = backend_.link(*created))
             undo_.push(connect_step(backend_, *made, tr("Connect ports")));
     }
     status_->refresh();
@@ -2126,19 +2126,19 @@ void ShellWindow::show_add_port(bool pair_selected)
     }
     if (dialog.created_ports().isEmpty())
         return;
-    if (!dialog.pair_result())
+    const auto pair = dialog.pair_result();
+    if (!pair)
     {
         show_port_ready(dialog.created_ports().first(),
                         dialog.created_kind_token());
         return;
     }
 
-    selection_.select_port(dialog.pair_result()->first);
+    selection_.select_port(pair->first);
     update_actions();
     status_->showMessage(
         tr("Linked pair created. Program A opens %1; Program B opens %2.")
-            .arg(dialog.pair_result()->first_path,
-                 dialog.pair_result()->second_path),
+            .arg(pair->first_path, pair->second_path),
         8000);
 }
 
