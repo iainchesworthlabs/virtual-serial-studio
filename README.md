@@ -107,6 +107,7 @@ vss_cli control sessions            # who is connected to the gateway; `control 
 vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
 vss_cli control send p_1 --hex=00ff0a   # send bytes to a port, two hex digits for each byte (scope control.data)
 vss_cli control expect p_2 --pattern=4f4b0d0a --send-to=p_1 --send=6f6b0d0a   # wait for bytes on a port, and send some once listening (scope monitor.data; control.data to send)
+vss_cli control run begin smoke     # open a named run; every `expect` of this user is noted (`--label=<text>` names it); `run record <name> --outcome=passed`, `run end`, `run report --out=smoke.xml` for the JUnit XML (scope monitor)
 ```
 
 Run `vss_cli --help` for the full list.
