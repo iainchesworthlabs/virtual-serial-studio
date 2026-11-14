@@ -2,7 +2,7 @@
 
 No mockups yet. The design behind these screens is `docs/plugins.md`; it is under review, and nothing here is built until the owner has agreed it. Dialog anatomy, components and voice are as in screens 01 and `07-copy-deck.md`. Every string below is wrapped in `tr()` with the context named in its section. `<...>` is a value filled at run time. Text that comes from a plugin (its name, description, author, parameter labels, status text) is shown as plain text, exactly as given after control and direction-override characters are removed, and is never passed through `tr()` or used as a format string.
 
-The words: a **plugin** adds something to Studio. It is **installed** when Studio has found it on this computer, **on** when the user has switched it on, and **available** when it is on and can be used now. "Official" means signed by Virtual Serial Studio. Never "verified", "safe" or "trusted" as a claim about a plugin: a signature says who made it, not that it is safe. Never "activate" or "unlock" (the Licence screens' rule).
+The words: a **plugin** adds something to Studio. It is **installed** when Studio has found it on this computer, **on** when the user has switched it on, and **available** when it is on and can be used now. "Official" means signed by Virtual Serial Studio. Never "safe" or "trusted" as a claim about a plugin, and never that a plugin "is verified": a signature says who made it, not that it is safe. The one place the word appears is the fixed label for a plugin signed by someone else, "Not verified by Virtual Serial Studio" (decided by the owner; `docs/plugins.md`, section 8.1). Never "activate" or "unlock" (the Licence screens' rule).
 
 Decided by the owner: a plugin's fixture types appear in the Advanced toolbox, only while the plugin is installed and on, and are marked as provided by a plugin, with the plugin's name and trust level.
 
@@ -61,7 +61,7 @@ Row accessible name: "<plugin name>, <trust line>, <state>", for example "Modbus
 
 Empty list: an EmptyState, title "No plugins are installed", text "Plugins are folders that you or your administrator put in the plugin folder. Studio does not download anything." Button "Open the plugin folder". With a filter and no match: "No plugin matches <text>."
 
-Under the list: "Add a plugin..." (quiet), "Open the plugin folder" (quiet; opens the per-user plugin folder in the file manager) and "Check again" (quiet; rescans; toast "Checked. <n> plugins found." with `%n`).
+Under the list: "Add a plugin..." (quiet), "Import a key..." (quiet; opens "Import an author's key" below), "Open the plugin folder" (quiet; opens the per-user plugin folder in the file manager) and "Check again" (quiet; rescans; toast "Checked. <n> plugins found." with `%n`).
 
 "Add a plugin..." opens a folder chooser with the title "Choose a plugin's folder". Studio copies the folder into the per-user plugin folder and selects the new row, which is in Needs your decision. Nothing runs. Toast "Added for you only. Review it before it runs." A folder with no description file: "That folder is not a plugin. A plugin's folder holds a file named plugin.json." A plugin already installed for you: "<plugin name> is already installed for you. Remove it first to add a different copy."
 
@@ -118,8 +118,8 @@ There is never a way to run a plugin whose signature failed or that was withdraw
 
 Signature sentences:
 - Official: "Signed by Virtual Serial Studio." with the Virtual Serial Studio badge.
-- Third-party, approved: "Signed by <author name>. Not checked by Virtual Serial Studio."
-- Third-party, not approved: "Signed by an author you have not approved."
+- Third-party, approved: "Signed by <author name>. Not verified by Virtual Serial Studio."
+- Signed with a key that is not on this computer: "Signed with a key that Studio does not have (<key id>), so the signature could not be checked." with a quiet button "Import the author's key...".
 - Unsigned: "Not signed. Studio cannot tell who made it or whether it was changed."
 
 A muted line under the Signature row, always: "A signature shows who made a plugin and that its files are unchanged. It does not show that the plugin is safe."
@@ -176,8 +176,8 @@ Title, by trust level:
 
 Top NoteBanner:
 - Official (info): "Signed by Virtual Serial Studio."
-- Signed, author approved before (info): "Signed by <author name>, whose plugins you have approved before. Not checked by Virtual Serial Studio."
-- Signed, author not approved (warn): "Signed by <author name>. Not checked by Virtual Serial Studio. Only run it if you know who that is."
+- Signed, author approved before (info): "Signed by <author name>, whose plugins you have approved before. Not verified by Virtual Serial Studio."
+- Signed, author not approved (warn): "Signed by <author name>. Not verified by Virtual Serial Studio. Only run it if you know who that is."
 - Unsigned (danger): "Unofficial plugin. It can do anything Studio can." Second line: "Studio cannot tell who made it or whether it was changed."
 
 A changed plugin adds, above the list (warn): "This is a different version from the one you approved." and, when it asks for more, "It asks for more than before:" with the new permission sentences.
@@ -190,11 +190,41 @@ Isolation line, by what this computer can give:
 - "Studio cannot keep it apart on this computer. It runs with your own access to files and the network." (official plugins only)
 - For any other plugin that cannot be kept apart at all: "Studio cannot keep it apart on this computer, so it will not run here." The run button is then "Decide anyway", which stores the decision and leaves the plugin in Needs more isolation.
 
-For a signed plugin from an author not yet approved: check box "Also approve other plugins signed by <author name>" (off).
+A plugin signed with a key that is not on this computer is decided as an unsigned plugin is: the title and the banner are the unsigned ones, with a third line in the banner, "It is signed with a key that Studio does not have (<key id>), so the signature could not be checked." and a quiet button "Import the author's key..." beside it. Approving an author is done by importing the author's key (below), never by a tick in this dialog.
 
 Buttons: Cancel; then "Switch on" (official), "Run this plugin" (signed) or "Run anyway" (unsigned, danger role). Cancel leaves everything unchanged and the plugin off.
 
 Acceptance: the dialog cannot be answered by Enter alone for a signed or unsigned plugin (Cancel is the default); every permission sentence is read by a screen reader with its state ("Needed", "ticked", "not ticked"); the fingerprint shown equals the one in the Plugins dialog; a decision is stored for that fingerprint only.
+
+## Import an author's key (width 560)
+Context `PluginKeyImportDialog`. Opens from "Import the author's key..." on a plugin, and from "Import a key..." (quiet) under the list in Plugins. Decided by the owner: an author publishes a small public key file; the user imports it here and compares its fingerprint with what the author published; only then is the key approved. A key is never approved because it lies in a plugin's own folder.
+
+Step 1 is a file chooser, title "Choose an author's public key file", filter "Plugin key files (*.vsskey.json)". A file that is not a key file: "That file is not a plugin key file." A key id that is already in use: "A key with the id <key id> is already approved. An id cannot change its key." or, for an official or administrator's key, "The id <key id> belongs to a key that is already on this computer."
+
+Step 2 is the dialog. Modal. Initial focus and default are Cancel. Title "Approve the key of <author name>?". Sub "Plugins signed with this key will be shown as signed by <author name>. Not verified by Virtual Serial Studio."
+
+Body, a definition list:
+
+| Row label | Value |
+|---|---|
+| "Author" | `<author name>`, plain text as the file gives it |
+| "Key id" | `<key id>` in the fixed font |
+| "Fingerprint" | Sixteen hex characters in groups of four, in the fixed font at the large size, with a CopyButton (toast "Fingerprint copied.") |
+| "File" | The path in the fixed font |
+
+Under the list, a NoteBanner (warn): "Compare the fingerprint with the one the author published, on their website or in a message from them. If they differ, do not approve the key."
+
+When the file was chosen from inside a plugin's folder, a second NoteBanner (warn): "This key file came with the plugin. Anyone who changed the plugin could have changed this file too, so compare the fingerprint with one from somewhere else."
+
+Check box "The fingerprint is the one the author published" (off). "Approve this key" (primary role, not the default) is disabled until it is ticked. Buttons: Cancel, "Approve this key".
+
+Afterwards: toast "The key of <author name> is approved." Plugins signed with it are checked again at once; one whose signature holds becomes "Signed by <author name>" and still needs its own decision before it runs. One whose signature does not hold with the key becomes Can't be used, with the signature sentence.
+
+The detail of a signed third-party plugin gains a row "Signing key": "<key id>, approved on <date>" with a quiet button "Remove this key...". Removing asks first: title "Remove the key of <author name>?", text "Plugins signed with this key stop running and ask again.", buttons Cancel (default), "Remove key" (danger).
+
+Studio never opens this dialog by itself, never fills in the tick, and never looks for key files in plugin folders.
+
+Acceptance: the dialog cannot be answered by Enter alone; the fingerprint is read by a screen reader character by character, in its groups; a key file with a control character or a direction mark in the name is refused; the second banner appears exactly when the chosen file lies inside a plugin root; approving a key never switches a plugin on.
 
 ## Run a plugin without isolation (width 520)
 Context `PluginNoIsolationDialog`. Opens from "Run without isolation...". Modal. Initial focus and default are Cancel. It is offered only where `docs/plugins.md`, section 9.2, allows the override: Studio installed for one user, or an administrator's policy that allows it.
