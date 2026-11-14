@@ -328,10 +328,20 @@ class EventTests(Setup):
 
     def test_only_the_newest_256_batches_are_kept(self):
         client = self.greet()
-        for seq in range(1, 301):
-            self.gateway.sendall(batch(seq))
-        self.gateway.sendall(reply(2, "done"))
-        client.unsubscribe_events()
+
+        # More than a socket's buffer holds, so the fake gateway writes from
+        # a thread of its own while the client reads.
+        def flood():
+            for seq in range(1, 301):
+                self.gateway.sendall(batch(seq))
+            self.gateway.sendall(reply(2, "done"))
+
+        writer = threading.Thread(target=flood)
+        writer.start()
+        try:
+            client.unsubscribe_events()
+        finally:
+            writer.join()
         seen = []
         while True:
             found = client.next_events(0)
