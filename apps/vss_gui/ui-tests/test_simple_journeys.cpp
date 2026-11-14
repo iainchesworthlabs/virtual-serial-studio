@@ -337,7 +337,19 @@ TEST_CASE("simple: change a setup")
     fields = st::program_fields(form);
     type_into(fields[0], QStringLiteral("Console"));
     s.step(QStringLiteral("click Apply"));
-    page = st::create(s);
+    st::create(s);
+    // Apply builds on a worker thread and the setup page that was there
+    // before the edit already exists, so the page is not new when create()
+    // returns. Wait for the rename to reach it; a slow build gets there late.
+    wait_for("the renamed program to show in the steps",
+             [&]
+             {
+                 auto* shown = s.simple_page()->setup_page();
+                 return shown != nullptr &&
+                        shown->steps_text().contains(QStringLiteral("Console"));
+             });
+    s.settle();
+    page = st::setup_page(s);
     st::require_counts(s, {2, 1});
     REQUIRE(page->steps_text().contains(QStringLiteral("Console")));
     s.step(QStringLiteral("change, then go back without applying"));

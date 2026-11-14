@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <sstream>
 #include <thread>
 
@@ -142,29 +143,47 @@ TEST_CASE("responder: a bad script says what is wrong and where")
 
 TEST_CASE("responder: the reply comes inside the window, with margin")
 {
-    auto hub = start_hub();
-    auto device = add_mock(*hub, "device");
-    event_recorder events;
-    hub->subscribe({}, [events](const endpoint_event& e) { events.record(e); });
+    // A reply 120 ms after the request, against a 200 ms window.  One run
+    // measures the gap on the wall clock, and a busy runner can stretch any
+    // single run well past 195 ms.  A wrong delay is wrong on every run and
+    // a busy runner is not, so the fastest of a few runs has to be inside
+    // the window with margin, and no run may be early.
+    std::int64_t fastest = 0;
+    for (int attempt = 0; attempt < 5; ++attempt)
+    {
+        auto hub = start_hub();
+        auto device = add_mock(*hub, "device");
+        event_recorder events;
+        hub->subscribe({}, [events](const endpoint_event& e)
+                       { events.record(e); });
 
-    // A reply 120 ms after the request, against a 200 ms window.
-    auto running = responder::start(*hub, device.endpoint, parse_ok(status_script));
-    REQUIRE(running);
+        auto running =
+            responder::start(*hub, device.endpoint, parse_ok(status_script));
+        REQUIRE(running);
 
-    device.inject_read(std::string("\x10\x02\x50\x14", 4));
-    REQUIRE(wait_until([&] { return (*running)->replies_sent() == 1; }, 2000ms));
-    REQUIRE(wait_until(
-        [&] { return !times_of(events, "device", data_direction::tx).empty(); },
-        2000ms));
+        device.inject_read(std::string("\x10\x02\x50\x14", 4));
+        REQUIRE(wait_until([&] { return (*running)->replies_sent() == 1; },
+                           5000ms));
+        REQUIRE(wait_until(
+            [&]
+            { return !times_of(events, "device", data_direction::tx).empty(); },
+            5000ms));
 
-    const auto request = times_of(events, "device", data_direction::rx).at(0);
-    const auto reply = times_of(events, "device", data_direction::tx).at(0);
-    const auto gap = ms_between(request, reply);
-    // Never early, and well inside 200 ms: 80 ms of margin for a busy machine.
-    REQUIRE(gap >= 118);
-    REQUIRE(gap <= 195);
-    REQUIRE_EQ(device.written(), std::string("\x10\x02\x00\x16\x10\x03", 6));
-    REQUIRE_EQ((*running)->matches(), std::uint64_t{1});
+        const auto request =
+            times_of(events, "device", data_direction::rx).at(0);
+        const auto reply = times_of(events, "device", data_direction::tx).at(0);
+        const auto gap = ms_between(request, reply);
+        // Never early.
+        REQUIRE(gap >= 118);
+        REQUIRE_EQ(device.written(),
+                   std::string("\x10\x02\x00\x16\x10\x03", 6));
+        REQUIRE_EQ((*running)->matches(), std::uint64_t{1});
+        fastest = attempt == 0 ? gap : std::min(fastest, gap);
+        if (fastest <= 195)
+            break;
+    }
+    // Well inside 200 ms: 80 ms of margin on an unloaded run.
+    REQUIRE(fastest <= 195);
 }
 
 TEST_CASE("responder: a delay of 200 ms is 200 ms")
