@@ -354,6 +354,29 @@ exact time with a timer. On a clock a test moves by hand a timer cannot wait, so
 a line that holds something looks at the clock every millisecond, as the wire of
 a half-duplex bus does.
 
+### Response timing rules
+
+`vss_rules` holds what a rule set is and how it runs, and knows nothing of the
+hub. It has the model, the reader for the JSON document, the compiler that checks
+a set and resolves its names, the matcher (bytes, silence, line changes and
+signals in, the firings it decided out) and the scheduler. The format is in
+docs/response-timing.md.
+
+A set is installed on a port with `studio::install_rules` and taken off with
+`remove_rules`. This build installs a `peer` set whose rules match `bytes` or
+`quiet_us`. Another role, a rule on `lines`, `port` or a signal, an `ask`, a
+`line_error` on a port that takes none, or a line a device does not drive is
+refused with `unsupported`, and the problems say where. A port has one set at
+most, and removing the port removes its set.
+
+The scheduler is the port's read stage. It matches each chunk on the endpoint's
+strand, under a short lock, and does no I/O there. What a rule does is queued by
+due time, and a timer on the scheduler's own strand carries it out when the hub's
+clock reaches that time, never before. At most 1024 actions wait at a port; more
+are counted as `overrun` and not done. `remove_rules` returns only when the set
+does nothing more: an action under way has finished, what was waiting is
+discarded and counted, and nothing starts after.
+
 ### Link delay
 
 `connect`, `split`, `join`, `redirect` and `bus` take `link_options` with

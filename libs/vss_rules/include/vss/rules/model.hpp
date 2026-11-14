@@ -33,6 +33,9 @@ inline constexpr std::size_t max_reply_bytes = 4096;
 inline constexpr std::size_t max_states = 64;
 inline constexpr std::size_t max_slots = 64;
 inline constexpr std::size_t max_slot_bytes = 4096;
+/// The signals a set may declare, and the bytes one may carry.
+inline constexpr std::size_t max_signals = 64;
+inline constexpr std::size_t max_signal_bytes = 256;
 inline constexpr std::size_t max_sequence_steps = 64;
 inline constexpr std::size_t max_actions = 16;
 inline constexpr std::size_t max_reply_parts = 32;
@@ -84,7 +87,9 @@ enum class edge
     /// The due time of the action before it in the same list.
     previous,
     /// The start of the run.
-    run_start
+    run_start,
+    /// For a rule on a signal: the time of the event the plugin decoded.
+    cause
 };
 
 enum class delay_kind
@@ -151,7 +156,8 @@ enum class port_event
     closed
 };
 
-/// What a rule waits for.  Exactly one of `bytes`, `lines` and `port` is set.
+/// What a rule waits for.  Exactly one of `bytes`, `lines`, `port`, `quiet`
+/// and `signal` is set.
 struct trigger
 {
     /// The pattern, 1 to #max_pattern_bytes bytes.
@@ -167,6 +173,11 @@ struct trigger
     /// change and at least one must have changed.
     std::vector<line_value> lines;
     std::optional<port_event> port;
+    /// Nothing has arrived for this long since the last byte.  Zero means
+    /// the rule does not wait for silence.
+    microseconds quiet{0};
+    /// The owner of the set raised this signal.  Empty means none.
+    std::string signal;
     /// The rule is considered only in this state.  Empty means any.
     std::string state;
 };
@@ -343,6 +354,8 @@ struct rule_set_source
     /// The first state is the one the set starts in.
     std::vector<std::string> states;
     std::vector<std::pair<std::string, byte_buffer>> slots;
+    /// The signals the owner of the set may raise.
+    std::vector<std::string> signals;
     std::vector<rule> rules;
     std::vector<timeline_entry> timeline;
 };

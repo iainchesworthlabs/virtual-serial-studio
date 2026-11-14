@@ -3,6 +3,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
+// The support bundle: one zip a person saves and sends to a helper
+// (docs/gui-design/docs/screens/09-licence-and-support.md, "Support
+// bundle"). This file builds its contents. The dialog previews exactly
+// what is built here and the zip holds the same bytes, so the two cannot
+// differ. The bundle never holds the bytes a port sent or received.
+//
 
 #ifndef VSS_GUI_SUPPORT_BUNDLE_HPP
 #define VSS_GUI_SUPPORT_BUNDLE_HPP
@@ -13,25 +19,39 @@
 
 #include <QByteArray>
 #include <QDate>
+#include <QDateTime>
 #include <QString>
 #include <QVector>
-
-#include <vector>
 
 namespace vss::gui::support
 {
 
-/// What the user ticked in the diagnostic bundle dialog.
+/// The format of the bundle. It rises only for a change an old reader
+/// cannot ignore.
+inline constexpr int kBundleFormat = 1;
+
+/// The section id and folder of the Pro plugin "Diagnostics and replay".
+/// Studio never writes it.
+inline constexpr const char* kReservedTrafficSection = "traffic";
+
+/// What the person ticked. A section is the unit of consent: one row in the
+/// checklist, one group in the preview, one entry in the manifest.
 struct bundle_selection
 {
+    bool environment = true;
+    bool driver = true;
     bool setup = true;
     bool event_log = true;
-    bool environment = true;
     bool counters = true;
-    /// Off by default, and the only option that can contain payload bytes.
-    bool traffic = false;
-
-    int file_count() const;
+    bool serial_ports = true;
+    /// Licence number, edition, term and state. Ignored when no licence is
+    /// installed: the row is then absent. Never the licence file.
+    bool licence = true;
+    /// Off by default: the name the licence was issued to, in `licence.txt`.
+    bool licensee_name = false;
+    /// Off by default: this computer's name, in `licence.txt`. Offered only
+    /// when the installed licence names computers.
+    bool computer_name = false;
 };
 
 struct bundle_file
@@ -40,21 +60,65 @@ struct bundle_file
     QByteArray data;
 };
 
-/// `vss-bundle-<date>.zip`; `date` is injectable so tests are stable.
+/// One section of the bundle.
+struct bundle_section
+{
+    /// `environment`, `driver`, `setup`, `log`, `counters`, `serial-ports`
+    /// or `licence`.
+    QString id;
+    /// The English title the manifest carries. The checklist shows its own
+    /// translated label.
+    QString title;
+    QVector<bundle_file> files;
+    bool sensitive = false;
+};
+
+/// Everything a bundle holds, in the order it is written.
+struct bundle_contents
+{
+    /// `manifest.json`. It lists exactly the sections below.
+    bundle_file manifest;
+    QVector<bundle_section> sections;
+
+    /// The manifest first, then every file of every section.
+    QVector<bundle_file> files() const;
+};
+
+/// What identifies the person and the computer, and is taken out of every
+/// file. The dialog passes the real values; a test passes markers.
+struct bundle_identity
+{
+    QString computer_name;
+    QString user_name;
+};
+
+/// The identity of this computer and its user.
+bundle_identity current_bundle_identity();
+
+/// `vss-support-<date>.zip`.
 QString bundle_default_name(const QDate& date = QDate::currentDate());
 
-/// The files for the selected options, in the order the dialog lists them.
-/// Every textual field passes through `redact_secrets`.
-QVector<bundle_file> build_bundle_files(const StudioBackend& backend,
-                                        const EventLog& log,
-                                        const bundle_selection& selection);
+/// True when a licence is installed, so the "Licence" row is shown.
+bool bundle_has_licence(const StudioBackend& backend);
 
-/// The human-readable state word used in `counters.csv`.
+/// True when the installed licence names computers, so the "This computer's
+/// name" row is shown.
+bool bundle_licence_names_computers(const StudioBackend& backend);
+
+/// Builds the bundle for a selection. Pure apart from reading the backend,
+/// the log and the build information.
+bundle_contents
+build_bundle(const StudioBackend& backend, const EventLog& log,
+             const bundle_selection& selection,
+             const bundle_identity& identity = current_bundle_identity(),
+             const QDateTime& created = QDateTime::currentDateTimeUtc());
+
 QString port_state_label(vss::endpoint_state state);
 
-/// Renders the traffic ring as hex and ASCII with a header.  Only called when
-/// the user opted in.
-QString render_traffic(const std::vector<traffic_view>& traffic);
+/// The vendor and product of a hardware id, such as "0403:6001", or the
+/// name of its bus when it has none. Never the rest of the id: that part
+/// can be the serial number of a device.
+QString bundle_hardware_summary(const QString& hardware_id);
 
 } // namespace vss::gui::support
 

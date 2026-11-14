@@ -202,9 +202,11 @@ framework has its own purpose and its own file.
 The list is a source file chosen by CMake, not by the preprocessor:
 `trusted_keys_release.cpp` in the library. The test key is in a separate
 target, `vss_license_test_keys`, that only the test programs and the test mode
-of `vss_license` link. Until the owner generates the real keys, the release list
-is empty, so every licence is invalid and Studio is the Community edition. That
-is the safe state to ship by accident.
+of `vss_license` link. The release list holds the owner's two
+licence keys, `lic-2026-a` (which signs) and the standby `lic-2026-b`, each for
+licences and for revocation lists. A build with an empty list accepts no
+licence and is the Community edition, which is the safe way for a list to be
+wrong.
 
 Test keys. The tests use the key pair of test vector 1 of RFC 8032, whose
 private key is published in the RFC, under the key id `test-rfc8032-1`. It is a
@@ -246,6 +248,14 @@ installs. There are two carriers:
    `revocations`), so it can be sent to a customer or shipped inside a plugin
    package between releases. Studio keeps the list with the highest sequence
    number it has seen and never goes back to a lower one.
+
+The release's own list is in `libs/vss_license/src/revocations_release.cpp`,
+which `builtin_revocations()` returns. Today it is empty, with sequence 0. When
+a licence or a key is withdrawn, the owner adds its id there and sets the
+sequence number to that of the signed list of the same day, so that the release
+and the file say the same thing. Studio also reads signed lists (`.vssrev`
+files) from the licence folders. A signed list replaces the release's list only
+when its sequence number is higher, so signed lists start at 1.
 
 A revoked licence shows as invalid, with the reason "This licence was withdrawn.
 Contact support." Revocation is for refunds, chargebacks, a leaked file and a
@@ -455,19 +465,49 @@ shared notes folder.
 
 ### `vss_license`
 
-A command line tool, offline, in this repository.
+A command line tool, offline, in this repository. It is built with the other
+tools (`VSS_BUILD_TOOLS`) as the target `vss_license_program`, and the file is
+named `vss_license`. It is not installed with Studio.
 
 | Command | Does |
 |---|---|
-| `vss_license inspect <file>` | Prints the envelope and payload as text. Says whether the signature verifies, and against which key. Never fails on an expired licence |
-| `vss_license verify <file> [--at <date>] [--machine <name>] [--revocations <file>]` | Runs the same check Studio runs and prints the state and reason. Exit status 0 for valid or grace, 1 for any other state, 2 for a usage error. `--at` answers "what will this say in March?" |
-| `vss_license issue --request <file> --key-file <path> \| --key-env <name> --out <file>` | Checks a request (the payload fields without the signature), signs it, verifies its own output and writes the licence. Refuses to overwrite a file, refuses a licence id that is in the ledger it is given, and refuses a `test-` key unless `--test` is passed |
-| `vss_license revocations --request <file> ...` | Signs a revocation list in the same way |
-| `vss_license keygen --out-private <path> --key-id <id>` | Makes a key pair on the owner's own computer, writes the private half to a file only the owner can read, and prints the public half as the line to add to the trust list. It never prints a private key |
+| `vss_license inspect <file> [--test]` | Prints the envelope and payload as text. Says whether the signature verifies. When it does not, it says that nothing below can be trusted and still prints the payload. Never fails on an expired licence. Exit status 0 whenever the file can be read as a signed file |
+| `vss_license verify <file> [--at <date>] [--machine <name>] [--revocations <file>] [--test]` | Runs the same check Studio runs and prints the state, the reason and the time it judged at. Exit status 0 when the licence's features work (valid, expiring or grace), 1 for any other state, 2 for a usage error. `--at` answers "what will this say in March?" and takes `2027-03-01` or `2027-03-01T00:00:00Z` |
+| `vss_license issue --request <file> --out <file> --key-id <id> (--key-file <path> \| --key-env <name>) [--ledger <file>]` | Checks a request (the payload fields, without the signature), signs it, checks its own output as a reader would and writes the licence |
+| `vss_license issue --request <file> --dry-run [--ledger <file>]` | Checks the request and prints what the licence will say. Uses no key and writes nothing |
+| `vss_license issue --request <file> --out <file> --test` | Signs with the published RFC 8032 test key. No product accepts the result |
+| `vss_license revocations --request <file> --out <file> ...` | Signs a revocation list. It takes the options of `issue` except `--ledger`, including `--dry-run` and `--test` |
+| `vss_license keygen --key-id <id> --out-private <path>` | Makes a key pair on the owner's own computer, writes the private half to a new file that only the owner can read, and prints the public half as base64url and as the bytes to put in the trust list. It never prints a private key |
+
+The options of `issue` and `revocations`:
+
+| Option | Meaning |
+|---|---|
+| `--request` | The request file. Required |
+| `--out` | The file to write. Required unless `--dry-run` is given. It is never overwritten |
+| `--key-id` | The id of the signing key: lower-case letters, digits and hyphens, at most 64. Required with `--key-file` or `--key-env` |
+| `--key-file`, `--key-env` | Where the private key is: a file, or the name of an environment variable. Exactly one of them |
+| `--ledger` | `issue` only. A JSON Lines file with one JSON object on each line. A line with a `licence_id` puts that id in the ledger, and a licence id that is in the ledger is refused. A ledger that cannot be read, or has a line that is not an object, stops the command |
+| `--dry-run` | Checks and prints. Uses no key |
+| `--test` | Signs with the published test key, key id `test-rfc8032-1`. It takes no `--key-id`, `--key-file` or `--key-env`. A `--key-id` that starts with `test-` is refused without it |
+
+Exit statuses are those of `tool.hpp`: 0 for success, 1 when the file is not
+valid or the command could not do what was asked, and 2 for a usage error.
+Run with no command, the tool prints its usage and exits with 2. `--help` or
+`help` prints it and exits with 0.
 
 The private key is read from a file or an environment variable, never from the
 command line, where it would appear in the process list and the shell history.
-The tool never prints key material and has no network code.
+Its text is the base64url of the 32 byte seed, 43 characters, with white space
+around it ignored, so the file may end with a new line. `keygen` writes it in
+that form. The tool never prints key material and has no network code.
+
+`issue` and `revocations` check their own output against the trust list of the
+build they run in, with the same check a reader makes, and refuse to write a
+file that does not pass. So the public half of a real key must be in
+`trusted_keys_release.cpp` of that build before the key can issue. The key's
+`not_before` and `not_after` window must also include the `issued_at` of what
+it signs. `--test` adds the test key to the list for that one check.
 
 The editions page puts "licence verification and issuing tools" in the private
 `virtual-serial-studio-pro` repository. This design uses a different

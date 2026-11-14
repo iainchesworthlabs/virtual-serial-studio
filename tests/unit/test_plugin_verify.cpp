@@ -69,6 +69,15 @@ signature_finding signed_by(std::string key_id, key_origin origin)
     return finding;
 }
 
+/// A signature that names a key nobody on this computer knows.
+signature_finding signed_by_unknown(std::string key_id)
+{
+    signature_finding finding;
+    finding.state = signature_state::unknown_key;
+    finding.key_id = std::move(key_id);
+    return finding;
+}
+
 /// Everything a check needs, with nothing in the way: an unsigned plugin on
 /// a computer that can keep it partly apart, and no policy file.
 struct scene
@@ -113,6 +122,17 @@ void require_refused(scene& where, plugin_errc expected,
     REQUIRE(checked.error() == expected);
     REQUIRE(!detail.empty());
     REQUIRE(detail.find(part) != std::string::npos);
+}
+
+/// One entry of a policy's `allow_keys` with a public key that is valid hex.
+std::string good_key_json(std::string_view key_id)
+{
+    std::string text = R"({ "key_id": ")";
+    text += key_id;
+    text += R"(", "public_key": ")";
+    text += "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
+    text += R"(" })";
+    return text;
 }
 
 void require_policy_refused(std::string_view text, std::string_view part)
@@ -188,7 +208,13 @@ TEST_CASE("plugin verify: a policy reads every key")
     const auto parsed = parse_policy(R"({
         "policy_version": 1,
         "allow": "signed",
-        "allow_keys": ["acme-2026", "9f2c41d07a6be835"],
+        "allow_keys": [
+            { "key_id": "acme-2026", "name": "Acme Ltd",
+              "public_key":
+                "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a" },
+            { "key_id": "9f2c41d07a6be835",
+              "public_key":
+                "3d4017c3e843895a92b70aa74d1b7ebc9c982ccf2ec4968cc0cd55f12af4660c" } ],
         "deny_plugins": ["com.example.bad"],
         "min_sandbox": "full",
         "allow_no_sandbox": true,
@@ -199,7 +225,13 @@ TEST_CASE("plugin verify: a policy reads every key")
     REQUIRE(parsed.has_value());
     REQUIRE(parsed->allow == allow_level::signed_only);
     REQUIRE_EQ(parsed->allow_keys.size(), std::size_t{2});
-    REQUIRE_EQ(parsed->allow_keys[1], "9f2c41d07a6be835");
+    REQUIRE_EQ(parsed->allow_keys[0].key_id, "acme-2026");
+    REQUIRE_EQ(parsed->allow_keys[0].name, "Acme Ltd");
+    REQUIRE_EQ(parsed->allow_keys[0].public_key[0], std::uint8_t{0xd7});
+    REQUIRE_EQ(parsed->allow_keys[0].public_key[31], std::uint8_t{0x1a});
+    REQUIRE_EQ(parsed->allow_keys[1].key_id, "9f2c41d07a6be835");
+    REQUIRE(parsed->allow_keys[1].name.empty());
+    REQUIRE_EQ(parsed->allow_keys[1].public_key[0], std::uint8_t{0x3d});
     REQUIRE_EQ(parsed->deny_plugins.size(), std::size_t{1});
     REQUIRE(parsed->min_sandbox == sandbox_level::full);
     REQUIRE(parsed->allow_no_sandbox);
@@ -238,11 +270,46 @@ TEST_CASE("plugin verify: a policy that is not understood is refused")
     require_policy_refused(
         R"({ "policy_version": 1, "allow_keys": "acme" })",
         "allow_keys: must be a list");
+    const auto with_key = [](std::string_view entry) {
+        std::string text = R"({ "policy_version": 1, "allow_keys": [ )";
+        text += entry;
+        text += " ] }";
+        return text;
+    };
+    const std::string good_key = good_key_json("acme");
+    REQUIRE(parse_policy(with_key(good_key)).has_value());
+    // A key is an object with its public key, never a bare id: a signature
+    // names its key by id only, so the key itself must be here.
+    require_policy_refused(with_key(R"("acme")"),
+                           "allow_keys: must hold objects");
+    require_policy_refused(with_key(R"({ "key_id": "acme" })"),
+                           "allow_keys.public_key: must be 64");
+    require_policy_refused(with_key(R"({ "public_key": "00" })"),
+                           "allow_keys.key_id: must be a key id");
     require_policy_refused(
-        R"({ "policy_version": 1, "allow_keys": ["a b"] })",
-        "allow_keys: cannot hold");
+        with_key(R"({ "key_id": "a b", "public_key": "00" })"),
+        "allow_keys.key_id: must be a key id");
     require_policy_refused(
-        R"({ "policy_version": 1, "allow_keys": ["a", "a"] })", "twice");
+        with_key(R"({ "key_id": "acme", "public_key": "d75a" })"),
+        "allow_keys.public_key: must be 64");
+    {
+        // Upper case is another spelling of the same key and is refused.
+        std::string upper = good_key;
+        const std::size_t at = upper.find("d75a");
+        REQUIRE(at != std::string::npos);
+        upper[at] = 'D';
+        require_policy_refused(with_key(upper),
+                               "allow_keys.public_key: must be 64");
+    }
+    require_policy_refused(
+        with_key(good_key.substr(0, good_key.size() - 1) +
+                 R"(, "name": 7 })"),
+        "allow_keys.name: must be a short plain text");
+    require_policy_refused(
+        with_key(good_key.substr(0, good_key.size() - 1) +
+                 R"(, "owner": "x" })"),
+        "allow_keys: unknown key");
+    require_policy_refused(with_key(good_key + ", " + good_key), "twice");
     require_policy_refused(
         R"({ "policy_version": 1, "deny_plugins": ["Not An Id"] })",
         "deny_plugins: cannot hold");
@@ -262,14 +329,16 @@ TEST_CASE("plugin verify: a policy that is not understood is refused")
         "permissions_denied: cannot hold");
     require_policy_refused(
         R"({ "policy_version": 1, "allow_keys": [["deep"]] })",
-        "must be a string");
+        "allow_keys: must hold objects");
 
     std::string many = R"({ "policy_version": 1, "allow_keys": [)";
     for (std::size_t i = 0; i <= max_policy_keys; ++i)
     {
-        many += i == 0 ? "\"k" : ",\"k";
-        many += std::to_string(i);
-        many += '"';
+        if (i != 0)
+            many += ',';
+        std::string id = "k";
+        id += std::to_string(i);
+        many += good_key_json(id);
     }
     many += "] }";
     require_policy_refused(many, "more than 256 entries");
@@ -292,7 +361,12 @@ TEST_CASE("plugin verify: a key id is a short plain token")
 {
     REQUIRE(is_key_id("plugins-2026"));
     REQUIRE(is_key_id("9f2c41d07a6be835"));
-    REQUIRE(is_key_id("A_b.c-1"));
+    REQUIRE(is_key_id("a-b-1"));
+    // Only what a signed envelope can name: no upper case, dot or
+    // underscore.
+    REQUIRE(!is_key_id("Plugins-2026"));
+    REQUIRE(!is_key_id("a.b"));
+    REQUIRE(!is_key_id("a_b"));
     REQUIRE(is_key_id(std::string(max_key_id_length, 'k')));
     REQUIRE(!is_key_id(""));
     REQUIRE(!is_key_id(std::string(max_key_id_length + 1, 'k')));
@@ -468,7 +542,7 @@ TEST_CASE("plugin verify: the level follows where the key is known from")
     REQUIRE(checked.has_value());
     REQUIRE(checked->level == trust_level::third_party_signed);
 
-    where.input.signature = signed_by("acme", key_origin::unknown);
+    where.input.signature = signed_by_unknown("acme");
     checked = where.run();
     REQUIRE(checked.has_value());
     REQUIRE(checked->level == trust_level::signed_unknown_key);
@@ -499,6 +573,14 @@ TEST_CASE("plugin verify: a signature that does not hold is never 'unsigned'")
     scene no_key;
     no_key.input.signature = signed_by("", key_origin::official);
     require_refused(no_key, plugin_errc::signature_invalid, "names no key");
+    no_key.input.signature = signed_by_unknown("");
+    require_refused(no_key, plugin_errc::signature_invalid, "names no key");
+
+    // "It holds" and "the key is not known" cannot both be true.
+    scene no_origin;
+    no_origin.input.signature = signed_by("acme", key_origin::unknown);
+    require_refused(no_origin, plugin_errc::signature_invalid,
+                    "a key that is not known");
 
     scene no_files;
     no_files.declared.files.clear();
@@ -529,7 +611,7 @@ TEST_CASE("plugin verify: a reserved id needs an official signature")
     require_refused(where, plugin_errc::reserved_id);
     where.input.signature = signed_by("acme", key_origin::administrator);
     require_refused(where, plugin_errc::reserved_id);
-    where.input.signature = signed_by("acme", key_origin::unknown);
+    where.input.signature = signed_by_unknown("acme");
     require_refused(where, plugin_errc::reserved_id);
 
     where.make_official();
@@ -552,8 +634,7 @@ TEST_CASE("plugin verify: a withdrawn key, copy or version does not run")
         require_refused(where, plugin_errc::revoked, "signing key");
         where.input.signature = signed_by("plugins-2026", key_origin::user);
         require_refused(where, plugin_errc::revoked, "signing key");
-        where.input.signature =
-            signed_by("plugins-2026", key_origin::unknown);
+        where.input.signature = signed_by_unknown("plugins-2026");
         require_refused(where, plugin_errc::revoked, "signing key");
         where.input.signature = signed_by("other", key_origin::user);
         REQUIRE(where.run().has_value());
@@ -647,7 +728,7 @@ TEST_CASE("plugin verify: 'signed' needs a signature with an approved key")
     where.use_policy();
     where.rules.allow = allow_level::signed_only;
     require_refused(where, plugin_errc::signature_missing);
-    where.input.signature = signed_by("acme", key_origin::unknown);
+    where.input.signature = signed_by_unknown("acme");
     require_refused(where, plugin_errc::key_unknown);
     where.input.signature = signed_by("acme", key_origin::user);
     REQUIRE(where.run().has_value());

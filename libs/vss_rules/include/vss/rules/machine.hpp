@@ -74,9 +74,16 @@ struct firing
     /// A rule that matches lines or the port has no bytes.
     std::uint64_t offset = 0;
     std::size_t length = 0;
-    /// When the first and the last matched byte arrived.
+    /// When the first and the last matched byte arrived.  For a rule on
+    /// silence both are the instant the silence was complete, and for a rule
+    /// on a signal the instant the signal arrived.
     time_point start{};
     time_point end{};
+    /// A rule on a signal: which signal, the time of the event the plugin
+    /// decoded, and how many bytes the signal carried.
+    std::size_t signal = no_index;
+    time_point cause{};
+    std::size_t signal_bytes = 0;
     /// The step's `chance_ppm` left it out this time.  No action is planned.
     bool skipped = false;
     std::vector<planned_action> actions;
@@ -132,8 +139,26 @@ public:
     void port_changed(port_event what, time_point when,
                       std::vector<firing>& out);
 
-    /// Time has passed with no bytes.  Fires the rule that was waiting for
-    /// silence, if its silence is complete at `now`.
+    /// The owner of the set raised signal `index` of the set's `signals`,
+    /// which arrived at `when`.  `cause` is the time of the event the plugin
+    /// decoded, and `carried` what it sent with the signal, cut to
+    /// #max_signal_bytes; a rule's actions use those bytes as they use the
+    /// bytes of a match.  The first rule listed that matches the signal
+    /// fires; it uses up no bytes of the stream.  Whether the signal may be
+    /// raised at all (its owner, the age of `cause`) is the engine's to
+    /// decide before it calls this.
+    void signal(std::size_t index, bytes_view carried, time_point cause,
+                time_point when, std::vector<firing>& out);
+
+    /// Time has passed with no bytes.  Fires, in the order of their times,
+    /// the rule that was waiting for silence after its pattern and every
+    /// rule on `quiet` whose silence is complete at `now`.
+    ///
+    /// A rule on `quiet` fires once for each silence, at the instant the
+    /// silence was complete (not at `now`), and only if the set is in the
+    /// rule's state at that instant; one that was not is not tried again
+    /// until bytes have arrived.  Silence is counted from the last byte, so
+    /// nothing fires before the first byte has arrived.
     void tick(time_point now, std::vector<firing>& out);
 
     /// When #tick has to be called next, if a rule is waiting for silence.
@@ -163,6 +188,8 @@ private:
         std::size_t first_word = 0;
         std::uint64_t matches = 0;
         bool finished = false;
+        /// A rule on `quiet`: it has had its turn in this silence.
+        bool quiet_spent = false;
         generator source;
         /// How often each step has run, for a delay table taken in order.
         std::vector<std::uint64_t> step_runs;
@@ -192,8 +219,13 @@ private:
     bool gap_before_holds(const compiled_rule& rule,
                           std::uint64_t first_offset) const;
     time_point time_of(std::uint64_t offset) const;
+    /// `cause` is given for a rule on a signal, whose `matched` are the
+    /// bytes the signal carried and not bytes of the stream.
     void fire(std::size_t rule, std::uint64_t offset, bytes_view matched,
-              time_point start, time_point end, std::vector<firing>& out);
+              time_point start, time_point end, std::vector<firing>& out,
+              const time_point* cause = nullptr);
+    void fire_waiting(const waiting& ready, std::vector<firing>& out);
+    time_point quiet_deadline(std::size_t rule) const;
     void plan(const std::vector<compiled_action>& actions, rule_state* runtime,
               std::uint64_t position, bytes_view matched, firing& into);
     byte_buffer render(const compiled_action& action, bytes_view matched,
@@ -208,6 +240,8 @@ private:
     std::size_t state_ = 0;
     std::vector<byte_buffer> slots_;
     std::vector<rule_state> rules_;
+    /// The rules on `quiet`, the shortest silence first, then as listed.
+    std::vector<std::size_t> quiet_order_;
     std::vector<std::uint64_t> shift_;
 
     std::uint64_t seen_ = 0;

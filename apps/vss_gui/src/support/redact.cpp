@@ -37,7 +37,16 @@ QString redact_secrets(QString text)
     // The home directory identifies the person using the machine.
     const QString home = QDir::homePath();
     if (home.size() > 1 && home != QLatin1String("/"))
-        text.replace(home, QStringLiteral("~"));
+    {
+        // Both ways the folder is written: Qt's, and the system's own (on
+        // Windows a log or a path from another program has backslashes, and
+        // the letter case of a path is not fixed there).
+        const QString native = QDir::toNativeSeparators(home);
+        if (native != home)
+            text.replace(native, QStringLiteral("~"), Qt::CaseInsensitive);
+        text.replace(home, QStringLiteral("~"),
+                     native != home ? Qt::CaseInsensitive : Qt::CaseSensitive);
+    }
 
     return text;
 }

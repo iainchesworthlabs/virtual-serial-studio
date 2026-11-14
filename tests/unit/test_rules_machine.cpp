@@ -1571,3 +1571,736 @@ TEST_CASE("rules: machine leaves a timeline state change to its due time")
     REQUIRE(!each.set_state(2));
     REQUIRE_EQ(each.state(), std::size_t{1});
 }
+
+// -- rules on silence --------------------------------------------------------
+
+namespace
+{
+
+std::vector<firing> raise(machine& each, std::size_t index,
+                          std::string_view carried, time_point cause,
+                          time_point when)
+{
+    std::vector<firing> out;
+    const byte_buffer bytes = hex(carried);
+    each.signal(index, bytes, cause, when, out);
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("rules: machine fires a rule on silence once, at the end of the "
+          "silence")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "Q"}]})j")),
+                 1);
+    // Nothing has arrived, so there is no silence to count.
+    REQUIRE(!each.next_deadline().has_value());
+    REQUIRE(tick(each, ms(1)).empty());
+    REQUIRE(tick(each, ms(100000)).empty());
+    REQUIRE(!each.next_deadline().has_value());
+    static_cast<void>(each.start(ms(0)));
+    REQUIRE(tick(each, ms(100000)).empty());
+    REQUIRE(!each.next_deadline().has_value());
+
+    REQUIRE(feed(each, "01 02", ms(10)).empty());
+    REQUIRE(each.next_deadline().has_value());
+    REQUIRE(each.next_deadline() == ms(15));
+
+    REQUIRE(tick(each, ms(12)).empty());
+    REQUIRE(tick(each, ms(15) - 1us).empty());
+    REQUIRE(each.next_deadline() == ms(15));
+
+    // Called late, it is still the instant the silence was complete.
+    const auto got = tick(each, ms(40));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE(got[0].start == ms(15));
+    REQUIRE(got[0].end == ms(15));
+    REQUIRE_EQ(got[0].length, std::size_t{0});
+    REQUIRE_EQ(got[0].ordinal, std::uint64_t{1});
+    REQUIRE_EQ(got[0].signal, no_index);
+    REQUIRE_EQ(got[0].signal_bytes, std::size_t{0});
+    REQUIRE_EQ(got[0].actions.size(), std::size_t{1});
+    REQUIRE(got[0].actions[0].due == ms(15));
+    REQUIRE_EQ(text_of(got[0]), std::string("Q"));
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{1});
+    REQUIRE_EQ(each.stats().bytes_matched, std::uint64_t{0});
+    REQUIRE_EQ(each.stats().bytes_seen, std::uint64_t{2});
+
+    // Not again in the same silence.
+    REQUIRE(!each.next_deadline().has_value());
+    REQUIRE(tick(each, ms(41)).empty());
+    REQUIRE(tick(each, ms(100000)).empty());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{1});
+
+    // More bytes, and the next silence is counted from them.
+    REQUIRE(feed(each, "03", ms(50)).empty());
+    REQUIRE(each.next_deadline() == ms(55));
+    REQUIRE(tick(each, ms(54)).empty());
+    const auto again = tick(each, ms(55));
+    REQUIRE_EQ(again.size(), std::size_t{1});
+    REQUIRE(again[0].start == ms(55));
+    REQUIRE(again[0].end == ms(55));
+    REQUIRE_EQ(again[0].ordinal, std::uint64_t{2});
+    REQUIRE(!each.next_deadline().has_value());
+}
+
+TEST_CASE("rules: machine counts silence from the last byte, not the first")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "Q"}]})j")),
+                 1);
+    // Bytes that keep coming each push the deadline on.
+    REQUIRE(feed(each, "01", ms(10)).empty());
+    REQUIRE(feed(each, "02", ms(14)).empty());
+    REQUIRE(each.next_deadline() == ms(19));
+    REQUIRE(feed(each, "03", ms(18)).empty());
+    REQUIRE(each.next_deadline() == ms(23));
+    REQUIRE(tick(each, ms(22)).empty());
+    REQUIRE_EQ(tick(each, ms(23)).size(), std::size_t{1});
+
+    // An empty chunk is not a byte.
+    std::vector<firing> out;
+    each.feed({}, ms(30), out);
+    REQUIRE(out.empty());
+    REQUIRE(!each.next_deadline().has_value());
+}
+
+TEST_CASE("rules: machine does not try a rule on silence again in the same "
+          "silence")
+{
+    // The rule needs "b", and the set is in "a" when the silence completes.
+    machine each(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000,
+                                                "state": "b"},
+                          "do": [{"mark": "Q"}]})j",
+                     R"j("states": ["a", "b"], )j")),
+                 1);
+    REQUIRE(feed(each, "01", ms(10)).empty());
+    REQUIRE(each.next_deadline() == ms(15));
+    REQUIRE(tick(each, ms(15)).empty());
+    // It has had its turn: nothing is due any more.
+    REQUIRE(!each.next_deadline().has_value());
+
+    // The state changes later in the same silence, and it still does not fire.
+    REQUIRE(each.set_state(1));
+    REQUIRE(tick(each, ms(20)).empty());
+    REQUIRE(tick(each, ms(100000)).empty());
+    REQUIRE(!each.next_deadline().has_value());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{0});
+
+    // After the next bytes it is in "b" when the silence completes.
+    REQUIRE(feed(each, "02", ms(30)).empty());
+    REQUIRE(each.next_deadline() == ms(35));
+    const auto got = tick(each, ms(35));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE(got[0].end == ms(35));
+}
+
+TEST_CASE("rules: machine fires rules on silence in the order of their times")
+{
+    // The longer silence is listed first.  Both are due at once.
+    const auto set = [](std::string_view second_state)
+    {
+        return make_set(peer_set(
+            R"j({"name": "long", "when": {"quiet_us": 8000,
+                                          "state": ")j" +
+                std::string(second_state) + R"j("},
+                 "do": [{"mark": "long"}]},
+                {"name": "short", "when": {"quiet_us": 5000, "state": "a"},
+                 "do": [{"mark": "short"}, {"set_state": "b"}]})j",
+            R"j("states": ["a", "b"], )j"));
+    };
+
+    // The shorter one's set_state decides whether the longer one fires.
+    machine moves_on(set("b"), 1);
+    REQUIRE(feed(moves_on, "01", ms(10)).empty());
+    REQUIRE(moves_on.next_deadline() == ms(15));
+    const auto got = tick(moves_on, ms(100));
+    REQUIRE_EQ(got.size(), std::size_t{2});
+    REQUIRE_EQ(got[0].rule, std::size_t{1});
+    REQUIRE(got[0].end == ms(15));
+    REQUIRE_EQ(text_of(got[0]), std::string("short"));
+    REQUIRE_EQ(got[1].rule, std::size_t{0});
+    REQUIRE(got[1].start == ms(18));
+    REQUIRE(got[1].end == ms(18));
+    REQUIRE_EQ(text_of(got[1]), std::string("long"));
+    REQUIRE_EQ(moves_on.state(), std::size_t{1});
+    REQUIRE(!moves_on.next_deadline().has_value());
+
+    machine stays(set("a"), 1);
+    REQUIRE(feed(stays, "01", ms(10)).empty());
+    const auto only = tick(stays, ms(100));
+    REQUIRE_EQ(only.size(), std::size_t{1});
+    REQUIRE_EQ(only[0].rule, std::size_t{1});
+    // The longer one's state was lost with the first firing's set_state.
+    REQUIRE(!stays.next_deadline().has_value());
+    REQUIRE(tick(stays, ms(200)).empty());
+
+    // Between the two deadlines only the shorter one is due.
+    machine between(set("b"), 1);
+    REQUIRE(feed(between, "01", ms(10)).empty());
+    const auto first = tick(between, ms(16));
+    REQUIRE_EQ(first.size(), std::size_t{1});
+    REQUIRE_EQ(first[0].rule, std::size_t{1});
+    REQUIRE(between.next_deadline() == ms(18));
+    const auto second = tick(between, ms(18));
+    REQUIRE_EQ(second.size(), std::size_t{1});
+    REQUIRE_EQ(second[0].rule, std::size_t{0});
+}
+
+TEST_CASE("rules: machine fires equal silences in the order they are listed")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "x", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "X"}]},
+                         {"name": "y", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "Y"}]})j")),
+                 1);
+    REQUIRE(feed(each, "01", ms(10)).empty());
+    REQUIRE(each.next_deadline() == ms(15));
+    const auto got = tick(each, ms(15));
+    REQUIRE_EQ(got.size(), std::size_t{2});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE_EQ(got[1].rule, std::size_t{1});
+    REQUIRE(got[0].end == ms(15));
+    REQUIRE(got[1].end == ms(15));
+}
+
+TEST_CASE("rules: machine puts the rule that matched bytes before a rule on "
+          "silence due at the same instant")
+{
+    // The quiet rule is listed first, and is due when the gap rule is.
+    machine each(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "Q"}]},
+                         {"name": "g", "when": {"bytes": "01 02",
+                                                "gap_us": 5000},
+                          "do": [{"mark": "G"}]})j")),
+                 1);
+    REQUIRE(feed(each, "01 02", ms(10)).empty());
+    REQUIRE(each.next_deadline() == ms(15));
+    const auto got = tick(each, ms(15));
+    REQUIRE_EQ(got.size(), std::size_t{2});
+    REQUIRE_EQ(got[0].rule, std::size_t{1});
+    REQUIRE_EQ(text_of(got[0]), std::string("G"));
+    REQUIRE_EQ(got[0].length, std::size_t{2});
+    REQUIRE_EQ(got[1].rule, std::size_t{0});
+    REQUIRE_EQ(text_of(got[1]), std::string("Q"));
+    REQUIRE_EQ(got[1].length, std::size_t{0});
+    REQUIRE(!each.next_deadline().has_value());
+}
+
+TEST_CASE("rules: machine orders a gap rule and a rule on silence by their "
+          "times")
+{
+    // The rule on silence is due first, at 14 ms, and the one that waited
+    // for its gap is decided after it, at 19 ms.
+    machine each(make_set(peer_set(
+                     R"j({"name": "g", "when": {"bytes": "01 02",
+                                                "gap_us": 9000},
+                          "do": [{"mark": "G"}]},
+                         {"name": "q", "when": {"quiet_us": 4000},
+                          "do": [{"mark": "Q"}]})j")),
+                 1);
+    REQUIRE(feed(each, "01 02", ms(10)).empty());
+    REQUIRE(each.next_deadline() == ms(14));
+    const auto got = tick(each, ms(30));
+    REQUIRE_EQ(got.size(), std::size_t{2});
+    REQUIRE_EQ(got[0].rule, std::size_t{1});
+    REQUIRE(got[0].end == ms(14));
+    REQUIRE_EQ(got[1].rule, std::size_t{0});
+    REQUIRE(got[1].end == ms(10));
+}
+
+TEST_CASE("rules: machine ends a rule on silence with count or then stop")
+{
+    machine counted(make_set(peer_set(
+                        R"j({"name": "q", "when": {"quiet_us": 5000},
+                             "do": [{"mark": "Q"}], "count": 2})j")),
+                    1);
+    REQUIRE(feed(counted, "01", ms(10)).empty());
+    REQUIRE_EQ(tick(counted, ms(15)).size(), std::size_t{1});
+    REQUIRE(feed(counted, "01", ms(20)).empty());
+    REQUIRE_EQ(tick(counted, ms(25)).size(), std::size_t{1});
+    // Used up: it is neither waited for nor fired.
+    REQUIRE(feed(counted, "01", ms(30)).empty());
+    REQUIRE(!counted.next_deadline().has_value());
+    REQUIRE(tick(counted, ms(100)).empty());
+    REQUIRE_EQ(counted.stats().firings, std::uint64_t{2});
+
+    machine stopped(make_set(peer_set(
+                        R"j({"name": "q", "when": {"quiet_us": 5000},
+                             "sequence": [{"do": [{"mark": "one"}]},
+                                          {"do": [{"mark": "two"}]}],
+                             "then": "stop"})j")),
+                    1);
+    REQUIRE(feed(stopped, "01", ms(10)).empty());
+    const auto one = tick(stopped, ms(15));
+    REQUIRE_EQ(one.size(), std::size_t{1});
+    REQUIRE_EQ(one[0].step, std::size_t{0});
+    REQUIRE(feed(stopped, "01", ms(20)).empty());
+    const auto two = tick(stopped, ms(25));
+    REQUIRE_EQ(two.size(), std::size_t{1});
+    REQUIRE_EQ(two[0].step, std::size_t{1});
+    REQUIRE_EQ(text_of(two[0]), std::string("two"));
+    REQUIRE(feed(stopped, "01", ms(30)).empty());
+    REQUIRE(!stopped.next_deadline().has_value());
+    REQUIRE(tick(stopped, ms(100)).empty());
+
+    // A rule that is used up does not hold back the one after it.
+    machine passed_on(make_set(peer_set(
+                          R"j({"name": "q", "when": {"quiet_us": 5000},
+                               "do": [{"mark": "Q"}], "count": 1},
+                              {"name": "r", "when": {"quiet_us": 7000},
+                               "do": [{"mark": "R"}]})j")),
+                      1);
+    REQUIRE(feed(passed_on, "01", ms(10)).empty());
+    REQUIRE_EQ(tick(passed_on, ms(100)).size(), std::size_t{2});
+    REQUIRE(feed(passed_on, "01", ms(200)).empty());
+    REQUIRE(passed_on.next_deadline() == ms(207));
+    const auto last = tick(passed_on, ms(300));
+    REQUIRE_EQ(last.size(), std::size_t{1});
+    REQUIRE_EQ(last[0].rule, std::size_t{1});
+}
+
+TEST_CASE("rules: machine fires a rule on silence before the bytes that end "
+          "the silence")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000,
+                                                "state": "a"},
+                          "do": [{"mark": "Q"}]},
+                         {"name": "n", "when": {"bytes": "09"},
+                          "do": [{"mark": "N"}, {"set_state": "b"}]})j",
+                     R"j("states": ["a", "b"], )j")),
+                 1);
+    REQUIRE(feed(each, "01", ms(10)).empty());
+    // No tick between: the next feed finds the silence complete.
+    const auto got = feed(each, "09", ms(30));
+    REQUIRE_EQ(got.size(), std::size_t{2});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE(got[0].start == ms(15));
+    REQUIRE(got[0].end == ms(15));
+    REQUIRE_EQ(got[0].length, std::size_t{0});
+    REQUIRE_EQ(got[1].rule, std::size_t{1});
+    REQUIRE(got[1].start == ms(30));
+    REQUIRE(got[1].end == ms(30));
+    REQUIRE_EQ(got[1].length, std::size_t{1});
+    REQUIRE_EQ(each.state(), std::size_t{1});
+    // The new byte begins the next silence, and the state is now "b".
+    REQUIRE(each.next_deadline() == ms(35));
+    REQUIRE(tick(each, ms(35)).empty());
+    REQUIRE(!each.next_deadline().has_value());
+    REQUIRE_EQ(each.stats().bytes_matched, std::uint64_t{1});
+
+    // A byte that arrives inside the silence fires nothing.
+    machine soon(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "Q"}]})j")),
+                 1);
+    REQUIRE(feed(soon, "01", ms(10)).empty());
+    REQUIRE(feed(soon, "01", ms(14)).empty());
+    REQUIRE(soon.next_deadline() == ms(19));
+    REQUIRE_EQ(soon.stats().firings, std::uint64_t{0});
+}
+
+TEST_CASE("rules: machine times the actions of a rule on silence from the end "
+          "of the silence")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000},
+                          "do": [{"reply": ["aa"], "delay": {"fixed_us": 300}},
+                                 {"mark": "m"}]})j")),
+                 1);
+    REQUIRE(feed(each, "01", ms(10)).empty());
+    const auto got = tick(each, ms(50));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].actions.size(), std::size_t{2});
+    REQUIRE(got[0].actions[0].due == ms(15) + 300us);
+    REQUIRE(got[0].actions[0].bytes == hex("aa"));
+    // The second has no delay of its own and is held behind the first.
+    REQUIRE(got[0].actions[1].due == ms(15) + 300us);
+}
+
+// -- rules on a signal -------------------------------------------------------
+
+namespace
+{
+
+/// The signals alpha (0), beta (1) and gamma (2) of the cases, and the states
+/// idle (0) and armed (1).
+const char* const signal_head =
+    R"j("signals": ["alpha", "beta", "gamma"], "states": ["idle", "armed"], )j";
+
+} // namespace
+
+TEST_CASE("rules: machine fires the first rule listed for the signal in the "
+          "current state")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a armed", "when": {"signal": "alpha",
+                                                      "state": "armed"},
+                          "do": [{"mark": "A-armed"}]},
+                         {"name": "a any", "when": {"signal": "alpha"},
+                          "do": [{"mark": "A-any"}]},
+                         {"name": "a later", "when": {"signal": "alpha"},
+                          "do": [{"mark": "A-later"}]},
+                         {"name": "b", "when": {"signal": "beta"},
+                          "do": [{"mark": "B"}]})j",
+                     signal_head)),
+                 1);
+    // In "idle" the first rule is not in its state: the second fires, and
+    // the third, which also matches, does not.
+    const auto idle = raise(each, 0, "", us(100), us(200));
+    REQUIRE_EQ(idle.size(), std::size_t{1});
+    REQUIRE_EQ(idle[0].rule, std::size_t{1});
+    REQUIRE_EQ(text_of(idle[0]), std::string("A-any"));
+
+    // In "armed" it is the first.
+    REQUIRE(each.set_state(1));
+    const auto armed = raise(each, 0, "", us(300), us(400));
+    REQUIRE_EQ(armed.size(), std::size_t{1});
+    REQUIRE_EQ(armed[0].rule, std::size_t{0});
+    REQUIRE_EQ(text_of(armed[0]), std::string("A-armed"));
+
+    // Another signal's rule is not touched by this one, and the other way.
+    const auto beta = raise(each, 1, "", us(500), us(600));
+    REQUIRE_EQ(beta.size(), std::size_t{1});
+    REQUIRE_EQ(beta[0].rule, std::size_t{3});
+    REQUIRE_EQ(beta[0].signal, std::size_t{1});
+    REQUIRE_EQ(text_of(beta[0]), std::string("B"));
+
+    // No rule for the signal, no firing.
+    REQUIRE(raise(each, 2, "", us(700), us(800)).empty());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{3});
+}
+
+TEST_CASE("rules: machine fires nothing for a signal no rule takes in this "
+          "state")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a armed", "when": {"signal": "alpha",
+                                                      "state": "armed"},
+                          "do": [{"mark": "A"}]})j",
+                     signal_head)),
+                 1);
+    REQUIRE(raise(each, 0, "01", us(1), us(2)).empty());
+    REQUIRE(raise(each, 1, "01", us(1), us(2)).empty());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{0});
+    REQUIRE(each.set_state(1));
+    REQUIRE_EQ(raise(each, 0, "01", us(1), us(2)).size(), std::size_t{1});
+
+    // A rule on the stream is not a rule on a signal, whatever its index.
+    machine stream(make_set(peer_set(
+                       R"j({"name": "s", "when": {"bytes": "01"},
+                            "do": [{"mark": "S"}]})j",
+                       R"j("signals": ["alpha"], )j")),
+                   1);
+    REQUIRE(raise(stream, 0, "01", us(1), us(2)).empty());
+}
+
+TEST_CASE("rules: machine says what a signal firing is, and counts no bytes")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a", "when": {"signal": "beta"},
+                          "do": [{"mark": "A"}]})j",
+                     signal_head)),
+                 1);
+    // Some traffic first, so that the counters are not all zero.
+    REQUIRE(feed(each, "01 02 03", ms(1)).empty());
+    const machine_stats before = each.stats();
+
+    const auto got = raise(each, 1, "de ad be ef", us(1000), us(5000));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    const firing& fired = got[0];
+    REQUIRE_EQ(fired.rule, std::size_t{0});
+    REQUIRE_EQ(fired.step, std::size_t{0});
+    REQUIRE_EQ(fired.ordinal, std::uint64_t{1});
+    REQUIRE_EQ(fired.signal, std::size_t{1});
+    REQUIRE(fired.cause == us(1000));
+    REQUIRE_EQ(fired.signal_bytes, std::size_t{4});
+    REQUIRE_EQ(fired.length, std::size_t{0});
+    REQUIRE(fired.start == us(5000));
+    REQUIRE(fired.end == us(5000));
+    REQUIRE(!fired.skipped);
+
+    REQUIRE_EQ(each.stats().firings, before.firings + 1);
+    REQUIRE_EQ(each.stats().bytes_matched, before.bytes_matched);
+    REQUIRE_EQ(each.stats().bytes_seen, before.bytes_seen);
+    REQUIRE_EQ(each.stats().bytes_seen, std::uint64_t{3});
+
+    // A firing from the stream names no signal.
+    machine bytes(make_set(peer_set(
+                      R"j({"name": "b", "when": {"bytes": "01"},
+                           "do": [{"mark": "B"}]})j",
+                      signal_head)),
+                  1);
+    const auto from_stream = feed(bytes, "01", ms(1));
+    REQUIRE_EQ(from_stream.size(), std::size_t{1});
+    REQUIRE_EQ(from_stream[0].signal, no_index);
+    REQUIRE_EQ(from_stream[0].signal_bytes, std::size_t{0});
+}
+
+TEST_CASE("rules: machine counts and ends a rule on a signal like any other")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "once", "when": {"signal": "alpha"},
+                          "do": [{"mark": "once"}], "count": 1},
+                         {"name": "then", "when": {"signal": "alpha"},
+                          "sequence": [{"do": [{"mark": "s0"}]},
+                                       {"do": [{"mark": "s1"}]}],
+                          "then": "stop"})j",
+                     signal_head)),
+                 1);
+    const auto one = raise(each, 0, "", us(1), us(2));
+    REQUIRE_EQ(one.size(), std::size_t{1});
+    REQUIRE_EQ(one[0].rule, std::size_t{0});
+    // The first is used up, so the second is the first that is left.
+    const auto two = raise(each, 0, "", us(3), us(4));
+    REQUIRE_EQ(two.size(), std::size_t{1});
+    REQUIRE_EQ(two[0].rule, std::size_t{1});
+    REQUIRE_EQ(two[0].step, std::size_t{0});
+    const auto three = raise(each, 0, "", us(5), us(6));
+    REQUIRE_EQ(three.size(), std::size_t{1});
+    REQUIRE_EQ(three[0].step, std::size_t{1});
+    REQUIRE_EQ(three[0].ordinal, std::uint64_t{2});
+    REQUIRE(raise(each, 0, "", us(7), us(8)).empty());
+}
+
+TEST_CASE("rules: machine takes the bytes of a reply from what the signal "
+          "carried")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a", "when": {"signal": "alpha"},
+                          "do": [{"reply": ["01", {"match": [1, 2]}, "02"]},
+                                 {"reply": [{"match": [0, 3]},
+                                            {"sum8": "reply"}]}]})j",
+                     signal_head)),
+                 1);
+    const auto got = raise(each, 0, "aa bb cc dd", us(1), us(2));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].actions.size(), std::size_t{2});
+    REQUIRE(got[0].actions[0].bytes == hex("01 bb cc 02"));
+    // aa + bb + cc + dd = 0x30e, and the check is one byte.
+    REQUIRE(got[0].actions[1].bytes == hex("aa bb cc dd 0e"));
+    REQUIRE_EQ(got[0].signal_bytes, std::size_t{4});
+    REQUIRE_EQ(each.stats().replies, std::uint64_t{2});
+}
+
+TEST_CASE("rules: machine adds nothing for a range past what the signal "
+          "carried")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a", "when": {"signal": "alpha"},
+                          "do": [{"reply": ["ee", {"match": [0, 5]}, "ff"]},
+                                 {"reply": ["ee", {"match": [1, 1]}, "ff"]},
+                                 {"set_slot": {"slot": "s", "match": [0, 5]}},
+                                 {"set_slot": {"slot": "t", "match": [1, 1]}}]},
+                         {"name": "b", "when": {"signal": "beta"},
+                          "do": [{"reply": ["ee", {"match": [0, 0]}, "ff"]}]})j",
+                     std::string(signal_head) +
+                         R"j("slots": {"s": "99", "t": "77"}, )j")),
+                 1);
+    const auto got = raise(each, 0, "aa bb", us(1), us(2));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    // The whole range is not there, so none of it is taken.
+    REQUIRE(got[0].actions[0].bytes == hex("ee ff"));
+    // A range that is there is taken.
+    REQUIRE(got[0].actions[1].bytes == hex("ee bb ff"));
+    // The slot keeps what it had when the range is not all there.
+    REQUIRE(bytes_equal(each.slot(0), hex("99")));
+    REQUIRE(bytes_equal(each.slot(1), hex("bb")));
+
+    // A signal that carried nothing.
+    const auto empty = raise(each, 1, "", us(3), us(4));
+    REQUIRE_EQ(empty.size(), std::size_t{1});
+    REQUIRE(empty[0].actions[0].bytes == hex("ee ff"));
+    REQUIRE_EQ(empty[0].signal_bytes, std::size_t{0});
+}
+
+TEST_CASE("rules: machine cuts what a signal carried at 256 bytes")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a", "when": {"signal": "alpha"},
+                          "do": [{"reply": [{"match": [0, 255]}]},
+                                 {"set_slot": {"slot": "s",
+                                               "match": [250, 255]}}]})j",
+                     std::string(signal_head) + R"j("slots": {"s": ""}, )j")),
+                 1);
+    byte_buffer carried;
+    for (std::size_t i = 0; i < 300; ++i)
+        carried.push_back(static_cast<byte>(i));
+
+    std::vector<firing> got;
+    each.signal(0, carried, us(1), us(2), got);
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].signal_bytes, max_signal_bytes);
+    REQUIRE_EQ(got[0].actions[0].bytes.size(), max_signal_bytes);
+    REQUIRE(std::equal(got[0].actions[0].bytes.begin(),
+                       got[0].actions[0].bytes.end(), carried.begin()));
+    REQUIRE(bytes_equal(each.slot(0), hex("fa fb fc fd fe ff")));
+
+    // Exactly 256 is not cut, and 255 is as it is.
+    machine again(make_set(peer_set(
+                      R"j({"name": "a", "when": {"signal": "alpha"},
+                           "do": [{"mark": "A"}]})j",
+                      signal_head)),
+                  1);
+    got.clear();
+    again.signal(0, bytes_view(carried).first(256), us(1), us(2), got);
+    REQUIRE_EQ(got[0].signal_bytes, std::size_t{256});
+    got.clear();
+    again.signal(0, bytes_view(carried).first(255), us(1), us(2), got);
+    REQUIRE_EQ(got[0].signal_bytes, std::size_t{255});
+}
+
+TEST_CASE("rules: machine times an action from the cause or from the arrival "
+          "of a signal")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "a", "when": {"signal": "alpha"},
+                          "do": [{"mark": "cause", "after": "cause",
+                                  "delay": {"fixed_us": 2000}},
+                                 {"mark": "plain",
+                                  "delay": {"fixed_us": 500}},
+                                 {"mark": "end", "after": "match_end"},
+                                 {"mark": "start", "after": "match_start",
+                                  "delay": {"fixed_us": 7}},
+                                 {"mark": "no delay", "after": "cause"}]})j",
+                     std::string(signal_head) +
+                         R"j("order": "independent", )j")),
+                 1);
+    // The cause is long before the arrival: the action timed from it is due
+    // already, and the engine finds that out and says so.
+    const auto got = raise(each, 0, "", us(1000), us(9000));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].actions.size(), std::size_t{5});
+    REQUIRE(got[0].actions[0].due == us(3000));
+    REQUIRE(got[0].actions[0].drawn == 2000us);
+    REQUIRE(got[0].actions[1].due == us(9500));
+    REQUIRE(got[0].actions[2].due == us(9000));
+    REQUIRE(got[0].actions[3].due == us(9007));
+    REQUIRE(got[0].actions[4].due == us(1000));
+    REQUIRE(got[0].cause == us(1000));
+    REQUIRE(got[0].start == us(9000));
+    REQUIRE(got[0].end == us(9000));
+
+    // The action before it, for the edge "previous", is the one from the
+    // cause.
+    machine chained(make_set(peer_set(
+                        R"j({"name": "a", "when": {"signal": "alpha"},
+                             "do": [{"mark": "one", "after": "cause",
+                                     "delay": {"fixed_us": 100}},
+                                    {"mark": "two", "after": "previous",
+                                     "delay": {"fixed_us": 50}}]})j",
+                        signal_head)),
+                    1);
+    const auto both = raise(chained, 0, "", us(1000), us(9000));
+    REQUIRE(both[0].actions[0].due == us(1100));
+    REQUIRE(both[0].actions[1].due == us(1150));
+}
+
+TEST_CASE("rules: machine holds a reply to a signal behind an earlier one with "
+          "fifo")
+{
+    // The cause is older than the arrival, but a later action is not due
+    // before an earlier one.
+    machine each(make_set(peer_set(
+                     R"j({"name": "a", "when": {"signal": "alpha"},
+                          "do": [{"mark": "late", "delay": {"fixed_us": 1000}},
+                                 {"mark": "early", "after": "cause",
+                                  "delay": {"fixed_us": 10}}]})j",
+                     signal_head)),
+                 1);
+    const auto got = raise(each, 0, "", us(100), us(5000));
+    REQUIRE(got[0].actions[0].due == us(6000));
+    REQUIRE(got[0].actions[1].due == us(6000));
+}
+
+TEST_CASE("rules: machine uses up no bytes of the stream for a signal")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "p", "when": {"bytes": "01 02 03"},
+                          "do": [{"mark": "P"}]},
+                         {"name": "a", "when": {"signal": "alpha"},
+                          "do": [{"mark": "A"}]})j",
+                     signal_head)),
+                 1);
+    REQUIRE(feed(each, "01 02", ms(10)).empty());
+    const auto signalled = raise(each, 0, "01 02 03", us(1), ms(11));
+    REQUIRE_EQ(signalled.size(), std::size_t{1});
+    REQUIRE_EQ(signalled[0].rule, std::size_t{1});
+    // The pattern half-arrived before the signal still completes after it,
+    // and the bytes the signal carried were no part of the stream.
+    const auto got = feed(each, "03", ms(12));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE_EQ(got[0].offset, std::uint64_t{0});
+    REQUIRE_EQ(got[0].length, std::size_t{3});
+    REQUIRE(got[0].start == ms(10));
+    REQUIRE(got[0].end == ms(12));
+    REQUIRE_EQ(each.stats().bytes_seen, std::uint64_t{3});
+    REQUIRE_EQ(each.stats().bytes_matched, std::uint64_t{3});
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{2});
+
+    // The offset of the stream goes on from where it was.
+    const auto next = feed(each, "01 02 03", ms(20));
+    REQUIRE_EQ(next.size(), std::size_t{1});
+    REQUIRE_EQ(next[0].offset, std::uint64_t{3});
+}
+
+TEST_CASE("rules: machine leaves a gap rule waiting and a silence running when "
+          "a signal comes")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "g", "when": {"bytes": "01 02",
+                                                "gap_us": 5000},
+                          "do": [{"mark": "G"}]},
+                         {"name": "q", "when": {"quiet_us": 8000},
+                          "do": [{"mark": "Q"}]},
+                         {"name": "a", "when": {"signal": "alpha"},
+                          "do": [{"mark": "A"}]})j",
+                     signal_head)),
+                 1);
+    // A signal is not a byte: before any, nothing is counted.
+    REQUIRE_EQ(raise(each, 0, "", us(1), ms(1)).size(), std::size_t{1});
+    REQUIRE(!each.next_deadline().has_value());
+
+    REQUIRE(feed(each, "01 02", ms(10)).empty());
+    REQUIRE(each.next_deadline() == ms(15));
+    REQUIRE_EQ(raise(each, 0, "", ms(11), ms(12)).size(), std::size_t{1});
+    REQUIRE(each.next_deadline() == ms(15));
+    const auto got = tick(each, ms(100));
+    REQUIRE_EQ(got.size(), std::size_t{2});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE_EQ(got[1].rule, std::size_t{1});
+    REQUIRE(got[1].end == ms(18));
+}
+
+TEST_CASE("rules: machine lets a signal rule change the state, and the signal "
+          "follows it")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "arm", "when": {"signal": "alpha",
+                                                  "state": "idle"},
+                          "do": [{"set_state": "armed"}]},
+                         {"name": "fire", "when": {"signal": "alpha",
+                                                   "state": "armed"},
+                          "do": [{"mark": "fired"}, {"set_state": "idle"}]})j",
+                     signal_head)),
+                 1);
+    const auto first = raise(each, 0, "", us(1), us(2));
+    REQUIRE_EQ(first.size(), std::size_t{1});
+    REQUIRE_EQ(first[0].rule, std::size_t{0});
+    REQUIRE_EQ(each.state(), std::size_t{1});
+    const auto second = raise(each, 0, "", us(3), us(4));
+    REQUIRE_EQ(second.size(), std::size_t{1});
+    REQUIRE_EQ(second[0].rule, std::size_t{1});
+    REQUIRE_EQ(each.state(), std::size_t{0});
+    REQUIRE_EQ(raise(each, 0, "", us(5), us(6))[0].rule, std::size_t{0});
+}

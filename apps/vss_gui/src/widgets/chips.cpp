@@ -64,6 +64,14 @@ chip_palette palette_for(StatusChip::kind kind)
                 true,
                 false,
                 true};
+    case StatusChip::kind::neutral:
+        return {theme.colour(colour_role::fill),
+                none,
+                theme.colour(colour_role::ink2),
+                theme.colour(colour_role::ink3),
+                false,
+                false,
+                true};
     case StatusChip::kind::failed:
         return {theme.colour(colour_role::badSoft),
                 none,

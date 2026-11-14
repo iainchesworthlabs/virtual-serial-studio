@@ -60,6 +60,20 @@ public:
 
     result<status_reply> status();
     result<ports_reply> list_ports();
+
+    /// Makes a port in the agent and gives its id (`p_3`).  It needs
+    /// `control.ports`.  An error of the engine arrives as the engine's own
+    /// code (`vss::errc`).
+    result<std::string> create_port(const std::string& name,
+                                    const std::string& kind = {});
+    result<void> remove_port(const std::string& port);
+    /// Links two ports, both ways or from `first` to `second` only, and
+    /// gives the link's id (`l_2`).
+    result<std::string> connect_ports(const std::string& first,
+                                      const std::string& second, bool one_way);
+    /// Writes bytes to a port.  It needs `control.data`, and takes
+    /// `max_send_size` bytes at most.
+    result<void> send(const std::string& port, bytes_view data);
     /// Asks the gateway to close every session and exit.  Only a connection
     /// to the administration endpoint may.
     result<void> stop();
@@ -77,6 +91,13 @@ public:
     /// Revokes a token and closes its sessions.  `api_errc::not_found` for
     /// an id no token has.  Administration endpoint only.
     result<void> revoke_token(const std::string& id);
+
+    /// Waits in the gateway for a pattern on a port, after sending bytes
+    /// when the request names a port to send to.  It needs `monitor.data`,
+    /// and `control.data` to send.  `api_errc::timeout` when the pattern did
+    /// not come in the request's time; the connection stays usable.  The
+    /// call itself waits for the request's time on top of the usual limit.
+    result<matched_reply> expect_bytes(const expect_bytes_request& wanted);
 
     /// Starts the stream of what happens to the ports, without bytes, or
     /// changes its ports and its pace.  The reply says the pace the gateway

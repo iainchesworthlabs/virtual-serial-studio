@@ -221,11 +221,11 @@ the published `event_kind::bus_fault` is unchanged: the rule is run from the
 same verdict, and the rule's own event names the fault and the link, so a
 recording shows the fault and what was done about it side by side.
 
-Not built yet: `signal`, `bus_fault` and `quiet_us` are not in the first slice's
-model. `quiet_us` and `signal` are small additions to the machine (it already
-keeps a deadline for silence and already handles events that use up no bytes).
-`bus_fault` needs the hub and comes with the engine path. The capability names
-are `rules_signal` and `rules_bus_fault`.
+`quiet_us` and `signal` are in the model, the reader, the compiler and the
+matcher. A rule on `signal` fires when the engine calls the matcher with the
+signal; the plugin operation that raises a signal (`raise_signal`), and
+`bus_fault`, are not built yet and come with the engine path, because both need
+the hub. The capability names are `rules_signal` and `rules_bus_fault`.
 
 ### What a rule does
 
