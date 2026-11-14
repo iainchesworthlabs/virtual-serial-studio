@@ -37,6 +37,40 @@ with Client.connect() as c:
     c.remove_port(b)
 ```
 
+A run collects the checks of a test and gives them back as a JUnit XML report,
+for a test runner or a CI system:
+
+```python
+from vss_control import Client, ControlError
+
+with Client.connect() as c:
+    a = c.create_port("a")
+    b = c.create_port("b")
+    c.connect_ports(a, b, one_way=True)
+    run = c.begin_run("smoke test")
+    # While the run is open, each expect_bytes of this user is noted; the
+    # label is its name in the report.
+    c.expect_bytes(port=b, pattern=b"OK", timeout_ms=2000,
+                   send_port=a, send=b"OK", label="the device answers")
+    try:
+        c.expect_bytes(port=b, pattern=b"never", timeout_ms=200,
+                       label="nothing else comes")
+    except ControlError:
+        pass                         # noted as a failure in the run
+    c.record_in_run("front panel", "skipped", message="nobody looked")
+    counts = c.end_run()
+    print(counts["tests"], counts["failures"])   # 3 1
+    with open("smoke.xml", "w", encoding="utf-8") as report:
+        report.write(c.report_junit(run["run"]))
+    c.remove_port(a)
+    c.remove_port(b)
+```
+
+A run belongs to the user or token that began it, not to one connection:
+another `Client` of the same user may add checks to it and end it. One run is
+open at a time (`conflict` for a second), and only its owner can read its
+report.
+
 `Client.connect(instance=None, token=None, token_file=None, name="python",
 timeout=10.0)` connects. `instance` is the name given to `vss_gate --instance=`.
 `token` is a token as text, `token_file` the path of a file whose first line is
