@@ -124,7 +124,7 @@ trust_store full_store()
     approved_key acme = make_key("acme-2026", 1);
     acme.name = "Acme Ltd";
     require_added(store.approve_key(acme));
-    approved_key other = make_key("other.key_2", 2);
+    approved_key other = make_key("other-key-2", 2);
     other.name = "Zo\xC3\xAB's \"Plugins\"";
     other.approved_on = 2026y / 2 / 28;
     require_added(store.approve_key(other));
@@ -135,7 +135,7 @@ trust_store full_store()
                           permission::net_outbound};
     require_added(store.decide(signed_one));
     plugin_decision signed_two =
-        make_decision("com.example.plugin", 2, "other.key_2");
+        make_decision("com.example.plugin", 2, "other-key-2");
     signed_two.enabled = false;
     signed_two.decided_on = 2026y / 11 / 15;
     require_added(store.decide(signed_two));

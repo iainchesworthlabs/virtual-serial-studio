@@ -16,6 +16,7 @@
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/revocations.hpp>
+#include <vss/plugin/signature.hpp>
 #include <vss/plugin/trust_store.hpp>
 
 #include <cstddef>
@@ -210,9 +211,10 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
         require(size <= plugin::max_policy_size);
         require(rules->allow_keys.size() <= plugin::max_policy_keys);
         require(rules->deny_plugins.size() <= plugin::max_policy_plugins);
-        for (const std::string& key : rules->allow_keys)
+        for (const plugin::policy_key& key : rules->allow_keys)
         {
-            require(plugin::is_key_id(key));
+            require(plugin::is_key_id(key.key_id));
+            require(key.name.size() <= plugin::max_name_length);
         }
         const auto again = plugin::parse_policy(text);
         require(again.has_value() && *again == *rules);
@@ -270,6 +272,33 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
     {
         require(!detail.empty());
         require(plugin::parse_trust_store(text).has_error());
+    }
+
+    // And as the payload of an official key list.
+    detail.clear();
+    const auto keys = plugin::parse_key_list(text, &detail);
+    if (keys.has_value())
+    {
+        require(detail.empty());
+        require(keys->serial >= 1);
+        require(keys->serial <= plugin::max_revocations_serial);
+        require(keys->issued.ok());
+        require(keys->keys.size() <= plugin::max_official_keys);
+        require(keys->revoked.size() <= plugin::max_revoked_keys);
+        for (const plugin::official_key& key : keys->keys)
+        {
+            require(plugin::is_key_id(key.key_id));
+            require(key.purpose == plugin::plugin_purpose ||
+                    key.purpose == plugin::revocations_purpose);
+            require(keys->find(key.key_id, key.purpose) == &key);
+        }
+        const auto again = plugin::parse_key_list(text);
+        require(again.has_value() && *again == *keys);
+    }
+    else
+    {
+        require(!detail.empty());
+        require(plugin::parse_key_list(text).has_error());
     }
     return 0;
 }

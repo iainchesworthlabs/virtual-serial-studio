@@ -2124,6 +2124,28 @@ std::string quoted(std::string_view text)
     return in_quotes(text);
 }
 
+bool hex_to_bytes(std::string_view text, std::span<std::uint8_t> out) noexcept
+{
+    if (text.size() != out.size() * 2)
+        return false;
+    const auto value = [](char c) -> int {
+        if (c >= '0' && c <= '9')
+            return c - '0';
+        if (c >= 'a' && c <= 'f')
+            return c - 'a' + 10;
+        return -1;
+    };
+    for (std::size_t i = 0; i < out.size(); ++i)
+    {
+        const int high = value(text[i * 2]);
+        const int low = value(text[i * 2 + 1]);
+        if (high < 0 || low < 0)
+            return false;
+        out[i] = static_cast<std::uint8_t>(high * 16 + low);
+    }
+    return true;
+}
+
 } // namespace detail
 
 } // namespace vss::plugin

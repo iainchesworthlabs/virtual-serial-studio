@@ -60,13 +60,17 @@ enum class signature_state
     /// verify with the key it names.
     invalid,
     /// It verifies with the key it names, for this manifest.
-    valid
+    valid,
+    /// There is one, and the key it names is not known on this computer, so
+    /// it could not be checked.  The plugin is treated as not signed, with
+    /// the key's id shown, until someone approves the key.
+    unknown_key
 };
 
 /// Where the key of a valid signature is known from.
 enum class key_origin
 {
-    /// Nowhere: only the signature itself names it.
+    /// Nowhere.  The state is then not `valid`.
     unknown,
     /// The official key list, with the purpose `plugin`.
     official,
@@ -79,7 +83,8 @@ enum class key_origin
 struct signature_finding
 {
     signature_state state = signature_state::absent;
-    /// The id of the signing key.  Empty unless `state` is `valid`.
+    /// The id of the signing key, for `valid` and `unknown_key`.  Empty
+    /// otherwise.
     std::string key_id;
     key_origin origin = key_origin::unknown;
 };
@@ -120,7 +125,8 @@ struct verify_input
 struct verify_result
 {
     trust_level level = trust_level::unsigned_plugin;
-    /// The signing key, when there is a valid signature.
+    /// The signing key, when there is a signature that names one, whether
+    /// or not the key is known.
     std::string key_id;
     /// Optional permissions the plugin asks for and the policy denies.  The
     /// plugin runs without them.
@@ -138,8 +144,9 @@ struct verify_result
 /// Decides whether the plugin may run.  The checks are made in this order
 /// and the first that fails is the answer:
 ///
-/// 1. `signature_invalid`: the signature does not hold, or a signed plugin
-///    does not list its files.
+/// 1. `signature_invalid`: the signature does not hold, names no key, is
+///    said to hold without saying where its key is known from, or a signed
+///    plugin does not list its files.
 /// 2. `manifest_invalid`: an official plugin has no `not_after`.
 /// 3. `reserved_id`: the id belongs to official plugins and this is not one.
 /// 4. `revoked`: the signing key, the hash, or the id with this version is

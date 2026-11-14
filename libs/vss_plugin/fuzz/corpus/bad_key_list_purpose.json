@@ -1,0 +1,1 @@
+{ "key_list_version": 1, "serial": 1, "issued": "2026-11-13", "keys": [ { "key_id": "licence-2026", "public_key": "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a", "purpose": "licence", "name": "A licence key", "valid_from": "2026-11-01", "valid_to": "2028-11-01" } ] }

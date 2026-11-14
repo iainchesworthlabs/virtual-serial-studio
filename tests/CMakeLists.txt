@@ -46,9 +46,12 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_permissions.cpp
   unit/test_permissions_linux.cpp
   unit/test_permissions_macos.cpp
+  unit/test_plugin_access.cpp
+  unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
   unit/test_plugin_manifest.cpp
   unit/test_plugin_measure.cpp
+  unit/test_plugin_signature.cpp
   unit/test_plugin_trust_store.cpp
   unit/test_plugin_verify.cpp
   unit/test_profiling.cpp
@@ -84,13 +87,15 @@ if(WIN32)
     unit/platform/windows/test_driver_client_windows.cpp
     unit/platform/windows/test_helper_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
+    unit/platform/windows/test_plugin_access_windows.cpp
     unit/platform/windows/test_ports_windows.cpp
     unit/platform/windows/test_timer_period_windows.cpp)
 elseif(UNIX)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/platform/posix/test_ports_posix.cpp
     unit/platform/posix/test_agent_transport_posix.cpp
     unit/platform/posix/test_control_storage_posix.cpp
-    unit/platform/posix/test_permissions_posix.cpp)
+    unit/platform/posix/test_permissions_posix.cpp
+    unit/platform/posix/test_plugin_access_posix.cpp)
 endif()
 
 # The commands of vss_license, run in the test process.
