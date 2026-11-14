@@ -15,6 +15,7 @@
 #   libs/vss_testkit     reusable fakes for downstream tests
 #   libs/vss_agent_proto the wire protocol of the per-user agent
 #   libs/vss_agent       the agent's local transport, server and client
+#   libs/vss_plugin      plugin manifests and the checks made before a plugin runs
 #   libs/vss_control_proto the control API: messages, errors, the policy table
 #   libs/vss_control     the control gateway, its audit log and its client
 #   apps/vss_gate        the control gateway program

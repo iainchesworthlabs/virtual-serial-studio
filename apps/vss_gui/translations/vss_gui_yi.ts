@@ -52,8 +52,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="200" />
-            <source>Copy this into a bug report. It answers "which build is this?"</source>
-            <translation>קאָפּירט דאָס אין אַ באַריכט וועגן אַ טעות. עס ענטפֿערט אויף "וועלכע ווערסיע איז דאָס?"</translation>
+            <source>Copy this into a bug report. It shows which build you are running.</source>
+            <translation>קאָפּיִרט דאָס אין אַ גרײַז־באַריכט. עס ווײַזט וועלכע ווערסיע איר ניצט.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="231" />
@@ -328,8 +328,8 @@
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>אַן אָנגעמאַכטער אַפּאַראַט וואָס איר קענט סקריפּטן, פֿאַר טעסטירן אָן האַרדוואַר.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>אַ סימולירטער אַפּאַראַט צום טעסטן אָן קיין הארדוועיר.</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -527,8 +527,8 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>אַן אָנגעמאַכטער אַפּאַראַט וואָס איר קענט סקריפּטן, פֿאַר טעסטירן אָן האַרדוואַר.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>אַ סימולירטער אַפּאַראַט צום טעסטן אָן קיין הארדוועיר.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -602,8 +602,8 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>פּראָגראַמען וואָס עפענען אַ פֿעסטן נאָמען ווי COM3 געפֿינען דעם פּאָרט ווידער יעדעס מאָל. אויטאָמאַטיש נעמט אַ פֿרײַע נומער העכער ווי די פּאָרטן וואָס דער קאָמפּיוטער האָט שוין, קיינמאל COM1 אָדער COM2. אַ נומער דאַרף דעם Studio-דרײַווער און זײַן הילף־סערוויס, און װערט גענוצט ווען מע שאַפֿט איין פּאָרט.</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>אַ פּראָגראַם וואָס עפֿנט אַ פֿעסטן נאָמען ווי COM3 דאַרף יעדעס מאָל די זעלבע נומער. אויטאָמאַטיש נעמט אַ פֿרײַע נומער העכער ווי די פּאָרטן וואָס דער קאָמפּיוטער האָט שוין, קיינמאָל נישט COM1 אָדער COM2. אַ באַשטימטע נומער דאַרף דעם Studio־דרײַווער און זײַן הילף־דינסט, און ווערט גענוצט ווען מע שאַפֿט איין פּאָרט.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
@@ -617,13 +617,13 @@
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>נעץ־ענדפּונקטן קומען אין אַ שפּעטערדיקן אַרבעט־פּעקל. גאָרנישט איז נישט באַשאַפֿן געוואָרן.</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>נעץ־ענדפּוינטן זענען נאָך נישט בנימצא. גאָרנישט איז נישט געשאַפֿן געוואָרן.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>מאָק־פֿיקסטורן קומען אין אַ שפּעטערדיקן אַרבעט־פּעקל. גאָרנישט איז נישט באַשאַפֿן געוואָרן.</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>מאָק־פֿיקסטורן זענען נאָך נישט בנימצא. גאָרנישט איז נישט געשאַפֿן געוואָרן.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -1074,8 +1074,8 @@
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>פֿאַרבינדט נישט די צוויי פּאָרטן אין Studio. די דאַטן מוזן גיין דורכן קאַבל אָדער דורכן דרײַווער־פּאָר, כדי די צאָל זאָל האָבן אַ באַטײַט.</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>פֿאַרבינדט נישט די פּאָרטן אין Studio. די דאַטן מוזן גיין דורך דעם קאַבל אָדער דעם דרײַווער־פּאָר כּדי עס זאָל גערעכנט ווערן.</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -1323,8 +1323,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="129" />
-            <source>Gathers what a helper needs to understand your setup. Nothing is sent anywhere. You choose where to save it.</source>
-            <translation>זאַמלט וואָס אַ העלפֿער דאַרף כדי צו פֿאַרשטיין אײַער אײַנשטעלונג. גאָרנישט ווערט געשיקט ערגעץ. איר קלײַבט אויס וווּ אָפּצוהיטן עס.</translation>
+            <source>Collects your setup, event log and environment details into one file. Nothing is sent anywhere. You choose where to save it.</source>
+            <translation>זאַמלט אײַער אָנשטעל, דאָס געשעעניש־לאָג און די פּרטים פֿון דער סביבה אין איין טעקע. גאָרנישט ווערט געשיקט. איר קלײַבט אויס וווּ צו אָפּשפּאָרן.</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="145" />
@@ -1393,8 +1393,8 @@
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="202" />
-            <source>Nothing leaves this PC until you share the file yourself. Look inside the bundle first if you want to check it.</source>
-            <translation>גאָרנישט פֿאַרלאָזט דעם קאָמפּיוטער ביז איר טיילט אַליין די טעקע. קוקט פֿריִער אַרײַן אין דעם פּעקל אויב איר ווילט עס קאָנטראָלירן.</translation>
+            <source>Nothing is sent. The file is a zip that you can open and read before you share it.</source>
+            <translation>גאָרנישט ווערט געשיקט. די טעקע איז אַ זיפּ וואָס איר קענט עפֿענען און לייענען איידער איר טיילט עס.</translation>
         </message>
         <message>
             <location filename="../src/support/diagnostic_bundle_dialog.cpp" line="210" />
@@ -2520,8 +2520,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="60" />
-            <source>Every action is in the menus. Start with these.</source>
-            <translation>יעדע אַקציע איז אין די מעניוס. הייבט אָן מיט די דאָזיקע.</translation>
+            <source>These are the most used actions. All actions are in the menus.</source>
+            <translation>דאָס זענען די מערסט גענוצטע אַקציעס. אַלע אַקציעס זענען אין די מעניוען.</translation>
         </message>
         <message>
             <location filename="../src/support/help_contents_dialog.cpp" line="77" />
@@ -2884,8 +2884,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>אַלץ וואָס אײַער פּראָגראַם שיקט קומט גלײַך צוריק צו איר. אַ שנעלע פּרוּוו אַז סײַ דאָס שיקן סײַ דאָס באַקומען אַרבעטן.</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>אַלץ וואָס אײַער פּראָגראַם שיקט קומט גלײַך צוריק צו איר. ניצט עס צו פּרוּוון אַז די פּראָגראַם קען שיקן און באַקומען.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -2921,8 +2921,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>דער האַנדבוך פֿון אַפּאַראַט גיט עס. אויב דער טעקסט זעט שפּעטער אויס פֿאַרדרייט, איז דאָס געוויינלעך דער טעם.</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>קוקט אין דעם מאַנועל פֿון דעם אַפּאַראַט. אַ פֿאַלשע גיך־קייט ווײַזט זיך געוויינטלעך ווי צעמישטער טעקסט.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -2988,8 +2988,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>נוציק צו קאָנטראָלירן אַז דער אַפּאַראַט אַרבעט איידער אײַער אייגענע פּראָגראַם איז גרייט. וואָס איר שרײַבט גייט צום אַפּאַראַט, און זײַנע ענטפֿערס ווײַזן זיך דאָ און אין אײַערע פּראָגראַמען.</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>ניצט עס צו פּרוּוון אַז דער אַפּאַראַט אַרבעט איידער אײַער אייגענע פּראָגראַם איז גרייט. וואָס איר טיפּט גייט צום אַפּאַראַט, און זײַנע ענטפֿערס ווײַזן זיך דאָ און אין אײַערע פּראָגראַמען.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -2998,8 +2998,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>אַ לעבעדיקע ליסטע פֿון וואָס ווערט געשיקט אין יעדער ריכטונג, אויף דער זײַט פֿון דער אײַנשטעלונג. זי קוקט נאָר, דעריבער ענדערט זי גאָרנישט. איר קענט עס אויך שפּעטער אָנצינדן.</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>ווײַזט די דאַטן וואָס ווערן געשיקט אין יעדער ריכטונג אויף דער זײַט פֿון דער אָנשטעל. עס ענדערט נישט די דאַטן. איר קענט עס אײַנשאַלטן שפּעטער.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -3506,8 +3506,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>דאַרפֿט איר אַדרעסן, דעפֿעקט־אײַנשפּריצונג אָדער פּאָרט־באַזיץ? &lt;a href="advanced"&gt;אַוואַנסירטער מאָדע&lt;/a&gt; לייגט זיי צו אין דעם זעלבן פֿענצטער. גאָרנישט וואָס איר האָט געבויט ענדערט זיך.</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;דער אַוואַנסירטער מאָדע&lt;/a&gt; לייגט צו צו דעם פֿענצטער אַדרעסן, גרײַז־אײַנשפּריצונג און פּאָרט־אײגנטומ. גאָרנישט וואָס איר האָט געבויט ענדערט זיך נישט.</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -3586,8 +3586,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="75" />
-            <source>Incoming data lost, too fast</source>
-            <translation>אײַנקומענדיקע דאַטן פֿאַרלוירן, צו שנעל</translation>
+            <source>Incoming data lost because it arrived too fast</source>
+            <translation>אַרײַנקומענדיקע דאַטן גײען פֿאַרלוירן ווײַל זיי קומען צו גיך</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="77" />
@@ -3616,8 +3616,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="84" />
-            <source>Device vanishes, as if unplugged</source>
-            <translation>דער אַפּאַראַט פֿאַרשווינדט, ווי אויב ער וואָלט אַרויסגעצויגן</translation>
+            <source>Device disconnects, as if unplugged</source>
+            <translation>דער אַפּאַראַט רײַסט זיך אָפּ, ווי אַרויסגענומען</translation>
         </message>
         <message>
             <location filename="../src/advanced/line_matrix_panel.cpp" line="330" />
@@ -4139,8 +4139,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>דער טאָפּאָלאָגיע־JSON־רעדאַקטאָר קומט מיט WP7.</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>דער טאָפּאָלאָגיע־JSON־רעדאַקטאָר איז נאָך נישט בנימצא.</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -5229,14 +5229,14 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>אײַער פּאָרט "%1" עקזיסטירט איצט אין Studio.</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. נאָר Studio קען אים עפֿענען.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>אײַער פּאָרט "%1" עקזיסטירט איצט, און אַנדערע פּראָגראַמען קענען אים עפֿענען.</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. אַנדערע פּראָגראַמען קענען אים עפֿענען.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -5823,8 +5823,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="134" />
-            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check: it says whether your account is missing the serial device group or AppArmor, SELinux or a sandbox is in the way, and shows the command to fix it.</source>
-            <translation>די סיסטעם האָט עס נישט דערלויבט. גאָרנישט איז געענדערט געוואָרן. עפֿנט Tools, אײַנשטעלונג־קאָנטראָלע: עס זאָגט צי אײַער קאָנטאָ פֿעלט די גרופּע פֿאַר סעריעלע מכשירים אָדער צי AppArmor, SELinux אָדער אַ זאַמד־קאַסטן שטערט, און ווײַזט דעם באַפֿעל וואָס פֿאַרריכט עס.</translation>
+            <source>The system did not allow this. Nothing was changed. Open Tools, Setup check to see whether the cause is a missing group, AppArmor, SELinux or a sandbox. It shows the command to fix it.</source>
+            <translation>דער סיסטעם האָט דאָס נישט דערלויבט. גאָרנישט איז געענדערט געוואָרן. עפֿנט געצייג, אײַנשטעלונג־קאָנטראָלע כּדי צו זען צי די סיבה איז אַ פֿעלנדיקע גרופּע, AppArmor, SELinux אָדער אַ זאַמדקאַסטן. דאָרט שטייט אויך דער באַפֿעל צום פֿאַרריכטן.</translation>
         </message>
         <message>
             <location filename="../src/flows/common.cpp" line="69" />
@@ -5958,8 +5958,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>מאַכן די פּראָגראַם וואָס האַלט דעם פּאָרט זאָל אים לאָזן גיין.</translation>
+            <source>Make the program release this port.</source>
+            <translation>מאַכט אַז די פּראָגראַם לאָזט אָפּ דעם פּאָרט.</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -6438,18 +6438,18 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="369" />
-            <source>50 ms, live</source>
-            <translation>50 ms, לעבעדיק</translation>
+            <source>50 ms, most frequent</source>
+            <translation>50 ms, אָפֿטסטן</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="372" />
-            <source>5000 ms, light</source>
-            <translation>5000 ms, לײַכט</translation>
+            <source>5000 ms, least frequent</source>
+            <translation>5000 ms, זעלטנסטן</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="375" />
-            <source>How often counters and states are read. Shorter feels live. Longer is lighter on a busy machine.</source>
-            <translation>ווי אָפֿט קאָונטערס און צושטאַנדן ווערן געלייענט. קירצער פֿילט זיך לעבעדיק. לענגער איז לײַכטער פֿאַר אַ פֿאַרנומענעם קאָמפּיוטער.</translation>
+            <source>A shorter interval updates more often. A longer interval uses less CPU.</source>
+            <translation>אַ קירצערער אינטערוואַל דערפֿרישט אָפֿטער. אַ לענגערער ניצט ווייניקער CPU.</translation>
         </message>
         <message>
             <location filename="../src/support/settings_dialog.cpp" line="417" />
@@ -6971,8 +6971,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/setup_facts.cpp" line="256" />
-            <source>Carry on without a driver</source>
-            <translation>ווײַטער אָן אַ דרײַווער</translation>
+            <source>Continue without a driver</source>
+            <translation>ממשיכן אָן אַ דרײַווער</translation>
         </message>
         <message>
             <location filename="../src/support/setup_facts.cpp" line="257" />
@@ -7167,8 +7167,8 @@ Networks: %5</source>
         <message>
             <location filename="../src/support/setup_check_dialog.cpp" line="225" />
             <location filename="../src/support/setup_facts.cpp" line="475" />
-            <source>All set</source>
-            <translation>אַלץ גרייט</translation>
+            <source>Ready</source>
+            <translation>גרייט</translation>
         </message>
         <message>
             <location filename="../src/support/setup_check_dialog.cpp" line="262" />
@@ -7295,8 +7295,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>נאָר צום לייענען. נוציק ווען אַ פּראָגראַם זאָגט אַז גאָרנישט קומט אָן.</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>נאָר צום לייענען. ניצט עס צו קאָנטראָלירן די דאַטן ווען אַ פּראָגראַם מעלדט אַז גאָרנישט קומט אָן.</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -8045,8 +8045,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>Studio איז אומגעענדערט. קאָנטראָלירט דעם אַפּאַראַט און פּרובירט נאָך אַ מאָל.</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>די אָנשטעל איז אומגעענדערט. קאָנטראָלירט דעם אַפּאַראַט און פּרוּווט נאָך אַ מאָל.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -8060,8 +8060,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio קען טיילן הכי מער 32 פּראָגראַמען</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio קען טיילן אַן אַפּאַראַט מיט העכסטנס 32 פּראָגראַמען</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -9067,13 +9067,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1 איז אַ טייל פֿון אַ שפּעטערדיקן אַרבעט־פּעקל.</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1 קומט מיט %2.</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 איז נאָך נישט בנימצא.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -9398,8 +9393,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="124" />
-            <source>Every action has a menu item. These are the quick ways.</source>
-            <translation>יעדע אַקציע האָט אַ מעניו־פּונקט. דאָס זענען די גיכע וועגן.</translation>
+            <source>Shortcuts for the actions in the menus.</source>
+            <translation>קירצווענג פֿאַר די אַקציעס אין די מעניוען.</translation>
         </message>
         <message>
             <location filename="../src/support/shortcuts_dialog.cpp" line="133" />
@@ -9484,8 +9479,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>נאָך גאָרנישט איז אײַנגעשטעלט, דעריבער איז נישטאָ קיין פּאָרט צום באַקוקן. שטעלט פֿריִער עפּעס אײַן.</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>נאָך גאָרנישט איז אײַנגעשטעלט. שטעלט צום ערשטן אײַן אַ פּאָרט.</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -9586,13 +9581,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>האַב לויפֿט</translation>
+            <source>Engine running</source>
+            <translation>דער מאָטאָר לויפֿט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>האַב אָפּגעשטעלט</translation>
+            <source>Engine stopped</source>
+            <translation>דער מאָטאָר איז אָפּגעשטעלט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -10916,8 +10911,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="206" />
-            <source>Still stuck? A diagnostic bundle gathers the setup, the log and the environment for whoever helps you. Traffic contents are left out unless you choose to include them.</source>
-            <translation>נאָך אַלץ פֿאַרהאַקט? אַ דיאַגנאָסטיק־פּעקל זאַמלט די אײַנשטעלונג, דעם לאָג און די סבֿיבֿה פֿאַר דעם וואָס העלפֿט אײַך. טראַפֿיק־אינהאַלט ווערט אויסגעלאָזט סײַדן איר קלײַבט אויס עס אײַנצושליסן.</translation>
+            <source>A diagnostic bundle collects the setup, the log and the environment to send to whoever helps you. Traffic contents are left out unless you include them.</source>
+            <translation>אַ דיאַגנאָז־פּעקל זאַמלט די אָנשטעל, דאָס לאָג און די סביבה צו שיקן דעם וואָס העלפֿט אײַך. דער אינהאַלט פֿון טראַפֿיק ווערט נישט אַרײַנגענומען סײַדן איר נעמט אים אַרײַן.</translation>
         </message>
         <message>
             <location filename="../src/support/troubleshoot_dialog.cpp" line="224" />
@@ -11364,8 +11359,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="54" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>אַן אָנגעמאַכטער אַפּאַראַט וואָס איר קענט סקריפּטן, פֿאַר טעסטירן אָן האַרדוואַר.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>אַ סימולירטער אַפּאַראַט צום טעסטן אָן קיין הארדוועיר.</translation>
         </message>
         <message>
             <location filename="../src/advanced/add_fixture_dialog.cpp" line="63" />
@@ -11548,8 +11543,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="164" />
-            <source>A pretend device you can script, for testing without hardware.</source>
-            <translation>אַן אָנגעמאַכטער אַפּאַראַט וואָס איר קענט סקריפּטן, פֿאַר טעסטירן אָן האַרדוואַר.</translation>
+            <source>A simulated device for testing without hardware.</source>
+            <translation>אַ סימולירטער אַפּאַראַט צום טעסטן אָן קיין הארדוועיר.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="173" />
@@ -11623,8 +11618,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="302" />
-            <source>Programs that open a fixed name such as COM3 find the port again every run. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
-            <translation>פּראָגראַמען וואָס עפענען אַ פֿעסטן נאָמען ווי COM3 געפֿינען דעם פּאָרט ווידער יעדעס מאָל. אויטאָמאַטיש נעמט אַ פֿרײַע נומער העכער ווי די פּאָרטן וואָס דער קאָמפּיוטער האָט שוין, קיינמאל COM1 אָדער COM2. אַ נומער דאַרף דעם Studio-דרײַווער און זײַן הילף־סערוויס, און װערט גענוצט ווען מע שאַפֿט איין פּאָרט.</translation>
+            <source>A program that opens a fixed name such as COM3 needs the same number each time. Automatic takes a free number above the ports this PC already has, never COM1 or COM2. A number needs the Studio driver and its helper service, and is used when one port is made.</source>
+            <translation>אַ פּראָגראַם וואָס עפֿנט אַ פֿעסטן נאָמען ווי COM3 דאַרף יעדעס מאָל די זעלבע נומער. אויטאָמאַטיש נעמט אַ פֿרײַע נומער העכער ווי די פּאָרטן וואָס דער קאָמפּיוטער האָט שוין, קיינמאָל נישט COM1 אָדער COM2. אַ באַשטימטע נומער דאַרף דעם Studio־דרײַווער און זײַן הילף־דינסט, און ווערט גענוצט ווען מע שאַפֿט איין פּאָרט.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="311" />
@@ -11638,13 +11633,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="394" />
-            <source>Network endpoints arrive in a later work package. Nothing has been created.</source>
-            <translation>נעץ־ענדפּונקטן קומען אין אַ שפּעטערדיקן אַרבעט־פּעקל. גאָרנישט איז נישט באַשאַפֿן געוואָרן.</translation>
+            <source>Network endpoints are not available yet. Nothing was created.</source>
+            <translation>נעץ־ענדפּוינטן זענען נאָך נישט בנימצא. גאָרנישט איז נישט געשאַפֿן געוואָרן.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="396" />
-            <source>Mock fixtures arrive in a later work package. Nothing has been created.</source>
-            <translation>מאָק־פֿיקסטורן קומען אין אַ שפּעטערדיקן אַרבעט־פּעקל. גאָרנישט איז נישט באַשאַפֿן געוואָרן.</translation>
+            <source>Mock fixtures are not available yet. Nothing was created.</source>
+            <translation>מאָק־פֿיקסטורן זענען נאָך נישט בנימצא. גאָרנישט איז נישט געשאַפֿן געוואָרן.</translation>
         </message>
         <message>
             <location filename="../src/flows/add_port_dialog.cpp" line="446" />
@@ -12077,8 +12072,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="126" />
-            <source>Do not link these two ports in Studio. The data has to travel through the cable or driver pair, so the count means something.</source>
-            <translation>פֿאַרבינדט נישט די צוויי פּאָרטן אין Studio. די דאַטן מוזן גיין דורכן קאַבל אָדער דורכן דרײַווער־פּאָר, כדי די צאָל זאָל האָבן אַ באַטײַט.</translation>
+            <source>Do not link these ports in Studio. The data must travel through the cable or driver pair to be counted.</source>
+            <translation>פֿאַרבינדט נישט די פּאָרטן אין Studio. די דאַטן מוזן גיין דורך דעם קאַבל אָדער דעם דרײַווער־פּאָר כּדי עס זאָל גערעכנט ווערן.</translation>
         </message>
         <message>
             <location filename="../src/advanced/benchmark_dialog.cpp" line="132" />
@@ -13439,8 +13434,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="265" />
-            <source>Need addresses, fault injection or port ownership? &lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds them to this same window. Nothing you have built changes.</source>
-            <translation>דאַרפֿט איר אַדרעסן, דעפֿעקט־אײַנשפּריצונג אָדער פּאָרט־באַזיץ? &lt;a href="advanced"&gt;אַוואַנסירטער מאָדע&lt;/a&gt; לייגט זיי צו אין דעם זעלבן פֿענצטער. גאָרנישט וואָס איר האָט געבויט ענדערט זיך.</translation>
+            <source>&lt;a href="advanced"&gt;Advanced mode&lt;/a&gt; adds addresses, fault injection and port ownership to this window. Nothing you have built changes.</source>
+            <translation>&lt;a href="advanced"&gt;דער אַוואַנסירטער מאָדע&lt;/a&gt; לייגט צו צו דעם פֿענצטער אַדרעסן, גרײַז־אײַנשפּריצונג און פּאָרט־אײגנטומ. גאָרנישט וואָס איר האָט געבויט ענדערט זיך נישט.</translation>
         </message>
         <message>
             <location filename="../src/shell/launcher.cpp" line="288" />
@@ -13881,8 +13876,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="303" />
-            <source>The topology JSON editor arrives with WP7.</source>
-            <translation>דער טאָפּאָלאָגיע־JSON־רעדאַקטאָר קומט מיט WP7.</translation>
+            <source>The topology JSON editor is not available yet.</source>
+            <translation>דער טאָפּאָלאָגיע־JSON־רעדאַקטאָר איז נאָך נישט בנימצא.</translation>
         </message>
         <message>
             <location filename="../src/panes/monitor_panel.cpp" line="308" />
@@ -14615,14 +14610,14 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="89" />
-            <source>Your port "%1" now exists inside Studio.</source>
-            <translation>אײַער פּאָרט "%1" עקזיסטירט איצט אין Studio.</translation>
+            <source>The port "%1" was created. Only Studio can open it.</source>
+            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. נאָר Studio קען אים עפֿענען.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="95" />
             <location filename="../src/flows/port_ready_dialog.cpp" line="103" />
-            <source>Your port "%1" now exists, and other programs can open it.</source>
-            <translation>אײַער פּאָרט "%1" עקזיסטירט איצט, און אַנדערע פּראָגראַמען קענען אים עפֿענען.</translation>
+            <source>The port "%1" was created. Other programs can open it.</source>
+            <translation>דער פּאָרט "%1" איז געשאַפֿן געוואָרן. אַנדערע פּראָגראַמען קענען אים עפֿענען.</translation>
         </message>
         <message>
             <location filename="../src/flows/port_ready_dialog.cpp" line="101" />
@@ -14869,8 +14864,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="27" />
-            <source>Make the program that has this port let go of it.</source>
-            <translation>מאַכן די פּראָגראַם וואָס האַלט דעם פּאָרט זאָל אים לאָזן גיין.</translation>
+            <source>Make the program release this port.</source>
+            <translation>מאַכט אַז די פּראָגראַם לאָזט אָפּ דעם פּאָרט.</translation>
         </message>
         <message>
             <location filename="../src/flows/release_port_dialog.cpp" line="45" />
@@ -15641,8 +15636,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1392" />
-            <source>The studio is unchanged. Check the device, then try again.</source>
-            <translation>Studio איז אומגעענדערט. קאָנטראָלירט דעם אַפּאַראַט און פּרובירט נאָך אַ מאָל.</translation>
+            <source>The setup is unchanged. Check the device, then try again.</source>
+            <translation>די אָנשטעל איז אומגעענדערט. קאָנטראָלירט דעם אַפּאַראַט און פּרוּווט נאָך אַ מאָל.</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1412" />
@@ -15656,8 +15651,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1425" />
-            <source>The most Studio can share is 32 programs</source>
-            <translation>Studio קען טיילן הכי מער 32 פּראָגראַמען</translation>
+            <source>Studio can share a device with at most 32 programs</source>
+            <translation>Studio קען טיילן אַן אַפּאַראַט מיט העכסטנס 32 פּראָגראַמען</translation>
         </message>
         <message>
             <location filename="../src/dialogs/share_wizard.cpp" line="1426" />
@@ -16663,13 +16658,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1869" />
-            <source>%1 is part of a later work package.</source>
-            <translation>%1 איז אַ טייל פֿון אַ שפּעטערדיקן אַרבעט־פּעקל.</translation>
-        </message>
-        <message>
-            <location filename="../src/shell/shell_window.cpp" line="1875" />
-            <source>%1 arrives with %2.</source>
-            <translation>%1 קומט מיט %2.</translation>
+            <source>%1 is not available yet.</source>
+            <translation>%1 איז נאָך נישט בנימצא.</translation>
         </message>
         <message>
             <location filename="../src/shell/shell_window.cpp" line="1960" />
@@ -16881,13 +16871,13 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="121" />
-            <source>Hub running</source>
-            <translation>האַב לויפֿט</translation>
+            <source>Engine running</source>
+            <translation>דער מאָטאָר לויפֿט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="122" />
-            <source>Hub stopped</source>
-            <translation>האַב אָפּגעשטעלט</translation>
+            <source>Engine stopped</source>
+            <translation>דער מאָטאָר איז אָפּגעשטעלט</translation>
         </message>
         <message>
             <location filename="../src/shell/status_bar.cpp" line="132" />
@@ -17618,8 +17608,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="517" />
-            <source>Whatever your program sends comes back to it at once. A quick test that its sending and receiving both work.</source>
-            <translation>אַלץ וואָס אײַער פּראָגראַם שיקט קומט גלײַך צוריק צו איר. אַ שנעלע פּרוּוו אַז סײַ דאָס שיקן סײַ דאָס באַקומען אַרבעטן.</translation>
+            <source>Whatever your program sends comes back to it at once. Use it to check that the program can send and receive.</source>
+            <translation>אַלץ וואָס אײַער פּראָגראַם שיקט קומט גלײַך צוריק צו איר. ניצט עס צו פּרוּוון אַז די פּראָגראַם קען שיקן און באַקומען.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="528" />
@@ -17655,8 +17645,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="587" />
-            <source>The device's manual gives it. If text looks garbled later, this is usually why.</source>
-            <translation>דער האַנדבוך פֿון אַפּאַראַט גיט עס. אויב דער טעקסט זעט שפּעטער אויס פֿאַרדרייט, איז דאָס געוויינלעך דער טעם.</translation>
+            <source>Check the device's manual. A wrong rate usually shows as garbled text.</source>
+            <translation>קוקט אין דעם מאַנועל פֿון דעם אַפּאַראַט. אַ פֿאַלשע גיך־קייט ווײַזט זיך געוויינטלעך ווי צעמישטער טעקסט.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="591" />
@@ -17722,8 +17712,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="665" />
-            <source>Handy for checking the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
-            <translation>נוציק צו קאָנטראָלירן אַז דער אַפּאַראַט אַרבעט איידער אײַער אייגענע פּראָגראַם איז גרייט. וואָס איר שרײַבט גייט צום אַפּאַראַט, און זײַנע ענטפֿערס ווײַזן זיך דאָ און אין אײַערע פּראָגראַמען.</translation>
+            <source>Use it to check that the device works before your own program is ready. What you type goes to the device, and its replies show here and in your programs.</source>
+            <translation>ניצט עס צו פּרוּוון אַז דער אַפּאַראַט אַרבעט איידער אײַער אייגענע פּראָגראַם איז גרייט. וואָס איר טיפּט גייט צום אַפּאַראַט, און זײַנע ענטפֿערס ווײַזן זיך דאָ און אין אײַערע פּראָגראַמען.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="672" />
@@ -17732,8 +17722,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="680" />
-            <source>A live list of what is sent each way, on the setup's page. It only looks, so it changes nothing. You can turn it on later too.</source>
-            <translation>אַ לעבעדיקע ליסטע פֿון וואָס ווערט געשיקט אין יעדער ריכטונג, אויף דער זײַט פֿון דער אײַנשטעלונג. זי קוקט נאָר, דעריבער ענדערט זי גאָרנישט. איר קענט עס אויך שפּעטער אָנצינדן.</translation>
+            <source>Lists the data sent in each direction on the setup's page. It does not change the data. You can turn it on later.</source>
+            <translation>ווײַזט די דאַטן וואָס ווערן געשיקט אין יעדער ריכטונג אויף דער זײַט פֿון דער אָנשטעל. עס ענדערט נישט די דאַטן. איר קענט עס אײַנשאַלטן שפּעטער.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="748" />
@@ -18210,8 +18200,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="390" />
-            <source>Type to the device and read its replies here, without another program. Good for a first check that it works.</source>
-            <translation>שרײַבט צום אַפּאַראַט און לייענט דאָ זײַנע ענטפֿערס, אָן נאָך אַ פּראָגראַם. גוט פֿאַר אַ ערשטער קאָנטראָלע אַז ער אַרבעט.</translation>
+            <source>Type to the device and read its replies here, without another program. Use it to check that the device works.</source>
+            <translation>טיפּט צום אַפּאַראַט און לייענט זײַנע ענטפֿערס דאָ, אָן אַן אַנדער פּראָגראַם. ניצט עס צו פּרוּוון אַז דער אַפּאַראַט אַרבעט.</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_kinds.cpp" line="396" />
@@ -18356,8 +18346,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="170" />
-            <source>Read only. Useful when a program says nothing arrives.</source>
-            <translation>נאָר צום לייענען. נוציק ווען אַ פּראָגראַם זאָגט אַז גאָרנישט קומט אָן.</translation>
+            <source>Read only. Use it to check the data when a program reports that nothing arrives.</source>
+            <translation>נאָר צום לייענען. ניצט עס צו קאָנטראָלירן די דאַטן ווען אַ פּראָגראַם מעלדט אַז גאָרנישט קומט אָן.</translation>
         </message>
         <message>
             <location filename="../src/simple/setup_page.cpp" line="181" />
@@ -18683,8 +18673,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="218" />
-            <source>Nothing is set up yet, so there is no port to look at. Set something up first.</source>
-            <translation>נאָך גאָרנישט איז אײַנגעשטעלט, דעריבער איז נישטאָ קיין פּאָרט צום באַקוקן. שטעלט פֿריִער עפּעס אײַן.</translation>
+            <source>Nothing is set up yet. Set up a port first.</source>
+            <translation>נאָך גאָרנישט איז אײַנגעשטעלט. שטעלט צום ערשטן אײַן אַ פּאָרט.</translation>
         </message>
         <message>
             <location filename="../src/simple/simple_page.cpp" line="226" />
@@ -18898,8 +18888,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="115" />
-            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, now, and not each time you add a port.</source>
-            <translation>Windows לאָזט נאָר אַן דרייווער שאַפֿן COM־פּאָרטן וואָס אַנדערע פּראָגראַמען קענען עפֿענען. די אײַנשטעלונג אינסטאַלירט דעם Virtual Serial Studio דרייווער און אַ קליינעם העלפער־סערוויס וואָס שאַפֿט פּאָרטן פֿאַר אײַך, דעריבער דאַרף מען אַדמיניסטראַטאָר־רעכט איין מאָל, איצט, און נישט יעדעס מאָל ווען איר לייגט צו אַ פּאָרט.</translation>
+            <source>Windows only lets a driver make COM ports that other programs can open. Setup installs the Virtual Serial Studio driver and a small helper service that makes ports for you, so administrator rights are needed once, not each time you add a port.</source>
+            <translation>Windows לאָזט נאָר אַ דרײַווער שאַפֿן COM־פּאָרטן וואָס אַנדערע פּראָגראַמען קענען עפֿענען. די אָנשטעל אינסטאַלירט דעם Virtual Serial Studio־דרײַווער און אַ קליינעם הילף־דינסט וואָס שאַפֿט פּאָרטן פֿאַר אײַך, דערפֿאַר דאַרף מען אַדמיניסטראַטאָר־רעכט איין מאָל, נישט יעדעס מאָל ווען איר לייגט צו אַ פּאָרט.</translation>
         </message>
         <message>
             <location filename="../src/support/driver_setup_dialog.cpp" line="123" />

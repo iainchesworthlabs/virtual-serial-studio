@@ -1,0 +1,20 @@
+{
+  "manifest_version": 1,
+  "id": "com.example.edit",
+  "name": "Byte editor",
+  "version": "0.3.0",
+  "requires": { "api": { "min": "1.0", "max": "1.x" } },
+  "run": { "executable": "bin/edit", "platforms": ["linux-x64", "windows-x64"] },
+  "permissions": [
+    { "name": "modifier.inline", "reason": "Edits bytes on a link." }
+  ],
+  "extension_points": [
+    {
+      "kind": "modifier",
+      "id": "edit",
+      "name": "Edit",
+      "timing": { "class": "inline", "budget_us": 250,
+                  "on_timeout": "fail_open" }
+    }
+  ]
+}

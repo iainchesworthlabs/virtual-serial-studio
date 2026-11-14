@@ -208,9 +208,9 @@ void TroubleshootDialog::build()
     auto* muted = new QLabel(
         QCoreApplication::translate(
             "Troubleshoot",
-            "Still stuck? A diagnostic bundle gathers the setup, the log and "
-            "the environment for whoever helps you. Traffic contents are left "
-            "out unless you choose to include them."),
+            "A diagnostic bundle collects the setup, the log and the "
+            "environment to send to whoever helps you. Traffic contents are "
+            "left out unless you include them."),
         body);
     muted->setFont(Theme::instance().font(text_style::caption));
     muted->setProperty("muted", true);
