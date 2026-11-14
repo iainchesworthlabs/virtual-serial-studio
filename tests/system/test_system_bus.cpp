@@ -69,11 +69,10 @@ constexpr int short_delay_ms = 150;
 constexpr int long_delay_ms = 380;
 // The device on another computer is given less time of its own than the others,
 // because the network and the client are in the window too. On Windows and Linux
-// the hop costs about a millisecond. On the macOS runners it was seen to cost
-// 115 to 160 ms (answers after 215 to 257 ms when the device waited 100 ms), a
-// cost the cause of which is not known. 40 ms leaves 150 ms for the hop inside
-// the 190 ms the check allows, so a hop that is slow on one system does not fail
-// the bus, while a hop that grows past that still does. The breakdown printed
+// the hop costs about a millisecond. The macOS failures that looked like a
+// 115 to 160 ms hop were the client's own sleep running long on a loaded
+// runner, which the test now takes off the bus's account. 40 ms is kept so the
+// hop has 150 ms inside the 190 ms the check allows. The breakdown printed
 // with a miss says which leg was slow.
 constexpr int remote_delay_ms = 40;
 
@@ -354,6 +353,10 @@ struct measured_reply
     int delay_ms = 0;
     int allowed_ms = 0;
     std::int64_t gap_ms = 0;
+    /// How long the device itself took between hearing the poll and finishing
+    /// its answer.  That wait is the test's own sleep or timer, and a busy
+    /// machine can stretch it, so it is not charged to the bus.
+    std::int64_t device_ms = 0;
     /// Where the time went, when it is known.
     std::string detail;
 };
@@ -477,15 +480,33 @@ std::vector<measured_reply> run_scenario()
             const auto last = answer_at_index + answer_bytes - 1;
             measured_reply reply{
                 item.what, item.delay_ms, item.allowed_ms,
-                ms_between(polls.at[poll_at_index], answers.at[last]), {}};
-            if (item.address == remote_device)
+                ms_between(polls.at[poll_at_index], answers.at[last]), 0, {}};
+            if (item.address != remote_device)
+            {
+                // The local device's wait: from the poll reaching its program
+                // to its answer leaving it.
+                const auto device_name =
+                    item.address == short_device ? "device-200-program"
+                                                 : "device-450-program";
+                const auto heard = stream_of(events, device_name, data_direction::rx);
+                const auto said = stream_of(events, device_name, data_direction::tx);
+                const auto heard_at =
+                    nth_occurrence(heard.bytes, poll_frame(item.address), round);
+                REQUIRE(heard_at != std::string::npos);
+                REQUIRE(round * answer_bytes + answer_bytes - 1 < said.at.size());
+                reply.device_ms = ms_between(
+                    heard.at[heard_at], said.at[round * answer_bytes + answer_bytes - 1]);
+            }
+            else
             {
                 // The poll to the client, the client's own wait, and the answer
                 // back to the master, so a slow leg is named when a window is
                 // missed.
                 const auto [saw, wrote] = remote.legs();
-                if (round < saw.size() && round < wrote.size())
+                REQUIRE(round < saw.size());
+                REQUIRE(round < wrote.size());
                 {
+                    reply.device_ms = ms_between(saw[round], wrote[round]);
                     reply.detail =
                         " (poll reached the client after " +
                         std::to_string(
@@ -557,15 +578,19 @@ std::vector<measured_reply> run_scenario()
 TEST_CASE("system: a polled bus answers inside 200 ms and 450 ms and no member "
           "hears itself")
 {
-    // How much of each window the answer may take.  The scripts are set well
-    // inside their windows (150 of 200 ms, 380 of 450 ms), so this leaves room
-    // for a busy machine without hiding a late answer.
+    // The bus may add this much to a device's own answer time and still leave
+    // the reply inside its window with margin.  The devices are set well
+    // inside their windows (150 of 200 ms, 380 of 450 ms, 40 of 200 ms).
     constexpr int margin_ms = 10;
 
-    // The bytes are checked on every run.  The times can be spoiled by another
-    // process taking the CPU for a moment, which is not a fault of the bus, so
-    // a run whose times miss is repeated; the test passes when one run keeps
-    // every reply inside its window, and fails when none of three does.
+    // The bytes are checked on every run.  The times are judged on what the
+    // bus added: the poll's trip to the device and the answer's trip back.
+    // The device's own wait is a sleep or a timer in the test, and a loaded
+    // machine can stretch it (a macOS runner once held a 40 ms sleep for
+    // 256 ms), which says nothing about the bus.  Another process can still
+    // take the CPU during a trip, so a run whose times miss is repeated; the
+    // test passes when one run keeps the bus's share inside its allowance, and
+    // fails when none of three does.
     std::string late;
     for (int attempt = 1; attempt <= 3; ++attempt)
     {
@@ -573,19 +598,22 @@ TEST_CASE("system: a polled bus answers inside 200 ms and 450 ms and no member "
         late.clear();
         for (const auto& reply : replies)
         {
-            // Not before the script said (the poll is stamped as it is written, a
-            // little before it reaches the device), and inside the window
-            // with margin.
-            if (reply.gap_ms < reply.delay_ms - 20 ||
-                reply.gap_ms > reply.allowed_ms - margin_ms)
+            const auto added_ms = reply.gap_ms - reply.device_ms;
+            const auto allowed_ms = reply.allowed_ms - reply.delay_ms - margin_ms;
+            // The device cannot answer before it was told to, whatever it took.
+            if (reply.device_ms < reply.delay_ms - 20 || added_ms > allowed_ms)
             {
                 late += "\n  " + reply.what + " took " +
-                        std::to_string(reply.gap_ms) + " ms" + reply.detail;
+                        std::to_string(reply.gap_ms) +
+                        " ms, of which the device took " +
+                        std::to_string(reply.device_ms) + " ms and the bus " +
+                        std::to_string(added_ms) + " ms (allowed " +
+                        std::to_string(allowed_ms) + " ms)" + reply.detail;
             }
         }
         if (late.empty())
             return;
-        std::cout << "run " << attempt << " missed a window:" << late << "\n";
+        std::cout << "run " << attempt << " missed a window:" << late << '\n';
     }
     throw vss_test::failure("a reply missed its window in three runs:" + late);
 }
