@@ -327,6 +327,33 @@ What a change does to traffic:
   its receiver just after the call, as with `remove_target` and
   `set_link_wiring`; the next change corrects it.
 
+### The hub's clock, the read time and the read stage
+
+The hub has one clock, `hub::now()`: the steady clock unless
+`hub_options::clock` replaces it. Every time the hub reports and every time it
+acts on is read there: an event's `when`, a link's delay, a half-duplex bus.
+(An endpoint's `stats().last_activity` is the steady clock's, as before.)
+
+An endpoint reads the clock once for each chunk it reads, before the chunk is
+routed. That **read time** is the chunk's time for the half-duplex line, for a
+`bus_fault` event and for the data event's `when`, so the three agree and none
+includes the time routing took.
+
+`endpoint::set_read_stage` puts a `read_stage` on an endpoint. It is called on
+the endpoint's strand with each chunk and its read time, before the chunk is
+routed and before its event is published. It is the place where response rules
+will watch a port. The stage is a plain member
+used only on the strand, so an endpoint with no stage pays one test of a null
+pointer for each read. A stage is replaced on the strand too, which is between
+two chunks: the old stage has seen every chunk before the change and the new one
+sees every chunk after, with none lost and none shown twice. A stage must not
+block, because it holds up every byte of the port for as long as it takes.
+
+A delay line reads the hub's clock as well. On the steady clock it waits for the
+exact time with a timer. On a clock a test moves by hand a timer cannot wait, so
+a line that holds something looks at the clock every millisecond, as the wire of
+a half-duplex bus does.
+
 ### Link delay
 
 `connect`, `split`, `join`, `redirect` and `bus` take `link_options` with

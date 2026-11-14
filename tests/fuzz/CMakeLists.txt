@@ -23,3 +23,6 @@ vss_add_fuzz_target(fuzz_rule_set
 vss_add_fuzz_target(fuzz_control_message
   SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_control_proto/fuzz/fuzz_control_message.cpp"
   LIBS vss_control_proto)
+vss_add_fuzz_target(fuzz_licence
+  SOURCE "${PROJECT_SOURCE_DIR}/libs/vss_license/fuzz/fuzz_licence.cpp"
+  LIBS vss_license_test_keys)
