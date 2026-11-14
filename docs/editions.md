@@ -23,21 +23,32 @@ and Enterprise add plugins (connectivity, automation, monitoring), the Microsoft
 
 | | Community | Pro | Enterprise |
 |---|---|---|---|
-| Price | Free | Annual licence | Price on application |
-| Seats | Unlimited | Per seat: your computer, plus one other computer you monitor | Site licence, not per seat |
+| Price | Free | Annual licence | Negotiated |
+| Term | None | 1 year | Negotiated |
+| Seats | Unlimited | One licence is one seat: two computers, the one you work at and one other that you control or monitor from it | Negotiated |
 | Licence of the code | GPL-3.0-or-later | Commercial terms for the Pro parts | Commercial terms and a support agreement |
 | Studio and command line tool | Yes | Yes | Yes |
 | Windows driver | Test-signed by Iain Chesworth Labs, built from source | Signed through Microsoft | Signed through Microsoft |
 | Official plugins, signed by the owner | No | Yes | Yes |
 | Test harness, scripting and remote monitoring plugins | No | Yes | Yes |
-| Third-party plugins | Yes, with a warning | Yes, with a warning | Yes, with an optional "official only" policy |
+| Third-party plugins | Yes, with a warning | Yes, with a warning | Yes, with a warning |
+| Administrator policy that allows official plugins only | Yes | Yes | Yes |
 | Support | Community | Support included | Support agreement |
 
 With no plugins, Studio is the Community edition. Going Pro adds plugins, and the
 plugins are about connectivity: driving Studio from other tools and watching it
-from another computer. A seat is enforced by the licence file and the licence terms,
-not by a server, so a lab that wants a hard seat count asks for an Enterprise
-licence that can name machines.
+from another computer.
+
+One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
+Controlling one of the two from the other is part of the seat. A seat is
+enforced by the licence file and the licence terms, not by a server.
+
+An Enterprise licence has no fixed shape. What the licence covers, how long it runs and the price are negotiated with each customer.
+The plugins are the same as Pro. The licence file can carry whatever is agreed,
+such as a number of seats, the names of computers and the dates, but none of
+those is what Enterprise is. The administrator policy that allows official plugins only is not an
+Enterprise feature and needs no licence: it is the policy of
+[the plugin framework](plugins.md), section 8.6.
 
 ## Licences by layer
 
@@ -79,7 +90,7 @@ it. There is no activation server and no telemetry.
 |---|---|---|
 | Trial | 14 days | Full Pro features, issued on request |
 | Annual | 1 year | Renewed by sending a new file |
-| Enterprise | Price on application | Custom term, site licence or a machine binding |
+| Enterprise | Negotiated | The same plugins as Pro. What it covers, how long it runs and the price are negotiated with each customer |
 
 When a licence expires, the Pro features switch off with a visible "licence
 expired" notice and a renew link, and Studio falls back to Community. It keeps
@@ -89,8 +100,11 @@ deterrent only.
 
 ## Plugins
 
-Plugins run out of process, on the protocol of the per-user agent
-([the agent](agent.md)). A separate process is not part of Studio's process, so
+Plugins run out of process and talk to Studio through the plugin API
+([the plugin framework](plugins.md), section 7). The plugin API is public,
+documented and free. The official plugins built on it are private. So is the
+internal protocol of the per-user agent ([the agent](agent.md)), which carries
+no compatibility promise. A separate process is not part of Studio's process, so
 plugin authors choose their own licence, a crashing plugin cannot take Studio
 down, and its permissions can be limited. In-process plugins with a C ABI may
 follow, behind a signature check.
@@ -142,9 +156,11 @@ All of this is in the first version.
 | Reports | JUnit XML and a plain log of a run, for CI systems |
 
 The control endpoint is local only by default (see "Access to the control
-endpoint" below). The adapters check the licence file. The agent protocol
-itself stays documented and free, so third parties can write their own; Pro is
-the maintained, supported, compatibility-tested set.
+endpoint" below). The adapters check the licence file. The plugin API stays
+public, documented and free, so third parties can write their own plugins; Pro
+is the maintained, supported, compatibility-tested set built on it, and that
+set is private. The agent's internal protocol is private too and may change
+between versions.
 
 ### Access to the control endpoint
 
@@ -159,8 +175,9 @@ Security is designed in, and each step needs more setup than the last:
    external identity provider, and the client credentials grant for unattended
    rigs, for sites that manage access centrally.
 
-Remote monitoring (one other computer watching a running Studio) uses the same
-endpoint and the same access levels, and is a Pro plugin.
+Remote control and monitoring between the two computers of a seat (one
+controlling or watching a running Studio on the other) use the same endpoint and
+the same access levels, and are a Pro plugin.
 
 ### Controlling responses and timing (Pro)
 
@@ -199,7 +216,7 @@ out itself.
 
 | Repository | Visibility | Holds |
 |---|---|---|
-| `virtual-serial-studio` | Public | Community: Studio, command line tool, test-signed driver, plugin API and protocol |
+| `virtual-serial-studio` | Public | Community: Studio, command line tool, test-signed driver, and the plugin API with its documents |
 | `virtual-serial-studio-pro` | Private | Signed driver packaging and its signing pipeline, official plugins, licence verification and issuing tools |
 | `virtual-serial` | Public | The engine, to be relicensed to GPL-3.0-or-later |
 | `icl-common-infra` | As now | Shared CI and build files |
@@ -217,8 +234,16 @@ It follows the design tokens of the application.
 ## Decisions made
 
 * Community is the base application plus the test-signed driver, with no plugins.
-  Pro adds plugins, the signed driver and support. Enterprise is a site licence.
-* Pro is per seat: your computer plus one other you monitor. Enterprise is not per seat.
+  Pro adds plugins, the signed driver and support.
+* One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
+  Remote control between the two is part of the seat.
+* An Enterprise licence has no fixed shape: what it covers, how long it runs and
+  the price are negotiated with each customer. The plugins are the same as Pro.
+  The administrator policy that allows official plugins only is not an
+  Enterprise feature and is not gated.
+* The plugin API is public, documented and free. The official plugins built on
+  it, and the agent's internal protocol, are private with no compatibility
+  promise.
 * The engine moves from Boost to GPL-3.0-or-later.
 * All the proposed bindings are wanted: C and C++, Python, C#/.NET, Java,
   Node.js, LabVIEW and TestStand, plus Robot Framework.

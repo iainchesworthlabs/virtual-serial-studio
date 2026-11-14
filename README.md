@@ -236,6 +236,7 @@ libs/vss_license     licence files and the signed envelope (verify, judge, sign)
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent
+libs/vss_plugin      plugin manifests and the checks made before a plugin runs
 libs/vss_agent       the agent's local transport, server and client
 libs/vss_control_proto the control API: messages, errors and the policy table
 libs/vss_control     the control gateway, its audit log and its client

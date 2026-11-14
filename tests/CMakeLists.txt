@@ -46,6 +46,9 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_permissions.cpp
   unit/test_permissions_linux.cpp
   unit/test_permissions_macos.cpp
+  unit/test_plugin_hash.cpp
+  unit/test_plugin_manifest.cpp
+  unit/test_plugin_verify.cpp
   unit/test_profiling.cpp
   unit/test_serial_settings.cpp
   unit/test_serial_transport.cpp
@@ -97,8 +100,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
-  vss_agent_proto vss_agent_core vss_control_proto vss_control_core vss_rules
-  vss_license_test_keys Vss::Monocypher Vss::BoostJson)
+  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto
+  vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE
@@ -215,8 +218,8 @@ endif()
 # A packaging smoke test: the public headers compile on their own.
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
-  vss_agent_proto vss_agent_core vss_control_proto vss_control_core
-  vss_rules vss_license_test_keys)
+  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto vss_control_core
+  vss_license_test_keys)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 
