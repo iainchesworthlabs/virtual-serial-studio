@@ -7,6 +7,7 @@
 #
 
 add_library(vss_plugin
+  src/discover.cpp
   src/error.cpp
   src/hash.cpp
   src/manifest.cpp
