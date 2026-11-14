@@ -20109,8 +20109,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />
-            <source>A seat is your computer, plus one other computer you use to monitor it.</source>
-            <translation>一个席位包括您的计算机，以及另一台用来监视它的计算机。</translation>
+            <source>A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.</source>
+            <translation>一个席位包含两台计算机：您工作所用的那台，以及您从它控制或监视的另一台。串行设备可以连接在其中任意一台上。</translation>
         </message>
         <message>
             <location filename="../src/support/licence_text.cpp" line="1" />

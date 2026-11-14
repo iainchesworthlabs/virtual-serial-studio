@@ -342,8 +342,8 @@ QString seat_explanation()
 {
     return QCoreApplication::translate(
         "LicenceDialog",
-        "A seat is your computer, plus one other computer you use to monitor "
-        "it.");
+        "A seat is two computers: the one you work at and one other that you "
+        "control or monitor from it. The serial device can be on either.");
 }
 
 QString term_text(const lic::licence& value)
