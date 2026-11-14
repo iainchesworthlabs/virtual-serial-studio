@@ -42,6 +42,7 @@
 
 #include <vss/config/document.hpp>
 
+#include <vss/plugin/access.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
