@@ -135,7 +135,7 @@ void require_good(const found_plugin& found, std::string_view id)
     REQUIRE(!found.problem.failed());
     REQUIRE(found.detail.empty());
     REQUIRE(found.declared.has_value());
-    REQUIRE_EQ(found.declared->id, std::string(id));
+    REQUIRE_EQ(found.declared.value().id, std::string(id));
     REQUIRE(!found.shadowed_by.has_value());
 }
 
@@ -330,7 +330,7 @@ TEST_CASE("plugin discover: the first copy of an id counts and later ones are "
         REQUIRE(copy.shadowed_by.has_value());
         REQUIRE_EQ(*copy.shadowed_by, std::size_t{0});
         REQUIRE(copy.declared.has_value());
-        REQUIRE_EQ(copy.declared->id, std::string("com.example.same"));
+        REQUIRE_EQ(copy.declared.value().id, std::string("com.example.same"));
         REQUIRE(!copy.manifest_bytes.empty());
         REQUIRE(!copy.files.empty());
     }
@@ -451,7 +451,7 @@ TEST_CASE("plugin discover: a missing program is reported with the files read")
     const found_plugin& plugin = found.plugins[0];
     require_problem(plugin, plugin_errc::file_missing);
     REQUIRE(plugin.declared.has_value());
-    REQUIRE_EQ(plugin.declared->id, std::string("com.example.alpha"));
+    REQUIRE_EQ(plugin.declared.value().id, std::string("com.example.alpha"));
     REQUIRE_EQ(plugin.manifest_bytes, read_file(directory / "plugin.json"));
     REQUIRE_EQ(plugin.files.size(), std::size_t{1});
     REQUIRE_EQ(plugin.files[0].path, std::string("plugin.json"));
@@ -469,8 +469,10 @@ TEST_CASE("plugin discover: a plugin that lists its files is accepted when "
 
     const discovery found = discover_plugins(roots);
     REQUIRE_EQ(found.plugins.size(), std::size_t{1});
-    require_good(found.plugins[0], "com.example.alpha");
-    REQUIRE_EQ(found.plugins[0].declared->files.size(), std::size_t{1});
+    const found_plugin& plugin = found.plugins[0];
+    require_good(plugin, "com.example.alpha");
+    REQUIRE(plugin.declared.has_value());
+    REQUIRE_EQ(plugin.declared.value().files.size(), std::size_t{1});
 }
 
 TEST_CASE("plugin discover: a listed file that was changed is refused")
