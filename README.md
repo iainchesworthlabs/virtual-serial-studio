@@ -100,8 +100,10 @@ vss_cli selftest
 vss_agent &                         # keep ports after the command that made them (a first slice)
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
 vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
+vss_gate --loopback-port=5800 &     # also serve the control API on TCP at 127.0.0.1 and ::1 (off unless given); every TCP connection needs a token made for it
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
+vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a token over TCP; make it with `token create --transport=loopback --out=rig.token`
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
 vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
