@@ -162,7 +162,6 @@ private:
     void run_port_action(vss::endpoint_id id, port_menu_action action);
     void run_job(const QString& job);
     void placeholder(const QString& what);
-    void later_package(const QString& what, const QString& package);
 
     void refresh_topology();
     void sync_selection();

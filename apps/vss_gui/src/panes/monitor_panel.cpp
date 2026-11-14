@@ -334,7 +334,8 @@ void MonitorPanel::build()
 
     // The Log and Topology JSON tabs are hidden until set_advanced() shows
     // them, and the tab bar with them.
-    json_ = new QLabel(tr("The topology JSON editor arrives with WP7."), tabs_);
+    json_ = new QLabel(tr("The topology JSON editor is not available yet."),
+                       tabs_);
     json_->setAlignment(Qt::AlignCenter);
     json_->setWordWrap(true);
     json_->setProperty("muted", true);

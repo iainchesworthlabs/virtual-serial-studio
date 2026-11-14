@@ -1,0 +1,1 @@
+{ "policy_version": 1, "allow": "signed", "allow_keys": ["acme-2026"], "deny_plugins": ["com.example.bad"], "min_sandbox": "full", "allow_no_sandbox": true, "user_plugins": false, "on_timeout": "fail_closed", "permissions_denied": ["net.outbound"] }

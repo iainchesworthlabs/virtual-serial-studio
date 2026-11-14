@@ -136,7 +136,7 @@ void ShortcutsDialog::build()
         heading, QCoreApplication::translate("Shortcuts", "Keyboard shortcuts"),
         QCoreApplication::translate(
             "Shortcuts",
-            "Every action has a menu item. These are the quick ways."),
+            "Shortcuts for the actions in the menus."),
         header);
     header_layout->addLayout(heading, 1);
 
