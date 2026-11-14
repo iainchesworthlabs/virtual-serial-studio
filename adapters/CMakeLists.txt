@@ -8,7 +8,14 @@
 
 if(VSS_BUILD_TESTS AND TARGET vss_agent AND TARGET vss_gate AND TARGET vss_cli)
   find_package(Python3 3.9 COMPONENTS Interpreter QUIET)
+  # An interpreter that is found is not always one that runs: Windows has a
+  # stub named python3 that only opens the Store.
+  set(vss_python_runs 1)
   if(Python3_FOUND)
+    execute_process(COMMAND ${Python3_EXECUTABLE} -c "import sys"
+      RESULT_VARIABLE vss_python_runs OUTPUT_QUIET ERROR_QUIET)
+  endif()
+  if(Python3_FOUND AND vss_python_runs EQUAL 0)
     # `cmake -E env` hands the programs to the tests, and keeps Python from
     # writing __pycache__ directories into the source tree.
     add_test(NAME python_adapter
