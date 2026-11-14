@@ -272,6 +272,7 @@ EngineStudioBackend::~EngineStudioBackend()
 capabilities EngineStudioBackend::caps() const
 {
     capabilities caps = capabilities{};
+    caps.licences = licences_ != nullptr;
     // Boost.VirtualSerial's network backends only connect. Waiting for other
     // computers is `vss_ports`' listen transport (`tcp-listen://`,
     // `udp-listen://` and `rfc2217-listen://`), which
@@ -1226,6 +1227,51 @@ void EngineStudioBackend::rebuild()
         // it reads back as it goes; the signals belong to the GUI thread.
         QMetaObject::invokeMethod(this, emit_changes, Qt::QueuedConnection);
     }
+}
+
+void EngineStudioBackend::set_licence_store(
+    std::unique_ptr<licence_store> store)
+{
+    licences_ = std::move(store);
+    if (licences_)
+        licences_->refresh();
+    if (licences_ && licence_timer_ == nullptr)
+    {
+        // A licence ends, and the clock is noted, while the window is open.
+        licence_timer_ = new QTimer(this);
+        licence_timer_->setInterval(std::chrono::hours(1));
+        connect(licence_timer_, &QTimer::timeout, this,
+                [this]
+                {
+                    if (licences_ && licences_->refresh())
+                        Q_EMIT licence_changed();
+                });
+        licence_timer_->start();
+    }
+    Q_EMIT licence_changed();
+}
+
+licence_view EngineStudioBackend::licence() const
+{
+    return licences_ ? licences_->view() : licence_view{};
+}
+
+licence_import_result EngineStudioBackend::import_licence(const QString& path)
+{
+    if (!licences_)
+        return {};
+    licence_import_result result = licences_->import_file(path);
+    if (result.outcome == licence_import_outcome::imported)
+        Q_EMIT licence_changed();
+    return result;
+}
+
+bool EngineStudioBackend::remove_licence(const QString& file_name)
+{
+    if (!licences_ || !licences_->remove(file_name))
+        return false;
+    Q_EMIT licence_changed();
+    return true;
 }
 
 } // namespace vss::gui

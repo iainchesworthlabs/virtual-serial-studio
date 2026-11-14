@@ -8,10 +8,16 @@
 
 #include "profiling/profiling_controller.hpp"
 #include "shell/format.hpp"
+#include "support/licence_dialog.hpp"
 #include "support/setup_facts.hpp"
+#include "theme/focus_ring_style.hpp"
 
 #include <vss/core/profile.hpp>
 
+#include <QHBoxLayout>
+#include <QKeyEvent>
+#include <QPaintEvent>
+#include <QPainter>
 #include <QSignalBlocker>
 
 #include <algorithm>
@@ -19,6 +25,75 @@
 namespace vss::gui
 {
 using namespace support;
+
+EditionChip::EditionChip(QWidget* parent) : QAbstractButton(parent)
+{
+    setCursor(Qt::PointingHandCursor);
+    setFocusPolicy(Qt::StrongFocus);
+    // The chip is 22 px high; the target is 24.
+    setMinimumHeight(24);
+    auto* layout = new QHBoxLayout(this);
+    layout->setContentsMargins(3, 1, 3, 1);
+    layout->setSpacing(0);
+    chip_ = new StatusChip(this);
+    layout->addWidget(chip_, 0, Qt::AlignCenter);
+    repaint_on_theme_change(this);
+}
+
+void EditionChip::set_look(const support::licence_chip& look)
+{
+    chip_->set_kind(support::chip_kind(look.tone));
+    chip_->set_text(look.text);
+    const QString name = support::edition_chip_name(look);
+    setAccessibleName(name);
+    setToolTip(name);
+    updateGeometry();
+    update();
+}
+
+QSize EditionChip::sizeHint() const
+{
+    const QSize chip = chip_->sizeHint();
+    return QSize(chip.width() + 6, std::max(24, chip.height() + 2));
+}
+
+QSize EditionChip::minimumSizeHint() const
+{
+    return sizeHint();
+}
+
+void EditionChip::paintEvent(QPaintEvent* event)
+{
+    Q_UNUSED(event);
+    const Theme& theme = Theme::instance();
+    QPainter painter(this);
+    painter.setRenderHint(QPainter::Antialiasing);
+    if (underMouse() || isDown())
+    {
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(
+            theme.colour(isDown() ? colour_role::pressed : colour_role::hover));
+        painter.drawRoundedRect(QRectF(rect()), height() / 2.0, height() / 2.0);
+    }
+    if (hasFocus() && FocusRingStyle::keyboard_focus())
+    {
+        painter.setBrush(Qt::NoBrush);
+        painter.setPen(QPen(theme.colour(colour_role::focus), 2.0));
+        painter.drawRoundedRect(QRectF(rect()).adjusted(1, 1, -1, -1),
+                                height() / 2.0, height() / 2.0);
+    }
+}
+
+void EditionChip::keyPressEvent(QKeyEvent* event)
+{
+    if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)
+    {
+        click();
+        event->accept();
+        return;
+    }
+    QAbstractButton::keyPressEvent(event);
+}
 
 StatusBar::StatusBar(StudioBackend& backend, QWidget* parent)
     : QStatusBar(parent), backend_(backend)
@@ -62,6 +137,16 @@ StatusBar::StatusBar(StudioBackend& backend, QWidget* parent)
     readiness_ =
         new StatusChip(tr("Setup ready"), StatusChip::kind::healthy, this);
     addPermanentWidget(readiness_, 0);
+
+    // The edition: Community, Pro and so on. It opens the Licence page.
+    edition_ = new EditionChip(this);
+    edition_->setObjectName(QStringLiteral("editionChip"));
+    connect(edition_, &QAbstractButton::clicked, this,
+            &StatusBar::licence_requested);
+    connect(&backend_, &StudioBackend::licence_changed, this,
+            [this] { update_edition(); });
+    addPermanentWidget(edition_, 0);
+    update_edition();
 
     level_ = new SegmentedControl(this);
     level_->set_compact(true);
@@ -147,8 +232,8 @@ void StatusBar::refresh()
     links_->setText(tr("Links %1").arg(static_cast<qulonglong>(links.size())));
     rates_->setText(
         tr("RX %1   TX %2").arg(format_rate(rx_rate), format_rate(tx_rate)));
-    hub_->setText(backend_.hub_running() ? tr("Hub running")
-                                         : tr("Hub stopped"));
+    hub_->setText(backend_.hub_running() ? tr("Engine running")
+                                         : tr("Engine stopped"));
     links_->setVisible(!empty);
     rates_->setVisible(!empty);
     hub_->setVisible(!empty);
@@ -197,6 +282,11 @@ void StatusBar::update_profiling()
     profiling_->setAccessibleName(controller.summary());
     profiling_->setToolTip(controller.summary());
     profiling_->show();
+}
+
+void StatusBar::update_edition()
+{
+    edition_->set_look(support::edition_chip(backend_.licence().status));
 }
 
 void StatusBar::update_readiness()

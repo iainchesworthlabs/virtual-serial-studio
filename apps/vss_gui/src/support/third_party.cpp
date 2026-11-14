@@ -116,6 +116,10 @@ QString licence_text(const QString& spdx)
     if (spdx == QLatin1String("OFL-1.1"))
         return QCoreApplication::translate("About",
                                            "SIL Open Font License, version 1.1.");
+    if (spdx == QLatin1String("BSD-2-Clause OR CC0-1.0"))
+        return QCoreApplication::translate(
+            "About",
+            "BSD 2-Clause License, or Creative Commons Zero, version 1.0.");
     if (spdx == QLatin1String("BSD-3-Clause"))
         return QCoreApplication::translate("About", "BSD 3-Clause License.");
     return spdx;

@@ -114,7 +114,8 @@ struct session
         : stream(std::move(connection)), via(how),
           peer(std::move(who_connected)), number(serial),
           work(pool.get_executor()), handshake_timer(io), poll_timer(io),
-          reader(max_hello_frame_size), read_buffer(read_buffer_size)
+          expect_timer(io), reader(max_hello_frame_size),
+          read_buffer(read_buffer_size)
     {
     }
 
@@ -141,6 +142,8 @@ struct session
     boost::asio::steady_timer handshake_timer;
     /// Turns the stream: each time it fires the agent is asked for batches.
     boost::asio::steady_timer poll_timer;
+    /// Ends an `expect.bytes` whose pattern did not come.
+    boost::asio::steady_timer expect_timer;
     agent::frame_reader reader;
     byte_buffer read_buffer;
 
@@ -217,6 +220,33 @@ struct session
     std::uint64_t events_dropped = 0;
 
     bool streaming() const noexcept { return events_on || traffic_on; }
+
+    // -- waiting for bytes ---------------------------------------------------
+
+    /// An `expect.bytes` that has not been answered yet.
+    struct expectation
+    {
+        std::uint64_t request = 0;
+        endpoint_id port = 0;
+        data_direction direction = data_direction::rx;
+        byte_buffer pattern;
+        /// The last bytes that went by, one fewer than the pattern has, so a
+        /// pattern cut in two by a chunk boundary is still found.
+        byte_buffer tail;
+        /// Bytes that went by since the gateway started to listen.
+        std::uint64_t seen = 0;
+        std::uint64_t events_lost = 0;
+        std::uint64_t sent_bytes = 0;
+        std::uint32_t timeout_ms = 0;
+    };
+    std::optional<expectation> expecting;
+    /// Stream requests that are with the request pool.  Their plans were
+    /// made before now, so the agent's stream is not let go under them.
+    std::size_t stream_changes = 0;
+
+    /// The agent's stream is wanted: for a stream of the client's, or for
+    /// bytes the gateway itself waits for.
+    bool watching() const noexcept { return streaming() || expecting; }
 
     // -- the request pool only -----------------------------------------------
 
@@ -799,6 +829,12 @@ private:
             list_sessions(client, asked.id);
             return;
         }
+        if (const auto* waiting =
+                std::get_if<expect_bytes_request>(&asked.body))
+        {
+            expect_bytes(client, asked.id, *waiting);
+            return;
+        }
         if (const auto* kicking =
                 std::get_if<sessions_kick_request>(&asked.body))
         {
@@ -891,8 +927,8 @@ private:
         welcome.version = gateway_version();
         welcome.principal = client->principal_id();
         welcome.scopes = scope_names(client->scopes());
-        welcome.features = {"ports.read", "events", "traffic", "ports.write",
-                            "ports.send"};
+        welcome.features = {"ports.read",  "events",     "traffic",
+                            "ports.write", "ports.send", "expect.bytes"};
 
         audit_->record("session.opened",
                        {{"session", client->number},
@@ -1102,6 +1138,14 @@ private:
         std::vector<endpoint_id> event_ports;
         std::vector<endpoint_id> traffic_ports;
         std::chrono::milliseconds interval{default_stream_interval_ms};
+        /// The gateway itself waits for bytes (`expect.bytes`), so the agent
+        /// is asked for them whatever the client's streams are.
+        bool expecting = false;
+
+        bool wanted() const noexcept
+        {
+            return events_on || traffic_on || expecting;
+        }
     };
 
     static std::string joined_ports(const std::vector<endpoint_id>& ports)
@@ -1131,6 +1175,7 @@ private:
         plan.event_ports = client->event_ports;
         plan.traffic_ports = client->traffic_ports;
         plan.interval = client->interval;
+        plan.expecting = client->expecting.has_value();
 
         if (options == nullptr)
         {
@@ -1171,6 +1216,7 @@ private:
 
         const bool had_stream = client->streaming();
         ++client->pending;
+        ++client->stream_changes;
         boost::asio::post(
             client->work,
             [this, client, id, plan = std::move(plan), traffic, had_stream,
@@ -1183,6 +1229,7 @@ private:
                      had_stream, starting, agreed]() mutable
                     {
                         --client->pending;
+                        --client->stream_changes;
                         if (client->closed)
                             return;
                         stream_changed(client, id, std::move(plan), traffic,
@@ -1223,7 +1270,7 @@ private:
                             {"principal", client->principal_id()},
                             {"stream", kind},
                             {"reason", "unsubscribed"}});
-            if (!client->streaming())
+            if (!client->watching())
                 client->poll_timer.cancel();
             send_reply(client, reply{id, done_reply{}});
             return;
@@ -1267,7 +1314,7 @@ private:
             [this, client](boost::system::error_code cancelled)
             {
                 if (cancelled || client->closed || client->leaving ||
-                    !client->streaming())
+                    !client->watching())
                     return;
                 // A stream has no next request at which a token that has
                 // ended would be noticed, so it is looked at every turn.
@@ -1298,8 +1345,27 @@ private:
                 std::vector<agent::event_batch>& batches, bool lost)
     {
         client->polling = false;
-        if (client->closed || client->leaving || !client->streaming())
+        if (client->closed || client->leaving || !client->watching())
             return;
+        // What the gateway itself waits for is looked at first, in the order
+        // the bytes went by, and before any of them is moved on.
+        for (const agent::event_batch& batch : batches)
+        {
+            if (!client->expecting)
+                break;
+            client->expecting->events_lost += batch.dropped;
+            for (const agent::event_record& event : batch.events)
+            {
+                if (look_for_pattern(client, event))
+                    break;
+            }
+        }
+        if (!client->streaming())
+        {
+            if (lost)
+                lose_agent(client, 0);
+            return;
+        }
         // While the client has not read what it was sent, nothing new is
         // queued for it: what came meanwhile is counted and gone.
         const bool behind = client->batches_unsent != 0;
@@ -1336,6 +1402,237 @@ private:
         }
         if (lost)
             lose_agent(client, 0);
+    }
+
+    // -- waiting for bytes ---------------------------------------------------
+
+    /// `expect.bytes`.  The agent is asked for the bytes first and only then
+    /// for the send, both by the request pool and in that order, so nothing
+    /// the sent bytes cause can go by before the gateway listens.
+    void expect_bytes(const session_ptr& client, std::uint64_t id,
+                      const expect_bytes_request& wanted)
+    {
+        const auto refuse = [&](api_errc why)
+        {
+            record_expect(*client, wanted.port, wanted.pattern.size(),
+                          wanted.send.size(), code_name(why));
+            send_reply(client, error_reply_for(id, why));
+        };
+        const bool sends = !wanted.send_port.empty();
+        // Sending is a right of its own, asked of the same table.
+        if (sends &&
+            (!client->who ||
+             !authorise(*client->who, info_of(operation::ports_send)).allowed))
+        {
+            forbidden_.fetch_add(1);
+            refuse(api_errc::forbidden);
+            return;
+        }
+        const auto port = parse_port_id(wanted.port);
+        const auto send_port = sends ? parse_port_id(wanted.send_port)
+                                     : std::optional<std::uint64_t>{0};
+        const bool forward =
+            wanted.direction.empty() || wanted.direction == "rx";
+        if (!port || !send_port || wanted.pattern.empty() ||
+            wanted.pattern.size() > max_pattern_size ||
+            wanted.timeout_ms == 0 ||
+            wanted.timeout_ms > max_expect_timeout_ms ||
+            (!forward && wanted.direction != "tx") ||
+            (sends && wanted.send.empty()))
+        {
+            refuse(api_errc::invalid_argument);
+            return;
+        }
+        if (wanted.send.size() > max_send_size)
+        {
+            refuse(api_errc::limit_exceeded);
+            return;
+        }
+        if (client->expecting)
+        {
+            // One at a time: the caller waits for the first to end.
+            refuse(api_errc::conflict);
+            return;
+        }
+
+        session::expectation armed;
+        armed.request = id;
+        armed.port = *port;
+        armed.direction = forward ? data_direction::rx : data_direction::tx;
+        armed.pattern = wanted.pattern;
+        armed.sent_bytes = wanted.send.size();
+        armed.timeout_ms = wanted.timeout_ms;
+        // Set now, so a second request finds it; nothing is looked at until
+        // the agent has agreed, because nothing arrives before that.
+        client->expecting = std::move(armed);
+
+        stream_plan plan;
+        plan.events_on = client->events_on;
+        plan.traffic_on = client->traffic_on;
+        plan.event_ports = client->event_ports;
+        plan.traffic_ports = client->traffic_ports;
+        // Without a stream of the client's the gateway listens at its
+        // fastest; with one it keeps the client's pace.
+        plan.interval = client->streaming()
+                            ? client->interval
+                            : std::chrono::milliseconds(min_stream_interval_ms);
+        plan.expecting = true;
+        const bool had_stream = client->streaming();
+
+        ++client->pending;
+        boost::asio::post(
+            client->work,
+            [this, client, id, plan = std::move(plan), had_stream,
+             target = *send_port, bytes = wanted.send, sends]() mutable
+            {
+                const bool listening = ask_agent_for(*client, plan);
+                error_code unsent;
+                if (listening && sends)
+                    unsent = write_to_agent(*client, target, bytes);
+                boost::asio::post(io_,
+                                  [this, client, id, interval = plan.interval,
+                                   had_stream, listening, unsent]
+                                  {
+                                      --client->pending;
+                                      if (client->closed)
+                                          return;
+                                      expectation_armed(client, id, interval,
+                                                        had_stream, listening,
+                                                        unsent);
+                                      pump(client);
+                                  });
+            });
+    }
+
+    void expectation_armed(const session_ptr& client, std::uint64_t id,
+                           std::chrono::milliseconds interval, bool had_stream,
+                           bool listening, const error_code& unsent)
+    {
+        if (!client->expecting || client->expecting->request != id)
+            return;
+        if (!listening)
+        {
+            end_expectation(client, "unavailable");
+            if (had_stream)
+                lose_agent(client, id);
+            else
+                send_reply(client, error_reply_for(id, api_errc::unavailable));
+            return;
+        }
+        if (unsent)
+        {
+            // The send did not happen, so there is nothing to wait for.
+            const bool engine = unsent.category() == vss::error_category();
+            const reply answer =
+                engine ? reply{id, error_reply{engine_api_error(unsent)}}
+                       : error_reply_for(id, api_errc::unavailable);
+            end_expectation(client,
+                            std::get<error_reply>(answer.body).error.code);
+            send_reply(client, answer);
+            return;
+        }
+        client->interval = interval;
+        const auto limit =
+            std::chrono::milliseconds(client->expecting->timeout_ms);
+        client->expect_timer.expires_after(limit);
+        client->expect_timer.async_wait(
+            [this, client, id](boost::system::error_code cancelled)
+            {
+                if (cancelled || client->closed || !client->expecting ||
+                    client->expecting->request != id)
+                    return;
+                end_expectation(client, code_name(api_errc::timeout));
+                send_reply(client, error_reply_for(id, api_errc::timeout));
+            });
+        arm_poll(client);
+    }
+
+    /// Looks at one event for the pattern.  True when the wait is over.
+    bool look_for_pattern(const session_ptr& client,
+                          const agent::event_record& event)
+    {
+        if (!client->expecting)
+            return false;
+        session::expectation& wait = *client->expecting;
+        if (event.kind != event_kind::data || event.endpoint != wait.port ||
+            event.direction != wait.direction)
+            return false;
+        if (event.data.size() != event.size)
+        {
+            // The agent told of bytes it did not pass on (a chunk larger
+            // than its queue takes): they went by unseen.
+            ++wait.events_lost;
+            wait.tail.clear();
+            wait.seen += event.size;
+            return false;
+        }
+        // The tail and the new chunk, searched as one run of bytes.
+        byte_buffer run = wait.tail;
+        run.insert(run.end(), event.data.begin(), event.data.end());
+        const auto found = std::search(
+            run.begin(), run.end(), wait.pattern.begin(), wait.pattern.end());
+        if (found == run.end())
+        {
+            wait.seen += event.data.size();
+            const std::size_t keep =
+                (std::min)(run.size(), wait.pattern.size() - 1);
+            wait.tail.assign(run.end() - static_cast<std::ptrdiff_t>(keep),
+                             run.end());
+            return false;
+        }
+        matched_reply answer;
+        // `seen` counts up to the start of this chunk; the tail lies before
+        // that.
+        answer.offset = wait.seen - wait.tail.size() +
+                        static_cast<std::uint64_t>(found - run.begin());
+        answer.mono_ns = event.when_ns;
+        answer.events_lost = wait.events_lost;
+        const std::uint64_t id = wait.request;
+        end_expectation(client, "matched");
+        send_reply(client, reply{id, answer});
+        return true;
+    }
+
+    /// The wait is over, however it ended: recorded, and the agent's stream
+    /// let go when nothing else wants it.
+    void end_expectation(const session_ptr& client, std::string_view outcome)
+    {
+        if (!client->expecting)
+            return;
+        const session::expectation& wait = *client->expecting;
+        record_expect(*client, port_id_text(wait.port), wait.pattern.size(),
+                      wait.sent_bytes, outcome);
+        client->expecting.reset();
+        client->expect_timer.cancel();
+        if (client->streaming() || client->closed ||
+            client->stream_changes != 0)
+            return;
+        client->poll_timer.cancel();
+        boost::asio::post(client->work,
+                          [client]
+                          {
+                              // A later request may have wanted it again.
+                              if (!client->upstream)
+                                  return;
+                              drop_agent(*client);
+                          });
+    }
+
+    /// One record for each `expect.bytes`, with how it ended.  Neither the
+    /// pattern nor the bytes sent are in it, only how many there were.
+    void record_expect(const session& client, std::string_view port,
+                       std::size_t pattern_bytes, std::size_t sent_bytes,
+                       std::string_view outcome)
+    {
+        audit_->record(
+            "operation",
+            {{"session", client.number},
+             {"principal", client.principal_id()},
+             {"operation", info_of(operation::expect_bytes).name},
+             {"port", parse_port_id(port) ? port : std::string_view()},
+             {"pattern_bytes", static_cast<std::uint64_t>(pattern_bytes)},
+             {"sent_bytes", static_cast<std::uint64_t>(sent_bytes)},
+             {"outcome", outcome}});
     }
 
     void note_dropped(session& client, std::uint64_t count)
@@ -1677,6 +1974,7 @@ private:
         client->closed = true;
         client->handshake_timer.cancel();
         client->poll_timer.cancel();
+        client->expect_timer.cancel();
         client->stream->close();
         // The bytes stay until the session goes: a write that is being
         // cancelled may still be looking at them.  What was to run after
@@ -1737,13 +2035,39 @@ private:
         client.upstream = false;
     }
 
+    /// Writes to a port for `expect.bytes`.  The error of the engine, or of
+    /// the connection, which is then let go.
+    error_code write_to_agent(session& client, endpoint_id port,
+                              const byte_buffer& bytes) noexcept
+    {
+        try
+        {
+            if (client.agent)
+            {
+                const auto written =
+                    client.agent->write(port, bytes_view(bytes));
+                if (written)
+                    return {};
+                if (written.error().category() == vss::error_category())
+                    return written.error();
+            }
+            drop_agent(client);
+            return make_error_code(errc::io_error);
+        }
+        catch (const std::exception&)
+        {
+            drop_agent(client);
+            return make_error_code(errc::io_error);
+        }
+    }
+
     /// Brings the agent's stream of this session's connection to what
     /// `plan` needs.  False when the agent could not be asked.
     bool ask_agent_for(session& client, const stream_plan& plan) noexcept
     {
         try
         {
-            if (!plan.events_on && !plan.traffic_on)
+            if (!plan.wanted())
             {
                 // The agent has no request that ends a stream; letting the
                 // connection go does.
@@ -1754,8 +2078,9 @@ private:
             // The bytes are asked for only by a session with the traffic
             // stream: a session without it is never sent them.
             if (source != nullptr &&
-                source->subscribe(plan.traffic_on, static_cast<std::uint32_t>(
-                                                       plan.interval.count())))
+                source->subscribe(
+                    plan.traffic_on || plan.expecting,
+                    static_cast<std::uint32_t>(plan.interval.count())))
             {
                 client.upstream = true;
                 return true;

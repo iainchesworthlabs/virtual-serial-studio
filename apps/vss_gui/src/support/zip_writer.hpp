@@ -19,7 +19,7 @@ namespace vss::gui::support
 
 /// A minimal stored (uncompressed) ZIP writer.
 ///
-/// The diagnostic bundle needs one standard ZIP file and the project forbids
+/// The support bundle needs one standard ZIP file and the project forbids
 /// a new third-party dependency, so this writes the format directly: local
 /// headers, a central directory and the end-of-central-directory record, with
 /// the UTF-8 file-name flag set.  Nothing is compressed; every reader accepts

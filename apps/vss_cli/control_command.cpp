@@ -12,6 +12,7 @@
 #include <vss/agent/proto/error.hpp>
 #include <vss/control/client.hpp>
 #include <vss/control/proto/error.hpp>
+#include <vss/control/proto/message.hpp>
 #include <vss/control/proto/policy.hpp>
 #include <vss/control/proto/secret.hpp>
 #include <vss/core/bytes.hpp>
@@ -71,7 +72,8 @@ enum class action_kind
     port_create,
     port_remove,
     link,
-    send
+    send,
+    expect
 };
 
 struct control_arguments
@@ -103,6 +105,14 @@ struct control_arguments
     std::string other_port;
     bool one_way = false;
     vss::byte_buffer bytes;
+    /// For `expect`: the bytes to wait for, how long to wait in ms, whether
+    /// to hear what the port sent, and the port and bytes to send once the
+    /// gateway listens (empty for none).
+    vss::byte_buffer pattern;
+    std::uint32_t timeout_ms = vss::control::default_expect_timeout_ms;
+    bool tx = false;
+    std::string send_port;
+    vss::byte_buffer send_data;
     bool valid = true;
 };
 
@@ -123,8 +133,13 @@ struct raw_arguments
     std::optional<std::string> count;
     std::optional<std::string> kind;
     std::optional<std::string> hex;
+    std::optional<std::string> pattern;
+    std::optional<std::string> timeout;
+    std::optional<std::string> send_to;
+    std::optional<std::string> send;
     bool data = false;
     bool one_way = false;
+    bool tx = false;
     bool valid = true;
 };
 
@@ -159,7 +174,11 @@ raw_arguments read_words(const std::vector<std::string>& arguments)
             take_option(word, "--seconds=", raw.seconds, raw.valid) ||
             take_option(word, "--count=", raw.count, raw.valid) ||
             take_option(word, "--kind=", raw.kind, raw.valid) ||
-            take_option(word, "--hex=", raw.hex, raw.valid))
+            take_option(word, "--hex=", raw.hex, raw.valid) ||
+            take_option(word, "--pattern=", raw.pattern, raw.valid) ||
+            take_option(word, "--timeout=", raw.timeout, raw.valid) ||
+            take_option(word, "--send-to=", raw.send_to, raw.valid) ||
+            take_option(word, "--send=", raw.send, raw.valid))
             continue;
         if (word == "--data")
         {
@@ -173,6 +192,13 @@ raw_arguments read_words(const std::vector<std::string>& arguments)
             if (raw.one_way)
                 raw.valid = false;
             raw.one_way = true;
+            continue;
+        }
+        if (word == "--tx")
+        {
+            if (raw.tx)
+                raw.valid = false;
+            raw.tx = true;
             continue;
         }
         if (word.starts_with("--"))
@@ -332,10 +358,18 @@ bool no_port_options(const raw_arguments& raw)
     return !raw.kind && !raw.hex && !raw.one_way;
 }
 
-/// True when none of the options of `token create` and of `watch` is there.
+/// True when none of the options that only `expect` takes is there.
+bool no_expect_options(const raw_arguments& raw)
+{
+    return !raw.pattern && !raw.timeout && !raw.send_to && !raw.send && !raw.tx;
+}
+
+/// True when none of the options of `token create`, of `watch` and of
+/// `expect` is there.
 bool no_foreign_options(const raw_arguments& raw)
 {
-    return no_create_options(raw) && no_watch_options(raw);
+    return no_create_options(raw) && no_watch_options(raw) &&
+           no_expect_options(raw);
 }
 
 /// Reads the options of `watch` into `parsed`.  False when they are not what
@@ -370,6 +404,37 @@ bool read_watch_options(const raw_arguments& raw, control_arguments& parsed)
     return true;
 }
 
+/// Reads the options of `expect` into `parsed`.  False when they are not what
+/// the command takes: a pattern and a send that are not hex, a timeout that
+/// is not a number of at least 1, or one of `--send-to` and `--send` alone.
+/// Whether the timeout is too long is for the gateway to say.
+bool read_expect_options(const raw_arguments& raw, control_arguments& parsed)
+{
+    if (!raw.pattern || raw.send_to.has_value() != raw.send.has_value())
+        return false;
+    auto pattern = hex_bytes(*raw.pattern);
+    if (!pattern)
+        return false;
+    parsed.pattern = std::move(*pattern);
+    if (raw.timeout)
+    {
+        const auto timeout = whole_number<std::uint32_t>(*raw.timeout);
+        if (!timeout || *timeout < 1)
+            return false;
+        parsed.timeout_ms = *timeout;
+    }
+    parsed.tx = raw.tx;
+    if (raw.send_to && raw.send)
+    {
+        auto data = hex_bytes(*raw.send);
+        if (!data || raw.send_to->empty())
+            return false;
+        parsed.send_port = *raw.send_to;
+        parsed.send_data = std::move(*data);
+    }
+    return true;
+}
+
 control_arguments parse(const std::vector<std::string>& arguments)
 {
     control_arguments parsed;
@@ -396,7 +461,8 @@ control_arguments parse(const std::vector<std::string>& arguments)
     }
     if (words.size() == 1 && words[0] == "watch")
     {
-        if (!no_create_options(raw) || !no_port_options(raw))
+        if (!no_create_options(raw) || !no_port_options(raw) ||
+            !no_expect_options(raw))
             return parsed;
         parsed.action = action_kind::watch;
         parsed.token_file = raw.token_file;
@@ -473,8 +539,20 @@ control_arguments parse(const std::vector<std::string>& arguments)
         parsed.valid = true;
         return parsed;
     }
+    if (words.size() == 2 && words[0] == "expect")
+    {
+        if (!no_create_options(raw) || !no_watch_options(raw) ||
+            !no_port_options(raw))
+            return parsed;
+        parsed.action = action_kind::expect;
+        parsed.port = words[1];
+        parsed.token_file = raw.token_file;
+        parsed.valid = read_expect_options(raw, parsed);
+        return parsed;
+    }
     if (words.size() < 2 || words[0] != "token" || raw.token_file ||
-        !no_watch_options(raw) || !no_port_options(raw))
+        !no_watch_options(raw) || !no_port_options(raw) ||
+        !no_expect_options(raw))
         return parsed;
     if (words.size() == 2 && words[1] == "create")
     {
@@ -524,6 +602,8 @@ const char* action_name(action_kind action) noexcept
         return "link";
     case action_kind::send:
         return "send";
+    case action_kind::expect:
+        return "expect";
     case action_kind::none:
         break;
     }
@@ -922,6 +1002,26 @@ int send_bytes(client& gateway, const control_arguments& args)
     return exit_ok;
 }
 
+/// Waits for the pattern and prints where it went by.  An answer that the
+/// pattern did not come is an error, as any other the gateway gives.
+int expect_bytes(client& gateway, const control_arguments& args)
+{
+    vss::control::expect_bytes_request wanted;
+    wanted.port = args.port;
+    wanted.pattern = args.pattern;
+    if (args.tx)
+        wanted.direction = "tx";
+    wanted.timeout_ms = args.timeout_ms;
+    wanted.send_port = args.send_port;
+    wanted.send = args.send_data;
+    const auto matched = gateway.expect_bytes(wanted);
+    if (!matched)
+        return report_with_code("expect", matched.error(), gateway);
+    std::printf("matched %llu %llu %llu\n", number_of(matched->offset),
+                number_of(matched->mono_ns), number_of(matched->events_lost));
+    return exit_ok;
+}
+
 /// The token on the first line of the file at `path`, without its line
 /// ending.  Nothing when the file cannot be read or holds no token.  The text
 /// is read into a buffer that is wiped before this returns.
@@ -1023,6 +1123,23 @@ const char* control_usage() noexcept
            "      send needs control.data; the default role of this user\n"
            "      (monitor) has neither.  When the engine says no, the line\n"
            "      ends with the name of its error, as in (engine.not_found).\n"
+           "\n"
+           "  vss_cli control expect <id> --pattern=<digits> [--timeout=<ms>]\n"
+           "           [--tx] [--send-to=<id> --send=<digits>]\n"
+           "           [--instance=<name>] [--token-file=<file>]\n"
+           "      Wait for bytes to go by on a port.  --pattern is 1 to 256\n"
+           "      bytes as hex digits, as for send.  It waits --timeout ms (1\n"
+           "      to 60000, 1000 by default) for what the port received, or\n"
+           "      with --tx for what it sent.  With --send-to and --send the\n"
+           "      gateway sends those bytes to that port once it is\n"
+           "      listening, so a reply cannot be missed.  When the pattern\n"
+           "      came it prints matched, the number of bytes that went by\n"
+           "      before it, the time in ns on the steady clock of the\n"
+           "      computer and the number of events lost, as in\n"
+           "      matched 6 1234567890 0.  When it did not come the line\n"
+           "      ends with (timeout) and the exit code is 1.  It needs the\n"
+           "      scope monitor.data, and control.data as well to send; the\n"
+           "      default role of this user (monitor) has neither.\n"
            "\n";
 }
 
@@ -1038,8 +1155,8 @@ int command_control(const std::vector<std::string>& arguments)
     vss::control::client_options options;
     options.instance = args.instance;
     options.name = "vss_cli";
-    // `status`, `watch` and the four commands on ports are for any caller;
-    // the rest are for this user on the administration endpoint.
+    // `status`, `watch`, `expect` and the four commands on ports are for any
+    // caller; the rest are for this user on the administration endpoint.
     options.admin = args.action == action_kind::stop ||
                     args.action == action_kind::token_create ||
                     args.action == action_kind::token_list ||
@@ -1093,6 +1210,8 @@ int command_control(const std::vector<std::string>& arguments)
         return link_ports(gateway, args);
     case action_kind::send:
         return send_bytes(gateway, args);
+    case action_kind::expect:
+        return expect_bytes(gateway, args);
     case action_kind::status:
     case action_kind::none:
         break;

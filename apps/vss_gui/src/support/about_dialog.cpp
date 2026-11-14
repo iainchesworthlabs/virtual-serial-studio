@@ -7,6 +7,7 @@
 #include "support/about_dialog.hpp"
 
 #include "support/build_info.hpp"
+#include "support/licence_text.hpp"
 #include "support/third_party.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
@@ -91,8 +92,9 @@ void add_licence(QVBoxLayout* layout, const QString& name,
 
 } // namespace
 
-AboutDialog::AboutDialog(QWidget* parent)
-    : QDialog(parent), info_(current_build_info())
+AboutDialog::AboutDialog(StudioBackend& backend, QWidget* parent)
+    : QDialog(parent), info_(current_build_info()),
+      edition_(edition_label(backend.licence().status))
 {
     build();
 }
@@ -149,8 +151,8 @@ void AboutDialog::build()
         QCoreApplication::translate(
             "About",
             "Version %1. Free software under the GNU General Public License, "
-            "version 3 or later.")
-            .arg(info_.full_version()),
+            "version 3 or later. Edition: %2.")
+            .arg(info_.full_version(), edition_),
         header);
     sub->setFont(Theme::instance().font(text_style::body));
     sub->setProperty("muted", true);
@@ -298,8 +300,8 @@ void AboutDialog::build()
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
     auto* bundle = make_dialog_button(
-        QCoreApplication::translate("About", "Create diagnostic bundle"),
-        "quiet", footer);
+        QCoreApplication::translate("About", "Create support bundle"), "quiet",
+        footer);
     bundle->setAutoDefault(false);
     connect(bundle, &QPushButton::clicked, this,
             &AboutDialog::bundle_requested);

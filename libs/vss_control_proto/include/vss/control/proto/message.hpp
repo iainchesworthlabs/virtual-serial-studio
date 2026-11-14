@@ -60,6 +60,10 @@ inline constexpr std::size_t max_json_depth = 8;
 /// The most bytes one `ports.send` may carry.  The decoder takes more, so
 /// that the gateway can answer `limit_exceeded` and keep the session.
 inline constexpr std::size_t max_send_size = std::size_t{64} * 1024;
+/// The longest pattern `expect.bytes` waits for, and the longest it waits.
+inline constexpr std::size_t max_pattern_size = 256;
+inline constexpr std::uint32_t max_expect_timeout_ms = 60'000;
+inline constexpr std::uint32_t default_expect_timeout_ms = 1000;
 /// The most ports a subscription may name.
 inline constexpr std::size_t max_port_filter_size = 64;
 /// The shortest, the longest and the usual time between two batches of a
@@ -240,13 +244,41 @@ struct ports_send_request
                            const ports_send_request&) = default;
 };
 
+/// Waits, inside the gateway, until `pattern` has gone by on a port, and
+/// can send bytes to a port once it is listening: "after I send this, that
+/// arrives within a second".  The gateway is listening before it sends, so
+/// nothing that the bytes cause can be missed.  One at a time for each
+/// connection.
+struct expect_bytes_request
+{
+    /// The port to watch (`p_3`).
+    std::string port;
+    /// What to wait for: 1 to `max_pattern_size` bytes, found anywhere in
+    /// what goes by, also across two chunks.
+    byte_buffer pattern;
+    /// `rx` for what the port received (the usual, and what is taken when
+    /// this is empty) or `tx` for what it sent.
+    std::string direction;
+    /// How long to wait, 1 to `max_expect_timeout_ms`.
+    std::uint32_t timeout_ms = default_expect_timeout_ms;
+    /// The port to send to once listening; empty to send nothing.  Sending
+    /// needs `control.data` as `ports.send` does.
+    std::string send_port;
+    /// The bytes to send: the frame's blob.
+    byte_buffer send;
+
+    friend bool operator==(const expect_bytes_request&,
+                           const expect_bytes_request&) = default;
+};
+
 using request_body = std::variant<
     hello_request, status_request, ports_list_request, endpoint_stop_request,
     tokens_create_request, tokens_list_request, tokens_revoke_request,
     events_subscribe_request, events_unsubscribe_request,
     traffic_subscribe_request, traffic_unsubscribe_request,
     sessions_list_request, sessions_kick_request, ports_create_request,
-    ports_remove_request, links_connect_request, ports_send_request>;
+    ports_remove_request, links_connect_request, ports_send_request,
+    expect_bytes_request>;
 
 struct request
 {
@@ -416,6 +448,23 @@ struct sessions_reply
                            const sessions_reply&) = default;
 };
 
+/// The pattern of an `expect.bytes` went by.
+struct matched_reply
+{
+    /// How many bytes went by on the port, in that direction, between the
+    /// gateway starting to listen and the first byte of the pattern.
+    std::uint64_t offset = 0;
+    /// The engine's time of the chunk that completed the pattern, on the
+    /// steady clock, in nanoseconds.
+    std::uint64_t mono_ns = 0;
+    /// Events the gateway lost while it listened.  When it is not 0, bytes
+    /// may have gone by unseen and `offset` is a lower bound.
+    std::uint64_t events_lost = 0;
+
+    friend bool operator==(const matched_reply&,
+                           const matched_reply&) = default;
+};
+
 /// A port or a link was made: its public id (`p_3`, `l_2`).
 struct created_reply
 {
@@ -435,7 +484,7 @@ struct error_reply
 using reply_body =
     std::variant<done_reply, hello_reply, status_reply, ports_reply,
                  token_created_reply, tokens_reply, subscribed_reply,
-                 sessions_reply, created_reply, error_reply>;
+                 sessions_reply, created_reply, matched_reply, error_reply>;
 
 struct reply
 {

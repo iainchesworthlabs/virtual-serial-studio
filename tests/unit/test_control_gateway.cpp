@@ -1742,7 +1742,13 @@ TEST_CASE("control gateway: a token that ends, ends its session at the next "
 
     const auto closed =
         records_of(audit_records(env.audit_directory), "session.closed");
-    REQUIRE_EQ(text_of(closed.back(), "reason"), std::string("token_expired"));
+    // The session of whoever made the token closes on its own time, so the
+    // token's record is looked for by who it was, not by where it stands.
+    const auto ended_record = std::ranges::find_if(
+        closed, [](const json::object& record)
+        { return text_of(record, "principal").rfind("token:", 0) == 0; });
+    REQUIRE(ended_record != closed.end());
+    REQUIRE_EQ(text_of(*ended_record, "reason"), std::string("token_expired"));
 }
 
 TEST_CASE("control gateway: tokens and revocations outlive the gateway")
@@ -2231,11 +2237,9 @@ TEST_CASE("control gateway: when the ports change a stream says so, with or "
     const auto started = watcher->subscribe_events(every(10, {"p_999999"}));
     REQUIRE(started);
 
-    // Nothing happens and nothing changed: nothing is sent.
-    const auto quiet = watcher->next_events(100ms);
-    REQUIRE(!quiet);
-    REQUIRE_EQ(quiet.error(), vss::make_error_code(vss::errc::timeout));
-
+    // Events of the ports the rig just made may still be on their way; they
+    // are about other ports, so what arrives for them is a batch with no
+    // events in it, which the reads below take in their stride.
     std::uint64_t next_seq = started->next_seq;
     std::uint64_t told = before->revision;
     rig.make("late");
@@ -2454,7 +2458,13 @@ TEST_CASE("control gateway: a token that ends, ends its stream without "
     REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
     const auto closed =
         records_of(audit_records(env.audit_directory), "session.closed");
-    REQUIRE_EQ(text_of(closed.back(), "reason"), std::string("token_expired"));
+    // The session of whoever made the token closes on its own time, so the
+    // token's record is looked for by who it was, not by where it stands.
+    const auto ended_record = std::ranges::find_if(
+        closed, [](const json::object& record)
+        { return text_of(record, "principal").rfind("token:", 0) == 0; });
+    REQUIRE(ended_record != closed.end());
+    REQUIRE_EQ(text_of(*ended_record, "reason"), std::string("token_expired"));
 }
 
 TEST_CASE("control gateway: revoking a token ends its stream")
@@ -2925,4 +2935,362 @@ TEST_CASE("control gateway: a token is held to its scopes when it changes "
     const auto refused = (*held)->create_port("no");
     REQUIRE(!refused);
     REQUIRE_EQ(refused.error(), code(control::api_errc::forbidden));
+}
+
+// -- waiting for bytes -------------------------------------------------------
+
+namespace
+{
+
+control::expect_bytes_request expecting(const std::string& port,
+                                        std::string_view pattern,
+                                        std::uint32_t timeout_ms = 20000)
+{
+    control::expect_bytes_request out;
+    out.port = port;
+    out.pattern = vss::to_bytes(pattern);
+    out.timeout_ms = timeout_ms;
+    return out;
+}
+
+/// Two linked ports made through the gateway: what is sent to `left`
+/// arrives at `right`.
+struct made_pair
+{
+    explicit made_pair(control::client& driver)
+    {
+        const auto first = driver.create_port("left");
+        const auto second = driver.create_port("right");
+        REQUIRE(first);
+        REQUIRE(second);
+        left = *first;
+        right = *second;
+        REQUIRE(driver.connect_ports(left, right, true));
+    }
+
+    std::string left;
+    std::string right;
+};
+
+} // namespace
+
+TEST_CASE("control gateway: bytes that are sent are waited for in the same "
+          "request, and found")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "harness");
+    const made_pair pair(*driver);
+    const auto& features = driver->gateway().features;
+    REQUIRE(std::ranges::find(features, "expect.bytes") != features.end());
+
+    const std::uint64_t before = steady_ns();
+    control::expect_bytes_request wanted = expecting(pair.right, "OK\r\n");
+    wanted.send_port = pair.left;
+    wanted.send = vss::to_bytes("noise OK\r\n and more");
+    const auto found = driver->expect_bytes(wanted);
+    REQUIRE(found);
+    // Six bytes went by before the pattern began.
+    REQUIRE_EQ(found->offset, std::uint64_t{6});
+    REQUIRE_EQ(found->events_lost, std::uint64_t{0});
+    REQUIRE(found->mono_ns >= before);
+    REQUIRE(found->mono_ns <= steady_ns());
+
+    // The session is as it was: it can ask again, and it has no stream.
+    REQUIRE_EQ(env.gate.counters().streams, std::uint64_t{0});
+    wanted.send = vss::to_bytes("OK\r\n");
+    const auto again = driver->expect_bytes(wanted);
+    REQUIRE(again);
+    REQUIRE_EQ(again->offset, std::uint64_t{0});
+    REQUIRE(driver->list_ports());
+
+    // Binary patterns, and a pattern as long as one may be.
+    std::string longest(control::max_pattern_size, '\0');
+    for (std::size_t index = 0; index < longest.size(); ++index)
+        longest[index] = static_cast<char>(index & 0xffu);
+    control::expect_bytes_request binary = expecting(pair.right, longest);
+    binary.send_port = pair.left;
+    binary.send = vss::to_bytes(std::string("\xff\xfe", 2) + longest);
+    const auto exact = driver->expect_bytes(binary);
+    REQUIRE(exact);
+    REQUIRE_EQ(exact->offset, std::uint64_t{2});
+}
+
+TEST_CASE("control gateway: a pattern that arrives in pieces is found")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto harness = env.connect(false, "harness");
+    auto other = env.connect(false, "sender");
+    const made_pair pair(*harness);
+
+    // Another session sends the pattern a byte at a time while this one
+    // waits: every chunk boundary falls inside the pattern.
+    std::atomic<bool> waiting{false};
+    vss::result<control::matched_reply> found =
+        code(control::api_errc::internal);
+    {
+        const joining_thread waiter(
+            [&]
+            {
+                waiting.store(true);
+                found = harness->expect_bytes(expecting(pair.right, "READY"));
+            });
+        REQUIRE(wait_until([&] { return waiting.load(); }));
+        // The wait is armed when the gateway has it in the audit log's
+        // sight: until then nothing sent would be seen, so the sender
+        // repeats the whole pattern until the waiter has its answer.
+        const auto deadline = steady::now() + long_wait;
+        std::size_t round = 0;
+        while (env.gate.counters().sessions == 2 && steady::now() < deadline)
+        {
+            const std::string piece(1, "xREADY"[round % 6]);
+            REQUIRE(other->send(pair.left, vss::to_bytes(piece)));
+            ++round;
+            if (round % 6 == 0 &&
+                !operations_named(env, "expect.bytes").empty())
+                break;
+        }
+    }
+    REQUIRE(found);
+    // It began at a byte that follows an `x`: every sixth byte is one.
+    REQUIRE_EQ(found->offset % 6, std::uint64_t{1});
+}
+
+TEST_CASE("control gateway: a pattern that does not come is a timeout, and "
+          "the session stays")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect();
+    const made_pair pair(*driver);
+
+    control::expect_bytes_request wanted = expecting(pair.right, "NEVER", 150);
+    wanted.send_port = pair.left;
+    wanted.send = vss::to_bytes("something else");
+    const auto started = steady::now();
+    const auto missed = driver->expect_bytes(wanted);
+    REQUIRE(!missed);
+    REQUIRE_EQ(missed.error(), code(control::api_errc::timeout));
+    REQUIRE(steady::now() - started >= 150ms);
+
+    REQUIRE(driver->status());
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+    const auto records = operations_named(env, "expect.bytes");
+    REQUIRE_EQ(records.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(records[0], "outcome"), std::string("timeout"));
+    REQUIRE_EQ(number_of(records[0], "sent_bytes"), std::uint64_t{14});
+}
+
+TEST_CASE("control gateway: waiting for bytes needs the right to read them, "
+          "and sending with it the right to send")
+{
+    {
+        // A monitor without the bytes.
+        fixture env;
+        const traffic_rig rig(env);
+        auto watcher = env.connect();
+        const auto refused = watcher->expect_bytes(
+            expecting(control::port_id_text(rig.b), "x", 100));
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(control::api_errc::forbidden));
+    }
+    {
+        // May read the bytes, may not send: waiting works, sending with it
+        // does not, and nothing was sent.
+        fixture env(with_local_scopes(monitor_with_data()));
+        const traffic_rig rig(env);
+        auto watcher = env.connect();
+        const std::string a = control::port_id_text(rig.a);
+        const std::string b = control::port_id_text(rig.b);
+
+        control::expect_bytes_request with_send = expecting(b, "PING", 200);
+        with_send.send_port = a;
+        with_send.send = vss::to_bytes("PING");
+        const auto refused = watcher->expect_bytes(with_send);
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(control::api_errc::forbidden));
+        const auto listed = watcher->list_ports();
+        REQUIRE(listed);
+        for (const control::port_entry& port : listed->ports)
+        {
+            REQUIRE_EQ(port.bytes_rx, std::uint64_t{0});
+            REQUIRE_EQ(port.bytes_tx, std::uint64_t{0});
+        }
+
+        // Waiting alone: someone else sends.
+        vss::result<control::matched_reply> found =
+            code(control::api_errc::internal);
+        {
+            const joining_thread waiter(
+                [&] { found = watcher->expect_bytes(expecting(b, "PONG")); });
+            const auto deadline = steady::now() + long_wait;
+            while (operations_named(env, "expect.bytes").size() < 2 &&
+                   steady::now() < deadline)
+                rig.send(rig.a, "PONG");
+        }
+        REQUIRE(found);
+        // The session only looks, so its connection to the agent does too.
+        REQUIRE_EQ(env.backend->server.counters().read_only_refused,
+                   std::uint64_t{0});
+    }
+}
+
+TEST_CASE("control gateway: an expect.bytes that asks for what it may not "
+          "have costs an error, not the session")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect();
+    const made_pair pair(*driver);
+    const auto refused_with = [&](const control::expect_bytes_request& wanted)
+    {
+        const auto answer = driver->expect_bytes(wanted);
+        REQUIRE(!answer);
+        return answer.error();
+    };
+    const auto invalid = code(control::api_errc::invalid_argument);
+
+    REQUIRE_EQ(refused_with(expecting("COM3", "x")), invalid);
+    REQUIRE_EQ(refused_with(expecting(pair.right, "")), invalid);
+    REQUIRE_EQ(
+        refused_with(expecting(
+            pair.right, std::string(control::max_pattern_size + 1, 'a'))),
+        invalid);
+    REQUIRE_EQ(refused_with(expecting(pair.right, "x", 0)), invalid);
+    REQUIRE_EQ(refused_with(expecting(pair.right, "x",
+                                      control::max_expect_timeout_ms + 1)),
+               invalid);
+    control::expect_bytes_request sideways = expecting(pair.right, "x");
+    sideways.direction = "both";
+    REQUIRE_EQ(refused_with(sideways), invalid);
+    control::expect_bytes_request bad_target = expecting(pair.right, "x");
+    bad_target.send_port = "left";
+    bad_target.send = vss::to_bytes("x");
+    REQUIRE_EQ(refused_with(bad_target), invalid);
+    control::expect_bytes_request too_much = expecting(pair.right, "x");
+    too_much.send_port = pair.left;
+    too_much.send.assign(control::max_send_size + 1, vss::byte{0x41});
+    REQUIRE_EQ(refused_with(too_much), code(control::api_errc::limit_exceeded));
+    // A port to send to that is not there: the engine says so, and the wait
+    // ends at once and not at its time.
+    control::expect_bytes_request nowhere = expecting(pair.right, "x", 20000);
+    nowhere.send_port = "p_999999";
+    nowhere.send = vss::to_bytes("x");
+    const auto started = steady::now();
+    REQUIRE_EQ(refused_with(nowhere), engine(vss::errc::not_found));
+    REQUIRE(steady::now() - started < 10000ms);
+
+    REQUIRE(driver->status());
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+    // And the next one works.
+    control::expect_bytes_request good = expecting(pair.right, "fine");
+    good.send_port = pair.left;
+    good.send = vss::to_bytes("fine");
+    REQUIRE(driver->expect_bytes(good));
+}
+
+TEST_CASE("control gateway: one wait at a time for a connection")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    const traffic_rig rig(env);
+    raw_client raw(env.instance.name());
+    say_hello(raw, "two waits");
+    const std::string b = control::port_id_text(rig.b);
+    REQUIRE(
+        raw.send(wire_of(control::request{2, expecting(b, "first", 20000)})));
+    REQUIRE(
+        raw.send(wire_of(control::request{3, expecting(b, "second", 20000)})));
+    // The second is refused while the first waits.
+    const control::reply refused = read_reply(raw);
+    REQUIRE_EQ(refused.id, std::uint64_t{3});
+    REQUIRE_EQ(error_of(refused).code, std::string("conflict"));
+
+    // The first still waits and is answered when its bytes come; other
+    // requests are served meanwhile.
+    REQUIRE(raw.send(wire_of(control::request{4, control::status_request{}})));
+    const control::reply state = read_reply(raw);
+    REQUIRE_EQ(state.id, std::uint64_t{4});
+    control::reply found;
+    const auto deadline = steady::now() + long_wait;
+    for (;;)
+    {
+        REQUIRE(steady::now() < deadline);
+        rig.send(rig.a, "first");
+        const auto received = raw.read_frame(200ms);
+        if (!received)
+            continue;
+        const auto message = control::decode_reply(*received);
+        REQUIRE(message);
+        found = *message;
+        break;
+    }
+    REQUIRE_EQ(found.id, std::uint64_t{2});
+    REQUIRE(std::holds_alternative<control::matched_reply>(found.body));
+}
+
+TEST_CASE("control gateway: waiting for bytes leaves a stream of the "
+          "client's as it was, and gives it no bytes it may not have")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "harness");
+    const made_pair pair(*driver);
+    // Events only: this connection has not asked for the traffic stream.
+    const auto started = driver->subscribe_events(every(10));
+    REQUIRE(started);
+
+    control::expect_bytes_request wanted = expecting(pair.right, "MARK");
+    wanted.send_port = pair.left;
+    wanted.send = vss::to_bytes("MARK");
+    REQUIRE(driver->expect_bytes(wanted));
+
+    // The stream went on through it, in order, and carried no bytes even
+    // while the gateway itself was reading them.
+    bool data_seen = false;
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(*driver, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             for (const control::event_entry& event :
+                                  batch.events)
+                             {
+                                 REQUIRE(event.data.empty());
+                                 data_seen = data_seen || event.kind == "data";
+                             }
+                             return data_seen;
+                         }));
+    REQUIRE_EQ(env.gate.counters().streams, std::uint64_t{1});
+    // And it still runs afterwards.
+    REQUIRE(driver->send(pair.left, vss::to_bytes("after")));
+    REQUIRE(read_batches(*driver, next_seq,
+                         [&](const control::event_batch& batch)
+                         {
+                             return std::ranges::any_of(
+                                 batch.events,
+                                 [](const control::event_entry& event)
+                                 { return event.kind == "data"; });
+                         }));
+}
+
+TEST_CASE("control gateway: neither the pattern nor the bytes sent are in "
+          "the audit log")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect();
+    const made_pair pair(*driver);
+    const std::string secret = "PATTERN-5d1e-do-not-log";
+    const std::string stimulus = "STIMULUS-9a7c-do-not-log " + secret;
+    control::expect_bytes_request wanted = expecting(pair.right, secret);
+    wanted.send_port = pair.left;
+    wanted.send = vss::to_bytes(stimulus);
+    REQUIRE(driver->expect_bytes(wanted));
+    driver.reset();
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+
+    const auto records = operations_named(env, "expect.bytes");
+    REQUIRE_EQ(records.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(records.front(), "port"), pair.right);
+    REQUIRE_EQ(number_of(records.front(), "pattern_bytes"), secret.size());
+    REQUIRE_EQ(number_of(records.front(), "sent_bytes"), stimulus.size());
+    REQUIRE_EQ(text_of(records.front(), "outcome"), std::string("matched"));
+    const std::string kept = everything_kept(env.audit_directory);
+    REQUIRE(!holds(kept, "PATTERN-5d1e"));
+    REQUIRE(!holds(kept, "STIMULUS-9a7c"));
+    require_intact(env.audit_directory);
 }

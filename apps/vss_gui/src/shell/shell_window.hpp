@@ -38,6 +38,7 @@ namespace vss::gui
 class EventLogPanel;
 class InspectorPanel;
 class Launcher;
+class LicenceNotice;
 class FixtureBehaviours;
 struct setup_group;
 class MonitorPanel;
@@ -115,6 +116,7 @@ public:
 
     StudioTray* tray() const noexcept { return tray_; }
     NoteBanner* resume_banner() const noexcept { return resume_banner_; }
+    LicenceNotice* licence_notice() const noexcept { return licence_notice_; }
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -203,6 +205,8 @@ private:
     void open_troubleshoot();
     void open_shortcuts();
     void open_about();
+    void open_licence();
+    void open_support();
     void open_help_contents();
     void open_bundle();
     void copy_environment();
@@ -285,6 +289,7 @@ private:
     MonitorPanel* monitor_panel_ = nullptr;
     OwnerBar* owner_bar_ = nullptr;
     NoteBanner* lost_banner_ = nullptr;
+    LicenceNotice* licence_notice_ = nullptr;
     QThread* recreate_thread_ = nullptr;
     EventLogPanel* event_log_ = nullptr;
     TopologyJsonEditor* json_editor_ = nullptr;

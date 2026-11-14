@@ -23,19 +23,22 @@
 #include "flows/watch_dialog.hpp"
 #include "shell/action_registry.hpp"
 #include "support/about_dialog.hpp"
-#include "support/diagnostic_bundle_dialog.hpp"
 #include "support/event_log.hpp"
 #include "support/help_contents_dialog.hpp"
+#include "support/licence_dialog.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
 #include "support/setup_check_dialog.hpp"
 #include "support/setup_facts.hpp"
 #include "support/shortcuts_dialog.hpp"
+#include "support/support_bundle_dialog.hpp"
+#include "support/support_dialog.hpp"
 #include "support/troubleshoot_dialog.hpp"
 #include "theme/theme.hpp"
 #include "widgets/dialogs.hpp"
 
 #include <vss/core/profile.hpp>
+#include <vss/license/license.hpp>
 
 #include <QAbstractButton>
 #include <QAbstractScrollArea>
@@ -301,6 +304,40 @@ void configure_fake(FakeStudioBackend& backend)
     backend.set_devices({device});
 }
 
+/// A licence that ends in ten days, so the Licence page shows its note, its
+/// features and the list of other licences.
+licence_view sample_licence(const char* now = "2026-11-21T00:00:00Z")
+{
+    namespace lic = vss::license;
+    lic::licence value;
+    value.licence_id = "VSS-SAMPLE-000001";
+    value.licensee_name = "Example Lab";
+    value.starts_at = *lic::parse_time("2026-01-01T00:00:00Z");
+    value.issued_at = value.starts_at;
+    value.expires_at = *lic::parse_time("2026-12-01T00:00:00Z");
+    value.seats = 3;
+    value.features = {"plugins.official", "support"};
+    value.machines = {"LAB-*"};
+    lic::context where;
+    where.now = *lic::parse_time(now);
+    where.computer_name = "LAB-RIG-07";
+
+    licence_view view;
+    view.status = lic::evaluate(value, nullptr, where);
+    view.computer_name = QStringLiteral("LAB-RIG-07");
+    licence_file_view in_use;
+    in_use.status = view.status;
+    in_use.file_name = QStringLiteral("VSS-SAMPLE-000001.vsslic");
+    in_use.in_use = true;
+    view.files.push_back(in_use);
+    licence_file_view other = in_use;
+    other.file_name = QStringLiteral("VSS-SAMPLE-000002.vsslic");
+    other.in_use = false;
+    other.machine_wide = true;
+    view.files.push_back(other);
+    return view;
+}
+
 } // namespace
 
 QStringList run_accessibility_checks(ActionRegistry& registry,
@@ -424,9 +461,36 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
             checker.run(dialog, QStringLiteral("troubleshoot"));
         }
         {
+            // The support bundle, with no licence and with one that names
+            // computers, so that every row of the checklist is walked.
             support::EventLog log;
-            support::DiagnosticBundleDialog dialog(backend, log);
-            checker.run(dialog, QStringLiteral("diagnostic-bundle"));
+            support::SupportBundleDialog dialog(backend, log);
+            checker.run(dialog, QStringLiteral("support-bundle"));
+        }
+        {
+            FakeStudioBackend licensed;
+            configure_fake(licensed);
+            licensed.set_licence(sample_licence());
+            support::EventLog log;
+            support::SupportBundleDialog dialog(licensed, log);
+            checker.run(dialog, QStringLiteral("support-bundle-licence"));
+        }
+        {
+            // The Support page in its three variants.
+            support::SupportDialog dialog(backend);
+            checker.run(dialog, QStringLiteral("support-community"));
+        }
+        {
+            FakeStudioBackend licensed;
+            licensed.set_licence(sample_licence());
+            support::SupportDialog dialog(licensed);
+            checker.run(dialog, QStringLiteral("support-included"));
+        }
+        {
+            FakeStudioBackend ended;
+            ended.set_licence(sample_licence("2027-01-05T00:00:00Z"));
+            support::SupportDialog dialog(ended);
+            checker.run(dialog, QStringLiteral("support-ended"));
         }
         {
             support::SettingsDialog dialog(backend,
@@ -434,7 +498,7 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
             checker.run(dialog, QStringLiteral("settings"));
         }
         {
-            support::AboutDialog dialog;
+            support::AboutDialog dialog(backend);
             checker.run(dialog, QStringLiteral("about"));
         }
         {
@@ -444,6 +508,20 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
         {
             support::HelpContentsDialog dialog;
             checker.run(dialog, QStringLiteral("help-contents"));
+        }
+        {
+            // The Licence page, with a licence so that every part shows.
+            FakeStudioBackend licensed;
+            capabilities caps;
+            caps.licences = true;
+            licensed.set_capabilities(caps);
+            licensed.set_licence(sample_licence());
+            support::LicenceDialog dialog(licensed);
+            checker.run(dialog, QStringLiteral("licence"));
+        }
+        {
+            support::RenewDialog dialog(QStringLiteral("VSS-SAMPLE-000001"));
+            checker.run(dialog, QStringLiteral("licence-renew"));
         }
         {
             // The generic confirm and error dialogs are checked with sample
@@ -462,7 +540,6 @@ QStringList run_accessibility_checks(ActionRegistry& registry,
     }
     Theme::instance().set_mode(theme_mode::light);
     QApplication::processEvents();
-
     return failures;
 }
 
