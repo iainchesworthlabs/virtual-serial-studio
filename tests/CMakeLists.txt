@@ -51,6 +51,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_hash.cpp
   unit/test_plugin_manifest.cpp
   unit/test_plugin_measure.cpp
+  unit/test_plugin_signature.cpp
   unit/test_plugin_trust_store.cpp
   unit/test_plugin_verify.cpp
   unit/test_profiling.cpp
