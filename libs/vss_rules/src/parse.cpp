@@ -1184,8 +1184,13 @@ void reader::delay_of(const json::value& value, const std::string& path,
                    {"min_us", &delay_spec::min, false}};
     }
 
+    // A delay that names none of the kinds (a misspelt key) was already
+    // reported as an unknown key, and has nothing more to read.
+    const json::value* named = object->if_contains(name);
+    if (named == nullptr)
+        return;
     const std::string where = join(path, name);
-    const json::object* body = object_of(*object->if_contains(name), where);
+    const json::object* body = object_of(*named, where);
     if (body == nullptr)
         return;
     for (const auto& entry : *body)

@@ -746,6 +746,20 @@ TEST_CASE("rules: parse refuses nesting beyond the depth limit")
     REQUIRE_EQ(hostile.size(), std::size_t{1});
 }
 
+TEST_CASE("rules: parse refuses a delay whose only key is misspelt")
+{
+    // The delay has one key, so it passed the check for exactly one, and none
+    // of the kinds is in it. Found by the fuzzer: the reader read the key of
+    // the last kind anyway.
+    require_refused(
+        with_actions(
+            R"j({"mark": "m", "delay": {"nomlra": {"mean_us": 5}}})j"),
+        "rules[0].do[0].delay.nomlra");
+    require_refused(
+        with_actions(R"j({"mark": "m", "delay": {"expnential": {}}})j"),
+        "rules[0].do[0].delay.expnential");
+}
+
 TEST_CASE("rules: parse refuses an unknown key at every level")
 {
     const std::string base = R"j({"attach": {"port": "p", "role": "peer"})j";
