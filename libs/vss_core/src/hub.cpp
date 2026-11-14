@@ -1506,6 +1506,15 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
             if (target != endpoints_.end())
                 deliveries.push_back({target->second, route.delay});
         }
+
+        // Onto the wire before the lock is let go.  A member that is taken
+        // off the bus has what it sent taken off the wire with it, under the
+        // other lock, so a chunk the line has judged must be on the wire by
+        // then: put there afterwards, it would be heard after its sender
+        // had left.
+        if (wire && !on_wire.empty())
+            wire->push(from, verdict.ends, data,
+                       std::move(verdict.transmission), std::move(on_wire));
     }
 
     for (const auto& entry : deliveries)
@@ -1516,9 +1525,6 @@ void hub::route_data(endpoint_id from, bytes_view data, time_point when)
             entry.target->write(data);
     }
 
-    if (wire && !on_wire.empty())
-        wire->push(from, verdict.ends, data, std::move(verdict.transmission),
-                   std::move(on_wire));
     if (fault)
     {
         fault->when = when;

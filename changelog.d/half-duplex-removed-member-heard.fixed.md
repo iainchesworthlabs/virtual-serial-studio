@@ -1,0 +1,1 @@
+**A member taken off a half-duplex bus is no longer heard afterwards.** What the member was sending at the moment it was removed could reach the other members after it had left the bus. It is now dropped with the member.

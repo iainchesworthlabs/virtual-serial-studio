@@ -974,6 +974,34 @@ TEST_CASE("half-duplex: a member taken off in mid-chunk lets go of the line")
     REQUIRE_EQ(info->stats.garbled, std::uint64_t{0});
 }
 
+TEST_CASE("half-duplex: what a member sends as it is taken off is never heard")
+{
+    // The member is taken off while the hub may be anywhere in routing what
+    // it just sent: not started, judged by the line, or on the wire.  In none
+    // of them may the others hear it afterwards.
+    for (int round = 0; round < 50; ++round)
+    {
+        line_fixture fixture(3);
+        const link_id bus = fixture.make_bus(half_duplex());
+
+        fixture.ports[0].inject_read("gone");
+        if (round % 2 == 1)
+            std::this_thread::yield();
+        REQUIRE(fixture.hub->remove_member(bus, fixture.id(0)));
+
+        // Long enough for anything left on the wire to leave it, and then a
+        // chunk of another member behind it.
+        fixture.clock.advance(1s);
+        fixture.send(1, "k");
+        fixture.clock.advance(1s);
+        REQUIRE(fixture.heard(2, "k"));
+        std::this_thread::sleep_for(2ms);
+        REQUIRE_EQ(fixture.ports[2].written(), std::string("k"));
+        REQUIRE_EQ(fixture.ports[1].written(), std::string());
+        REQUIRE_EQ(fixture.stats(bus).collisions, std::uint64_t{0});
+    }
+}
+
 TEST_CASE("half-duplex: the line of a bus is turned on and off in place")
 {
     line_fixture fixture(3);

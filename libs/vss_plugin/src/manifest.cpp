@@ -13,8 +13,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iterator>
 #include <limits>
+#include <set>
 
 namespace vss::plugin
 {
@@ -510,15 +512,18 @@ public:
     bool on_key(json::string_view part, std::size_t, error_code& error)
     {
         key_.append(part.data(), part.size());
-        std::vector<std::string>& keys = objects_.back();
-        if (std::ranges::find(keys, key_) != keys.end())
+        // An ordered set, so that the cost of one key is the logarithm of
+        // how many the object has, whatever the keys are.  A list that is
+        // searched from the start made a document of many keys take time
+        // that grew with their square, and a hash table can be made slow
+        // by keys chosen to collide.
+        if (!objects_.back().insert(key_).second)
         {
             found_ = true;
             repeated_ = std::move(key_);
             error = make_error_code(plugin_errc::manifest_invalid);
             return false;
         }
-        keys.push_back(std::move(key_));
         key_.clear();
         return true;
     }
@@ -541,7 +546,8 @@ public:
     bool on_comment(json::string_view, error_code&) { return true; }
 
 private:
-    std::vector<std::vector<std::string>> objects_;
+    /// The keys seen so far in each object that is open, outermost first.
+    std::vector<std::set<std::string, std::less<>>> objects_;
     std::string key_;
     std::string repeated_;
     bool found_ = false;
