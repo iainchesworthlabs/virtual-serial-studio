@@ -82,7 +82,7 @@ link_options options_of(int round, int phase, bool owner_allowed)
     link_options options;
     options.delay_ms = delays[static_cast<std::size_t>(round + phase) % 4];
     options.jitter_ms = options.delay_ms / 2;
-    options.policy = owner_allowed && ((round + phase) / 2) % 2 == 1
+    options.policy = owner_allowed && ((round + phase) / 2) % 2 != 0
                          ? merge_policy::owner
                          : merge_policy::interleave;
     options.emulate_modem_lines = ((round + phase) / 3) % 2 == 0;

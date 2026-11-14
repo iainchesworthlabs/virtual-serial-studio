@@ -210,7 +210,8 @@ void churn(const link_options& options, int messages)
         for (const auto& [sender, numbers] : heard)
         {
             REQUIRE_EQ(sender, 'S');
-            REQUIRE(strictly_rising(numbers));
+            const bool rising = strictly_rising(numbers);
+            REQUIRE(rising);
         }
     }
 
@@ -221,7 +222,8 @@ void churn(const link_options& options, int messages)
     for (const auto& [sender, numbers] : replies)
     {
         REQUIRE(sender != 'S');
-        REQUIRE(strictly_rising(numbers));
+        const bool rising = strictly_rising(numbers);
+        REQUIRE(rising);
     }
     if (!owned)
     {
