@@ -88,22 +88,21 @@ PortReadyDialog::PortReadyDialog(StudioBackend& backend, vss::endpoint_id port,
     {
         set_title_text(tr("%1 is ready inside Studio").arg(port_.name));
         set_subtitle_text(
-            tr("Your port \"%1\" now exists inside Studio.").arg(port_.name));
+            tr("The port \"%1\" was created. Only Studio can open it.")
+                .arg(port_.name));
     }
     else if (pseudo_terminal_platform(platform_))
     {
         set_title_text(display);
         set_subtitle_text(
-            tr("Your port \"%1\" now exists, and other programs can open "
-               "it.")
+            tr("The port \"%1\" was created. Other programs can open it.")
                 .arg(port_.name));
     }
     else
     {
         set_title_text(tr("%1 is ready").arg(display));
         set_subtitle_text(
-            tr("Your port \"%1\" now exists, and other programs can open "
-               "it.")
+            tr("The port \"%1\" was created. Other programs can open it.")
                 .arg(port_.name));
     }
 

@@ -173,8 +173,7 @@ void AddPortDialog::build(bool advanced, mode initial)
     add_card(mode::network_endpoint, tr("Network endpoint"),
              tr("A TCP, UDP or RFC 2217 address, used as a port."), true);
     add_card(mode::mock_fixture, tr("Mock fixture"),
-             tr("A pretend device you can script, for testing without "
-                "hardware."),
+             tr("A simulated device for testing without hardware."),
              true);
 
     // A dashed row under the cards points at the advanced types and offers to
@@ -321,10 +320,10 @@ void AddPortDialog::build_virtual_page()
     com_->setAccessibleName(tr("COM number"));
     com_row_ = new FormRow(
         tr("COM number"), com_,
-        tr("Programs that open a fixed name such as COM3 find the port again "
-           "every run. Automatic takes a free number above the ports this PC "
-           "already has, never COM1 or COM2. A number needs the Studio driver "
-           "and its helper service, and is used when one port is made."),
+        tr("A program that opens a fixed name such as COM3 needs the same "
+           "number each time. Automatic takes a free number above the ports "
+           "this PC already has, never COM1 or COM2. A number needs the Studio "
+           "driver and its helper service, and is used when one port is made."),
         virtual_page_);
     layout->addWidget(com_row_);
 
@@ -413,10 +412,9 @@ void AddPortDialog::build_placeholder_page(mode value)
     auto* note = new NoteBanner(
         NoteBanner::kind::info,
         value == mode::network_endpoint
-            ? tr("Network endpoints arrive in a later work package. Nothing "
-                 "has been created.")
-            : tr("Mock fixtures arrive in a later work package. Nothing has "
-                 "been created."),
+            ? tr("Network endpoints are not available yet. Nothing was "
+                 "created.")
+            : tr("Mock fixtures are not available yet. Nothing was created."),
         page);
     layout->addWidget(note);
     layout->addStretch(1);

@@ -6,6 +6,8 @@
 
 #include <vss/plugin/manifest.hpp>
 
+#include "reader.hpp"
+
 #include <boost/json.hpp>
 #include <boost/json/basic_parser_impl.hpp>
 
@@ -1951,8 +1953,93 @@ result<manifest> parse_manifest(std::string_view text, std::string* detail)
         return failure();
     }
 
+    std::string what;
+    const std::optional<json::value> root =
+        ::vss::plugin::detail::parse_strict(text, max_manifest_depth,
+                                            what);
+    if (!root)
+    {
+        ctx.invalid({}, what);
+        return failure();
+    }
+    manifest out = read_manifest(ctx, *root);
+    if (ctx.failed())
+        return failure();
+    if (detail != nullptr)
+        detail->clear();
+    return out;
+}
+
+std::strong_ordering compare(const plugin_version& left,
+                             const plugin_version& right) noexcept
+{
+    if (const auto order = left.major <=> right.major; order != 0)
+        return order;
+    if (const auto order = left.minor <=> right.minor; order != 0)
+        return order;
+    if (const auto order = left.patch <=> right.patch; order != 0)
+        return order;
+    // A version with a pre-release comes before the same version without.
+    if (left.pre_release.empty() || right.pre_release.empty())
+        return left.pre_release.empty() <=> right.pre_release.empty();
+
+    std::string_view a = left.pre_release;
+    std::string_view b = right.pre_release;
+    while (true)
+    {
+        const std::size_t a_dot = a.find('.');
+        const std::size_t b_dot = b.find('.');
+        const std::string_view a_part = a.substr(0, a_dot);
+        const std::string_view b_part = b.substr(0, b_dot);
+        const bool a_number =
+            !a_part.empty() && std::ranges::all_of(a_part, is_digit);
+        const bool b_number =
+            !b_part.empty() && std::ranges::all_of(b_part, is_digit);
+        if (a_number != b_number)
+        {
+            // A number comes before a word.
+            return a_number ? std::strong_ordering::less
+                            : std::strong_ordering::greater;
+        }
+        if (a_number)
+        {
+            // Without leading zeros the longer number is the larger one.
+            const std::string_view a_digits =
+                a_part.substr(std::min(a_part.find_first_not_of('0'),
+                                       a_part.size() - 1));
+            const std::string_view b_digits =
+                b_part.substr(std::min(b_part.find_first_not_of('0'),
+                                       b_part.size() - 1));
+            if (const auto order = a_digits.size() <=> b_digits.size();
+                order != 0)
+                return order;
+            if (const auto order = a_digits <=> b_digits; order != 0)
+                return order;
+        }
+        else if (const auto order = a_part <=> b_part; order != 0)
+        {
+            return order;
+        }
+        const bool a_last = a_dot == std::string_view::npos;
+        const bool b_last = b_dot == std::string_view::npos;
+        if (a_last || b_last)
+        {
+            // The one with more parts comes later.
+            return b_last <=> a_last;
+        }
+        a.remove_prefix(a_dot + 1);
+        b.remove_prefix(b_dot + 1);
+    }
+}
+
+namespace detail
+{
+
+std::optional<json::value>
+parse_strict(std::string_view text, std::size_t max_depth, std::string& what)
+{
     json::parse_options options;
-    options.max_depth = max_manifest_depth;
+    options.max_depth = max_depth;
 
     // Once for the keys, and once for the values.  The first pass also finds
     // text that is not JSON, so the second cannot fail in a new way.
@@ -1963,10 +2050,9 @@ result<manifest> parse_manifest(std::string_view text, std::string* detail)
             scanner.write_some(false, text.data(), text.size(), failed);
         if (scanner.handler().found())
         {
-            ctx.invalid({}, "the key " +
-                                in_quotes(scanner.handler().repeated()) +
-                                " is given twice in one object");
-            return failure();
+            what = "the key " + in_quotes(scanner.handler().repeated()) +
+                   " is given twice in one object";
+            return std::nullopt;
         }
         if (!failed && used != text.size())
         {
@@ -1974,30 +2060,53 @@ result<manifest> parse_manifest(std::string_view text, std::string* detail)
             const std::string_view tail = text.substr(used);
             if (tail.find_first_not_of(" \t\r\n") != std::string_view::npos)
             {
-                ctx.invalid({}, "has text after the JSON document");
-                return failure();
+                what = "has text after the JSON document";
+                return std::nullopt;
             }
         }
         if (failed)
         {
-            ctx.invalid({}, "is not JSON: " + failed.message());
-            return failure();
+            what = "is not JSON: " + failed.message();
+            return std::nullopt;
         }
     }
 
     error_code failed;
-    const json::value root = json::parse(text, failed, {}, options);
+    json::value root = json::parse(text, failed, {}, options);
     if (failed)
     {
-        ctx.invalid({}, "is not JSON: " + failed.message());
-        return failure();
+        what = "is not JSON: " + failed.message();
+        return std::nullopt;
     }
-    manifest out = read_manifest(ctx, root);
-    if (ctx.failed())
-        return failure();
-    if (detail != nullptr)
-        detail->clear();
-    return out;
+    return root;
 }
+
+bool valid_plugin_id(std::string_view text) noexcept
+{
+    return is_plugin_id(text);
+}
+
+bool clean_text(std::string_view text) noexcept
+{
+    return is_clean_text(text);
+}
+
+std::optional<plugin_version> version_from_text(std::string_view text) noexcept
+{
+    return parse_version(text);
+}
+
+std::optional<std::chrono::year_month_day>
+date_from_text(std::string_view text) noexcept
+{
+    return parse_date(text);
+}
+
+std::string quoted(std::string_view text)
+{
+    return in_quotes(text);
+}
+
+} // namespace detail
 
 } // namespace vss::plugin
