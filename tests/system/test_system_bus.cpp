@@ -68,13 +68,13 @@ constexpr unsigned char remote_device = 0x33; // on another computer
 constexpr int short_delay_ms = 150;
 constexpr int long_delay_ms = 380;
 // The device on another computer is given less time of its own than the others,
-// because the network and the client are in the window too. On Windows and Linux
-// the hop costs about a millisecond. On the macOS runners it was seen to cost
-// 115 to 160 ms (answers after 215 to 257 ms when the device waited 100 ms), a
-// cost the cause of which is not known. 40 ms leaves 150 ms for the hop inside
-// the 190 ms the check allows, so a hop that is slow on one system does not fail
-// the bus, while a hop that grows past that still does. The breakdown printed
-// with a miss says which leg was slow.
+// because the network and the client are in the window too. The hop costs a few
+// milliseconds on every system. On the macOS runners the answers were seen
+// after 191 to 257 ms all the same, and the breakdown printed with a miss says
+// why: the client, which is a thread of this test that sleeps, slept 183 to
+// 256 ms when it asked for 40. That time is the test's own and not the bus's,
+// so what the client overslept is taken off its reply before the window is
+// judged; a hop that grows still fails.
 constexpr int remote_delay_ms = 40;
 
 // -- reading the traffic ---------------------------------------------------------
@@ -354,6 +354,9 @@ struct measured_reply
     int delay_ms = 0;
     int allowed_ms = 0;
     std::int64_t gap_ms = 0;
+    /// How much longer than `delay_ms` the test's own device waited, when the
+    /// device is a thread of the test.  It is not charged to the bus.
+    std::int64_t overslept_ms = 0;
     /// Where the time went, when it is known.
     std::string detail;
 };
@@ -477,7 +480,7 @@ std::vector<measured_reply> run_scenario()
             const auto last = answer_at_index + answer_bytes - 1;
             measured_reply reply{
                 item.what, item.delay_ms, item.allowed_ms,
-                ms_between(polls.at[poll_at_index], answers.at[last]), {}};
+                ms_between(polls.at[poll_at_index], answers.at[last]), 0, {}};
             if (item.address == remote_device)
             {
                 // The poll to the client, the client's own wait, and the answer
@@ -486,6 +489,9 @@ std::vector<measured_reply> run_scenario()
                 const auto [saw, wrote] = remote.legs();
                 if (round < saw.size() && round < wrote.size())
                 {
+                    reply.overslept_ms = std::max<std::int64_t>(
+                        0, ms_between(saw[round], wrote[round]) -
+                               item.delay_ms);
                     reply.detail =
                         " (poll reached the client after " +
                         std::to_string(
@@ -575,9 +581,11 @@ TEST_CASE("system: a polled bus answers inside 200 ms and 450 ms and no member "
         {
             // Not before the script said (the poll is stamped as it is written, a
             // little before it reaches the device), and inside the window
-            // with margin.
+            // with margin.  What a device of the test's own overslept is
+            // the test's time and is taken off first.
             if (reply.gap_ms < reply.delay_ms - 20 ||
-                reply.gap_ms > reply.allowed_ms - margin_ms)
+                reply.gap_ms - reply.overslept_ms >
+                    reply.allowed_ms - margin_ms)
             {
                 late += "\n  " + reply.what + " took " +
                         std::to_string(reply.gap_ms) + " ms" + reply.detail;
