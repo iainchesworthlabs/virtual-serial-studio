@@ -27,6 +27,12 @@
 #include <vss/core/transport.hpp>
 #include <vss/core/types.hpp>
 
+#include <vss/license/error.hpp>
+#include <vss/license/license.hpp>
+#include <vss/license/sign.hpp>
+#include <vss/license/signed_file.hpp>
+#include <vss/license/test_keys.hpp>
+
 #include <vss/ports/com0com.hpp>
 #include <vss/ports/loopback_transport.hpp>
 #include <vss/ports/native_lines.hpp>
