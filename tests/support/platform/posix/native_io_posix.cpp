@@ -49,7 +49,7 @@ int milliseconds_until(steady::time_point deadline)
     const auto left =
         std::chrono::ceil<std::chrono::milliseconds>(deadline - steady::now());
     return static_cast<int>(
-        std::clamp<std::int64_t>(left.count(), 0, 24 * 60 * 60 * 1000));
+        std::clamp<std::int64_t>(left.count(), 0, std::int64_t{86'400'000}));
 }
 
 /// Waits until the descriptor is ready for `events` or `deadline` passes.
