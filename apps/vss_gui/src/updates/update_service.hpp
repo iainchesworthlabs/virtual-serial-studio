@@ -48,15 +48,15 @@ namespace vss::gui::updates
 /// The names of the stored values (`QSettings`), all under `updates/`.
 namespace keys
 {
-inline constexpr const char* automatic = "updates/automatic";
-inline constexpr const char* asked = "updates/asked";
-inline constexpr const char* include_prerelease = "updates/includePrerelease";
+inline constexpr const char* kAutomatic = "updates/automatic";
+inline constexpr const char* kAsked = "updates/asked";
+inline constexpr const char* kIncludePrerelease = "updates/includePrerelease";
 /// UTC, ISO 8601. When a feed was last accepted.
-inline constexpr const char* last_check = "updates/lastCheck";
+inline constexpr const char* kLastCheck = "updates/lastCheck";
 /// The highest feed serial accepted, as a decimal string.
-inline constexpr const char* last_serial = "updates/lastSerial";
+inline constexpr const char* kLastSerial = "updates/lastSerial";
 /// The version the person chose to hear no more about.
-inline constexpr const char* skipped_version = "updates/skippedVersion";
+inline constexpr const char* kSkippedVersion = "updates/skippedVersion";
 } // namespace keys
 
 /// The times of section 6.2.

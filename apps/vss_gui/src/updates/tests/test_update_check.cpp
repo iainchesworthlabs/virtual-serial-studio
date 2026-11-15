@@ -18,8 +18,8 @@ using namespace vss::gui::updates::testing;
 namespace
 {
 
-constexpr const char* kLastCheck = keys::last_check;
-constexpr const char* kLastSerial = keys::last_serial;
+constexpr const char* kLastCheck = keys::kLastCheck;
+constexpr const char* kLastSerial = keys::kLastSerial;
 
 /// A feed with one stable release.
 QByteArray stable_feed(const std::string& version, std::uint64_t serial = 5)

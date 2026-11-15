@@ -106,10 +106,10 @@ bool install_stops_studio(const std::optional<upd::file_kind>& kind)
                                 *kind == upd::file_kind::macos_dmg);
 }
 
-bool is_package(const std::optional<upd::file_kind>& kind)
+bool is_package(upd::file_kind kind)
 {
-    return kind.has_value() && (*kind == upd::file_kind::linux_deb ||
-                                *kind == upd::file_kind::linux_rpm);
+    return kind == upd::file_kind::linux_deb ||
+           kind == upd::file_kind::linux_rpm;
 }
 
 int percent_of(const updates::snapshot& state)
@@ -520,6 +520,8 @@ void UpdateDialog::set_buttons(std::initializer_list<QPushButton*> visible,
 void UpdateDialog::show_offer()
 {
     const updates::snapshot& state = service_.state();
+    if (!state.offer.has_value())
+        return;
     const updates::studio_offer& offer = *state.offer;
     page_ = page::offer;
     progress_box_->setVisible(false);
@@ -670,7 +672,7 @@ void UpdateDialog::show_ready()
             "Studio onto Applications in the window that opens."));
         set_buttons({not_now_, open_image_}, open_image_);
     }
-    else if (is_package(kind))
+    else if (kind.has_value() && is_package(*kind))
     {
         ready_text_->setText(QCoreApplication::translate(
             "UpdateDialog", "The update is ready. Install it with this "

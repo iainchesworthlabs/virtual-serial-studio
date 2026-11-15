@@ -242,7 +242,7 @@ TEST_CASE("update notice: each answer is kept and the banner goes")
         REQUIRE(hidden(notice));
         REQUIRE_EQ(h.service->automatic(), turn_on);
         REQUIRE(!h.service->question_due());
-        REQUIRE(QSettings().value(QString::fromLatin1(keys::asked)).toBool());
+        REQUIRE(QSettings().value(QString::fromLatin1(keys::kAsked)).toBool());
 
         // It does not come back, not after a restart either.
         h.recreate();

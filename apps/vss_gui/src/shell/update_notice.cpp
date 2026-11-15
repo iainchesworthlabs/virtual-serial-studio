@@ -13,6 +13,8 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 
+#include <utility>
+
 namespace vss::gui
 {
 
@@ -81,7 +83,7 @@ void UpdateNotice::refresh()
         second_->setAccessibleName(second_->text());
     }
     shown_ = wanted;
-    shown_text_ = text;
+    shown_text_ = std::move(text);
     if (isHidden())
         show();
 }

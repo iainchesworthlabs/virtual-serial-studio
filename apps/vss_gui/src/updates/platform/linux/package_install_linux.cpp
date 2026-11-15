@@ -15,6 +15,7 @@
 #include <QStringList>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <utility>
 
@@ -81,6 +82,15 @@ QString hex_of(const vss::update::sha512_digest& digest)
     return QString::fromLatin1(bytes.toHex());
 }
 
+/// What the handlers of one install share: the caller's function, and
+/// whether one of them has already called it. It is one object so that the
+/// handlers hold a pointer to it rather than a copy of the function each.
+struct pending_install
+{
+    std::function<void(package_install_result)> done;
+    bool settled = false;
+};
+
 } // namespace
 
 bool package_install_available(vss::update::file_kind kind)
@@ -94,10 +104,13 @@ void install_package(vss::update::file_kind kind, const QString& path,
                      const vss::update::sha512_digest& sha512, QObject* context,
                      std::function<void(package_install_result)> done)
 {
+    const auto pending = std::make_shared<pending_install>();
+    pending->done = std::move(done);
     if (!package_install_available(kind))
     {
         QMetaObject::invokeMethod(
-            context, [done] { done(package_install_result::not_available); },
+            context,
+            [pending] { pending->done(package_install_result::not_available); },
             Qt::QueuedConnection);
         return;
     }
@@ -107,30 +120,29 @@ void install_package(vss::update::file_kind kind, const QString& path,
     auto* const process = new QProcess;
     process->setStandardOutputFile(QProcess::nullDevice());
     process->setStandardErrorFile(QProcess::nullDevice());
-    const auto settled = std::make_shared<bool>(false);
     QObject::connect(process, &QProcess::finished, process,
                      &QObject::deleteLater);
     QObject::connect(process, &QProcess::finished, context,
-                     [done, settled](int code, QProcess::ExitStatus status)
+                     [pending](int code, QProcess::ExitStatus status)
                      {
-                         if (std::exchange(*settled, true))
+                         if (std::exchange(pending->settled, true))
                              return;
                          if (status == QProcess::NormalExit && code == 0)
-                             done(package_install_result::done);
+                             pending->done(package_install_result::done);
                          else if (status == QProcess::NormalExit &&
                                   code == kPkexecDismissed)
-                             done(package_install_result::declined);
+                             pending->done(package_install_result::declined);
                          else
-                             done(package_install_result::failed);
+                             pending->done(package_install_result::failed);
                      });
     QObject::connect(process, &QProcess::errorOccurred, context,
-                     [done, settled, process](QProcess::ProcessError error)
+                     [pending, process](QProcess::ProcessError error)
                      {
                          if (error != QProcess::FailedToStart ||
-                             std::exchange(*settled, true))
+                             std::exchange(pending->settled, true))
                              return;
                          process->deleteLater();
-                         done(package_install_result::failed);
+                         pending->done(package_install_result::failed);
                      });
     process->start(
         QString::fromLatin1(kPkexec),

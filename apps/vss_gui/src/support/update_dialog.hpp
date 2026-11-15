@@ -86,15 +86,16 @@ public:
 
     page current_page() const noexcept { return page_; }
 
+    /// Escape and the title bar's close button: "Not now" before a download,
+    /// "Cancel" during one (the dialog then stays open on the offer page).
+    void reject() override;
+
 Q_SIGNALS:
     /// A sentence for the window to show as a toast (after "Skip this
     /// version").
     void toast_requested(const QString& text);
 
 protected:
-    /// Escape and the title bar's close button: "Not now" before a download,
-    /// "Cancel" during one (the dialog then stays open on the offer page).
-    void reject() override;
     void showEvent(QShowEvent* event) override;
     bool event(QEvent* event) override;
 

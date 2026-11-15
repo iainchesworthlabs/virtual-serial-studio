@@ -446,7 +446,9 @@ TEST_CASE("update dialog: there is no release notes link when the feed gave no "
     offer(r);
     // The signed feed always carries an address, so the offer is changed in
     // place here: the service tells the dialog that it changed.
-    const_cast<studio_offer&>(*r.h.state().offer).notes_url.clear();
+    const auto& shown_offer = r.h.state().offer;
+    REQUIRE(shown_offer.has_value());
+    const_cast<studio_offer&>(*shown_offer).notes_url.clear();
     Q_EMIT r.h.service->changed();
     r.open();
     const UpdateDialog& d = *r.dialog;

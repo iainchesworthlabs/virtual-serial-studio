@@ -499,7 +499,7 @@ private:
         auto file = std::make_unique<fake_checked_file>(path, log);
         if (!file->opened())
             return nullptr;
-        last_file = log;
+        last_file = std::move(log);
         return file;
     }
 };

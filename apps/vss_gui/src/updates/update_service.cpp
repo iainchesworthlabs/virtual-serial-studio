@@ -250,7 +250,7 @@ public:
             running_ = *parsed;
         state.developer_build =
             running_.has_value() && upd::is_developer_build(*running_);
-        state.last_checked = read_time(QSettings().value(keys::last_check));
+        state.last_checked = read_time(QSettings().value(keys::kLastCheck));
         if (config_.disabled_by_policy)
             state.state = check_state::disabled_by_policy;
         else if (config_.keys.empty())
@@ -269,7 +269,7 @@ public:
 
     bool automatic() const
     {
-        return QSettings().value(keys::automatic, false).toBool();
+        return QSettings().value(keys::kAutomatic, false).toBool();
     }
 
     void set_automatic(bool on)
@@ -277,14 +277,14 @@ public:
         if (!available())
             return;
         const bool was = automatic();
-        QSettings().setValue(keys::automatic, on);
+        QSettings().setValue(keys::kAutomatic, on);
         if (was != on)
             changed();
     }
 
     bool include_prerelease() const
     {
-        return QSettings().value(keys::include_prerelease, false).toBool();
+        return QSettings().value(keys::kIncludePrerelease, false).toBool();
     }
 
     void set_include_prerelease(bool on)
@@ -292,7 +292,7 @@ public:
         if (!available())
             return;
         const bool was = include_prerelease();
-        QSettings().setValue(keys::include_prerelease, on);
+        QSettings().setValue(keys::kIncludePrerelease, on);
         if (was != on)
             changed();
     }
@@ -300,7 +300,7 @@ public:
     bool question_due() const
     {
         return available() && !owner_.state_.developer_build &&
-               !QSettings().value(keys::asked, false).toBool();
+               !QSettings().value(keys::kAsked, false).toBool();
     }
 
     void answer_question(bool turn_on)
@@ -309,15 +309,15 @@ public:
             return;
         {
             QSettings settings;
-            settings.setValue(keys::asked, true);
-            settings.setValue(keys::automatic, turn_on);
+            settings.setValue(keys::kAsked, true);
+            settings.setValue(keys::kAutomatic, turn_on);
         }
         changed();
     }
 
     QString skipped_version() const
     {
-        return QSettings().value(keys::skipped_version).toString();
+        return QSettings().value(keys::kSkippedVersion).toString();
     }
 
     // -- start and the timer --------------------------------------------------
@@ -381,7 +381,7 @@ public:
         const std::optional<studio_offer>& offer = owner_.state_.offer;
         if (!offer.has_value() || !offer_showing())
             return;
-        QSettings().setValue(keys::skipped_version, offer->version_text);
+        QSettings().setValue(keys::kSkippedVersion, offer->version_text);
         changed();
     }
 
@@ -401,7 +401,7 @@ public:
         const offered_file file = *state.offer->file;
         download_file_ = file;
         download_version_ = state.offer->version_text;
-        download_kind_ = *kind_;
+        download_kind_ = kind_;
         ++download_generation_;
         write_failed_ = false;
 
@@ -673,7 +673,7 @@ private:
         const std::string_view text(body.constData(),
                                     static_cast<std::size_t>(body.size()));
         const std::uint64_t highest =
-            read_serial(QSettings().value(keys::last_serial));
+            read_serial(QSettings().value(keys::kLastSerial));
         const auto read = upd::read_feed(text, config_.keys, highest);
         if (!read.has_value())
         {
@@ -709,9 +709,9 @@ private:
             QSettings settings;
             if (source.serial > highest)
                 settings.setValue(
-                    keys::last_serial,
+                    keys::kLastSerial,
                     QString::number(static_cast<qulonglong>(source.serial)));
-            settings.setValue(keys::last_check, now_text);
+            settings.setValue(keys::kLastCheck, now_text);
         }
         state.last_checked = read_time(now_text);
         timer_failures_ = 0;
