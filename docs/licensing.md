@@ -242,7 +242,9 @@ system. Both public halves ship in every build.
 
 ### Revocation
 
-With no network, revocation can only travel with something the customer
+Studio does not fetch a revocation list over the network. The check for
+updates ([Online updates](updates.md)) could carry one, and that is left out of
+the first version, so revocation can only travel with something the customer
 installs. There are two carriers:
 
 1. **Each release of Studio and of each official plugin carries a revocation
@@ -390,8 +392,10 @@ one.
 
 One Pro licence is one seat. A seat is two computers: the one you work at and one other that you control or monitor from it. The serial device can be on either.
 Controlling one of the two from the other is part of the seat. There is no
-server, and the GUI makes no network connection, so nothing can count
-installations. The options:
+server, and Studio never sends a licence anywhere, so nothing can count
+installations. Activation and seat counting stay offline. The only connection
+Studio makes is the check for updates ([Online updates](updates.md)), which
+sends nothing about the licence. The options:
 
 | Option | How it works | For | Against |
 |---|---|---|---|
@@ -399,7 +403,7 @@ installations. The options:
 | B. One file for each seat | As A, with a seat number in each file | A leak points at one seat | More files for the customer to place. Still nothing technical stops copying |
 | C. Machine names in the file | The file lists computer names. Studio compares its own name | A real limit for a site that wants one. Uses a name the administrator already manages. No hardware fingerprint | A new or renamed computer needs a new file from the owner. A name can be set by the user, so it is a control for honest sites, not a lock |
 | D. Hardware fingerprint | The customer sends a code made from hardware ids, and the file is bound to it | Hardest to copy | Breaks on a new disk, a virtual machine or a container. A hardware id is personal data. A steady load of reissue requests on the owner. Hostile to the lab customer |
-| E. Seats find each other on the network | Copies of Studio announce themselves and count | A true count on one network | Breaks the rule of no network access from the GUI. Fails across subnets. Looks like telemetry |
+| E. Seats find each other on the network | Copies of Studio announce themselves and count | A true count on one network | Breaks the rule that Studio makes no network connection of its own except to check for updates. Fails across subnets. Looks like telemetry |
 
 **Recommendation.**
 

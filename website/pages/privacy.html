@@ -12,10 +12,13 @@ description: Virtual Serial Studio and this website collect nothing: no telemetr
 <ul>
 <li><strong>No telemetry and no analytics.</strong> Studio does not report usage, crashes, port names, traffic or anything else.</li>
 <li><strong>No account.</strong> You do not sign in to use it.</li>
-<li><strong>No network connection of its own.</strong> Studio connects to a network only for an endpoint that you create, to the address that you give it. It does not check for updates.</li>
+<li><strong>No network connection of its own, except to check for updates.</strong> Studio connects to a network for an endpoint that you create, to the address that you give it. The only other connections it makes are the check for updates and the download of an update that you agreed to. It sends nothing about you, your computer or how you use Studio.</li>
+<li><strong>The check for updates is off until you turn it on.</strong> The first time Studio starts, it asks once whether to check for updates automatically. When you say yes, it asks once a day. You can also check by hand, in Help, Check for updates. You can turn the automatic check off at any time, in Settings or in the Updates tab of About. An administrator can turn it off for a whole computer.</li>
+<li><strong>What a check sends.</strong> One request for one file, <code>https://virtual-serial-studio.com/updates/v1/feed.json</code>, over HTTPS. It has no query string and no cookie. Its User-Agent is the fixed text <code>VirtualSerialStudio</code>, with no version and no system in it. The server sees what any web server sees: the address the request came from and the time. The file is signed, and Studio checks the signature before it uses the file.</li>
+<li><strong>A download happens only after you say yes.</strong> It comes from the project's releases on GitHub, and Studio checks it against the checksum in the signed file before it does anything with it. Studio always asks first, and it never installs an update with nobody watching.</li>
 <li><strong>Your traffic stays on your computer.</strong> Captures, setups and logs are files that you save where you choose.</li>
 <li><strong>Support bundles are yours.</strong> A bundle is saved as a file. It leaves your computer only if you send it. It never holds the bytes your ports sent and received.</li>
-<li><strong>Licence files are checked offline.</strong> When the Pro edition is released, its licence will be a file that Studio verifies on your computer. There will be no activation server.</li>
+<li><strong>Licence files are checked offline.</strong> When the Pro edition is released, its licence will be a file that Studio verifies on your computer. There will be no activation server. A licence is never sent anywhere, and the check for updates is the same for every edition.</li>
 </ul>
 
 <h2 id="site">This website</h2>
@@ -29,8 +32,8 @@ description: Virtual Serial Studio and this website collect nothing: no telemetr
 
 <h2 id="others">Where other parties are involved</h2>
 <ul>
-<li><strong>Hosting.</strong> This site is served by GitHub Pages. Like any web server, GitHub receives your IP address and the page you ask for when you visit, and keeps logs for its own security purposes. We do not receive those logs. GitHub's privacy statement explains what it does with them.</li>
-<li><strong>Downloads.</strong> The download links go to GitHub Releases, so GitHub serves the files and sees the request.</li>
+<li><strong>Hosting.</strong> This site is served by GitHub Pages. Like any web server, GitHub receives your IP address and the page you ask for when you visit, and keeps logs for its own security purposes. We do not receive those logs. GitHub's privacy statement explains what it does with them. The check for updates asks this site for one file, so GitHub sees that request in the same way.</li>
+<li><strong>Downloads.</strong> The download links, and the download of an update that you agreed to, go to GitHub Releases, so GitHub serves the files and sees the request.</li>
 <li><strong>Issues.</strong> If you open an issue on GitHub, what you write is public and is held by GitHub under your GitHub account.</li>
 </ul>
 
