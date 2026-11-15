@@ -22356,6 +22356,11 @@ Networks: %5</source>
             <source>The key of %1 is approved.</source>
             <translation>דער שליסל פֿון %1 איז באַשטעטיקט.</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>סטאַטוס</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>
@@ -22434,6 +22439,44 @@ From the plugin %2
                 <numerusform>%1 לייענט דאַטן אויף %n פּאָרט. עפֿנט פּלאַגינס.</numerusform>
                 <numerusform>%1 לייענט דאַטן אויף %n פּאָרטן. עפֿנט פּלאַגינס.</numerusform>
             </translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSandbox</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no containment</source>
+            <translation>קיין אײַנהאַלט נישטאָ</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no file isolation</source>
+            <translation>קיין טעקע־אָפּזונדערונג נישטאָ</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no network isolation</source>
+            <translation>קיין נעץ־אָפּזונדערונג נישטאָ</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>other programs are not kept out of reach</source>
+            <translation>אַנדערע פּראָגראַמען זענען נישט אַוועקגעהאַלטן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>system calls are not limited</source>
+            <translation>סיסטעם־רופֿן זענען נישט באַגרענעצט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>the desktop is not kept out of reach</source>
+            <translation>דער דעסקטאָפּ איז נישט אַוועקגעהאַלטן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no limits on resources</source>
+            <translation>קיין לימיטן אויף רעסורסן נישטאָ</translation>
         </message>
     </context>
 </TS>

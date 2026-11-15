@@ -694,8 +694,10 @@ TEST_CASE("plugins page: an empty list, a filter and Check again")
     settle();
 }
 
-static plugin_inspection_view inspection_of(const char* id,
-                                            const QString& folder)
+namespace
+{
+
+plugin_inspection_view inspection_of(const char* id, const QString& folder)
 {
     plugin_inspection_view found;
     found.folder = folder;
@@ -704,6 +706,8 @@ static plugin_inspection_view inspection_of(const char* id,
     found.can_install = found.plugin.state != plugin_state::cannot_be_used;
     return found;
 }
+
+} // namespace
 
 TEST_CASE("plugins page: Add a plugin looks first, shows what it found, and "
           "copies only when the person confirms")

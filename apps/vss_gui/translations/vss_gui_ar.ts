@@ -22496,6 +22496,11 @@ Networks: %5</source>
             <source>The key of %1 is approved.</source>
             <translation>تمت الموافقة على مفتاح %1.</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>الحالة</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>
@@ -22586,6 +22591,44 @@ From the plugin %2
                 <numerusform>%1 تقرأ البيانات على %n منفذاً. افتح الإضافات.</numerusform>
                 <numerusform>%1 تقرأ البيانات على %n منفذ. افتح الإضافات.</numerusform>
             </translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSandbox</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no containment</source>
+            <translation>بلا احتواء</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no file isolation</source>
+            <translation>بلا عزل للملفات</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no network isolation</source>
+            <translation>بلا عزل للشبكة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>other programs are not kept out of reach</source>
+            <translation>البرامج الأخرى ليست بعيدة المنال</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>system calls are not limited</source>
+            <translation>استدعاءات النظام غير محدودة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>the desktop is not kept out of reach</source>
+            <translation>سطح المكتب ليس بعيد المنال</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no limits on resources</source>
+            <translation>بلا حدود للموارد</translation>
         </message>
     </context>
 </TS>

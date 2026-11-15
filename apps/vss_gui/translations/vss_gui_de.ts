@@ -22356,6 +22356,11 @@ Netzwerke: %5</translation>
             <source>The key of %1 is approved.</source>
             <translation>Der Schlüssel von %1 ist genehmigt.</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>Status</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>
@@ -22434,6 +22439,44 @@ Aus dem Plug-in %2
                 <numerusform>%1 liest Daten an %n Port. „Plug-ins“ öffnen.</numerusform>
                 <numerusform>%1 liest Daten an %n Ports. „Plug-ins“ öffnen.</numerusform>
             </translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSandbox</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no containment</source>
+            <translation>keine Eindämmung</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no file isolation</source>
+            <translation>keine Dateiisolation</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no network isolation</source>
+            <translation>keine Netzwerkisolation</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>other programs are not kept out of reach</source>
+            <translation>andere Programme sind nicht abgeschirmt</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>system calls are not limited</source>
+            <translation>Systemaufrufe sind nicht eingeschränkt</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>the desktop is not kept out of reach</source>
+            <translation>der Desktop ist nicht abgeschirmt</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no limits on resources</source>
+            <translation>keine Ressourcenbegrenzung</translation>
         </message>
     </context>
 </TS>

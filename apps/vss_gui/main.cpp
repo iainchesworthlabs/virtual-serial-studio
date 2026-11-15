@@ -6,6 +6,7 @@
 
 #include "backend/engine_studio_backend.hpp"
 #include "backend/library_plugin_backend.hpp"
+#include "backend/service_plugin_backend.hpp"
 #include "backend/licence_store.hpp"
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
@@ -325,13 +326,15 @@ try
             backend.set_licence_store(
                 std::make_unique<vss::gui::licence_store>(std::move(licences)));
         }
+        // The plugin service of this process: it finds, checks, starts and
+        // stops plugins on threads of its own, never the GUI thread. The
+        // licence in use tells it whether an official plugin is licensed.
+        vss::gui::ServicePluginBackend* plugin_host = nullptr;
         {
-            // The plugin host: it finds and checks the installed plugins on a
-            // thread of its own and starts none. The licence in use tells it
-            // whether an official plugin is licensed.
-            auto plugins = std::make_unique<vss::gui::LibraryPluginBackend>(
-                vss::gui::default_plugin_gather_options());
-            vss::gui::LibraryPluginBackend* host = plugins.get();
+            auto plugins = std::make_unique<vss::gui::ServicePluginBackend>(
+                vss::gui::default_service_plugin_options());
+            vss::gui::ServicePluginBackend* host = plugins.get();
+            plugin_host = host;
             host->set_licence(backend.licence().status);
             QObject::connect(&backend, &vss::gui::StudioBackend::licence_changed,
                              host, [&backend, host]
@@ -474,6 +477,12 @@ try
         const vss::gui::StallWatchdog stall_watchdog;
         const int exit_code = application.exec();
         VSS_PROFILE_MESSAGE("gui.shutdown");
+        // The window is gone from the screen: every plugin is asked to stop
+        // and ended, which takes at most a few seconds, and nothing the
+        // person sees waits for it.
+        window.hide();
+        if (plugin_host != nullptr)
+            plugin_host->shut_down();
         return exit_code;
     }
     catch (const std::exception& error)

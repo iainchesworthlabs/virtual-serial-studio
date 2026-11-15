@@ -1471,10 +1471,14 @@ each one runs as its own program, apart from Studio. Studio never downloads a
 plugin. A plugin is a folder that you or your administrator put in a plugin
 folder.
 
-This build does not run plugins yet. You can see what is installed, decide
-about each one, approve an author's key and say that you want a plugin on.
-Studio keeps those choices, and shows a plugin that is allowed to run as Off,
-with "Not available in this build", until a version of Studio can start it.
+Studio runs a plugin you have switched on as a program of its own, apart from
+Studio, and stops it when you switch it off or close Studio. If it stops
+unexpectedly Studio starts it again after a short wait, and after five failures
+in ten minutes it stops trying and says so; **Start again** tries once more.
+How far this computer can keep a plugin apart from your files and other programs
+is shown for each plugin (**Isolation**). Where it cannot keep a plugin that is
+not official apart, the plugin does not run unless you allow it for that version
+with **Run without isolation...**.
 
 ### The list and the detail
 

@@ -25,6 +25,10 @@ add_library(vss_gui_backend STATIC
   fake_plugin_backend.hpp
   library_plugin_backend.cpp
   library_plugin_backend.hpp
+  service_mapping.cpp
+  service_mapping.hpp
+  service_plugin_backend.cpp
+  service_plugin_backend.hpp
   plugin_mapping.cpp
   plugin_mapping.hpp
   studio_backend.hpp
@@ -43,7 +47,7 @@ add_library(vss_gui_backend STATIC
 target_include_directories(vss_gui_backend PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Vss::plugin Qt6::Core)
+target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Vss::plugin Vss::plugin_host Qt6::Core)
 target_compile_features(vss_gui_backend PUBLIC cxx_std_23)
 target_compile_definitions(vss_gui_backend PRIVATE QT_NO_KEYWORDS)
 icl_platform_sources(vss_gui_backend
@@ -68,7 +72,9 @@ if(VSS_BUILD_TESTS)
     tests/test_com_numbers.cpp
     tests/test_driver_error.cpp
     tests/test_licence_store.cpp
-    tests/test_plugin_backend.cpp)
+    tests/test_plugin_backend.cpp
+    tests/test_service_mapping.cpp
+    tests/test_service_backend.cpp)
 
   target_include_directories(vss_gui_backend_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/framework ${CMAKE_SOURCE_DIR}/tests/support)
@@ -77,5 +83,9 @@ if(VSS_BUILD_TESTS)
   target_link_libraries(vss_gui_backend_tests PRIVATE
     vss_gui_backend Vss::license_test_keys Qt6::Core)
   target_compile_definitions(vss_gui_backend_tests PRIVATE QT_NO_KEYWORDS)
+  # The service test starts the test plugin program of the system tests.
+  add_dependencies(vss_gui_backend_tests vss_test_plugin)
+  target_compile_definitions(vss_gui_backend_tests PRIVATE
+    VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>")
   vss_set_warnings(vss_gui_backend_tests)
 endif()

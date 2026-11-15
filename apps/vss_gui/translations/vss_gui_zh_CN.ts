@@ -22321,6 +22321,11 @@ Networks: %5</source>
             <source>The key of %1 is approved.</source>
             <translation>%1 的密钥已获批准。</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>状态</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>
@@ -22396,6 +22401,44 @@ From the plugin %2
             <translation>
                 <numerusform>%1 正在读取 %n 个串口上的数据。打开“插件”。</numerusform>
             </translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSandbox</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no containment</source>
+            <translation>没有遏制</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no file isolation</source>
+            <translation>没有文件隔离</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no network isolation</source>
+            <translation>没有网络隔离</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>other programs are not kept out of reach</source>
+            <translation>其他程序没有被隔开</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>system calls are not limited</source>
+            <translation>系统调用没有限制</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>the desktop is not kept out of reach</source>
+            <translation>桌面没有被隔开</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
+            <source>no limits on resources</source>
+            <translation>没有资源限制</translation>
         </message>
     </context>
 </TS>

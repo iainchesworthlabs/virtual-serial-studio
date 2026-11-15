@@ -2599,6 +2599,7 @@ TEST_CASE("shell: a new setup and closing wait while the JSON view applies")
     REQUIRE_EQ(backend.ports().size(), std::size_t{1});
     REQUIRE_EQ(backend.ports()[0].name, QStringLiteral("fresh"));
     clear_settings();
+}
 
 TEST_CASE("plugins: Tools has Plugins after Setup check, with no shortcut, "
           "found by search, and off with a reason in a build without a host")

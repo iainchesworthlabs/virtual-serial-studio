@@ -188,6 +188,8 @@ struct plugin_view
     QString reason_code;
     /// The host's own line, for "Copy details" only.
     QString detail;
+    /// What the running plugin last said of itself. Plain text, untrusted.
+    QString status_text;
 
     /// The user switched it on. In a build that cannot run plugins the state
     /// stays Off and this is only the wish.

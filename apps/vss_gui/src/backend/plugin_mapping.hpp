@@ -124,7 +124,20 @@ struct plugin_reason_state
 plugin_reason_state state_for_reason(vss::plugin::plugin_errc code,
                                      bool override_possible);
 
+/// What a key file is checked against: the keys that are official or an
+/// administrator's, and the plugin folders it must not lie in.
+struct key_check_context
+{
+    std::optional<vss::plugin::key_list> official;
+    std::optional<vss::plugin::policy> rules;
+    std::vector<std::filesystem::path> plugin_folders;
+};
+
 /// The public key file's fields, read and checked. `failure` says why not.
+plugin_key_file_view read_key_file_view(const std::filesystem::path& path,
+                                        const key_check_context& context,
+                                        const vss::plugin::trust_store& store,
+                                        vss::plugin::approved_key* key_out);
 plugin_key_file_view read_key_file_view(const std::filesystem::path& path,
                                         const plugin_gathered& found,
                                         const vss::plugin::trust_store& store,

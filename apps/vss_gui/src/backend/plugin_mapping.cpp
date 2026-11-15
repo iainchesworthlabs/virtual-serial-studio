@@ -806,6 +806,18 @@ plugin_key_file_view read_key_file_view(const fs::path& path,
                                         const plug::trust_store& store,
                                         plug::approved_key* key_out)
 {
+    key_check_context context;
+    context.official = found.official;
+    context.rules = found.rules;
+    context.plugin_folders = found.plugin_folders;
+    return read_key_file_view(path, context, store, key_out);
+}
+
+plugin_key_file_view read_key_file_view(const fs::path& path,
+                                        const key_check_context& found,
+                                        const plug::trust_store& store,
+                                        plug::approved_key* key_out)
+{
     plugin_key_file_view view;
     view.path = path_text(path);
     view.failure = plugin_key_file_view::problem::not_a_key_file;

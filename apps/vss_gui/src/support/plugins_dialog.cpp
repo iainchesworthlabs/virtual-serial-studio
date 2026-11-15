@@ -800,7 +800,8 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
           << plugin.studio_version << plugin.expires.toString(Qt::ISODate)
           << plugin.used_copy_folder << plugin.used_copy_author
           << plugin.used_copy_id << plugin.isolation_missing
-          << plugin.override_on.toString(Qt::ISODate) << plugin.runtime_name;
+          << plugin.override_on.toString(Qt::ISODate) << plugin.runtime_name
+          << plugin.status_text;
     parts << QString::number(static_cast<int>(plugin.state))
           << QString::number(static_cast<int>(plugin.note))
           << QString::number(static_cast<int>(plugin.trust))
@@ -1015,6 +1016,13 @@ void PluginsDialog::refresh_detail()
                              : view.author,
                          root, text_style::body, true),
         QStringLiteral("pluginDetailAuthor"));
+    // What the running plugin last said of itself: its own words, as text.
+    if (!plain_text(view.status_text).isEmpty())
+    {
+        row(QCoreApplication::translate("PluginsDialog", "Status"),
+            make_plain_label(view.status_text, root, text_style::body, true),
+            QStringLiteral("pluginDetailStatus"));
+    }
 
     // Signature, with the badge for an official plugin only.
     if (view.state != plugin_state::not_installed)
@@ -1347,9 +1355,13 @@ void PluginsDialog::refresh_detail()
         {
             const plugin_log_line& line =
                 view.log[static_cast<std::size_t>(index)];
-            lines << QStringLiteral("%1 %2").arg(
-                QLocale().toString(line.time, QLocale::ShortFormat),
-                plain_text(line.text));
+            // The host's log lines carry no time; a line that has one shows it.
+            if (line.time.isValid())
+                lines << QStringLiteral("%1 %2").arg(
+                    QLocale().toString(line.time, QLocale::ShortFormat),
+                    plain_text(line.text));
+            else
+                lines << plain_text(line.text);
         }
         text->setPlainText(lines.join(QLatin1Char('\n')));
         content_layout->addWidget(text);
