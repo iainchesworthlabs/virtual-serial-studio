@@ -291,4 +291,9 @@ result<void> remove_plugin(const std::filesystem::path& target_root,
                            const remove_options& options = {},
                            std::string* detail = nullptr);
 
+/// Where the user's decisions about plugin authors are kept: `trust.json` in
+/// `machine::user_folder()`.  Studio and every command read the same file.
+/// Empty when the user's folder cannot be worked out.
+std::filesystem::path trust_file_of_this_user();
+
 } // namespace vss::plugin

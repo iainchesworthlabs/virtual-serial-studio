@@ -13,6 +13,7 @@
 #include <vss/core/error.hpp>
 #include <vss/license/sign.hpp>
 #include <vss/license/signed_file.hpp>
+#include <vss/machine/folders.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
@@ -1218,4 +1219,14 @@ TEST_CASE("plugin install: a context for this computer reads the trust store "
     const inspection found = inspect_plugin(directory, context);
     REQUIRE(level_of(found) == trust_level::third_party_signed);
     REQUIRE(found.run == plugin_errc::policy);
+}
+
+TEST_CASE("plugin install: the trust file is trust.json in the user's folder")
+{
+    // Studio and every command read one file.
+    const fs::path folder = vss::machine::user_folder();
+    if (folder.empty())
+        REQUIRE(trust_file_of_this_user().empty());
+    else
+        REQUIRE(trust_file_of_this_user() == folder / "trust.json");
 }

@@ -6,6 +6,7 @@
 
 #include <vss/plugin/install.hpp>
 
+#include <vss/machine/folders.hpp>
 #include <vss/plugin/access.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/hash.hpp>
@@ -1030,6 +1031,14 @@ result<void> remove_plugin(const fs::path& target_root,
         return refuse(errc::io_error, detail,
                       std::string("the removal failed: ") + error.what());
     }
+}
+
+fs::path trust_file_of_this_user()
+{
+    const fs::path folder = machine::user_folder();
+    if (folder.empty())
+        return {};
+    return folder / "trust.json";
 }
 
 } // namespace vss::plugin
