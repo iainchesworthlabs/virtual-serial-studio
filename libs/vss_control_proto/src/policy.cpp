@@ -92,7 +92,11 @@ constexpr std::array operation_rows{
     operation_info{operation::links_disconnect, "links.disconnect",
                    scope::control_ports, true},
     operation_info{operation::ports_rename, "ports.rename",
-                   scope::control_ports, true}};
+                   scope::control_ports, true},
+    // The audit log names who connected and from which program, so only
+    // this user on the administration endpoint may have it checked.
+    operation_info{operation::audit_verify, "audit.verify", scope::admin,
+                   false}};
 
 } // namespace
 

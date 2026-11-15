@@ -305,6 +305,7 @@ struct request_writer
     }
     void operator()(const ping_request&) const {}
     void operator()(const session_close_request&) const {}
+    void operator()(const audit_verify_request&) const {}
     void operator()(const endpoint_stop_request&) const {}
     void write_stream(const stream_options& options) const
     {
@@ -464,6 +465,8 @@ result<request_body> read_request_body(operation wanted,
         return request_body{ping_request{}};
     case operation::session_close:
         return request_body{session_close_request{}};
+    case operation::audit_verify:
+        return request_body{audit_verify_request{}};
     case operation::endpoint_stop:
         return request_body{endpoint_stop_request{}};
     case operation::events_subscribe:
@@ -761,6 +764,16 @@ struct reply_writer
         header["next_seq"] = body.next_seq;
     }
 
+    void operator()(const audit_reply& body) const
+    {
+        header["reply"] = "audit";
+        header["intact"] = body.intact;
+        header["records"] = body.records;
+        header["file"] = clean_text(body.file);
+        header["line"] = body.line;
+        header["problem"] = clean_text(body.problem);
+    }
+
     void operator()(const sessions_reply& body) const
     {
         header["reply"] = "sessions";
@@ -1021,6 +1034,23 @@ result<reply_body> read_subscribed_reply(const json::object& header)
     return reply_body{body};
 }
 
+result<reply_body> read_audit_reply(const json::object& header)
+{
+    audit_reply body;
+    if (!read_bool(header, "intact", body.intact) ||
+        !read_u64(header, "records", body.records) ||
+        !read_text(header, "file", body.file) ||
+        !read_u64(header, "line", body.line) ||
+        !read_text(header, "problem", body.problem))
+        return malformed();
+    // A log that is intact has no place where it breaks, and one that is
+    // not has one.
+    if (body.intact != (body.line == 0) || body.intact != body.file.empty() ||
+        body.intact != body.problem.empty())
+        return malformed();
+    return reply_body{std::move(body)};
+}
+
 result<reply_body> read_sessions_reply(const json::object& header)
 {
     sessions_reply body;
@@ -1204,6 +1234,8 @@ result<reply_body> read_reply_body(const json::object& header,
     }
     if (kind == "sessions")
         return read_sessions_reply(header);
+    if (kind == "audit")
+        return read_audit_reply(header);
     if (kind == "error")
         return read_error_reply(header);
     return malformed();
@@ -1246,6 +1278,10 @@ operation operation_of(const request_body& body)
         operation operator()(const session_close_request&) const noexcept
         {
             return operation::session_close;
+        }
+        operation operator()(const audit_verify_request&) const noexcept
+        {
+            return operation::audit_verify;
         }
         operation operator()(const endpoint_stop_request&) const noexcept
         {

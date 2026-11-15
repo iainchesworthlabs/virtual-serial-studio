@@ -627,7 +627,7 @@ validates the resulting access token. No sign-in page exists in Studio and none 
 ### Operations and scopes
 
 The table is the design. The "Built" column says what the code has: the table in `libs/vss_control_proto/src/policy.cpp`
-has 29 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
+has 30 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
 design's, except where the Notes say the code asks for another.
 
 | Operation | Scope | Built | Notes |
@@ -662,8 +662,8 @@ scope when there is a need.
 
 **Local-only administration** (the administration endpoint of section 3): `endpoint.stop`, `listeners.*`,
 `tls.rotate`, `tls.pairing_bundle`, `tokens.create/list/revoke`, `policy.*`, `audit.*`, `sessions.list/kick`. Built:
-`endpoint.stop`, `tokens.create/list/revoke` and `sessions.list/kick`. Not built: `listeners.*`, `tls.rotate`,
-`tls.pairing_bundle`, `policy.*` and `audit.*`.
+`endpoint.stop`, `tokens.create/list/revoke`, `sessions.list/kick` and `audit.verify`. Not built: `listeners.*`,
+`tls.rotate`, `tls.pairing_bundle`, `policy.*` and any other `audit.*`.
 
 ### Triggers
 
@@ -893,7 +893,7 @@ policy check, the token code and the peer-credential code are not delegated.
 | Nothing is done before `hello`, and every refusal there looks the same | Every operation, an unknown one and three things that are no request are sent first on both endpoints: each gets the same `unauthenticated` reply and a closed connection. A request sent in one write with a refused `hello` is not run; a second `hello` ends the session | Tokens: slice 2 |
 | One function decides, and `admin` exists only on the administration endpoint | The whole matrix (4 operations x 256 sets of scopes x 4 transports) against a rule written out by hand; a gateway told to give the public endpoint every scope still refuses `endpoint.stop` there | Ceilings for L2 and L3, own-ports rules |
 | A client can slow only itself | Tests for the hello size limit, a wrong length, a silent client, the session and waiting limits, the request allowance, and a client that never reads; a stress case stops the gateway under six busy clients | The request pool has two threads and one agent call can take ten seconds, so two sessions that wait for a hung agent hold up the others' agent requests for that long |
-| The audit log records it and cannot be written by a client | Records for start, stop, each session, each refusal and `endpoint.stop` are checked field by field; a client name that tries to end the line and start a forged one stays text inside one record; the chain verifies after every such test; a flood of refusals writes one record and a count | On Windows an audit directory that already exists is accepted when this user owns it; its access list is not read back |
+| The audit log records it and cannot be written by a client | Records for start, stop, each session, each refusal and `endpoint.stop` are checked field by field; a client name that tries to end the line and start a forged one stays text inside one record; the chain verifies after every such test; a flood of refusals writes one record and a count | On Windows an audit directory that already exists was accepted when this user owned it, with its access list not read back; that is closed, see [What the audit check built](#what-the-audit-check-built) |
 | The API is the control API, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
 
 Not built in this slice, and the reason: `vss_cli control` has `status` and `stop` only, because nothing starts
@@ -1109,6 +1109,19 @@ nothing when they work.
 | The command line and the Python client make the same requests | `vss_cli control unlink` and `port rename` against a real `vss_agent` and `vss_gate`: the link goes and bytes stop, the name changes in `vss_cli agent ports` and `port show`, a name in use and a port that is not there fail with the engine's name, and a monitor is refused. `link <id> <id>`, `link show`, `port create`, `port remove` and `port show` work as before. Bad command lines get the usage text. `disconnect_link` and `rename_port` send the two requests and raise the errors the gateway sends | |
 | What the agent's list says changes with them | The agent's revision goes up for each, and a stream of another session is sent a batch with the new revision | The engine publishes no event for a rename or for a link taken away, so the stream says only that the list changed; a program that wants to know which port or link has to read the list again. The `hello` reply has no feature for the two, so a program learns that a gateway lacks them from `unsupported` |
 
+### What the audit check built
+
+`audit.verify` on the administration endpoint, `vss_cli control audit verify`, and on Windows the reading back of
+the access list of a directory the gateway is given.
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| The gateway checks the chain of its own log | With sessions come and gone, and after a refusal, the answer is `intact` with the number of records, and the number grows. The check runs while no record is being written, so a line that is half written is never read | The check reads every file each time it is asked; a very large log makes it slow, and nothing limits how often it is asked beyond who may ask |
+| A log that was cut says where | A log of an earlier run with one line taken out: the gateway starts on it (it goes on from the last line), and the answer is not intact, with the file, the line and what is wrong | An intact chain does not prove that nobody rewrote the whole log: whoever can write the files can do that (T14). The head hash is not given yet, so it cannot be copied elsewhere through the API |
+| Nothing about where the log is kept is given | The answer names the file and never its directory, and the reason does not hold the path | |
+| Only this user may ask | The operation needs `admin`, which only the administration endpoint grants: a caller of the public endpoint is refused as `forbidden`, the command takes no token, and it cannot be used over TCP | |
+| On Windows a directory that was there before is taken only when nobody else can get in | Directories made with nine access lists: this user alone, with the system and Administrators, with the creator of what is inside, as `mkdtemp` makes one (its owner, the system, Administrators), and with an entry that denies someone else, are taken; one the Users group may read, one everyone may read, one whoever has signed in may write, one everyone may only list, and one with no access list at all are refused, and the audit log goes by the same answer | A second real account was not used: the lists were made by the test as this user. An entry of a kind other than allow and deny is refused without a test of its own. Linux and macOS already refused a directory with any group or other bit |
+
 ### What is not built
 
 Everything in the table of section 9 that is marked "Not built", gathered here in one place:
@@ -1125,7 +1138,8 @@ Everything in the table of section 9 that is marked "Not built", gathered here i
 - Triggers: `triggers.subscribe`, `triggers.read`, `expect.trigger`.
 - Recording: `record.start`, `record.stop`, `record.fetch`.
 - Other: `idempotency_key`, and the administration operations `listeners.*`, `tls.rotate`,
-  `tls.pairing_bundle`, `policy.*` and `audit.*`.
+  `tls.pairing_bundle`, `policy.*` and every `audit.*` but `audit.verify` (reading the log's records through the
+  API, and the head hash to copy elsewhere).
 - Scopes: `control.faults`, `control.apply` and `record` exist and can be given to a token, and no operation asks for
   them, so they allow nothing yet.
 - Level 3 and the remote case: TLS, certificates, the pairing bundle, and the OAuth 2.0 and OpenID Connect interface.

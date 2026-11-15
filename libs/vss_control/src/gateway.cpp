@@ -2550,6 +2550,8 @@ private:
         {
             if (std::holds_alternative<status_request>(asked.body))
                 return reply{asked.id, status(client, sessions_now)};
+            if (std::holds_alternative<audit_verify_request>(asked.body))
+                return verify_audit(asked.id);
             if (std::holds_alternative<ports_list_request>(asked.body))
                 return list_ports(client, asked.id);
             if (const auto* getting =
@@ -2832,6 +2834,33 @@ private:
         for (const agent::link_summary& link : listed->links)
             out.links.push_back(summarise(link));
         return out;
+    }
+
+    /// `audit.verify`: the chain of the gateway's own log, checked while no
+    /// record is being written.  Only the name of a file is given, never
+    /// its directory.
+    reply verify_audit(std::uint64_t id)
+    {
+        const auto found = audit_->verify();
+        if (!found)
+            return error_reply_for(id, api_errc::internal);
+        audit_reply out;
+        out.intact = found->intact;
+        out.records = found->records;
+        if (!found->intact)
+        {
+            out.file = found->file.filename().string();
+            out.line = found->line;
+            out.problem = found->problem;
+            // The reader takes a broken log only with a place and a reason.
+            if (out.file.empty())
+                out.file = "audit.jsonl";
+            if (out.line == 0)
+                out.line = 1;
+            if (out.problem.empty())
+                out.problem = "the chain is broken";
+        }
+        return reply{id, std::move(out)};
     }
 
     reply list_ports(session& client, std::uint64_t id)

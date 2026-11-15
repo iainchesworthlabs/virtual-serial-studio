@@ -186,9 +186,12 @@ struct agent_side
 /// behind it unless the test wants none.
 struct fixture
 {
+    /// `audit` is a directory to keep the audit log in, for a test that
+    /// has put a log there; by default a new one of the fixture's own.
     explicit fixture(control::gateway_options options = {},
-                     bool with_agent = true)
-        : audit_directory(scratch.path() / "audit"),
+                     bool with_agent = true, std::filesystem::path audit = {})
+        : audit_directory(audit.empty() ? scratch.path() / "audit"
+                                        : std::move(audit)),
           gate(prepared(std::move(options)))
     {
         if (with_agent)
@@ -655,6 +658,87 @@ TEST_CASE("control gateway: status gives the edition and the state of the "
     const std::string wire = control::encode(control::reply{1, reply}).header;
     REQUIRE(wire.find(R"("licence":{"edition":"pro","state":"valid"})") !=
             std::string::npos);
+}
+
+TEST_CASE("control gateway: audit.verify checks the gateway's own log, for "
+          "this user alone")
+{
+    fixture env({}, false);
+    // Something to check: a session that came and went.
+    {
+        auto visitor = env.connect();
+        REQUIRE(visitor->ping());
+    }
+    auto admin = env.connect(true);
+    const auto found = admin->verify_audit();
+    REQUIRE(found);
+    REQUIRE(found->intact);
+    // The start of the gateway and the sessions so far, at the least.
+    REQUIRE(found->records >= 3);
+    REQUIRE(found->file.empty());
+    REQUIRE_EQ(found->line, std::uint64_t{0});
+    REQUIRE(found->problem.empty());
+
+    // More records are in the log by now, and the chain still holds.
+    const auto again = admin->verify_audit();
+    REQUIRE(again);
+    REQUIRE(again->intact);
+    REQUIRE(again->records >= found->records);
+
+    // Not for a caller of the public endpoint, whatever it may do there.
+    auto local = env.connect();
+    const auto refused = local->verify_audit();
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(),
+               make_error_code(control::api_errc::forbidden));
+    // The refusal is a record too, and the log is still whole.
+    const auto after = admin->verify_audit();
+    REQUIRE(after);
+    REQUIRE(after->intact);
+    REQUIRE(after->records > again->records);
+}
+
+TEST_CASE("control gateway: audit.verify says where a log that was cut "
+          "breaks, by the file's name alone")
+{
+    const vss_test_support::scratch_directory scratch;
+    const auto directory = scratch.path() / "audit";
+    // A log of an earlier run, with one line taken out afterwards.
+    {
+        control::audit_options options;
+        options.directory = directory;
+        auto log = control::audit_log::open(std::move(options));
+        REQUIRE(log);
+        for (int number = 0; number < 6; ++number)
+            (*log)->record("test.record", {{"number", std::uint64_t(number)}});
+    }
+    const auto file = directory / "audit.jsonl";
+    std::vector<std::string> lines;
+    {
+        std::ifstream in(file, std::ios::binary);
+        for (std::string line; std::getline(in, line);)
+            lines.push_back(line);
+    }
+    REQUIRE_EQ(lines.size(), std::size_t{6});
+    lines.erase(lines.begin() + 2);
+    {
+        std::ofstream out(file, std::ios::binary | std::ios::trunc);
+        for (const std::string& line : lines)
+            out << line << '\n';
+    }
+
+    // The gateway goes on from the last line, which is whole.
+    fixture env({}, false, directory);
+    auto admin = env.connect(true);
+    const auto found = admin->verify_audit();
+    REQUIRE(found);
+    REQUIRE(!found->intact);
+    REQUIRE_EQ(found->file, std::string("audit.jsonl"));
+    REQUIRE(found->line >= 3 && found->line <= 4);
+    REQUIRE(!found->problem.empty());
+    // Where the log is kept is not said.
+    REQUIRE(found->problem.find(scratch.path().string()) == std::string::npos);
+    REQUIRE(found->file.find_first_of("/\\") == std::string::npos);
 }
 
 TEST_CASE("control gateway: the control role is a setting, and admin is "

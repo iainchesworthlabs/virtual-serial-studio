@@ -160,6 +160,10 @@ public:
 
     /// Who is connected.  Administration endpoint only.
     result<sessions_reply> list_sessions();
+
+    /// Has the gateway check the chain of its audit log.  For a client of
+    /// the administration endpoint.
+    result<audit_reply> verify_audit();
     /// Closes the session with this number.  `api_errc::not_found` when
     /// there is none.  Administration endpoint only.
     result<void> kick_session(std::uint64_t number);

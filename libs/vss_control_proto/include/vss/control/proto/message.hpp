@@ -236,6 +236,15 @@ struct traffic_unsubscribe_request
                            const traffic_unsubscribe_request&) = default;
 };
 
+/// Asks the gateway to check its audit log: that every line is a record,
+/// that the numbers follow each other and that each line carries the hash of
+/// the line before.  Only the administration endpoint may.
+struct audit_verify_request
+{
+    friend bool operator==(const audit_verify_request&,
+                           const audit_verify_request&) = default;
+};
+
 /// Asks who is connected.  Only the administration endpoint may.
 struct sessions_list_request
 {
@@ -394,7 +403,7 @@ using request_body = std::variant<
     expect_bytes_request, runs_begin_request, runs_end_request,
     runs_record_request, report_junit_request, ports_get_request,
     links_list_request, links_get_request, ping_request, session_close_request,
-    links_disconnect_request, ports_rename_request>;
+    links_disconnect_request, ports_rename_request, audit_verify_request>;
 
 struct request
 {
@@ -670,12 +679,29 @@ struct error_reply
     friend bool operator==(const error_reply&, const error_reply&) = default;
 };
 
+/// What the check of the audit log found.  This is evidence and not
+/// protection: whoever can write the files can rewrite all of them.
+struct audit_reply
+{
+    /// Every line is a record and the chain holds from the first to the last.
+    bool intact = false;
+    /// The records read, over all the files.
+    std::uint64_t records = 0;
+    /// When not intact: the name of the file (never its directory), the
+    /// 1-based line where the chain breaks, and what is wrong with it.
+    std::string file;
+    std::uint64_t line = 0;
+    std::string problem;
+
+    friend bool operator==(const audit_reply&, const audit_reply&) = default;
+};
+
 using reply_body =
     std::variant<done_reply, hello_reply, status_reply, ports_reply,
                  token_created_reply, tokens_reply, subscribed_reply,
                  sessions_reply, created_reply, matched_reply, run_reply,
                  report_reply, port_reply, links_reply, link_reply,
-                 error_reply>;
+                 audit_reply, error_reply>;
 
 struct reply
 {
