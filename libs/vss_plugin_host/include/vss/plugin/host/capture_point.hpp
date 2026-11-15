@@ -38,6 +38,7 @@
 
 #pragma once
 
+#include <vss/core/control_lines.hpp>
 #include <vss/core/hub.hpp>
 #include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/recording.hpp>
@@ -61,6 +62,9 @@ struct capture_place
     /// The line settings as text for the recording's index, such as
     /// "115200 8N1"; at most 256 bytes.
     std::string settings;
+    /// The control lines as they are now.  A line event of the recording
+    /// says which lines changed, and the first one is compared with this.
+    control_lines lines;
 };
 
 /// Finds a place by its name, or says there is none.  Called on the

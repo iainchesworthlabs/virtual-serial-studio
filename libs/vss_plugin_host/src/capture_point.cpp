@@ -174,6 +174,7 @@ private:
 
         recording_options options;
         std::vector<tap_place> watched;
+        std::vector<control_lines> lines;
         for (const std::string& name : asked->places)
         {
             auto found = find_ ? find_(name) : std::nullopt;
@@ -184,6 +185,9 @@ private:
                 return;
             }
             found->tap.name = name;
+            control_lines known;
+            known.bits = found->lines.bits & recorded_lines;
+            lines.push_back(known);
             options.places.push_back(
                 place_spec{name, found->kind, std::move(found->settings)});
             watched.push_back(std::move(found->tap));
@@ -232,7 +236,7 @@ private:
         recording_run run;
         run.writer.emplace(std::move(*writer));
         run.names = asked->places;
-        run.lines.resize(run.names.size());
+        run.lines = std::move(lines);
         run.last_ns.resize(run.names.size(), 0);
         run.started = started;
         run.limit_seconds = limit_seconds;

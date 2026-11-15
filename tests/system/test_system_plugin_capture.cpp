@@ -133,7 +133,10 @@ struct rig
         if (name == port_name)
             place.tap.endpoints = {serial.endpoint->id()};
         else if (name == lines_name)
+        {
             place.tap.endpoints = {wire->id()};
+            place.lines = wire->lines();
+        }
         else
             return std::nullopt;
         place.tap.name = std::string(name);
@@ -422,7 +425,8 @@ TEST_CASE("plugin capture: a malformed start is bad_request")
     {
         const answered reply =
             fixture.ask(raw_request("capture.start", first_id, header));
-        if (reply.re != 0 || code_of(reply) != code_name(api_errc::bad_request))
+        if (reply.re != first_id ||
+            code_of(reply) != code_name(api_errc::bad_request))
             throw vss_test::failure("not bad_request: " + header);
     }
 
