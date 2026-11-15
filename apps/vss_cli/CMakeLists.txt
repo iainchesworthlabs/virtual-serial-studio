@@ -18,9 +18,12 @@ target_compile_features(vss_cli PRIVATE cxx_std_23)
 target_include_directories(vss_cli PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(vss_cli PRIVATE vss_cli_core Vss::studio Vss::agent_core
   Vss::control_core Vss::plugin Vss::BoostJson vss_testkit)
-target_compile_definitions(vss_cli PRIVATE
-  VSS_CLI_VERSION="${PROJECT_VERSION}")
 vss_set_warnings(vss_cli)
+
+# The build identity, stamped before every build, as the window has it.
+vss_add_build_info(vss_cli
+  TEMPLATE ${CMAKE_CURRENT_SOURCE_DIR}/build_version.cpp.in
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/build_version.cpp)
 
 # What a closing terminal sends differs between systems; CMake chooses the
 # source.

@@ -61,6 +61,10 @@ public:
     /// output ends or `limit` passes.
     std::string read_all(std::chrono::milliseconds limit);
 
+    /// Closes the read end of the pipe, as a program does that reads the
+    /// child's output and goes away: what the child writes after this fails.
+    void close_output();
+
     /// The operating system's process id.
     std::uint64_t id() const noexcept;
 

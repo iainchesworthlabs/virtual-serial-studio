@@ -69,8 +69,20 @@ public:
             argv.push_back(item.data());
         argv.push_back(nullptr);
 
-        const int rc = ::posix_spawn(&pid_, program.c_str(), &actions, nullptr,
-                                     argv.data(), environ);
+        // The program is started with SIGHUP at its default, whatever this
+        // test runner inherited: under `nohup` it would be ignored, and
+        // vss_cli leaves an ignored SIGHUP ignored.
+        posix_spawnattr_t attributes;
+        posix_spawnattr_init(&attributes);
+        sigset_t defaults;
+        sigemptyset(&defaults);
+        sigaddset(&defaults, SIGHUP);
+        posix_spawnattr_setsigdefault(&attributes, &defaults);
+        posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETSIGDEF);
+
+        const int rc = ::posix_spawn(&pid_, program.c_str(), &actions,
+                                     &attributes, argv.data(), environ);
+        posix_spawnattr_destroy(&attributes);
         posix_spawn_file_actions_destroy(&actions);
         ::close(pipes[1]);
         if (rc != 0)

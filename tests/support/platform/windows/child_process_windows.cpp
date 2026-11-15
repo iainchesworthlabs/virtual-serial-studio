@@ -466,6 +466,11 @@ std::string child_process::read_all(std::chrono::milliseconds limit)
     return std::exchange(impl_->buffer_, std::string{});
 }
 
+void child_process::close_output()
+{
+    impl_->output_.reset();
+}
+
 std::uint64_t child_process::id() const noexcept
 {
     return static_cast<std::uint64_t>(impl_->id_);

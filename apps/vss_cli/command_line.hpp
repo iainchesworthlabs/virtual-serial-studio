@@ -95,6 +95,16 @@ const command_spec* find_command_spec(std::string_view name);
 parse_result parse_arguments(const command_spec& spec,
                              const std::vector<std::string>& words);
 
+/// True when `name` (such as `--out`) takes a value in some command, so that
+/// the word after it, in the space form, is not the command.
+bool takes_a_value(std::string_view name);
+
+/// The index of the command in `words`: the first word that is not an option
+/// or the value of one, or the word after `--`.  Nothing when every word is an
+/// option.
+std::optional<std::size_t>
+find_command_word(const std::vector<std::string>& words);
+
 /// The whole of `text` as a decimal number, or nothing when there is other
 /// text, nothing at all, or a value that does not fit.  A leading minus sign
 /// is allowed.

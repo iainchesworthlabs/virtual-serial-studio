@@ -11,18 +11,41 @@
 namespace vss_cli::platform
 {
 
-void catch_terminal_close(void (*handler)(int))
+namespace
+{
+
+/// Calls `handler` for `number`, unless the signal was ignored when the
+/// program started and `keep_ignored` says it should stay so.
+void catch_signal(int number, void (*handler)(int), bool keep_ignored)
 {
     struct sigaction current{};
-    if (::sigaction(SIGHUP, nullptr, &current) == 0 &&
+    if (keep_ignored && sigaction(number, nullptr, &current) == 0 &&
         current.sa_handler == SIG_IGN)
         return;
 
     struct sigaction action{};
     action.sa_handler = handler;
-    ::sigemptyset(&action.sa_mask);
-    action.sa_flags = 0;
-    static_cast<void>(::sigaction(SIGHUP, &action, nullptr));
+    // A function on Linux, a macro on macOS: no :: in front of it.
+    static_cast<void>(sigemptyset(&action.sa_mask));
+    action.sa_flags = SA_RESTART;
+    static_cast<void>(sigaction(number, &action, nullptr));
 }
+
+} // namespace
+
+void catch_stop_signals(void (*request_stop)(int))
+{
+    catch_signal(SIGINT, request_stop, false);
+    catch_signal(SIGTERM, request_stop, false);
+    // The terminal went away; `nohup` asks for this to be ignored.
+    catch_signal(SIGHUP, request_stop, true);
+    // A write to a closed pipe is an error to the command, not its end.
+    struct sigaction ignore{};
+    ignore.sa_handler = SIG_IGN;
+    static_cast<void>(sigemptyset(&ignore.sa_mask));
+    static_cast<void>(sigaction(SIGPIPE, &ignore, nullptr));
+}
+
+void command_finished() {}
 
 } // namespace vss_cli::platform

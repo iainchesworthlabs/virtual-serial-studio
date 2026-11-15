@@ -17,6 +17,7 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/read.hpp>
+#include <boost/asio/write.hpp>
 #include <boost/json.hpp>
 
 #include "child_process.hpp"
@@ -27,8 +28,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <ios>
 #include <optional>
 #include <string>
@@ -132,6 +135,10 @@ void require_alive_until_stopped(const std::vector<std::string>& words,
         VSS_SKIP("the stop signal could not be delivered; on Windows this "
                  "test needs a console to send CTRL_BREAK to");
     }
+    // A second press, a moment later, must not end it before its ports are
+    // down: Windows used to end the process then.
+    std::this_thread::sleep_for(20ms);
+    static_cast<void>(child.request_stop());
     const auto code = child.wait(long_limit);
     REQUIRE(code.has_value());
     REQUIRE_EQ(*code, 0);
@@ -177,9 +184,10 @@ TEST_CASE("cli: --version prints the program and its version")
     REQUIRE_EQ(*result.code, 0);
     REQUIRE_EQ(result.err, std::string());
     REQUIRE_EQ(line_count(result.out), std::size_t{1});
-    // The form of `vss_agent --version`: the program, a space and the version.
-    REQUIRE(result.out.starts_with("vss_cli "));
-    const std::string version = result.out.substr(8);
+    // The program, a space and the build as `vss_gui --version` writes it:
+    // v0.1.0-rc.3+build.6083-3de4617, or v0.1.0-dev when git is not there.
+    REQUIRE(result.out.starts_with("vss_cli v"));
+    const std::string version = result.out.substr(9);
     REQUIRE(version.size() > 2);
     REQUIRE(version[0] >= '0' && version[0] <= '9');
 }
@@ -213,8 +221,16 @@ TEST_CASE("cli: a mistake in the command line is one line on standard error "
         {"share", "serial://COM1", "stray"},
         {"run", "a.json", "b.json"},
         {"selftest", "now"},
-        // An option before a command that is not there.
+        // Zero seconds is not a time to stay.
+        {"loopback", "--seconds=0"},
+        {"run", "lab.json", "--seconds", "0"},
+        // No command, though there are options.
         {"--second=5"},
+        {"--quiet"},
+        {"--seconds", "1"},
+        // An unknown command is one, whatever else is on the line.
+        {"nonsense", "--help"},
+        {"nonsense", "--version"},
     };
     for (const auto& words : mistakes)
     {
@@ -224,6 +240,28 @@ TEST_CASE("cli: a mistake in the command line is one line on standard error "
         REQUIRE_EQ(result.out, std::string());
         REQUIRE_EQ(line_count(result.err), std::size_t{1});
     }
+}
+
+TEST_CASE(
+    "cli: --help and --version count only before -- and for a command that "
+    "exists")
+{
+    scratch_directory scratch;
+
+    // After --, --help is a word like another: here the name of a file.
+    const auto after = run_cli({"run", "--", "--help"});
+    REQUIRE(after.code.has_value());
+    REQUIRE_EQ(*after.code, 1);
+    REQUIRE_EQ(after.out, std::string());
+    REQUIRE(contains(after.err, "--help"));
+
+    // An option before the command, with its value after a space.
+    const fs::path topology = scratch.path() / "lab.json";
+    write_topology(topology);
+    const auto spaced = run_cli({"--seconds", "1", "run", topology.string()});
+    REQUIRE(spaced.code.has_value());
+    REQUIRE_EQ(*spaced.code, 0);
+    REQUIRE(contains(spaced.out, "ports: 2"));
 }
 
 TEST_CASE("cli: an option takes its value after a space as well as after an "
@@ -422,95 +460,197 @@ TEST_CASE("cli: virtual --com refuses what cannot be a COM number")
     REQUIRE_EQ(*pty.code, 2);
 }
 
+TEST_CASE("cli: devices --json replaces bytes that are not UTF-8")
+{
+    const std::string replacement = "\xEF\xBF\xBD";
+
+    vss::serial_device_info device;
+    device.path = "/dev/ttyS1";
+    // A stray byte, a cut sequence, an overlong form, a surrogate, and a
+    // letter that is well formed.
+    device.description = "bad \xff byte, cut \xe2\x82, overlong \xc0\xaf, "
+                         "surrogate \xed\xa0\x80 and fine \xc3\xa9";
+
+    const std::string text =
+        vss_cli::devices_json({device}, vss::com0com_installation{});
+
+    boost::system::error_code error;
+    const json::value document = json::parse(text, error);
+    REQUIRE(!error);
+    const std::string expected =
+        "bad " + replacement + " byte, cut " + replacement + replacement +
+        ", overlong " + replacement + replacement + ", surrogate " +
+        replacement + replacement + replacement + " and fine \xc3\xa9";
+    REQUIRE_EQ(std::string(document.as_object()
+                               .at("devices")
+                               .as_array()
+                               .at(0)
+                               .as_object()
+                               .at("description")
+                               .as_string()),
+               expected);
+}
+
 namespace
 {
 
-/// A TCP server on the loopback address that takes one connection, waits, and
-/// then reads until the client closes it.  What `play` writes to it has to
-/// pass through a connection that is slow to read.
-class slow_reader
+/// A TCP server on the loopback address that takes one connection and then
+/// runs `work` with it.  It waits for the connection for a limited time, so a
+/// program that never connects makes a test fail and not wait for ever, and it
+/// is stopped from its own thread, not by closing the acceptor from another.
+class one_connection_server
 {
 public:
-    explicit slow_reader(std::chrono::milliseconds delay) : delay_(delay)
+    using behaviour = std::function<void(boost::asio::ip::tcp::socket&,
+                                         const std::atomic<bool>&)>;
+
+    one_connection_server(std::size_t receive_buffer, behaviour work)
+        : work_(std::move(work))
     {
         boost::system::error_code error;
         acceptor_.open(boost::asio::ip::tcp::v4(), error);
         REQUIRE(!error);
         // A small window keeps the kernel from taking the whole capture.
-        acceptor_.set_option(
-            boost::asio::socket_base::receive_buffer_size(4096), error);
+        acceptor_.set_option(boost::asio::socket_base::receive_buffer_size(
+                                 static_cast<int>(receive_buffer)),
+                             error);
         acceptor_.bind(boost::asio::ip::tcp::endpoint(
                            boost::asio::ip::address_v4::loopback(), 0),
                        error);
         REQUIRE(!error);
         acceptor_.listen(1, error);
         REQUIRE(!error);
+        acceptor_.non_blocking(true, error);
+        REQUIRE(!error);
         port_ = acceptor_.local_endpoint().port();
         thread_ = std::thread([this] { serve(); });
     }
 
-    ~slow_reader()
+    ~one_connection_server()
     {
-        boost::system::error_code ignored;
-        acceptor_.close(ignored);
+        stop_.store(true);
         if (thread_.joinable())
             thread_.join();
     }
 
+    one_connection_server(const one_connection_server&) = delete;
+    one_connection_server& operator=(const one_connection_server&) = delete;
+
     std::uint16_t port() const { return port_; }
 
-    /// Waits for the connection to end, and returns the bytes it carried.
-    std::uint64_t finish()
+    /// Waits for the connection to end.
+    void finish()
     {
         if (thread_.joinable())
             thread_.join();
-        return received_.load();
     }
 
 private:
     void serve()
     {
-        boost::system::error_code error;
         boost::asio::ip::tcp::socket socket(io_);
-        acceptor_.accept(socket, error);
-        if (error)
-            return;
-        std::this_thread::sleep_for(delay_);
-        std::vector<char> buffer(64 * 1024);
+        const auto give_up = std::chrono::steady_clock::now() + 20s;
         for (;;)
         {
-            const std::size_t got = socket.read_some(
-                boost::asio::buffer(buffer.data(), buffer.size()), error);
-            received_.fetch_add(got);
-            if (error)
+            boost::system::error_code error;
+            acceptor_.accept(socket, error);
+            if (!error)
                 break;
+            if (error != boost::asio::error::would_block &&
+                error != boost::asio::error::try_again)
+                return;
+            if (stop_.load() || std::chrono::steady_clock::now() >= give_up)
+                return;
+            std::this_thread::sleep_for(10ms);
         }
+        work_(socket, stop_);
     }
 
-    std::chrono::milliseconds delay_;
+    behaviour work_;
     boost::asio::io_context io_;
     boost::asio::ip::tcp::acceptor acceptor_{io_};
     std::uint16_t port_ = 0;
-    std::atomic<std::uint64_t> received_{0};
+    std::atomic<bool> stop_{false};
     std::thread thread_;
 };
 
-/// A capture of `records` records at time zero, each of `size` bytes.
-std::string capture_text(std::size_t records, std::size_t size)
+/// What a reader that starts late has taken in: all the bytes, and how many of
+/// them were `mark`.
+struct reader_counts
 {
-    std::string line = "[0] R ";
-    line.reserve(line.size() + size * 5 + 1);
+    std::atomic<std::uint64_t> total{0};
+    std::atomic<std::uint64_t> marked{0};
+};
+
+/// Waits `delay`, then reads until the client closes the connection.
+one_connection_server::behaviour slow_reader(std::chrono::milliseconds delay,
+                                             reader_counts& counts, char mark)
+{
+    return [delay, &counts, mark](boost::asio::ip::tcp::socket& socket,
+                                  const std::atomic<bool>& stop)
+    {
+        const auto start = std::chrono::steady_clock::now();
+        while (!stop.load() && std::chrono::steady_clock::now() - start < delay)
+            std::this_thread::sleep_for(10ms);
+        std::vector<char> buffer(64 * 1024);
+        boost::system::error_code error;
+        while (!stop.load())
+        {
+            const std::size_t got = socket.read_some(
+                boost::asio::buffer(buffer.data(), buffer.size()), error);
+            counts.total.fetch_add(got);
+            for (std::size_t index = 0; index < got; ++index)
+            {
+                if (buffer[index] == mark)
+                    counts.marked.fetch_add(1);
+            }
+            if (error)
+                break;
+        }
+    };
+}
+
+/// Sends `size` bytes of `mark` every 50 ms until the connection ends.
+one_connection_server::behaviour chatty_sender(std::size_t size, char mark)
+{
+    return [size, mark](boost::asio::ip::tcp::socket& socket,
+                        const std::atomic<bool>& stop)
+    {
+        const std::vector<char> chunk(size, mark);
+        while (!stop.load())
+        {
+            boost::system::error_code error;
+            boost::asio::write(
+                socket, boost::asio::buffer(chunk.data(), chunk.size()), error);
+            if (error)
+                return;
+            std::this_thread::sleep_for(50ms);
+        }
+    };
+}
+
+/// A capture of `records` records of `size` bytes `mark`, `step` ms apart.
+std::string capture_text(std::size_t records, std::size_t size, char mark,
+                         int step)
+{
+    char hex[8];
+    std::snprintf(hex, sizeof hex, "0x%02X", static_cast<unsigned>(mark));
+    std::string body;
+    body.reserve(size * 5);
     for (std::size_t index = 0; index < size; ++index)
     {
         if (index != 0)
-            line += '|';
-        line += "0x41";
+            body += '|';
+        body += hex;
     }
-    line += '\n';
 
     std::string text = "# a capture of the test\n";
     for (std::size_t index = 0; index < records; ++index)
-        text += line;
+    {
+        text += "[" + std::to_string(static_cast<int>(index) * step) + "] R ";
+        text += body;
+        text += '\n';
+    }
     return text;
 }
 
@@ -522,9 +662,10 @@ TEST_CASE("cli: play waits until the port has written what was queued")
     constexpr std::size_t size = 512 * 1024;
     scratch_directory scratch;
     const fs::path capture = scratch.path() / "big.cap";
-    write_file(capture, capture_text(records, size));
+    write_file(capture, capture_text(records, size, 'A', 0));
 
-    slow_reader server(2000ms);
+    reader_counts counts;
+    one_connection_server server(4096, slow_reader(2000ms, counts, 'A'));
     const fs::path error_file = scratch.path() / "stderr.txt";
     child_process player(
         VSS_CLI_PROGRAM,
@@ -533,14 +674,153 @@ TEST_CASE("cli: play waits until the port has written what was queued")
         error_file.string());
     const std::string out = player.read_all(long_limit * 2);
     const auto code = player.wait(long_limit * 2);
-    const std::uint64_t received = server.finish();
+    server.finish();
 
     // Every byte the command says it sent reached the other end, and the
     // command did not end before they had.
     REQUIRE(code.has_value());
     REQUIRE_EQ(*code, 0);
     REQUIRE_EQ(read_file(error_file), std::string());
-    REQUIRE_EQ(received, std::uint64_t{records * size});
+    REQUIRE_EQ(counts.total.load(), std::uint64_t{records * size});
     REQUIRE(contains(out, "sent 4 record(s), " +
                               std::to_string(records * size) + " byte(s)"));
+}
+
+TEST_CASE("cli: play counts its own writes when a link feeds the same port")
+{
+    constexpr std::size_t records = 4;
+    constexpr std::size_t size = 512 * 1024;
+    scratch_directory scratch;
+    const fs::path capture = scratch.path() / "mixed.cap";
+    write_file(capture, capture_text(records, size, 'A', 300));
+
+    // The port `t` is written by the player, and by the link from `u`, whose
+    // far end sends 'B' all the time.  The far end of `t` reads late.
+    reader_counts counts;
+    one_connection_server target(4096, slow_reader(2000ms, counts, 'A'));
+    one_connection_server feeder(65536, chatty_sender(16 * 1024, 'B'));
+    const fs::path topology = scratch.path() / "mixed.json";
+    write_file(topology,
+               R"({"version":1,"ports":[)"
+               R"({"name":"t","kind":"tcp","uri":"tcp://127.0.0.1:)" +
+                   std::to_string(target.port()) +
+                   R"("},)"
+                   R"({"name":"u","kind":"tcp","uri":"tcp://127.0.0.1:)" +
+                   std::to_string(feeder.port()) +
+                   R"("}],)"
+                   R"("links":[{"mode":"redirect","sources":["u"],)"
+                   R"("targets":["t"]}]})");
+
+    const fs::path error_file = scratch.path() / "stderr.txt";
+    child_process player(
+        VSS_CLI_PROGRAM,
+        {"play", capture.string(), topology.string(), "--port=t"},
+        error_file.string());
+    const std::string out = player.read_all(long_limit * 2);
+    const auto code = player.wait(long_limit * 2);
+    target.finish();
+
+    // The far end of `t` has every byte of the capture, though the bytes of
+    // the link went out between them, and the command says so.
+    REQUIRE(code.has_value());
+    REQUIRE_EQ(*code, 0);
+    REQUIRE_EQ(counts.marked.load(), std::uint64_t{records * size});
+    REQUIRE(contains(out, "sent 4 record(s), " +
+                              std::to_string(records * size) + " byte(s)"));
+}
+
+TEST_CASE("cli: play says so, and exits 1, when the port refuses what it was "
+          "given")
+{
+    // Twenty records of half a megabyte at once are more than the port's
+    // queue of eight megabytes; what it refuses is not sent.
+    constexpr std::size_t records = 20;
+    constexpr std::size_t size = 512 * 1024;
+    scratch_directory scratch;
+    const fs::path capture = scratch.path() / "flood.cap";
+    write_file(capture, capture_text(records, size, 'A', 0));
+
+    reader_counts counts;
+    one_connection_server server(4096, slow_reader(1000ms, counts, 'A'));
+    const fs::path error_file = scratch.path() / "stderr.txt";
+    child_process player(
+        VSS_CLI_PROGRAM,
+        {"play", capture.string(),
+         "--uri=tcp://127.0.0.1:" + std::to_string(server.port())},
+        error_file.string());
+    // The capture is read before this line; the time counts from here.
+    const auto playing = player.read_line(long_limit);
+    REQUIRE(playing.has_value());
+    const auto begin = std::chrono::steady_clock::now();
+    const std::string out =
+        *playing + std::string(1, '\n') + player.read_all(long_limit * 2);
+    const auto code = player.wait(long_limit * 2);
+    server.finish();
+    const auto took = std::chrono::steady_clock::now() - begin;
+
+    REQUIRE(code.has_value());
+    REQUIRE_EQ(*code, 1);
+    REQUIRE(contains(out, "sent "));
+    REQUIRE(contains(out, " of " + std::to_string(records * size) +
+                              " queued byte(s)"));
+    REQUIRE(contains(read_file(error_file), "write(s) failed"));
+    // Refused bytes end their wait at once, and the rest is written as the
+    // reader takes it: the command does not idle for the stall limit.
+    REQUIRE(took < 25s);
+    REQUIRE(counts.total.load() < records * size);
+}
+
+TEST_CASE("cli: a command whose output has gone away still ends cleanly")
+{
+    // The reader of a pipe that has gone makes the command's next write fail;
+    // it prints its table once more after the stop, and must still end with
+    // its ports down and the exit code 0, not die on the signal that a
+    // write to a closed pipe raises on Linux and macOS.
+    child_process child(VSS_CLI_PROGRAM, {"loopback"});
+    const auto line = child.read_line(long_limit);
+    REQUIRE(line.has_value());
+    child.close_output();
+    std::this_thread::sleep_for(300ms);
+
+    if (!child.request_stop())
+    {
+        child.kill();
+        VSS_SKIP("the stop signal could not be delivered; on Windows this "
+                 "test needs a console to send CTRL_BREAK to");
+    }
+    const auto code = child.wait(long_limit);
+    REQUIRE(code.has_value());
+    REQUIRE_EQ(*code, 0);
+}
+
+TEST_CASE("cli: --seconds also limits the wait for a port that takes nothing")
+{
+    // Half a megabyte at once into a connection nobody reads: the port takes
+    // part of it, and --seconds=2 ends the command at about two seconds with
+    // what was written, not after the stall limit of five.
+    scratch_directory scratch;
+    const fs::path capture = scratch.path() / "stuck.cap";
+    write_file(capture, capture_text(32, 64 * 1024, 'A', 0));
+
+    reader_counts counts;
+    one_connection_server server(4096, slow_reader(60s, counts, 'A'));
+    const fs::path error_file = scratch.path() / "stderr.txt";
+    child_process player(
+        VSS_CLI_PROGRAM,
+        {"play", capture.string(),
+         "--uri=tcp://127.0.0.1:" + std::to_string(server.port()),
+         "--seconds=2"},
+        error_file.string());
+    const auto playing = player.read_line(long_limit);
+    REQUIRE(playing.has_value());
+    const auto begin = std::chrono::steady_clock::now();
+    const std::string out =
+        *playing + std::string(1, '\n') + player.read_all(long_limit);
+    const auto code = player.wait(long_limit);
+    const auto took = std::chrono::steady_clock::now() - begin;
+
+    REQUIRE(code.has_value());
+    REQUIRE_EQ(*code, 0);
+    REQUIRE(took < 4500ms);
+    REQUIRE(contains(out, " of "));
 }

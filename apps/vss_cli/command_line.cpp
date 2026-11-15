@@ -23,7 +23,7 @@ namespace
 
 constexpr std::size_t no_limit = static_cast<std::size_t>(-1);
 
-constexpr option_spec opt_seconds{"--seconds", value_kind::whole};
+constexpr option_spec opt_seconds{"--seconds", value_kind::positive_whole};
 constexpr option_spec opt_uri{"--uri", value_kind::text};
 constexpr option_spec opt_port{"--port", value_kind::text};
 constexpr option_spec opt_kind{"--kind", value_kind::text};
@@ -188,6 +188,43 @@ const command_spec* find_command_spec(std::string_view name)
                                     [&](const command_spec& each)
                                     { return each.name == name; });
     return found == commands.end() ? nullptr : &*found;
+}
+
+bool takes_a_value(std::string_view name)
+{
+    for (const auto& command : commands)
+    {
+        for (const auto& option : command.options)
+        {
+            if (option.name == name && option.kind != value_kind::none)
+                return true;
+        }
+    }
+    return false;
+}
+
+std::optional<std::size_t>
+find_command_word(const std::vector<std::string>& words)
+{
+    for (std::size_t index = 0; index < words.size(); ++index)
+    {
+        const std::string& word = words[index];
+        if (word == "--")
+        {
+            if (index + 1 < words.size())
+                return index + 1;
+            return std::nullopt;
+        }
+        if (word.size() < 2 || word[0] != '-')
+            return index;
+        // `--seconds 5 run lab.json`: 5 belongs to --seconds, as it does in
+        // the parser.
+        if (word[1] == '-' && word.find('=') == std::string::npos &&
+            takes_a_value(word) && index + 1 < words.size() &&
+            !words[index + 1].starts_with("--"))
+            ++index;
+    }
+    return std::nullopt;
 }
 
 std::optional<long long> parse_whole_number(std::string_view text)
