@@ -736,7 +736,8 @@ def keys_file_text(public_key: bytes) -> str:
     with one key. The key is the public half of a throwaway key."""
     items = ", ".join("0x%02x" % b for b in public_key)
     return (
-        "// SPDX-License-Identifier: GPL-3.0-or-later\n"
+        # In two parts, so that the licence check does not take it for this file's own tag.
+        "// SPDX-" "License-Identifier: GPL-3.0-or-later\n"
         "namespace vss::update\n{\n"
         "namespace\n{\n"
         "constexpr public_key upd_2026_a{%s};\n"
