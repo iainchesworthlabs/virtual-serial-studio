@@ -111,9 +111,9 @@ const std::vector<program_facts>& test_plugin_facts()
     static const std::vector<program_facts> facts = []
     {
         std::vector<program_facts> all;
-        for (const fs::path& source : test_plugin_files(
-                 fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)),
-                 VSS_TEST_PLUGIN_RUNTIME))
+        for (const fs::path& source :
+             test_plugin_files(fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)),
+                               VSS_TEST_PLUGIN_RUNTIME))
         {
             const std::string bytes = read_file(source);
             program_facts out;
@@ -146,8 +146,7 @@ struct plugin_spec
 /// `text` as a JSON string, quotes included.
 std::string json_text(std::string_view text)
 {
-    return json::serialize(
-        json::value(json::string(text.data(), text.size())));
+    return json::serialize(json::value(json::string(text.data(), text.size())));
 }
 
 /// The `plugin.json` of a test plugin.  The plugin asks for one permission it
@@ -582,8 +581,7 @@ TEST_CASE("plugin run: --json prints one JSON object on every line")
         if (state == "running")
         {
             running = true;
-            const json::value* const process =
-                object.if_contains("process_id");
+            const json::value* const process = object.if_contains("process_id");
             REQUIRE(process != nullptr);
             REQUIRE(process->is_uint64() || process->is_int64());
             pid = process->is_uint64()
@@ -602,9 +600,9 @@ TEST_CASE("plugin run: --json prints one JSON object on every line")
             status != nullptr && status->is_object())
         {
             const json::object& about = status->as_object();
-            status_seen = status_seen ||
-                          (string_at(about, "text") == "Ready to go" &&
-                           string_at(about, "level") == "warning");
+            status_seen =
+                status_seen || (string_at(about, "text") == "Ready to go" &&
+                                string_at(about, "level") == "warning");
         }
         stopped = state == "stopped";
     }
@@ -659,8 +657,8 @@ TEST_CASE("plugin run: an id that is not installed exits 2")
     const cli_result result =
         run_cli(words_for(where, "com.example.nothere", {"--seconds", "1"}));
     require_exit(result, 2);
-    REQUIRE(contains(result.output,
-                     "no plugin with the id com.example.nothere"));
+    REQUIRE(
+        contains(result.output, "no plugin with the id com.example.nothere"));
     REQUIRE(!contains(result.output, "state: running"));
 }
 
@@ -755,8 +753,8 @@ TEST_CASE("plugin run: text from the plugin cannot move the cursor")
     REQUIRE(!has_byte_above_ascii(result.output));
     // Each byte that was not plain became a question mark.
     REQUIRE(contains(result.output, "output: ?[31mhostile???end"));
-    REQUIRE(contains(result.output,
-                     "status warning \"say \"hello\" <b>now</b>\""));
+    REQUIRE(
+        contains(result.output, "status warning \"say \"hello\" <b>now</b>\""));
 }
 
 TEST_CASE("plugin run: --json escapes text from the plugin")
@@ -783,8 +781,8 @@ TEST_CASE("plugin run: --json escapes text from the plugin")
         if (string_at(object, "type") == "log" &&
             string_at(object, "source") == "output")
         {
-            seen = seen || string_at(object, "text") ==
-                               "\x1b[31mhostile\r\x07?end";
+            seen = seen ||
+                   string_at(object, "text") == "\x1b[31mhostile\r\x07?end";
         }
     }
     REQUIRE(seen);
@@ -872,9 +870,8 @@ TEST_CASE("plugin run: an instance the plugin refuses ends with exit code 1")
     const plugin_spec spec = recorder_plugin({"--refuse-op=instance.create"});
     static_cast<void>(trusted_plugin(where, spec));
 
-    const cli_result result = run_cli(
-        words_for(where, spec.id,
-                  {"--seconds", "1", "--instance=adapter:recorder"}));
+    const cli_result result = run_cli(words_for(
+        where, spec.id, {"--seconds", "1", "--instance=adapter:recorder"}));
     require_exit(result, 1);
     REQUIRE(contains(result.output,
                      "instance 1 adapter:recorder: refused; problem "
@@ -921,11 +918,10 @@ TEST_CASE("plugin run: --json prints each change of an instance")
     static_cast<void>(trusted_plugin(where, spec));
 
     // The second instance is of a type the manifest does not declare.
-    const cli_result result =
-        run_cli(words_for(where, spec.id,
-                          {"--seconds", "1", "--json", "--instance",
-                           "adapter:recorder={}", "--instance",
-                           "adapter:nothing"}));
+    const cli_result result = run_cli(
+        words_for(where, spec.id,
+                  {"--seconds", "1", "--json", "--instance",
+                   "adapter:recorder={}", "--instance", "adapter:nothing"}));
     require_exit(result, 1);
     REQUIRE(contains(result.output,
                      "plugin run: instance 2 adapter:nothing did not reach "
@@ -939,8 +935,7 @@ TEST_CASE("plugin run: --json prints each change of an instance")
     {
         REQUIRE_EQ(string_at(object, "plugin"), spec.id);
         REQUIRE_EQ(string_at(object, "kind"), "adapter");
-        const json::value* const pending =
-            object.if_contains("params_pending");
+        const json::value* const pending = object.if_contains("params_pending");
         REQUIRE(pending != nullptr);
         REQUIRE(pending->is_bool());
         const std::int64_t number = number_at(object, "instance");
@@ -958,8 +953,7 @@ TEST_CASE("plugin run: --json prints each change of an instance")
             REQUIRE_EQ(string_at(object, "instance_type"), "nothing");
             if (state == "refused")
             {
-                REQUIRE_EQ(string_at(object, "problem"),
-                           "capability_missing");
+                REQUIRE_EQ(string_at(object, "problem"), "capability_missing");
                 REQUIRE(is_null_at(object, "reason"));
                 nothing_refused = true;
             }
@@ -975,10 +969,9 @@ TEST_CASE("plugin run: --json gives the plugin's reason for a refusal")
     const plugin_spec spec = recorder_plugin({"--refuse-op=instance.create"});
     static_cast<void>(trusted_plugin(where, spec));
 
-    const cli_result result = run_cli(
-        words_for(where, spec.id,
-                  {"--seconds", "1", "--json", "--instance",
-                   "adapter:recorder"}));
+    const cli_result result = run_cli(words_for(
+        where, spec.id,
+        {"--seconds", "1", "--json", "--instance", "adapter:recorder"}));
     require_exit(result, 1);
 
     bool refused = false;

@@ -66,12 +66,12 @@
 #include <vector>
 
 using vss::error_code;
+using vss::plugin::extension_kind;
 using vss::plugin::inspect_context;
 using vss::plugin::key_bytes;
 using vss::plugin::key_list;
 using vss::plugin::load_trust_store;
 using vss::plugin::parse_key_list;
-using vss::plugin::extension_kind;
 using vss::plugin::permission;
 using vss::plugin::plugin_decision;
 using vss::plugin::plugin_errc;
@@ -87,8 +87,8 @@ using vss::plugin::host::available_sandbox;
 using vss::plugin::host::instance_spec;
 using vss::plugin::host::instance_state;
 using vss::plugin::host::instance_view;
-using vss::plugin::host::runner_log_line;
 using vss::plugin::host::plugin_service;
+using vss::plugin::host::runner_log_line;
 using vss::plugin::host::service_options;
 using vss::plugin::host::service_plugin;
 using vss::plugin::host::service_snapshot;
@@ -611,17 +611,17 @@ bool log_has(const service_plugin& plugin, std::string_view text)
 {
     if (plugin.run == nullptr)
         return false;
-    return std::ranges::any_of(
-        plugin.run->log, [text](const runner_log_line& line)
-        { return line.text == text; });
+    return std::ranges::any_of(plugin.run->log,
+                               [text](const runner_log_line& line)
+                               { return line.text == text; });
 }
 
 /// The plugin has the instance, in this state.
 auto instance_is(std::string_view id, std::uint64_t number,
                  instance_state state)
 {
-    return [name = std::string(id), number, state](
-               const service_snapshot& snapshot)
+    return [name = std::string(id), number,
+            state](const service_snapshot& snapshot)
     {
         const service_plugin* const entry = find(snapshot, name);
         if (entry == nullptr)
@@ -1517,8 +1517,7 @@ std::vector<std::string> echo_instance_messages()
             "--echo-op=instance.stop"};
 }
 
-instance_spec recorder_instance(std::uint64_t number,
-                                std::string params = "{}")
+instance_spec recorder_instance(std::uint64_t number, std::string params = "{}")
 {
     instance_spec spec;
     spec.instance = number;
@@ -1558,20 +1557,21 @@ TEST_CASE("plugin service: the instances wanted of a plugin are created and "
     // New parameters are told to the plugin, and the instance goes on.
     service.set_instances(std::string(official_id),
                           {recorder_instance(1, R"({ "channel": 2 })")});
-    const snapshot_ptr changed = wait_for(
-        service, "the plugin to be told the new parameters",
-        [](const service_snapshot& latest)
-        {
-            const service_plugin* const plugin = find(latest, official_id);
-            if (plugin == nullptr)
-                return false;
-            const instance_view* const found = instance_in(*plugin, 1);
-            return found != nullptr &&
-                   found->state == instance_state::running &&
-                   !found->params_pending &&
-                   found->spec.params == R"({ "channel": 2 })" &&
-                   log_has(*plugin, "got params.changed");
-        });
+    const snapshot_ptr changed =
+        wait_for(service, "the plugin to be told the new parameters",
+                 [](const service_snapshot& latest)
+                 {
+                     const service_plugin* const plugin =
+                         find(latest, official_id);
+                     if (plugin == nullptr)
+                         return false;
+                     const instance_view* const found = instance_in(*plugin, 1);
+                     return found != nullptr &&
+                            found->state == instance_state::running &&
+                            !found->params_pending &&
+                            found->spec.params == R"({ "channel": 2 })" &&
+                            log_has(*plugin, "got params.changed");
+                 });
     const instance_view* const kept =
         instance_in(entry_of(*changed, official_id), 1);
     REQUIRE(kept != nullptr);
@@ -1579,14 +1579,15 @@ TEST_CASE("plugin service: the instances wanted of a plugin are created and "
 
     // An empty list stops the instance, and then it is gone.
     service.set_instances(std::string(official_id), {});
-    static_cast<void>(wait_for(
-        service, "the instance to be stopped and gone",
-        [](const service_snapshot& latest)
-        {
-            const service_plugin* const plugin = find(latest, official_id);
-            return plugin != nullptr && plugin->instances.empty() &&
-                   log_has(*plugin, "got instance.stop");
-        }));
+    static_cast<void>(wait_for(service, "the instance to be stopped and gone",
+                               [](const service_snapshot& latest)
+                               {
+                                   const service_plugin* const plugin =
+                                       find(latest, official_id);
+                                   return plugin != nullptr &&
+                                          plugin->instances.empty() &&
+                                          log_has(*plugin, "got instance.stop");
+                               }));
 }
 
 TEST_CASE("plugin service: an instance the plugin refuses is refused")
@@ -1684,10 +1685,9 @@ TEST_CASE("plugin service: instances wanted of a plugin that is not "
     service.set_instances(std::string(official_id), {recorder_instance(1)});
     service.rescan();
 
-    const snapshot_ptr none =
-        wait_for(service, "the scan to finish",
-                 [](const service_snapshot& latest)
-                 { return latest.scans >= 1 && !latest.scanning; });
+    const snapshot_ptr none = wait_for(
+        service, "the scan to finish", [](const service_snapshot& latest)
+        { return latest.scans >= 1 && !latest.scanning; });
     REQUIRE(none->plugins.empty());
 
     // The plugin is installed afterwards and has the instance that was

@@ -225,8 +225,7 @@ bool parse_instance(std::string_view text, std::uint64_t number,
     {
         params = std::string(text.substr(equals + 1));
         if (params.size() > most_params_bytes)
-            return bad_instance(head,
-                                "the parameters are longer than 64 KiB");
+            return bad_instance(head, "the parameters are longer than 64 KiB");
         vss::error_code ec;
         const json::value parsed = json::parse(params, ec);
         if (ec || !parsed.is_object())
