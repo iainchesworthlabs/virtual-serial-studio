@@ -63,6 +63,7 @@
 #include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/process.hpp>
+#include <vss/plugin/host/recording.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
