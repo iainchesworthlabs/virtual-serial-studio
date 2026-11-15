@@ -42,6 +42,7 @@
 #include "native_io.hpp"
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
+#include "test_plugin_files.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -86,7 +87,9 @@ using vss::plugin::host::plugin_service;
 using vss::plugin::host::service_options;
 using vss::plugin::host::service_plugin;
 using vss::plugin::host::service_snapshot;
+using vss_test_support::copy_test_plugin;
 using vss_test_support::scratch_directory;
+using vss_test_support::test_plugin_files;
 using namespace std::chrono_literals;
 
 namespace
@@ -194,7 +197,7 @@ std::string read_file(const fs::path& path)
                        std::istreambuf_iterator<char>());
 }
 
-/// What the program of every test plugin is: the test plugin as it was built.
+/// What one file of every test plugin is: the test plugin as it was built.
 struct program_facts
 {
     std::string name;
@@ -202,19 +205,34 @@ struct program_facts
     std::string sha512;
 };
 
-const program_facts& test_program()
+/// The files every test plugin has from the build, the program first.  In a
+/// build that needs a runtime library beside the program, that is listed too.
+const std::vector<program_facts>& test_plugin_facts()
 {
-    static const program_facts facts = []
+    static const std::vector<program_facts> facts = []
     {
-        const fs::path source = fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM));
-        const std::string bytes = read_file(source);
-        program_facts out;
-        out.name = source.filename().string();
-        out.size = bytes.size();
-        out.sha512 = to_hex(sha512_of(bytes));
-        return out;
+        std::vector<program_facts> all;
+        for (const fs::path& source : test_plugin_files(
+                 fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)),
+                 VSS_TEST_PLUGIN_RUNTIME))
+        {
+            const std::string bytes = read_file(source);
+            program_facts out;
+            out.name = source.filename().string();
+            out.size = bytes.size();
+            out.sha512 = to_hex(sha512_of(bytes));
+            all.push_back(std::move(out));
+        }
+        REQUIRE(!all.empty());
+        return all;
     }();
     return facts;
+}
+
+/// The program of every test plugin.
+const program_facts& test_program()
+{
+    return test_plugin_facts().front();
 }
 
 /// What a test plugin is made of.
@@ -293,7 +311,14 @@ std::string manifest_text(const plugin_spec& spec)
     out.append("    { \"kind\": \"generator\", \"id\": \"pulse\", ");
     out.append("\"name\": \"Pulse\" }\n  ],\n");
     out.append("  \"files\": [ ");
-    append_file_entry(out, program.name, program.size, program.sha512);
+    bool first = true;
+    for (const program_facts& file : test_plugin_facts())
+    {
+        if (!first)
+            out.append(", ");
+        first = false;
+        append_file_entry(out, file.name, file.size, file.sha512);
+    }
     if (!spec.data.empty())
     {
         out.append(", ");
@@ -318,18 +343,20 @@ void sign_plugin(const fs::path& directory, std::string_view id,
         signed_text(plugin_purpose, "plugins-2026", claim, plugins_fill));
 }
 
-/// A plugin folder `root/<id>`: the program, `data.txt` when there is one,
-/// `plugin.json` and, for an official plugin, `plugin.sig`.
+/// A plugin folder `root/<id>`: the program and its runtime library if any,
+/// `data.txt` when there is one, `plugin.json` and, for an official plugin,
+/// `plugin.sig`.
 fs::path make_plugin(const fs::path& root, const plugin_spec& spec)
 {
     const fs::path directory = root / spec.id;
     std::error_code ec;
     fs::create_directories(directory, ec);
     REQUIRE(!ec);
-    fs::copy_file(fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)),
-                  directory / test_program().name,
-                  fs::copy_options::overwrite_existing, ec);
+    const std::vector<fs::path> copies =
+        copy_test_plugin(fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)),
+                         VSS_TEST_PLUGIN_RUNTIME, directory, ec);
     REQUIRE(!ec);
+    REQUIRE_EQ(copies.size(), test_plugin_facts().size());
     if (!spec.data.empty())
         write_file(directory / "data.txt", spec.data);
     const std::string manifest = manifest_text(spec);

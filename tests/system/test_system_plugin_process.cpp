@@ -24,6 +24,7 @@
 #include "native_io.hpp"
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
+#include "test_plugin_files.hpp"
 
 #include <algorithm>
 #include <charconv>
@@ -53,6 +54,7 @@ using vss::plugin::host::process_request;
 using vss::plugin::host::sandbox_part;
 using vss::plugin::host::sandbox_profile;
 using vss::plugin::host::sandbox_report;
+using vss_test_support::copy_test_plugin;
 using vss_test_support::scratch_directory;
 using namespace std::chrono_literals;
 
@@ -803,13 +805,12 @@ process_request confined_request(const scratch_directory& scratch,
     std::error_code ec;
     std::filesystem::create_directories(profile.plugin_directory, ec);
     std::filesystem::create_directories(profile.data_directory, ec);
-    const std::filesystem::path program =
-        profile.plugin_directory /
-        std::filesystem::path(VSS_TEST_PLUGIN_PROGRAM).filename();
-    std::filesystem::copy_file(
-        VSS_TEST_PLUGIN_PROGRAM, program,
-        std::filesystem::copy_options::overwrite_existing, ec);
+    const std::vector<std::filesystem::path> copies = copy_test_plugin(
+        VSS_TEST_PLUGIN_PROGRAM, VSS_TEST_PLUGIN_RUNTIME,
+        profile.plugin_directory, ec);
     REQUIRE(!ec);
+    REQUIRE(!copies.empty());
+    const std::filesystem::path& program = copies.front();
 
     process_request request;
     request.program = program;

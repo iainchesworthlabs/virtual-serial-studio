@@ -303,8 +303,16 @@ vss_enable_coverage(vss_system_tests)
 add_dependencies(vss_system_tests vss_test_plugin)
 target_link_libraries(vss_system_tests PRIVATE vss_plugin_host
   vss_license_test_keys)
+# The name of the runtime library that must sit beside a copy of the test
+# plugin (see the address sanitiser block above), or empty when none is needed.
+if(MSVC AND ICL_SANITIZERS MATCHES "address")
+  set(_vss_test_plugin_runtime "clang_rt.asan_dynamic-x86_64.dll")
+else()
+  set(_vss_test_plugin_runtime "")
+endif()
 target_compile_definitions(vss_system_tests PRIVATE
-  VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>")
+  VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>"
+  VSS_TEST_PLUGIN_RUNTIME="${_vss_test_plugin_runtime}")
 
 add_test(NAME system COMMAND vss_system_tests
   --verbose --junit=${CMAKE_BINARY_DIR}/system-tests.xml)
