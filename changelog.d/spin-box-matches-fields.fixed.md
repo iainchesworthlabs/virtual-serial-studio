@@ -1,0 +1,1 @@
+**Spin boxes line up with the other fields.** The number in a spin box, such as **How many** in Add a port, now sits the same distance from the edge as text in a line edit, and the spin box is the same height as a line edit and a combo box (32 pixels, where it was 35). Editable combo boxes, such as the baud rate box, use the same inset.

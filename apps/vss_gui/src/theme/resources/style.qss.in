@@ -84,6 +84,11 @@ QLineEdit QToolButton { min-width: 24px; min-height: 24px; padding: 0; border: 0
 QComboBox::drop-down { border: 0; width: 28px; subcontrol-origin: padding; subcontrol-position: center right; }
 QComboBox::down-arrow { image: url(:/indicators/chevron-down-%theme%.svg); width: 16px; height: 16px; }
 QSpinBox { padding-right: 24px; }
+/* The line edit inside a spin box or an editable combo box is only the text area: no border, fill or height of its own. FocusRingStyle lets these rules reach it. */
+QAbstractSpinBox > QLineEdit, QComboBox > QLineEdit { border: 0; border-radius: 0; background: transparent; margin: 0; min-height: 0; }
+/* A spin box places its edit from its own left edge, ignoring its border and padding, so the edit carries the 1px border and 10px padding that a line edit has. */
+QAbstractSpinBox > QLineEdit { padding: 0 11px; }
+QComboBox > QLineEdit { padding: 0; }
 QSpinBox::up-button, QSpinBox::down-button { width: 22px; border: 0; background: transparent; subcontrol-origin: border; }
 QSpinBox::up-button { subcontrol-position: top right; }
 QSpinBox::down-button { subcontrol-position: bottom right; }
@@ -137,6 +142,8 @@ QTabBar { background: transparent; }
 QTabBar::tab { padding: 0 12px; min-height: 28px; margin: 2px; border: 0; border-radius: %radius.control%; background: transparent; color: %ink2%; }
 QTabBar::tab:selected { background: %fill%; color: %ink%; font-weight: 600; }
 QTabBar::tab:hover:!selected { background: %hover%; color: %ink%; }
+/* A tab bar takes keyboard focus only (Tab), so :focus is keyboard focus here. The padding and minimum height shrink by the border width so the tab keeps its size. */
+QTabBar::tab:focus { border: 2px solid %focus%; padding: 0 10px; min-height: 24px; }
 QDockWidget { color: %ink%; titlebar-close-icon: url(:/indicators/close-%theme%.svg); titlebar-normal-icon: url(:/indicators/float-%theme%.svg); }
 QDockWidget::title { background: %panel%; padding: 12px 14px 8px 14px; border: 0; font-weight: 600; text-align: left; }
 QDockWidget::close-button, QDockWidget::float-button { border: 0; border-radius: 6px; padding: 0; width: 24px; height: 24px; background: transparent; icon-size: 14px; }

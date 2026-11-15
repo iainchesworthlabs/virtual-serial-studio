@@ -389,11 +389,13 @@ void Switch::paintEvent(QPaintEvent* event)
     painter.setBrush(theme.colour(colour_role::onAccent));
     painter.drawEllipse(QRectF(knob_x, track_y + 2, 14, 14));
 
+    // The ring goes around the whole control, track and label, as it does
+    // for a check box.
     if (hasFocus() && FocusRingStyle::keyboard_focus())
     {
-        painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen(theme.colour(colour_role::focus), 2.0));
-        painter.drawRoundedRect(track.adjusted(-2, -2, 2, 2), 11, 11);
+        FocusRingStyle::paint_ring(
+            painter, QRectF(rect()),
+            Theme::instance().radius(QStringLiteral("control")));
     }
 
     painter.setPen(theme.colour(isEnabled() ? colour_role::ink
