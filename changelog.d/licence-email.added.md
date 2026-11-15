@@ -1,0 +1,1 @@
+**A licence can carry the licensee's email address.** The licence file has an optional `licensee.email` beside the name. It is signed with the rest of the licence, must have the form of an address, and `vss_license inspect` prints it. A licence without one reads and verifies exactly as before.

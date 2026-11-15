@@ -137,7 +137,16 @@ constexpr std::array expected_operations{
     expected_row{control::operation::runs_record, "runs.record",
                  control::scope::monitor},
     expected_row{control::operation::report_junit, "report.junit",
-                 control::scope::monitor}};
+                 control::scope::monitor},
+    expected_row{control::operation::ports_get, "ports.get",
+                 control::scope::monitor},
+    expected_row{control::operation::links_list, "links.list",
+                 control::scope::monitor},
+    expected_row{control::operation::links_get, "links.get",
+                 control::scope::monitor},
+    expected_row{control::operation::ping, "ping", std::nullopt},
+    expected_row{control::operation::session_close, "session.close",
+                 std::nullopt}};
 
 } // namespace
 
@@ -582,13 +591,27 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
         REQUIRE(names.insert(row.name).second);
         REQUIRE(control::find_operation(expected.name) == &row);
     }
-    // Only `hello` names no scope: it is how a caller becomes a principal.
+    // Only `hello` (how a caller becomes a principal) and the two that show
+    // and change nothing of the ports, `ping` and `session.close`, name no
+    // scope.
     for (const control::operation_info& row : table)
     {
-        if (row.id != control::operation::hello)
+        if (row.id != control::operation::hello &&
+            row.id != control::operation::ping &&
+            row.id != control::operation::session_close)
         {
             REQUIRE(row.required.has_value());
         }
+    }
+    // Neither of the two is audited as a change: `session.close` is audited
+    // as the end of a session.
+    REQUIRE(!control::info_of(control::operation::ping).mutating);
+    REQUIRE(!control::info_of(control::operation::session_close).mutating);
+    for (const control::operation reading :
+         {control::operation::ports_get, control::operation::links_list,
+          control::operation::links_get})
+    {
+        REQUIRE(!control::info_of(reading).mutating);
     }
     // What stops the gateway or changes who may connect is recorded each
     // time.
@@ -610,7 +633,7 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
 
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 22 * 256 * 4
+    // Every operation, every set of scopes, every transport: 27 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -699,10 +722,24 @@ TEST_CASE("control policy: the cases a person would ask about")
         REQUIRE(!may(control::transport::tls, control::every_scope(), wanted));
         REQUIRE(may(admin, control::every_scope(), wanted));
     }
-    // No scopes at all: nothing but hello.
+    // No scopes at all: nothing but hello, ping and the end of its own
+    // session.
     REQUIRE(!may(local, {}, control::operation::status));
     REQUIRE(!may(local, {}, control::operation::ports_list));
+    REQUIRE(!may(local, {}, control::operation::ports_get));
+    REQUIRE(!may(local, {}, control::operation::links_list));
+    REQUIRE(!may(local, {}, control::operation::links_get));
     REQUIRE(may(local, {}, control::operation::hello));
+    REQUIRE(may(local, {}, control::operation::ping));
+    REQUIRE(may(local, {}, control::operation::session_close));
+    // A monitor reads one port and the links, and writing without reading
+    // does not.
+    REQUIRE(may(local, control::role_monitor(), control::operation::ports_get));
+    REQUIRE(
+        may(local, control::role_monitor(), control::operation::links_list));
+    REQUIRE(may(local, control::role_monitor(), control::operation::links_get));
+    REQUIRE(!may(local, control::scope_set{scope::control_data},
+                 control::operation::ports_get));
     // Writing without reading is a set like any other: it reads nothing.
     REQUIRE(!may(local, control::scope_set{scope::control_data},
                  control::operation::ports_list));
@@ -1385,4 +1422,215 @@ TEST_CASE("control proto: the run requests and replies survive the wire")
     too_long.xml.assign(control::max_report_size + 1, 'x');
     REQUIRE(
         !control::decode_reply(control::encode(control::reply{8, too_long})));
+}
+
+// -- reading one port, the links, ping and the end of a session -------------
+
+TEST_CASE("control proto: the reading requests survive the wire")
+{
+    const control::request port{60, control::ports_get_request{"p_7"}};
+    REQUIRE(round_trip(port) == port);
+    const control::request links{61, control::links_list_request{}};
+    REQUIRE(round_trip(links) == links);
+    const control::request link{62, control::links_get_request{"l_2"}};
+    REQUIRE(round_trip(link) == link);
+    const control::request ping{63, control::ping_request{}};
+    REQUIRE(round_trip(ping) == ping);
+    const control::request close{64, control::session_close_request{}};
+    REQUIRE(round_trip(close) == close);
+
+    // The wire form: the operation's name and the id in its own field.
+    REQUIRE_EQ(control::encode(port).header,
+               std::string(R"({"id":60,"op":"ports.get","port":"p_7"})"));
+    REQUIRE_EQ(control::encode(links).header,
+               std::string(R"({"id":61,"op":"links.list"})"));
+    REQUIRE_EQ(control::encode(link).header,
+               std::string(R"({"id":62,"op":"links.get","link":"l_2"})"));
+    REQUIRE_EQ(control::encode(ping).header,
+               std::string(R"({"id":63,"op":"ping"})"));
+    REQUIRE_EQ(control::encode(close).header,
+               std::string(R"({"id":64,"op":"session.close"})"));
+
+    // Each names the operation of the table.
+    REQUIRE(control::operation_of(port.body) == control::operation::ports_get);
+    REQUIRE(control::operation_of(links.body) ==
+            control::operation::links_list);
+    REQUIRE(control::operation_of(link.body) == control::operation::links_get);
+    REQUIRE(control::operation_of(ping.body) == control::operation::ping);
+    REQUIRE(control::operation_of(close.body) ==
+            control::operation::session_close);
+
+    // An id the gateway will not know is still read, so that the gateway can
+    // answer it and the caller keeps its connection.
+    for (const char* const odd : {"", "nonsense", "l_1", "p_01"})
+    {
+        const control::request asking{65, control::ports_get_request{odd}};
+        REQUIRE(round_trip(asking) == asking);
+    }
+    // The longest text is read, and one byte more is not.
+    const control::request longest{66, control::ports_get_request{std::string(
+                                           control::max_text_size, 'p')}};
+    REQUIRE(round_trip(longest) == longest);
+}
+
+TEST_CASE("control proto: a reading request that is not one is refused")
+{
+    const std::string too_long(control::max_text_size + 1, 'p');
+    const std::array bad{
+        std::string(R"({"id":1,"op":"ports.get"})"),
+        std::string(R"({"id":1,"op":"ports.get","port":3})"),
+        std::string(R"({"id":1,"op":"ports.get","port":null})"),
+        std::string(R"({"id":1,"op":"ports.get","port":["p_1"]})"),
+        // The field of the other operation is not the one.
+        std::string(R"({"id":1,"op":"ports.get","link":"l_1"})"),
+        std::string(R"({"id":1,"op":"ports.get","port":")") + too_long + "\"}",
+        std::string(R"({"id":1,"op":"links.get"})"),
+        std::string(R"({"id":1,"op":"links.get","link":3})"),
+        std::string(R"({"id":1,"op":"links.get","link":false})"),
+        std::string(R"({"id":1,"op":"links.get","port":"p_1"})"),
+        std::string(R"({"id":1,"op":"links.get","link":")") + too_long + "\"}"};
+    for (const std::string& header : bad)
+    {
+        const auto decoded = control::decode_request(header_frame(header));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+    // The three that take no field read without them and with a field this
+    // version does not know.
+    for (const char* const fine :
+         {R"({"id":1,"op":"links.list"})", R"({"id":1,"op":"ping"})",
+          R"({"id":1,"op":"session.close"})",
+          R"({"id":1,"op":"ping","later":{"a":1}})"})
+    {
+        REQUIRE(control::decode_request(header_frame(fine)));
+    }
+    // None of the five carries bytes.
+    for (const control::request_body& body :
+         {control::request_body{control::ports_get_request{"p_1"}},
+          control::request_body{control::links_list_request{}},
+          control::request_body{control::links_get_request{"l_1"}},
+          control::request_body{control::ping_request{}},
+          control::request_body{control::session_close_request{}}})
+    {
+        control::frame carried = control::encode(control::request{1, body});
+        carried.blob = {vss::byte{1}};
+        const auto decoded = control::decode_request(carried);
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+}
+
+TEST_CASE("control proto: the reading replies survive the wire")
+{
+    const control::port_entry alpha{"p_1",  "alpha", "/dev/pts/3", "virtual",
+                                    "open", true,    10,           20};
+    const control::port_entry beta{"p_2",     "beta", "", "mock",
+                                   "created", false,  0,  0};
+    const control::link_entry duplex{"l_1", "duplex", {"p_1"}, {"p_2"}, 30};
+    const control::link_entry fan{"l_2", "one_way", {"p_1"}, {"p_2", "p_3"}, 0};
+
+    const control::reply port_alpha{70, control::port_reply{12, alpha}};
+    REQUIRE(round_trip(port_alpha) == port_alpha);
+    const control::reply port_beta{71, control::port_reply{0, beta}};
+    REQUIRE(round_trip(port_beta) == port_beta);
+    const control::reply links{72, control::links_reply{12, {duplex, fan}}};
+    REQUIRE(round_trip(links) == links);
+    const control::reply no_links{73, control::links_reply{3, {}}};
+    REQUIRE(round_trip(no_links) == no_links);
+    const control::reply one_link{74, control::link_reply{12, fan}};
+    REQUIRE(round_trip(one_link) == one_link);
+
+    // The port of a `port` reply is the object `ports` has for it, so a
+    // reader of either reads the other's.
+    const control::ports_reply listed{12, {alpha, beta}, {duplex, fan}};
+    const auto from_list =
+        control::decode_reply(control::encode(control::reply{75, listed}));
+    REQUIRE(from_list);
+    const auto& ports = std::get<control::ports_reply>(from_list->body);
+    REQUIRE(ports.ports.at(0) ==
+            std::get<control::port_reply>(round_trip(port_alpha).body).port);
+    REQUIRE(ports.links.at(1) ==
+            std::get<control::link_reply>(round_trip(one_link).body).link);
+
+    // The wire form, for a reader that is not this library.
+    REQUIRE_EQ(control::encode(one_link).header,
+               std::string(R"({"id":74,"reply":"link","revision":12,"link":)"
+                           R"({"id":"l_2","mode":"one_way","sources":["p_1"],)"
+                           R"("targets":["p_2","p_3"],"bytes":0}})"));
+    REQUIRE_EQ(control::encode(no_links).header,
+               std::string(R"({"id":73,"reply":"links","revision":3,)"
+                           R"("links":[]})"));
+}
+
+TEST_CASE("control proto: a reading reply that is not one is refused")
+{
+    const std::string port_object =
+        R"({"id":"p_1","name":"a","path":"","kind":"k","state":"s",)"
+        R"("open":true,"bytes_rx":1,"bytes_tx":2})";
+    const std::string link_object =
+        R"({"id":"l_1","mode":"m","sources":["p_1"],"targets":["p_2"],)"
+        R"("bytes":3})";
+    const std::array bad{
+        // A `port` reply without its port, with a port that is not an
+        // object, or one that is short of a field.
+        std::string(R"({"id":1,"reply":"port","revision":1})"),
+        std::string(R"({"id":1,"reply":"port","revision":1,"port":"p_1"})"),
+        std::string(R"({"id":1,"reply":"port","revision":1,"port":[]})"),
+        std::string(R"({"id":1,"reply":"port","revision":1,"port":{)"
+                    R"("id":"p_1"}})"),
+        std::string(R"({"id":1,"reply":"port","port":)") + port_object + "}",
+        std::string(R"({"id":1,"reply":"port","revision":-1,"port":)") +
+            port_object + "}",
+        std::string(R"({"id":1,"reply":"port","revision":"1","port":)") +
+            port_object + "}",
+        // A `links` reply whose links are not a list, or hold what is not a
+        // link.
+        std::string(R"({"id":1,"reply":"links","revision":1})"),
+        std::string(R"({"id":1,"reply":"links","revision":1,"links":{}})"),
+        std::string(R"({"id":1,"reply":"links","revision":1,"links":"l_1"})"),
+        std::string(R"({"id":1,"reply":"links","revision":1,"links":[7]})"),
+        std::string(R"({"id":1,"reply":"links","revision":1,"links":[{)"
+                    R"("id":"l_1"}]})"),
+        std::string(R"({"id":1,"reply":"links","links":[]})"),
+        // A `link` reply without its link, or with the port's object.
+        std::string(R"({"id":1,"reply":"link","revision":1})"),
+        std::string(R"({"id":1,"reply":"link","revision":1,"link":null})"),
+        std::string(R"({"id":1,"reply":"link","revision":1,"link":)") +
+            port_object + "}",
+        std::string(R"({"id":1,"reply":"link","link":)") + link_object + "}"};
+    for (const std::string& header : bad)
+    {
+        const auto decoded = control::decode_reply(header_frame(header));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+    // The good ones, from the same pieces.
+    REQUIRE(control::decode_reply(header_frame(
+        R"({"id":1,"reply":"port","revision":1,"port":)" + port_object + "}")));
+    REQUIRE(control::decode_reply(header_frame(
+        R"({"id":1,"reply":"link","revision":1,"link":)" + link_object + "}")));
+    REQUIRE(control::decode_reply(
+        header_frame(R"({"id":1,"reply":"links","revision":1,"links":[)" +
+                     link_object + "]}")));
+}
+
+TEST_CASE("control proto: a link id is read back only in the form it is "
+          "written")
+{
+    for (const std::uint64_t id :
+         {std::uint64_t{0}, std::uint64_t{1}, std::uint64_t{42},
+          std::numeric_limits<std::uint64_t>::max()})
+    {
+        const auto read = control::parse_link_id(control::link_id_text(id));
+        REQUIRE(read == id);
+    }
+    for (const char* const bad :
+         {"", "l", "l_", "l_-1", "l_+1", "l_ 1", "l_1 ", " l_1", "L_1", "p_1",
+          "l_01", "l_1x", "l_18446744073709551616", "1", "l__1", "l_\xd9\xa1"})
+    {
+        REQUIRE(!control::parse_link_id(bad).has_value());
+    }
+    // A port's id is not a link's, and a link's is not a port's.
+    REQUIRE(!control::parse_link_id(control::port_id_text(1)).has_value());
+    REQUIRE(!control::parse_port_id(control::link_id_text(1)).has_value());
 }

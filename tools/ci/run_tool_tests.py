@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 # Modules that skip without Windows PowerShell and must not skip on the runner that runs this.
-REQUIRED = ("test_edit_path", "test_stop_studio")
+REQUIRED = ("test_driver_scripts", "test_edit_path", "test_stop_studio", "test_windows_installer")
 
 
 def modules_of(suite: unittest.TestSuite) -> Counter[str]:

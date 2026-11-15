@@ -70,6 +70,11 @@ struct licence
     std::string licensee_name;
     /// Optional. A team or role, not a personal address.
     std::string licensee_contact;
+    /// Optional. The email address the licensee gave when they asked for the
+    /// licence. It is personal data: a screen shows it to the person whose
+    /// computer holds the licence, and nothing writes it to a support bundle
+    /// unless that person turns it on.
+    std::string licensee_email;
     time_point issued_at;
     time_point starts_at;
     time_point expires_at;
@@ -101,6 +106,12 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload);
 /// The payload text for a licence, as `parse_payload` reads it. Refuses a
 /// licence `parse_payload` would refuse.
 result<std::string> write_payload(const licence& value);
+
+/// Whether `text` has the form of an email address a licence may carry: at
+/// most 254 ASCII characters, one `@`, something before it, and after it a
+/// name with a dot that neither starts nor ends with a dot or a hyphen. It
+/// does not show that the address exists.
+bool is_email_address(std::string_view text) noexcept;
 
 /// "2026-11-13T02:10:00Z", the only form a payload uses.
 result<time_point> parse_time(std::string_view text);
