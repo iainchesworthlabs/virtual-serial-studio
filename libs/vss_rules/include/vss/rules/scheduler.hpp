@@ -224,6 +224,11 @@ public:
     scheduler_stats stats() const;
     /// How many actions are waiting.
     std::size_t waiting() const;
+    /// What the last call left in the list it decides firings into: its
+    /// length (always 0 between calls) and its room.  The room is kept for a
+    /// few firings and given back after a burst.  For tests.
+    std::size_t scratch_size() const;
+    std::size_t scratch_capacity() const;
 
 private:
     struct item
@@ -285,8 +290,9 @@ private:
     std::uint64_t sequence_ = 0;
     /// The time the timer was last asked to wake for, if it is waiting.
     std::optional<time_point> armed_for_;
-    /// Kept between calls so that the path of the bytes does not allocate
-    /// one each time.
+    /// What one call decided.  Emptied when the call ends, with room kept for
+    /// a few firings so that the path of the bytes does not allocate each
+    /// time.
     std::vector<firing> scratch_;
     scheduler_stats stats_;
     /// Counted outside `mutex_`: the lock itself may be what failed.

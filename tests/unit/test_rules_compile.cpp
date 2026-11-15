@@ -1064,6 +1064,42 @@ TEST_CASE("rules: compile refuses a reply that must be over 4096 bytes")
     require_only(with_action(checks), action_path(".reply"));
 }
 
+TEST_CASE("rules: compile refuses a reply with more check values than its "
+          "limit, however short")
+{
+    action reply = reply_of(buf({1, 2, 3}));
+    reply_part check;
+    check.kind = part_kind::check;
+    reply.parts.insert(reply.parts.end(), max_reply_checks, check);
+    compile_ok(with_action(reply));
+
+    // One more is refused, with a message that says the limit.
+    reply.parts.push_back(check);
+    const auto problems = refuse(with_action(reply));
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].path, action_path(".reply"));
+    REQUIRE_EQ(problems[0].message,
+               std::string("a reply has at most 4 check values"));
+
+    // The checks of a reply with parts between them count together, and
+    // those of another reply do not count against it.
+    action spread = reply_of(buf({1}));
+    for (std::size_t i = 0; i < max_reply_checks + 1; ++i)
+    {
+        spread.parts.push_back(check);
+        reply_part literal;
+        literal.bytes = buf({2});
+        spread.parts.push_back(literal);
+    }
+    require_only(with_action(spread), action_path(".reply"));
+
+    reply.parts.pop_back();
+    std::vector<action> two;
+    two.push_back(reply);
+    two.push_back(reply);
+    compile_ok(with_actions(std::move(two)));
+}
+
 TEST_CASE("rules: compile refuses a corrupt fault with no bytes or too many")
 {
     action reply = reply_of(buf({1, 2}));

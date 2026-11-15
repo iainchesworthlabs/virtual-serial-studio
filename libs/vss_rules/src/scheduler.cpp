@@ -21,6 +21,36 @@ namespace
 /// it, as the delay line does.
 constexpr std::chrono::milliseconds foreign_clock_poll{1};
 
+/// The firings a scheduler keeps room for between calls, so that the path of
+/// the bytes does not allocate each time.  A burst that needed more gives the
+/// room back when its call ends.
+constexpr std::size_t scratch_firings_kept = 64;
+
+/// Empties a call's list of firings when the call ends, whichever way it
+/// ends, and lets go of its room when that is large.  What a call decided is
+/// scheduled or counted by then, so a set that the call suspended, and is not
+/// called again, holds nothing of it.
+class scratch_release
+{
+public:
+    explicit scratch_release(std::vector<firing>& list) noexcept : list_(list)
+    {
+    }
+
+    scratch_release(const scratch_release&) = delete;
+    scratch_release& operator=(const scratch_release&) = delete;
+
+    ~scratch_release()
+    {
+        list_.clear();
+        if (list_.capacity() > scratch_firings_kept)
+            std::vector<firing>().swap(list_);
+    }
+
+private:
+    std::vector<firing>& list_;
+};
+
 } // namespace
 
 scheduler::scheduler(const boost::asio::any_io_executor& executor,
@@ -81,7 +111,7 @@ void scheduler::on_read(endpoint_id from, bytes_view data,
                 if (!started_ || closed_ || retired_ ||
                     suspended_ != suspend_reason::none)
                     return;
-                scratch_.clear();
+                const scratch_release release(scratch_);
                 machine_.feed(data, when, scratch_, open_gate());
                 schedule(scratch_);
             }
@@ -107,7 +137,7 @@ void scheduler::lines_changed(control_lines before, control_lines after,
         if (!started_ || closed_ || retired_ ||
             suspended_ != suspend_reason::none)
             return;
-        scratch_.clear();
+        const scratch_release release(scratch_);
         machine_.lines_changed(before, after, when, scratch_, open_gate());
         schedule(scratch_);
     }
@@ -121,7 +151,7 @@ void scheduler::port_changed(port_event what, time_point when)
         if (!started_ || closed_ || retired_ ||
             suspended_ != suspend_reason::none)
             return;
-        scratch_.clear();
+        const scratch_release release(scratch_);
         machine_.port_changed(what, when, scratch_, open_gate());
         schedule(scratch_);
     }
@@ -138,7 +168,7 @@ result<void> scheduler::signal(std::size_t index, bytes_view carried,
         if (!started_ || closed_ || retired_ ||
             suspended_ != suspend_reason::none)
             return {};
-        scratch_.clear();
+        const scratch_release release(scratch_);
         machine_.signal(index, carried, cause, when, scratch_, open_gate());
         schedule(scratch_);
     }
@@ -242,6 +272,18 @@ std::size_t scheduler::waiting() const
 {
     std::lock_guard lock(mutex_);
     return queue_.size();
+}
+
+std::size_t scheduler::scratch_size() const
+{
+    std::lock_guard lock(mutex_);
+    return scratch_.size();
+}
+
+std::size_t scheduler::scratch_capacity() const
+{
+    std::lock_guard lock(mutex_);
+    return scratch_.capacity();
 }
 
 // Called with `mutex_` held, by the machine, before it fires a rule.  The
@@ -463,7 +505,7 @@ void scheduler::fire()
         // due already.
         if (!retired_)
         {
-            scratch_.clear();
+            const scratch_release release(scratch_);
             machine_.tick(current, scratch_, open_gate());
             schedule(scratch_);
         }

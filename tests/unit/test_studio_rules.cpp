@@ -1316,6 +1316,34 @@ TEST_CASE("studio rules: an installation, a replacement and a removal write a "
                                      "generation 3, seed 0, 1 rule(s)"));
 }
 
+TEST_CASE("studio rules: a set's name cannot start a line of its own in the "
+          "Log")
+{
+    // A name is any text of the document's, here with a quote, a line feed, a
+    // carriage return and a bell.  What the Log shows is one line for each
+    // event, with the control characters written out or replaced.
+    studio_bench b;
+    const std::string document =
+        R"j({"version": 1, "name": "a\"\nrule set \"forged\r\u0007",
+             "attach": {"role": "peer", "port": "device"}, "rules": )j" +
+        std::string(idle_rules) + "}";
+    REQUIRE(b.install(document));
+    REQUIRE(b.app.remove_rules(b.id));
+
+    const auto lines = wait_rule_lines(b, 2);
+    REQUIRE_EQ(lines.size(), std::size_t{2});
+    const std::string label = R"j(rule set "a"\nrule set "forged\r.")j";
+    REQUIRE_EQ(lines[0], label + " installed: generation 1, seed 0, 1 rule(s)");
+    REQUIRE_EQ(lines[1], label + " removed: generation 1");
+    for (const auto& event : b.events.snapshot())
+    {
+        if (event.kind != event_kind::log_message)
+            continue;
+        for (const char each : event.message)
+            REQUIRE(static_cast<unsigned char>(each) >= 0x20);
+    }
+}
+
 TEST_CASE("studio rules: removing the port writes the removal of its set to "
           "the Log")
 {

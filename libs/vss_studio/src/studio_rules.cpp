@@ -9,6 +9,7 @@
 // knows the ports.
 //
 
+#include <vss/core/bytes.hpp>
 #include <vss/studio/rules_build.hpp>
 #include <vss/studio/studio.hpp>
 
@@ -50,12 +51,14 @@ fault_kind fault_for(rules::line_error error)
 }
 
 /// How a set is named in a line of the Log: `rule set "meter"`, or `rule set`
-/// when it has no name.
+/// when it has no name.  The name is any text of the document's, so its line
+/// feeds and other control characters are written out or replaced: a name
+/// must not be able to start a line of its own.
 std::string label_of(std::string_view name)
 {
     if (name.empty())
         return "rule set";
-    return "rule set \"" + std::string(name) + "\"";
+    return "rule set \"" + to_printable(as_bytes(name)) + "\"";
 }
 
 /// Says `message` in the Log, on the port.  Posts to the hub's dispatcher, so
@@ -88,8 +91,8 @@ constexpr clock_type::duration late_line_interval = std::chrono::seconds(1);
 /// strand and only publish.  They hold the hub as `hooks.now` does: a
 /// scheduler is closed before the hub goes.
 void observe_set(rules::scheduler_hooks& hooks, hub* engine, endpoint_id id,
-                 std::weak_ptr<endpoint> port, const std::string& set_name,
-                 std::uint32_t firings_per_second)
+                 const std::weak_ptr<endpoint>& port,
+                 const std::string& set_name, std::uint32_t firings_per_second)
 {
     const std::string label = label_of(set_name);
     const std::uint32_t limit = std::max<std::uint32_t>(firings_per_second, 1);

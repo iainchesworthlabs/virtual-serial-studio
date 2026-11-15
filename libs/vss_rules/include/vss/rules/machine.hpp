@@ -113,8 +113,11 @@ struct machine_stats
     /// Every match that was decided, including the ones a gate refused.
     std::uint64_t firings = 0;
     /// The firings a gate refused (see #firing_gate).  A refused firing
-    /// changes nothing else: no count of the rule, no step, no draw, no
-    /// state or slot, no action.
+    /// changes nothing of the set: no count of the rule, no step, no draw,
+    /// no state or slot, no action.  The matcher goes on as it would after a
+    /// firing: the matched bytes and every partial match are used up, a
+    /// `quiet_us` rule is marked spent for that silence, and a match that
+    /// was waiting for its gap is dropped.
     std::uint64_t refused = 0;
     std::uint64_t skipped = 0;
     std::uint64_t replies = 0;
@@ -146,8 +149,10 @@ public:
     /// delay is drawn and before its bytes are rendered (a refused action is
     /// not rendered and not appended; the draw is still taken, so the seeded
     /// stream does not depend on how full the queue was).  A rule's
-    /// `set_state` and `set_slot` do not wait and are not asked.  The timeline
-    /// is not asked `admit_firing`.  The gate is used during the call only.
+    /// `set_state` and `set_slot` do not wait and are not asked: they are
+    /// done at the match, and with a gate they are not kept in the firing's
+    /// `actions`, which nothing would read.  The timeline is not asked
+    /// `admit_firing`.  The gate is used during the call only.
     std::vector<firing> start(time_point origin, firing_gate* gate = nullptr);
 
     /// Bytes that arrived at `when`.  Times must not go backwards.  Firings

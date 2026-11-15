@@ -13,12 +13,16 @@
 // its match (unless it is timed from the start of the run or, for a signal,
 // from its cause), no reply is longer than the limit, a signal carries no more
 // than the limit, the bytes kept for a successor are fewer than the longest
-// pattern, and every byte fed is counted.
+// pattern, and every byte fed is counted.  The machine is given a gate with the
+// scheduler's limits, for a run in which nothing waiting is ever carried out,
+// so that a set that fires a lot or builds a lot is refused as it is in the
+// engine, and must not do more than the gate allowed.
 //
 
 #include <vss/rules/compile.hpp>
 #include <vss/rules/machine.hpp>
 #include <vss/rules/parse.hpp>
+#include <vss/rules/scheduler.hpp>
 
 #include <algorithm>
 #include <chrono>
@@ -35,6 +39,40 @@ namespace
 
 using namespace std::chrono_literals;
 namespace rules = vss::rules;
+
+/// Admits what the scheduler's gate admits when no action is ever carried
+/// out: its budget of firings for one second, and the room for waiting
+/// actions, both used up and never refilled.
+class counting_gate final : public rules::firing_gate
+{
+public:
+    bool admit_firing(vss::time_point) override
+    {
+        if (firings_ >= rules::default_firings_per_second)
+        {
+            return false;
+        }
+        ++firings_;
+        return true;
+    }
+
+    bool admit_action() override
+    {
+        if (actions_ >= rules::max_waiting_actions)
+        {
+            return false;
+        }
+        ++actions_;
+        return true;
+    }
+
+    std::uint64_t firings() const noexcept { return firings_; }
+    std::uint64_t actions() const noexcept { return actions_; }
+
+private:
+    std::uint64_t firings_ = 0;
+    std::uint64_t actions_ = 0;
+};
 
 /// Stops the run when a firing breaks a promise of the machine.
 void check_firings(const std::vector<rules::firing>& firings)
@@ -78,10 +116,11 @@ void run(const std::shared_ptr<const rules::compiled_rule_set>& set,
          vss::bytes_view traffic)
 {
     rules::machine machine(set, 1);
+    counting_gate gate;
     std::vector<rules::firing> firings;
 
     const vss::time_point origin = vss::time_point{} + 1s;
-    for (auto& each : machine.start(origin))
+    for (auto& each : machine.start(origin, &gate))
     {
         firings.push_back(std::move(each));
     }
@@ -97,29 +136,30 @@ void run(const std::shared_ptr<const rules::compiled_rule_set>& set,
         now += 100us;
 
         firings.clear();
-        machine.feed(traffic.subspan(at, chunk), now, firings);
-        machine.tick(now, firings);
+        machine.feed(traffic.subspan(at, chunk), now, firings, &gate);
+        machine.tick(now, firings, &gate);
 
         // The last byte of the piece decides whether something else happens.
         const vss::byte last = traffic[at + chunk - 1];
         if ((last & 0x80U) != 0)
         {
             const auto changed = vss::control_lines::from_bits(last & 0x7fU);
-            machine.lines_changed(lines, changed, now, firings);
+            machine.lines_changed(lines, changed, now, firings, &gate);
             lines = changed;
         }
         else if ((last & 0x40U) != 0)
         {
             machine.port_changed((last & 1U) != 0 ? rules::port_event::opened
                                                   : rules::port_event::closed,
-                                 now, firings);
+                                 now, firings, &gate);
         }
         if ((last & 0x20U) != 0 && !machine.set().signals.empty())
         {
             // The rest of the traffic is what the signal carries, so that a
             // long input is cut at the limit.  Its cause is a little before.
             machine.signal(last % machine.set().signals.size(),
-                           traffic.subspan(at), now - 50us, now, firings);
+                           traffic.subspan(at), now - 50us, now, firings,
+                           &gate);
         }
 
         check_firings(firings);
@@ -131,13 +171,19 @@ void run(const std::shared_ptr<const rules::compiled_rule_set>& set,
     firings.clear();
     if (const auto deadline = machine.next_deadline())
     {
-        machine.tick(*deadline, firings);
+        machine.tick(*deadline, firings, &gate);
     }
-    machine.tick(now + 1h, firings);
+    machine.tick(now + 1h, firings, &gate);
     check_firings(firings);
     check_tail(machine);
 
-    if (machine.stats().bytes_seen != traffic.size())
+    // Every byte is counted, and what was decided is what the gate let
+    // through and what it refused: no more was built than it allowed.
+    const rules::machine_stats stats = machine.stats();
+    if (stats.bytes_seen != traffic.size() ||
+        stats.firings - stats.refused != gate.firings() ||
+        stats.replies > gate.actions() ||
+        gate.actions() > rules::max_waiting_actions)
     {
         std::abort();
     }

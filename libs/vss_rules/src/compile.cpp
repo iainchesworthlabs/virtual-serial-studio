@@ -450,6 +450,7 @@ private:
             bad(path, "more than " + std::to_string(max_reply_parts) +
                           " parts");
         std::size_t fixed_bytes = 0;
+        std::size_t checks = 0;
         for (std::size_t i = 0; i < in.size(); ++i)
         {
             const std::string part_path = path + "[" + std::to_string(i) + "]";
@@ -474,6 +475,7 @@ private:
                 if (!in[i].whole && in[i].first > in[i].last)
                     bad(part_path, "the range runs backwards");
                 fixed_bytes += 2;
+                ++checks;
                 break;
             }
             out.push_back(std::move(part));
@@ -481,6 +483,9 @@ private:
         if (fixed_bytes > max_reply_bytes)
             bad(path, "a reply has at most " +
                           std::to_string(max_reply_bytes) + " bytes");
+        if (checks > max_reply_checks)
+            bad(path, "a reply has at most " +
+                          std::to_string(max_reply_checks) + " check values");
         return out;
     }
 

@@ -614,7 +614,9 @@ void machine::fire(std::size_t rule, std::uint64_t offset, bytes_view matched,
                    const time_point* cause)
 {
     // Asked before anything changes: a refused firing is only counted, so
-    // the set is as it was, and no reply of it is built.
+    // the set is as it was, and no reply of it is built.  The caller goes on
+    // as after a firing: it consumes the match, marks a quiet rule spent and
+    // drops a match that was waiting for its gap.
     if (gate_ != nullptr && !gate_->admit_firing(call_time_))
     {
         ++stats_.firings;
@@ -735,7 +737,10 @@ void machine::plan(const std::vector<compiled_action>& actions,
         const bool waits =
             runtime == nullptr || (action.kind != action_kind::set_state &&
                                    action.kind != action_kind::set_slot);
-        if (waits && gate_ != nullptr && !gate_->admit_action())
+        // Under a gate the ones that do not wait are not kept either: nothing
+        // reads them, and a chunk may carry out thousands of firings of
+        // sixteen of them.
+        if (gate_ != nullptr && (!waits || !gate_->admit_action()))
             continue;
 
         if (action.kind == action_kind::reply)
@@ -763,53 +768,72 @@ void machine::plan(const std::vector<compiled_action>& actions,
 byte_buffer machine::render(const compiled_action& action, bytes_view matched,
                             bool& cut) const
 {
-    byte_buffer out;
-    for (const compiled_part& each : action.parts)
+    // The bytes a part adds, for all but a check.
+    const auto contents = [&](const compiled_part& each) -> bytes_view
     {
         const reply_part& part = each.part;
-        switch (part.kind)
-        {
-        case part_kind::literal:
-            out.insert(out.end(), part.bytes.begin(), part.bytes.end());
-            break;
-        case part_kind::slot:
-            if (each.slot < slots_.size())
-                out.insert(out.end(), slots_[each.slot].begin(),
-                           slots_[each.slot].end());
-            break;
-        case part_kind::match:
-            if (part.last < matched.size() && part.first <= part.last)
-                out.insert(out.end(),
-                           matched.begin() +
-                               static_cast<std::ptrdiff_t>(part.first),
-                           matched.begin() +
-                               static_cast<std::ptrdiff_t>(part.last + 1));
-            break;
-        case part_kind::check:
-        {
-            std::size_t first = 0;
-            std::size_t count = out.size();
-            if (!part.whole)
-            {
-                // `last` may be past the end, and as large as a size can be.
-                first = std::min(part.first, out.size());
-                const std::size_t end =
-                    part.last < out.size() ? part.last + 1 : out.size();
-                count = end > first ? end - first : 0;
-            }
-            // The check is worked out before it is appended: `out` may move.
-            byte_buffer value;
-            append_check(part.check, bytes_view(out.data() + first, count),
-                         value);
-            out.insert(out.end(), value.begin(), value.end());
-            break;
-        }
-        }
-    }
-    if (out.size() > max_reply_bytes)
+        if (part.kind == part_kind::literal)
+            return part.bytes;
+        if (part.kind == part_kind::slot && each.slot < slots_.size())
+            return slots_[each.slot];
+        if (part.kind == part_kind::match && part.last < matched.size() &&
+            part.first <= part.last)
+            return matched.subspan(part.first, part.last - part.first + 1);
+        return {};
+    };
+
+    // The buffer is made once, at the size the reply will have and no larger
+    // than a reply may be, and it is never grown past it: what does not fit
+    // is not built, so the buffer that is kept is as small as the reply.
+    std::size_t wanted = 0;
+    for (const compiled_part& each : action.parts)
+        wanted += each.part.kind == part_kind::check ? std::size_t{2}
+                                                     : contents(each).size();
+    byte_buffer out;
+    out.reserve(std::min(wanted, max_reply_bytes));
+
+    const auto append = [&](bytes_view what)
     {
-        out.resize(max_reply_bytes);
-        cut = true;
+        const std::size_t room = max_reply_bytes - out.size();
+        if (what.size() > room)
+        {
+            what = what.first(room);
+            cut = true;
+        }
+        out.insert(out.end(), what.begin(), what.end());
+    };
+
+    for (const compiled_part& each : action.parts)
+    {
+        // Full, and something was left out: the rest is left out too.
+        if (cut)
+            break;
+        const reply_part& part = each.part;
+        if (part.kind != part_kind::check)
+        {
+            append(contents(each));
+            continue;
+        }
+        // A check past the end is cut, so its value is not worked out.
+        if (out.size() >= max_reply_bytes)
+        {
+            cut = true;
+            break;
+        }
+        std::size_t first = 0;
+        std::size_t count = out.size();
+        if (!part.whole)
+        {
+            // `last` may be past the end, and as large as a size can be.
+            first = std::min(part.first, out.size());
+            const std::size_t end =
+                part.last < out.size() ? part.last + 1 : out.size();
+            count = end > first ? end - first : 0;
+        }
+        // The check is worked out before it is appended: `out` may move.
+        byte_buffer value;
+        append_check(part.check, bytes_view(out.data() + first, count), value);
+        append(value);
     }
     return out;
 }
