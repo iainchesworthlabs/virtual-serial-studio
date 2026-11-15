@@ -1139,6 +1139,16 @@ FakeStudioBackend::build_document(const vss::config::document& document,
             if (lost != ports_.end())
                 static_cast<void>(remove_port(lost->id));
         }
+        if (!additive && remake_link_on_failed_replace_ && !links_.empty())
+        {
+            link_view remade = links_.front();
+            links_.erase(links_.begin());
+            remade.id = next_link_++;
+            links_.push_back(std::move(remade));
+            // As the engine's rebuild does on the worker thread, before the
+            // window learns that the call failed.
+            refresh();
+        }
         return *error;
     }
     if (const vss::error_code invalid = vss::config::validate(document))

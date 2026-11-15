@@ -9441,6 +9441,11 @@ Networks: %5</source>
             <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
             <translation>ניט אַלץ וואָס איז געלאָפֿן האָט מען געקענט צוריקשטעלן, דרום איז די אײַנשטעלונג אָנגעצייכנט ווי געענדערט.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>די אײַנשטעלונג דאַרף אַן אַפּאַראַט אָדער נעץ־ענדפּונקט וואָס איז נישט פֿאַראַנען אויף דעם קאָמפּיוטער. קאָנטראָלירט דעם אַפּאַראַט און פּרובירט נאָך אַ מאָל.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

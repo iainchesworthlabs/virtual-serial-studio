@@ -619,13 +619,17 @@ TEST_CASE("engine backend: new serial settings of a port raise ports_changed")
     // The window marks the setup changed when this signal arrives, and a
     // loopback keeps nothing but the values: no other part of its view changes
     // with them.
-    vss::serial_settings settings = backend.port(*port)->serial;
+    const auto view = backend.port(*port);
+    REQUIRE(view.has_value());
+    vss::serial_settings settings = view->serial;
     settings.baud_rate = 9600;
     settings.parity = vss::parity_mode::even;
     REQUIRE(backend.set_port_settings(*port, settings).has_value());
     backend.refresh();
     REQUIRE(ports_changed > 0);
-    REQUIRE_EQ(backend.port(*port)->serial.baud_rate, 9600u);
+    const auto changed = backend.port(*port);
+    REQUIRE(changed.has_value());
+    REQUIRE_EQ(changed->serial.baud_rate, 9600u);
 }
 
 TEST_CASE("engine backend: two replaces at once leave one document")

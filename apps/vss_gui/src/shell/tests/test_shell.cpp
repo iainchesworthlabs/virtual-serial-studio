@@ -2588,6 +2588,9 @@ TEST_CASE("shell: a new setup and closing wait while the JSON view applies")
     window.findChild<QAction*>(QStringLiteral("file.new"))->trigger();
     QApplication::processEvents();
     REQUIRE(editor->busy());
+    // New would have removed the port that is running; it is still there.
+    REQUIRE_EQ(backend.ports().size(), std::size_t{1});
+    REQUIRE_EQ(backend.ports()[0].name, QStringLiteral("old"));
     REQUIRE(!window.close());
     REQUIRE(window.isVisible());
 

@@ -16,6 +16,7 @@
 #include "simple_steps.hpp"
 
 #include "backend/engine_studio_backend.hpp"
+#include "dialogs/templates_dialog.hpp"
 #include "qt_wait.hpp"
 #include "widgets/dialogs.hpp"
 
@@ -26,6 +27,7 @@
 #include <QElapsedTimer>
 #include <QFileDialog>
 #include <QLabel>
+#include <QSettings>
 #include <QSpinBox>
 #include <QTableView>
 #include <QTemporaryDir>
@@ -115,6 +117,29 @@ void wait_until_applied(Session& s)
     wait_for("the window to finish opening the setup",
              [&s] { return !s.window().applying(); });
     s.settle();
+}
+
+/// True when a label of the dialog has this text in it.
+bool has_label_text(QWidget* dialog, const QString& text)
+{
+    for (const auto* label : dialog->findChildren<QLabel*>())
+    {
+        if (label->text().contains(text))
+            return true;
+    }
+    return false;
+}
+
+/// Chooses the example "Test bench, no hardware" in the next templates dialog.
+void use_the_example(Session& s)
+{
+    s.pilot().expect_type<TemplatesDialog>(
+        "the examples",
+        [](QWidget* d)
+        {
+            click(accessible(d, QStringLiteral("Test bench, no hardware")));
+            click(button(d, QStringLiteral("Use template")));
+        });
 }
 
 /// The names of the ports that run, in order.
@@ -371,13 +396,13 @@ TEST_CASE("open: a failed open that lost a port marks the setup changed")
         "the error",
         [](QWidget* dialog)
         {
-            // Not everything came back, and the dialog says so.
-            REQUIRE(!dialog->findChildren<QLabel*>().isEmpty());
-            bool said = false;
-            for (const auto* label : dialog->findChildren<QLabel*>())
-                said = said || label->text().contains(
-                                   QStringLiteral("could be put back"));
-            REQUIRE(said);
+            // Not everything came back, and the dialog says so as its own
+            // sentence, not glued to the engine's text.
+            REQUIRE(has_label_text(
+                dialog,
+                QStringLiteral("Not everything that was running could be put "
+                               "back, so the setup is marked as changed.")));
+            REQUIRE(!has_label_text(dialog, QStringLiteral("already exists")));
             static_cast<QDialog*>(dialog)->accept();
         });
     drive_file_dialog(s, path, "Open");
@@ -418,5 +443,110 @@ TEST_CASE("open: a failed open that changed nothing leaves the title alone")
     s.pilot().check();
     REQUIRE_EQ(s.backend().ports().size(), 2);
     REQUIRE(!s.window().windowTitle().contains(QLatin1Char('*')));
+    s.finish();
+}
+
+TEST_CASE("open: a failed open that put everything back keeps the title clean")
+{
+    Session s("open: a failed open that put everything back keeps the title "
+              "clean",
+              Session::mode::advanced);
+    const auto a = make(s, "Loopback", "a");
+    const auto b = make(s, "Loopback", "b");
+    const auto c = make(s, "Loopback", "c");
+    ad::wire(s, a, b);
+    ad::wire(s, b, c);
+    QTemporaryDir directory;
+    REQUIRE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("lab.json"));
+    drive_file_dialog(s, path, "Save");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Save as"));
+    s.settle();
+    REQUIRE(!s.window().windowTitle().contains(QLatin1Char('*')));
+
+    // The open fails and the engine puts its first link back, which gives it
+    // a new id and a later place.  The setup is the same one, so the title
+    // keeps no unsaved mark and the dialog does not say anything was lost.
+    s.fake().remake_link_on_failed_replace();
+    s.fake().fail_next(vss::make_error_code(vss::errc::already_exists));
+    s.pilot().expect_type<ErrorDialog>(
+        "the error",
+        [](QWidget* d)
+        {
+            REQUIRE(!has_label_text(d, QStringLiteral("could be put back")));
+            static_cast<QDialog*>(d)->accept();
+        });
+    drive_file_dialog(s, path, "Open");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
+    wait_until_applied(s);
+    Probe::instance().tolerate(false);
+    s.pilot().check();
+    REQUIRE_EQ(s.backend().links().size(), 2);
+    REQUIRE(!s.window().windowTitle().contains(QLatin1Char('*')));
+    s.finish();
+}
+
+TEST_CASE("open: a template that fails with nothing touched says nothing was "
+          "changed")
+{
+    Session s("open: a template that fails with nothing touched says nothing "
+              "was changed",
+              Session::mode::advanced);
+    const auto a = make(s, "Loopback", "a");
+    const auto b = make(s, "Loopback", "b");
+    ad::wire(s, a, b);
+    QSettings().setValue(QStringLiteral("ui/askOnDiscard"), false);
+
+    s.fake().fail_next(vss::make_error_code(vss::errc::already_exists));
+    use_the_example(s);
+    s.pilot().expect_type<ErrorDialog>(
+        "the error",
+        [](QWidget* d)
+        {
+            REQUIRE(has_label_text(d, QStringLiteral("Nothing was changed")));
+            static_cast<QDialog*>(d)->accept();
+        });
+    Probe::instance().tolerate(true);
+    choose_menu(s, QStringLiteral("File"),
+                QStringLiteral("Setups and templates"));
+    wait_until_applied(s);
+    Probe::instance().tolerate(false);
+    s.pilot().check();
+    REQUIRE_EQ(s.backend().ports().size(), 2);
+    s.finish();
+}
+
+TEST_CASE("open: a template that fails after ports were made again does not "
+          "say nothing was changed")
+{
+    Session s("open: a template that fails after ports were made again does "
+              "not say nothing was changed",
+              Session::mode::advanced);
+    const auto a = make(s, "Loopback", "a");
+    const auto b = make(s, "Loopback", "b");
+    ad::wire(s, a, b);
+    QSettings().setValue(QStringLiteral("ui/askOnDiscard"), false);
+
+    // The engine puts its link back with a new id: the setup is the same one,
+    // but it was not left alone.
+    s.fake().remake_link_on_failed_replace();
+    s.fake().fail_next(vss::make_error_code(vss::errc::already_exists));
+    use_the_example(s);
+    s.pilot().expect_type<ErrorDialog>(
+        "the error",
+        [](QWidget* d)
+        {
+            REQUIRE(has_label_text(d, QStringLiteral("Check the device")));
+            REQUIRE(!has_label_text(d, QStringLiteral("Nothing was changed")));
+            REQUIRE(!has_label_text(d, QStringLiteral("could be put back")));
+            static_cast<QDialog*>(d)->accept();
+        });
+    Probe::instance().tolerate(true);
+    choose_menu(s, QStringLiteral("File"),
+                QStringLiteral("Setups and templates"));
+    wait_until_applied(s);
+    Probe::instance().tolerate(false);
+    s.pilot().check();
+    REQUIRE_EQ(s.backend().ports().size(), 2);
     s.finish();
 }
