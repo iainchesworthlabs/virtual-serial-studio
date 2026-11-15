@@ -248,6 +248,34 @@ result<pipe_ends> make_pipe(bool two_way, PSECURITY_DESCRIPTOR own_user_only)
     return ends;
 }
 
+/// The environment of a request, with the variables Windows insists on for
+/// a process in an AppContainer added where the request does not have
+/// them: without them it refuses to start the process.  They name the
+/// plugin's data directory; nothing is taken from the host's environment.
+std::vector<std::pair<std::string, std::string>>
+with_container_variables(const process_request& request)
+{
+    auto environment = request.environment;
+    if (!request.sandbox)
+        return environment;
+    const std::u8string wide_data = request.sandbox->data_directory.u8string();
+    const std::string data(wide_data.begin(), wide_data.end());
+    for (const std::string_view name :
+         {"LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP"})
+    {
+        const bool present =
+            std::ranges::any_of(environment, [name](const auto& entry)
+                                {
+                                    return ::_stricmp(entry.first.c_str(),
+                                                      std::string(name)
+                                                          .c_str()) == 0;
+                                });
+        if (!present)
+            environment.emplace_back(std::string(name), data);
+    }
+    return environment;
+}
+
 /// The environment as Windows takes it: "NAME=value" texts, each ended by
 /// a zero, in the order of their names, and one more zero at the end.
 std::optional<std::wstring> environment_block(
@@ -784,7 +812,8 @@ start_process(const process_request& request)
         return make_error_code(plugin_errc::start_failed);
 
     auto environment =
-        environment_block(request.environment, channel->plugin.get());
+        environment_block(with_container_variables(request),
+                          channel->plugin.get());
     if (!environment)
         return make_error_code(plugin_errc::start_failed);
 
