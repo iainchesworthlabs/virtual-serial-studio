@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_SHELL_STATUS_BAR_HPP
 #define VSS_GUI_SHELL_STATUS_BAR_HPP
 
+#include "backend/plugin_backend.hpp"
 #include "backend/studio_backend.hpp"
 #include "support/licence_text.hpp"
 #include "support/setup_facts.hpp"
@@ -36,6 +37,9 @@ public:
     /// Shows `look`, and names the button "Edition: <text>. Open the licence
     /// page."
     void set_look(const support::licence_chip& look);
+    /// Shows any chip and names the button `name`. The traffic chip uses it.
+    void set_state(StatusChip::kind kind, const QString& text,
+                   const QString& name);
     StatusChip* chip() const noexcept { return chip_; }
 
     QSize sizeHint() const override;
@@ -69,15 +73,25 @@ public:
 
     EditionChip* edition_chip() const noexcept { return edition_; }
 
+    /// Where the plugin host's snapshot comes from, for the chip that says a
+    /// plugin reads data. Null: no chip.
+    void set_plugin_backend(PluginBackend* host);
+    /// "Recording" or "Reading data", while any plugin reads data. Hidden
+    /// otherwise; it cannot be dismissed.
+    EditionChip* plugin_chip() const noexcept { return plugin_chip_; }
+
 Q_SIGNALS:
     void level_requested(bool advanced);
     /// The edition chip was pressed.
     void licence_requested();
+    /// The chip that says a plugin reads data was pressed.
+    void plugins_requested();
 
 private:
     void update_readiness();
     void update_profiling();
     void update_edition();
+    void update_plugin_chip();
 
     StudioBackend& backend_;
     support::setup_report_cache setup_cache_;
@@ -89,6 +103,8 @@ private:
     StatusChip* dropped_ = nullptr;
     StatusChip* profiling_ = nullptr;
     EditionChip* edition_ = nullptr;
+    EditionChip* plugin_chip_ = nullptr;
+    PluginBackend* plugins_ = nullptr;
     SegmentedControl* level_ = nullptr;
 
     QElapsedTimer rate_timer_;

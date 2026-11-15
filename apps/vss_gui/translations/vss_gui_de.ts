@@ -2771,6 +2771,21 @@ Netzwerke: %5</translation>
             <source>%1, %2</source>
             <translation>%1, %2</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>Provided by</source>
+            <translation>Bereitgestellt von</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>In „Plug-ins“ anzeigen</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>These settings are kept. They apply again when the plugin is available.</source>
+            <translation>Diese Einstellungen bleiben erhalten. Sie gelten wieder, wenn das Plug-in verfügbar ist.</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -9429,6 +9444,11 @@ Netzwerke: %5</translation>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
             <source>plugin plugins extension fixture generator trust</source>
             <translation>Plug-in Plug-ins Plugin Plugins Erweiterung Testgerät Generator Vertrauen</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
+            <source>Started again.</source>
+            <translation>Erneut gestartet.</translation>
         </message>
     </context>
     <context>
@@ -19837,6 +19857,16 @@ Netzwerke: %5</translation>
             <source>Bundles</source>
             <translation>Bündel</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>In „Plug-ins“ anzeigen</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>Plug-ins</translation>
+        </message>
     </context>
     <context>
         <name>TopologyView</name>
@@ -20440,6 +20470,11 @@ Netzwerke: %5</translation>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>licence number</source>
             <translation>Lizenznummer</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/licence_dialog.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>Plug-ins</translation>
         </message>
     </context>
     <context>
@@ -22186,6 +22221,193 @@ Netzwerke: %5</translation>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
             <source>Add plugin</source>
             <translation>Plug-in hinzufügen</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginPart</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>Einschalten</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>Prüfen und entscheiden</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>In „Plug-ins“ anzeigen</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Licence</source>
+            <translation>Lizenz</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Start again</source>
+            <translation>Erneut starten</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2 (%3)</source>
+            <translation>%1, aus dem Plug-in %2 (%3)</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2</source>
+            <translation>%1, aus dem Plug-in %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Plugin not available</source>
+            <translation>Plug-in nicht verfügbar</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2, plugin not available</source>
+            <translation>%1, %2, Plug-in nicht verfügbar</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The generator %1 is not running.</source>
+            <translation>Der Generator %1 läuft nicht.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link is being dropped.</source>
+            <translation>Das Verknüpfungsverhalten %1 läuft nicht, daher werden Daten auf dieser Verknüpfung verworfen.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link passes unchanged.</source>
+            <translation>Das Verknüpfungsverhalten %1 läuft nicht, daher werden Daten auf dieser Verknüpfung unverändert weitergegeben.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is switched off. The port stays open and sends nothing.</source>
+            <translation>Dieses Testgerät stammt aus dem Plug-in %1, das ausgeschaltet ist. Der Port bleibt offen und sendet nichts.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is waiting for your decision. The port stays open and sends nothing.</source>
+            <translation>Dieses Testgerät stammt aus dem Plug-in %1, das auf Ihre Entscheidung wartet. Der Port bleibt offen und sendet nichts.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which your administrator has blocked. The port stays open and sends nothing.</source>
+            <translation>Dieses Testgerät stammt aus dem Plug-in %1, das Ihr Administrator blockiert hat. Der Port bleibt offen und sendet nichts.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1. %2 The port stays open and sends nothing.</source>
+            <translation>Dieses Testgerät stammt aus dem Plug-in %1. %2 Der Port bleibt offen und sendet nichts.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped. This fixture still sends its fixed replies. Anything the plugin worked out itself has stopped.</source>
+            <translation>Das Plug-in %1 wurde angehalten. Dieses Testgerät sendet weiterhin seine festen Antworten. Alles, was das Plug-in selbst berechnet hat, wurde angehalten.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped, so this fixture sends nothing.</source>
+            <translation>Das Plug-in %1 wurde angehalten, daher sendet dieses Testgerät nichts.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which cannot run in this version of Studio. The port stays open and sends nothing.</source>
+            <translation>Dieses Testgerät stammt aus dem Plug-in %1, das in dieser Version von Studio nicht laufen kann. Der Port bleibt offen und sendet nichts.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture needs the plugin %1, which is not installed on this computer. The port stays open and sends nothing.</source>
+            <translation>Dieses Testgerät benötigt das Plug-in %1, das auf diesem Computer nicht installiert ist. Der Port bleibt offen und sendet nichts.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginToolbox</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is starting.</source>
+            <translation>%1 startet.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 has stopped. Open Plugins to start it again.</source>
+            <translation>%1 wurde angehalten. Öffnen Sie „Plug-ins“, um es erneut zu starten.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, plugin</source>
+            <translation>%1, Plug-in</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Fixture from the plugin %1. %2.</source>
+            <translation>Testgerät aus dem Plug-in %1. %2.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1
+From the plugin %2
+%3</source>
+            <translation>%1
+Aus dem Plug-in %2
+%3</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginTrafficChip</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Recording</source>
+            <translation>Zeichnet auf</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Reading data</source>
+            <translation>Liest Daten</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%n plugins are reading data. Open Plugins.</source>
+            <translation>
+                <numerusform>%n Plug-in liest Daten. „Plug-ins“ öffnen.</numerusform>
+                <numerusform>%n Plug-ins lesen Daten. „Plug-ins“ öffnen.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on 1 port. Open Plugins.</source>
+            <translation>%1 zeichnet Daten an 1 Port auf. „Plug-ins“ öffnen.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 zeichnet Daten an %n Port auf. „Plug-ins“ öffnen.</numerusform>
+                <numerusform>%1 zeichnet Daten an %n Ports auf. „Plug-ins“ öffnen.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on 1 port. Open Plugins.</source>
+            <translation>%1 liest Daten an 1 Port. „Plug-ins“ öffnen.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 liest Daten an %n Port. „Plug-ins“ öffnen.</numerusform>
+                <numerusform>%1 liest Daten an %n Ports. „Plug-ins“ öffnen.</numerusform>
+            </translation>
         </message>
     </context>
 </TS>

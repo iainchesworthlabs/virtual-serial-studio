@@ -2771,6 +2771,21 @@ Networks: %5</source>
             <source>%1, %2</source>
             <translation>%1، %2</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>Provided by</source>
+            <translation>مقدَّم من</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>إظهار في الإضافات</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>These settings are kept. They apply again when the plugin is available.</source>
+            <translation>هذه الإعدادات محفوظة. تُطبَّق مجدداً عندما تتوفر الإضافة.</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -9453,6 +9468,11 @@ Networks: %5</source>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
             <source>plugin plugins extension fixture generator trust</source>
             <translation>إضافة إضافات امتداد تجهيزة مولّد ثقة plugin plugins</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
+            <source>Started again.</source>
+            <translation>بدأ التشغيل مجدداً.</translation>
         </message>
     </context>
     <context>
@@ -19925,6 +19945,16 @@ Networks: %5</source>
             <source>Bundles</source>
             <translation>الحزم</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>إظهار في الإضافات</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>الإضافات</translation>
+        </message>
     </context>
     <context>
         <name>TopologyView</name>
@@ -20548,6 +20578,11 @@ Networks: %5</source>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>licence number</source>
             <translation>رقم الترخيص</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/licence_dialog.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>الإضافات</translation>
         </message>
     </context>
     <context>
@@ -22326,6 +22361,205 @@ Networks: %5</source>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
             <source>Add plugin</source>
             <translation>إضافة الملحق</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginPart</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>التشغيل</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>المراجعة والقرار</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>إظهار في الإضافات</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Licence</source>
+            <translation>الترخيص</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Start again</source>
+            <translation>البدء مجدداً</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2 (%3)</source>
+            <translation>%1، من الإضافة %2 (%3)</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2</source>
+            <translation>%1، من الإضافة %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1، %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Plugin not available</source>
+            <translation>الإضافة غير متاحة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2, plugin not available</source>
+            <translation>%1، %2، الإضافة غير متاحة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The generator %1 is not running.</source>
+            <translation>المولّد %1 لا يعمل.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link is being dropped.</source>
+            <translation>سلوك الارتباط %1 لا يعمل، لذلك تُهمَل البيانات على هذا الارتباط.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link passes unchanged.</source>
+            <translation>سلوك الارتباط %1 لا يعمل، لذلك تمر البيانات على هذا الارتباط دون تغيير.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is switched off. The port stays open and sends nothing.</source>
+            <translation>جهاز المحاكاة هذا من الإضافة %1، وهي متوقفة عن العمل. يبقى المنفذ مفتوحاً ولا يرسل شيئاً.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is waiting for your decision. The port stays open and sends nothing.</source>
+            <translation>جهاز المحاكاة هذا من الإضافة %1، التي تنتظر قرارك. يبقى المنفذ مفتوحاً ولا يرسل شيئاً.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which your administrator has blocked. The port stays open and sends nothing.</source>
+            <translation>جهاز المحاكاة هذا من الإضافة %1، التي حظرها المسؤول. يبقى المنفذ مفتوحاً ولا يرسل شيئاً.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1. %2 The port stays open and sends nothing.</source>
+            <translation>جهاز المحاكاة هذا من الإضافة %1. %2 يبقى المنفذ مفتوحاً ولا يرسل شيئاً.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped. This fixture still sends its fixed replies. Anything the plugin worked out itself has stopped.</source>
+            <translation>توقفت الإضافة %1. لا يزال جهاز المحاكاة هذا يرسل ردوده الثابتة. وتوقف كل ما كانت الإضافة تحسبه بنفسها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped, so this fixture sends nothing.</source>
+            <translation>توقفت الإضافة %1، لذلك لا يرسل جهاز المحاكاة هذا شيئاً.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which cannot run in this version of Studio. The port stays open and sends nothing.</source>
+            <translation>جهاز المحاكاة هذا من الإضافة %1، التي لا يمكن تشغيلها في هذا الإصدار من Studio. يبقى المنفذ مفتوحاً ولا يرسل شيئاً.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture needs the plugin %1, which is not installed on this computer. The port stays open and sends nothing.</source>
+            <translation>جهاز المحاكاة هذا يحتاج إلى الإضافة %1، وهي غير مثبتة على هذا الكمبيوتر. يبقى المنفذ مفتوحاً ولا يرسل شيئاً.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginToolbox</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is starting.</source>
+            <translation>%1 قيد البدء.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 has stopped. Open Plugins to start it again.</source>
+            <translation>توقفت %1. افتح الإضافات لبدء تشغيلها مجدداً.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, plugin</source>
+            <translation>%1، إضافة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Fixture from the plugin %1. %2.</source>
+            <translation>جهاز محاكاة من الإضافة %1. %2.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1
+From the plugin %2
+%3</source>
+            <translation>%1
+من الإضافة %2
+%3</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginTrafficChip</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Recording</source>
+            <translation>التسجيل</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Reading data</source>
+            <translation>قراءة البيانات</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%n plugins are reading data. Open Plugins.</source>
+            <translation>
+                <numerusform>%n إضافة تقرأ البيانات. افتح الإضافات.</numerusform>
+                <numerusform>إضافة واحدة تقرأ البيانات. افتح الإضافات.</numerusform>
+                <numerusform>إضافتان تقرآن البيانات. افتح الإضافات.</numerusform>
+                <numerusform>%n إضافات تقرأ البيانات. افتح الإضافات.</numerusform>
+                <numerusform>%n إضافة تقرأ البيانات. افتح الإضافات.</numerusform>
+                <numerusform>%n إضافة تقرأ البيانات. افتح الإضافات.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on 1 port. Open Plugins.</source>
+            <translation>%1 تسجّل البيانات على منفذ واحد. افتح الإضافات.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 تسجّل البيانات على %n منفذ. افتح الإضافات.</numerusform>
+                <numerusform>%1 تسجّل البيانات على منفذ واحد. افتح الإضافات.</numerusform>
+                <numerusform>%1 تسجّل البيانات على منفذين. افتح الإضافات.</numerusform>
+                <numerusform>%1 تسجّل البيانات على %n منافذ. افتح الإضافات.</numerusform>
+                <numerusform>%1 تسجّل البيانات على %n منفذاً. افتح الإضافات.</numerusform>
+                <numerusform>%1 تسجّل البيانات على %n منفذ. افتح الإضافات.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on 1 port. Open Plugins.</source>
+            <translation>%1 تقرأ البيانات على منفذ واحد. افتح الإضافات.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 تقرأ البيانات على %n منفذ. افتح الإضافات.</numerusform>
+                <numerusform>%1 تقرأ البيانات على منفذ واحد. افتح الإضافات.</numerusform>
+                <numerusform>%1 تقرأ البيانات على منفذين. افتح الإضافات.</numerusform>
+                <numerusform>%1 تقرأ البيانات على %n منافذ. افتح الإضافات.</numerusform>
+                <numerusform>%1 تقرأ البيانات على %n منفذاً. افتح الإضافات.</numerusform>
+                <numerusform>%1 تقرأ البيانات على %n منفذ. افتح الإضافات.</numerusform>
+            </translation>
         </message>
     </context>
 </TS>

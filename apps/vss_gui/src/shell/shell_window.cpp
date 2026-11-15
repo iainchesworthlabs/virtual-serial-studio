@@ -52,7 +52,9 @@
 #include "support/driver_setup_dialog.hpp"
 #include "support/help_contents_dialog.hpp"
 #include "support/licence_dialog.hpp"
+#include "support/plugin_parts.hpp"
 #include "support/plugins_dialog.hpp"
+#include "shell/plugin_notice.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
@@ -159,6 +161,7 @@ ShellWindow::ShellWindow(StudioBackend& backend, QWidget* parent)
     build_docks();
     build_status();
     connect_backend();
+    connect_plugins();
 
     apply_theme_setting();
     apply_density_setting();
@@ -825,6 +828,9 @@ void ShellWindow::build_central()
     connect(licence_notice_, &LicenceNotice::licence_requested, this,
             [this] { open_licence(); });
     body_layout->addWidget(licence_notice_);
+    // The plugin notices sit below the licence notices, one at a time.
+    plugin_notice_ = new PluginNotice(body);
+    body_layout->addWidget(plugin_notice_);
     central_ = new QStackedWidget(body);
     body_layout->addWidget(central_, 1);
     setCentralWidget(body);
@@ -1345,6 +1351,9 @@ void ShellWindow::build_status()
             [this](bool advanced) { level_.set_advanced(advanced); });
     connect(status_, &StatusBar::licence_requested, this,
             [this] { open_licence(); });
+    status_->set_plugin_backend(backend_.plugin_backend());
+    connect(status_, &StatusBar::plugins_requested, this,
+            [this] { open_plugins(); });
     status_->set_advanced(level_.advanced());
     menuBar()->setFont(Theme::instance().font(text_style::body));
     // One header row: the menus on the left, the action search and the
@@ -1369,6 +1378,122 @@ void ShellWindow::build_status()
     setContentsMargins(gutter, 0, gutter, 0);
     status_->setFixedHeight(
         Theme::instance().metric(QStringLiteral("statusBar")));
+}
+
+void ShellWindow::connect_plugins()
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    plugin_notice_->set_backend(host);
+    connect(plugin_notice_, &PluginNotice::plugins_requested, this,
+            [this] { open_plugins(); });
+    connect(plugin_notice_, &PluginNotice::decision_requested, this,
+            [this](const QString& id, const QString& folder)
+            { open_plugins(id, folder, true); });
+    connect(plugin_notice_, &PluginNotice::start_again_requested, this,
+            [this, host](const QString& id)
+            {
+                host->start_again(id);
+                status_->showMessage(tr("Started again."), 4000);
+            });
+    connect(host, &PluginBackend::snapshot_changed, this,
+            [this] { update_plugin_surfaces(); });
+    connect(&backend_, &StudioBackend::ports_changed, this,
+            [this] { update_plugin_surfaces(); });
+    if (toolbox_ != nullptr)
+    {
+        connect(toolbox_, &topology::Toolbox::show_in_plugins_requested, this,
+                [this](const QString& id) { open_plugins(id); });
+        connect(toolbox_, &topology::Toolbox::plugin_add_requested, this,
+                [this](const QString&, const QString&)
+                { status_->showMessage(tr("Not available in this build"), 4000); });
+    }
+    connect(inspector_panel_, &InspectorPanel::plugin_action_requested, this,
+            [this](const QString& id, int action)
+            { handle_part_action(id, action); });
+    update_plugin_surfaces();
+}
+
+void ShellWindow::update_plugin_surfaces()
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    const plugin_snapshot_ptr snapshot = host->snapshot();
+    if (!snapshot)
+        return;
+    // The Plugins group of the toolbox.
+    if (toolbox_ != nullptr)
+    {
+        std::vector<topology::plugin_tile> tiles;
+        for (const support::plugin_tile_text& each :
+             support::plugin_toolbox_tiles(*snapshot))
+        {
+            topology::plugin_tile tile;
+            tile.plugin_id = each.plugin_id;
+            tile.type_id = each.type_id;
+            tile.label = each.label;
+            tile.accessible_name = each.accessible_name;
+            tile.accessible_description = each.accessible_description;
+            tile.tooltip = each.tooltip;
+            tile.enabled = each.enabled;
+            tiles.push_back(std::move(tile));
+        }
+        toolbox_->set_plugin_tiles(std::move(tiles));
+    }
+    // The ports that a plugin provides, on the canvas and in the Inspector.
+    const auto parts = support::describe_port_parts(
+        backend_.ports(), backend_.snapshot(), *snapshot);
+    if (topology_ != nullptr)
+        topology_->set_plugin_parts(parts);
+    if (inspector_panel_ != nullptr)
+        inspector_panel_->set_plugin_parts(parts);
+    // The plugins this setup uses, for the notice about one that stopped.
+    QStringList used;
+    for (const auto& part : parts)
+        used << part.plugin_id;
+    plugin_notice_->set_used_plugins(used);
+}
+
+void ShellWindow::handle_part_action(const QString& plugin_id, int action)
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    const plugin_snapshot_ptr snapshot = host->snapshot();
+    const plugin_view* plugin = nullptr;
+    if (snapshot)
+    {
+        for (const plugin_view& each : snapshot->plugins)
+        {
+            if (each.id == plugin_id &&
+                (plugin == nullptr || plugin->state == plugin_state::not_used))
+                plugin = &each;
+        }
+    }
+    switch (static_cast<part_action>(action))
+    {
+    case part_action::none:
+        break;
+    case part_action::switch_on:
+        if (plugin != nullptr)
+            host->set_enabled(plugin->id, plugin->hash, true);
+        break;
+    case part_action::review_and_decide:
+        open_plugins(plugin_id, plugin != nullptr ? plugin->folder : QString(),
+                     true);
+        break;
+    case part_action::show_in_plugins:
+        open_plugins(plugin_id, plugin != nullptr ? plugin->folder : QString());
+        break;
+    case part_action::licence:
+        open_licence();
+        break;
+    case part_action::start_again:
+        host->start_again(plugin_id);
+        break;
+    }
 }
 
 void ShellWindow::connect_backend()
@@ -2982,12 +3107,22 @@ void ShellWindow::open_about()
     dialog.exec();
 }
 
-void ShellWindow::open_plugins()
+void ShellWindow::open_plugins(const QString& plugin_id, const QString& folder,
+                               bool decide)
 {
     PluginBackend* host = backend_.plugin_backend();
     if (host == nullptr)
         return;
     PluginsDialog dialog(*host, this);
+    if (!plugin_id.isEmpty())
+        dialog.select(plugin_id, folder);
+    if (decide && dialog.selected() != nullptr)
+    {
+        // The question comes first, over the page.
+        const plugin_view plugin = *dialog.selected();
+        QTimer::singleShot(0, &dialog,
+                           [&dialog, plugin] { dialog.review(plugin); });
+    }
     connect(&dialog, &PluginsDialog::licence_requested, this,
             [this] { QTimer::singleShot(0, this, [this] { open_licence(); }); });
     connect(&dialog, &PluginsDialog::status_message, this,
@@ -2998,6 +3133,12 @@ void ShellWindow::open_plugins()
 void ShellWindow::open_licence()
 {
     LicenceDialog dialog(backend_, this);
+    connect(&dialog, &LicenceDialog::plugins_requested, this,
+            [this, &dialog]
+            {
+                dialog.accept();
+                QTimer::singleShot(0, this, [this] { open_plugins(); });
+            });
     dialog.exec();
 }
 

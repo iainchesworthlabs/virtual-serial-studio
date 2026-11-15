@@ -39,6 +39,7 @@ class EventLogPanel;
 class InspectorPanel;
 class Launcher;
 class LicenceNotice;
+class PluginNotice;
 class FixtureBehaviours;
 struct setup_group;
 class MonitorPanel;
@@ -117,6 +118,7 @@ public:
     StudioTray* tray() const noexcept { return tray_; }
     NoteBanner* resume_banner() const noexcept { return resume_banner_; }
     LicenceNotice* licence_notice() const noexcept { return licence_notice_; }
+    PluginNotice* plugin_notice() const noexcept { return plugin_notice_; }
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -206,7 +208,16 @@ private:
     void open_shortcuts();
     void open_about();
     void open_licence();
-    void open_plugins();
+    /// Opens Plugins, on the plugin with this id (and folder) when given, and
+    /// asks for the decision about it when `decide` is set.
+    void open_plugins(const QString& plugin_id = {},
+                      const QString& folder = {}, bool decide = false);
+    /// Shows what the plugin host reports in the toolbox, on the canvas and
+    /// in the Inspector.
+    void update_plugin_surfaces();
+    void connect_plugins();
+    /// A note's action, or "Show in Plugins", on a part a plugin provides.
+    void handle_part_action(const QString& plugin_id, int action);
     void open_support();
     void open_help_contents();
     void open_bundle();
@@ -291,6 +302,7 @@ private:
     OwnerBar* owner_bar_ = nullptr;
     NoteBanner* lost_banner_ = nullptr;
     LicenceNotice* licence_notice_ = nullptr;
+    PluginNotice* plugin_notice_ = nullptr;
     QThread* recreate_thread_ = nullptr;
     EventLogPanel* event_log_ = nullptr;
     TopologyJsonEditor* json_editor_ = nullptr;

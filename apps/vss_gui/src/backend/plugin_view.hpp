@@ -122,6 +122,10 @@ struct plugin_addition
 {
     plugin_addition_kind kind = plugin_addition_kind::fixture;
     QString type_name;
+    /// The type's id in the plugin's description, which a setup records.
+    QString type_id;
+    /// The type's own description, for a toolbox tile.
+    QString description;
 };
 
 /// One permission a plugin declares, by its name in the manifest
@@ -242,9 +246,21 @@ enum class plugin_banner
     no_licence_for_official
 };
 
+/// A plugin that reads the data of ports or links now.
+struct plugin_reader
+{
+    QString plugin_name;
+    /// It records the data, not only shows it.
+    bool recording = false;
+    int port_count = 0;
+};
+
 struct plugin_snapshot
 {
     std::vector<plugin_view> plugins;
+    /// Plugins that read or record data now. A plugin never reads data
+    /// without being here.
+    std::vector<plugin_reader> readers;
     plugin_banner banner = plugin_banner::none;
     /// The folder an administrator puts a plugin in, for "Add a plugin...".
     QString machine_folder;

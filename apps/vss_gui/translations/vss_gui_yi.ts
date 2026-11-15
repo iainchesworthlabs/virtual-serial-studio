@@ -2771,6 +2771,21 @@ Networks: %5</source>
             <source>%1, %2</source>
             <translation>%1, %2</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>Provided by</source>
+            <translation>צוגעשטעלט דורך</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>ווײַזן אין פּלאַגינס</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
+            <source>These settings are kept. They apply again when the plugin is available.</source>
+            <translation>די דאָזיקע סעטינגס ווערן אָפּגעהיט. זיי גילטן ווידער ווען דער פּלאַגין איז בנימצא.</translation>
+        </message>
     </context>
     <context>
         <name>JobForm</name>
@@ -9429,6 +9444,11 @@ Networks: %5</source>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
             <source>plugin plugins extension fixture generator trust</source>
             <translation>פּלאַגין פּלאַגינס פּלאַגין צוגאַב פֿיקסטשער דזשענעראַטאָר צוטרוי plugin plugins</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
+            <source>Started again.</source>
+            <translation>ווידער אָנגעהויבן.</translation>
         </message>
     </context>
     <context>
@@ -19837,6 +19857,16 @@ Networks: %5</source>
             <source>Bundles</source>
             <translation>פּעקלעך</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>ווײַזן אין פּלאַגינס</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>פּלאַגינס</translation>
+        </message>
     </context>
     <context>
         <name>TopologyView</name>
@@ -20440,6 +20470,11 @@ Networks: %5</source>
             <location filename="../src/support/licence_dialog.cpp" line="1" />
             <source>licence number</source>
             <translation>דערלויבעניש־נומער</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/licence_dialog.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>פּלאַגינס</translation>
         </message>
     </context>
     <context>
@@ -22186,6 +22221,193 @@ Networks: %5</source>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
             <source>Add plugin</source>
             <translation>צולייגן דעם פּלאַגין</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginPart</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>אָנשטעלן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>איבערקוקן און באַשליסן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>ווײַזן אין פּלאַגינס</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Licence</source>
+            <translation>דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Start again</source>
+            <translation>ווידער אָנהייבן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2 (%3)</source>
+            <translation>%1, פֿון דעם פּלאַגין %2 (%3)</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2</source>
+            <translation>%1, פֿון דעם פּלאַגין %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Plugin not available</source>
+            <translation>פּלאַגין נישט בנימצא</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2, plugin not available</source>
+            <translation>%1, %2, פּלאַגין נישט בנימצא</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The generator %1 is not running.</source>
+            <translation>דער גענעראַטאָר %1 לויפֿט נישט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link is being dropped.</source>
+            <translation>די לינק־אויפֿפֿירונג %1 לויפֿט נישט, דעריבער ווערן דאַטן אויף דער דאָזיקער לינק אַוועקגעוואָרפֿן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link passes unchanged.</source>
+            <translation>די לינק־אויפֿפֿירונג %1 לויפֿט נישט, דעריבער גייען דאַטן אויף דער דאָזיקער לינק דורך אומגעענדערט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is switched off. The port stays open and sends nothing.</source>
+            <translation>די דאָזיקע פֿיקסטור קומט פֿון דעם פּלאַגין %1, וואָס איז אָפּגעשלאָסן. דער פּאָרט בלײַבט אָפֿן און שיקט גאָרנישט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is waiting for your decision. The port stays open and sends nothing.</source>
+            <translation>די דאָזיקע פֿיקסטור קומט פֿון דעם פּלאַגין %1, וואָס וואַרט אויף אײַער באַשלוס. דער פּאָרט בלײַבט אָפֿן און שיקט גאָרנישט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which your administrator has blocked. The port stays open and sends nothing.</source>
+            <translation>די דאָזיקע פֿיקסטור קומט פֿון דעם פּלאַגין %1, וואָס אײַער אַדמיניסטראַטאָר האָט פֿאַרשפּאַרט. דער פּאָרט בלײַבט אָפֿן און שיקט גאָרנישט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1. %2 The port stays open and sends nothing.</source>
+            <translation>די דאָזיקע פֿיקסטור קומט פֿון דעם פּלאַגין %1. %2 דער פּאָרט בלײַבט אָפֿן און שיקט גאָרנישט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped. This fixture still sends its fixed replies. Anything the plugin worked out itself has stopped.</source>
+            <translation>דער פּלאַגין %1 האָט אויפֿגעהערט. די דאָזיקע פֿיקסטור שיקט נאָך אַלץ אירע פֿעסטע ענטפֿערס. אַלץ וואָס דער פּלאַגין האָט אַליין אויסגערעכנט האָט אויפֿגעהערט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped, so this fixture sends nothing.</source>
+            <translation>דער פּלאַגין %1 האָט אויפֿגעהערט, דעריבער שיקט די דאָזיקע פֿיקסטור גאָרנישט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which cannot run in this version of Studio. The port stays open and sends nothing.</source>
+            <translation>די דאָזיקע פֿיקסטור קומט פֿון דעם פּלאַגין %1, וואָס קען נישט לויפֿן אין דער דאָזיקער ווערסיע פֿון Studio. דער פּאָרט בלײַבט אָפֿן און שיקט גאָרנישט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture needs the plugin %1, which is not installed on this computer. The port stays open and sends nothing.</source>
+            <translation>די דאָזיקע פֿיקסטור דאַרף דעם פּלאַגין %1, וואָס איז נישט אינסטאַלירט אויף דעם דאָזיקן קאָמפּיוטער. דער פּאָרט בלײַבט אָפֿן און שיקט גאָרנישט.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginToolbox</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is starting.</source>
+            <translation>%1 הייבט זיך אָן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 has stopped. Open Plugins to start it again.</source>
+            <translation>%1 האָט אויפֿגעהערט. עפֿנט פּלאַגינס כּדי עס ווידער אָנצוהייבן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1, plugin</source>
+            <translation>%1, פּלאַגין</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Fixture from the plugin %1. %2.</source>
+            <translation>פֿיקסטור פֿון דעם פּלאַגין %1. %2.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1
+From the plugin %2
+%3</source>
+            <translation>%1
+פֿון דעם פּלאַגין %2
+%3</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginTrafficChip</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Recording</source>
+            <translation>שרײַבט אויף</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>Reading data</source>
+            <translation>לייענט דאַטן</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%n plugins are reading data. Open Plugins.</source>
+            <translation>
+                <numerusform>%n פּלאַגין לייענט דאַטן. עפֿנט פּלאַגינס.</numerusform>
+                <numerusform>%n פּלאַגינס לייענען דאַטן. עפֿנט פּלאַגינס.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on 1 port. Open Plugins.</source>
+            <translation>%1 שרײַבט דאַטן אויף 1 פּאָרט. עפֿנט פּלאַגינס.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 שרײַבט דאַטן אויף %n פּאָרט. עפֿנט פּלאַגינס.</numerusform>
+                <numerusform>%1 שרײַבט דאַטן אויף %n פּאָרטן. עפֿנט פּלאַגינס.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on 1 port. Open Plugins.</source>
+            <translation>%1 לייענט דאַטן אויף 1 פּאָרט. עפֿנט פּלאַגינס.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 לייענט דאַטן אויף %n פּאָרט. עפֿנט פּלאַגינס.</numerusform>
+                <numerusform>%1 לייענט דאַטן אויף %n פּאָרטן. עפֿנט פּלאַגינס.</numerusform>
+            </translation>
         </message>
     </context>
 </TS>

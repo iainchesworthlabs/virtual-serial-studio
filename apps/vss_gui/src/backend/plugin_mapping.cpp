@@ -176,6 +176,8 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
         const std::string_view best = point.name.best("");
         addition.type_name =
             from_std(best.empty() ? point.id : std::string(best));
+        addition.type_id = from_std(point.id);
+        addition.description = from_std(std::string(point.description.best("")));
         view.adds.push_back(addition);
         if (point.timing.type == plug::timing_class::in_line)
         {

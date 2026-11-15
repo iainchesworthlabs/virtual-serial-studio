@@ -13,8 +13,12 @@
 
 #include <QCoreApplication>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QMimeData>
+#include <QPainter>
+#include <QStyledItemDelegate>
 
+#include <algorithm>
 #include <array>
 
 namespace vss::gui::topology
@@ -23,6 +27,9 @@ namespace
 {
 
 constexpr int kRole = Qt::UserRole + 1;
+/// A plugin tile carries the plugin's id and the type's id.
+constexpr int kPluginRole = Qt::UserRole + 2;
+constexpr int kTypeRole = Qt::UserRole + 3;
 constexpr int kTileWidth = 64;
 constexpr int kTileHeight = 56;
 constexpr int kGroupHeight = 24;
@@ -34,6 +41,29 @@ constexpr std::array kBundles = {
     canvas_item::pair,    canvas_item::split,       canvas_item::join,
     canvas_item::bus,     canvas_item::switch_link, canvas_item::redirect,
     canvas_item::monitor, canvas_item::share,       canvas_item::bench};
+
+/// Draws a tile as any other, and the plugin mark in the top right corner of a
+/// plugin's tile: the `plugin` icon, 12 px, in ink3. The mark is a shape, so it
+/// reads without colour.
+class TileDelegate final : public QStyledItemDelegate
+{
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter* painter, const QStyleOptionViewItem& option,
+               const QModelIndex& index) const override
+    {
+        QStyledItemDelegate::paint(painter, option, index);
+        if (!index.data(kPluginRole).isValid())
+            return;
+        const QIcon mark =
+            IconProvider::instance().icon(QStringLiteral("plugin"),
+                                          colour_role::ink3, 12);
+        mark.paint(painter,
+                   QRect(option.rect.right() - 14, option.rect.top() + 2, 12,
+                         12));
+    }
+};
 
 } // namespace
 
@@ -186,6 +216,24 @@ Toolbox::Toolbox(QWidget* parent) : QListWidget(parent)
     setFrameShape(QFrame::NoFrame);
     setFixedWidth(kTileWidth + 12);
     setProperty("surface", QStringLiteral("sunken"));
+    setItemDelegate(new TileDelegate(this));
+    // A long type name is cut in the middle, so both ends can be read.
+    setTextElideMode(Qt::ElideMiddle);
+    setContextMenuPolicy(Qt::CustomContextMenu);
+    connect(this, &QWidget::customContextMenuRequested, this,
+            [this](const QPoint& where)
+            {
+                QListWidgetItem* tile = itemAt(where);
+                if (tile == nullptr)
+                    tile = currentItem();
+                if (tile == nullptr || !tile->data(kPluginRole).isValid())
+                    return;
+                QMenu menu(this);
+                QAction* show = menu.addAction(tr("Show in Plugins"));
+                const QString plugin = tile->data(kPluginRole).toString();
+                if (menu.exec(viewport()->mapToGlobal(where)) == show)
+                    Q_EMIT show_in_plugins_requested(plugin);
+            });
 
     connect(this, &QListWidget::itemActivated, this,
             [this](QListWidgetItem* tile)
@@ -196,6 +244,10 @@ Toolbox::Toolbox(QWidget* parent) : QListWidget(parent)
                 if (value.isValid())
                     Q_EMIT add_requested(
                         static_cast<canvas_item>(value.toInt()));
+                else if (tile->data(kPluginRole).isValid())
+                    Q_EMIT plugin_add_requested(
+                        tile->data(kPluginRole).toString(),
+                        tile->data(kTypeRole).toString());
             });
     connect(&Theme::instance(), &Theme::theme_changed, this,
             [this] { rebuild(); });
@@ -257,6 +309,94 @@ void Toolbox::rebuild()
     add_group(tr("Bundles"));
     for (const canvas_item item : kBundles)
         add_tile(item);
+
+    // The third group is there only while a plugin has a tile.
+    if (plugin_tiles_.empty())
+        return;
+    add_group(tr("Plugins"));
+    for (const plugin_tile& each : plugin_tiles_)
+    {
+        auto* tile = new QListWidgetItem(
+            IconProvider::instance().icon(
+                QStringLiteral("fixture"),
+                each.enabled ? colour_role::ink : colour_role::disabledText,
+                20),
+            each.label, this);
+        tile->setData(kPluginRole, each.plugin_id);
+        tile->setData(kTypeRole, each.type_id);
+        tile->setFont(label_font);
+        tile->setTextAlignment(Qt::AlignCenter);
+        tile->setSizeHint(QSize(kTileWidth, kTileHeight));
+        tile->setData(Qt::AccessibleTextRole, each.accessible_name);
+        tile->setData(Qt::AccessibleDescriptionRole,
+                      each.accessible_description);
+        tile->setToolTip(each.tooltip);
+        // A disabled tile still takes focus, so its reason can be read.
+        tile->setFlags(each.enabled ? (Qt::ItemIsEnabled |
+                                       Qt::ItemIsSelectable)
+                                    : Qt::ItemIsSelectable);
+    }
+}
+
+void Toolbox::set_plugin_tiles(std::vector<plugin_tile> tiles)
+{
+    // The rail is rebuilt only when something it shows changed, so a tile
+    // that has the focus keeps it.
+    const auto same = [](const plugin_tile& left, const plugin_tile& right)
+    {
+        return left.plugin_id == right.plugin_id &&
+               left.type_id == right.type_id && left.label == right.label &&
+               left.enabled == right.enabled && left.tooltip == right.tooltip;
+    };
+    if (tiles.size() == plugin_tiles_.size() &&
+        std::equal(tiles.begin(), tiles.end(), plugin_tiles_.begin(), same))
+        return;
+    plugin_tiles_ = std::move(tiles);
+    rebuild();
+}
+
+QStringList Toolbox::plugin_tile_labels() const
+{
+    QStringList labels;
+    for (int row = 0; row < count(); ++row)
+    {
+        if (item(row)->data(kPluginRole).isValid())
+            labels.append(item(row)->text());
+    }
+    return labels;
+}
+
+bool Toolbox::has_plugin_group() const
+{
+    return !plugin_tiles_.empty();
+}
+
+bool Toolbox::plugin_tile_enabled(const QString& plugin_id,
+                                  const QString& type_id) const
+{
+    for (int row = 0; row < count(); ++row)
+    {
+        const QListWidgetItem* tile = item(row);
+        if (tile->data(kPluginRole).toString() == plugin_id &&
+            tile->data(kTypeRole).toString() == type_id)
+            return (tile->flags() & Qt::ItemIsEnabled) != 0;
+    }
+    return false;
+}
+
+void Toolbox::focus_plugin_tile(const QString& plugin_id,
+                                const QString& type_id)
+{
+    for (int row = 0; row < count(); ++row)
+    {
+        const QListWidgetItem* tile = item(row);
+        if (tile->data(kPluginRole).toString() == plugin_id &&
+            tile->data(kTypeRole).toString() == type_id)
+        {
+            setCurrentRow(row);
+            return;
+        }
+    }
 }
 
 QStringList Toolbox::tile_labels() const
@@ -296,6 +436,7 @@ void Toolbox::focus_item(canvas_item wanted)
 
 QMimeData* Toolbox::mimeData(const QList<QListWidgetItem*>& items) const
 {
+    // A plugin tile is added with Enter, Space or a double-click.
     if (items.isEmpty() || !items.first()->data(kRole).isValid())
         return nullptr;
     auto* mime = new QMimeData();

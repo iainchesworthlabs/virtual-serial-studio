@@ -1513,6 +1513,14 @@ Where your administrator allows it, **Run without isolation...** lets you run
 that version of that plugin with your own access to your files and the network.
 **Undo** in the Isolation row takes it back.
 
+### Plugins in the rest of the window
+
+- **Toolbox (Advanced).** A **Plugins** group under Ports and Bundles has a tile for each fixture type of a plugin that is switched on. A plugin that is starting, that needs a licence or that stopped keeps its tile, disabled, and the tile says why. A plugin that is switched off, waiting for your decision, blocked or not compatible has no tile. A tile's top right corner has the plugin mark, and its menu has **Show in Plugins**.
+- **Ports.** A port that a plugin provides says so in the Inspector (**Provided by**). While its plugin is not available the port stays open and sends nothing, the canvas marks it **Plugin not available**, and the Inspector says why and offers the action that helps: **Switch on**, **Review and decide**, **Licence**, **Start again** or **Show in Plugins**. Its settings are kept.
+- **Notices.** One notice at a time appears at the top of the window when a new plugin is found, when a plugin changed and was stopped, when a plugin that your setup uses stopped, or when a plugin was withdrawn. A notice never takes the focus and **Dismiss** hides it.
+- **Status bar.** While a plugin reads the data of ports or links, a chip reads **Reading data**, or **Recording** when it records. It opens Plugins, and it cannot be dismissed.
+- **Licence.** The row of the official plugins on the Licence page has a **Plugins** link.
+
 ### Adding and removing a plugin
 
 **Add a plugin...** asks for a plugin's folder and looks into it first. A

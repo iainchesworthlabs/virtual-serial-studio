@@ -421,6 +421,19 @@ void LicenceDialog::build()
         why->setObjectName(QStringLiteral("featureWhy.") + feature);
         grid->addWidget(why, grid_row, 2, Qt::AlignTop);
         features_.push_back({feature, chip, why});
+        // The row of the official plugins links to the page that lists them.
+        if (feature == QLatin1String("plugins.official"))
+        {
+            plugins_link_ = make_dialog_button(
+                QCoreApplication::translate("LicenceDialog", "Plugins"),
+                "quiet", table);
+            plugins_link_->setObjectName(QStringLiteral("licencePluginsLink"));
+            plugins_link_->setAutoDefault(false);
+            plugins_link_->setAccessibleName(plugins_link_->text());
+            grid->addWidget(plugins_link_, grid_row, 3, Qt::AlignTop);
+            connect(plugins_link_, &QPushButton::clicked, this,
+                    &LicenceDialog::plugins_requested);
+        }
         ++grid_row;
     }
     body_layout->addWidget(table);

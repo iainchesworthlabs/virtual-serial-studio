@@ -694,7 +694,8 @@ TEST_CASE("plugins page: an empty list, a filter and Check again")
     settle();
 }
 
-plugin_inspection_view inspection_of(const char* id, const QString& folder)
+static plugin_inspection_view inspection_of(const char* id,
+                                            const QString& folder)
 {
     plugin_inspection_view found;
     found.folder = folder;
