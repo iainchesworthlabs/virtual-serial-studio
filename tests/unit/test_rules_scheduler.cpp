@@ -1214,10 +1214,19 @@ TEST_CASE("rules scheduler: many replies with random delays on the steady "
                      R"j("order": "independent", )j"),
             bench::clock_mode::steady, 4);
 
+    // The scheduler holds at most 1024 actions; one over that is counted as
+    // overrun and never done.  A fast machine reads the chunks quicker than
+    // their delays run out, so they go in batches that fit, each sent once
+    // the one before it has been answered.
     constexpr std::size_t chunks = 2000;
-    for (std::size_t number = 0; number < chunks; ++number)
-        b.port.inject_read(std::string(1, '\x01'));
-    REQUIRE(wait_until([&] { return b.log.size() == chunks; }, 30000ms));
+    constexpr std::size_t batch = 500;
+    for (std::size_t sent = 0; sent < chunks; sent += batch)
+    {
+        for (std::size_t number = 0; number < batch; ++number)
+            b.port.inject_read(std::string(1, '\x01'));
+        REQUIRE(wait_until([&] { return b.log.size() == sent + batch; },
+                           30000ms));
+    }
     REQUIRE(wait_until([&] { return b.port.written().size() == chunks * 2; },
                        30000ms));
     std::this_thread::sleep_for(50ms);
