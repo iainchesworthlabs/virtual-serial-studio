@@ -1,9 +1,36 @@
 # The plugin framework (design)
 
 Status: **reviewed**. The owner went through this design on 13 November 2026. Section 17 records each decision
-and lists what is still open. The manifest reader is the first part built. It builds on the decisions in
+and lists what is still open. Part of it is built, as a library with no plugin host: see [What is built](#what-is-built).
+It builds on the decisions in
 [Editions, licensing and plugins](editions.md) and on the protocol of [the per-user agent](agent.md), and it does not
 repeat them.
+
+## What is built
+
+The checks that come before a plugin runs are a library, `libs/vss_plugin`, with tests. **This build runs no plugin.**
+There is no supervisor, no launcher, no plugin host, no Plugins page in the window and no operation of the plugin API
+beyond the message codec. The one way in for a user is `vss_cli plugin list`, which reads the plugin folders and shows
+what discovery finds.
+
+| Part | File in `libs/vss_plugin/src` | Used by |
+|---|---|---|
+| The manifest reader, its limits and the parameter types | `manifest.cpp` | Discovery, `verify` |
+| The hash of a plugin and the check of its files against the manifest | `hash.cpp`, `measure.cpp` | Discovery |
+| Discovery: the plugin folders, which copy counts (`shadowed`), `too_many` | `discover.cpp`, `locations.cpp` | `vss_cli plugin list` |
+| Who may write a file, and so the kind of install | `access.cpp` and the files under `platform` | `vss_cli plugin list` |
+| The administrator's policy file | `policy.cpp` | `vss_cli plugin list` reads and shows it. Nothing applies it |
+| The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | Tests only |
+| The trust store (`trust.json`) | `trust_store.cpp` | Tests only |
+| `verify`: whether a plugin may run | `verify.cpp` | Tests only |
+| The licence question for an official plugin | `licence.cpp` | Tests only |
+| The messages of the plugin API that every plugin uses (`hello`, `hello_ack`, `ping`, `status`, `log`, `shutdown`, `error` and the rest of section 7.3) | `protocol.cpp` | Tests only |
+| The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
+| The restart and quarantine rules | `lifecycle.cpp` | Tests only |
+
+`vss_cli plugin list` never checks a signature. It does not run `verify` or the licence question and it does not apply
+the policy. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
+modifiers, the decoders, the Plugins page and the trust dialog) is not built.
 
 ## 1. Scope and what is already decided
 
@@ -26,11 +53,11 @@ Not in this page, and referenced only:
 
 | Area | Where it is decided | What this page assumes |
 |---|---|---|
-| Licence files, seats, which edition may load which plugin | `docs/licensing.md` (the licensing work, under review on its own branch) | `licence_service::check(feature)` answers "may this plugin run now" (section 8.7). This page does not look inside a licence |
+| Licence files, seats, which edition may load which plugin | `docs/licensing.md` | `licence_service::check(feature)` answers "may this plugin run now" (section 8.7). This page does not look inside a licence |
 | The signed-file envelope, the Ed25519 code and the trust list | `docs/licensing.md`, `vss::signed_file` | The plugin signature is one more purpose of that envelope, with its own key (section 8.2). There is one verifier, not two |
 | The plain support bundle (version, driver state, setup, log, serial ports; never traffic) | `docs/licensing.md` and `screens/09-licence-and-support.md` | A plugin can add a section to it (section 19). Studio owns the bundle, its dialog and its preview |
-| The rule model for response timing: matches, actions, clocks, determinism, replaying a recording | `docs/response-timing.md` (the response-timing work, under review on its own branch) | Section 6 is the plugin side only: which tier a plugin declares and what the host holds it to. Where the two pages differ, that page is right |
-| The Plugins screens and their strings | `docs/gui-design/docs/screens/10-plugins.md` and `11-decoding-and-triggers.md`, in this pull request | Section 10 names the failures; the screen spec has the words |
+| The rule model for response timing: matches, actions, clocks, determinism, replaying a recording | `docs/response-timing.md` (a design that is partly built; that page says which part) | Section 6 is the plugin side only: which tier a plugin declares and what the host holds it to. Where the two pages differ, that page is right |
+| The Plugins screens and their strings | `docs/gui-design/docs/screens/10-plugins.md` and `11-decoding-and-triggers.md` | Section 10 names the failures; the screen spec has the words |
 | Security of the remote control endpoint (tokens, OAuth, bindings to other computers) | The remote-control work | An automation adapter gets the engine's agent operations through the proxy of section 7.7. How an adapter is exposed to the network is not designed here |
 | Website and downloads | The website work | none |
 | `vss_core` behaviour, the JSON topology schema | Unchanged without a request | Section 6 shows how the first version avoids both. Where it cannot, it says so |
@@ -503,7 +530,7 @@ exceptions) is failed with `error: timeout` and, for the host, counts as a miss 
 | Message | From | Content |
 |---|---|---|
 | `hello` | plugin | `api` (`major.minor`), `plugin_id`, `pid`, `version`. The channel is the identity; the id is checked against the manifest |
-| `hello_ack` | host | The negotiated `api`, the **granted** permissions, the parameter values (already validated), the engine capability flags by name, the limits (frame rate, bytes per second, instances, queue sizes), `clock` (see below), the plugin's data directory |
+| `hello_ack` | host | The negotiated `api`, the **granted** permissions, the parameter values (already validated), the engine capability flags by name, the limits (frame rate, bytes per second, instances, queue sizes), `clock` (see below; **not built**), the plugin's data directory |
 | `ping`, `pong` | either | Liveness |
 | `status` | plugin | `level` (`ok`, `warning`, `error`), a text of at most 200 characters, a `code` from the manifest's declared messages (optional) |
 | `log` | plugin | `level` and text. Rate limited. Never shown as markup |
@@ -512,7 +539,8 @@ exceptions) is failed with `error: timeout` and, for the host, counts as a miss 
 | `shutdown`, `bye` | host, plugin | Section 5.6 |
 | `error` | either | `{category, value, message}`. Categories: `vss.plugin.api` (the plugin API's own: `unknown_op`, `bad_request`, `refused`, `not_granted`, `not_declared`, `timeout`, `busy`, `unsupported`, `plugin_unavailable`), `vss` (the engine's, passed through) |
 
-`clock`: the host gives the plugin a monotonic base: `{"epoch_ns": n}` and every timestamp in the API is nanoseconds
+`clock` (**not built**: `hello_ack_message` in `libs/vss_plugin/include/vss/plugin/protocol.hpp` has no such field): the
+host gives the plugin a monotonic base: `{"epoch_ns": n}` and every timestamp in the API is nanoseconds
 since that base on the **host's** clock. A plugin does not tell the host what time it is, and a timestamp it sends
 (where the API accepts one) is checked against the host's clock and clamped.
 
@@ -689,8 +717,8 @@ Parameters are the only way a user's settings reach a plugin. Types, all with li
 |---|---|---|
 | `bool` | | A check box |
 | `int`, `number` | `min`, `max`, `step`, `unit` | A spin box with the unit |
-| `enum` | A list of `{value, label}` | A combo box |
-| `string` | `max_length`, `pattern` (a restricted grammar, not a general regex, to avoid catastrophic matching) | A line edit |
+| `enum` | `options`, a list of `{value, label}` | A combo box |
+| `string` | `max_length`. A `pattern` (a restricted grammar, not a general regex, to avoid catastrophic matching) is part of the design and is **not built**: the manifest reader has no such key and refuses a manifest that has one as an unknown key | A line edit |
 | `bytes` | `max_length`, format `hex` | A hex field |
 | `duration` | `min`, `max`, unit | A spin box with a unit |
 | `port`, `link` | Which kinds | A choice among the existing ones |
@@ -1026,7 +1054,7 @@ certificate authority with the certificate replaced by one line of a signed list
 |---|---|---|---|
 | **Root key** | An Ed25519 key pair | The private half offline, with the owner, kept as the owner's root certificate authority is. The public half is compiled into Studio (a current one and a next one, so the root itself can be replaced by a release) | Only to sign a new key list |
 | **Signing keys** | Ed25519 key pairs | The private half in the secret store of the owner's signing job, or on a hardware token | To sign an official plugin or a revocation list |
-| **The official key list** | A `vss::signed_file` envelope with the purpose `key-list`, signed by the root | Public. In every release, and importable from a file as a revocation list is | Read by the verifier |
+| **The official key list** | A `vss::signed_file` envelope with the purpose `key-list`, signed by the root | Public. The first list is `libs/vss_plugin/keys/official-keys.json` in the repository, signed on 14 November 2026. **No build installs or embeds it yet**, so a shipped Studio has no key list to read. The design is that it is in every release, and importable from a file as a revocation list is | Read by the verifier |
 
 So there are two secrets, and neither is ever on a computer that runs Studio or in this repository.
 
@@ -1046,8 +1074,9 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   and then checks the plugin's signature with that key.
 - **The newest list wins.** The verifier keeps the list with the highest `serial` it has seen, in the ledger of
   section 8.4, so an old list cannot be put back to bring a revoked key to life.
-- **How a new list reaches a computer.** There is no network, so: inside a Studio release, beside a plugin (a
-  plugin folder may hold a newer `official-keys.json`), or as a file an administrator or a user imports.
+- **How a new list reaches a computer.** There is no network, so: inside a Studio release, or as a file an administrator or a user imports. A key list
+  does not travel beside a plugin: a file in a plugin's folder that the manifest does not list is refused as
+  `unlisted_file` (for a plugin that lists its files), and nothing reads a key list from there.
 - **Replacing a signing key:** add its line, sign a list with the next serial. **Revoking one:** move its id to
   `revoked`, sign a list with the next serial. **A lost root:** a new root needs a new Studio release, which is why
   a next root is compiled in beside the current one.
@@ -1293,7 +1322,12 @@ These follow `AGENTS.md` and `architecture.md`, and apply to every line of the h
 ## 12. Reason codes
 
 A plugin's state always carries one of these, as `vss::plugin_errc` (an `error_category` named `vss.plugin`),
-and `vss_cli plugin list --json` prints them:
+and `vss_cli plugin list --json` prints the ones that discovery can find. Discovery reads the manifest and the
+files and never checks a signature, so the command prints the manifest and layout reasons, `shadowed`, `too_many` and
+the file reasons (`file_missing`, `unlisted_file` for a plugin that lists its files, and `signature_invalid` for a
+listed file whose size or hash is not the manifest's), and never `signature_missing`, `key_unknown`, a `signature_invalid` for a bad signature, `changed`,
+`revoked`, `expired`, `policy`, `not_licensed`, `reserved_id` or any reason about a running plugin. It searches the
+per-user folder whatever the policy says about `user_plugins`. The reasons are:
 
 `manifest_invalid`, `manifest_too_large`, `too_many`, `shadowed`, `reserved_id`, `layout_invalid`, `file_missing`, `unlisted_file`,
 `signature_missing`, `signature_invalid`, `key_unknown`, `changed`, `revoked`, `expired`, `policy`, `not_licensed`,
@@ -1384,15 +1418,15 @@ The plugin API range (`requires.api`) is separate: a plugin may keep an old mani
 
 | Library | Content | Depends on |
 |---|---|---|
-| `libs/vss_plugin` | The manifest parser, the verifier, the trust store, revocation, policy, the lifecycle state machine, the back-off logic, the rule-set model, the parameter model (no I/O, no processes) | `vss_core` (errors), `vss_config` (JSON helpers), Boost.JSON, `vss::signed_file` from `libs/vss_license` |
-| `libs/vss_plugin_host` | The supervisor, the channel, process start through the launcher, the budgets, the API message codec and handling, the instance types. Uses `vss_agent_proto` framing | `vss_plugin`, `vss_agent_proto`, `vss_studio` |
-| `apps/vss_plugin_launcher` | The sandbox application and the exec. Platform files chosen **in CMake**, no `#if` | none |
-| `apps/vss_agent` | Starts the launcher first; owns the host | |
-| `apps/vss_gui` | The Plugins page, the trust dialog, the settings form from parameters, the link/port indicators | |
+| `libs/vss_plugin` (built) | The manifest reader and the parameter model, the hash and the measurer of a plugin folder, discovery, signatures and the official key list, revocation, the policy file, the trust store, the licence question, the access check, `verify`, the message codec (`protocol.cpp`), the session and the lifecycle state machine with the back-off logic. It does I/O: it reads plugin folders, the policy file and the trust store, and asks the operating system who may write a file. It starts no process | `vss_core`, `vss_agent_proto` (the frame), `vss::signed_file` and the licence check from `libs/vss_license`, Boost.JSON. Not `vss_config` |
+| `libs/vss_plugin_host` (not built) | The supervisor, the channel, process start through the launcher, the budgets, the handling of the API messages and the instance types. Uses `vss_agent_proto` framing | `vss_plugin`, `vss_agent_proto`, `vss_studio` |
+| `apps/vss_plugin_launcher` (not built) | The sandbox application and the exec. Platform files chosen **in CMake**, no `#if` | none |
+| `apps/vss_agent` (not built for plugins) | Starts the launcher first; owns the host | |
+| `apps/vss_gui` (not built for plugins) | The Plugins page, the trust dialog, the settings form from parameters, the link/port indicators | |
 | `tests/…` | In the project's own framework | |
 
-The parameter model and the rule-set model are in `vss_plugin`, so that Studio can render and validate without the
-host. Everything uses `vss::result`.
+The parameter model is in `vss_plugin`, so that Studio can render and validate without the host. The rule-set model
+is `libs/vss_rules`, which `docs/response-timing.md` describes. Everything uses `vss::result`.
 
 ## 15. Threat model
 

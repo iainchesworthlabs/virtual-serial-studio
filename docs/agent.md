@@ -252,6 +252,11 @@ error and the connection stays.
 The slice has: `hello`, `list`, `create_port` (loopback), `remove_port`, `connect` (both ways or one way), `write`,
 `subscribe`, `shutdown`.
 
+`create_port` makes an in-process loopback port and nothing else: a request for any other kind is refused with
+`unsupported`. A loopback port has no path that another program can open, the agent cannot attach a device, and the
+ports of Studio's own window are not the agent's. The control gateway and the Python client make their ports through
+this request, so the same holds for them.
+
 ### Errors **[slice]**
 
 An error crosses as the name of its category, its value and the agent's message. On the client it becomes an error

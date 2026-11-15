@@ -2,9 +2,42 @@
 
 This page answers open decision 1 of [the editions proposal](editions.md): how
 response timing is declared to the engine, so that the fast cases run without a
-round trip to a plugin. It is a design for the owner to review. Nothing here is
-built except the benchmark that produced the numbers in
-[Measured evidence](#measured-evidence).
+round trip to a plugin. It is a design, and the owner has decided most of it
+(see [Decisions for the owner](#decisions-for-the-owner)). Part of it is built.
+[What is built today](#what-is-built-today) says which part. The rest of the
+page describes the design as it is meant to be, so a sentence on it is a promise
+and not a description of the program unless that section says it is built.
+
+## What is built today
+
+The rule engine is built as a library and is tested. It has no way in from the
+window, from `vss_cli`, from the agent, from the control gateway or from a setup
+file, so no user can reach it yet. The only code that calls it is the unit tests
+(`tests/unit/test_studio_rules.cpp` and the `test_rules_*.cpp` files).
+`vss_cli respond` still runs the older `vss::responder` and does not use it.
+There is no capability flag for it.
+
+| Part of the design | State |
+|---|---|
+| The model, the JSON reader, the compiler, the matcher, the seeded source with fixed expected values, and a fuzz target for the reader (slice 1) | Built and tested, in `libs/vss_rules` |
+| The read time taken once before routing, `hub::now` in the delay line, and the read stage on an endpoint | Built (see [One clock](#one-clock) and [the architecture notes](architecture.md#response-timing-rules)) |
+| The 1 ms Windows timer period while a hub runs | Built (`hub_options::fine_timers`) |
+| The scheduler: one timer and one strand for each set, never early, lateness counted | Built, in `libs/vss_rules` |
+| `install_rules`, `replace_rules`, `remove_rules`, `suspend_rules`, `resume_rules`, `raise_signal` and `rule_stats` | Built on `vss::studio` only, for a set whose role is `peer`. The limits are built: 256 sets and 16 MiB of compiled sets for a studio, 1024 waiting actions for a set, and the budget of firings with suspension |
+| Rules that match `bytes` (with `gap_us`), `quiet_us` or a `signal`, and the timeline | Built for a `peer` |
+| The roles `station` and `inline`, rules on `lines` or `port`, the `ask` action, and a `line_error` on a port that takes none | In the model and the compiler. Installing one is refused with `unsupported`, and nothing approximates it |
+| Precision `tight` | Read, checked and counted (at most 16 in a set). There is no timing thread, so a `tight` action is carried out like any other |
+| The `bus_fault` trigger | Not built. The reader does not know the key |
+| Owners, and removing a set when its owner is lost (decision 5) | Not built. A set stays until it is removed, its port is removed or the studio ends, and `raise_signal` takes any caller |
+| The loop check at install (`cycle_detected`, `allow_loops`) | Not built. The budget of firings is the only defence, and it suspends the set without an event |
+| The events `rule_fired`, `rule_set` and `run`, and `start_run` with its seed for the delay line | Not built. A `mark` action writes a log message and nothing else is published. The delay line still draws from `std::random_device` |
+| `compile_rules`, `update_rules` and `set_slot` on a set that is running | Not built on `vss::studio`. The matcher can change a slot, and nothing calls it |
+| The agent and control operations, and the capability names `engine_rules`, `rules_link`, `rules_microseconds`, `rules_ask`, `rules_signal` and `rules_bus_fault` | Not built. No capability flag of this design is in `capabilities.hpp` or in the agent's `hello` |
+| The scripted-reply fixture, `vss_cli respond` on rule sets, and the read-only view in the window (slice 3) | Not built |
+| `inline` sets, `ask`, the run log, replayed runs and the plugin side (slice 4) | Not built |
+
+A rule set is not a field of the setup file, by decision 8, so a saved setup
+cannot hold one.
 
 ## The decision
 
@@ -32,9 +65,10 @@ Three things make this the answer and not just one option:
    millisecond, but only for a plugin that is running, is written in a fast
    language and is not paused; none of that is the engine's to promise. Inside
    the engine a reply with no delay leaves about 0.1 ms after its request. The
-   measurements also found that every *timed* action in the engine today is 10
-   to 15 ms late on Windows, which this design has to fix whichever way the
-   decision goes (see [Timers](#timers)).
+   measurements also found that every *timed* action in the engine was 10 to 15
+   ms late on Windows, which this design had to fix whichever way the decision
+   went (see [Timers](#timers)). The first half of that fix, the 1 ms timer
+   period, is built.
 2. A rule that the engine holds keeps working when the plugin is slow, stopped
    in a debugger, or dead.
 3. A rule set is data. It can be checked before the run, limited in size, saved
@@ -56,8 +90,8 @@ Read from the code, because the design builds on it.
 | The jitter generator of a delay line is seeded from `std::random_device` and cannot be given a seed | the same file | A run with link jitter cannot be repeated today |
 | `vss::responder` is a scripted device already: masked byte patterns matched as a stream, a reply after a delay with jitter, a poll list, an optional seed | `libs/vss_studio/src/responder.cpp` | It is the starting point, and it is replaced by the fixture of slice 3. It has no counts, sequences, faults, line changes, events or limits, and it cannot be changed while it runs |
 | The responder hears bytes as events on the dispatcher strand, after routing, and times a reply from the event's `when` | the same file, `endpoint::on_read` | Its reply waits behind every other event in the hub. A busy capture delays a reply |
-| A data event's `when` is read when the event is published, after the chunk was routed, not when the chunk was read | `endpoint::emit_data` | "End of the frame" has no exact timestamp today |
-| `hub_options::clock` lets a test move time by hand, and the half-duplex bus uses it. The delay line, the responder's queue and every event's `when` read the steady clock directly | `hub::now`, `bus_wire.cpp`, `delay_line.cpp`, `timed_queue.hpp` | There is one clock type but several places that read it. A hand-moved clock does not move a delay line |
+| A data event's `when` is the time the chunk was read: `endpoint::on_read` reads the hub's clock once, before routing, and the matcher, the half-duplex line and the event use that one time | `endpoint::on_read`, `endpoint::emit_data` | "End of the frame" has the time of the read that completed it. This is built (see [One clock](#one-clock)) |
+| `hub_options::clock` lets a test move time by hand. The half-duplex bus, the delay line, the rule scheduler and every event's `when` read it through `hub::now`. The responder's queue still reads the steady clock directly | `hub::now`, `bus_wire.cpp`, `delay_line.cpp`, `timed_queue.hpp` | A hand-moved clock moves a delay line and a rule set, and does not move the responder |
 | `std::uniform_int_distribution` and the other standard distributions give different numbers on different standard libraries | the C++ standard | A seed alone does not repeat a run on another platform |
 | A half-duplex bus knows when a chunk's last byte leaves the wire, judges a reply that comes inside the turn-around time (`bus_fault::too_soon`), and delivers a chunk at the end of its time on the wire | `bus_line.cpp`, `bus_wire.cpp` | Exact turn-around stays there. A rule's delay is measured from the same instant, so the two agree |
 | Line errors, hang-up and disconnect are `studio::inject_fault`, for a fixture and for a Windows driver port | `libs/vss_studio/include/vss/studio/studio.hpp` | A rule's fault action calls the same code, with the same per-port limits |
@@ -235,7 +269,7 @@ matcher. A rule on `signal` fires when the engine calls the matcher with the
 signal, and `studio::raise_signal` does that for a `peer` set. The plugin
 operation that reaches it, the check that the caller owns the set, and
 `bus_fault` are not built yet. The capability names are `rules_signal` and
-`rules_bus_fault`.
+`rules_bus_fault`, and neither is in the code.
 
 ### What a rule does
 
@@ -300,7 +334,9 @@ hub's timing thread, which sleeps until shortly before the due time and then
 watches the clock without sleeping (see [Timers](#timers)). It costs a
 processor core for the last part of each wait, so a set may have at most 16
 tight actions waiting, the watched part of a wait is at most 2 ms, and a hub has
-one timing thread. Everything else is `"normal"`.
+one timing thread. Everything else is `"normal"`. The timing thread is not
+built: the compiler reads and counts `tight` (at most 16), and the scheduler
+carries the action out like a `normal` one.
 
 By default (`"order": "fifo"`) the actions of one place never overtake each
 other: a reply is never due before the reply to an earlier match, as bytes on a
@@ -311,16 +347,19 @@ answers a later, shorter request first.
 
 There is one clock: the hub's (`hub::now`, the steady clock unless
 `hub_options::clock` replaces it). Three changes make it the only one, and they
-are the first engine changes of slice 2:
+are the first engine changes of slice 2. The first two are built. The third is
+not.
 
-1. **The read time.** `endpoint::on_read` reads the clock once, before routing.
-   That time is the chunk's time for the matcher, for the half-duplex line and
-   for the data event's `when`. Today the event's `when` is read after routing.
-2. **One reader.** The delay line and the rule scheduler read `hub::now`, not
-   the steady clock directly, so a test that moves the time by hand moves every
-   timer (they look at a hand-moved clock every millisecond while they hold
-   something, as `bus_wire` does).
-3. **The run.** `start_run` fixes the run's origin and its seed. Every event
+1. **The read time.** *Built.* `endpoint::on_read` reads the clock once, before
+   routing. That time is the chunk's time for the matcher, for the half-duplex
+   line and for the data event's `when`. Before this change the event's `when`
+   was read after routing.
+2. **One reader.** *Built.* The delay line and the rule scheduler read
+   `hub::now`, not the steady clock directly, so a test that moves the time by
+   hand moves every timer (they look at a hand-moved clock every millisecond
+   while they hold something, as `bus_wire` does). The responder's queue is the
+   one place that still reads the steady clock.
+3. **The run.** *Not built.* `start_run` fixes the run's origin and its seed. Every event
    carries its time as nanoseconds since that origin, and the run's header
    records the wall-clock time of the origin once. A harness never compares
    times from two clocks: its own clock does not appear in the results.
@@ -414,6 +453,11 @@ enough to run it again.
 
 ## Compiling and installing
 
+*Built:* compiling, and installing, replacing and removing one `peer` set
+through `vss::studio`. *Not built:* the owner argument of `install_rules` (the
+call takes the set and `rules_install_options`, with no owner), installing a
+list of sets all or none, `"at_us"`, the loop check, and every role but `peer`.
+
 **Compile.** `compile_rule_set(text)` is a pure function: no hub, no clock, no
 threads. It returns either an immutable compiled set or a list of problems, each
 with the path of the offending value (`rules[2].do[0].delay.max_us`), as the
@@ -442,6 +486,10 @@ event names the generation that produced it.
 
 ## Changing rules during a run
 
+*Built:* `replace_rules` and `remove_rules` for a `peer` set. *Not built:*
+`update_rules`, changing a slot of a running set, and the event that reports a
+change. The `inline` row describes a role that is not built.
+
 No change to the rules drops, repeats or reorders a byte of traffic. For `peer`
 and `station` that follows from the roles: they watch bytes and send their own,
 and hold nothing that belongs to the traffic. The cases are:
@@ -462,7 +510,7 @@ time it took effect, so the log shows which rules any reply came from.
 |---|---|
 | Never early | An action never happens before its due time. This is exact, on every platform, as it is for a delay line |
 | Lateness is reported | Each action's event carries how late it was. An action later than the set's `late_after_us` is also counted (`late`) and flagged in its event. The engine never claims a time it did not keep |
-| Lateness on this machine | Measured, not promised. Today: 10 to 15 ms on Windows. With the timer period raised (the plan for `normal`): about 0.6 to 0.9 ms at the median and under 2 ms at the worst seen. Watching the clock (the plan for `tight`): 0 at the median, 29 µs at the 99th percentile and 182 µs at the worst seen. See [Measured evidence](#measured-evidence) |
+| Lateness on this machine | Measured, not promised. Before the timer period was raised: 10 to 15 ms on Windows. With the timer period raised (built, and what `normal` gets): about 0.6 to 0.9 ms at the median and under 2 ms at the worst seen. Watching the clock (the plan for `tight`, not built): 0 at the median, 29 µs at the 99th percentile and 182 µs at the worst seen. See [Measured evidence](#measured-evidence) |
 | Order at one place | Actions happen in due-time order; ties go to the earlier match, then the earlier action in the list. With `fifo`, in the order of their matches. A reply is one write and is never mixed with another reply's bytes |
 | Order of traffic | Bytes a rule does not touch are neither delayed nor reordered by a set's presence |
 | Byte accounting | Every byte is in exactly one counter. For each place: bytes seen, matched, passed over; replies and bytes sent; and for `inline`: passed, held, dropped, cut off, duplicated, corrupted. `seen = passed + dropped + cut off` and `delivered = passed + duplicated` hold at any quiet moment, and a test can assert them |
@@ -509,6 +557,10 @@ terminal). It is never approximated silently.
 
 ## Observability
 
+*Not built.* None of the three events below is published, and there is no
+read-only view in the window. `rule_stats` is built, on `vss::studio`, and a
+`mark` action publishes a log message.
+
 Every fired rule is an event, published on the dispatcher strand like every
 other, after the path of the bytes has moved on.
 
@@ -524,6 +576,10 @@ port as it shows a fixture's script today, read-only, with its counters; editing
 rules in the window is not part of this design.
 
 ## Limits and safety
+
+*Built:* every limit in the table except the one for an `inline` set, and the
+budget of firings with suspension and resume. *Not built:* the loop check at
+install and the `rule_set` event that says why a set was suspended.
 
 | Limit | Value | When it is reached |
 |---|---|---|
@@ -565,6 +621,10 @@ bytes a set takes no lock of the hub, makes no allocation in the usual case (a
 reply's buffer comes from the set's pool), and does no I/O.
 
 ## When the plugin dies
+
+*Not built.* A set has no owner and no lease in the code, and nothing removes a
+set when a connection is lost. This is decision 5, recorded as decided and
+planned for slice 2.
 
 A set has an owner: the connection that installed it. The engine learns that the
 owner is gone in two ways: the connection closes (a crash, a kill), or the owner
@@ -679,9 +739,11 @@ request. This is the floor for anything the engine does through the event
 queue, and the engine path of slice 2, which does not go through the queue,
 should be under it.
 
-### With a timer, as the engine is today
+### With a timer, as the engine was before the 1 ms period
 
-Lateness against the time asked for.
+Lateness against the time asked for. A hub now asks Windows for the 1 ms period
+while it runs, so these figures are those of the engine before that change; the
+next table is the engine as it is.
 
 | Case | Asked for | Median late by | 99th percentile | Worst seen |
 |---|---|---|---|---|
@@ -702,7 +764,8 @@ Windows clock. A link with 20 ms delay and 10 ms jitter, which should spread
 replies evenly over 10 to 30 ms, gave 14.3 to 46 ms with a median of 30.4 ms, on
 nine or ten distinct values. The bare timer shows the same figures, so this is
 the platform's default and not the delay line or the responder. It is true of
-Studio as shipped, and matters to anyone using the delay tile today.
+Studio as it was shipped before the hub asked for the 1 ms period, and it
+mattered to anyone using the delay tile.
 
 ### With the timer period raised to 1 ms
 
@@ -769,14 +832,14 @@ made for each action after the fact.
 
 What the design takes from the numbers:
 
-1. While a hub is running it asks Windows for a 1 ms timer period, and gives it
-   back when it stops. This is a platform file chosen by CMake
+1. *Built.* While a hub is running it asks Windows for a 1 ms timer period, and
+   gives it back when it stops. This is a platform file chosen by CMake
    (`src/platform/windows`), and nothing on the other platforms. It brings link
    delay, jitter and every `normal` action to within about 1 ms, 2 ms at worst.
    On current Windows the request affects only the process that makes it.
-2. `tight` actions use the timing thread: a sleep to 2 ms before the due time,
-   then the clock. One thread for each hub, started with the first tight action
-   and stopped when none is left.
+2. *Not built.* `tight` actions use the timing thread: a sleep to 2 ms before
+   the due time, then the clock. One thread for each hub, started with the first
+   tight action and stopped when none is left.
 3. Every timed action reports its own lateness, and the flags and counters make
    a disturbed run visible.
 4. Exact turn-around stays a comparison of times in the line model, which no
@@ -787,16 +850,18 @@ What the design takes from the numbers:
 | Piece | Where | Notes |
 |---|---|---|
 | The model, the compiler, the matcher, the seeded source | A new library, `vss_rules`, depending on `vss_core` only for byte and time types | Pure and clockless, like `bus_line`: every call is given the time, so the tests write the times. Fuzzed like the other parsers |
-| The seam | `vss_core`: one optional stage on an endpoint's read path and one on a route, null unless a set is installed; the read time; `hub::now` in the delay line; a seed for the delay line | The only changes to `vss_core`. Behaviour with no set installed is unchanged, and the route benchmark's floor holds that to account |
+| The seam | `vss_core`: one optional stage on an endpoint's read path and one on a route, null unless a set is installed; the read time; `hub::now` in the delay line; a seed for the delay line | Built: the read stage, the read time and `hub::now` in the delay line. Not built: the stage on a route and the seed for the delay line. The only changes to `vss_core`. Behaviour with no set installed is unchanged, and the route benchmark's floor holds that to account |
 | The scheduler | `vss_rules`, on a strand of its own for each place, shaped like `delay_line` | Weak handlers; `close()` waits for a write under way |
-| Install, owners, runs, faults, the fixture | `vss_studio` | `inject_fault` and the capability checks are already here |
-| The operations and events | `vss_agent_proto`, the agent | With the plugin framework's session model |
-| The capability | In the agent's `hello` and the window's `capabilities`, by the names the plugin framework's design (`docs/plugins.md`, section 6) uses: `engine_rules` (`peer` and `station`), `rules_link` (`inline`), `rules_microseconds` (the timers of this page; without it delays are honoured to the platform's tick and the set says so), and `rules_ask` | Absent: the fixture's script page is disabled with "Not available in this build", as `08-engine-gaps.md` requires. A harness that asks for a feature the build lacks gets `unsupported` with its name |
+| Install, owners, runs, faults, the fixture | `vss_studio` | Built: install, replace, remove, suspend, signals and counters for `peer` sets. Not built: owners, runs and the fixture. `inject_fault` and the capability checks are already here |
+| The operations and events | `vss_agent_proto`, the agent | Not built. With the plugin framework's session model |
+| The capability (not built) | In the agent's `hello` and the window's `capabilities`, by the names the plugin framework's design (`docs/plugins.md`, section 6) uses: `engine_rules` (`peer` and `station`), `rules_link` (`inline`), `rules_microseconds` (the timers of this page; without it delays are honoured to the platform's tick and the set says so), and `rules_ask` | Absent: the fixture's script page is disabled with "Not available in this build", as `08-engine-gaps.md` requires. A harness that asks for a feature the build lacks gets `unsupported` with its name |
 
 ## The slices
 
 After the owner has reviewed this page, in this order, each a pull request with
-its tests in the project's framework:
+its tests in the project's framework. Slice 1 is built. Slice 2 is built in part:
+see [What is built today](#what-is-built-today) for what is missing from it.
+Slices 3 and 4 are not started.
 
 1. **Model and compiler.** `vss_rules`: the document, the checks, the compiled
    set, the seeded source and distributions with fixed expected values, the
@@ -817,7 +882,9 @@ its tests in the project's framework:
 Decided on 13 November 2026: 2 (the additions to `vss_core`), 3 (the rule
 document replaces the responder script), 5 (rules are removed when their owner
 is lost) and the first half of 7 (the 1 ms Windows timer period while a hub
-runs). Decision 1 follows from approving the design.
+runs). Decision 1 follows from approving the design. A decision recorded here
+is not a part that is built: [What is built today](#what-is-built-today) says
+which parts are.
 
 Decided later the same day, each as recommended: 4 (a run seeds link jitter),
 6 (fixed-length patterns only in the first version), the second half of 7 (the

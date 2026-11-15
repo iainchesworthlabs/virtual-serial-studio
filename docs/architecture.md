@@ -54,19 +54,23 @@ different kind of byte transport without dragging serial code along.
 ## Threading
 
 Each endpoint has its own `asio::strand`. Its transport is constructed on the
-hub's executor, and two rules keep the transport single-threaded:
+hub's executor, and two rules keep the endpoint single-threaded:
 
-1. The endpoint binds every completion handler it passes down to its strand.
-2. Transports complete handlers on the handler's *associated* executor, not on
-   their own. `loopback_transport` uses
-   `get_associated_executor(handler, fallback)` for exactly this reason, and
-   `serial_transport` passes the handler through untouched so the serial
-   library can honour it.
+1. A transport takes its completion handler as a `std::function`
+   (`transport::io_handler`), which carries no executor, so binding the handler
+   to the strand would be lost on the way down. The endpoint's own handler posts
+   the completion into the strand (`endpoint::do_read` and the write path), and
+   everything that uses the endpoint or calls its transport runs there.
+2. A completion that belongs to a transport since replaced by `reopen()` is
+   dropped. The handler carries the endpoint's generation, and the strand checks
+   it before it acts.
 
-Without rule 2, a transport would complete on an arbitrary hub thread while
-`close()` ran on the strand, which is a data race inside the serial library.
-That failure showed up as an intermittent access violation in a repeated
-high-speed test, and the fix is the reason the rule is written down.
+A transport completes its handler on an executor of its own choosing (the
+loopback transport posts to the executor it was built with, which is the hub's),
+so a completion may arrive on any hub thread. That is why rule 1 posts into the
+strand first. A transport must also tolerate `close()` from another thread while
+an operation is outstanding, and complete every pending handler exactly once
+with `operation_aborted` (`transport.hpp`).
 
 The hub's own event dispatcher runs on a single dedicated strand. Sinks
 therefore never run inline with the operation that published the event, and
@@ -360,7 +364,9 @@ a half-duplex bus does.
 hub. It has the model, the reader for the JSON document, the compiler that checks
 a set and resolves its names, the matcher (bytes, silence, line changes and
 signals in, the firings it decided out) and the scheduler. The format is in
-docs/response-timing.md.
+docs/response-timing.md, which also says what is built. Only the unit tests call
+this code: the window, `vss_cli`, the agent, the control gateway and the setup
+file have no way to install a set yet.
 
 A set is installed on a port with `studio::install_rules` and taken off with
 `remove_rules`. This build installs a `peer` set whose rules match `bytes`,

@@ -3,8 +3,11 @@
 This page is the design for licence files: their format, how Studio checks
 them, what happens when one expires, and how the owner issues and tracks them.
 It follows the decisions in [Editions, licensing and plugins](editions.md).
-The owner has reviewed it, and the decisions are recorded at the end. The code
-follows in separate pull requests.
+The owner has reviewed it, and the decisions are recorded at the end. The
+library, the tool and the screens are built (see [What is built, and in what
+order](#what-is-built-and-in-what-order)). The check gates nothing in this
+build yet: only the Licence page and the Support page ask what a licence
+grants, so a licence shows a state and unlocks nothing.
 
 The screens are specified in
 `docs/gui-design/docs/screens/09-licence-and-support.md`.
@@ -344,8 +347,11 @@ November 2027".
 
 A deterrent only, as decided.
 
-* Studio keeps the latest time it has seen in its per-user settings and
-  updates it when it starts and once an hour.
+* Studio keeps the latest time it has seen in a file, `licence-clock.json`, in
+  its per-user application data folder, and updates it when it starts and once
+  an hour. The file is a small JSON object with `latest_seen` (a time) and
+  `applied_resets` (the reset tokens already used). An official plugin that
+  has to read it must read that file, and Studio's code does not do it for it.
 * Two more lower bounds cost nothing: the build date of Studio itself and the
   `issued_at` of the licence.
 * If the clock reads more than 48 hours before the highest of those, the state
@@ -452,7 +458,7 @@ links it. It has no Qt and no network code, and builds as two parts:
 | Part | Does | Used by |
 |---|---|---|
 | `vss::signed_file` | The envelope: parse, size limits, base64url, the signed message, Ed25519 verify, the trust list with purposes and windows | The licence code, and the plugin signer for its manifests |
-| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio, `vss_cli`, `vss_license`, official plugins |
+| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio's window (its backend), `vss_license`, the plugin library `vss_plugin`, official plugins. `vss_cli` does not use it and has no licence command |
 
 Time, the computer's name and the stored latest time are passed in, so every
 state can be tested without touching the clock. Results are
@@ -602,7 +608,8 @@ The owner chose the environment secret to start with.
 ## What is built, and in what order
 
 Each step is its own small pull request with tests in the project's own
-framework. 
+framework. All four steps are built.
+
 1. `vss::signed_file` and `vss::license`, with the RFC 8032 and Wycheproof
    vectors, a table test of every state, and a fuzz target for the parser.
 2. `vss_license` (`inspect`, `verify`, `issue`, `revocations`, `keygen`), with
@@ -610,6 +617,12 @@ framework.
 3. The Licence page, the import flow and the notices, against
    `FakeStudioBackend`.
 4. The support bundle additions and the Support page.
+
+What is not built: any use of `check(feature)` that changes what Studio offers
+(the Licence page and the Support page ask it, to say what the licence grants,
+and nothing else does), a licence service in the agent and the control
+gateway, so the gateway's `status` has no edition, and the plugin host that
+would run an official plugin. `vss_license` is built with the tools and is not installed.
 
 The private repository, its workflow, the environment and the real keys are
 the owner's to create. This repository gives them the tool and this page.
