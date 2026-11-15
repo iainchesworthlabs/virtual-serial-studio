@@ -247,7 +247,7 @@ TEST_CASE("plugin api: fixture.reply has the limits of its members")
     require_refused<message_type>(header, "has a blob of 0 bytes");
     require_refused<message_type>(header, "has a blob of 4097 bytes",
                                   bytes_of(max_fixture_reply + 1));
-    const byte_buffer one{1};
+    const byte_buffer one = bytes_of(1);
     const auto edge =
         accepted<message_type>(head + R"(,"after_us":60000000})", one).after_us;
     REQUIRE(edge.has_value());
