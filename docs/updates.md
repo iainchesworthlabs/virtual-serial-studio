@@ -1,7 +1,7 @@
 # Online updates (design)
 
-Status: **proposal**, written on 15 November 2026 for the owner to review. Nothing here is built yet. Section 13
-lists the decisions the owner is asked to confirm, and section 12 the order of work.
+Status: **proposal**, written on 15 November 2026. The owner decided the four main points the same day; section 13
+records them and lists what is still open. Nothing here is built yet. Section 12 is the order of work.
 
 Studio learns that a newer version of itself, or of an official plugin, has been published, tells the user, and
 on a yes downloads it, checks it and starts the install. This page is the design: what the user sees, the file
@@ -74,6 +74,7 @@ The words below are the proposal for the screen spec (`docs/gui-design/docs/scre
 | Help menu | **Check for updates...**, after Support and before About. In the action registry, so Search actions finds it |
 | About dialog | A new **Updates** tab, second, after About. The header's sub line is unchanged |
 | Settings | An **Updates** group: "Check for updates automatically" and "Include pre-release versions" |
+| First start | The question of section 3.5, once |
 | Status bar | A chip, "Update available", only while there is one. It opens the update dialog |
 | Plugins page (when it exists) | A row's version shows "1.3.0 available" with the same dialog behind it |
 
@@ -128,6 +129,25 @@ for this kind of install (section 7). A failure names what failed and leaves Stu
 As for every screen (`AGENTS.md`, GUI rules): names and roles, keyboard reach, focus ring, both themes, 24 px
 targets, 200 percent text. The progress bar has an accessible value. Nothing flashes or steals focus when a timer
 check finishes.
+
+### 3.5 The question at first start
+
+The automatic check is **off** in a new install, and Studio makes no request until the user has said yes
+(decision 1). The first time Studio starts for a user who has not been asked, the window shows one notice banner:
+
+| Part | Content |
+|---|---|
+| Sentence | "Check for updates automatically? Once a day Studio would ask virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent." |
+| Actions | **Turn on** and **No thanks** |
+
+- Either answer is stored (`updates/asked`) and the banner never comes back, whichever version is installed
+  later. An update of Studio keeps the answer and does not ask again.
+- The banner stays until it is answered. It takes no focus and blocks nothing, so the first start is not held up
+  and a test that drives the window is not interrupted.
+- Turn on sets "Check for updates automatically"; the first check then runs as section 6.2 says. No thanks leaves
+  it off. The setting is in Settings and in About for a change of mind, and a check by hand works either way.
+- The banner is not shown when an administrator's policy turns update checks off (section 6.3), or in a
+  developer build.
 
 ## 4. The update feed
 
@@ -294,17 +314,18 @@ time. Nothing else is sent. The privacy page says exactly this.
 ### 6.2 When
 
 - **By hand**: Help > Check for updates, or Check now in About. Always allowed unless a policy forbids it.
-- **On the timer**, when "Check for updates automatically" is on: the first check 60 seconds after the window is
-  shown, so start-up is not slowed, and then again when 24 hours have passed since the last one. A check that fails
-  on the timer is silent and is tried again an hour later, three times, then left until the next day.
-- Stored in `QSettings`: `updates/automatic`, `updates/includePrerelease`, `updates/lastCheck`,
-  `updates/lastSerial`, `updates/skippedVersion`.
+- **On the timer**, when "Check for updates automatically" is on, and it is off until the user turns it on
+  (section 3.5): once a day. The check runs 60 seconds after the window is shown, so start-up is not slowed, when
+  24 hours have passed since the last one; a Studio that stays open checks again when the 24 hours are up. A check
+  that fails on the timer is silent and is tried again an hour later, three times, then left until the next day.
+- Stored in `QSettings`: `updates/automatic` (false until the user says otherwise), `updates/asked`,
+  `updates/includePrerelease`, `updates/lastCheck`, `updates/lastSerial`, `updates/skippedVersion`.
 
 ### 6.3 Turning it off
 
 | Who | How | Effect |
 |---|---|---|
-| The user | Settings, or the check box in About | No timer check. A check by hand still works |
+| The user | Off from the start. Settings, or the check box in About, or the answer at first start | No timer check. A check by hand still works |
 | An administrator | `"update_check": false` in the policy file (`docs/plugins.md`, section 8.6) | No timer check and no check by hand. The menu item and the button are disabled with "Update checks are turned off by your administrator." |
 
 The policy file already has the ownership test that makes it an administrator's. Unlike the plugin rules, a policy
@@ -489,7 +510,7 @@ points of section 13.
 | 1 | `libs/vss_update`: versions, the feed reader and verifier, the choice, the (empty) key list, unit tests, a fuzz target | Small. Well specified by sections 4 and 5 |
 | 2 | `tools/update_feed.py` and its tests; the `feed` job in `release.yml`; the copy in `site_build.py` and the check in `site_check.py`; `docs/releasing.md` | Small. The workflow change is reviewed for what a pull request can reach |
 | 3 | The screen spec `screens/12-updates.md` and the copy deck entries | Small, and the owner reads the words |
-| 4 | The service (transport, timer, settings, policy key), the Updates tab, the Help action, the Settings rows, the chip and banner, the update dialog up to "Download and install"; translations; accessibility checks | Medium |
+| 4 | The service (transport, timer, settings, policy key), the question at first start, the Updates tab, the Help action, the Settings rows, the chip and banner, the update dialog up to "Download and install"; translations; accessibility checks | Medium |
 | 5 | Download, hash and the install step for each kind; the install-kind tests; the TLS backend in the packages and the release checks | Medium. The Windows hand-over and the packaging need a guest run |
 | 6 | The rule change of section 2 in every place it is written; the privacy page; the user guide; the README if an option was added | Small. Goes in with step 4, because that is when the sentence becomes true |
 | 7 | Plugin rows and the plugin install hand-over | After the Plugins page and `vss_cli plugin install` exist |
@@ -501,14 +522,22 @@ For the owner, outside the repository:
 - Add `UPDATE_FEED_PRIVATE_KEY` (the private half of `upd-2026-a`) as a secret of the `release` environment.
 - Publish the website, so that the feed's address exists (`website/README.md`, "Publishing").
 
-## 13. Decisions for the owner
+## 13. Decisions
+
+Decided by the owner on 15 November 2026:
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Is the automatic check on or off in a new install? | **Off.** Studio asks once, at the first start, whether to turn it on (section 3.5). When it is on: once a day, 60 seconds after start (section 6.2) |
+| 2 | Where does Studio read the feed? | **The owner's domain** (section 4.1), copied there from the release asset by the website build |
+| 3 | Is the feed signed with its own Ed25519 keys, which the owner makes and keeps? | **Yes** (section 5): `upd-<year>-a` in the release environment's secrets and `upd-<year>-b` offline as the standby |
+| 4 | Does the Windows installer show its pages on an update, or run silently and restart Studio? | **It shows its pages.** A silent upgrade that starts Studio again is a later piece of work (section 7.3) |
+
+Proposed, and open until the owner says otherwise:
 
 | # | Question | Proposed |
 |---|---|---|
-| 1 | Is the automatic check on or off in a new install? | **On**, once a day, with the setting in Settings and About and the administrator's policy. The privacy page says what is sent. The other choices: off until the user turns it on, or ask once at first start |
-| 2 | Where does Studio read the feed? | **The owner's domain** (section 4.1), mirrored from the release asset. The other choice is the release asset on GitHub directly, which ties every installed Studio to GitHub's addresses and has no single address that covers pre-releases |
-| 3 | Is the feed signed with its own Ed25519 keys, which the owner has to make and keep? | **Yes** (section 5). Without it, the web host and the domain could put a program on a user's computer |
-| 4 | Does the Windows installer show its pages on an update, or run silently and restart Studio? | **Shows its pages** in the first version; silent later (section 7.3) |
 | 5 | Who is offered pre-releases? | A user who turned on "Include pre-release versions", and anyone who is running a pre-release already |
 | 6 | Are updates for third-party plugins wanted? | Not in the first version |
 | 7 | Should a Linux package from a future apt or dnf repository leave updating to the system? | Yes, when such a repository exists. Until then the deb and rpm are updated as section 7.3 says |
+| 8 | Is "the first start" of decision 1 the first start ever for that user, or the first start of each newly installed version? | The first start ever: one answer is kept across updates (section 3.5). Asking again after every update would be a prompt for each release |
