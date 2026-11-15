@@ -89,7 +89,8 @@ is made and nothing is shown, so a second run with the same name fails and
 needs another name (or the old file removed). `timeout` is the seconds one
 call may take.
 
-Calls: `status()`, `list_ports()`, `create_port(name)`, `remove_port(id)`,
+Calls: `status()`, `list_ports()`, `get_port(id)`, `list_links()`,
+`get_link(id)`, `ping()`, `create_port(name)`, `remove_port(id)`,
 `connect_ports(first, second, one_way=False)`, `send(port, data)`,
 `expect_bytes(port, pattern, timeout_ms=1000, send_port=None, send=b"",
 label=None, direction=None)`, `subscribe_events(interval_ms=250, ports=None)`,
@@ -98,7 +99,10 @@ label=None, direction=None)`, `subscribe_events(interval_ms=250, ports=None)`,
 message="", duration_ms=0)`, `end_run()` and `report_junit(run=None)`. Each
 call needs the scope that the gateway asks for (see the table in section 9 of
 `docs/remote-control.md`) and raises `ControlError` with the code `forbidden`
-without it.
+without it. `get_port`, `list_links` and `get_link` need `monitor`; `ping` needs
+no scope and does not ask the agent. `close()` first asks the gateway to end the
+session, ignores any error from that, and then closes the connection; it never
+raises.
 
 `next_events` returns a dict with `seq`, `revision`, `dropped`, `mono_ns`,
 `wall_ms` and `events`, or None when no batch came in time. Each event has

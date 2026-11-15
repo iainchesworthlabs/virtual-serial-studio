@@ -18,8 +18,12 @@ a temporary key file when it starts, so that no key file is in the repository.
 from __future__ import annotations
 
 import atexit
+import base64
+import contextlib
 import hashlib
+import io
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,7 +31,7 @@ import tempfile
 import unittest
 import unittest.mock
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 HERE = Path(__file__).resolve().parent
 TOOL = HERE / "plugin_sign.py"
@@ -459,17 +463,30 @@ class ToolTestCase(unittest.TestCase):
         self.root = Path(tempfile.mkdtemp(prefix="plugin-sign-test-"))
         self.addCleanup(shutil.rmtree, self.root, ignore_errors=True)
 
-    def run_tool(self, *arguments: Any) -> subprocess.CompletedProcess:
+    def run_tool(
+        self,
+        *arguments: Any,
+        env: Optional[Dict[str, str]] = None,
+        timeout: float = 120,
+        secrets: Any = (),
+    ) -> subprocess.CompletedProcess:
+        # Standard input is the null device, so that no test can wait for a
+        # terminal; ``timeout`` ends one that waits for anything else.
         done = subprocess.run(
             [sys.executable, str(TOOL)] + [str(a) for a in arguments],
             capture_output=True,
             text=True,
             check=False,
+            stdin=subprocess.DEVNULL,
+            env=env,
+            timeout=timeout,
         )
-        # No command ever shows the key.
+        # No command ever shows the key, or a secret that the test names.
         for output in (done.stdout, done.stderr):
             self.assertNotIn(KEY_BODY, output)
             self.assertNotIn("PRIVATE KEY", output)
+            for secret in secrets:
+                self.assertNotIn(secret, output)
         return done
 
     def make_plugin(self, name: str = "plugin", **manifest: Any) -> Path:
@@ -909,6 +926,494 @@ class SigningTests(ToolTestCase):
             done = self.run_tool(*command)
             self.assertIn(done.returncode, (0, 1, 2), command)
         self.assertFalse(out.exists())
+
+
+# -- keygen and passphrases ----------------------------------------------------
+
+PASSPHRASE = "correct horse battery 7491"
+WRONG_PASSPHRASE = "incorrect horse battery 1234"
+ENCRYPTED_HEADER = b"-----BEGIN ENCRYPTED PRIVATE KEY-----"
+
+
+def key_body(path: Path) -> str:
+    """The base64 text between the BEGIN and END lines of a key file."""
+    lines = path.read_text(encoding="ascii").strip().splitlines()
+    return "".join(lines[1:-1])
+
+
+@needs_openssl
+class KeygenTests(ToolTestCase):
+    def keygen(self, name: str = "new.key", *more: Any, **options: Any):
+        return self.run_tool("keygen", "--out", self.root / name, *more, **options)
+
+    def passphrase_file(
+        self, text: str = PASSPHRASE + "\n", name: str = "pass.txt"
+    ) -> Path:
+        return self.write(name, text.encode("utf-8"))
+
+    def call_main(self, *arguments: Any):
+        """``plugin_sign.main`` in this process: (code, stdout, stderr)."""
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            try:
+                code = ps.main([str(a) for a in arguments])
+            except SystemExit as stop:
+                code = stop.code
+        return code, out.getvalue(), err.getvalue()
+
+    def call_with_prompt(self, answers: List[str], *arguments: Any):
+        """``call_main`` with a terminal that gives ``answers`` in turn:
+        (code, stdout, stderr, number of questions)."""
+        asked = unittest.mock.Mock(side_effect=answers)
+        with unittest.mock.patch.object(ps, "stdin_is_terminal", return_value=True):
+            with unittest.mock.patch.object(ps.getpass, "getpass", asked):
+                code, out, err = self.call_main(*arguments)
+        return code, out, err, asked.call_count
+
+    def sign_and_verify(
+        self, key: Path, public_key: str, *options: Any, **run: Any
+    ) -> None:
+        folder = self.make_plugin("signed")
+        done = self.run_tool(
+            "plugin", "--key", key, "--key-id", "made-key", "--plugin", folder,
+            *options, secrets=[PASSPHRASE], **run,
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        done = self.run_tool(
+            "verify", "--public-key", public_key, "--purpose", "plugin",
+            folder / "plugin.sig",
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(done.stdout, "ok\n")
+
+    # -- a key that is not encrypted
+
+    def test_keygen_makes_a_key_that_signs_and_verifies(self) -> None:
+        done = self.keygen("new.key", "--key-id", "made-key")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        key = self.root / "new.key"
+        self.assertTrue(key.read_bytes().startswith(b"-----BEGIN PRIVATE KEY-----\n"))
+        lines = done.stdout.splitlines()
+        self.assertEqual(len(lines), 2, done.stdout)
+        self.assertRegex(lines[0], r"^[0-9a-f]{64}$")
+        self.assertEqual(lines[1], "made-key")
+        # The same text as public-key prints.
+        again = self.run_tool("public-key", "--key", key)
+        self.assertEqual(again.stdout, lines[0] + "\n")
+        self.sign_and_verify(key, lines[0])
+        # Two keys are two keys.
+        other = self.keygen("other.key")
+        self.assertNotEqual(other.stdout.strip(), lines[0])
+
+    def test_keygen_without_a_key_id_prints_the_public_key_only(self) -> None:
+        done = self.keygen()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertRegex(done.stdout, r"^[0-9a-f]{64}\n$")
+        # The key is not encrypted, and the tool says so.
+        self.assertIn("not encrypted", done.stderr)
+
+    def test_keygen_prints_no_private_material(self) -> None:
+        done = self.keygen("new.key", "--key-id", "made-key")
+        self.assertEqual(done.returncode, 0, done.stderr)
+        body = key_body(self.root / "new.key")
+        seed = base64.b64decode(body)[-32:]
+        for output in (done.stdout, done.stderr):
+            self.assertNotIn(body, output)
+            self.assertNotIn(seed.hex(), output)
+            self.assertNotIn(base64.urlsafe_b64encode(seed).decode(), output)
+            self.assertNotIn("PRIVATE", output)
+
+    def test_keygen_makes_the_file_private_to_its_owner(self) -> None:
+        done = self.keygen()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        key = self.root / "new.key"
+        if os.name != "nt":
+            self.assertEqual(key.stat().st_mode & 0o777, 0o600)
+            return
+        # Windows has no mode: icacls lists who may use the file. After
+        # keygen it is one entry, the current user, with full control and
+        # nothing inherited from the folder. The names of the entries depend
+        # on the language of Windows, so only their number is counted.
+        listing = subprocess.run(
+            [ps.windows_program("icacls"), str(key)],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        self.assertEqual(listing.count(":("), 1, listing)
+        self.assertIn(":(F)", listing)
+        self.assertNotIn("(I)", listing)
+
+    @unittest.skipUnless(os.name == "nt", "Windows permissions")
+    def test_a_file_with_entries_of_its_own_ends_with_one(self) -> None:
+        # Some versions of Python make a new file with entries for SYSTEM,
+        # Administrators and the owner on the file itself, not inherited.
+        # They have to go as well.
+        key = self.write("own-entries.key", b"")
+        icacls = ps.windows_program("icacls")
+        subprocess.run(
+            [icacls, str(key), "/grant", "*S-1-5-18:F", "*S-1-5-32-544:F", "*S-1-3-4:F"],
+            capture_output=True, text=True, check=True,
+        )
+        ps.restrict_to_current_user(str(key))
+        listing = subprocess.run(
+            [icacls, str(key)], capture_output=True, text=True, check=True
+        ).stdout
+        self.assertEqual(listing.count(":("), 1, listing)
+        self.assertIn(":(F)", listing)
+        self.assertNotIn("(I)", listing)
+
+    @unittest.skipUnless(os.name == "nt", "Windows permissions")
+    def test_an_entry_for_anyone_else_is_refused(self) -> None:
+        # Authenticated Users, which the tool does not remove by name: the
+        # file is not private, so it is refused and not used for a key.
+        key = self.write("someone-else.key", b"")
+        icacls = ps.windows_program("icacls")
+        subprocess.run(
+            [icacls, str(key), "/grant", "*S-1-5-11:R"],
+            capture_output=True, text=True, check=True,
+        )
+        with self.assertRaises(ps.Refusal):
+            ps.restrict_to_current_user(str(key))
+
+    def test_keygen_refuses_a_file_that_exists(self) -> None:
+        key = self.write("new.key", b"keep this\n")
+        done = self.keygen()
+        self.assertEqual(done.returncode, 2)
+        self.assertIn("already exists", done.stderr)
+        self.assertEqual(done.stdout, "")
+        self.assertEqual(key.read_bytes(), b"keep this\n")
+        # A folder too, and the second run of a keygen that worked.
+        (self.root / "folder").mkdir()
+        self.assertEqual(self.keygen("folder").returncode, 2)
+        self.assertEqual(self.keygen("fresh.key").returncode, 0)
+        first = (self.root / "fresh.key").read_bytes()
+        self.assertEqual(self.keygen("fresh.key").returncode, 2)
+        self.assertEqual((self.root / "fresh.key").read_bytes(), first)
+
+    def test_a_file_that_appears_during_keygen_is_not_touched(self) -> None:
+        # The file is made by one call that fails when it exists, so a file
+        # that appears after the first look is neither written nor removed.
+        key = self.root / "race.key"
+        real_lexists = os.path.lexists
+
+        def late(path: str) -> bool:
+            found = real_lexists(path)
+            if not found and Path(path) == key:
+                key.write_bytes(b"not yours\n")
+            return found
+
+        with unittest.mock.patch.object(ps.os.path, "lexists", side_effect=late):
+            code, out, err = self.call_main("keygen", "--out", key)
+        self.assertEqual(code, 2)
+        self.assertIn("already exists", err)
+        self.assertEqual(out, "")
+        self.assertEqual(key.read_bytes(), b"not yours\n")
+
+    def test_keygen_with_a_bad_key_id_writes_nothing(self) -> None:
+        for bad in ("Upper", "has space", "", "x" * 65):
+            done = self.keygen("new.key", "--key-id", bad)
+            self.assertEqual(done.returncode, 2, repr(bad))
+            self.assertEqual(done.stdout, "")
+        self.assertFalse((self.root / "new.key").exists())
+
+    def test_keygen_in_a_folder_that_is_not_there(self) -> None:
+        done = self.keygen("no-folder/new.key")
+        self.assertEqual(done.returncode, 2)
+        self.assertEqual(done.stdout, "")
+
+    def test_a_failure_after_the_file_is_made_removes_it(self) -> None:
+        key = self.root / "new.key"
+        refusal = ps.Refusal("could not restrict the key file")
+        with unittest.mock.patch.object(ps, "protect_key_file", side_effect=refusal):
+            code, out, err = self.call_main("keygen", "--out", key)
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("could not restrict", err)
+        self.assertFalse(key.exists())
+
+        # And when the key that was written cannot be read back.
+        with unittest.mock.patch.object(
+            ps, "public_key_of", side_effect=ps.Refusal("no")
+        ):
+            code, out, err = self.call_main("keygen", "--out", key)
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertFalse(key.exists())
+
+    def test_a_failed_openssl_leaves_no_file(self) -> None:
+        key = self.root / "new.key"
+        done = self.keygen("new.key", "--openssl", self.root / "no-openssl")
+        self.assertEqual(done.returncode, 2)
+        self.assertFalse(key.exists())
+        failed = subprocess.CompletedProcess([], 1, stdout=b"", stderr=b"boom")
+        with unittest.mock.patch.object(ps, "run_openssl", return_value=failed):
+            code, out, err = self.call_main("keygen", "--out", key)
+        self.assertEqual(code, 1)
+        self.assertFalse(key.exists())
+
+    # -- a key that is encrypted
+
+    def test_keygen_with_a_passphrase_from_the_environment(self) -> None:
+        env = dict(os.environ, TEST_PLUGIN_PASS=PASSPHRASE)
+        done = self.keygen(
+            "enc.key", "--key-id", "made-key", "--passphrase-env",
+            "TEST_PLUGIN_PASS", env=env, secrets=[PASSPHRASE],
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        key = self.root / "enc.key"
+        self.assertTrue(key.read_bytes().startswith(ENCRYPTED_HEADER))
+        self.assertEqual(done.stderr, "")
+        public_key = done.stdout.splitlines()[0]
+        self.sign_and_verify(
+            key, public_key, "--passphrase-env", "TEST_PLUGIN_PASS", env=env
+        )
+        # The same key gives the same public key.
+        shown = self.run_tool(
+            "public-key", "--key", key, "--passphrase-env", "TEST_PLUGIN_PASS",
+            env=env, secrets=[PASSPHRASE],
+        )
+        self.assertEqual(shown.stdout, public_key + "\n")
+
+    def test_keygen_with_a_passphrase_from_a_file(self) -> None:
+        pass_file = self.passphrase_file()
+        done = self.keygen(
+            "enc.key", "--passphrase-file", pass_file, secrets=[PASSPHRASE]
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        key = self.root / "enc.key"
+        self.assertTrue(key.read_bytes().startswith(ENCRYPTED_HEADER))
+        # Neither the encrypted text nor the passphrase is in the output.
+        self.assertNotIn(key_body(key), done.stdout + done.stderr)
+        self.assertEqual(done.stderr, "")
+        self.sign_and_verify(
+            key, done.stdout.strip(), "--passphrase-file", pass_file
+        )
+
+    def test_the_passphrase_is_the_first_line_without_its_ending(self) -> None:
+        # A Windows line ending, and more lines that are not the passphrase.
+        pass_file = self.passphrase_file(PASSPHRASE + "\r\nsecond line\n")
+        done = self.keygen("enc.key", "--passphrase-file", pass_file)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        same = self.passphrase_file(PASSPHRASE, "plain.txt")  # no line ending
+        shown = self.run_tool(
+            "public-key", "--key", self.root / "enc.key",
+            "--passphrase-file", same,
+        )
+        self.assertEqual(shown.returncode, 0, shown.stderr)
+        self.assertEqual(shown.stdout, done.stdout)
+
+    def test_a_passphrase_can_have_spaces_and_non_ascii_text(self) -> None:
+        pass_file = self.passphrase_file("  pass phrase ü中  \n")
+        done = self.keygen("enc.key", "--passphrase-file", pass_file)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        shown = self.run_tool(
+            "public-key", "--key", self.root / "enc.key",
+            "--passphrase-file", pass_file,
+        )
+        self.assertEqual(shown.returncode, 0, shown.stderr)
+        self.assertEqual(shown.stdout, done.stdout)
+
+    def test_a_passphrase_for_a_key_that_has_none_is_ignored(self) -> None:
+        self.assertEqual(self.keygen().returncode, 0)
+        done = self.run_tool(
+            "public-key", "--key", self.root / "new.key",
+            "--passphrase-file", self.passphrase_file(),
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+
+    # -- what is refused
+
+    def encrypted_key(self) -> Path:
+        done = self.keygen("enc.key", "--passphrase-file", self.passphrase_file())
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return self.root / "enc.key"
+
+    def test_signing_with_what_cannot_open_the_key(self) -> None:
+        key = self.encrypted_key()
+        folder = self.make_plugin()
+        wrong = self.passphrase_file(WRONG_PASSPHRASE + "\n", "wrong.txt")
+        empty = self.passphrase_file("", "empty.txt")
+        env = dict(os.environ, TEST_PLUGIN_WRONG=WRONG_PASSPHRASE, TEST_PLUGIN_EMPTY="")
+        env.pop("TEST_PLUGIN_UNSET", None)
+        cases = (
+            ("a wrong passphrase", 1, "passphrase", ["--passphrase-file", wrong]),
+            ("a wrong passphrase in the environment", 1, "passphrase",
+             ["--passphrase-env", "TEST_PLUGIN_WRONG"]),
+            ("no passphrase option", 1, "encrypted", []),
+            ("an unset variable", 2, "not set",
+             ["--passphrase-env", "TEST_PLUGIN_UNSET"]),
+            ("a missing passphrase file", 2, "could not read",
+             ["--passphrase-file", self.root / "no-such.txt"]),
+            ("an empty file", 2, "empty", ["--passphrase-file", empty]),
+            ("an empty variable", 2, "empty",
+             ["--passphrase-env", "TEST_PLUGIN_EMPTY"]),
+            ("two options", 2, "not allowed with",
+             ["--passphrase-file", wrong, "--passphrase-env", "TEST_PLUGIN_WRONG"]),
+            ("a prompt with no terminal", 2, "terminal", ["--passphrase-prompt"]),
+        )
+        for what, code, text, options in cases:
+            done = self.run_tool(
+                "plugin", "--key", key, "--key-id", "made-key", "--plugin",
+                folder, *options, env=env, timeout=60,
+                secrets=[PASSPHRASE, WRONG_PASSPHRASE],
+            )
+            self.assertEqual(done.returncode, code, what + ": " + done.stderr)
+            self.assertIn(text, done.stderr, what)
+            self.assertEqual(done.stdout, "", what)
+            self.assertFalse((folder / "plugin.sig").exists(), what)
+
+    def test_every_command_that_takes_a_key_refuses_an_encrypted_one(self) -> None:
+        key = self.encrypted_key()
+        keys = self.write("keys.json", as_bytes(key_list_document()))
+        revoked = self.write("revoked-in.json", as_bytes(revocations_document()))
+        for command, extra, out in (
+            ("public-key", [], None),
+            ("key-list", ["--key-id", "root-1", "--payload", keys],
+             self.root / "list.json"),
+            ("revocations", ["--key-id", "root-1", "--payload", revoked],
+             self.root / "revoked.json"),
+        ):
+            if out is not None:
+                extra = extra + ["--out", out]
+            done = self.run_tool(command, "--key", key, *extra, timeout=60)
+            self.assertEqual(done.returncode, 1, command)
+            self.assertIn("encrypted", done.stderr, command)
+            self.assertEqual(done.stdout, "", command)
+            if out is not None:
+                self.assertFalse(out.exists(), command)
+
+    def test_keygen_refuses_what_gives_no_passphrase(self) -> None:
+        empty = self.passphrase_file("", "empty.txt")
+        env = dict(os.environ, TEST_PLUGIN_EMPTY="", TEST_PLUGIN_PASS=PASSPHRASE)
+        env.pop("TEST_PLUGIN_UNSET", None)
+        cases = (
+            (2, "not set", ["--passphrase-env", "TEST_PLUGIN_UNSET"]),
+            (2, "could not read", ["--passphrase-file", self.root / "no-such.txt"]),
+            (2, "empty", ["--passphrase-file", empty]),
+            (2, "empty", ["--passphrase-env", "TEST_PLUGIN_EMPTY"]),
+            (2, "not allowed with",
+             ["--passphrase-file", empty, "--passphrase-env", "TEST_PLUGIN_PASS"]),
+            (2, "terminal", ["--passphrase-prompt"]),
+        )
+        for code, text, options in cases:
+            done = self.keygen(
+                "new.key", *options, env=env, timeout=60, secrets=[PASSPHRASE]
+            )
+            self.assertEqual(done.returncode, code, done.stderr)
+            self.assertIn(text, done.stderr)
+            self.assertEqual(done.stdout, "")
+            self.assertFalse((self.root / "new.key").exists(), options)
+
+    def test_no_option_takes_the_passphrase_itself(self) -> None:
+        for option in ("--passphrase", "--passin", "--password", "--pass"):
+            done = self.keygen(
+                "new.key", option, "hunter2-never-shown", secrets=["hunter2"]
+            )
+            self.assertEqual(done.returncode, 2, option)
+            self.assertFalse((self.root / "new.key").exists())
+        # The name of an environment variable that is not set is not shown:
+        # it may be a passphrase typed in the wrong place.
+        done = self.keygen(
+            "new.key", "--passphrase-env", "hunter2-never-shown",
+            secrets=["hunter2"],
+        )
+        self.assertEqual(done.returncode, 2)
+
+    def test_the_passphrase_is_never_in_the_arguments_of_openssl(self) -> None:
+        real_run = subprocess.run
+        calls: List[Any] = []
+
+        def spy(command: Any, *args: Any, **kwargs: Any) -> Any:
+            calls.append((list(command), kwargs.get("env")))
+            return real_run(command, *args, **kwargs)
+
+        key = self.root / "enc.key"
+        folder = self.make_plugin()
+        before = dict(os.environ)
+        with unittest.mock.patch.dict(os.environ, {"TEST_PLUGIN_PASS": PASSPHRASE}):
+            with unittest.mock.patch.object(ps.subprocess, "run", side_effect=spy):
+                code, out, err = self.call_main(
+                    "keygen", "--out", key, "--passphrase-env", "TEST_PLUGIN_PASS"
+                )
+                self.assertEqual(code, 0, err)
+                code, out2, err2 = self.call_main(
+                    "plugin", "--key", key, "--key-id", "made-key", "--plugin",
+                    folder, "--passphrase-env", "TEST_PLUGIN_PASS",
+                )
+                self.assertEqual(code, 0, err2)
+            # This process's environment never holds the private variable.
+            self.assertNotIn(ps.PASSPHRASE_VAR, os.environ)
+        self.assertEqual(dict(os.environ), before)
+        for text in (out, err, out2, err2):
+            self.assertNotIn(PASSPHRASE, text)
+
+        used = 0
+        for command, environment in calls:
+            for argument in command:
+                self.assertNotIn(PASSPHRASE, argument)
+                self.assertFalse(argument.startswith("pass:"), argument)
+            for option in ("-passin", "-pass"):
+                if option in command:
+                    self.assertEqual(
+                        command[command.index(option) + 1],
+                        "env:" + ps.PASSPHRASE_VAR,
+                    )
+                    self.assertEqual(environment[ps.PASSPHRASE_VAR], PASSPHRASE)
+                    used += 1
+        # genpkey, then the read back, the public key and the signature.
+        self.assertGreaterEqual(used, 4)
+
+    # -- the prompt, with a terminal that the test supplies
+
+    def test_the_prompt_asks_twice_for_a_new_key_and_once_to_use_it(self) -> None:
+        key = self.root / "enc.key"
+        code, made, err, asked = self.call_with_prompt(
+            [PASSPHRASE, PASSPHRASE],
+            "keygen", "--out", key, "--passphrase-prompt",
+        )
+        self.assertEqual(code, 0, err)
+        self.assertEqual(asked, 2)
+        self.assertTrue(key.read_bytes().startswith(ENCRYPTED_HEADER))
+        code, shown, err, asked = self.call_with_prompt(
+            [PASSPHRASE], "public-key", "--key", key, "--passphrase-prompt",
+        )
+        self.assertEqual(code, 0, err)
+        self.assertEqual(asked, 1)
+        self.assertEqual(shown, made)
+        code, shown, err, asked = self.call_with_prompt(
+            [WRONG_PASSPHRASE], "public-key", "--key", key, "--passphrase-prompt",
+        )
+        self.assertEqual(code, 1)
+        self.assertNotIn(WRONG_PASSPHRASE, err)
+
+    def test_two_different_answers_at_the_prompt_are_an_error(self) -> None:
+        key = self.root / "enc.key"
+        code, out, err, asked = self.call_with_prompt(
+            [PASSPHRASE, WRONG_PASSPHRASE],
+            "keygen", "--out", key, "--passphrase-prompt",
+        )
+        self.assertEqual(code, 1)
+        self.assertEqual(out, "")
+        self.assertIn("not the same", err)
+        self.assertNotIn(PASSPHRASE, err)
+        self.assertNotIn(WRONG_PASSPHRASE, err)
+        self.assertFalse(key.exists())
+
+    def test_an_empty_answer_at_the_prompt_is_refused(self) -> None:
+        key = self.root / "enc.key"
+        code, out, err, asked = self.call_with_prompt(
+            ["", ""], "keygen", "--out", key, "--passphrase-prompt"
+        )
+        self.assertEqual(code, 2)
+        self.assertIn("empty", err)
+        self.assertFalse(key.exists())
+
+    def test_standard_input_that_is_not_a_terminal_is_not_one(self) -> None:
+        # The null device: isatty says yes for it on Windows.
+        with open(os.devnull) as null:
+            with unittest.mock.patch.object(ps.sys, "stdin", null):
+                self.assertFalse(ps.stdin_is_terminal())
+        with unittest.mock.patch.object(ps.sys, "stdin", None):
+            self.assertFalse(ps.stdin_is_terminal())
 
 
 if __name__ == "__main__":

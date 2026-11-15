@@ -77,7 +77,9 @@ class Setup(unittest.TestCase):
     def greet(self, timeout=5.0, **more):
         self.gateway.sendall(reply(1, "hello", **HELLO))
         client = Client._greet(self.transport, timeout, "test", more.get("token"))
-        self.addCleanup(client.close)
+        # Not `close`: it asks the gateway to end the session and would wait
+        # for an answer that nothing here gives.
+        self.addCleanup(client._abort)
         self.hello_header, _ = self.read_request()
         return client
 
@@ -106,7 +108,14 @@ class ConversationTests(Setup):
         self.assertEqual(client.hello["principal"], "local:1000")
         self.assertEqual(client.hello["features"], ["expect.bytes"])
         self.gateway.sendall(
-            reply(2, "status", uptime_ms=5, sessions=1, agent={"running": True, "version": "t"})
+            reply(
+                2,
+                "status",
+                uptime_ms=5,
+                sessions=1,
+                agent={"running": True, "version": "t"},
+                licence={"edition": "community", "state": "none"},
+            )
         )
         self.gateway.sendall(reply(3, "done"))
         self.assertEqual(client.status()["agent"]["running"], True)
@@ -119,7 +128,7 @@ class ConversationTests(Setup):
     def test_the_hello_says_what_this_program_is_and_carries_the_token(self):
         self.gateway.sendall(reply(1, "hello", **HELLO))
         client = Client._greet(self.transport, 5.0, "my program", "vsst1_example")
-        self.addCleanup(client.close)
+        self.addCleanup(client._abort)
         header, _ = self.read_request()
         self.assertEqual(header, {"id": 1, "op": "hello", "api": 1, "client": "my program", "token": "vsst1_example"})
         # Nothing the client holds is the token.
@@ -200,6 +209,7 @@ class ConversationTests(Setup):
 
     def test_closing_twice_is_fine_and_a_closed_client_says_so(self):
         client = self.greet()
+        self.gateway.sendall(reply(2, "done"))
         client.close()
         client.close()
         with self.assertRaises(TransportError) as caught:
@@ -208,9 +218,61 @@ class ConversationTests(Setup):
 
     def test_the_context_manager_closes(self):
         client = self.greet()
+        self.gateway.sendall(reply(2, "done"))
         with client:
             pass
         self.assertIn("closed", repr(client))
+        self.assert_closed_by_client()
+
+    def test_close_asks_the_gateway_to_end_the_session_first(self):
+        client = self.greet()
+        self.gateway.sendall(reply(2, "done"))
+        client.close()
+        header, blob = self.read_request()
+        self.assertEqual(header, {"id": 2, "op": "session.close"})
+        self.assertEqual(blob, b"")
+        self.assert_closed_by_client()
+        # The second close sends nothing: the client is closed.
+        client.close()
+
+    def test_close_ignores_an_error_from_the_gateway(self):
+        client = self.greet()
+        self.gateway.sendall(error(2, "unsupported", "no such operation"))
+        client.close()
+        header, _ = self.read_request()
+        self.assertEqual(header["op"], "session.close")
+        self.assert_closed_by_client()
+        self.assertIn("closed", repr(client))
+
+    def test_close_ignores_a_reply_that_is_not_one(self):
+        client = self.greet()
+        self.gateway.sendall(frame({"id": 2}))
+        client.close()
+        self.assert_closed_by_client()
+
+    def test_close_does_not_wait_longer_than_a_call_may(self):
+        client = self.greet(timeout=0.3)
+        started = time.monotonic()
+        client.close()
+        self.assertLess(time.monotonic() - started, 5)
+        header, _ = self.read_request()
+        self.assertEqual(header["op"], "session.close")
+        self.assert_closed_by_client()
+
+    def test_close_reads_past_a_batch_to_the_answer(self):
+        client = self.greet()
+        self.gateway.sendall(batch(1))
+        self.gateway.sendall(reply(2, "done"))
+        client.close()
+        self.assert_closed_by_client()
+
+    def test_close_of_a_connection_the_gateway_ended_sends_nothing_and_does_not_raise(self):
+        client = self.greet()
+        self.gateway.sendall(error(0, "busy", "too many sessions", True))
+        with self.assertRaises(ControlError):
+            client.status()
+        self.read_request()
+        client.close()
         self.assert_closed_by_client()
 
 
@@ -441,6 +503,96 @@ class RequestTests(Setup):
         self.assertEqual(sent[4], {"id": 6, "op": "runs.end"})
         self.assertEqual(sent[5], {"id": 7, "op": "report.junit", "run": ""})
 
+    def test_the_reading_requests_and_what_they_return(self):
+        client = self.greet()
+        port = {
+            "id": "p_1",
+            "name": "a",
+            "path": "",
+            "kind": "loopback",
+            "state": "open",
+            "open": True,
+            "bytes_rx": 1,
+            "bytes_tx": 2,
+        }
+        link = {"id": "l_1", "mode": "duplex", "sources": ["p_1"], "targets": ["p_2"], "bytes": 3}
+        self.gateway.sendall(reply(2, "port", revision=4, port=port))
+        self.gateway.sendall(reply(3, "links", revision=4, links=[link]))
+        self.gateway.sendall(reply(4, "link", revision=4, link=link))
+        self.gateway.sendall(reply(5, "done"))
+        self.assertEqual(client.get_port("p_1"), port)
+        self.assertEqual(client.list_links(), [link])
+        self.assertEqual(client.get_link("l_1"), link)
+        self.assertIsNone(client.ping())
+        sent = [self.read_request()[0] for _ in range(4)]
+        self.assertEqual(sent[0], {"id": 2, "op": "ports.get", "port": "p_1"})
+        self.assertEqual(sent[1], {"id": 3, "op": "links.list"})
+        self.assertEqual(sent[2], {"id": 4, "op": "links.get", "link": "l_1"})
+        self.assertEqual(sent[3], {"id": 5, "op": "ping"})
+
+    def test_an_empty_list_of_links_is_a_list(self):
+        client = self.greet()
+        self.gateway.sendall(reply(2, "links", revision=0, links=[]))
+        self.assertEqual(client.list_links(), [])
+
+    def test_a_refusal_of_a_reading_request_keeps_the_connection(self):
+        client = self.greet()
+        self.gateway.sendall(error(2, "not_found", "nothing has that id"))
+        self.gateway.sendall(error(3, "invalid_argument", "not an id"))
+        self.gateway.sendall(error(4, "forbidden", "not allowed"))
+        self.gateway.sendall(reply(5, "done"))
+        for call, code in (
+            (lambda: client.get_port("p_9"), "not_found"),
+            (lambda: client.get_link("nonsense"), "invalid_argument"),
+            (client.list_links, "forbidden"),
+        ):
+            with self.assertRaises(ControlError) as caught:
+                call()
+            self.assertEqual(caught.exception.code, code)
+        client.ping()
+
+    def test_a_port_reply_that_is_not_one_closes_the_connection(self):
+        for broken in (
+            {"revision": 1},
+            {"revision": 1, "port": "p_1"},
+            {"port": {}},
+        ):
+            self.setUp()
+            client = self.greet()
+            self.gateway.sendall(reply(2, "port", **broken))
+            with self.assertRaises(TransportError) as caught:
+                client.get_port("p_1")
+            self.assertEqual(caught.exception.code, "protocol_error")
+            self.assert_closed_by_client()
+
+    def test_a_links_reply_that_is_not_one_closes_the_connection(self):
+        for broken in (
+            {"revision": 1},
+            {"revision": 1, "links": {}},
+            {"links": []},
+        ):
+            self.setUp()
+            client = self.greet()
+            self.gateway.sendall(reply(2, "links", **broken))
+            with self.assertRaises(TransportError) as caught:
+                client.list_links()
+            self.assertEqual(caught.exception.code, "protocol_error")
+            self.assert_closed_by_client()
+
+    def test_the_wrong_reply_to_a_reading_request_is_a_protocol_error(self):
+        client = self.greet()
+        self.gateway.sendall(reply(2, "done"))
+        with self.assertRaises(TransportError) as caught:
+            client.get_link("l_1")
+        self.assertEqual(caught.exception.code, "protocol_error")
+
+    def test_the_id_of_a_reading_request_is_text(self):
+        client = self.greet()
+        with self.assertRaises(TypeError):
+            client.get_port(1)
+        with self.assertRaises(TypeError):
+            client.get_link(None)
+
     def test_arguments_that_would_end_the_connection_are_refused_here(self):
         client = self.greet()
         problems = [
@@ -579,9 +731,21 @@ class LoopbackPrefaceTests(unittest.TestCase):
                 seen["request"] = json.loads(request.header.decode("utf-8"))
                 seen["left_over"] = reader.buffered
                 peer.sendall(answer)
-                # The client closes the connection when the test ends.
-                while peer.recv(4096):
-                    pass
+                # What comes after the hello is answered `done`, as the
+                # gateway answers `session.close`, until the client closes
+                # the connection.
+                seen["later"] = []
+                while True:
+                    chunk = peer.recv(4096)
+                    if not chunk:
+                        break
+                    reader.feed(chunk)
+                    later = reader.next()
+                    while later is not None:
+                        header = json.loads(later.header.decode("utf-8"))
+                        seen["later"].append(header["op"])
+                        peer.sendall(reply(header["id"], "done"))
+                        later = reader.next()
             except OSError as error:
                 seen["error"] = error
 
@@ -605,6 +769,8 @@ class LoopbackPrefaceTests(unittest.TestCase):
         self.assertEqual(seen["request"]["token"], token)
         self.assertEqual(seen["left_over"], 0)
         self.assertEqual(client.hello["principal"], "local:1000")
+        # Closing asked the gateway to end the session, over TCP as well.
+        self.assertEqual(seen["later"], ["session.close"])
 
     def test_a_token_is_not_in_the_error_of_a_refused_hello(self):
         seen, thread = self.start_server(error(1, "unauthenticated", "not authenticated"))

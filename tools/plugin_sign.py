@@ -6,10 +6,14 @@
 The owner keeps the private keys offline as OpenSSL Ed25519 key files and signs
 by hand (docs/plugins.md, section 8.9). This script builds the message, calls
 OpenSSL to sign it and writes the envelope that ``vss::license::signed_file``
-reads. It never makes a key, never writes a key and never prints key material:
-it passes the path of a key file to OpenSSL and nothing more.
+reads. Only ``keygen`` makes a key file, and only into a file that does not
+exist yet. No command prints key material: the other commands pass the path of
+a key file to OpenSSL and nothing more.
 
-    python3 tools/plugin_sign.py public-key --key plugins-2026.key
+    python3 tools/plugin_sign.py keygen --out plugins-2026.key \\
+        --key-id plugins-2026 --passphrase-file plugins-2026.pass
+    python3 tools/plugin_sign.py public-key --key plugins-2026.key \\
+        --passphrase-file plugins-2026.pass
     python3 tools/plugin_sign.py plugin --key plugins-2026.key \\
         --key-id plugins-2026 --plugin path/to/plugin
     python3 tools/plugin_sign.py key-list --key root.key --key-id root-2026 \\
@@ -24,20 +28,49 @@ The signed message is the text ``VSS-SIGNED-FILE-1``, a zero byte, the purpose,
 a zero byte and the payload bytes. The envelope is one line of JSON, written
 as ``signed_file::write`` writes it.
 
-Exit codes: 0 success, 1 a check or a verification failed, 2 a usage error:
-a wrong option, a file or folder that the command line names and that is
-missing, a bad key id, or no usable OpenSSL. Messages go to standard error;
-only results go to standard output.
+``keygen`` makes a new Ed25519 private key with ``openssl genpkey`` and writes
+it to the file that ``--out`` names. It refuses a file that exists, creates the
+file with owner-only permissions (mode 0600; on Windows the file is restricted
+to the current user with ``icacls``) before any key byte is written, and
+removes the file if anything fails afterwards. It prints the public key as 64
+hex characters, as ``public-key`` does, and then the key id when ``--key-id``
+was given. Without a passphrase option the key is NOT encrypted; a passphrase
+is recommended.
 
-OpenSSL 3.0 or later is needed (``-rawin``). A key file with a passphrase is
-not supported. Standard library only, Python 3.9 or later.
+A key file may be encrypted (PKCS#8 with AES-256, ``-aes-256-cbc``). The
+commands that take ``--key``, and ``keygen``, take the passphrase from one of
+these options, and at most one may be given:
+
+    --passphrase-env NAME   the value of the environment variable NAME
+    --passphrase-file PATH  the first line of the file, without its line ending
+    --passphrase-prompt     asked on the terminal (twice for ``keygen``);
+                            refused when standard input is not a terminal
+
+There is no option that takes the passphrase itself, and it is never read from
+standard input. It reaches OpenSSL as an environment variable of that one
+process (``-passin env:``), so it is not in the process list or in a shell
+history. An encrypted key file with no passphrase option is refused, so OpenSSL
+never waits for a terminal prompt.
+
+Exit codes: 0 success, 1 a check or a verification failed or a key could not be
+opened with the passphrase given, 2 a usage error: a wrong option, a file or
+folder that the command line names and that is missing (a key file, a
+passphrase file, an environment variable), an existing ``keygen`` output file,
+a bad key id, an empty passphrase, ``--passphrase-prompt`` without a terminal,
+or no usable OpenSSL. Messages go to standard error; only results go to
+standard output.
+
+OpenSSL 3.0 or later is needed (``-rawin``). Standard library only, Python 3.9
+or later.
 """
 
 from __future__ import annotations
 
 import argparse
 import base64
+import csv
 import datetime
+import getpass
 import hashlib
 import json
 import os
@@ -80,6 +113,14 @@ MAX_PLUGIN_ID_LENGTH = 128
 MAX_REVOCATIONS_SIZE = 256 * 1024
 
 OPENSSL_TIMEOUT = 120
+
+# The environment variable that carries a passphrase to one OpenSSL process.
+PASSPHRASE_VAR = "VSS_PLUGIN_SIGN_PASSPHRASE"
+# OpenSSL reads a passphrase of at most this many bytes from a prompt (its
+# PEM_BUFSIZE); a longer one is refused here so the two ways agree.
+MAX_PASSPHRASE_BYTES = 1024
+KEY_PEM_HEADER = b"-----BEGIN PRIVATE KEY-----"
+ENCRYPTED_KEY_PEM_HEADER = b"-----BEGIN ENCRYPTED PRIVATE KEY-----"
 
 
 class Refusal(Exception):
@@ -400,16 +441,45 @@ def find_openssl(override: Optional[str] = None) -> str:
     return path
 
 
-def run_openssl(openssl: str, arguments: List[str]) -> "subprocess.CompletedProcess[bytes]":
-    """Runs OpenSSL with a list of arguments, never through a shell."""
+def passin_arguments(passphrase: Optional[str]) -> List[str]:
+    """The OpenSSL options that read the passphrase of a key file."""
+    return [] if passphrase is None else ["-passin", "env:" + PASSPHRASE_VAR]
+
+
+def no_terminal() -> Dict[str, Any]:
+    """Options for ``subprocess.run`` that leave a program with no terminal.
+    OpenSSL asks for a passphrase on the terminal, not on standard input, and
+    waits for it when the passphrase it was given does not open a key. With
+    no terminal it fails instead."""
+    if os.name == "nt":
+        return {"creationflags": subprocess.DETACHED_PROCESS}
+    return {"start_new_session": True}
+
+
+def run_openssl(
+    openssl: str, arguments: List[str], passphrase: Optional[str] = None
+) -> "subprocess.CompletedProcess[bytes]":
+    """Runs OpenSSL with a list of arguments, never through a shell.
+
+    A ``passphrase`` goes to OpenSSL as ``PASSPHRASE_VAR`` in the environment
+    of this one process, for an ``env:`` option in ``arguments``. An
+    environment is not in the process list, as an argument is, and unlike a
+    pipe or a file it needs no other step that could leave the text behind.
+    """
+    environment = dict(os.environ)
+    environment.pop(PASSPHRASE_VAR, None)
+    if passphrase is not None:
+        environment[PASSPHRASE_VAR] = passphrase
     try:
         return subprocess.run(
             [openssl] + arguments,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
+            env=environment,
             timeout=OPENSSL_TIMEOUT,
             check=False,
+            **no_terminal(),
         )
     except subprocess.TimeoutExpired:
         raise Refusal("OpenSSL did not finish in time") from None
@@ -420,6 +490,27 @@ def run_openssl(openssl: str, arguments: List[str]) -> "subprocess.CompletedProc
 def first_line(result: "subprocess.CompletedProcess[bytes]") -> str:
     lines = result.stderr.decode("utf-8", "replace").strip().splitlines()
     return lines[0].strip() if lines else "no message"
+
+
+def failure_detail(
+    result: "subprocess.CompletedProcess[bytes]", passphrase: Optional[str]
+) -> str:
+    """What OpenSSL said, for a message. Nothing when a passphrase was used:
+    what OpenSSL says then is not echoed, so it cannot carry the passphrase."""
+    if passphrase is not None:
+        return "is the passphrase right?"
+    return first_line(result)
+
+
+def key_file_is_encrypted(path: str) -> bool:
+    """Whether a key file is a PEM that needs a passphrase. A file that
+    cannot be read is not: OpenSSL reports it."""
+    try:
+        with open(path, "rb") as handle:
+            data = handle.read(MAX_ENVELOPE_SIZE)
+    except OSError:
+        return False
+    return b"BEGIN ENCRYPTED PRIVATE KEY" in data or b"Proc-Type: 4,ENCRYPTED" in data
 
 
 class Workdir:
@@ -442,30 +533,51 @@ def _public_from_der(der: bytes) -> bytes:
     return der[-KEY_BYTES:]
 
 
-def public_key_of(openssl: str, key_file: str) -> bytes:
+def public_key_of(
+    openssl: str, key_file: str, passphrase: Optional[str] = None
+) -> bytes:
     """The 32 bytes of the public key of a private or a public Ed25519 key
     file, as OpenSSL gives them: the last 32 bytes of the DER."""
+    if passphrase is None and key_file_is_encrypted(key_file):
+        # Refused here, so that OpenSSL never asks for a passphrase on the
+        # terminal and waits for it.
+        raise Refusal(
+            "the key file %s is encrypted; give its passphrase with "
+            "--passphrase-env, --passphrase-file or --passphrase-prompt"
+            % shown_path(key_file)
+        )
     with Workdir() as work:
         out = os.path.join(work, "public.der")
         first = run_openssl(
             openssl,
-            ["pkey", "-in", key_file, "-pubout", "-outform", "DER", "-out", out],
+            ["pkey", "-in", key_file, "-pubout", "-outform", "DER", "-out", out]
+            + passin_arguments(passphrase),
+            passphrase,
         )
         if first.returncode != 0:
-            second = run_openssl(
-                openssl,
-                ["pkey", "-pubin", "-in", key_file, "-outform", "DER", "-out", out],
+            # An encrypted file is a private key and never a public one; and
+            # ``-pubin`` on it would ask for a passphrase.
+            second = (
+                first
+                if key_file_is_encrypted(key_file)
+                else run_openssl(
+                    openssl,
+                    ["pkey", "-pubin", "-in", key_file, "-outform", "DER",
+                     "-out", out],
+                )
             )
             if second.returncode != 0:
                 raise Refusal(
                     "OpenSSL could not read an Ed25519 key from %s (%s)"
-                    % (shown_path(key_file), first_line(first))
+                    % (shown_path(key_file), failure_detail(first, passphrase))
                 )
         with open(out, "rb") as handle:
             return _public_from_der(handle.read())
 
 
-def sign_bytes(openssl: str, key_file: str, message: bytes) -> bytes:
+def sign_bytes(
+    openssl: str, key_file: str, message: bytes, passphrase: Optional[str] = None
+) -> bytes:
     """``openssl pkeyutl -sign -rawin``: the 64 bytes of the signature."""
     with Workdir() as work:
         message_file = os.path.join(work, "message.bin")
@@ -477,10 +589,14 @@ def sign_bytes(openssl: str, key_file: str, message: bytes) -> bytes:
             [
                 "pkeyutl", "-sign", "-inkey", key_file, "-rawin",
                 "-in", message_file, "-out", signature_file,
-            ],
+            ]
+            + passin_arguments(passphrase),
+            passphrase,
         )
         if done.returncode != 0:
-            raise Refusal("OpenSSL could not sign (%s)" % first_line(done))
+            raise Refusal(
+                "OpenSSL could not sign (%s)" % failure_detail(done, passphrase)
+            )
         with open(signature_file, "rb") as handle:
             signature = handle.read()
     if len(signature) != SIGNATURE_BYTES:
@@ -516,15 +632,20 @@ def verify_bytes(
 
 
 def sign_envelope(
-    openssl: str, key_file: str, purpose: str, key_id: str, payload: bytes
+    openssl: str,
+    key_file: str,
+    purpose: str,
+    key_id: str,
+    payload: bytes,
+    passphrase: Optional[str] = None,
 ) -> str:
     """Signs ``payload`` for ``purpose`` and returns the envelope text. The
     signature is checked with the public key of the key file before it is
     returned."""
     check_key_id(key_id)
-    public_key = public_key_of(openssl, key_file)
+    public_key = public_key_of(openssl, key_file, passphrase)
     message = signed_message(purpose, payload)
-    signature = sign_bytes(openssl, key_file, message)
+    signature = sign_bytes(openssl, key_file, message, passphrase)
     if not verify_bytes(openssl, public_key, message, signature):
         raise Refusal("the signature that was made does not verify")
     text = envelope_text(purpose, key_id, payload, signature)
@@ -790,13 +911,284 @@ def write_text(path: str, text: str) -> None:
         ) from None
 
 
+# -- Passphrases -------------------------------------------------------------
+
+
+def checked_passphrase(data: bytes, source: str) -> str:
+    """A passphrase as text, or a usage error that does not show it."""
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise Refusal("%s is not valid UTF-8" % source, EXIT_USAGE) from None
+    if not text:
+        raise Refusal("%s is empty; a passphrase cannot be empty" % source, EXIT_USAGE)
+    if "\0" in text:
+        raise Refusal("%s holds a zero byte" % source, EXIT_USAGE)
+    if len(data) > MAX_PASSPHRASE_BYTES:
+        raise Refusal(
+            "%s is longer than %d bytes" % (source, MAX_PASSPHRASE_BYTES),
+            EXIT_USAGE,
+        )
+    return text
+
+
+def read_passphrase_file(path: str) -> str:
+    """The first line of a file, without its line ending."""
+    what = "the passphrase file %s" % shown_path(path)
+    try:
+        with open(path, "rb") as handle:
+            line = handle.readline(MAX_PASSPHRASE_BYTES + 3)
+    except OSError as error:
+        raise Refusal(
+            "could not read %s (%s)" % (what, error.strerror), EXIT_USAGE
+        ) from None
+    if line.endswith(b"\n"):
+        line = line[:-1]
+    if line.endswith(b"\r"):
+        line = line[:-1]
+    return checked_passphrase(line, what)
+
+
+def stdin_is_terminal() -> bool:
+    """Whether standard input is a terminal. ``isatty`` alone is not enough:
+    on Windows it is true for the null device as well, and a prompt there
+    would wait for ever."""
+    try:
+        if sys.stdin is None or not sys.stdin.isatty():
+            return False
+        os.get_terminal_size(sys.stdin.fileno())
+    except (OSError, ValueError, AttributeError):
+        return False
+    return True
+
+
+def ask_passphrase(confirm: bool) -> str:
+    """Asks on the terminal; twice when ``confirm`` is set."""
+    if not stdin_is_terminal():
+        raise Refusal(
+            "--passphrase-prompt needs a terminal on standard input; use "
+            "--passphrase-env or --passphrase-file instead",
+            EXIT_USAGE,
+        )
+    try:
+        first = getpass.getpass("Passphrase: ")
+        if confirm and getpass.getpass("Repeat the passphrase: ") != first:
+            raise Refusal("the two passphrases are not the same")
+    except (EOFError, KeyboardInterrupt, OSError):
+        raise Refusal("could not read a passphrase from the terminal", EXIT_USAGE) from None
+    return checked_passphrase(first.encode("utf-8", "surrogateescape"), "the passphrase")
+
+
+def passphrase_of(args: argparse.Namespace, confirm: bool = False) -> Optional[str]:
+    """The passphrase that the options name, or None when none is named.
+
+    The name of the environment variable is not shown in a message: a
+    passphrase typed in its place would be shown with it.
+    """
+    if args.passphrase_env is not None:
+        what = "the environment variable that --passphrase-env names"
+        value = os.environ.get(args.passphrase_env)
+        if value is None:
+            raise Refusal("%s is not set" % what, EXIT_USAGE)
+        return checked_passphrase(value.encode("utf-8", "surrogateescape"), what)
+    if args.passphrase_file is not None:
+        return read_passphrase_file(args.passphrase_file)
+    if args.passphrase_prompt:
+        return ask_passphrase(confirm)
+    return None
+
+
+# -- Making a key file -------------------------------------------------------
+
+
+def windows_program(name: str) -> str:
+    """The path of a program in the Windows system folder. The folder comes
+    from the operating system, so that neither the PATH (which may name a
+    Unix ``whoami`` first) nor an environment variable chooses the program."""
+    import ctypes  # Windows only
+
+    buffer = ctypes.create_unicode_buffer(520)
+    if ctypes.windll.kernel32.GetSystemDirectoryW(buffer, len(buffer)) == 0:
+        raise Refusal("could not find the Windows system folder")
+    path = os.path.join(buffer.value, name + ".exe")
+    if not os.path.isfile(path):
+        raise Refusal("could not find %s" % shown_path(path))
+    return path
+
+
+def current_user_sid() -> str:
+    """The SID of the user this process runs as, from ``whoami``, which asks
+    the operating system and not the environment."""
+    whoami = windows_program("whoami")
+    try:
+        done = subprocess.run(
+            [whoami, "/user", "/fo", "csv", "/nh"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=OPENSSL_TIMEOUT,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise Refusal("could not run whoami to name the current user") from None
+    rows = list(csv.reader(done.stdout.decode("utf-8", "replace").splitlines()))
+    sid = rows[0][1] if done.returncode == 0 and rows and len(rows[0]) == 2 else ""
+    if re.fullmatch(r"S-1-[0-9]+(-[0-9]+)+", sid) is None:
+        raise Refusal("whoami did not give the SID of the current user")
+    return sid
+
+
+# SYSTEM, Administrators and OWNER RIGHTS, by their well-known SIDs.
+WINDOWS_OWN_ENTRIES = ("S-1-5-18", "S-1-5-32-544", "S-1-3-4")
+
+
+def restrict_to_current_user(path: str) -> None:
+    """Windows: removes every inherited and every other permission on a file
+    and gives the current user full control. Refuses when the file ends with
+    anything but that one entry."""
+    sid = current_user_sid()
+    icacls = windows_program("icacls")
+    # An absolute path, so that icacls never reads it as an option.
+    target = os.path.abspath(path)
+
+    def run_icacls(*options: str) -> bytes:
+        try:
+            done = subprocess.run(
+                [icacls, target] + list(options),
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=OPENSSL_TIMEOUT,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raise Refusal("could not run icacls to restrict the key file") from None
+        if done.returncode != 0:
+            raise Refusal("icacls could not restrict the key file to the current user")
+        return done.stdout
+
+    # /inheritance:r removes only inherited entries and /grant:r replaces only
+    # the entries of the user it names, so an entry given to the file itself
+    # for someone else would stay. Some versions of Python give a new file
+    # such entries for SYSTEM, Administrators and the owner; they are removed
+    # by name in the same call, so the file is never open to more than it was.
+    options = ["/inheritance:r", "/grant:r", "*%s:F" % sid]
+    for other in WINDOWS_OWN_ENTRIES:
+        if other != sid:
+            options += ["/remove:g", "*" + other]
+    run_icacls(*options)
+    # Read back, because an entry for anyone else may have been on the file.
+    # The names in the listing depend on the language of Windows; the number
+    # of entries does not. Anything but one entry is refused, and the caller
+    # removes the file.
+    if run_icacls().count(b":(") != 1:
+        raise Refusal("the key file could not be restricted to the current user alone")
+
+
+def protect_key_file(path: str) -> None:
+    """Gives a new, empty key file to its owner alone. On POSIX the mode given
+    to ``os.open`` did that from the first byte; Windows has no mode."""
+    if os.name == "nt":
+        restrict_to_current_user(path)
+
+
+def write_new_key_file(path: str, data: bytes) -> None:
+    """Creates ``path``, which must not exist, with the owner alone allowed to
+    read it, then writes ``data``. The file is removed if anything fails
+    after it was created. The creation is one step with the check that the
+    file is new, so a file that appears meanwhile is never written to."""
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    try:
+        descriptor = os.open(path, flags, 0o600)
+    except FileExistsError:
+        raise Refusal(
+            "the key file %s already exists; keygen never replaces a file"
+            % shown_path(path),
+            EXIT_USAGE,
+        ) from None
+    except OSError as error:
+        raise Refusal(
+            "could not create the key file %s (%s)"
+            % (shown_path(path), error.strerror),
+            EXIT_USAGE,
+        ) from None
+    try:
+        try:
+            # Before the first key byte: the file is empty while it is made
+            # private.
+            protect_key_file(path)
+            view = memoryview(data)
+            while view:
+                view = view[os.write(descriptor, view):]
+        finally:
+            os.close(descriptor)
+    except BaseException as problem:
+        try:
+            os.unlink(path)
+        except OSError:
+            pass
+        if isinstance(problem, OSError):
+            raise Refusal(
+                "could not write the key file %s (%s)"
+                % (shown_path(path), problem.strerror)
+            ) from None
+        raise
+
+
 # -- Commands ----------------------------------------------------------------
+
+
+def command_keygen(args: argparse.Namespace) -> int:
+    if args.key_id is not None:
+        check_key_id(args.key_id)
+    passphrase = passphrase_of(args, confirm=True)
+    openssl = find_openssl(args.openssl)
+    if os.path.lexists(args.out):
+        raise Refusal(
+            "the key file %s already exists; keygen never replaces a file"
+            % shown_path(args.out),
+            EXIT_USAGE,
+        )
+    arguments = ["genpkey", "-algorithm", "ed25519"]
+    if passphrase is not None:
+        arguments += ["-aes-256-cbc", "-pass", "env:" + PASSPHRASE_VAR]
+    # OpenSSL writes the key to standard output and this script writes it to
+    # a file that it created, so OpenSSL never creates a key file itself.
+    made = run_openssl(openssl, arguments, passphrase)
+    header = KEY_PEM_HEADER if passphrase is None else ENCRYPTED_KEY_PEM_HEADER
+    if made.returncode != 0 or not made.stdout.startswith(header):
+        raise Refusal(
+            "OpenSSL could not make an Ed25519 key (%s)"
+            % ("no details are shown" if passphrase is not None else first_line(made))
+        )
+    # OpenSSL on Windows writes line ends as CR LF to a pipe; the file is the
+    # same on every system.
+    write_new_key_file(args.out, made.stdout.replace(b"\r\n", b"\n"))
+    try:
+        public_key = public_key_of(openssl, args.out, passphrase)
+    except BaseException:
+        try:
+            os.unlink(args.out)
+        except OSError:
+            pass
+        raise
+    print(public_key.hex())
+    if args.key_id is not None:
+        print(args.key_id)
+    if passphrase is None:
+        print(
+            "plugin_sign: note: the key file is not encrypted; a passphrase "
+            "is recommended",
+            file=sys.stderr,
+        )
+    return EXIT_OK
 
 
 def command_public_key(args: argparse.Namespace) -> int:
     require_key_file(args.key)
+    passphrase = passphrase_of(args)
     openssl = find_openssl(args.openssl)
-    print(public_key_of(openssl, args.key).hex())
+    print(public_key_of(openssl, args.key, passphrase).hex())
     return EXIT_OK
 
 
@@ -830,9 +1222,12 @@ def command_plugin(args: argparse.Namespace) -> int:
         )
     out = args.out if args.out else os.path.join(args.plugin, "plugin.sig")
     check_output(out, [args.key, manifest_path])
+    passphrase = passphrase_of(args)
     openssl = find_openssl(args.openssl)
     payload = manifest_payload(plugin_id, version, manifest)
-    text = sign_envelope(openssl, args.key, PURPOSE_PLUGIN, args.key_id, payload)
+    text = sign_envelope(
+        openssl, args.key, PURPOSE_PLUGIN, args.key_id, payload, passphrase
+    )
     write_text(out, text)
     print("wrote %s" % out)
     return EXIT_OK
@@ -846,8 +1241,11 @@ def _command_payload(
     payload = read_file(args.payload, "the payload file")
     check_payload(validate(payload), what)
     check_output(args.out, [args.key, args.payload])
+    passphrase = passphrase_of(args)
     openssl = find_openssl(args.openssl)
-    text = sign_envelope(openssl, args.key, purpose, args.key_id, payload)
+    text = sign_envelope(
+        openssl, args.key, purpose, args.key_id, payload, passphrase
+    )
     write_text(args.out, text)
     print("wrote %s" % args.out)
     return EXIT_OK
@@ -897,16 +1295,61 @@ def command_verify(args: argparse.Namespace) -> int:
 # -- Command line ------------------------------------------------------------
 
 
+class Parser(argparse.ArgumentParser):
+    """An argument parser whose usage errors never repeat an argument that
+    was not understood: a passphrase given where no option takes one would be
+    shown with it."""
+
+    def error(self, message: str) -> Any:
+        if message.startswith("unrecognized arguments"):
+            message = "unrecognized arguments (not shown)"
+        super().error(message)
+
+
+def add_passphrase_options(sub: argparse.ArgumentParser, making: bool) -> None:
+    """The three ways to give a passphrase. At most one may be used, and none
+    takes the passphrase itself on the command line."""
+    group = sub.add_argument_group(
+        "passphrase",
+        "Where the passphrase of the key file comes from; at most one. "
+        + (
+            "Without one, the new key is NOT encrypted: a passphrase is "
+            "recommended. The key is encrypted as PKCS#8 with AES-256."
+            if making
+            else "Without one, the key file must not be encrypted."
+        ),
+    ).add_mutually_exclusive_group()
+    group.add_argument(
+        "--passphrase-env",
+        metavar="NAME",
+        help="the passphrase is the value of the environment variable NAME",
+    )
+    group.add_argument(
+        "--passphrase-file",
+        metavar="PATH",
+        help="the passphrase is the first line of the file, without its line "
+        "ending",
+    )
+    group.add_argument(
+        "--passphrase-prompt",
+        action="store_true",
+        help="ask for the passphrase on the terminal"
+        + (" (twice)" if making else "")
+        + "; refused when standard input is not a terminal",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
+    parser = Parser(
         prog="plugin_sign.py",
         description="Build the signed files of the plugin system around an "
-        "OpenSSL call. It never makes, writes or prints a key.",
+        "OpenSSL call. Only keygen makes a key file, and no command prints "
+        "key material.",
         allow_abbrev=False,
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
-    common = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    common = Parser(add_help=False, allow_abbrev=False)
     common.add_argument(
         "--openssl", metavar="PATH", help="the OpenSSL program, if not on PATH"
     )
@@ -919,17 +1362,37 @@ def build_parser() -> argparse.ArgumentParser:
         return sub
 
     sub = add(
+        "keygen",
+        "make a new Ed25519 private key file and print its public key",
+        command_keygen,
+    )
+    sub.add_argument(
+        "--out",
+        required=True,
+        metavar="KEYFILE",
+        help="the key file to make, readable by its owner only; it must not "
+        "exist",
+    )
+    sub.add_argument(
+        "--key-id",
+        help="the id of the new key; printed after the public key",
+    )
+    add_passphrase_options(sub, making=True)
+
+    sub = add(
         "public-key",
         "print the public key of a key file as 64 hex characters",
         command_public_key,
     )
     sub.add_argument("--key", required=True, help="an Ed25519 key file (PEM)")
+    add_passphrase_options(sub, making=False)
 
     sub = add("plugin", "sign a plugin folder", command_plugin)
     sub.add_argument("--key", required=True, help="the private key file")
     sub.add_argument("--key-id", required=True, help="the id of the key")
     sub.add_argument("--plugin", required=True, help="the plugin folder")
     sub.add_argument("--out", help="the file to write; default plugin.sig")
+    add_passphrase_options(sub, making=False)
 
     for name, help_text, function in (
         ("key-list", "sign a key list payload", command_key_list),
@@ -940,6 +1403,7 @@ def build_parser() -> argparse.ArgumentParser:
         sub.add_argument("--key-id", required=True, help="the id of the key")
         sub.add_argument("--payload", required=True, help="the JSON payload file")
         sub.add_argument("--out", required=True, help="the file to write")
+        add_passphrase_options(sub, making=False)
 
     sub = add("verify", "check the signature of a signed file", command_verify)
     sub.add_argument(

@@ -61,9 +61,9 @@ if(VSS_BUILD_TESTS)
     tests/test_licence_store.cpp)
 
   target_include_directories(vss_gui_backend_tests PRIVATE
-    ${CMAKE_SOURCE_DIR}/tests/framework)
+    ${CMAKE_SOURCE_DIR}/tests/framework ${CMAKE_SOURCE_DIR}/tests/support)
   # The licence tests sign with the published test key. The program itself
-  # never links it.
+  # never links it. They share their folders and files with the library's.
   target_link_libraries(vss_gui_backend_tests PRIVATE
     vss_gui_backend Vss::license_test_keys Qt6::Core)
   target_compile_definitions(vss_gui_backend_tests PRIVATE QT_NO_KEYWORDS)

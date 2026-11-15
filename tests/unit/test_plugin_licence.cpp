@@ -289,6 +289,47 @@ TEST_CASE("plugin licence: an expired licence")
     REQUIRE(answer.reason == license::reason::expired);
 }
 
+TEST_CASE("plugin licence: a version window keeps a plugin released in time")
+{
+    // The licence ended on 13 November 2027 and its window ends with it.
+    license::licence windowed = licence_with({"plugins.official"});
+    windowed.updates_until = windowed.expires_at;
+    license::context where;
+    where.now = at(2030, 1, 1);
+    const license::status ended = license::evaluate(windowed, nullptr, where);
+    REQUIRE(ended.state == license::state::expired);
+
+    // Released during the term: the plugin still runs.
+    manifest in_time = pro_plugin();
+    in_time.released =
+        std::chrono::year{2027} / std::chrono::month{6} / std::chrono::day{1};
+    licence_answer answer;
+    REQUIRE(check_licence(trust_level::official, in_time, ended, &answer));
+    REQUIRE(answer.asked);
+    REQUIRE(answer.granted);
+    REQUIRE(answer.reason == license::reason::ok);
+    REQUIRE_EQ(answer.licence_id, std::string(licence_name));
+
+    // Released after the window, or with no release date in its manifest:
+    // the licence has ended and the plugin does not run.
+    manifest too_late = pro_plugin();
+    too_late.released =
+        std::chrono::year{2028} / std::chrono::month{2} / std::chrono::day{1};
+    answer = {};
+    require_not_licensed(
+        check_licence(trust_level::official, too_late, ended, &answer));
+    REQUIRE(answer.reason == license::reason::expired);
+    answer = {};
+    require_not_licensed(
+        check_licence(trust_level::official, pro_plugin(), ended, &answer));
+    REQUIRE(answer.reason == license::reason::expired);
+
+    // Without the field in the licence, a release date changes nothing.
+    require_not_licensed(
+        check_licence(trust_level::official, in_time,
+                      judged({"plugins.official"}, at(2030, 1, 1)), &answer));
+}
+
 TEST_CASE("plugin licence: a licence in its grace period")
 {
     // 1 December 2027 is after the end of the term and has ten days of grace

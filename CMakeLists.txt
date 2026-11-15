@@ -12,11 +12,13 @@
 #   libs/vss_config      JSON configuration documents
 #   libs/vss_rules       response timing rules: model, checks, matcher
 #   libs/vss_machine     the product folders, the computer name, who can write a path
+#   libs/vss_update      versions, the signed update feed and what to offer
 #   libs/vss_studio      the application service used by the CLI and the GUI
 #   libs/vss_testkit     reusable fakes for downstream tests
 #   libs/vss_agent_proto the wire protocol of the per-user agent
 #   libs/vss_agent       the agent's local transport, server and client
 #   libs/vss_plugin      plugin manifests and the checks made before a plugin runs
+#   libs/vss_plugin_host starting a plugin as a process of its own
 #   libs/vss_control_proto the control API: messages, errors, the policy table
 #   libs/vss_control     the control gateway, its audit log and its client
 #   apps/vss_gate        the control gateway program

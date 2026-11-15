@@ -41,7 +41,10 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_timers.cpp
   unit/test_hub_topology.cpp
   unit/test_license.cpp
+  unit/test_license_locations.cpp
   unit/test_license_signature.cpp
+  unit/test_license_store.cpp
+  unit/test_license_words.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
   unit/test_machine.cpp
@@ -51,6 +54,15 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_permissions_linux.cpp
   unit/test_permissions_macos.cpp
   unit/test_plugin_access.cpp
+  unit/test_plugin_api_adapter.cpp
+  unit/test_plugin_api_capture.cpp
+  unit/test_plugin_api_decoder.cpp
+  unit/test_plugin_api_fixture.cpp
+  unit/test_plugin_api_generator.cpp
+  unit/test_plugin_api_instance.cpp
+  unit/test_plugin_api_modifier.cpp
+  unit/test_plugin_api_ops.cpp
+  unit/test_plugin_api_trigger.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
   unit/test_plugin_install.cpp
@@ -85,6 +97,9 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
+  unit/test_update_feed.cpp
+  unit/test_update_select.cpp
+  unit/test_update_version.cpp
   unit/test_virtual_ports.cpp
   unit/test_vsscom_core.cpp)
 
@@ -97,6 +112,7 @@ if(WIN32)
     unit/platform/windows/test_driver_client_windows.cpp
     unit/platform/windows/test_helper_windows.cpp
     unit/platform/windows/test_machine_windows.cpp
+    unit/platform/windows/test_license_locations_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
     unit/platform/windows/test_plugin_access_windows.cpp
     unit/platform/windows/test_plugin_install_windows.cpp
@@ -108,6 +124,7 @@ elseif(UNIX)
     unit/platform/posix/test_agent_transport_posix.cpp
     unit/platform/posix/test_control_storage_posix.cpp
     unit/platform/posix/test_machine_posix.cpp
+    unit/platform/posix/test_license_locations_posix.cpp
     unit/platform/posix/test_permissions_posix.cpp
     unit/platform/posix/test_plugin_access_posix.cpp
     unit/platform/posix/test_plugin_install_posix.cpp
@@ -115,10 +132,12 @@ elseif(UNIX)
   # The folders differ between Linux and macOS, so each has its own file.
   if(APPLE)
     list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/macos/test_license_locations_macos.cpp
       unit/platform/macos/test_machine_macos.cpp
       unit/platform/macos/test_plugin_locations_macos.cpp)
   else()
     list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/linux/test_license_locations_linux.cpp
       unit/platform/linux/test_machine_linux.cpp
       unit/platform/linux/test_plugin_locations_linux.cpp)
   endif()
@@ -134,6 +153,11 @@ if(TARGET vss_license_tool)
     list(APPEND VSS_UNIT_TEST_SOURCES
       unit/platform/posix/test_license_tool_posix.cpp)
   endif()
+endif()
+
+# `vss_cli licence`, run in the test process with folders the test made.
+if(TARGET vss_cli_licence)
+  list(APPEND VSS_UNIT_TEST_SOURCES unit/test_cli_licence.cpp)
 endif()
 
 # `vss_cli control ...` run in the test's own process, against a gateway of the
@@ -153,6 +177,9 @@ add_executable(vss_unit_tests ${VSS_UNIT_TEST_SOURCES})
 if(TARGET vss_license_tool)
   target_link_libraries(vss_unit_tests PRIVATE vss_license_tool)
 endif()
+if(TARGET vss_cli_licence)
+  target_link_libraries(vss_unit_tests PRIVATE vss_cli_licence)
+endif()
 target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/framework
@@ -164,7 +191,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_plugin vss_machine vss_rules vss_control_proto
-  vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
+  vss_control_core vss_license_test_keys vss_update Vss::BoostJson
+  Vss::Monocypher)
 if(TARGET vss_cli_control)
   target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
 endif()
@@ -218,6 +246,27 @@ if(TARGET vss_agent AND TARGET vss_cli AND TARGET vss_gate)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp)
 endif()
 
+# The plugin process tests start vss_test_plugin, a program that does what
+# its arguments say: what a plugin does that behaves, and what one does that
+# does not. CMake chooses the files that know each system.
+add_executable(vss_test_plugin plugin/vss_test_plugin/main.cpp)
+target_include_directories(vss_test_plugin PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/plugin/vss_test_plugin)
+target_compile_features(vss_test_plugin PRIVATE cxx_std_23)
+vss_set_warnings(vss_test_plugin)
+list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_process.cpp)
+if(WIN32)
+  target_sources(vss_test_plugin PRIVATE
+    plugin/vss_test_plugin/platform/windows/platform_windows.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES
+    support/platform/windows/native_io_windows.cpp)
+else()
+  target_sources(vss_test_plugin PRIVATE
+    plugin/vss_test_plugin/platform/posix/platform_posix.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES
+    support/platform/posix/native_io_posix.cpp)
+endif()
+
 add_executable(vss_system_tests ${VSS_SYSTEM_TEST_SOURCES})
 target_include_directories(vss_system_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -232,6 +281,11 @@ if(TARGET vss_cli)
 endif()
 vss_set_warnings(vss_system_tests)
 vss_enable_coverage(vss_system_tests)
+
+add_dependencies(vss_system_tests vss_test_plugin)
+target_link_libraries(vss_system_tests PRIVATE vss_plugin_host)
+target_compile_definitions(vss_system_tests PRIVATE
+  VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>")
 
 add_test(NAME system COMMAND vss_system_tests
   --verbose --junit=${CMAKE_BINARY_DIR}/system-tests.xml)
@@ -304,8 +358,8 @@ endif()
 # A packaging smoke test: the public headers compile on their own.
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
-  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto vss_control_core
-  vss_license_test_keys)
+  vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_rules vss_control_proto vss_control_core
+  vss_license_test_keys vss_update)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 

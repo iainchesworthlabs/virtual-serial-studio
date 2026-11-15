@@ -28,10 +28,20 @@ describes it.
 
 ## The problem
 
-Pro adds a control endpoint. A test harness (pytest, the C ABI and its wrappers for C#/.NET, Java and Node.js,
-LabVIEW, TestStand, Robot Framework, the JUnit report writer) drives Studio through it. The same endpoint lets one
-other computer control or watch a running Studio. That turns a program that today has no listener into one that
-accepts commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+Studio has a control endpoint. A test harness drives Studio through it, and the same API is what lets one other
+computer control or watch a running Studio. That turns a program that had no listener into one that accepts
+commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+
+**Which edition has what.** The owner has decided:
+
+- **Community:** the control endpoint on this computer (`vss_gate` with the local pipe or socket, tokens and
+  loopback TCP), the Python client in `adapters/python`, and runs with the JUnit report. Nothing in the code asks
+  for a licence for any of them.
+- **Pro:** the pytest plugin, the bindings for other languages (the C ABI and its wrappers for C#/.NET, Java and
+  Node.js), Robot Framework, TestStand and LabVIEW, and remote control and monitoring between the two computers
+  of a seat. The remote part (TLS, the OAuth 2.0 and OpenID Connect interface, and listening beyond this
+  computer) is a plugin and is not in this repository. `vss_gate` in this repository cannot listen on any
+  address but this computer's own.
 
 **What a seat covers.** One Pro licence is one seat, and a seat is two computers: the one you work at and one other
 that you control or monitor from it, in either direction. Remote control and monitoring between those two is part
@@ -134,11 +144,11 @@ listeners, authentication, authorisation, rate limits and the audit log, and tra
 |---|---|---|---|
 | Listeners inside `vss_agent` | One process fewer | A network bug is an engine bug; every user of the agent carries the attack surface even when remote control is off; the agent would link a TLS library and an HTTP-free parser it does not otherwise need | Rejected |
 | Listeners inside `vss_gui` | | Forbidden: no network access from the GUI process | Rejected |
-| A separate `vss_gate` | The agent, the GUI and `vss_cli` link nothing new and open no listener; Community builds do not contain it; it can crash and restart without stopping a port; the audit log and the secrets live in one small process; it can drop privileges and be sandboxed independently | One more process to start and stop | **Recommended** |
+| A separate `vss_gate` | The agent, the GUI and `vss_cli` link nothing new and open no listener; it can crash and restart without stopping a port; the audit log and the secrets live in one small process; it can drop privileges and be sandboxed independently | One more process to start and stop | **Recommended** |
 
 `vss_gate` is started by the agent's owner (the GUI's enable switch, or `vss_cli control enable`), not by an
-incoming connection. When no listener is enabled it is not running. It is part of the Pro plugin set, so Community
-builds contain none of this code.
+incoming connection. When no listener is enabled it is not running. It is part of the Community edition; what
+reaches beyond this computer is in the Pro plugin and not in `vss_gate`.
 
 The gateway connects to the agent as a normal local client, one connection **per remote session**, so that a
 `monitor` session can be given a connection that the agent itself makes read-only (agent.md, decision 10, the
@@ -397,7 +407,7 @@ A scope names a class of actions. A token carries a set of scopes; a role is a n
 
 | Scope | Allows | Does not allow |
 |---|---|---|
-| `monitor` | Read the list of ports and links, their state, counters, line states and the event stream **without** bytes; the endpoint's own status; the version. The licence edition is not built: the gateway reads no licence | The bytes of any traffic |
+| `monitor` | Read the list of ports and links, their state, counters, line states and the event stream **without** bytes; the endpoint's own status, with the edition and the state of the licence; the version | The bytes of any traffic |
 | `monitor.data` | Subscribe to traffic bytes and read the history. Optionally limited to named ports (a filter in the token record; **not built**: a `monitor.data` token reads every port, and a subscription may name the ports it wants) | Any change |
 | `control.ports` | Create and remove ports, link and unlink, rename, change settings and lines, start and stop | Writing data, faults |
 | `control.data` | `send` bytes, play a file the **sender uploads** (never one named by path), set up scripted replies | Anything outside the ports the principal made, if `own ports only` is set |
@@ -617,15 +627,16 @@ validates the resulting access token. No sign-in page exists in Studio and none 
 ### Operations and scopes
 
 The table is the design. The "Built" column says what the code has: the table in `libs/vss_control_proto/src/policy.cpp`
-has 22 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
+has 27 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
 design's, except where the Notes say the code asks for another.
 
 | Operation | Scope | Built | Notes |
 |---|---|---|---|
 | `hello` | none (after auth) | Yes | Version, features, the principal's effective scopes |
-| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version. Not built: the edition, the endpoint state and counters |
+| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version, and the edition (`community`, `pro` or `enterprise`) with the state of the licence. Whose the licence is, its number and its dates are not given. `vss_gate` does not read a licence yet, so it reports `community` and `none`. Not built: the endpoint state and counters |
 | `ports.list` | `monitor` | Yes | |
-| `ports.get`, `links.list`, `links.get`, `lines.get` | `monitor` | Not built | |
+| `ports.get`, `links.list`, `links.get` | `monitor` | Yes | One port, and the links alone, as `ports.list` has them. An id of the right form that nothing has is `not_found`; one that is not of the right form is `invalid_argument`, as for `ports.remove` |
+| `lines.get` | `monitor` | Not built | |
 | `events.subscribe`, `events.unsubscribe` | `monitor` | Yes | State, counters, line changes, and that bytes moved and how many; no bytes |
 | `traffic.subscribe`, `traffic.unsubscribe` | `monitor.data` | Yes | The bytes. A subscription may name the ports it wants. The port filter of a token is not built: a `monitor.data` token reads every port |
 | `traffic.history` | `monitor.data` | Not built | It needs pages of the hub's ring from the agent |
@@ -640,7 +651,8 @@ design's, except where the Notes say the code asks for another.
 | `runs.begin`, `runs.end`, `report.junit` | `monitor` | Yes | The design had `control.ports`. A run changes no port, so the code asks for `monitor` (section 13) |
 | `runs.record` | `monitor` | Yes | Not in the first design: it adds a check of the harness's own to a run |
 | `record.start`, `record.stop`, `record.fetch` | `record` | Not built | Section 10 |
-| `session.close`, `ping` | none | Not built | |
+| `ping` | none | Yes | Any session that has said `hello`. It asks the agent nothing, so it answers while no agent runs |
+| `session.close` | none | Yes | Any session may end itself. The gateway answers `done`, then closes the connection; nothing sent after it in the same write is read. The end is in the audit log as the end of a session, with the reason `closed_by_client` |
 
 Deliberately absent from the remote surface: `release_port` (ends another process), `create_com0com_pair` and
 anything that elevates, `devices` and `facts` (they describe the computer, A3), `run_benchmark` (ties up the
@@ -884,8 +896,7 @@ policy check, the token code and the peer-credential code are not delegated.
 | The API is the control API, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
 
 Not built in this slice, and the reason: `vss_cli control` has `status` and `stop` only, because nothing starts
-`vss_gate` on demand yet; the gateway is in this repository and is built with the tools, where the editions page puts
-it in the Pro set, because that split is the licensing work's to make; and SHA-256 comes from Boost.Hash2, which
+`vss_gate` on demand yet; and SHA-256 comes from Boost.Hash2, which
 raises the oldest Boost that builds this repository from 1.74 to 1.88.
 
 ### What slice 2 built
@@ -1047,12 +1058,36 @@ Differences from section 3 as first written: the token crosses loopback in clear
 loopback comes with L3 and is not offered yet. The default ceiling for TCP is the control role without
 `control.apply`. The token is to stop crossing the wire (see "Presentation" in section 4).
 
+### What the reading operations built
+
+`ports.get`, `links.list` and `links.get` under `monitor`, and `ping` and `session.close`, which need no scope. None
+of them needs a change to the agent: the gateway asks the agent for its list, as `ports.list` does, and picks from it.
+`vss_cli control port show`, `links`, `link show` and `ping`, and `get_port`, `list_links`, `get_link` and `ping` in
+the Python client, make the requests; the Python client's `close()` now sends `session.close` first.
+
+```
+{"id": 7, "op": "ports.get", "port": "p_3"}
+{"id": 7, "reply": "port", "revision": 12, "port": {"id": "p_3", "name": "a", ...}}
+{"id": 8, "op": "links.list"}
+{"id": 8, "reply": "links", "revision": 12, "links": [{"id": "l_1", "mode": "one_way", ...}]}
+```
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| One port and one link are what the list has | With two ports and a link made through the gateway, `ports.get` of each gives the entry `ports.list` has for it, `links.list` gives the links of `ports.list`, and `links.get` gives the one link. A removed port and the link that went with it are `not_found` | The three read the whole list from the agent and pick from it. The agent has no request for one port, so a long list is read for each call |
+| An id that is not one is not passed on | `COM3`, `p_`, a name, nothing, and a link's id given as a port's (and the other way round) are `invalid_argument`; a well-formed id that nothing has is `not_found`. A text over 1024 bytes, a missing field and a field that is not text end the session, as for `ports.remove` | |
+| The three need `monitor` and nothing else | A token with `control.data` and no `monitor` is refused all three with `forbidden`, whether or not the id is one; a monitor reads them | |
+| `ping` and `session.close` need no scope | The same token pings and ends its session. `ping` answers while no agent runs, and the three readers then say `unavailable`, as `ports.list` does | |
+| A session that asks to close is closed after its answer, and only it | The reply is read, then the connection is closed: the next request fails and the session is gone from `sessions.list` while the others are not. Requests in the same write after `session.close` are not read. The audit log has `session.closed` with the reason `closed_by_client` and no record of an operation | A client that never reads the answer is closed by the time limit that closes one that never reads an error (`handshake_timeout`); that is the same code, and it is not run again for `session.close` |
+| The Python client leaves no session behind | `close()` sends `session.close`, ignores any error from it and closes its end; a gateway that does not answer costs one call's time limit, not more. The gateway's count of sessions drops after it | |
+
 ### What is not built
 
 Everything in the table of section 9 that is marked "Not built", gathered here in one place:
 
-- Reading: `ports.get`, `links.list`, `links.get`, `lines.get`, `traffic.history`, and the edition, the endpoint state
-  and the counters in `status`.
+- Reading: `lines.get`, `traffic.history`, and the endpoint state and the
+  counters in `status`. `status` has the edition and the state of the licence, but `vss_gate` does not read a licence
+  yet, so it always reports `community` and `none`.
 - Changing ports: `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set`, `scripts.set`, `scripts.clear`,
   `topology.apply`, `topology.snapshot`, and "own ports only" for a scoped token.
 - Faults and timing: `faults.inject` and `timing.set`. The response timing rules engine is built as a library only,
@@ -1061,7 +1096,7 @@ Everything in the table of section 9 that is marked "Not built", gathered here i
   this API.
 - Triggers: `triggers.subscribe`, `triggers.read`, `expect.trigger`.
 - Recording: `record.start`, `record.stop`, `record.fetch`.
-- Other: `session.close`, `ping`, `idempotency_key`, and the administration operations `listeners.*`, `tls.rotate`,
+- Other: `idempotency_key`, and the administration operations `listeners.*`, `tls.rotate`,
   `tls.pairing_bundle`, `policy.*` and `audit.*`.
 - Scopes: `control.faults`, `control.apply` and `record` exist and can be given to a token, and no operation asks for
   them, so they allow nothing yet.

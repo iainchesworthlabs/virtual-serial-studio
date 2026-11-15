@@ -9,6 +9,15 @@
 
 add_library(vss_plugin
   src/access.cpp
+  src/api_adapter.cpp
+  src/api_capture.cpp
+  src/api_codec.cpp
+  src/api_decoder.cpp
+  src/api_fixture.cpp
+  src/api_generator.cpp
+  src/api_instance.cpp
+  src/api_modifier.cpp
+  src/api_ops.cpp
   src/discover.cpp
   src/error.cpp
   src/hash.cpp
@@ -53,7 +62,7 @@ target_compile_features(vss_plugin PUBLIC cxx_std_23)
 # `vss::machine::write_access`, so the machine library is public.
 target_link_libraries(vss_plugin PUBLIC vss_core Vss::agent_proto Vss::license
   Vss::machine
-  PRIVATE Vss::BoostJson)
+  PRIVATE Vss::BoostJson Vss::rules)
 
 # Where the plugin folders and the policy file are is asked of the operating
 # system.  CMake picks the files in src/platform/<windows|linux|macos>.  The

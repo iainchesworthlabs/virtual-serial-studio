@@ -240,6 +240,7 @@ class ControlRoleTests(RigCase):
         self.assertTrue(status["agent"]["running"])
         self.assertGreaterEqual(status["sessions"], 1)
         self.assertIsInstance(status["uptime_ms"], int)
+        self.assertEqual(status["licence"], {"edition": "community", "state": "none"})
 
     def test_list_ports_shows_a_new_port_and_a_link(self):
         client = self.connect()
@@ -256,6 +257,81 @@ class ControlRoleTests(RigCase):
         link = [one for one in after["links"] if one["sources"] == [first]]
         self.assertEqual(len(link), 1)
         self.assertEqual(link[0]["targets"], [second])
+
+    def test_get_port_and_the_links_are_what_list_ports_has(self):
+        client = self.connect()
+        first, second = self.linked_pair(client)
+        listed = client.list_ports()
+        ports = {port["id"]: port for port in listed["ports"]}
+        self.assertEqual(client.get_port(first), ports[first])
+        self.assertEqual(client.get_port(second), ports[second])
+        self.assertEqual(set(ports[first]), {"id", "name", "path", "kind", "state", "open", "bytes_rx", "bytes_tx"})
+        links = client.list_links()
+        self.assertEqual(links, listed["links"])
+        mine = [one for one in links if one["sources"] == [first]]
+        self.assertEqual(len(mine), 1)
+        self.assertEqual(client.get_link(mine[0]["id"]), mine[0])
+        self.assertEqual(set(mine[0]), {"id", "mode", "sources", "targets", "bytes"})
+
+    def test_an_id_that_nothing_has_is_not_found_and_a_bad_one_is_invalid(self):
+        client = self.connect()
+        for call, code in (
+            (lambda: client.get_port("p_4000000"), "not_found"),
+            (lambda: client.get_link("l_4000000"), "not_found"),
+            (lambda: client.get_port("no such port"), "invalid_argument"),
+            (lambda: client.get_port(""), "invalid_argument"),
+            (lambda: client.get_link("p_1"), "invalid_argument"),
+            (lambda: client.get_link(""), "invalid_argument"),
+        ):
+            with self.assertRaises(ControlError) as caught:
+                call()
+            self.assertEqual(caught.exception.code, code)
+            self.assertNotIsInstance(caught.exception, EngineError)
+        # A removed port is not found any more.
+        gone = client.create_port(unique_name("gone"))
+        self.assertEqual(client.get_port(gone)["id"], gone)
+        client.remove_port(gone)
+        with self.assertRaises(ControlError) as caught:
+            client.get_port(gone)
+        self.assertEqual(caught.exception.code, "not_found")
+        # The connection goes on after every refusal.
+        self.assertIsNone(client.ping())
+
+    def test_ping(self):
+        client = self.connect()
+        self.assertIsNone(client.ping())
+        self.assertIsNone(client.ping())
+
+    def wait_for_sessions(self, client, count):
+        deadline = time.monotonic() + LONG
+        while True:
+            sessions = client.status()["sessions"]
+            if sessions == count or time.monotonic() > deadline:
+                return sessions
+            time.sleep(0.01)
+
+    def test_the_gateway_ends_a_session_that_asked_for_it(self):
+        client = self.connect()
+        other = self.rig.connect()
+        self.addCleanup(other.close)
+        # Sessions of earlier tests may still be going away.
+        self.assertEqual(self.wait_for_sessions(client, 2), 2)
+        # The request itself, without the client closing its end: it is the
+        # gateway that ends the connection.
+        other._call("session.close")
+        with self.assertRaises(TransportError) as caught:
+            other.status()
+        self.assertEqual(caught.exception.code, "connection_closed")
+        self.assertEqual(self.wait_for_sessions(client, 1), 1)
+        # The first session is not touched.
+        self.assertTrue(client.status()["agent"]["running"])
+
+    def test_close_leaves_no_session_behind(self):
+        client = self.connect()
+        other = self.rig.connect()
+        self.assertEqual(self.wait_for_sessions(client, 2), 2)
+        other.close()
+        self.assertEqual(self.wait_for_sessions(client, 1), 1)
 
     def test_send_and_expect_with_a_send(self):
         client = self.connect()
@@ -549,6 +625,17 @@ class DefaultRoleTests(RigCase):
         self.assertNotIsInstance(caught.exception, EngineError)
         self.assertFalse(caught.exception.retryable)
         self.assertEqual(client.list_ports()["ports"], [])
+
+    def test_the_default_role_may_read_one_port_and_the_links_and_ping(self):
+        client = self.connect()
+        self.assertEqual(client.list_links(), [])
+        with self.assertRaises(ControlError) as caught:
+            client.get_port("p_4000000")
+        self.assertEqual(caught.exception.code, "not_found")
+        with self.assertRaises(ControlError) as caught:
+            client.get_link("l_4000000")
+        self.assertEqual(caught.exception.code, "not_found")
+        self.assertIsNone(client.ping())
 
     def test_the_other_changes_are_forbidden_too(self):
         client = self.connect()

@@ -27,11 +27,12 @@ what discovery finds.
 | Looking at a plugin folder, installing and removing a plugin | `install.cpp` | `vss_cli plugin verify`, `install` and `remove` |
 | The licence question for an official plugin | `licence.cpp` | Tests only |
 | The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
+| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
 | The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
 | The restart and quarantine rules | `lifecycle.cpp` | Tests only |
 
-`params.changed`, `instance.create` and `instance.stop` of section 7.3 are not built: the codec passes them through as
-an unknown op.
+The messages of the extension points (sections 7.3 to 7.8, 19 and 20) are typed in `api_*.hpp`, and each can be read
+from and written to an `api_message`. Nothing sends or receives them yet: the host that does is not built.
 
 `vss_cli plugin list` and `vss_cli plugin verify` check the signature, run `verify` and, for an official plugin that names
 an edition, the licence question, as far as a command line can: it reads the policy file, the official key list built
@@ -518,19 +519,29 @@ in this build". Nothing pretends to carry out a rule it cannot.
   (`libs/vss_agent_proto`) is an internal matter that changes without notice, and a plugin never speaks it. The
   plugin API borrows its framing (below) and nothing else.
 
+Every message of the extension points is listed, with its direction, its fields and their limits, in
+[the plugin API reference](plugin-api-reference.md). The headers `libs/vss_plugin/include/vss/plugin/api_*.hpp` are the
+definition in code, and where the reference and this section differ the reference follows the code.
+
 ### 7.1 Transport and framing
 
-- **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: an
-  anonymous pair of pipes (Windows, inherited by an explicit handle list, so nothing else is inherited) or a
-  `socketpair` (elsewhere, with close-on-exec set on every other descriptor). There is **no name** to guess, no
-  listening socket and no way for another process to connect. The plugin is told the handle number in its
-  environment variable `VSS_PLUGIN_CHANNEL`.
+- **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: a
+  pipe (Windows, inherited by an explicit handle list, so nothing else is inherited) or a `socketpair` (elsewhere,
+  with every other descriptor closed in the child before the program runs). There is no listening socket and no
+  way for another process to connect. The plugin is told the handle number in its environment variable
+  `VSS_PLUGIN_CHANNEL`.
+- **The Windows pipe has a name for a moment, and the name is no way in.** Only a named pipe can be read without a
+  thread for each plugin (overlapped I/O), so the host makes one with a name of 128 random bits, as the first and
+  only instance, for this user only and no remote client, and opens the one client end itself at once, before
+  the plugin exists. If anything else had opened it first, the host's own open fails and the plugin is not
+  started. Once both ends are open nothing else can connect.
 - **Framing is the agent's** (`libs/vss_agent_proto`): `u32 size`, `u32 header size`, a JSON header, a blob, with
   a frame of at most 1 MiB. The same frame reader is reused. Bytes of traffic travel in the blob, never in JSON.
   The plugin API has limits of its own on the header: at most 64 KiB, JSON depth 8, a text of at most 1024
   bytes and a list of at most 256 entries in the messages of section 7.3. A header is small because the bytes
   are in the blob, and the limit bounds the work one message can ask of the host.
-- A plugin's standard input is closed. Its standard output and error are read by the host and kept as log lines
+- A plugin's standard input is at its end from the start (the null device). Its standard output and error are one
+  pipe, read by the host and kept as log lines
   (section 7.3), at most 64 KiB per second, truncated, never trusted as markup.
 - No shell, no environment other than the minimum (`VSS_PLUGIN_CHANNEL`, `VSS_PLUGIN_DATA`, `VSS_PLUGIN_ID`, a
   sanitised `PATH`, `HOME` set to the data directory, and `LANG`).
@@ -585,7 +596,7 @@ A generator produces bytes onto a port.
 
 | Message | From | Content |
 |---|---|---|
-| `generator.start` | host | `instance`, `port` (an endpoint id), `params` |
+| `generator.start` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `generator.write` | plugin | `instance`, blob. Needs credit |
 | `generator.credit` | host | `instance`, `bytes`: how many more bytes the plugin may send |
 | `generator.pattern` | plugin | `instance`, a *declared pattern*: `{"bytes": hex, "repeat": n or 0, "period_us": n, "burst": n, "jitter": ...}`. The engine generates it (T0) |
@@ -593,8 +604,8 @@ A generator produces bytes onto a port.
 | `generator.done` | plugin | `instance`, a reason |
 
 **Flow control by credit.** The host grants at most 64 KiB of credit to start and tops up as the engine takes bytes,
-so a plugin can never get ahead of the port by more than that, and a plugin that writes without credit is refused with
-`busy` (the first time) and killed as `misbehaving` (when it keeps going). A generator is a source of async traffic. When it must be periodic and exact, it uses
+so a plugin can never get ahead of the port by more than that. A write without credit is dropped and counted, because a
+`generator.write` is a notification and has no id to answer, and a plugin that keeps going is killed as `misbehaving`. A generator is a source of async traffic. When it must be periodic and exact, it uses
 `generator.pattern`, which the engine runs.
 
 ### 7.5 Fixture types (T0 plus T2)
@@ -604,14 +615,14 @@ to an instance. The plugin sees what the other side writes and decides how to an
 
 | Message | From | Content |
 |---|---|---|
-| `fixture.create` | host | `instance`, `endpoint`, `params` |
+| `fixture.create` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `fixture.data` | host | `instance`, `ts_ns`, blob: bytes that arrived at the fixture. Coalesced: up to 8 KiB or 1 ms of arrivals in one frame |
 | `fixture.line` | host | `instance`, `ts_ns`, the new state of DTR, RTS (for a fixture these are the lines the program set) |
 | `fixture.reply` | plugin | `instance`, blob, `after_us` (optional): bytes to write to the fixture. With `after_us`, the **engine** holds the bytes and writes them at the time (a one-off rule), so the delay is exact, not a delay of the plugin's |
 | `fixture.line.set` | plugin | `instance`, DTR, RTS, `after_us` |
-| `fixture.fault` | plugin | `instance`, a `fault_kind` |
+| `fixture.fault` | plugin | `instance`, a `fault` (`parity`, `framing`, `overrun`, `break`, `hang_up` or `disconnect`) |
 | `rules.set` | plugin | `instance`, a rule set (section 6.3). It replaces the instance's set atomically. The reply says whether it was accepted, with the position of the first error otherwise |
-| `rules.event` | host | `instance`, `ts_ns`, `rule`, `action`: a rule fired |
+| `rules.event` | host | `instance`, `ts_ns`, `rule` (its name), `action` (the kind of the action, as `docs/response-timing.md` names it): a rule fired |
 
 Most fixtures send one `rules.set` when created and again when a parameter changes. The device behaviour (what a
 "Model 2000 multimeter" answers to `*IDN?`) is a rule set the plugin builds from its parameters. The plugin process
@@ -669,7 +680,7 @@ So the modifier slice comes after the slice of `docs/response-timing.md` that ad
 
 | Message | From | Content |
 |---|---|---|
-| `modifier.create` | host | `instance`, `link`, `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
+| `modifier.create` | host | `instance`, `place` (the hub's name for the link), `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
 | `modifier.batch` | host | `instance`, `seq`, `ts_ns` of the first chunk, `chunks`: list of `{offset, length, ts_ns}`; the bytes as one blob |
 | `modifier.result` | plugin | `seq`, `actions`: one for each chunk, in order, and a blob for what replaced them |
 | `modifier.stop` | host | |
@@ -723,6 +734,7 @@ harness, a language binding's server, a monitoring source) and translates betwee
 |---|---|---|
 | `agent.call` | plugin | `op` and its arguments, as in the agent protocol (section 5 of `agent.md`). Only the operations in the plugin's granted set are allowed |
 | `agent.subscribe` | plugin | The agent's event stream, filtered by the grant (counters only, or taps) |
+| `agent.event` | host | One event of a subscription: `subscription` (the `id` of the `agent.subscribe`), `kind`, `place`, `t_ns`, and in the blob the bytes of the event when the subscription asked for data |
 | `adapter.state` | plugin | `listening` and the **exact address** it listens on, if any, and the protocol name. Shown on the page |
 
 Rules for the proxy:
@@ -1121,16 +1133,41 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   nothing here changes that page. The two share only the `vss::signed_file` envelope, whose purpose string keeps
   a signature of one kind from passing as the other.
 
-**The owner's procedure, in outline.** The owner runs these; nothing in this work creates or holds a key. OpenSSL 3
-makes and uses Ed25519 keys, so no other tool is needed for the keys themselves.
+**The owner's procedure, in outline.** The owner runs these; nothing in this work holds a key. OpenSSL 3 makes and
+uses Ed25519 keys. `tools/plugin_sign.py keygen` calls OpenSSL to make a key and writes the key file safely. **The
+owner's keys should be protected with a passphrase.** Without one, anyone who can read the key file can sign as that
+key.
 
 ```
-# Once, on the offline computer: the root key.
-openssl genpkey -algorithm ed25519 -out root.key
-openssl pkey -in root.key -pubout -out root.pub
+# Once, on the offline computer: the root key, then one key for each signing key.
+python3 tools/plugin_sign.py keygen --out root.key --key-id root-2026 --passphrase-file root.pass
+python3 tools/plugin_sign.py keygen --out plugins-2026.key --key-id plugins-2026 --passphrase-prompt
 
-# For each signing key.
-openssl genpkey -algorithm ed25519 -out plugins-2026.key
+# Sign with a key. The same passphrase option is given to every command that takes --key.
+python3 tools/plugin_sign.py key-list --key root.key --key-id root-2026 --passphrase-file root.pass \
+    --payload official-keys.payload.json --out official-keys.json
+```
+
+- `keygen` prints the public key as 64 hex characters, which is the text for the key list, and then the key id when
+  `--key-id` is given. `public-key --key plugins-2026.key` prints the same text again.
+- `keygen` makes the file itself, and refuses a file that exists. The file can be read by its owner only: mode 0600
+  on Linux and macOS, and on Windows only the current user (`icacls`). It is removed if anything fails afterwards.
+  The private key is never printed.
+- With a passphrase the key file is encrypted (PKCS#8, AES-256). The passphrase comes from one of three options, and
+  at most one may be given: `--passphrase-file PATH` (the first line of the file), `--passphrase-env NAME` (the
+  value of the environment variable `NAME`) or `--passphrase-prompt` (asked on the terminal, twice for `keygen`).
+  There is no option that takes the passphrase itself, because a command line is kept in the process list and in
+  the shell history, and the passphrase is never read from standard input. The script passes it to OpenSSL in the
+  environment of that one process. Keep a passphrase file on the offline computer only, outside the repository.
+- A key file with a passphrase is refused when no passphrase option is given. The script never waits for a prompt
+  from OpenSSL.
+
+The raw OpenSSL commands do the same work and stay as the alternative. They write a key file without a passphrase
+unless `-aes-256-cbc` is added, and `-out` makes the file with the default permissions, so restrict it first (`umask
+077` on Linux and macOS).
+
+```
+openssl genpkey -algorithm ed25519 -aes-256-cbc -out plugins-2026.key
 openssl pkey -in plugins-2026.key -pubout -out plugins-2026.pub
 
 # The 32 bytes of a public key as hex, for the key list or for Studio's source.
@@ -1140,13 +1177,14 @@ openssl pkey -pubin -in plugins-2026.pub -outform DER | tail -c 32 | xxd -p -c 3
 openssl pkeyutl -sign -inkey root.key -rawin -in message.bin -out signature.bin
 ```
 
-A small script, written with the verifier, builds the message and the envelope around those last two steps. It is
-given the path of a key and calls OpenSSL; it does not make keys and stores nothing. The root public key and the
-first key list are placed in the repository by the owner, as public files.
+`tools/plugin_sign.py` builds the message and the envelope around the last step. It is given the path of a key and
+calls OpenSSL; it stores nothing. The root public key and the first key list are placed in the repository by the
+owner, as public files.
 
-**Other people's keys.** A third-party author makes an Ed25519 key in the same way and signs with it. No root is
-involved: the key is trusted by a user in their own store, or by an administrator in `allow_keys`. A key on a
-hardware token works where the token can sign with Ed25519.
+**Other people's keys.** A third-party author makes an Ed25519 key in the same way, with `keygen` or with OpenSSL,
+and signs with it. No root is involved: the key is trusted by a user in their own store, or by an administrator in
+`allow_keys`. **Such a key can never make a plugin official.** Only a key in the official key list, which a root
+key has signed, does that. A key on a hardware token works where the token can sign with Ed25519.
 
 **How a user gets an author's public key** (decided by the owner). `plugin.sig` carries no public key, on
 purpose: a key taken from the file being checked proves nothing. The author publishes a small **public key
@@ -1182,7 +1220,7 @@ file**, and the user imports it on the Plugins page.
 **What exists.** The root public keys are in `libs/vss_plugin/src/official_roots.cpp` (`root-2026` and
 `root-next`). The first key list, as the text that is signed, is `libs/vss_plugin/keys/official-keys.payload.json`;
 the README beside it has the owner's command to sign it. `tools/plugin_sign.py` builds the three signed files
-around an OpenSSL call.
+around an OpenSSL call, and `keygen` makes a key file.
 
 ## 9. Permissions and sandboxing
 
@@ -1724,7 +1762,7 @@ The plugin decides **what** to record and replay. The engine and the agent do th
 | Know the ports, links and their state | `agent.call` (`list`, `snapshot`) | Proxy call | `ports.read` | Section 7.7, written for adapters only. **Change:** the read operations of the proxy are open to every plugin kind that holds the permission |
 | Follow events with times: opens, closes, line changes, faults, rule firings, counters | `agent.subscribe` without `data` | Proxy call | `ports.read` | The same change. Read-only: this plugin never holds `topology.modify` while recording |
 | A live view of the bytes while recording, so the user sees that it works | `agent.subscribe` with `data` (a tap; it may drop, and says how much) | Proxy call | `traffic.tap` | Section 7.7 |
-| **A complete recording** of chosen ports and links | `capture.start {places, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
+| **A complete recording** of chosen ports and links | `capture.start {places, name, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`, answered with the recording's path and size; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
 | The setup, the driver and engine state, the real serial ports | None: they are the support bundle's own sections | | | The plugin does not need `serial.devices` |
 | Add its sections to the bundle, with a preview | `contributes.bundle_sections` in the manifest; `bundle.prepare {section, settings}` from the host, answered with a list of files in the data directory | **New** contribution | `bundle.section` | **New.** Decision 15. Section 19.5 |
 | Redaction choices | The section's declared parameters, drawn by Studio's form in the bundle dialog | Parameters | none | Section 7.8, reused |
@@ -1958,7 +1996,7 @@ order the engine saw them:
 | `data` | `place`, `direction`, `offset` (the count of bytes at that place and direction before this chunk), `t_ns`, `end_ns` (on a half-duplex bus: when the last byte left the wire), the bytes. One engine chunk is one item; chunks are never joined |
 | `line` | `place`, `t_ns`, the lines and which changed |
 | `line_error` | `place`, `t_ns`, the kind |
-| `bus_fault` | `link`, the sender, `t_ns`, the `bus_fault` value, the `offset` and length of the sender's chunk |
+| `bus_fault` | `place` (the link), the sender, `t_ns`, the `bus_fault` value, `event` (its id, which a trigger's `cause` names), the `offset` and length of the sender's chunk |
 | `rule` | A rule fired at the place: its event as `docs/response-timing.md` defines it |
 | `time` | `t_ns`: the engine's time now |
 | `lost` | `place`, `direction`, `from_offset`, `bytes`, `from_ns`, `to_ns`: the decoder was too slow and this much was not sent |
@@ -2070,8 +2108,8 @@ binary protocols. For them a plugin contributes a **decoder**, a fifth kind of e
 | Message | From | Content |
 |---|---|---|
 | `decoder.create` | host | `instance`, the places and their settings (rate, format, whether a bus), `params` |
-| `decoder.data` | host | `seq` and a list of the items of section 20.4, with the bytes as one blob |
-| `decoder.ack` | plugin | `seq` |
+| `decoder.data` | host | `instance`, `seq` and a list of the items of section 20.4, with the bytes as one blob |
+| `decoder.ack` | plugin | `instance`, `seq` |
 | `decoder.frame` | plugin | `place`, `direction`, `offset`, `length`, `t_start_ns`, `t_end_ns`, a message name, a summary of at most 200 characters, and up to 64 fields as `{name, offset, length, value}`. Optional, rate limited, and dropped first when the plugin is over its limits |
 | `trigger.publish` | plugin | Section 20.7 |
 | `decoder.stop` | host | |
@@ -2106,7 +2144,7 @@ A trigger is one record. The format is public and versioned with the plugin API.
   "field": { "name": "check", "offset": 7, "length": 2 },
   "expected": "3A91", "actual": "3A90",
   "covers": [1, 6],
-  "cause": { "bus_fault": "overlap", "event": 9912 },
+  "cause": { "fault": "overlap", "event": 9912 },
   "request": { "offset": 48205, "length": 8, "t_end_ns": 18201000000 },
   "text": "Check value is 3A90, expected 3A91.",
   "from": { "plugin": "com.virtualserialstudio.protocol", "instance": 3 }

@@ -9,15 +9,19 @@
 // frames by the agent's frame reader, and each frame is decoded. What
 // decodes must be inside every limit the header promises, must encode again,
 // and the frame made from it must decode to the same message and encode to
-// the same bytes. The input is also split into a header and a blob and
-// decoded directly, and used whole as a header, because a mutated length
-// prefix would otherwise keep most inputs from reaching the JSON reader.
+// the same bytes. A message of an extension point (api_ops) is also read as its
+// own struct, with the same promises. The input is also split into a header and
+// a blob and decoded directly, and used whole as a header, because a mutated
+// length prefix would otherwise keep most inputs from reaching the JSON reader.
 //
 
 #include <vss/agent/proto/error.hpp>
 #include <vss/agent/proto/frame.hpp>
 #include <vss/core/bytes.hpp>
 #include <vss/core/error.hpp>
+#include <vss/plugin/api_fixture.hpp>
+#include <vss/plugin/api_message.hpp>
+#include <vss/plugin/api_modifier.hpp>
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/protocol.hpp>
 
@@ -65,8 +69,8 @@ void require_token(std::string_view text, std::size_t most)
     require(text.size() <= most);
     for (const char c : text)
     {
-        require((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
-                c == '_' || c == '.' || c == '-');
+        require((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' ||
+                c == '.' || c == '-');
     }
 }
 
@@ -145,10 +149,7 @@ void require_body(const plugin::other_message& body)
     require(!body.header.empty());
 }
 
-template <class Empty>
-void require_body(const Empty&)
-{
-}
+template <class Empty> void require_body(const Empty&) {}
 
 /// What `decode_message` promises about a message it accepts.
 void require_inside_limits(const plugin::api_message& message,
@@ -202,8 +203,7 @@ std::optional<agent::frame> carried(const agent::frame& value)
 
 /// A message that was read is written, and what is written reads back as
 /// the same message and is written as the same bytes.
-void check_accepted(const plugin::api_message& first,
-                    const agent::frame& frame)
+void check_accepted(const plugin::api_message& first, const agent::frame& frame)
 {
     require_inside_limits(first, frame);
 
@@ -248,6 +248,86 @@ void check_accepted(const plugin::api_message& first,
     }
 }
 
+/// The two functions that the host runs on what a plugin sent: the answer to a
+/// rule set, which must be a message that can be written, and the bounds of a
+/// modifier's result, which must not wrap for any size of batch.
+void check_host_functions(const plugin::api_message& message)
+{
+    if (message.op == plugin::rules_set_message::op())
+    {
+        const auto typed =
+            plugin::decode_as<plugin::rules_set_message>(message);
+        require(typed.has_value());
+        const plugin::rules_result_message answer =
+            plugin::check_rule_set(*typed);
+        require(plugin::encode_as(answer, 1).has_value());
+    }
+    else if (message.op == plugin::modifier_result_message::op())
+    {
+        const auto typed =
+            plugin::decode_as<plugin::modifier_result_message>(message);
+        require(typed.has_value());
+        // A larger batch allows at least what a smaller one does, and nothing
+        // wraps for the largest.
+        const std::size_t sizes[] = {0, 1, 256, plugin::max_modifier_batch,
+                                     static_cast<std::size_t>(-1)};
+        bool allowed = false;
+        for (const std::size_t size : sizes)
+        {
+            const bool within =
+                plugin::modifier_result_within_bounds(size, *typed);
+            require(within || !allowed);
+            allowed = within;
+        }
+    }
+}
+
+/// A message of an extension point is read as its own struct.  What is
+/// refused has a reason, and what is accepted is written again; the
+/// message that is written reads back as itself and is written as the same
+/// bytes a second time.
+void check_extension(const plugin::api_message& message)
+{
+    const plugin::api_op* const known = plugin::find_api_op(message.op);
+    if (known == nullptr)
+    {
+        return;
+    }
+    require(known->op == message.op);
+    std::string detail = "left over";
+    const boost::system::error_code first = known->check(message, &detail);
+    if (first)
+    {
+        require(first == plugin::api_errc::bad_request);
+        require(!detail.empty());
+        for (const char c : detail)
+        {
+            require(c >= 0x20 && c <= 0x7e);
+        }
+        return;
+    }
+    require(detail.empty());
+
+    const auto once = known->recode(message);
+    require(once.has_value());
+    require(once->op == message.op);
+    require(once->id == message.id);
+    require(once->re == message.re);
+    require(once->blob == message.blob);
+    require(!known->check(*once, nullptr));
+
+    const auto twice = known->recode(*once);
+    require(twice.has_value());
+    require(*twice == *once);
+
+    const auto frame = plugin::encode_message(*once);
+    require(frame.has_value());
+    const auto back = plugin::decode_message(*frame);
+    require(back.has_value());
+    require(*back == *once);
+    check_host_functions(message);
+}
+
 void check_frame(const agent::frame& frame)
 {
     std::string detail = "left over";
@@ -256,6 +336,7 @@ void check_frame(const agent::frame& frame)
     {
         require(detail.empty());
         check_accepted(*first, frame);
+        check_extension(*first);
         return;
     }
     require(first.error() == plugin::api_errc::bad_request);

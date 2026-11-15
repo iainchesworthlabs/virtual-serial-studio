@@ -205,7 +205,12 @@ enum class operation
     runs_begin,
     runs_end,
     runs_record,
-    report_junit
+    report_junit,
+    ports_get,
+    links_list,
+    links_get,
+    ping,
+    session_close
 };
 
 struct operation_info

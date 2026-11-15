@@ -92,6 +92,7 @@ The payload is UTF-8 JSON:
 | `edition` | `pro` or `enterprise`. Community has no file |
 | `licensee.name` | The person or organisation the licence is issued to. Shown on the Licence page |
 | `licensee.contact` | Optional. A team or role, not a personal e-mail address |
+| `licensee.email` | Optional. The email address the licensee gave when they asked for the licence. It must have the form of an address (ASCII, one `@`, a domain with a dot). It is personal data: Studio shows it on the Licence page of the computer that holds the licence, and a support bundle leaves it out unless the user turns on the row that adds the licensee's name and email |
 | `issued_at` | When the owner signed it. Used for key rotation and the clock check |
 | `starts_at`, `expires_at` | The term, in UTC. A renewal bought early starts when the old one ends, so no days are lost |
 | `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual, 0 for trial, and whatever was agreed for enterprise (28 unless the agreement says otherwise) |
@@ -270,10 +271,16 @@ revocation list only ever holds ids, never names.
 
 | Place | Used for |
 |---|---|
-| Per-user data directory, `licences/` | What Help, Licence, Import licence copies the file to |
+| Per-user folder (`%LOCALAPPDATA%\Virtual Serial Studio\licences`, `$XDG_DATA_HOME/virtual-serial-studio/licences` or `~/.local/share/virtual-serial-studio/licences`, `~/Library/Application Support/Virtual Serial Studio/licences`) | What Help, Licence, Import licence and `vss_cli licence import` copy the file to |
 | Per-machine directory (`%ProgramData%\Virtual Serial Studio\licences`, `/etc/virtual-serial-studio/licences`, `/Library/Application Support/Virtual Serial Studio/licences`) | An administrator installing a licence for the computers they manage. Studio only reads it |
 
-Studio reads every `.vsslic` in both places and uses the best one: a valid
+On Linux the per-user folder is under `$XDG_DATA_HOME` when that is an absolute
+path, and under `~/.local/share` when it is unset, empty or not absolute. The
+latest time seen and the clock resets used are kept in `licence-clock.json`,
+beside the per-user `licences` folder.
+
+Studio reads every `.vsslic` in both places (at most 64 from each, in name
+order, and none larger than 64 KiB) and uses the best one: a valid
 licence beats one in grace, which beats an expired one; then Enterprise beats
 Pro; then the latest expiry. The others are listed on the Licence page.
 Importing never deletes an older file, and removing a licence is a button with
@@ -435,6 +442,16 @@ Plugins released later need a current licence. When the field is absent, expiry
 means what the States table says. The release date comes from the plugin's
 signed manifest, never from a file time.
 
+The comparison is in the library: `check(status, feature, released)` grants a
+feature the licence names when the licence has ended, sets `updates_until` and
+the release date is on or before it, and says so in `by_version_window`. It
+applies to a licence that has ended and to nothing else: one that is withdrawn,
+for other computers, not started, or judged while the clock looks wrong grants
+nothing through it. The plugin check (`vss::plugin::check_licence`) passes the
+`released` date of the plugin's manifest; a plugin with no release date gets
+the plain answer. The Licence page does not yet show a second "ended" variant
+for a licence with a window.
+
 | | Subscription only (`updates_until` absent) | Version window (`updates_until` = `expires_at`) |
 |---|---|---|
 | After expiry | Community, after the grace period | The versions already released keep working. No updates, no support |
@@ -459,12 +476,20 @@ links it. It has no Qt and no network code, and builds as two parts:
 | Part | Does | Used by |
 |---|---|---|
 | `vss::signed_file` | The envelope: parse, size limits, base64url, the signed message, Ed25519 verify, the trust list with purposes and windows | The licence code, and the plugin signer for its manifests |
-| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio's window (its backend), `vss_license`, the plugin library `vss_plugin`, official plugins. `vss_cli` does not use it and has no licence command |
+| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio's window (its backend), `vss_license`, `vss_cli licence`, the plugin library `vss_plugin`, official plugins |
+| `vss::license::store` | The licence files on this computer: the per-user and per-machine folders, the best licence, import, remove, the revocation lists and the stored latest time | Studio's window (its backend, through a thin adaptor) and `vss_cli licence` |
 
 Time, the computer's name and the stored latest time are passed in, so every
 state can be tested without touching the clock. Results are
 `vss::result<T>`. Signing lives in a third small part, `vss::signed_file_sign`,
 that Studio does not link.
+
+`vss::license::store` is where the files are read. It has no Qt. It reads a
+file only after checking its size, copies an imported file to a new name in the
+per-user folder (it never replaces a file), and never writes to the per-machine
+folder. `vss_cli licence` prints what the store found, and
+`vss_cli licence import <file>` imports a file through it. The agent, the
+control gateway and the plugin host do not ask it yet.
 
 The plugin framework session should build its signature check on
 `vss::signed_file` and not write a second one. A note saying so is in the
@@ -474,7 +499,13 @@ shared notes folder.
 
 A command line tool, offline, in this repository. It is built with the other
 tools (`VSS_BUILD_TOOLS`) as the target `vss_license_program`, and the file is
-named `vss_license`. It is not installed with Studio.
+named `vss_license`. It is the owner's tool: it issues licences, signs
+revocation lists and makes keys, and customers do not need it. It is not
+installed with Studio and is in no installer, archive, disk image, deb or rpm.
+`tools/ci/check_package_contents.py` fails a release if the tool, one of its
+libraries or a key file is in a staged tree or a package, and its test fails
+if an `install()` rule ever names the tool. A customer imports a licence with
+Help, Licence.
 
 | Command | Does |
 |---|---|
@@ -623,8 +654,9 @@ What is not built: any use of `check(feature)` that changes what Studio offers
 (the Licence page and the Support page ask it, to say what the licence grants,
 and nothing else does), a licence service in the agent and the control
 gateway, so the gateway's `status` has no edition, and the plugin host that
-would run an official plugin. `vss_license` is built with the tools and is not
-installed.
+would run an official plugin. The licence store is built (`vss::license::store`,
+used by Studio and by `vss_cli licence`); the agent and the gateway do not ask
+it yet. `vss_license` is built with the tools and is not installed.
 
 The private repository, its workflow, the environment and the real keys are
 the owner's to create. This repository gives them the tool and this page.

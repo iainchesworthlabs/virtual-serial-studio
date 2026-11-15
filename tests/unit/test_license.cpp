@@ -643,6 +643,146 @@ TEST_CASE("licence: the stored time moves forward, and a reset works once")
     REQUIRE_EQ(many.applied_resets.back(), std::string("reset-39"));
 }
 
+TEST_CASE("licence: the licensee's email address is carried and checked")
+{
+    // A licence without one is written exactly as before, so the files
+    // already issued and the golden file do not change.
+    const auto without = write_payload(annual());
+    REQUIRE(without);
+    REQUIRE(without->find("\"email\"") == std::string::npos);
+    REQUIRE(parse_payload(bytes_of(*without))->licensee_email.empty());
+
+    licence named = annual();
+    named.licensee_email = "tests@example-lab.invalid";
+    const auto written = write_payload(named);
+    REQUIRE(written);
+    REQUIRE(written->find("\"email\":\"tests@example-lab.invalid\"") !=
+            std::string::npos);
+    const auto read = parse_payload(bytes_of(*written));
+    REQUIRE(read);
+    REQUIRE(*read == named);
+
+    // It is signed with the rest: a licence judged from a file carries it.
+    const status judged = evaluate(signed_text(named), on(at(2027, 1, 1)));
+    REQUIRE(judged.state == state::valid);
+    const std::optional<licence> carried = judged.value;
+    REQUIRE(carried.has_value());
+    REQUIRE_EQ(carried->licensee_email,
+               std::string("tests@example-lab.invalid"));
+
+    for (const std::string_view good :
+         {"a@b.co", "first.last+tag@sub.example-lab.invalid",
+          "o'brien_99@example.invalid"})
+    {
+        REQUIRE(is_email_address(good));
+    }
+    for (const std::string_view bad :
+         {"", "no-at.example.invalid", "@example.invalid", "a@", "a@b",
+          "a@@b.co", "a@b@c.co", "a b@example.invalid", "a@exa mple.invalid",
+          "a@.example.invalid", "a@example.invalid.", "a@-example.invalid",
+          "a@example..invalid", "a@example.invalid-", "<a@example.invalid>",
+          "a@example.invalid\n", "\"a\"@example.invalid"})
+    {
+        REQUIRE(!is_email_address(bad));
+    }
+    REQUIRE(!is_email_address(std::string(250, 'a') + "@b.co"));
+
+    // A licence with an address that has not that form is refused, to
+    // write and to read.
+    licence wrong = annual();
+    wrong.licensee_email = "not an address";
+    REQUIRE(!write_payload(wrong));
+    expect_payload_error(payload_with("\"contact\":\"Test team\"",
+                                      "\"contact\":\"Test team\","
+                                      "\"email\":\"not an address\""),
+                         errc::malformed);
+    expect_payload_error(payload_with("\"contact\":\"Test team\"",
+                                      "\"contact\":\"Test team\",\"email\":7"),
+                         errc::malformed);
+}
+
+TEST_CASE("licence: the version window keeps what was released in time")
+{
+    // A licence for 13 November 2026 to 13 November 2027 whose window ends
+    // with its term.
+    licence windowed = annual();
+    windowed.updates_until = windowed.expires_at;
+    const std::string text = signed_text(windowed);
+    const time_point in_time = at(2027, 6, 1);
+    const time_point last_day = at(2027, 11, 13);
+    const time_point too_late = at(2027, 11, 13, 1);
+
+    // While the licence runs, and in its grace period, the release date
+    // changes nothing: everything it names is granted in the ordinary way.
+    for (const time_point now : {at(2027, 1, 1), at(2027, 12, 1)})
+    {
+        const status running = evaluate(text, on(now));
+        for (const time_point released : {in_time, too_late})
+        {
+            const entitlement answer =
+                check(running, "plugins.official", released);
+            REQUIRE(answer.granted);
+            REQUIRE(!answer.by_version_window);
+        }
+    }
+
+    // After the end: released within the window still works, for good.
+    const status ended = evaluate(text, on(at(2030, 1, 1)));
+    REQUIRE(ended.state == state::expired);
+    REQUIRE(!check(ended, "plugins.official").granted);
+    entitlement answer = check(ended, "plugins.official", in_time);
+    REQUIRE(answer.granted);
+    REQUIRE(answer.reason == reason::ok);
+    REQUIRE(answer.by_version_window);
+    REQUIRE_EQ(answer.licence_id, std::string("VSS-2026-000123"));
+    REQUIRE_EQ(answer.days_left, 0);
+    REQUIRE(check(ended, "plugins.official", last_day).granted);
+
+    // Released after the window: a current licence is needed.
+    answer = check(ended, "plugins.official", too_late);
+    REQUIRE(!answer.granted);
+    REQUIRE(answer.reason == reason::expired);
+    REQUIRE(!answer.by_version_window);
+
+    // The window covers only what the licence names.
+    answer = check(ended, "plugins.other", in_time);
+    REQUIRE(!answer.granted);
+    REQUIRE(answer.reason == reason::expired);
+
+    // A licence without the field ends as the States table says.
+    const status plain = evaluate(signed_text(annual()), on(at(2030, 1, 1)));
+    REQUIRE(!check(plain, "plugins.official", in_time).granted);
+
+    // The window is for a licence that has ended and nothing else. One that
+    // is withdrawn, for other computers, not started, or judged while the
+    // clock looks wrong grants nothing through it.
+    revocation_list withdrawn;
+    withdrawn.sequence = 1;
+    withdrawn.licence_ids = {"VSS-2026-000123"};
+    context revoked = on(at(2030, 1, 1));
+    revoked.revocations = &withdrawn;
+    REQUIRE(
+        !check(evaluate(text, revoked), "plugins.official", in_time).granted);
+
+    licence elsewhere = windowed;
+    elsewhere.machines = {"OFFICE-*"};
+    REQUIRE(!check(evaluate(signed_text(elsewhere), on(at(2030, 1, 1))),
+                   "plugins.official", in_time)
+                 .granted);
+
+    REQUIRE(!check(evaluate(text, on(at(2026, 11, 12, 12))), "plugins.official",
+                   in_time)
+                 .granted);
+
+    context set_back = on(at(2030, 1, 1));
+    set_back.latest_seen = at(2031, 1, 1);
+    const status suspect = evaluate(text, set_back);
+    REQUIRE(suspect.state == state::clock_suspect);
+    REQUIRE(!check(suspect, "plugins.official", in_time).granted);
+
+    REQUIRE(!check(no_licence(), "plugins.official", in_time).granted);
+}
+
 TEST_CASE("licence: features")
 {
     REQUIRE(feature_matches("plugins.official", "plugins.official"));

@@ -736,6 +736,7 @@ TEST_CASE("system control: the gateway shows the ports of the agent")
     REQUIRE(!contains(status.output, "local only"));
     REQUIRE(contains(status.output, "You may: monitor"));
     REQUIRE(contains(status.output, "Agent: running"));
+    REQUIRE(contains(status.output, "Edition: community (licence: none)"));
 
     auto script = connect_client(instance);
     const auto listed = script->list_ports();
@@ -1253,6 +1254,162 @@ TEST_CASE("system control: ports are made, linked, written to and removed")
     REQUIRE(contains(not_an_id.output, "invalid_argument"));
 }
 
+TEST_CASE("system control: one port and the links are shown, and the gateway "
+          "is pinged")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+
+    const auto pinged = run_cli("control", instance, {"ping"});
+    require_exit(pinged, 0, "vss_cli control ping");
+    REQUIRE_EQ(lines_of(pinged.output), std::vector<std::string>{"ok"});
+
+    const std::string a_id =
+        control_create_port(instance, "alpha", {"--kind=loopback"});
+    const std::string b_id = control_create_port(instance, "beta");
+
+    const auto no_links = run_cli("control", instance, {"links"});
+    require_exit(no_links, 0, "vss_cli control links with none");
+    REQUIRE_EQ(lines_of(no_links.output), std::vector<std::string>{"No links"});
+
+    const std::string link_id =
+        id_line(run_cli("control", instance, {"link", a_id, b_id, "--one-way"}),
+                "l_", "vss_cli control link --one-way");
+
+    // One port: a line for each of its fields.
+    const auto shown = run_cli("control", instance, {"port", "show", a_id});
+    require_exit(shown, 0, "vss_cli control port show");
+    const std::vector<std::string> port_lines = lines_of(shown.output);
+    REQUIRE_EQ(port_lines.size(), std::size_t{8});
+    const std::vector<std::string> port_labels{
+        "Port: ",  "Name: ", "Path: ",     "Kind: ",
+        "State: ", "Open: ", "Received: ", "Sent: "};
+    for (std::size_t index = 0; index < port_labels.size(); ++index)
+        REQUIRE(port_lines[index].starts_with(port_labels[index]));
+    REQUIRE_EQ(port_lines[0], "Port: " + a_id);
+    REQUIRE_EQ(port_lines[1], std::string("Name: alpha"));
+    REQUIRE_EQ(port_lines[5], std::string("Open: yes"));
+    REQUIRE_EQ(port_lines[6], std::string("Received: 0 bytes"));
+    REQUIRE_EQ(port_lines[7], std::string("Sent: 0 bytes"));
+
+    // The links: a line for each, with the ports of each side.
+    const auto links = run_cli("control", instance, {"links"});
+    require_exit(links, 0, "vss_cli control links");
+    const std::vector<std::string> link_lines = lines_of(links.output);
+    REQUIRE_EQ(link_lines.size(), std::size_t{1});
+    const std::vector<std::string> link_words = words_of(link_lines[0]);
+    REQUIRE_EQ(link_words.size(), std::size_t{5});
+    REQUIRE_EQ(link_words[0], link_id);
+    REQUIRE_EQ(link_words[2], a_id);
+    REQUIRE_EQ(link_words[3], b_id);
+    REQUIRE_EQ(link_words[4], std::string("0"));
+
+    const auto link_shown =
+        run_cli("control", instance, {"link", "show", link_id});
+    require_exit(link_shown, 0, "vss_cli control link show");
+    const std::vector<std::string> link_fields = lines_of(link_shown.output);
+    REQUIRE_EQ(link_fields.size(), std::size_t{5});
+    REQUIRE_EQ(link_fields[0], "Link: " + link_id);
+    REQUIRE_EQ(link_fields[1], "Mode: " + link_words[1]);
+    REQUIRE_EQ(link_fields[2], "Sources: " + a_id);
+    REQUIRE_EQ(link_fields[3], "Targets: " + b_id);
+    REQUIRE_EQ(link_fields[4], std::string("Bytes: 0"));
+
+    // `link <id> <id>` still links two ports.
+    const std::string c_id = control_create_port(instance, "gamma");
+    static_cast<void>(
+        id_line(run_cli("control", instance, {"link", b_id, c_id}), "l_",
+                "vss_cli control link of two ports"));
+    const auto two = run_cli("control", instance, {"links"});
+    require_exit(two, 0, "vss_cli control links of two");
+    REQUIRE_EQ(lines_of(two.output).size(), std::size_t{2});
+
+    // What nothing has is not found, and what is no id is a mistake.
+    const auto no_port =
+        run_cli("control", instance, {"port", "show", "p_9999"});
+    require_exit(no_port, 1, "vss_cli control port show of no port");
+    REQUIRE(contains(no_port.output, "control port show failed"));
+    REQUIRE(contains(no_port.output, "no port has that id"));
+    const auto no_link =
+        run_cli("control", instance, {"link", "show", "l_9999"});
+    require_exit(no_link, 1, "vss_cli control link show of no link");
+    REQUIRE(contains(no_link.output, "control link show failed"));
+    REQUIRE(contains(no_link.output, "no link has that id"));
+    const auto name = run_cli("control", instance, {"port", "show", "alpha"});
+    require_exit(name, 1, "vss_cli control port show of a name");
+    REQUIRE(contains(name.output, "invalid_argument"));
+    const auto port_as_link =
+        run_cli("control", instance, {"link", "show", a_id});
+    require_exit(port_as_link, 1, "vss_cli control link show of a port");
+    REQUIRE(contains(port_as_link.output, "invalid_argument"));
+
+    // A removed port is gone from the one-port view as well.
+    require_exit(run_cli("control", instance, {"port", "remove", a_id}), 0,
+                 "vss_cli control port remove");
+    const auto removed = run_cli("control", instance, {"port", "show", a_id});
+    require_exit(removed, 1, "vss_cli control port show of a removed port");
+    REQUIRE(contains(removed.output, "no port has that id"));
+}
+
+TEST_CASE("system control: a monitor reads, and a token without monitor may "
+          "only ping")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+    create_port(instance, "seen");
+
+    // The local user is a monitor and may read, though not change.
+    const std::string id = id_of_port(instance, "seen");
+    const auto shown = run_cli("control", instance, {"port", "show", id});
+    require_exit(shown, 0, "vss_cli control port show as a monitor");
+    REQUIRE(contains(shown.output, "Name: seen"));
+    const auto links = run_cli("control", instance, {"links"});
+    require_exit(links, 0, "vss_cli control links as a monitor");
+    REQUIRE(contains(links.output, "No links"));
+    require_exit(run_cli("control", instance, {"ping"}), 0,
+                 "vss_cli control ping as a monitor");
+
+    // A token that holds no scope to look.
+    const std::filesystem::path file = gate.scratch_dir() / "blind.token";
+    require_exit(run_cli("control", instance,
+                         {"token", "create", "--label=blind",
+                          "--scope=control.data", "--out=" + file.string()}),
+                 0, "vss_cli control token create --out");
+    const std::string token_option = "--token-file=" + file.string();
+    for (const std::vector<std::string>& words :
+         {std::vector<std::string>{"port", "show", id, token_option},
+          std::vector<std::string>{"links", token_option},
+          std::vector<std::string>{"link", "show", "l_1", token_option}})
+    {
+        const auto refused = run_cli("control", instance, words);
+        require_exit(refused, 1, "vss_cli control reading with no monitor");
+        REQUIRE(contains(refused.output, "forbidden"));
+    }
+    const auto still = run_cli("control", instance, {"ping", token_option});
+    require_exit(still, 0, "vss_cli control ping with no monitor");
+    REQUIRE_EQ(lines_of(still.output), std::vector<std::string>{"ok"});
+}
+
+TEST_CASE("system control: a gateway with no agent pings and says so for the "
+          "rest")
+{
+    const std::string instance = unique_instance();
+    gate_process gate(instance);
+    require_exit(run_cli("control", instance, {"ping"}), 0,
+                 "vss_cli control ping with no agent");
+    for (const std::vector<std::string>& words :
+         {std::vector<std::string>{"port", "show", "p_1"},
+          std::vector<std::string>{"links"},
+          std::vector<std::string>{"link", "show", "l_1"}})
+    {
+        const auto outcome = run_cli("control", instance, words);
+        require_exit(outcome, 1, "vss_cli control reading with no agent");
+        REQUIRE(contains(outcome.output, "unavailable"));
+    }
+}
+
 TEST_CASE("system control: a monitor can change nothing")
 {
     agent_process agent(unique_instance());
@@ -1455,6 +1612,24 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"port", "remove", "p_1", "p_2"},
         {"port", "remove", "p_1", "--kind=loopback"},
         {"port", "frobnicate", "p_1"},
+        {"port", "show"},
+        {"port", "show", ""},
+        {"port", "show", "p_1", "p_2"},
+        {"port", "show", "p_1", "--kind=loopback"},
+        {"port", "show", "p_1", "--hex=00"},
+        {"port", "show", "p_1", "--one-way"},
+        {"links", "p_1"},
+        {"links", "--one-way"},
+        {"links", "--hex=00"},
+        {"links", "--tx"},
+        {"ping", "p_1"},
+        {"ping", "--kind=loopback"},
+        {"ping", "--data"},
+        {"link", "show"},
+        {"link", "show", ""},
+        {"link", "show", "l_1", "l_2"},
+        {"link", "show", "l_1", "--one-way"},
+        {"link", "show", "l_1", "--hex=00"},
         {"link", "p_1"},
         {"link"},
         {"link", "p_1", "p_2", "p_3"},
@@ -1588,6 +1763,10 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"port", "create", "a", port_option, token_option},
         {"port", "remove", "p_1", port_option, token_option},
         {"link", "p_1", "p_2", port_option, token_option},
+        {"port", "show", "p_1", port_option, token_option},
+        {"links", port_option, token_option},
+        {"link", "show", "l_1", port_option, token_option},
+        {"ping", port_option, token_option},
         {"send", "p_1", "--hex=00", port_option, token_option},
         {"expect", "p_1", "--pattern=00", port_option, token_option},
         {"run", "begin", "smoke", port_option, token_option},
@@ -1608,6 +1787,10 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"port", "create", "a", "--kind=loopback"},
         {"port", "remove", "p_1"},
         {"link", "p_1", "p_2", "--one-way"},
+        {"port", "show", "p_1"},
+        {"links"},
+        {"link", "show", "l_1"},
+        {"ping"},
         {"expect", "p_1", "--pattern=00"},
         {"expect", "p_1", "--pattern=00FFab", "--timeout=100000", "--tx"},
         {"expect", "p_1", "--pattern=00", "--send-to=p_2", "--send=AB"},
