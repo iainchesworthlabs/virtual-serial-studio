@@ -337,7 +337,7 @@ private:
 
         for (std::size_t i = 0; i < kept; ++i)
         {
-            const char c = std::to_integer<char>(output_buffer_[i]);
+            const char c = output_buffer_[i];
             if (c == '\n')
             {
                 end_output_line();
@@ -711,8 +711,8 @@ private:
     std::optional<host_session> session_;
     std::unique_ptr<byte_stream> channel_;
     std::unique_ptr<byte_stream> output_;
-    std::array<std::byte, read_size> channel_buffer_{};
-    std::array<std::byte, read_size> output_buffer_{};
+    std::array<byte, read_size> channel_buffer_{};
+    std::array<char, read_size> output_buffer_{};
 
     std::deque<byte_buffer> outgoing_;
     std::size_t bytes_waiting_ = 0;
