@@ -1207,3 +1207,26 @@ TEST_CASE("document: bindings are saved to a file and loaded from it")
     REQUIRE(loaded);
     REQUIRE(*loaded == original);
 }
+
+// A long number in a binding's params used to be read a few units in the last
+// place off (Boost.JSON reads numbers imprecisely unless asked not to), and
+// each read and write of the same text moved it again. The text a document
+// writes must read back and write again unchanged.
+// Found by fuzz_topology; the input is in libs/vss_config/fuzz/regressions.
+TEST_CASE("document: long numbers in plugin params write the same text twice")
+{
+    const auto parsed = parse_port_plugins(
+        R"([{"id":"com.example.x","kind":"fixture","type":"meter",)"
+        R"("params":{"values":[-1964647777777777799966666666669999999999)"
+        R"(999994777777777777,-196666666666977770e9969666,7773.39966,)"
+        R"(-19999999999999999994777677777777]}}])");
+    REQUIRE(parsed);
+
+    const auto written = to_json(*parsed, false);
+    REQUIRE(written);
+    const auto again = from_json(*written);
+    REQUIRE(again);
+    const auto rewritten = to_json(*again, false);
+    REQUIRE(rewritten);
+    REQUIRE_EQ(*rewritten, *written);
+}

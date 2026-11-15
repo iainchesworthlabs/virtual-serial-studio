@@ -344,6 +344,17 @@ std::size_t depth_of(const json::value& value)
     return 0;
 }
 
+/// Parses JSON text with every number read to the nearest double.  The
+/// default reads a long number a few units in the last place off, and each
+/// read and write of the same text then moves it again, so the text a document
+/// writes would not settle.
+json::value parse_exact(std::string_view text, boost::system::error_code& ec)
+{
+    json::parse_options options;
+    options.numbers = json::number_precision::precise;
+    return json::parse(text, ec, {}, options);
+}
+
 /// The parameters of a binding as a JSON object, or nothing when the text is
 /// not one object inside the limits.
 std::optional<json::object> binding_params(std::string_view text)
@@ -351,7 +362,7 @@ std::optional<json::object> binding_params(std::string_view text)
     if (text.size() > max_binding_params_size)
         return std::nullopt;
     boost::system::error_code ec;
-    json::value parsed = json::parse(text, ec);
+    json::value parsed = parse_exact(text, ec);
     if (ec || !parsed.is_object() ||
         depth_of(parsed) > max_binding_params_depth)
         return std::nullopt;
@@ -811,7 +822,7 @@ result<document> from_json(std::string_view text)
 
     // The text must be valid JSON with an object at the top level.
     boost::system::error_code ec;
-    const json::value root = json::parse(text, ec);
+    const json::value root = parse_exact(text, ec);
     if (ec)
         return make_error_code(errc::config_error);
     if (!root.is_object())
