@@ -82,7 +82,11 @@
 //                         "answer-value <value>" as well when it is an
 //                         "error"
 //   --echo-op=<op>        answers a request with this op with "ok" and
-//                         prints "got <op>"
+//                         prints "got <op>"; may be given more than once
+//   --refuse-op=<op>      answers a request with this op with an "error"
+//                         (refused) whose text is "refused by the test
+//                         plugin", and prints "got <op>"; may be given more
+//                         than once
 //   --garbage-after-ready  after "hello_ack" writes 64 bytes that are not a
 //                         frame
 //   --flood-after-ready=<n>  after "hello_ack" sends n "log" messages as fast
