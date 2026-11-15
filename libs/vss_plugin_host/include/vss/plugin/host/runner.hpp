@@ -68,13 +68,13 @@ struct runner_options
     std::size_t kept_log_lines = 200;
     /// How many bytes of standard output and error are read each second.
     /// What is over is dropped and counted.
-    std::size_t output_bytes_per_second = 64 * 1024;
+    std::size_t output_bytes_per_second = std::size_t{64} * 1024;
     /// The longest line of standard output or error that is kept; a longer
     /// one is cut.
     std::size_t longest_output_line = 1024;
     /// How many bytes may wait to be sent to a plugin that does not read.
     /// One byte more and the plugin is treated as not responding.
-    std::size_t most_bytes_waiting = 4 * 1024 * 1024;
+    std::size_t most_bytes_waiting = std::size_t{4} * 1024 * 1024;
     /// How long a process that was asked to end has before it is killed.
     std::chrono::milliseconds end_grace{1000};
 };
