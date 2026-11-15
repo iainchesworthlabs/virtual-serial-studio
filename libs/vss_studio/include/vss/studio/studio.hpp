@@ -491,8 +491,17 @@ public:
     /// each list with the port or link it made and runs none of it, and
     /// `snapshot` writes the list back.  A list goes when its port or link
     /// is removed, and a port or link made in any other way has none.
+    ///
+    /// A mock port keeps its `mock_target`.  A document applied to a studio
+    /// with no ports gives the setup its `name` and `description`, which
+    /// `snapshot` writes back; one applied to ports that are already there
+    /// leaves them as they were.  A new studio is `untitled`, with no
+    /// description.
     result<void> apply(const config::document& value,
                        bool rollback_on_error = true);
+    /// The setup as it is now.  Ports are written in the order they were
+    /// made, so a setup that is opened and saved again keeps its order.  The
+    /// result always passes `config::validate`.
     config::document snapshot() const;
 
     // -- environment -------------------------------------------------------
@@ -606,6 +615,10 @@ private:
     subscriber_id reconnect_subscription_ = 0;
     mutable std::mutex record_mutex_;
     std::unordered_map<endpoint_id, port_record> records_;
+    /// The name and description of the setup, from the document that
+    /// `apply` made it from.  Guarded by `record_mutex_`.
+    std::string setup_name_ = "untitled";
+    std::string setup_description_;
     /// The plugin bindings of links, by link, kept for `snapshot` as a
     /// port's are.  Guarded by `record_mutex_`.
     std::unordered_map<link_id, std::vector<config::plugin_binding>>

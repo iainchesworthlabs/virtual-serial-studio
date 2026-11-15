@@ -30,6 +30,7 @@ In JSON:
 
 ```json
 {
+  "version": 1,
   "name": "share",
   "ports": [
     { "name": "device", "kind": "physical", "uri": "serial://COM3?baud=115200" },
@@ -105,6 +106,7 @@ carries no modem lines:
 
 ```json
 {
+  "version": 1,
   "name": "bus",
   "ports": [
     { "name": "master",   "kind": "virtual" },
@@ -219,6 +221,7 @@ them; nothing needs to be added to any of the programs.
 
 ```json
 {
+  "version": 1,
   "name": "poll-lab",
   "ports": [
     { "name": "master",   "kind": "virtual", "virtual_kind": "auto" },

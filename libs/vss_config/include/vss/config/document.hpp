@@ -147,14 +147,39 @@ struct document
 /// Serialises to a stable, human editable JSON shape.
 result<std::string> to_json(const document& value, bool pretty = true);
 
+/// Reads a setup.  The text must be one JSON object with `"version": 1`.  A
+/// member that is there must have the right type, and a member a setup does
+/// not have is refused, so a misspelt name is an error and not a missing
+/// value.  Every refusal is `errc::config_error`, or the error `validate`
+/// gives for a setup that reads but does not make sense.
 result<document> from_json(std::string_view text);
+/// The same, and on a refusal `problem` says in one sentence which member is
+/// wrong and why, such as `ports[1].kind must be text`.  It is empty on
+/// success.
+result<document> from_json(std::string_view text, std::string& problem);
 
 /// Checks names, kinds, URIs and link arity.
 error_code validate(const document& value);
 
+/// The largest setup file `load_file` reads, in bytes.  A real setup is a few
+/// kilobytes; a larger file is not one.
+constexpr std::uintmax_t max_setup_file_size = std::uintmax_t{16} * 1024 * 1024;
+
+/// What `save_file` adds to the name of the file to make the temporary file
+/// it writes first.
+constexpr const char* saving_file_suffix = ".saving";
+
 /// Reads a topology file. A missing path gives `not_found`; a path that is not
-/// a regular file (a directory, a device, a pipe) gives `invalid_argument`.
+/// a regular file (a directory, a device, a pipe) gives `invalid_argument`; a
+/// file over `max_setup_file_size` gives `config_error`.
 result<document> load_file(const std::string& path);
+/// The same, with `problem` as for `from_json`.
+result<document> load_file(const std::string& path, std::string& problem);
+
+/// Writes a topology file.  The text is written to `path` with
+/// `saving_file_suffix` added, which is then renamed over `path`, so a save
+/// that fails leaves the file that was there as it was, and the temporary
+/// file is removed.  A path that is a symbolic link is written through.
 result<void> save_file(const std::string& path, const document& value,
                        bool pretty = true);
 

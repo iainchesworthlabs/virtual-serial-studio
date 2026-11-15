@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
+#include <limits>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -35,110 +37,215 @@ json::object serial_to_json(const serial_settings& settings)
     return out;
 }
 
-error_code serial_from_json(const json::value& value, serial_settings& out)
+/// Reads the members of one JSON object of a setup.  A member that is there
+/// must have the right type, and `only` refuses a member that a setup does not
+/// have, so a typo is an error and not a default.  On the first refusal
+/// `problem` says which member and why, with the path of the member in the
+/// file, such as `ports[1].kind`.
+class member_reader
+{
+public:
+    member_reader(const json::object& object, std::string where,
+                  std::string& problem)
+        : object_(object), where_(std::move(where)), problem_(problem)
+    {
+    }
+
+    /// A reader of an object inside this one, which reports into the same
+    /// `problem`.
+    member_reader sub(const json::object& inner, std::string where) const
+    {
+        return member_reader(inner, std::move(where), problem_);
+    }
+
+    std::string path(std::string_view key) const
+    {
+        std::string out = where_;
+        if (!out.empty())
+            out += '.';
+        out += key;
+        return out;
+    }
+
+    /// Records the refusal of `key` and returns false.
+    bool fail(std::string_view key, std::string_view why) const
+    {
+        problem_ = path(key) + " " + std::string(why);
+        return false;
+    }
+
+    bool has(std::string_view key) const
+    {
+        return object_.if_contains(key) != nullptr;
+    }
+
+    /// Refuses every member that is not one of `known`.
+    bool only(std::initializer_list<std::string_view> known) const
+    {
+        for (const auto& entry : object_)
+        {
+            const std::string_view key = entry.key();
+            if (std::ranges::find(known, key) == known.end())
+                return fail(key, "is not a member of a setup");
+        }
+        return true;
+    }
+
+    bool text(std::string_view key, std::string& out) const
+    {
+        const auto* item = object_.if_contains(key);
+        if (!item)
+            return true;
+        if (!item->is_string())
+            return fail(key, "must be text");
+        out = std::string(item->as_string());
+        return true;
+    }
+
+    bool flag(std::string_view key, bool& out) const
+    {
+        const auto* item = object_.if_contains(key);
+        if (!item)
+            return true;
+        if (!item->is_bool())
+            return fail(key, "must be true or false");
+        out = item->as_bool();
+        return true;
+    }
+
+    /// A whole number from `low` to `high`.
+    template <class T>
+    bool whole(std::string_view key, std::int64_t low, std::int64_t high,
+               T& out) const
+    {
+        const auto* item = object_.if_contains(key);
+        if (!item)
+            return true;
+        if (!item->is_int64() || item->as_int64() < low ||
+            item->as_int64() > high)
+            return fail(key, "must be a whole number from " +
+                                 std::to_string(low) + " to " +
+                                 std::to_string(high));
+        out = static_cast<T>(item->as_int64());
+        return true;
+    }
+
+    /// A list of text.
+    bool strings(std::string_view key, std::vector<std::string>& out) const
+    {
+        const auto* item = object_.if_contains(key);
+        if (!item)
+            return true;
+        if (!item->is_array())
+            return fail(key, "must be a list of text");
+        std::vector<std::string> read;
+        for (const auto& element : item->as_array())
+        {
+            if (!element.is_string())
+                return fail(key, "must be a list of text");
+            read.emplace_back(element.as_string());
+        }
+        out = std::move(read);
+        return true;
+    }
+
+    /// A list; `out` is null when it is not there.
+    bool list(std::string_view key, const json::array*& out) const
+    {
+        out = nullptr;
+        const auto* item = object_.if_contains(key);
+        if (!item)
+            return true;
+        if (!item->is_array())
+            return fail(key, "must be a list");
+        out = &item->as_array();
+        return true;
+    }
+
+    /// An object; `out` is null when it is not there.
+    bool object(std::string_view key, const json::object*& out) const
+    {
+        out = nullptr;
+        const auto* item = object_.if_contains(key);
+        if (!item)
+            return true;
+        if (!item->is_object())
+            return fail(key, "must be an object");
+        out = &item->as_object();
+        return true;
+    }
+
+private:
+    const json::object& object_;
+    std::string where_;
+    std::string& problem_;
+};
+
+/// `ports[2]` and the like: where an element of a list is.
+std::string element_path(const std::string& list, std::size_t index)
+{
+    return list + "[" + std::to_string(index) + "]";
+}
+
+/// Reads the serial settings of a port.  `null` leaves the defaults.
+error_code serial_from_json(const json::value& value, const std::string& where,
+                            serial_settings& out, std::string& problem)
 {
     if (value.is_null())
         return {};
     if (!value.is_object())
+    {
+        problem = where + " must be an object";
         return make_error_code(errc::config_error);
+    }
 
-    const json::object& object = value.as_object();
+    const member_reader reader(value.as_object(), where, problem);
+    bool good = reader.only({"baud_rate", "data_bits", "parity", "stop_bits",
+                             "flow_control", "read_timeout_ms",
+                             "write_timeout_ms", "exclusive"});
 
-    if (const auto* item = object.if_contains("baud_rate"))
+    // A number is checked against the range of its type here; validate()
+    // decides which values the line may have.
+    good = good && reader.whole("baud_rate", 0, 40'000'000, out.baud_rate);
+    good = good && reader.whole("data_bits", 0, 255, out.data_bits);
+
+    const auto named =
+        [&reader, &good](std::string_view key, auto parse, auto& target)
     {
-        if (!item->is_int64() || item->as_int64() < 0
-            || item->as_int64() > 40'000'000)
-            return make_error_code(errc::config_error);
-        out.baud_rate = static_cast<unsigned>(item->as_int64());
-    }
-    if (const auto* item = object.if_contains("data_bits"))
-    {
-        if (!item->is_int64())
-            return make_error_code(errc::config_error);
-        out.data_bits = static_cast<unsigned>(item->as_int64());
-    }
-    if (const auto* item = object.if_contains("parity"))
-    {
-        if (!item->is_string())
-            return make_error_code(errc::config_error);
-        const auto parsed = parse_parity(item->as_string());
+        std::string name;
+        if (!good || !reader.has(key))
+            return;
+        good = reader.text(key, name);
+        if (!good)
+            return;
+        const auto parsed = parse(name);
         if (!parsed)
-            return make_error_code(errc::config_error);
-        out.parity = *parsed;
-    }
-    if (const auto* item = object.if_contains("stop_bits"))
-    {
-        if (!item->is_string())
-            return make_error_code(errc::config_error);
-        const auto parsed = parse_stop_bits(item->as_string());
-        if (!parsed)
-            return make_error_code(errc::config_error);
-        out.stop_bits = *parsed;
-    }
-    if (const auto* item = object.if_contains("flow_control"))
-    {
-        if (!item->is_string())
-            return make_error_code(errc::config_error);
-        const auto parsed = parse_flow_control(item->as_string());
-        if (!parsed)
-            return make_error_code(errc::config_error);
-        out.flow_control = *parsed;
-    }
-    if (const auto* item = object.if_contains("read_timeout_ms"))
-    {
-        if (!item->is_int64() || item->as_int64() < 0)
-            return make_error_code(errc::config_error);
-        out.read_timeout = std::chrono::milliseconds(item->as_int64());
-    }
-    if (const auto* item = object.if_contains("write_timeout_ms"))
-    {
-        if (!item->is_int64() || item->as_int64() < 0)
-            return make_error_code(errc::config_error);
-        out.write_timeout = std::chrono::milliseconds(item->as_int64());
-    }
-    if (const auto* item = object.if_contains("exclusive"))
-    {
-        if (!item->is_bool())
-            return make_error_code(errc::config_error);
-        out.exclusive = item->as_bool();
-    }
+            good = reader.fail(key, "is not a value that is known");
+        else
+            target = *parsed;
+    };
+    named(
+        "parity", [](std::string_view v) { return parse_parity(v); },
+        out.parity);
+    named(
+        "stop_bits", [](std::string_view v) { return parse_stop_bits(v); },
+        out.stop_bits);
+    named(
+        "flow_control", [](std::string_view v)
+        { return parse_flow_control(v); }, out.flow_control);
+
+    std::int64_t read_timeout = out.read_timeout.count();
+    std::int64_t write_timeout = out.write_timeout.count();
+    constexpr std::int64_t max_int = std::numeric_limits<std::int64_t>::max();
+    good = good && reader.whole("read_timeout_ms", 0, max_int, read_timeout);
+    good = good && reader.whole("write_timeout_ms", 0, max_int, write_timeout);
+    good = good && reader.flag("exclusive", out.exclusive);
+    if (!good)
+        return make_error_code(errc::config_error);
+    out.read_timeout = std::chrono::milliseconds(read_timeout);
+    out.write_timeout = std::chrono::milliseconds(write_timeout);
 
     return validate(out);
-}
-
-std::string string_member(const json::object& object, std::string_view key,
-                          std::string_view fallback = {})
-{
-    const auto* item = object.if_contains(key);
-    if (!item || !item->is_string())
-        return std::string(fallback);
-    return std::string(item->as_string());
-}
-
-bool bool_member(const json::object& object, std::string_view key, bool fallback)
-{
-    const auto* item = object.if_contains(key);
-    if (!item || !item->is_bool())
-        return fallback;
-    return item->as_bool();
-}
-
-result<std::vector<std::string>> string_array(const json::object& object,
-                                              std::string_view key)
-{
-    std::vector<std::string> out;
-    const auto* item = object.if_contains(key);
-    if (!item)
-        return out;
-    if (!item->is_array())
-        return make_error_code(errc::config_error);
-    for (const auto& element : item->as_array())
-    {
-        if (!element.is_string())
-            return make_error_code(errc::config_error);
-        out.emplace_back(element.as_string());
-    }
-    return out;
 }
 
 /// Writes `delay_ms` and `jitter_ms` only when they are set, so a file
@@ -151,25 +258,11 @@ void latency_to_json(const link_entry& link, json::object& object)
         object["jitter_ms"] = link.jitter_ms;
 }
 
-error_code milliseconds_member(const json::object& object, std::string_view key,
-                               std::uint32_t& out)
+bool latency_from_json(const member_reader& reader, link_entry& link)
 {
-    const auto* item = object.if_contains(key);
-    if (!item)
-        return {};
-    if (!item->is_int64() || item->as_int64() < 0 ||
-        item->as_int64() > static_cast<std::int64_t>(max_link_delay_ms))
-        return make_error_code(errc::config_error);
-    out = static_cast<std::uint32_t>(item->as_int64());
-    return {};
-}
-
-error_code latency_from_json(const json::object& object, link_entry& link)
-{
-    if (const error_code error =
-            milliseconds_member(object, "delay_ms", link.delay_ms))
-        return error;
-    return milliseconds_member(object, "jitter_ms", link.jitter_ms);
+    const auto limit = static_cast<std::int64_t>(max_link_delay_ms);
+    return reader.whole("delay_ms", 0, limit, link.delay_ms) &&
+           reader.whole("jitter_ms", 0, limit, link.jitter_ms);
 }
 
 /// Writes the half-duplex line of a bus, and nothing when it is off.
@@ -188,50 +281,36 @@ void half_duplex_to_json(const link_entry& link, json::object& object)
 /// Reads the `half_duplex` object of a link.  Its presence turns the option
 /// on; each member is optional.  Which links may have one, and the limits of
 /// the numbers, are checked in validate().
-error_code half_duplex_from_json(const json::object& object, link_entry& link)
+bool half_duplex_from_json(const member_reader& reader, link_entry& link)
 {
-    const auto* item = object.if_contains("half_duplex");
-    if (!item)
-        return {};
-    if (!item->is_object())
-        return make_error_code(errc::config_error);
-    const json::object& line = item->as_object();
+    const json::object* line = nullptr;
+    if (!reader.object("half_duplex", line))
+        return false;
+    if (line == nullptr)
+        return true;
 
+    const member_reader fields = reader.sub(*line, reader.path("half_duplex"));
     half_duplex_options options;
     options.enabled = true;
-    const auto number = [&line](std::string_view key, std::uint32_t& out)
-    {
-        const auto* value = line.if_contains(key);
-        if (!value)
-            return true;
-        if (!value->is_int64() || value->as_int64() < 0 ||
-            value->as_int64() > static_cast<std::int64_t>(max_bus_bit_rate))
-            return false;
-        out = static_cast<std::uint32_t>(value->as_int64());
-        return true;
-    };
-    if (!number("bit_rate", options.bit_rate) ||
-        !number("turnaround_ms", options.turnaround_ms))
-        return make_error_code(errc::config_error);
+    const auto limit = static_cast<std::int64_t>(max_bus_bit_rate);
+    if (!fields.only(
+            {"bit_rate", "turnaround_ms", "collisions", "rts_gating"}) ||
+        !fields.whole("bit_rate", 0, limit, options.bit_rate) ||
+        !fields.whole("turnaround_ms", 0, limit, options.turnaround_ms))
+        return false;
 
-    if (const auto* collisions = line.if_contains("collisions"))
-    {
-        if (!collisions->is_string())
-            return make_error_code(errc::config_error);
-        if (collisions->as_string() == "garble")
-            options.on_collision = collision_action::garble;
-        else if (collisions->as_string() != "report")
-            return make_error_code(errc::config_error);
-    }
-    if (const auto* gating = line.if_contains("rts_gating"))
-    {
-        if (!gating->is_bool())
-            return make_error_code(errc::config_error);
-        options.rts_gating = gating->as_bool();
-    }
+    std::string collisions;
+    if (!fields.text("collisions", collisions))
+        return false;
+    if (collisions == "garble")
+        options.on_collision = collision_action::garble;
+    else if (fields.has("collisions") && collisions != "report")
+        return fields.fail("collisions", "must be \"report\" or \"garble\"");
+    if (!fields.flag("rts_gating", options.rts_gating))
+        return false;
 
     link.half_duplex = options;
-    return {};
+    return true;
 }
 
 // -- plugin bindings ---------------------------------------------------------
@@ -445,57 +524,51 @@ void bindings_to_json(const std::vector<plugin_binding>& bindings,
     object["plugins"] = std::move(list);
 }
 
-/// Reads the `plugins` list of a port or a link.  Unlike the older members,
-/// which fall back to a default, a member of a binding that is there must
-/// have the right type.  The values are checked in validate().
-error_code bindings_from_json(const json::object& object,
-                              std::vector<plugin_binding>& out)
+/// Reads the `plugins` list of a port or a link.  A member of a binding that
+/// is there must have the right type, and one that a binding does not have is
+/// refused.  The values are checked in validate().
+bool bindings_from_json(const member_reader& reader,
+                        std::vector<plugin_binding>& out)
 {
-    const auto* item = object.if_contains("plugins");
-    if (!item)
-        return {};
-    if (!item->is_array() || item->as_array().size() > max_plugin_bindings)
-        return make_error_code(errc::config_error);
+    const json::array* list = nullptr;
+    if (!reader.list("plugins", list))
+        return false;
+    if (list == nullptr)
+        return true;
+    if (list->size() > max_plugin_bindings)
+        return reader.fail("plugins", "has too many plugins");
 
-    for (const auto& element : item->as_array())
+    const std::string where = reader.path("plugins");
+    for (std::size_t index = 0; index < list->size(); ++index)
     {
+        const json::value& element = (*list)[index];
+        const std::string here = element_path(where, index);
         if (!element.is_object())
-            return make_error_code(errc::config_error);
-        const json::object& entry = element.as_object();
+            return reader.fail("plugins", "must be a list of objects");
+        const member_reader entry = reader.sub(element.as_object(), here);
 
         plugin_binding binding;
-        bool well_typed = true;
-        const auto text = [&entry, &well_typed](std::string_view key,
-                                                std::string& value) {
-            const auto* member = entry.if_contains(key);
-            if (!member)
-                return;
-            if (member->is_string())
-                value = std::string(member->as_string());
-            else
-                well_typed = false;
-        };
-        text("id", binding.id);
-        text("kind", binding.kind);
-        text("type", binding.type);
-        text("name", binding.name);
-        text("publisher", binding.publisher);
-        text("key_id", binding.key_id);
-        text("version", binding.version);
-        text("get_it_from", binding.get_it_from);
-        text("on_timeout", binding.on_timeout);
-        if (!well_typed)
-            return make_error_code(errc::config_error);
+        if (!entry.only({"id", "kind", "type", "name", "publisher", "key_id",
+                         "version", "get_it_from", "on_timeout", "params"}) ||
+            !entry.text("id", binding.id) ||
+            !entry.text("kind", binding.kind) ||
+            !entry.text("type", binding.type) ||
+            !entry.text("name", binding.name) ||
+            !entry.text("publisher", binding.publisher) ||
+            !entry.text("key_id", binding.key_id) ||
+            !entry.text("version", binding.version) ||
+            !entry.text("get_it_from", binding.get_it_from) ||
+            !entry.text("on_timeout", binding.on_timeout))
+            return false;
 
-        if (const auto* params = entry.if_contains("params"))
-        {
-            if (!params->is_object())
-                return make_error_code(errc::config_error);
+        const json::object* params = nullptr;
+        if (!entry.object("params", params))
+            return false;
+        if (params != nullptr)
             binding.params = json::serialize(*params);
-        }
         out.push_back(std::move(binding));
     }
-    return {};
+    return true;
 }
 
 bool contains_kind(std::string_view value)
@@ -818,125 +891,162 @@ result<std::string> to_json(const document& value, bool pretty)
 
 result<document> from_json(std::string_view text)
 {
+    std::string problem;
+    return from_json(text, problem);
+}
+
+result<document> from_json(std::string_view text, std::string& problem)
+{
     VSS_PROFILE_ZONE("config.from_json");
+    problem.clear();
+    const auto refused = [] { return make_error_code(errc::config_error); };
 
     // The text must be valid JSON with an object at the top level.
     boost::system::error_code ec;
     const json::value root = parse_exact(text, ec);
     if (ec)
-        return make_error_code(errc::config_error);
+    {
+        problem = "the text is not JSON: " + ec.message();
+        return refused();
+    }
     if (!root.is_object())
-        return make_error_code(errc::config_error);
+    {
+        problem = "the setup must be one JSON object";
+        return refused();
+    }
+
+    // A member that a setup does not have is refused: a misspelt name would
+    // otherwise open as a setup without it, and saving that setup would write
+    // the loss back over the file.
+    const json::object& object = root.as_object();
+    const member_reader top(object, {}, problem);
+    if (!top.only({"version", "name", "description", "ports", "links"}))
+        return refused();
+
+    // Only version 1 is understood, and the file must say so, as the JSON
+    // view of the window requires.
+    const json::value* version = object.if_contains("version");
+    if (version == nullptr)
+    {
+        problem = "version is missing; it must be 1";
+        return refused();
+    }
+    if (!version->is_int64() || version->as_int64() != 1)
+    {
+        problem = "version must be 1";
+        return refused();
+    }
 
     // Name and description are optional; a missing name reads "untitled".
-    const json::object& object = root.as_object();
     document out;
-    out.name = string_member(object, "name", "untitled");
-    out.description = string_member(object, "description");
+    if (!top.text("name", out.name) ||
+        !top.text("description", out.description))
+        return refused();
 
     // Ports: the list is optional, but if present it must be an array of
     // objects.  Missing members take the defaults chosen here.
-    const auto* ports = object.if_contains("ports");
-    if (ports && !ports->is_array())
-        return make_error_code(errc::config_error);
+    const json::array* ports = nullptr;
+    if (!top.list("ports", ports))
+        return refused();
 
-    if (ports)
+    if (ports != nullptr)
     {
-        for (const auto& element : ports->as_array())
+        for (std::size_t index = 0; index < ports->size(); ++index)
         {
+            const std::string where = element_path("ports", index);
+            const json::value& element = (*ports)[index];
             if (!element.is_object())
-                return make_error_code(errc::config_error);
-            const json::object& entry = element.as_object();
+            {
+                problem = where + " must be an object";
+                return refused();
+            }
+            const member_reader entry = top.sub(element.as_object(), where);
 
             port_entry port;
-            port.name = string_member(entry, "name");
-            port.kind = string_member(entry, "kind", "virtual");
-            port.uri = string_member(entry, "uri");
-            port.virtual_kind = string_member(entry, "virtual_kind", "auto");
-            port.mock_target = string_member(entry, "mock_target", "scripted");
-            port.capture = bool_member(entry, "capture", true);
+            if (!entry.only({"name", "kind", "uri", "virtual_kind",
+                             "mock_target", "serial", "capture", "com_number",
+                             "plugins"}) ||
+                !entry.text("name", port.name) ||
+                !entry.text("kind", port.kind) ||
+                !entry.text("uri", port.uri) ||
+                !entry.text("virtual_kind", port.virtual_kind) ||
+                !entry.text("mock_target", port.mock_target) ||
+                !entry.flag("capture", port.capture))
+                return refused();
 
             // A com_number must be an integer in the allowed range.  Whether
             // the port may have one is decided later, in validate().
-            if (const auto* number = entry.if_contains("com_number"))
-            {
-                if (!number->is_int64() || number->as_int64() < min_com_number
-                    || number->as_int64() > max_com_number)
-                    return make_error_code(errc::config_error);
-                port.com_number = static_cast<unsigned>(number->as_int64());
-            }
+            if (!entry.whole("com_number", min_com_number, max_com_number,
+                             port.com_number))
+                return refused();
 
-            if (const auto* serial = entry.if_contains("serial"))
+            if (const auto* serial = element.as_object().if_contains("serial"))
             {
-                if (const error_code parse_error =
-                        serial_from_json(*serial, port.serial))
+                if (const error_code parse_error = serial_from_json(
+                        *serial, entry.path("serial"), port.serial, problem))
                     return parse_error;
             }
 
-            if (const error_code binding_error =
-                    bindings_from_json(entry, port.plugins))
-                return binding_error;
+            if (!bindings_from_json(entry, port.plugins))
+                return refused();
 
             out.ports.push_back(std::move(port));
         }
     }
 
     // Links follow the same rule as ports: optional, but an array of objects.
-    const auto* links = object.if_contains("links");
-    if (links && !links->is_array())
-        return make_error_code(errc::config_error);
+    const json::array* links = nullptr;
+    if (!top.list("links", links))
+        return refused();
 
-    if (links)
+    if (links != nullptr)
     {
-        for (const auto& element : links->as_array())
+        for (std::size_t index = 0; index < links->size(); ++index)
         {
+            const std::string where = element_path("links", index);
+            const json::value& element = (*links)[index];
             if (!element.is_object())
-                return make_error_code(errc::config_error);
-            const json::object& entry = element.as_object();
+            {
+                problem = where + " must be an object";
+                return refused();
+            }
+            const member_reader entry = top.sub(element.as_object(), where);
 
             link_entry link;
-            link.mode = string_member(entry, "mode", "duplex");
+            std::string policy = "interleave";
+            if (!entry.only({"mode", "sources", "targets", "members",
+                             "emulate_modem_lines", "policy", "delay_ms",
+                             "jitter_ms", "half_duplex", "plugins"}) ||
+                !entry.text("mode", link.mode))
+                return refused();
+
             // A bus has no modem lines, so absent means off there.
-            link.emulate_modem_lines =
-                bool_member(entry, "emulate_modem_lines", link.mode != "bus");
+            link.emulate_modem_lines = link.mode != "bus";
 
             // A missing list reads as empty; a list of anything but strings
             // is an error.  Which lists a mode needs is checked in validate().
-            auto sources = string_array(entry, "sources");
-            if (!sources)
-                return make_error_code(errc::config_error);
-            link.sources = std::move(*sources);
-
-            auto targets = string_array(entry, "targets");
-            if (!targets)
-                return make_error_code(errc::config_error);
-            link.targets = std::move(*targets);
-
-            auto members = string_array(entry, "members");
-            if (!members)
-                return make_error_code(errc::config_error);
-            link.members = std::move(*members);
+            if (!entry.flag("emulate_modem_lines", link.emulate_modem_lines) ||
+                !entry.strings("sources", link.sources) ||
+                !entry.strings("targets", link.targets) ||
+                !entry.strings("members", link.members) ||
+                !entry.text("policy", policy))
+                return refused();
 
             // The merge policy is either owner or interleave (the default).
-            const std::string policy = string_member(entry, "policy", "interleave");
             if (policy == "owner")
                 link.policy = merge_policy::owner;
             else if (policy == "interleave")
                 link.policy = merge_policy::interleave;
             else
-                return make_error_code(errc::config_error);
+            {
+                entry.fail("policy", "must be \"owner\" or \"interleave\"");
+                return refused();
+            }
 
-            if (const error_code latency_error =
-                    latency_from_json(entry, link))
-                return latency_error;
-
-            if (const error_code line_error =
-                    half_duplex_from_json(entry, link))
-                return line_error;
-
-            if (const error_code binding_error =
-                    bindings_from_json(entry, link.plugins))
-                return binding_error;
+            if (!latency_from_json(entry, link) ||
+                !half_duplex_from_json(entry, link) ||
+                !bindings_from_json(entry, link.plugins))
+                return refused();
 
             out.links.push_back(std::move(link));
         }
@@ -945,12 +1055,23 @@ result<document> from_json(std::string_view text)
     // Parsing only checks types; validate() checks that the document makes
     // sense as a whole, so a caller never receives an invalid document.
     if (const error_code invalid = validate(out))
+    {
+        problem = "the setup is not valid: " + invalid.message();
         return invalid;
+    }
     return out;
 }
 
 result<document> load_file(const std::string& path)
 {
+    std::string problem;
+    return load_file(path, problem);
+}
+
+result<document> load_file(const std::string& path, std::string& problem)
+{
+    problem.clear();
+
     // A topology is a small regular file. A directory, a device or a pipe would
     // open on some systems and then read as nothing, or never stop.
     std::error_code status_error;
@@ -960,13 +1081,29 @@ result<document> load_file(const std::string& path)
     if (!std::filesystem::is_regular_file(status))
         return make_error_code(errc::invalid_argument);
 
+    // A real setup is far below the limit.  Refusing a larger file here keeps
+    // a file picked by mistake from being read into memory.
+    const std::uintmax_t size = std::filesystem::file_size(path, status_error);
+    if (status_error)
+        return make_error_code(errc::io_error);
+    if (size > max_setup_file_size)
+    {
+        problem = "the file is larger than " +
+                  std::to_string(max_setup_file_size / (1024 * 1024)) +
+                  " MiB, which is the most a setup file may be";
+        return make_error_code(errc::config_error);
+    }
+
     std::ifstream stream(path, std::ios::binary);
     if (!stream)
         return make_error_code(errc::not_found);
 
-    std::ostringstream buffer;
-    buffer << stream.rdbuf();
-    return from_json(buffer.str());
+    std::string text(static_cast<std::size_t>(size), '\0');
+    stream.read(text.data(), static_cast<std::streamsize>(text.size()));
+    if (stream.bad())
+        return make_error_code(errc::io_error);
+    text.resize(static_cast<std::size_t>(stream.gcount()));
+    return from_json(text, problem);
 }
 
 result<void> save_file(const std::string& path, const document& value,
@@ -976,12 +1113,52 @@ result<void> save_file(const std::string& path, const document& value,
     if (!text)
         return text.error();
 
-    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
-    if (!stream)
-        return make_error_code(errc::permission_denied);
-    stream << *text;
-    if (!stream)
-        return make_error_code(errc::io_error);
+    // The text goes to a file beside the target and replaces it in one step,
+    // so a failure at any point leaves the file that was there as it was.
+    // A target that is a symbolic link is written through, as it always was.
+    std::error_code fs_error;
+    std::filesystem::path target(path);
+    if (std::filesystem::is_symlink(target, fs_error))
+    {
+        auto resolved = std::filesystem::canonical(target, fs_error);
+        if (!fs_error)
+            target = std::move(resolved);
+    }
+    std::filesystem::path temporary = target;
+    temporary += saving_file_suffix;
+
+    const auto abandon = [&temporary](errc reason)
+    {
+        std::error_code ignored;
+        std::filesystem::remove(temporary, ignored);
+        return make_error_code(reason);
+    };
+
+    {
+        std::ofstream stream(temporary, std::ios::binary | std::ios::trunc);
+        if (!stream)
+            return make_error_code(errc::permission_denied);
+        stream << *text;
+        stream.flush();
+        if (!stream)
+            return abandon(errc::io_error);
+        stream.close();
+        if (stream.fail())
+            return abandon(errc::io_error);
+    }
+
+    // The file keeps the permissions it had.  A file that is not there yet
+    // takes the ones a new file gets.
+    const auto existing = std::filesystem::status(target, fs_error);
+    if (!fs_error && std::filesystem::is_regular_file(existing))
+        std::filesystem::permissions(temporary, existing.permissions(),
+                                     fs_error);
+
+    std::filesystem::rename(temporary, target, fs_error);
+    if (fs_error)
+        return abandon(fs_error == std::errc::permission_denied
+                           ? errc::permission_denied
+                           : errc::io_error);
     return {};
 }
 

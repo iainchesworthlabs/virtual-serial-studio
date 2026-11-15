@@ -1657,6 +1657,17 @@ result<void> studio::apply(const config::document& value,
         }
     }
 
+    // A setup opened into an empty studio keeps its name and description, and
+    // snapshot() writes them back.  A document added to ports that are
+    // already there leaves them as they are.
+    {
+        std::lock_guard lock(record_mutex_);
+        if (records_.size() == created.size())
+        {
+            setup_name_ = value.name;
+            setup_description_ = value.description;
+        }
+    }
     return {};
 }
 
@@ -1664,22 +1675,43 @@ config::document studio::snapshot() const
 {
     VSS_PROFILE_ZONE("studio.snapshot");
     config::document document;
-    document.name = "studio";
 
     std::unordered_map<endpoint_id, std::string> names;
     std::unordered_map<link_id, std::vector<config::plugin_binding>>
         link_plugins;
     {
         std::lock_guard lock(record_mutex_);
+        document.name = setup_name_;
+        document.description = setup_description_;
         link_plugins = link_plugins_;
+
+        // Ports are written in the order they were made, which is the order
+        // of their ids, so that a setup that is opened and saved again is the
+        // same text.  The table they are kept in has no order.
+        std::vector<const port_record*> ordered;
+        ordered.reserve(records_.size());
         for (const auto& entry : records_)
+            ordered.push_back(&entry.second);
+        std::ranges::sort(ordered,
+                          [](const port_record* a, const port_record* b)
+                          { return a->id < b->id; });
+
+        for (const port_record* kept : ordered)
         {
-            const auto& record = entry.second;
+            const auto& record = *kept;
+            // A virtual port and a mock are made by the studio, so the file
+            // gives no uri for them.  A port made on a com0com pair has one
+            // in its record, which only a reopen needs.
+            const bool made_here =
+                record.kind == "virtual" || record.kind == "mock";
             auto entry_of_port = record_to_entry(
-                record.name, record.kind, record.uri, record.virtual_kind,
+                record.name, record.kind,
+                made_here ? std::string{} : record.uri, record.virtual_kind,
                 record.serial, record.capture);
             entry_of_port.com_number = record.com_number;
             entry_of_port.plugins = record.plugins;
+            if (record.kind == "mock" && !record.mock_target.empty())
+                entry_of_port.mock_target = record.mock_target;
             document.ports.push_back(std::move(entry_of_port));
             names.emplace(record.id, record.name);
         }
