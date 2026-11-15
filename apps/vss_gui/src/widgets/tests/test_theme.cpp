@@ -327,6 +327,23 @@ TEST_CASE("theme: the bundled fonts are registered and used")
     REQUIRE(ui.front() != QStringLiteral("Noto Sans Hebrew"));
 }
 
+TEST_CASE("theme: every font asks for the chosen hinting")
+{
+    auto& theme = vss::gui::Theme::instance();
+    using vss::gui::text_style;
+    for (const text_style style :
+         {text_style::caption, text_style::label, text_style::body,
+          text_style::bodyLarge, text_style::subtitle, text_style::title,
+          text_style::display, text_style::portName, text_style::data,
+          text_style::heading, text_style::group})
+    {
+        const QFont font = theme.font(style);
+        REQUIRE_EQ(static_cast<int>(font.hintingPreference()),
+                   static_cast<int>(vss::gui::text_hinting));
+        REQUIRE(font.styleStrategy() & QFont::PreferAntialias);
+    }
+}
+
 TEST_CASE("theme: reduced motion override zeroes the durations")
 {
     auto& theme = vss::gui::Theme::instance();
