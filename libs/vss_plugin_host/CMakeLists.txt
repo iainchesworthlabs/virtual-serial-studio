@@ -8,6 +8,7 @@
 #
 
 add_library(vss_plugin_host
+  src/control_relay.cpp
   src/process.cpp
   src/runner.cpp
   src/sandbox.cpp
@@ -21,6 +22,10 @@ target_include_directories(vss_plugin_host PUBLIC
 target_include_directories(vss_plugin_host PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_features(vss_plugin_host PUBLIC cxx_std_23)
 target_link_libraries(vss_plugin_host PUBLIC vss_core Vss::plugin)
+# The control relay speaks to the gateway as the gateway's own clients do: the
+# local transport and frames of the agent, and the messages of the control API.
+target_link_libraries(vss_plugin_host PRIVATE vss_agent_core vss_control_proto
+  Vss::BoostJson)
 
 # How a process is started differs by system. CMake picks the file; Linux
 # and macOS share one.

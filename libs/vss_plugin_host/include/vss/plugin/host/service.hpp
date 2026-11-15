@@ -89,8 +89,13 @@ struct service_plugin
     std::string detail;
     /// It may run and is switched on.
     bool enabled = false;
-    /// The user has decided about this exact copy.
+    /// The user has decided about this exact copy; `decision` is what was
+    /// decided, as the trust store holds it.
     bool decided = false;
+    std::optional<plugin_decision> decision;
+    /// The manifest, when it could be read: what the plugin says of
+    /// itself.  Every text in it is the plugin's own and untrusted.
+    std::optional<manifest> declared;
     /// What the manifest asks for, what it gets and what it does not.
     std::vector<permission_request> asked;
     std::vector<permission> granted;
@@ -102,6 +107,8 @@ struct service_plugin
 struct service_snapshot
 {
     std::vector<service_plugin> plugins;
+    /// The author keys the user approved, as the trust store holds them.
+    std::vector<approved_key> approved_keys;
     /// Lines for a person about the computer: a policy file that could
     /// not be used, a trust store that could not be written.
     std::vector<std::string> notes;
@@ -152,6 +159,13 @@ public:
 
     /// Forgets the decision about one copy of a plugin.
     void forget(std::string plugin_id);
+
+    /// The user approves an author's key, or takes the approval back.
+    /// Stored in the trust store by the service, in turn with its other
+    /// writes, then the plugins are judged anew: a plugin signed with the
+    /// key becomes "signed by a key you approved", or stops being so.
+    void approve_key(approved_key key);
+    void forget_key(std::string key_id);
 
     /// The latest snapshot.  Any thread; never waits.
     std::shared_ptr<const service_snapshot> snapshot() const;
