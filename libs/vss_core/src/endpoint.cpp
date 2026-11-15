@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <future>
 #include <mutex>
+#include <utility>
 #include <vector>
 
 namespace vss {
@@ -374,8 +375,11 @@ std::vector<write_handler> endpoint::take_write_queue_locked()
     handlers.reserve(write_queue_.size());
     for (const auto& pending : write_queue_)
     {
+        // std::exchange and not std::move: a std::function that was moved
+        // from need not be empty (libc++ leaves a small callable in place),
+        // and a handler left behind here would be called a second time.
         if (pending->handler)
-            handlers.push_back(std::move(pending->handler));
+            handlers.push_back(std::exchange(pending->handler, nullptr));
     }
     write_queue_.clear();
     write_queue_bytes_ = 0;
@@ -496,7 +500,9 @@ void endpoint::on_write(const std::shared_ptr<pending_write>& write,
             // write, and its handler, with the queue.
             if (generation != generation_.load())
                 return;
-            failed = std::move(write->handler);
+            // Emptied by hand, as in take_write_queue_locked(): this write
+            // is still in the queue that is taken next.
+            failed = std::exchange(write->handler, nullptr);
             abandoned = take_write_queue_locked();
         }
         if (failed)
@@ -529,7 +535,7 @@ void endpoint::on_write(const std::shared_ptr<pending_write>& write,
             std::lock_guard lock(write_mutex_);
             if (generation != generation_.load())
                 return;
-            finished = std::move(write->handler);
+            finished = std::exchange(write->handler, nullptr);
             if (!write_queue_.empty() && write_queue_.front() == write)
                 write_queue_.pop_front();
             write_queue_bytes_ -= std::min(write_queue_bytes_, write->data->size());
