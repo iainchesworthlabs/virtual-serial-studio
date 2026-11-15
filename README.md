@@ -340,9 +340,7 @@ The dependencies keep their own terms, all compatible with the GPL:
 
 * [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) and Boost itself are
   **BSL-1.0**; BSL-1.0 is a permissive licence that can be combined with GPLv3.
-* Qt 6 is **LGPL-3.0 / GPL-3.0 / commercial**; the GUI links it dynamically. The
-  Qt Canvas Painter module is **GPL-3.0 / commercial** only, so the GUI is
-  conveyed under version 3 of the GPL.
+* Qt 6 is **LGPL-3.0 / GPL-3.0 / commercial**; the GUI links it dynamically.
 * `com0com` is an optional, separately installed Windows driver, invoked rather
   than linked.
 * Three tools in `tools/` are derived from the Boost.VirtualSerial repository
