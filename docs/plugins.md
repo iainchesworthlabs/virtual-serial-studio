@@ -1,8 +1,8 @@
 # The plugin framework (design)
 
 Status: **reviewed**. The owner went through this design on 13 November 2026. Section 17 records each decision
-and lists what is still open. Part of it is built, as a library with no plugin host: see [What is built](#what-is-built).
-It builds on the decisions in
+and lists what is still open. Part of it is built, as a library with no plugin host: see
+[What is built](#what-is-built). It builds on the decisions in
 [Editions, licensing and plugins](editions.md) and on the protocol of [the per-user agent](agent.md), and it does not
 repeat them.
 
@@ -15,18 +15,22 @@ what discovery finds.
 
 | Part | File in `libs/vss_plugin/src` | Used by |
 |---|---|---|
-| The manifest reader, its limits and the parameter types | `manifest.cpp` | Discovery, `verify` |
+| The manifest reader, its limits and the parameter types | `manifest.cpp` | Discovery, `verify`, a fuzz target |
+| The reason codes (section 12) | `error.cpp` | Everything below |
 | The hash of a plugin and the check of its files against the manifest | `hash.cpp`, `measure.cpp` | Discovery |
 | Discovery: the plugin folders, which copy counts (`shadowed`), `too_many` | `discover.cpp`, `locations.cpp` | `vss_cli plugin list` |
 | Who may write a file, and so the kind of install | `access.cpp` and the files under `platform` | `vss_cli plugin list` |
-| The administrator's policy file | `policy.cpp` | `vss_cli plugin list` reads and shows it. Nothing applies it |
-| The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | Tests only |
-| The trust store (`trust.json`) | `trust_store.cpp` | Tests only |
+| The administrator's policy file | `policy.cpp` | `vss_cli plugin list` reads it and says where it is and whether it can be used. Nothing applies it |
+| The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | The tests and a fuzz target |
+| The trust store (`trust.json`) | `trust_store.cpp` | The tests and a fuzz target |
 | `verify`: whether a plugin may run | `verify.cpp` | Tests only |
 | The licence question for an official plugin | `licence.cpp` | Tests only |
-| The messages of the plugin API that every plugin uses (`hello`, `hello_ack`, `ping`, `status`, `log`, `shutdown`, `error` and the rest of section 7.3) | `protocol.cpp` | Tests only |
+| The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
 | The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
 | The restart and quarantine rules | `lifecycle.cpp` | Tests only |
+
+`params.changed`, `instance.create` and `instance.stop` of section 7.3 are not built: the codec passes them through as
+an unknown op.
 
 `vss_cli plugin list` never checks a signature. It does not run `verify` or the licence question and it does not apply
 the policy. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
@@ -1074,9 +1078,10 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   and then checks the plugin's signature with that key.
 - **The newest list wins.** The verifier keeps the list with the highest `serial` it has seen, in the ledger of
   section 8.4, so an old list cannot be put back to bring a revoked key to life.
-- **How a new list reaches a computer.** There is no network, so: inside a Studio release, or as a file an administrator or a user imports. A key list
-  does not travel beside a plugin: a file in a plugin's folder that the manifest does not list is refused as
-  `unlisted_file` (for a plugin that lists its files), and nothing reads a key list from there.
+- **How a new list reaches a computer.** There is no network, so the design has three routes: inside a Studio
+  release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an administrator or
+  a user imports. **None is built.** A key list beside a plugin would today be refused as `unlisted_file`, for a plugin
+  that lists its files, and nothing reads a key list from there or imports one outside the tests.
 - **Replacing a signing key:** add its line, sign a list with the next serial. **Revoking one:** move its id to
   `revoked`, sign a list with the next serial. **A lost root:** a new root needs a new Studio release, which is why
   a next root is compiled in beside the current one.
@@ -1325,8 +1330,9 @@ A plugin's state always carries one of these, as `vss::plugin_errc` (an `error_c
 and `vss_cli plugin list --json` prints the ones that discovery can find. Discovery reads the manifest and the
 files and never checks a signature, so the command prints the manifest and layout reasons, `shadowed`, `too_many` and
 the file reasons (`file_missing`, `unlisted_file` for a plugin that lists its files, and `signature_invalid` for a
-listed file whose size or hash is not the manifest's), and never `signature_missing`, `key_unknown`, a `signature_invalid` for a bad signature, `changed`,
-`revoked`, `expired`, `policy`, `not_licensed`, `reserved_id` or any reason about a running plugin. It searches the
+listed file whose size or hash is not the manifest's), and never `signature_missing`, `key_unknown`, a
+`signature_invalid` for a bad signature, `changed`, `revoked`, `expired`, `policy`, `not_licensed`, `reserved_id` or
+any reason about a running plugin. It searches the
 per-user folder whatever the policy says about `user_plugins`. The reasons are:
 
 `manifest_invalid`, `manifest_too_large`, `too_many`, `shadowed`, `reserved_id`, `layout_invalid`, `file_missing`, `unlisted_file`,
@@ -1418,7 +1424,7 @@ The plugin API range (`requires.api`) is separate: a plugin may keep an old mani
 
 | Library | Content | Depends on |
 |---|---|---|
-| `libs/vss_plugin` (built) | The manifest reader and the parameter model, the hash and the measurer of a plugin folder, discovery, signatures and the official key list, revocation, the policy file, the trust store, the licence question, the access check, `verify`, the message codec (`protocol.cpp`), the session and the lifecycle state machine with the back-off logic. It does I/O: it reads plugin folders, the policy file and the trust store, and asks the operating system who may write a file. It starts no process | `vss_core`, `vss_agent_proto` (the frame), `vss::signed_file` and the licence check from `libs/vss_license`, Boost.JSON. Not `vss_config` |
+| `libs/vss_plugin` (built) | The manifest reader and the parameter model, the hash and the measurer of a plugin folder, discovery, signatures and the official key list, revocation, the policy file, the trust store, the licence question, the access check, `verify`, the message codec (`protocol.cpp`), the session and the lifecycle state machine with the back-off logic. It does I/O: it reads plugin folders and the policy file, reads and writes the trust store, and asks the operating system who may write a file. It starts no process | `vss_core`, `vss_agent_proto` (the frame), `vss::signed_file` and the licence check from `libs/vss_license`, Boost.JSON. Not `vss_config` |
 | `libs/vss_plugin_host` (not built) | The supervisor, the channel, process start through the launcher, the budgets, the handling of the API messages and the instance types. Uses `vss_agent_proto` framing | `vss_plugin`, `vss_agent_proto`, `vss_studio` |
 | `apps/vss_plugin_launcher` (not built) | The sandbox application and the exec. Platform files chosen **in CMake**, no `#if` | none |
 | `apps/vss_agent` (not built for plugins) | Starts the launcher first; owns the host | |
@@ -1582,14 +1588,14 @@ The owner went through these on 13 November 2026. Each line says what was decide
 
 **Still open:**
 
-1. **From the owner:** signing the first official key list with the root private key. The public keys are in
-   (section 8.9); the command is in `libs/vss_plugin/keys/README.md`.
-2. **How long an official plugin's `not_after` runs.** The owner's first thought was 28 days; this page
+1. **How long an official plugin's `not_after` runs.** The owner's first thought was 28 days; this page
    recommends the signing key's `valid_to` and gives the reasons (section 8.5). The first key list gives the
    signing keys two years, 14 November 2026 to 14 November 2028. To be confirmed.
 
 **Closed since the review:**
 
+- **The first official key list**: signed with the root key `root-2026` on 14 November 2026
+  (`libs/vss_plugin/keys/official-keys.json`; section 8.9). How it reaches a release is not built.
 - **Studio installed for one user**: investigated (section 5.2). No installer gets a second mode; Studio tells
   the kind of install from its folder; the agent's `hello` has to say which copy it is.
 - **Licence files and the key list**: the owner decided that licence files do not use it (section 8.9).

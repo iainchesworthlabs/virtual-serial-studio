@@ -350,8 +350,9 @@ A deterrent only, as decided.
 * Studio keeps the latest time it has seen in a file, `licence-clock.json`, in
   its per-user application data folder, and updates it when it starts and once
   an hour. The file is a small JSON object with `latest_seen` (a time) and
-  `applied_resets` (the reset tokens already used). An official plugin that
-  has to read it must read that file, and Studio's code does not do it for it.
+  `applied_resets` (the reset tokens already used). Studio does not pass the
+  stored time to a plugin; an official plugin that needs it reads that file
+  itself.
 * Two more lower bounds cost nothing: the build date of Studio itself and the
   `issued_at` of the licence.
 * If the clock reads more than 48 hours before the highest of those, the state
@@ -622,7 +623,8 @@ What is not built: any use of `check(feature)` that changes what Studio offers
 (the Licence page and the Support page ask it, to say what the licence grants,
 and nothing else does), a licence service in the agent and the control
 gateway, so the gateway's `status` has no edition, and the plugin host that
-would run an official plugin. `vss_license` is built with the tools and is not installed.
+would run an official plugin. `vss_license` is built with the tools and is not
+installed.
 
 The private repository, its workflow, the environment and the real keys are
 the owner's to create. This repository gives them the tool and this page.

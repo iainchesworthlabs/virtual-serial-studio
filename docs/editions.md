@@ -14,14 +14,16 @@ What is built today:
   revocation lists, the policy file, the licence check, the messages, the
   session and the restart rules) are a library. `vss_cli plugin list` shows
   what discovery finds. This build runs no plugin, so every plugin feature
-  below is not available, and there is no Plugin page in the window
+  below is not available, and there is no Plugins page in the window
   ([plugins](plugins.md)).
 * **The control endpoint.** The per-user agent and the control gateway, with
   tokens and the local and loopback levels, are built from source and are not
-  in the installers. There is no TLS, so no remote use of one computer from
-  another ([agent](agent.md), [remote control](remote-control.md)).
-* **Response timing rules.** A library with no way in from the window, the
-  command line, the agent or a setup file ([response
+  in the installers yet; the owner has decided that `vss_agent` and `vss_gate`
+  will be. There is no TLS, so no remote use of one computer from another
+  ([agent](agent.md), [remote control](remote-control.md)).
+* **Response timing rules.** A library with no way in yet from the window, the
+  command line, the agent or a setup file. The owner has decided that the next
+  release candidate gives rule sets a way in through a setup file ([response
   timing](response-timing.md)).
 
 The official plugins, the Microsoft-signed driver and the language bindings
@@ -227,11 +229,13 @@ out itself.
 
 ## Studio features to add
 
-* **Support bundle** (built). A button that saves a file with the version, driver
-  state, topology, logs and the list of real serial ports (name, vendor and
-  driver). The user saves it and sends it; nothing is sent automatically.
+* **Support bundle** (built, except the driver of each serial port, which the
+  bundle gives as "not known"). A button that saves a file with the version,
+  driver state, topology, logs and the list of real serial ports (name, vendor
+  and driver). The user saves it and sends it; nothing is sent automatically.
 * **Licence page** showing the edition, the term and the expiry (built).
-* **Plugin page** listing installed plugins with their signer and status (not built).
+* **Plugins page** listing installed plugins with their signer and status
+  (not built).
 * **Capability flags.** A Pro feature shows as unavailable, with the reason,
   as `docs/gui-design/docs/08-engine-gaps.md` already requires.
 

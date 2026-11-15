@@ -2,42 +2,53 @@
 
 This page answers open decision 1 of [the editions proposal](editions.md): how
 response timing is declared to the engine, so that the fast cases run without a
-round trip to a plugin. It is a design, and the owner has decided most of it
-(see [Decisions for the owner](#decisions-for-the-owner)). Part of it is built.
+round trip to a plugin. It is a design, and the owner has decided its eight
+points (see [Decisions for the owner](#decisions-for-the-owner)). Part of it is
+built, and so is the benchmark that produced the numbers in
+[Measured evidence](#measured-evidence).
 [What is built today](#what-is-built-today) says which part. The rest of the
-page describes the design as it is meant to be, so a sentence on it is a promise
-and not a description of the program unless that section says it is built.
+page describes the design and not the program, except where a note says
+*Built*.
 
 ## What is built today
 
-The rule engine is built as a library and is tested. It has no way in from the
-window, from `vss_cli`, from the agent, from the control gateway or from a setup
-file, so no user can reach it yet. The only code that calls it is the unit tests
-(`tests/unit/test_studio_rules.cpp` and the `test_rules_*.cpp` files).
-`vss_cli respond` still runs the older `vss::responder` and does not use it.
-There is no capability flag for it.
+The rule engine is built as a library and is tested. It has no way in yet from
+the window, from `vss_cli`, from the agent, from the control gateway or from a
+setup file, so no user can reach it today. Only the tests and the fuzz targets
+call it (`tests/unit/test_studio_rules.cpp`, the `test_rules_*.cpp` files and
+`libs/vss_rules/fuzz`). `vss_cli respond` still runs the older `vss::responder`
+and does not use it. There is no capability flag for it.
+
+The owner has decided that the next release candidate gives rule sets a way in:
+a port in a setup file names a rule-set file, and `vss_cli` and the window
+honour it. This supersedes decision 8 (see [Decisions for the
+owner](#decisions-for-the-owner)). It is not built yet. Operations on rules
+through the control gateway and the agent are not planned for that candidate.
 
 | Part of the design | State |
 |---|---|
 | The model, the JSON reader, the compiler, the matcher, the seeded source with fixed expected values, and a fuzz target for the reader (slice 1) | Built and tested, in `libs/vss_rules` |
 | The read time taken once before routing, `hub::now` in the delay line, and the read stage on an endpoint | Built (see [One clock](#one-clock) and [the architecture notes](architecture.md#response-timing-rules)) |
+| The benchmark `vss_timing_bench` (`tests/bench/test_timing_bench.cpp`) that produced the numbers in [Measured evidence](#measured-evidence) | Built. CTest does not run it |
 | The 1 ms Windows timer period while a hub runs | Built (`hub_options::fine_timers`) |
 | The scheduler: one timer and one strand for each set, never early, lateness counted | Built, in `libs/vss_rules` |
 | `install_rules`, `replace_rules`, `remove_rules`, `suspend_rules`, `resume_rules`, `raise_signal` and `rule_stats` | Built on `vss::studio` only, for a set whose role is `peer`. The limits are built: 256 sets and 16 MiB of compiled sets for a studio, 1024 waiting actions for a set, and the budget of firings with suspension |
-| Rules that match `bytes` (with `gap_us`), `quiet_us` or a `signal`, and the timeline | Built for a `peer` |
+| Rules that match `bytes` (with `gap_us`), `quiet_us` or a `signal`; the timeline; and the actions `reply`, `lines` (the lines a device drives), `line_error` (on a port that takes one), `set_state`, `set_slot` and `mark` | Built for a `peer` |
 | The roles `station` and `inline`, rules on `lines` or `port`, the `ask` action, and a `line_error` on a port that takes none | In the model and the compiler. Installing one is refused with `unsupported`, and nothing approximates it |
 | Precision `tight` | Read, checked and counted (at most 16 in a set). There is no timing thread, so a `tight` action is carried out like any other |
 | The `bus_fault` trigger | Not built. The reader does not know the key |
 | Owners, and removing a set when its owner is lost (decision 5) | Not built. A set stays until it is removed, its port is removed or the studio ends, and `raise_signal` takes any caller |
 | The loop check at install (`cycle_detected`, `allow_loops`) | Not built. The budget of firings is the only defence, and it suspends the set without an event |
-| The events `rule_fired`, `rule_set` and `run`, and `start_run` with its seed for the delay line | Not built. A `mark` action writes a log message and nothing else is published. The delay line still draws from `std::random_device` |
-| `compile_rules`, `update_rules` and `set_slot` on a set that is running | Not built on `vss::studio`. The matcher can change a slot, and nothing calls it |
+| The events `rule_fired`, `rule_set` and `run`, and `start_run` with its seed for the delay line | Not built. A `mark` action publishes an ordinary `log_message` event, and no other event of this design is published. The delay line is seeded from `std::random_device` and cannot be given a seed |
+| The `compile_rules`, `update_rules` and `set_slot` operations on a set that is running | Not built on `vss::studio`. Compiling a text (`rules::compile_rule_set`) is built in `vss_rules`. The matcher can change a slot, and nothing calls it |
 | The agent and control operations, and the capability names `engine_rules`, `rules_link`, `rules_microseconds`, `rules_ask`, `rules_signal` and `rules_bus_fault` | Not built. No capability flag of this design is in `capabilities.hpp` or in the agent's `hello` |
 | The scripted-reply fixture, `vss_cli respond` on rule sets, and the read-only view in the window (slice 3) | Not built |
+| A port in a setup file that names a rule-set file, honoured by `vss_cli` and the window | Not built. Decided for the next release candidate (see above) |
 | `inline` sets, `ask`, the run log, replayed runs and the plugin side (slice 4) | Not built |
 
-A rule set is not a field of the setup file, by decision 8, so a saved setup
-cannot hold one.
+A saved setup cannot hold a rule set yet. Decision 8 kept rule sets out of the
+setup file; the owner superseded it on 15 November 2026 (see above), and until
+that is built a setup holds none.
 
 ## The decision
 
@@ -90,8 +101,8 @@ Read from the code, because the design builds on it.
 | The jitter generator of a delay line is seeded from `std::random_device` and cannot be given a seed | the same file | A run with link jitter cannot be repeated today |
 | `vss::responder` is a scripted device already: masked byte patterns matched as a stream, a reply after a delay with jitter, a poll list, an optional seed | `libs/vss_studio/src/responder.cpp` | It is the starting point, and it is replaced by the fixture of slice 3. It has no counts, sequences, faults, line changes, events or limits, and it cannot be changed while it runs |
 | The responder hears bytes as events on the dispatcher strand, after routing, and times a reply from the event's `when` | the same file, `endpoint::on_read` | Its reply waits behind every other event in the hub. A busy capture delays a reply |
-| A data event's `when` is the time the chunk was read: `endpoint::on_read` reads the hub's clock once, before routing, and the matcher, the half-duplex line and the event use that one time | `endpoint::on_read`, `endpoint::emit_data` | "End of the frame" has the time of the read that completed it. This is built (see [One clock](#one-clock)) |
-| `hub_options::clock` lets a test move time by hand. The half-duplex bus, the delay line, the rule scheduler and every event's `when` read it through `hub::now`. The responder's queue still reads the steady clock directly | `hub::now`, `bus_wire.cpp`, `delay_line.cpp`, `timed_queue.hpp` | A hand-moved clock moves a delay line and a rule set, and does not move the responder |
+| The `when` of a data event for received bytes is the time the chunk was read (a transmit event is stamped when the write completes): `endpoint::on_read` reads the hub's clock once, before routing, and the matcher, the half-duplex line and the event use that one time | `endpoint::on_read`, `endpoint::emit_data` | "End of the frame" has the time of the read that completed it. This is built (see [One clock](#one-clock)) |
+| `hub_options::clock` lets a test move time by hand. The half-duplex bus, the delay line, the rule scheduler and the `when` of every event the hub and its endpoints publish read it through `hub::now`. The queue of the responder and of replay, capture, the reconnector and an endpoint's `last_activity` still read the steady clock directly | `hub::now`, `bus_wire.cpp`, `delay_line.cpp`, `timed_queue.hpp` | A hand-moved clock moves a delay line and a rule set, and does not move the responder, replay, capture or the reconnector |
 | `std::uniform_int_distribution` and the other standard distributions give different numbers on different standard libraries | the C++ standard | A seed alone does not repeat a run on another platform |
 | A half-duplex bus knows when a chunk's last byte leaves the wire, judges a reply that comes inside the turn-around time (`bus_fault::too_soon`), and delivers a chunk at the end of its time on the wire | `bus_line.cpp`, `bus_wire.cpp` | Exact turn-around stays there. A rule's delay is measured from the same instant, so the two agree |
 | Line errors, hang-up and disconnect are `studio::inject_fault`, for a fixture and for a Windows driver port | `libs/vss_studio/include/vss/studio/studio.hpp` | A rule's fault action calls the same code, with the same per-port limits |
@@ -128,9 +139,11 @@ and bytes the modifier had not yet answered for are passed on unchanged first.
 
 ## The rule model
 
-A rule set is one JSON document, apart from the topology file, whose schema does
-not change. It replaces the responder script (there are no deployed scripts to
-keep reading, so there is no compatibility reader).
+A rule set is one JSON document, a file of its own, apart from the topology
+file. A port in a setup file will name it (decision 8, superseded on 15 November
+2026; not built yet), so the document stays a file of its own. It replaces the
+responder script (there are no deployed scripts to keep reading, so there is no
+compatibility reader).
 
 ```json
 {
@@ -350,19 +363,20 @@ There is one clock: the hub's (`hub::now`, the steady clock unless
 are the first engine changes of slice 2. The first two are built. The third is
 not.
 
-1. **The read time.** *Built.* `endpoint::on_read` reads the clock once, before
-   routing. That time is the chunk's time for the matcher, for the half-duplex
-   line and for the data event's `when`. Before this change the event's `when`
-   was read after routing.
+1. **The read time.** *Built.* `endpoint::on_read` reads the clock once,
+   before routing. That time is the chunk's time for the matcher, for the
+   half-duplex line and for the data event's `when`. Before this change the
+   event's `when` was read after routing.
 2. **One reader.** *Built.* The delay line and the rule scheduler read
    `hub::now`, not the steady clock directly, so a test that moves the time by
    hand moves every timer (they look at a hand-moved clock every millisecond
-   while they hold something, as `bus_wire` does). The responder's queue is the
-   one place that still reads the steady clock.
-3. **The run.** *Not built.* `start_run` fixes the run's origin and its seed. Every event
-   carries its time as nanoseconds since that origin, and the run's header
-   records the wall-clock time of the origin once. A harness never compares
-   times from two clocks: its own clock does not appear in the results.
+   while they hold something, as `bus_wire` does). The queue of the responder
+   and of replay (`timed_queue.hpp`) still reads the steady clock, as do
+   capture, the reconnector and an endpoint's `last_activity`.
+3. **The run.** *Not built.* `start_run` fixes the run's origin and its seed.
+   Every event carries its time as nanoseconds since that origin, and the run's
+   header records the wall-clock time of the origin once. A harness never
+   compares times from two clocks: its own clock does not appear in the results.
 
 A rule event carries three times: the edge, the time the action was due, and the
 time the engine did it (handed the bytes to the endpoint's write queue). The
@@ -456,7 +470,8 @@ enough to run it again.
 *Built:* compiling, and installing, replacing and removing one `peer` set
 through `vss::studio`. *Not built:* the owner argument of `install_rules` (the
 call takes the set and `rules_install_options`, with no owner), installing a
-list of sets all or none, `"at_us"`, the loop check, and every role but `peer`.
+list of sets all or none, enabling a group of sets with `"at_us"`, the loop
+check, and every role but `peer`.
 
 **Compile.** `compile_rule_set(text)` is a pure function: no hub, no clock, no
 threads. It returns either an immutable compiled set or a list of problems, each
@@ -488,7 +503,8 @@ event names the generation that produced it.
 
 *Built:* `replace_rules` and `remove_rules` for a `peer` set. *Not built:*
 `update_rules`, changing a slot of a running set, and the event that reports a
-change. The `inline` row describes a role that is not built.
+change. What the last row says of an `inline` set describes a role that is not
+built.
 
 No change to the rules drops, repeats or reorders a byte of traffic. For `peer`
 and `station` that follows from the roles: they watch bytes and send their own,
@@ -570,10 +586,11 @@ other, after the path of the bytes has moved on.
 | `rule_set` | Installed, changed, removed, suspended, orphaned: generations, seed, the reason |
 | `run` | Started and ended: origin, seed, wall-clock time of the origin |
 
-`rule_stats(set)` returns the counters of [the guarantees](#what-the-engine-guarantees)
-at any time, exact whatever happened to the events. The GUI shows a set on its
-port as it shows a fixture's script today, read-only, with its counters; editing
-rules in the window is not part of this design.
+`rule_stats(set)` returns the counters of [the
+guarantees](#what-the-engine-guarantees) at any time, exact whatever happened to
+the events. The window is to show a set on its port, read-only, with its
+counters, where the scripted-reply fixture of slice 3 would be shown. None of
+that is built, and editing rules in the window is not part of this design.
 
 ## Limits and safety
 
@@ -852,16 +869,18 @@ What the design takes from the numbers:
 | The model, the compiler, the matcher, the seeded source | A new library, `vss_rules`, depending on `vss_core` only for byte and time types | Pure and clockless, like `bus_line`: every call is given the time, so the tests write the times. Fuzzed like the other parsers |
 | The seam | `vss_core`: one optional stage on an endpoint's read path and one on a route, null unless a set is installed; the read time; `hub::now` in the delay line; a seed for the delay line | Built: the read stage, the read time and `hub::now` in the delay line. Not built: the stage on a route and the seed for the delay line. The only changes to `vss_core`. Behaviour with no set installed is unchanged, and the route benchmark's floor holds that to account |
 | The scheduler | `vss_rules`, on a strand of its own for each place, shaped like `delay_line` | Weak handlers; `close()` waits for a write under way |
-| Install, owners, runs, faults, the fixture | `vss_studio` | Built: install, replace, remove, suspend, signals and counters for `peer` sets. Not built: owners, runs and the fixture. `inject_fault` and the capability checks are already here |
+| Install, owners, runs, faults, the fixture | `vss_studio` | Built, for `peer` sets: install, replace, remove, suspend, signals, counters and faults (a rule's `line_error` and `lines` actions). Not built: owners, runs and the fixture. `inject_fault` and the capability checks are already here |
 | The operations and events | `vss_agent_proto`, the agent | Not built. With the plugin framework's session model |
 | The capability (not built) | In the agent's `hello` and the window's `capabilities`, by the names the plugin framework's design (`docs/plugins.md`, section 6) uses: `engine_rules` (`peer` and `station`), `rules_link` (`inline`), `rules_microseconds` (the timers of this page; without it delays are honoured to the platform's tick and the set says so), and `rules_ask` | Absent: the fixture's script page is disabled with "Not available in this build", as `08-engine-gaps.md` requires. A harness that asks for a feature the build lacks gets `unsupported` with its name |
 
 ## The slices
 
 After the owner has reviewed this page, in this order, each a pull request with
-its tests in the project's framework. Slice 1 is built. Slice 2 is built in part:
-see [What is built today](#what-is-built-today) for what is missing from it.
-Slices 3 and 4 are not started.
+its tests in the project's framework. Slice 1 is built. Slice 2 is built in
+part: see [What is built today](#what-is-built-today) for what is missing from
+it. Slices 3 and 4 are not started. The way in decided for the next release
+candidate (a port in a setup file names a rule-set file) is none of the four
+slices, and is not built yet.
 
 1. **Model and compiler.** `vss_rules`: the document, the checks, the compiled
    set, the seeded source and distributions with fixed expected values, the
@@ -889,7 +908,8 @@ which parts are.
 Decided later the same day, each as recommended: 4 (a run seeds link jitter),
 6 (fixed-length patterns only in the first version), the second half of 7 (the
 timing thread for `tight` actions, at most 16 in a rule set; slice 2 measures
-that combination) and 8 (rule sets stay out of the topology file). The section
+that combination) and 8 (rule sets stay out of the topology file; superseded on
+15 November 2026, see decision 8 below). The section
 "Triggers from a plugin" is approved too: `quiet_us` and `signal` go into the
 matcher and `bus_fault` into the engine path, all in slice 2. Nothing on this
 list is open.
@@ -923,4 +943,11 @@ list is open.
    request before slice 2.)
 8. **The topology file does not hold rule sets.** A rule set is a file of its
    own, named by the harness. Saving a fixture's rules with a topology would
-   change the JSON schema and is left for a separate request.
+   change the JSON schema and is left for a separate request. *Superseded on 15
+   November 2026.* The owner decided that the next release candidate gives rule
+   sets a way in: a port in a setup file names a rule-set file, and `vss_cli`
+   and the window honour it. That is the separate request. It adds a field to
+   the setup file, so "does not hold rule sets" and "would change the JSON
+   schema" no longer stand. The text above is kept as history. It is not built
+   yet. Operations on rules through the control gateway and the agent are not
+   planned for that candidate.

@@ -54,13 +54,17 @@ different kind of byte transport without dragging serial code along.
 ## Threading
 
 Each endpoint has its own `asio::strand`. Its transport is constructed on the
-hub's executor, and two rules keep the endpoint single-threaded:
+hub's executor, and two rules keep its reads and writes in order:
 
 1. A transport takes its completion handler as a `std::function`
    (`transport::io_handler`), which carries no executor, so binding the handler
    to the strand would be lost on the way down. The endpoint's own handler posts
    the completion into the strand (`endpoint::do_read` and the write path), and
-   everything that uses the endpoint or calls its transport runs there.
+   the reads, the writes and the close inside `shutdown()` and `reopen()` run
+   there. The control-line calls (`set_line`, `set_peer_inputs`,
+   `refresh_lines`), `info()` and `endpoint::close()` call the transport from
+   the caller's thread, and the endpoint guards its state with mutexes and an
+   atomic generation.
 2. A completion that belongs to a transport since replaced by `reopen()` is
    dropped. The handler carries the endpoint's generation, and the strand checks
    it before it acts.
@@ -364,9 +368,12 @@ a half-duplex bus does.
 hub. It has the model, the reader for the JSON document, the compiler that checks
 a set and resolves its names, the matcher (bytes, silence, line changes and
 signals in, the firings it decided out) and the scheduler. The format is in
-docs/response-timing.md, which also says what is built. Only the unit tests call
-this code: the window, `vss_cli`, the agent, the control gateway and the setup
-file have no way to install a set yet.
+docs/response-timing.md, which also says what is built. Only the tests call
+`studio::install_rules` and the calls beside it (the fuzz targets reach
+`vss_rules` alone): the window, `vss_cli`, the agent,
+the control gateway and the setup file have no way to install a set yet. The
+owner has decided that the next release candidate gives a setup file a way in
+(a port names a rule-set file); that is not built yet.
 
 A set is installed on a port with `studio::install_rules` and taken off with
 `remove_rules`. This build installs a `peer` set whose rules match `bytes`,
