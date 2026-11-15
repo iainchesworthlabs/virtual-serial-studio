@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // A program that behaves as a hostile or broken plugin would, for the tests
-// of `vss::plugin::host::plugin_process`.  It does what its arguments say, in
-// the order given, and then exits with 0 unless an argument says otherwise.
-// It links nothing of the project.  Every line it prints ends with "\n" and
-// standard output is flushed after each action.
+// of `vss::plugin::host::plugin_process` and `plugin_runner`.  It does what
+// its arguments say, in the order given, and then exits with 0 unless an
+// argument says otherwise.  Only `--serve` uses the project (the plugin API,
+// in serve.cpp).  Every line it prints ends with "\n" and standard output is
+// flushed after each action.
 //
 // Arguments:
 //   --print-arguments     prints "argc=<n>" and then one line "arg <i>:
@@ -46,11 +47,53 @@
 //   --hang                prints "hanging" and never returns
 //   --crash               ends the process the way a fault does
 //   --exit=<code>         exits at once with the code
+//   --serve               is a plugin: sends "hello" (a request with id 1)
+//                         for the plugin id and version below, and then
+//                         reads the channel.  It goes on with the next
+//                         message on "hello_ack", answers "ping" with "pong",
+//                         answers a request with an op it does not know with
+//                         an "error" (unknown_op), and on "shutdown" sends
+//                         "bye" and exits 0.  When the channel ends it exits
+//                         2.  The modifiers below apply only to `--serve`
+//                         and must come before it on the command line.
+// Modifiers of `--serve`:
+//   --hello-id=<text>     the plugin id its "hello" says (default
+//                         com.example.test)
+//   --hello-version=<text>  the version its "hello" says (default 1.2.0)
+//   --no-hello            serves without ever sending "hello"
+//   --hello-twice         sends "hello" a second time at once (id 2)
+//   --exit-after-ready=<code>  exits with the code as soon as "hello_ack"
+//                         arrives
+//   --crash-after-ready   ends the way a fault does as soon as "hello_ack"
+//                         arrives
+//   --ignore-shutdown     goes on serving after "shutdown" and never sends
+//                         "bye"
+//   --ignore-ping         never answers "ping"
+//   --status=<text>       after "hello_ack" sends a "status" with the level
+//                         warning and the text
+//   --log=<text>          after "hello_ack" sends a "log" message (level
+//                         info) with the text
+//   --send-op=<op>        after "hello_ack" sends a request with the op, an
+//                         empty body and id 2; prints "answer <op of the
+//                         answer>" when the answer arrives, and
+//                         "answer-value <value>" as well when it is an
+//                         "error"
+//   --echo-op=<op>        answers a request with this op with "ok" and
+//                         prints "got <op>"
+//   --garbage-after-ready  after "hello_ack" writes 64 bytes that are not a
+//                         frame
+//   --flood-after-ready=<n>  after "hello_ack" sends n "log" messages as fast
+//                         as it can
+//   --stderr-each=<text>  after "hello_ack" prints the text once to
+//                         standard error
+// When "hello_ack" arrives the modifiers act in the order of the list above
+// (exit, crash, stderr, status, log, send-op, garbage, flood).
 // An argument it does not know makes it print "unknown argument" to standard
 // error and exit with 2.
 //
 
 #include "platform.hpp"
+#include "serve.hpp"
 
 #include <algorithm>
 #include <array>
@@ -314,8 +357,10 @@ void flood_standard_output(unsigned long long bytes)
 }
 
 /// Does what one argument says.  A value says the program ends with that exit
-/// code; nothing says to go on with the next argument.
-std::optional<int> act(std::string_view argument, const char* self)
+/// code; nothing says to go on with the next argument.  The modifiers of
+/// `--serve` are collected in `serving`.
+std::optional<int> act(std::string_view argument, const char* self,
+                       test_plugin::serve_options& serving)
 {
     if (argument == "--print-environment")
     {
@@ -436,6 +481,10 @@ std::optional<int> act(std::string_view argument, const char* self)
         if (const std::optional<int> code = parse_number<int>(*text))
             return code;
     }
+    if (argument == "--serve")
+        return test_plugin::serve(serving);
+    if (test_plugin::take_serve_modifier(argument, serving))
+        return std::nullopt;
 
     emit(stderr, "unknown argument\n");
     return 2;
@@ -446,6 +495,7 @@ int run(int argc, char** argv)
 {
     test_plugin::binary_output();
 
+    test_plugin::serve_options serving;
     for (int index = 1; index < argc; ++index)
     {
         const std::string_view argument(argv[index]);
@@ -454,7 +504,7 @@ int run(int argc, char** argv)
             print_arguments(argc, argv);
             return 0;
         }
-        if (const std::optional<int> code = act(argument, argv[0]))
+        if (const std::optional<int> code = act(argument, argv[0], serving))
             return *code;
     }
     return 0;

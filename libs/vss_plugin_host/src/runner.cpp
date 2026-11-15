@@ -54,6 +54,10 @@ using clock_type = std::chrono::steady_clock;
 constexpr std::chrono::milliseconds watch_interval{250};
 constexpr std::chrono::milliseconds end_interval{20};
 
+/// How long a plugin whose channel closed has to be seen dead before the
+/// host ends it.
+constexpr std::chrono::milliseconds dying_grace{200};
+
 /// How much is read from a plugin at a time.
 constexpr std::size_t read_size = 64 * 1024;
 
@@ -210,6 +214,9 @@ private:
         end_detail_.clear();
         api_ = api_version{};
         status_.reset();
+        sandbox_ = sandbox_report{};
+        ended_by_host_ = false;
+        ++output_generation_;
 
         auto started = plugin_process::start(options_.process);
         if (!started)
@@ -306,11 +313,21 @@ private:
     {
         output_->async_read_some(
             boost::asio::buffer(output_buffer_),
-            [self = shared_from_this(), generation = generation_](
+            [self = shared_from_this(), generation = output_generation_](
                 const error_code& failed, std::size_t size)
             {
-                if (generation != self->generation_ || failed)
+                if (generation != self->output_generation_)
                     return;
+                if (failed)
+                {
+                    // The end: what the plugin wrote last has no line
+                    // end of its own.
+                    if (!self->partial_line_.empty())
+                        self->end_output_line();
+                    self->output_.reset();
+                    self->publish_soon();
+                    return;
+                }
                 self->take_output(size);
                 self->read_output();
             });
@@ -529,14 +546,23 @@ private:
         }
         if (!process_->poll().has_value())
         {
-            if (reason)
+            // A plugin that stopped as asked gets a moment to leave by
+            // itself.  One whose channel closed is probably ending, and a
+            // short wait lets the way it ended be seen.  Any other failure
+            // ends it at once.
+            const bool closed_by_plugin =
+                reason == make_error_code(plugin_errc::exited) ||
+                reason == make_error_code(plugin_errc::no_hello);
+            if (reason && !closed_by_plugin)
             {
-                process_->kill();
+                end_by_host();
             }
             else
             {
-                static_cast<void>(process_->request_stop());
-                end_timer_.expires_after(options_.end_grace);
+                if (!reason)
+                    static_cast<void>(process_->request_stop());
+                end_timer_.expires_after(reason ? dying_grace
+                                                : options_.end_grace);
                 end_timer_.async_wait(
                     [self = shared_from_this(),
                      generation = generation_](const error_code& cancelled)
@@ -544,11 +570,19 @@ private:
                         if (cancelled || generation != self->generation_ ||
                             !self->process_)
                             return;
-                        self->process_->kill();
+                        self->end_by_host();
                     });
             }
         }
         watch(end_interval);
+    }
+
+    void end_by_host()
+    {
+        if (process_->poll().has_value())
+            return;
+        ended_by_host_ = true;
+        process_->kill();
     }
 
     /// Asks from time to time whether the process has ended.
@@ -577,18 +611,19 @@ private:
         if (!ending_)
         {
             // The plugin went by itself.  The session says what that means
-            // at this point of the conversation; a crash says more.
+            // at this point of the conversation.
             if (session_)
                 handle(session_->on_channel_closed(clock_type::now()));
             if (!ending_)
                 finish(make_error_code(plugin_errc::exited),
                        "the process ended");
-            if (status->abnormal &&
-                end_reason_ == make_error_code(plugin_errc::exited))
-            {
-                end_reason_ = make_error_code(plugin_errc::crashed);
-                end_detail_ = "the process ended abnormally";
-            }
+        }
+        // A process that ended abnormally by itself crashed.
+        if (status->abnormal && !ended_by_host_ &&
+            end_reason_ == make_error_code(plugin_errc::exited))
+        {
+            end_reason_ = make_error_code(plugin_errc::crashed);
+            end_detail_ = "the process ended abnormally";
         }
         ended();
     }
@@ -598,9 +633,9 @@ private:
     {
         ++generation_;
         cancel_timers();
-        close_streams();
-        if (!partial_line_.empty())
-            end_output_line();
+        if (channel_)
+            channel_->close();
+        channel_.reset();
         session_.reset();
         process_.reset();
         process_id_ = 0;
@@ -641,6 +676,7 @@ private:
 
     void close_streams()
     {
+        ++output_generation_;
         if (channel_)
             channel_->close();
         if (output_)
@@ -701,7 +737,13 @@ private:
     /// Goes up with every start and every end, so that a handler of an
     /// earlier process finds out that it is too late.
     std::uint64_t generation_ = 0;
+    /// Goes up when the output of a process is no longer wanted: at the
+    /// next start, and when the runner is abandoned.  Until then the
+    /// output of a process that has gone is still read to its end.
+    std::uint64_t output_generation_ = 0;
     bool abandoned_ = false;
+    /// The host ended the process, so the way it ended says nothing.
+    bool ended_by_host_ = false;
     bool ending_ = false;
     error_code end_reason_;
     std::string end_detail_;

@@ -191,12 +191,17 @@ endif()
 # The plugin process tests start vss_test_plugin, a program that does what
 # its arguments say: what a plugin does that behaves, and what one does that
 # does not. CMake chooses the files that know each system.
-add_executable(vss_test_plugin plugin/vss_test_plugin/main.cpp)
+add_executable(vss_test_plugin
+  plugin/vss_test_plugin/main.cpp
+  plugin/vss_test_plugin/serve.cpp)
 target_include_directories(vss_test_plugin PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/plugin/vss_test_plugin)
 target_compile_features(vss_test_plugin PRIVATE cxx_std_23)
+target_link_libraries(vss_test_plugin PRIVATE vss_plugin)
 vss_set_warnings(vss_test_plugin)
-list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_process.cpp)
+list(APPEND VSS_SYSTEM_TEST_SOURCES
+  system/test_system_plugin_process.cpp
+  system/test_system_plugin_runner.cpp)
 if(WIN32)
   target_sources(vss_test_plugin PRIVATE
     plugin/vss_test_plugin/platform/windows/platform_windows.cpp)
