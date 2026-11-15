@@ -1906,19 +1906,29 @@ void ShellWindow::open_network_endpoint()
         tr("Open monitor"), [this] { show_monitor(); });
 }
 
+bool ShellWindow::setup_busy() const
+{
+    return apply_work_.busy() ||
+           (json_editor_ != nullptr && json_editor_->busy());
+}
+
 void ShellWindow::apply_in_background(
     vss::config::document document, bool replace,
-    std::function<void(const vss::result<void>&)> finished)
+    std::function<void(const vss::result<void>&, bool changed)> finished)
 {
-    if (apply_work_.busy())
+    if (setup_busy())
         return;
     struct outcome
     {
         vss::config::document document;
+        vss::config::document before;
         vss::error_code error;
     };
     auto state = std::make_shared<outcome>();
     state->document = std::move(document);
+    // What runs now, to see after a failure whether it was put back whole.
+    if (replace)
+        state->before = backend_.snapshot();
 
     // Nothing in the window may change the setup while the engine works on
     // it, and the changes it makes meanwhile are not the user's edits.
@@ -1960,7 +1970,7 @@ void ShellWindow::apply_in_background(
             if (!applied)
                 state->error = applied.error();
         },
-        [this, state,
+        [this, state, replace,
          locked = QList<QPointer<QWidget>>(locked.begin(), locked.end()),
          finished = std::move(finished)]
         {
@@ -1973,16 +1983,29 @@ void ShellWindow::apply_in_background(
             status_->clearMessage();
             loading_ = false;
             backend_.refresh();
-            if (state->error)
-                finished(state->error);
-            else
-                finished(vss::result<void>{});
+            if (!state->error)
+            {
+                finished(vss::result<void>{}, false);
+                return;
+            }
+            // A replace that failed puts back what it removed as far as it
+            // can.  When what runs is no longer the setup that was open, the
+            // title must not say it is.
+            const bool changed =
+                replace && backend_.snapshot() != state->before;
+            if (changed)
+            {
+                last_signature_ = document_signature();
+                set_dirty(true);
+                update_title();
+            }
+            finished(state->error, changed);
         });
 }
 
 void ShellWindow::open_templates()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
 
     TemplatesDialog dialog(backend_, this);
@@ -1996,15 +2019,20 @@ void ShellWindow::open_templates()
         *document, true,
         [this, title = dialog.result_title(),
          is_template = dialog.result_is_template(),
-         path = dialog.result_path()](const vss::result<void>& applied)
+         path = dialog.result_path()](const vss::result<void>& applied,
+                                      bool changed)
         {
             if (!applied)
             {
                 ErrorDialog error(
                     tr("Could not open %1").arg(title),
-                    tr("The setup needs a device or network endpoint that "
-                       "is not available on this PC. Nothing was changed. "
-                       "Check the device, then try again."),
+                    changed ? tr("Not everything that was running could be "
+                                 "put back, so the setup is marked as "
+                                 "changed.")
+                            : tr("The setup needs a device or network "
+                                 "endpoint that is not available on this PC. "
+                                 "Nothing was changed. Check the device, then "
+                                 "try again."),
                     error_text(applied.error()), this);
                 error.exec();
                 status_->refresh();
@@ -3055,7 +3083,7 @@ void ShellWindow::copy_environment()
 
 void ShellWindow::new_document()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     if (const QString warning =
             new_setup_warning(ports_in_use(backend_.ports()));
@@ -3084,7 +3112,7 @@ void ShellWindow::new_document()
 
 void ShellWindow::open_document()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Open setup"), QString(),
@@ -3096,7 +3124,7 @@ void ShellWindow::open_document()
 
 void ShellWindow::open_path(const QString& path)
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     const auto document = vss::config::load_file(path.toStdString());
     if (!document)
@@ -3110,13 +3138,18 @@ void ShellWindow::open_path(const QString& path)
 
     apply_in_background(
         *document, true,
-        [this, path](const vss::result<void>& applied)
+        [this, path](const vss::result<void>& applied, bool changed)
         {
             if (!applied)
             {
                 ErrorDialog dialog(
                     tr("Could not open %1").arg(QFileInfo(path).fileName()),
-                    error_text(applied.error()), {}, this);
+                    changed ? error_text(applied.error()) + QLatin1Char(' ') +
+                                  tr("Not everything that was running could "
+                                     "be put back, so the setup is marked as "
+                                     "changed.")
+                            : error_text(applied.error()),
+                    {}, this);
                 dialog.exec();
                 return;
             }
@@ -3438,7 +3471,7 @@ void ShellWindow::closeEvent(QCloseEvent* event)
 {
     // The engine is part way through setting up ports; closing now would
     // leave half a setup.
-    if (apply_work_.busy())
+    if (setup_busy())
     {
         event->ignore();
         return;
@@ -3504,6 +3537,8 @@ void ShellWindow::closeEvent(QCloseEvent* event)
 
 void ShellWindow::quit_studio()
 {
+    if (setup_busy())
+        return;
     quitting_ = true;
     if (!confirm_discard() || !confirm_exit())
     {
@@ -3657,7 +3692,8 @@ void ShellWindow::start_running_setup(bool automatic)
 
     apply_in_background(
         setup->document, false,
-        [this, setup = *setup, automatic](const vss::result<void>& applied)
+        [this, setup = *setup, automatic](const vss::result<void>& applied,
+                                          bool /*changed*/)
         {
             if (!applied)
             {

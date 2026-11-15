@@ -98,6 +98,13 @@ public:
         next_error_ = error;
         calls_before_error_ = 0;
     }
+    /// When a `replace` fails because of `fail_next`, the port of this name
+    /// is gone afterwards, as it is when the engine cannot put back a port it
+    /// had to remove.
+    void lose_port_on_failed_replace(const QString& name)
+    {
+        lose_on_failed_replace_ = name;
+    }
     /// The fallible call after `calls` more fallible calls returns this
     /// error and consumes it, so a test can fail the second step of an
     /// operation that makes several backend calls.
@@ -316,6 +323,7 @@ private:
     std::vector<vss::fault_kind> injected_;
     QHash<vss::link_id, line_wiring> wiring_;
     std::chrono::milliseconds create_delay_{0};
+    QString lose_on_failed_replace_;
     /// Guards the ports and links: a job on a worker thread changes them while
     /// the GUI thread reads them.  Recursive, as the mutators call each other.
     mutable std::recursive_mutex mutex_;

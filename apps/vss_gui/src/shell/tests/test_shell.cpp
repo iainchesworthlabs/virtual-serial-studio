@@ -7,6 +7,7 @@
 #include "qt_wait.hpp"
 #include "test_framework.hpp"
 
+#include "advanced/json_editor.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "dialogs/connect_ports.hpp"
 #include "dialogs/network_endpoint.hpp"
@@ -2555,5 +2556,44 @@ TEST_CASE("shell: changing a port's serial settings marks the setup changed")
     backend.refresh();
     QApplication::processEvents();
     REQUIRE(window.windowTitle().contains(QLatin1Char('*')));
+    clear_settings();
+}
+
+TEST_CASE("shell: a new setup and closing wait while the JSON view applies")
+{
+    clear_settings();
+    QSettings().setValue(QStringLiteral("ui/askOnDiscard"), false);
+    vss::gui::FakeStudioBackend backend;
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("old"),
+                                     vss::virtual_port_kind::loopback, true)
+                .has_value());
+    backend.set_create_delay(std::chrono::milliseconds(400));
+    vss::gui::ShellWindow window(backend);
+    window.show();
+    QApplication::processEvents();
+
+    auto* editor = window.findChild<vss::gui::TopologyJsonEditor*>();
+    REQUIRE(editor != nullptr);
+    editor->set_text(QStringLiteral(
+        "{\"version\": 1, \"name\": \"fresh\", \"ports\": [{\"name\": "
+        "\"fresh\", \"kind\": \"virtual\", \"virtual_kind\": \"loopback\"}], "
+        "\"links\": []}"));
+    editor->revalidate();
+    REQUIRE(editor->apply());
+    REQUIRE(editor->busy());
+
+    // The engine is being given another setup: New would remove ports under
+    // it, and closing would stop it half way.  Both are refused.
+    window.findChild<QAction*>(QStringLiteral("file.new"))->trigger();
+    QApplication::processEvents();
+    REQUIRE(editor->busy());
+    REQUIRE(!window.close());
+    REQUIRE(window.isVisible());
+
+    REQUIRE(vss_test::wait_until([editor] { return !editor->busy(); }, 10000));
+    QApplication::processEvents();
+    REQUIRE_EQ(backend.ports().size(), std::size_t{1});
+    REQUIRE_EQ(backend.ports()[0].name, QStringLiteral("fresh"));
     clear_settings();
 }

@@ -228,10 +228,15 @@ private:
     /// thread.  `replace` makes the running setup equal the document (File,
     /// Open and templates); otherwise the document is added to what runs,
     /// which is for the restore at start-up.  Nothing happens while an
-    /// earlier apply is still running.
-    void
-    apply_in_background(vss::config::document document, bool replace,
-                        std::function<void(const vss::result<void>&)> finished);
+    /// earlier apply, or the JSON view's, is still running.  `finished` is
+    /// told whether a replace that failed still left the ports different from
+    /// what they were; the setup is then already marked as changed.
+    void apply_in_background(
+        vss::config::document document, bool replace,
+        std::function<void(const vss::result<void>&, bool changed)> finished);
+    /// True while the engine is being given a setup, by the window or by the
+    /// JSON view.  Opening, a new setup and quitting wait for it.
+    bool setup_busy() const;
     void save_document();
     void save_document_as();
     bool confirm_discard();

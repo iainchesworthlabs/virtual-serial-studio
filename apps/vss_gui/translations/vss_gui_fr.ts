@@ -9420,6 +9420,12 @@ Réseaux : %5</translation>
             <source>Support bundle</source>
             <translation>Archive de support</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>Tout ce qui fonctionnait n'a pas pu être remis en place ; la configuration est donc marquée comme modifiée.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

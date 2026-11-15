@@ -9420,6 +9420,12 @@ Redes: %5</translation>
             <source>Support bundle</source>
             <translation>Paquete de soporte</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>No se pudo restaurar todo lo que estaba en ejecución, por lo que la configuración se ha marcado como modificada.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

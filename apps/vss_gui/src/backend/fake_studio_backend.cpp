@@ -62,6 +62,23 @@ vss::endpoint_kind kind_for_uri(const QString& uri)
     return vss::endpoint_kind::physical;
 }
 
+/// Whether a running port is the one a document entry describes, as far as
+/// the fake knows a port: the same name, kind, address and serial settings.
+/// `replace` keeps such a port, as the engine does.
+bool port_is_entry(const port_view& view, const vss::config::port_entry& entry)
+{
+    if (view.name.toStdString() != entry.name || !(view.serial == entry.serial))
+        return false;
+    if (entry.kind == "virtual")
+        return view.kind == vss::endpoint_kind::virtual_port &&
+               view.studio_only == (entry.virtual_kind == "loopback");
+    if (entry.kind == "mock")
+        return view.kind == vss::endpoint_kind::mock &&
+               view.path.toStdString() == entry.mock_target;
+    const auto kind = vss::config::to_endpoint_kind(entry.kind);
+    return kind && view.kind == *kind && view.path.toStdString() == entry.uri;
+}
+
 } // namespace
 
 FakeStudioBackend::FakeStudioBackend(QObject* parent) : StudioBackend(parent) {}
@@ -1113,13 +1130,25 @@ FakeStudioBackend::build_document(const vss::config::document& document,
     // Fail first if a test queued an error, then reject an invalid document.
     // Nothing is changed until the whole document has been built.
     if (const auto error = take_error())
+    {
+        if (!additive && !lose_on_failed_replace_.isEmpty())
+        {
+            const auto lost = std::find_if(
+                ports_.begin(), ports_.end(), [this](const port_view& view)
+                { return view.name == lose_on_failed_replace_; });
+            if (lost != ports_.end())
+                static_cast<void>(remove_port(lost->id));
+        }
         return *error;
+    }
     if (const vss::error_code invalid = vss::config::validate(document))
         return invalid;
 
     // Build the new ports and links on the side.  names maps each port name
     // in the document to the id it was given, for resolving links.  Adding
-    // goes on from what is there, as the engine does; replacing starts again.
+    // goes on from what is there, as the engine does.  Replacing starts
+    // again, but keeps a port that is the same as one of the document's, as
+    // the engine does, and no id is used twice.
     std::vector<port_view> next_ports;
     std::vector<link_view> next_links;
     if (additive)
@@ -1128,12 +1157,30 @@ FakeStudioBackend::build_document(const vss::config::document& document,
         next_links = links_;
     }
     std::vector<std::pair<std::string, vss::endpoint_id>> names;
-    vss::endpoint_id next_port = additive ? next_port_ : 1;
+    vss::endpoint_id next_port = next_port_;
 
-    // Ports: every port starts open, numbered from 1.  A mock port has no
-    // control lines.
+    // Ports: every new port starts open.  A mock port has no control lines.
+    std::vector<bool> reused(ports_.size(), false);
     for (const auto& entry : document.ports)
     {
+        if (!additive)
+        {
+            const auto same = std::find_if(
+                ports_.begin(), ports_.end(),
+                [&](const port_view& view)
+                {
+                    const auto index =
+                        static_cast<std::size_t>(&view - ports_.data());
+                    return !reused[index] && port_is_entry(view, entry);
+                });
+            if (same != ports_.end())
+            {
+                reused[static_cast<std::size_t>(same - ports_.begin())] = true;
+                names.emplace_back(entry.name, same->id);
+                next_ports.push_back(*same);
+                continue;
+            }
+        }
         port_view view;
         view.id = next_port++;
         view.name = QString::fromStdString(entry.name);
@@ -1184,9 +1231,9 @@ FakeStudioBackend::build_document(const vss::config::document& document,
         next_ports.push_back(std::move(view));
     }
 
-    // Links: numbered from 1, with ports looked up by name.  A name that no
+    // Links: with ports looked up by name.  A name that no
     // port has is a config error.
-    vss::link_id next_link = additive ? next_link_ : 1;
+    vss::link_id next_link = next_link_;
     for (const auto& entry : document.links)
     {
         const auto resolve =

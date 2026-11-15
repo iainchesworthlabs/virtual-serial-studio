@@ -601,3 +601,52 @@ TEST_CASE("engine backend: replace leaves only the ports of the document")
     REQUIRE(backend.apply(two_loopbacks("c", "d"), true).has_value());
     REQUIRE_EQ(backend.ports().size(), std::size_t{4});
 }
+
+TEST_CASE("engine backend: new serial settings of a port raise ports_changed")
+{
+    vss::studio studio;
+    vss::gui::EngineStudioBackend backend(studio);
+    const auto port = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(port.has_value());
+    spin(100);
+    backend.refresh();
+
+    int ports_changed = 0;
+    QObject::connect(&backend, &vss::gui::StudioBackend::ports_changed,
+                     [&ports_changed] { ++ports_changed; });
+
+    // The window marks the setup changed when this signal arrives, and a
+    // loopback keeps nothing but the values: no other part of its view changes
+    // with them.
+    vss::serial_settings settings = backend.port(*port)->serial;
+    settings.baud_rate = 9600;
+    settings.parity = vss::parity_mode::even;
+    REQUIRE(backend.set_port_settings(*port, settings).has_value());
+    backend.refresh();
+    REQUIRE(ports_changed > 0);
+    REQUIRE_EQ(backend.port(*port)->serial.baud_rate, 9600u);
+}
+
+TEST_CASE("engine backend: two replaces at once leave one document")
+{
+    vss::studio studio;
+    vss::gui::EngineStudioBackend backend(studio);
+    const auto first = two_loopbacks("a", "b");
+    const auto second = two_loopbacks("c", "d");
+    for (int round = 0; round < 10; ++round)
+    {
+        vss::result<void> left = vss::make_error_code(vss::errc::internal);
+        vss::result<void> right = vss::make_error_code(vss::errc::internal);
+        std::thread one([&] { left = backend.replace(first); });
+        std::thread other([&] { right = backend.replace(second); });
+        one.join();
+        other.join();
+        REQUIRE(left.has_value());
+        REQUIRE(right.has_value());
+        const auto names = port_names(backend);
+        REQUIRE((names == std::vector<std::string>{"a", "b"} ||
+                 names == std::vector<std::string>{"c", "d"}));
+        REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    }
+}

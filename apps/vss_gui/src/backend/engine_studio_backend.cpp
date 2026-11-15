@@ -172,7 +172,8 @@ bool same_port_shape(const port_view& left, const port_view& right)
     return left.id == right.id && left.name == right.name &&
            left.path == right.path && left.description == right.description &&
            left.kind == right.kind && left.state == right.state &&
-           left.lines == right.lines && left.open == right.open &&
+           left.serial == right.serial && left.lines == right.lines &&
+           left.open == right.open &&
            left.supports_control_lines == right.supports_control_lines &&
            left.studio_only == right.studio_only && left.peer == right.peer &&
            left.peer_format == right.peer_format &&
@@ -455,7 +456,7 @@ EngineStudioBackend::create_port_with_com_number(
     // accepts.  Another device's number is refused in about a tenth of a
     // second.  This runs off the GUI thread.
     using clock = std::chrono::steady_clock;
-    constexpr auto kRemovalWait = std::chrono::seconds(90);
+    constexpr auto kRemovalWait = vss::com_number_removal_wait;
     std::map<unsigned, clock::time_point> recent;
     {
         const std::lock_guard lock(removed_mutex_);

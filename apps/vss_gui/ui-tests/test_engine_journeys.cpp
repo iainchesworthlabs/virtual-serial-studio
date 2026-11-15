@@ -17,6 +17,7 @@
 
 #include "backend/engine_studio_backend.hpp"
 #include "qt_wait.hpp"
+#include "widgets/dialogs.hpp"
 
 #include <vss/config/document.hpp>
 #include <vss/studio/studio.hpp>
@@ -24,6 +25,7 @@
 #include <QAbstractItemModel>
 #include <QElapsedTimer>
 #include <QFileDialog>
+#include <QLabel>
 #include <QSpinBox>
 #include <QTableView>
 #include <QTemporaryDir>
@@ -104,6 +106,15 @@ void drive_file_dialog(Session& s, const QString& path, const char* confirm)
                 vss_test::wait_until([ok] { return ok->isEnabled(); }, 5000));
             static_cast<QDialog*>(chooser)->accept();
         });
+}
+
+/// Waits for the window to finish giving the engine the setup it was asked to
+/// open, which it does on a worker thread with the menu locked.
+void wait_until_applied(Session& s)
+{
+    wait_for("the window to finish opening the setup",
+             [&s] { return !s.window().applying(); });
+    s.settle();
 }
 
 /// The names of the ports that run, in order.
@@ -304,7 +315,7 @@ TEST_CASE("engine: opening a setup replaces the one that runs")
     s.step(QStringLiteral("open first.json while it runs"));
     drive_file_dialog(s, first, "Open");
     choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
-    s.settle();
+    wait_until_applied(s);
     // The ports are the file's, not those and a second set of them, and the
     // ones that did not change are the same ports.
     REQUIRE_EQ(port_names(s), (QStringList{"a", "b"}));
@@ -315,7 +326,7 @@ TEST_CASE("engine: opening a setup replaces the one that runs")
     s.step(QStringLiteral("open second.json while first.json runs"));
     drive_file_dialog(s, second, "Open");
     choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
-    s.settle();
+    wait_until_applied(s);
     REQUIRE_EQ(port_names(s), (QStringList{"c", "d"}));
     REQUIRE_EQ(s.backend().links().size(), 1);
     ad::require_consistent(s);
@@ -323,7 +334,7 @@ TEST_CASE("engine: opening a setup replaces the one that runs")
     s.step(QStringLiteral("open first.json again"));
     drive_file_dialog(s, first, "Open");
     choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
-    s.settle();
+    wait_until_applied(s);
     Probe::instance().tolerate(false);
     s.pilot().check();
     REQUIRE_EQ(port_names(s), (QStringList{"a", "b"}));
@@ -333,5 +344,79 @@ TEST_CASE("engine: opening a setup replaces the one that runs")
     const auto saved = vss::config::load_file(first.toStdString());
     REQUIRE(saved.has_value());
     REQUIRE_EQ(saved->ports.size(), std::size_t{2});
+    s.finish();
+}
+
+TEST_CASE("open: a failed open that lost a port marks the setup changed")
+{
+    Session s("open: a failed open that lost a port marks the setup changed",
+              Session::mode::advanced);
+    const auto a = make(s, "Loopback", "a");
+    const auto b = make(s, "Loopback", "b");
+    ad::wire(s, a, b);
+    QTemporaryDir directory;
+    REQUIRE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("lab.json"));
+
+    s.step(QStringLiteral("save the setup, so the title has no unsaved mark"));
+    drive_file_dialog(s, path, "Save");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Save as"));
+    s.settle();
+    REQUIRE(!s.window().windowTitle().contains(QLatin1Char('*')));
+
+    s.step(QStringLiteral("open it again, but the engine fails and loses a"));
+    s.fake().lose_port_on_failed_replace(QStringLiteral("a"));
+    s.fake().fail_next(vss::make_error_code(vss::errc::already_exists));
+    s.pilot().expect_type<ErrorDialog>(
+        "the error",
+        [](QWidget* dialog)
+        {
+            // Not everything came back, and the dialog says so.
+            REQUIRE(!dialog->findChildren<QLabel*>().isEmpty());
+            bool said = false;
+            for (const auto* label : dialog->findChildren<QLabel*>())
+                said = said || label->text().contains(
+                                   QStringLiteral("could be put back"));
+            REQUIRE(said);
+            static_cast<QDialog*>(dialog)->accept();
+        });
+    drive_file_dialog(s, path, "Open");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
+    wait_until_applied(s);
+    Probe::instance().tolerate(false);
+    s.pilot().check();
+
+    // What runs is no longer what the file says, and the title says so.
+    REQUIRE_EQ(s.backend().ports().size(), 1);
+    REQUIRE(s.window().windowTitle().contains(QLatin1Char('*')));
+    s.finish();
+}
+
+TEST_CASE("open: a failed open that changed nothing leaves the title alone")
+{
+    Session s("open: a failed open that changed nothing leaves the title "
+              "alone",
+              Session::mode::advanced);
+    const auto a = make(s, "Loopback", "a");
+    const auto b = make(s, "Loopback", "b");
+    ad::wire(s, a, b);
+    QTemporaryDir directory;
+    REQUIRE(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("lab.json"));
+    drive_file_dialog(s, path, "Save");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Save as"));
+    s.settle();
+    REQUIRE(!s.window().windowTitle().contains(QLatin1Char('*')));
+
+    s.fake().fail_next(vss::make_error_code(vss::errc::already_exists));
+    s.pilot().expect_type<ErrorDialog>("the error", [](QWidget* d)
+                                       { static_cast<QDialog*>(d)->accept(); });
+    drive_file_dialog(s, path, "Open");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
+    wait_until_applied(s);
+    Probe::instance().tolerate(false);
+    s.pilot().check();
+    REQUIRE_EQ(s.backend().ports().size(), 2);
+    REQUIRE(!s.window().windowTitle().contains(QLatin1Char('*')));
     s.finish();
 }
