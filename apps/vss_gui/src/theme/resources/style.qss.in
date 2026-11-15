@@ -121,6 +121,9 @@ QTableView::item:selected, QTreeView::item:selected, QListView::item:selected { 
 QListWidget#simpleSetupList::item { padding: %space.0% %space.1%; }
 QHeaderView { background: %panel%; border: 0; }
 QHeaderView::section { background: %panel%; color: %ink3%; border: 0; border-bottom: 1px solid %line%; padding: 0 12px; min-height: 28px; font-weight: 600; }
+QHeaderView#monitorColumns::section { padding: 0 %space.1%; min-height: 0; }
+QTableView#monitorTable::item { padding: 0 %space.1%; }
+QTableView#monitorTable[compact="true"]::item { padding: 0 %space.0%; }
 QTableCornerButton::section { background: %panel%; border: 0; }
 QScrollBar:vertical { width: 10px; background: transparent; margin: 0; }
 QScrollBar:horizontal { height: 10px; background: transparent; margin: 0; }

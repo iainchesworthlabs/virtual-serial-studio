@@ -8,12 +8,14 @@
 #define VSS_GUI_PANES_MONITOR_PANEL_HPP
 
 #include "backend/studio_backend.hpp"
+#include "panes/monitor_cell_delegate.hpp"
 
 #include <QElapsedTimer>
 #include <QHash>
 #include <QStringList>
 #include <QWidget>
 
+#include <array>
 #include <cstdint>
 #include <optional>
 
@@ -24,6 +26,7 @@ class QHBoxLayout;
 class QLineEdit;
 class QPlainTextEdit;
 class QPushButton;
+class QStandardItemModel;
 class QStackedWidget;
 class QTabWidget;
 class QTableView;
@@ -68,13 +71,43 @@ public:
 
     bool eventFilter(QObject* watched, QEvent* event) override;
 
+    /// The traffic table, for tests.
+    QTableView* table() const noexcept { return table_; }
+    /// Smallest a table column can be dragged to (a 24 px target and more).
+    /// The same as the Ports table's.
+    static constexpr int kMinimumColumnWidth = 48;
+    /// Writes the widths the user set now rather than after the usual short
+    /// delay.
+    void save_column_widths() const;
+
 Q_SIGNALS:
     void port_selected(vss::endpoint_id id);
     void status_message(const QString& message);
     void error_message(const QString& message);
 
+protected:
+    void changeEvent(QEvent* event) override;
+
 private:
     void build();
+    /// Sets everything that depends on the density, the text size and the
+    /// language: the fonts and padding of the cells, the height of the rows
+    /// and of the header, and the widths of the columns.
+    void apply_metrics();
+    /// Sets the widths of the columns from their headings and contents, or
+    /// from what the user chose.
+    void apply_column_widths();
+    void restore_column_widths();
+    /// The width a column's own delegate asks for `sample`.
+    int cell_width(int column, const QString& sample);
+    /// Widens or narrows a column by `delta` pixels, from the keyboard.
+    void resize_column_by_key(int column, int delta);
+    /// Gives a column back the width its heading and contents ask for.
+    void fit_column_by_key(int column);
+    void report_column_width(int column);
+    /// The width of a "0" in the cell font, which is the unit a width the user
+    /// set is kept in.
+    double zero_width() const;
     void update_actions();
     void update_empty();
     void update_filters();
@@ -129,6 +162,18 @@ private:
     QTimer* commit_timer_ = nullptr;
     int commit_interval_ms_ = kCommitIntervalMs;
     QElapsedTimer last_commit_;
+    monitor_cell_style cell_style_;
+    MonitorCellDelegate* cell_delegate_ = nullptr;
+    /// One row of sample texts, for measuring what a column has to show.
+    QStandardItemModel* measure_model_ = nullptr;
+    QTimer* column_save_timer_ = nullptr;
+    /// The width the user gave each of the first four columns, as a number of
+    /// "0" characters of the data font, so it still fits after the text size
+    /// changes; 0 means not set, and the column follows its heading and
+    /// contents.
+    std::array<double, 4> user_widths_ = {};
+    bool applying_widths_ = false;
+    bool applying_metrics_ = false;
 };
 
 } // namespace vss::gui
