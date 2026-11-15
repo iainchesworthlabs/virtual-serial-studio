@@ -160,6 +160,15 @@ private:
             refuse(message.id, api_errc::busy, "a recording is running");
             return;
         }
+        if (asked->snapshot_on.has_value() || asked->before_s != 0 ||
+            asked->after_s != 0)
+        {
+            // A ring that is cut out around a trigger needs the decoded
+            // stream, which this host does not record from yet.
+            refuse(message.id, api_errc::unsupported,
+                   "a snapshot on a trigger is not supported");
+            return;
+        }
 
         recording_options options;
         std::vector<tap_place> watched;

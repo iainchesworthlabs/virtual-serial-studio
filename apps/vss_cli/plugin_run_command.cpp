@@ -30,9 +30,11 @@
 #include "stop_signals.hpp"
 
 #include <vss/core/error.hpp>
+#include <vss/core/hub.hpp>
 #include <vss/machine/folders.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
+#include <vss/plugin/host/capture_point.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
@@ -1350,6 +1352,9 @@ int run_plugin(const options& given, const places& where)
     g_stop_requested.store(false);
     platform::catch_stop_signals(request_stop);
 
+    // A command line has no ports, so a plugin that asks for a recording
+    // is told that its places do not exist.
+    vss::hub no_ports;
     host_threads threads;
     host::service_options setup;
     setup.roots = where.roots;
@@ -1364,9 +1369,14 @@ int run_plugin(const options& given, const places& where)
     // a secret to show the user (a pairing code) gets it printed here.  It
     // is printed once and kept nowhere.
     const bool as_json = given.json;
-    setup.extensions = [as_json](const host::extension_context& context)
+    setup.extensions =
+        [as_json, &no_ports](const host::extension_context& context)
     {
         std::vector<std::unique_ptr<host::extension_handler>> handlers;
+        handlers.push_back(host::make_capture_point(
+            context, no_ports,
+            [](std::string_view) -> std::optional<host::capture_place>
+            { return std::nullopt; }));
         handlers.push_back(host::make_secret_point(
             context,
             [as_json](host::secret_to_show secret,
