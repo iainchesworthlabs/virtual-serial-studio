@@ -14,7 +14,14 @@
 //              exists is accepted when this user owns it, or when the
 //              Administrators group does and this process runs with that
 //              group enabled (an elevated process makes objects owned by the
-//              group).  A path that is a file or a reparse point is refused.
+//              group), and when its access list lets nobody else in: every
+//              entry that allows must name this user, the system, the
+//              Administrators group, the owner of the directory or the
+//              creator of what is made inside.
+//              No access list at all, which lets everyone in, an entry for
+//              anyone else, and an entry of a kind this code does not know
+//              are refused.  A path that is a file or a reparse point is
+//              refused.
 //   file       opened for appending only, shared for reading and deleting, not
 //              inherited by child processes.  A new file is made with the same
 //              protected access list as the directory (one entry, this user),
@@ -158,8 +165,63 @@ bool is_enabled_administrators(PSID owner)
     return member != FALSE;
 }
 
-/// Checks a directory that was there before: a real directory, not a link, and
-/// owned by this user (or by Administrators for an elevated process).
+/// True when `sid` is the well-known SID `kind`.
+bool is_well_known(PSID sid, WELL_KNOWN_SID_TYPE kind)
+{
+    std::vector<unsigned char> known(SECURITY_MAX_SID_SIZE);
+    DWORD size = static_cast<DWORD>(known.size());
+    if (::CreateWellKnownSid(kind, nullptr, known.data(), &size) == 0)
+        return false;
+    return ::EqualSid(sid, known.data()) != 0;
+}
+
+/// True when the access list `dacl` of a directory lets in nobody but `user`
+/// and those who can read every file of the computer anyway: the system and
+/// the Administrators group.  The creator of what is made inside is allowed
+/// too, because only this user can make anything there, and so is the owner
+/// of the directory itself, whom the caller has checked to be this user (a
+/// directory that Python's `mkdtemp` makes names its owner in this way).
+///
+/// An entry that denies takes access away and is passed over.  An entry of
+/// any other kind than a plain one that allows is not understood, and what
+/// is not understood is refused.
+bool lets_only_this_user_in(PACL dacl, PSID user)
+{
+    // No list is not an empty list: it lets everyone in.
+    if (dacl == nullptr)
+        return false;
+    ACL_SIZE_INFORMATION entries{};
+    if (::GetAclInformation(dacl, &entries, sizeof(entries),
+                            AclSizeInformation) == 0)
+        return false;
+    for (DWORD index = 0; index < entries.AceCount; ++index)
+    {
+        void* found = nullptr;
+        if (::GetAce(dacl, index, &found) == 0 || found == nullptr)
+            return false;
+        const auto* header = static_cast<const ACE_HEADER*>(found);
+        if (header->AceType == ACCESS_DENIED_ACE_TYPE)
+            continue;
+        if (header->AceType != ACCESS_ALLOWED_ACE_TYPE)
+            return false;
+        auto* allowed = static_cast<ACCESS_ALLOWED_ACE*>(found);
+        PSID named = &allowed->SidStart;
+        if (::IsValidSid(named) == 0)
+            return false;
+        if (::EqualSid(named, user) != 0 ||
+            is_well_known(named, WinLocalSystemSid) ||
+            is_well_known(named, WinBuiltinAdministratorsSid) ||
+            is_well_known(named, WinCreatorOwnerSid) ||
+            is_well_known(named, WinCreatorOwnerRightsSid))
+            continue;
+        return false;
+    }
+    return true;
+}
+
+/// Checks a directory that was there before: a real directory, not a link,
+/// owned by this user (or by Administrators for an elevated process), with an
+/// access list that lets nobody else in.
 error_code check_existing_directory(const std::filesystem::path& directory,
                                     const std::vector<unsigned char>& user)
 {
@@ -173,20 +235,23 @@ error_code check_existing_directory(const std::filesystem::path& directory,
         return make_error_code(errc::permission_denied);
 
     PSID owner = nullptr;
+    PACL dacl = nullptr;
     PSECURITY_DESCRIPTOR descriptor = nullptr;
     const DWORD status = ::GetNamedSecurityInfoW(
-        text.c_str(), SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION, &owner,
-        nullptr, nullptr, nullptr, &descriptor);
+        text.c_str(), SE_FILE_OBJECT,
+        OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, &owner,
+        nullptr, &dacl, nullptr, &descriptor);
     const local_owner release(descriptor);
     if (status != ERROR_SUCCESS)
         return system_error(status);
     if (owner == nullptr)
         return make_error_code(errc::permission_denied);
-    if (::EqualSid(owner, sid_of(user)) != 0)
-        return {};
-    if (is_enabled_administrators(owner))
-        return {};
-    return make_error_code(errc::permission_denied);
+    if (::EqualSid(owner, sid_of(user)) == 0 &&
+        !is_enabled_administrators(owner))
+        return make_error_code(errc::permission_denied);
+    if (!lets_only_this_user_in(dacl, sid_of(user)))
+        return make_error_code(errc::permission_denied);
+    return {};
 }
 
 /// Writes all of `bytes` to a handle, in pieces that `WriteFile` takes.

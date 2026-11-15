@@ -227,7 +227,7 @@ endif()
 # how to start one.
 if(TARGET vss_cli)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_cli.cpp
-    system/test_system_cli.cpp)
+    system/test_system_cli.cpp system/test_system_licence_cli.cpp)
   if(WIN32)
     list(APPEND VSS_SYSTEM_TEST_SOURCES
       support/platform/windows/child_process_windows.cpp)

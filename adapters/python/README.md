@@ -91,7 +91,8 @@ call may take.
 
 Calls: `status()`, `list_ports()`, `get_port(id)`, `list_links()`,
 `get_link(id)`, `ping()`, `create_port(name)`, `remove_port(id)`,
-`connect_ports(first, second, one_way=False)`, `send(port, data)`,
+`rename_port(id, name)`, `connect_ports(first, second, one_way=False)`,
+`disconnect_link(id)`, `send(port, data)`,
 `expect_bytes(port, pattern, timeout_ms=1000, send_port=None, send=b"",
 label=None, direction=None)`, `subscribe_events(interval_ms=250, ports=None)`,
 `subscribe_traffic(...)`, `unsubscribe_events()`, `unsubscribe_traffic()`,

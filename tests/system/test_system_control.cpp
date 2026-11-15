@@ -1152,6 +1152,28 @@ TEST_CASE("system control: a monitor watches without the bytes")
     REQUIRE(saw_b);
 }
 
+TEST_CASE("system control: audit verify says the log is whole, and is not "
+          "for a token")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+
+    const auto checked = run_cli("control", instance, {"audit", "verify"});
+    require_exit(checked, 0, "vss_cli control audit verify");
+    REQUIRE(checked.output.rfind("intact ", 0) == 0);
+
+    // It is a command of this user on the administration endpoint: it takes
+    // no token and no TCP port.
+    const auto with_token = run_cli(
+        "control", instance,
+        {"audit", "verify",
+         "--token-file=" + (gate.scratch_dir() / "none.token").string()});
+    require_exit(with_token, 2, "vss_cli control audit verify --token-file");
+    const auto more = run_cli("control", instance, {"audit", "check"});
+    require_exit(more, 2, "vss_cli control audit check");
+}
+
 TEST_CASE("system control: sessions lists a watch and kick ends it")
 {
     agent_process agent(unique_instance());
@@ -1499,6 +1521,116 @@ TEST_CASE("system control: expect waits for the bytes that a send brings")
     REQUIRE(!contains(missed.output, "matched"));
 }
 
+TEST_CASE("system control: a link is taken away and a port is renamed")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance, {"--local-role=control"});
+
+    const std::string a_id = control_create_port(instance, "alpha");
+    const std::string b_id = control_create_port(instance, "beta");
+    const std::string link_id =
+        id_line(run_cli("control", instance, {"link", a_id, b_id, "--one-way"}),
+                "l_", "vss_cli control link --one-way");
+
+    // The link carries bytes from alpha to beta.
+    const auto carried =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=6f6e65", "--send-to=" + a_id,
+                 "--send=6f6e65", "--timeout=20000"});
+    require_exit(carried, 0, "vss_cli control expect over a link");
+
+    // Unlinking is quiet when it works, as `port remove` is, and the link
+    // is gone from the list while both ports stay.
+    const auto unlinked = run_cli("control", instance, {"unlink", link_id});
+    require_exit(unlinked, 0, "vss_cli control unlink");
+    REQUIRE(unlinked.output.empty());
+    const auto links = run_cli("control", instance, {"links"});
+    require_exit(links, 0, "vss_cli control links after unlink");
+    REQUIRE_EQ(lines_of(links.output), std::vector<std::string>{"No links"});
+    REQUIRE(agent_lists_port(instance, "alpha"));
+    REQUIRE(agent_lists_port(instance, "beta"));
+
+    // What is sent to alpha no longer arrives at beta.
+    const auto cut =
+        run_cli("control", instance,
+                {"expect", b_id, "--pattern=74776f", "--send-to=" + a_id,
+                 "--send=74776f", "--timeout=300"});
+    require_exit(cut, 1, "vss_cli control expect after unlink");
+    REQUIRE(contains(cut.output, "timeout"));
+
+    // The same link again is not found, and a word that is no id is a
+    // mistake, as for the other commands on ids.
+    const auto again = run_cli("control", instance, {"unlink", link_id});
+    require_exit(again, 1, "vss_cli control unlink of a link that is gone");
+    REQUIRE(contains(again.output, "control unlink failed"));
+    REQUIRE(contains(again.output, "engine.not_found"));
+    const auto not_an_id = run_cli("control", instance, {"unlink", a_id});
+    require_exit(not_an_id, 1, "vss_cli control unlink of a port");
+    REQUIRE(contains(not_an_id.output, "invalid_argument"));
+
+    // `link <id> <id>` and `link show <id>` still work beside it.
+    const std::string again_id =
+        id_line(run_cli("control", instance, {"link", a_id, b_id}), "l_",
+                "vss_cli control link after unlink");
+    REQUIRE(again_id != link_id);
+    require_exit(run_cli("control", instance, {"link", "show", again_id}), 0,
+                 "vss_cli control link show");
+
+    // Renaming is quiet too, and the agent and the one-port view say the new
+    // name.
+    const auto renamed =
+        run_cli("control", instance, {"port", "rename", a_id, "bench"});
+    require_exit(renamed, 0, "vss_cli control port rename");
+    REQUIRE(renamed.output.empty());
+    REQUIRE(agent_lists_port(instance, "bench"));
+    const auto shown = run_cli("control", instance, {"port", "show", a_id});
+    require_exit(shown, 0, "vss_cli control port show after rename");
+    REQUIRE(contains(shown.output, "Name: bench"));
+    REQUIRE(!contains(shown.output, "Name: alpha"));
+
+    // A name another port has, and a port that is not there, say so.
+    const auto taken =
+        run_cli("control", instance, {"port", "rename", b_id, "bench"});
+    require_exit(taken, 1, "vss_cli control port rename to a name in use");
+    REQUIRE(contains(taken.output, "control port rename failed"));
+    REQUIRE(contains(taken.output, "engine.already_exists"));
+    const auto missing =
+        run_cli("control", instance, {"port", "rename", "p_9999", "x"});
+    require_exit(missing, 1, "vss_cli control port rename of no port");
+    REQUIRE(contains(missing.output, "engine.not_found"));
+    const auto name =
+        run_cli("control", instance, {"port", "rename", "alpha", "x"});
+    require_exit(name, 1, "vss_cli control port rename of a name");
+    REQUIRE(contains(name.output, "invalid_argument"));
+
+    // `port create`, `port remove` and `port show` are as they were.
+    const std::string c_id = control_create_port(instance, "gamma");
+    require_exit(run_cli("control", instance, {"port", "remove", c_id}), 0,
+                 "vss_cli control port remove");
+    require_exit(run_cli("control", instance, {"port", "show", b_id}), 0,
+                 "vss_cli control port show");
+}
+
+TEST_CASE("system control: a monitor may not unlink or rename")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+    create_port(instance, "seen");
+    const std::string id = id_of_port(instance, "seen");
+
+    const auto unlinked = run_cli("control", instance, {"unlink", "l_1"});
+    require_exit(unlinked, 1, "vss_cli control unlink as a monitor");
+    REQUIRE(contains(unlinked.output, "forbidden"));
+    const auto renamed =
+        run_cli("control", instance, {"port", "rename", id, "other"});
+    require_exit(renamed, 1, "vss_cli control port rename as a monitor");
+    REQUIRE(contains(renamed.output, "forbidden"));
+    REQUIRE(agent_lists_port(instance, "seen"));
+    REQUIRE(!agent_lists_port(instance, "other"));
+}
+
 TEST_CASE("system control: a monitor may not wait for bytes")
 {
     agent_process agent(unique_instance());
@@ -1656,6 +1788,20 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"link", "p_1", "p_2", "--hex=00"},
         {"link", "p_1", "p_2", "--kind=loopback"},
         {"link", "p_1", "p_2", "--one-way", "--one-way"},
+        {"unlink"},
+        {"unlink", ""},
+        {"unlink", "l_1", "l_2"},
+        {"unlink", "l_1", "--hex=00"},
+        {"unlink", "l_1", "--kind=loopback"},
+        {"unlink", "l_1", "--one-way"},
+        {"port", "rename"},
+        {"port", "rename", "p_1"},
+        {"port", "rename", "", "a"},
+        {"port", "rename", "p_1", ""},
+        {"port", "rename", "p_1", "a", "b"},
+        {"port", "rename", "p_1", "a", "--kind=loopback"},
+        {"port", "rename", "p_1", "a", "--hex=00"},
+        {"port", "rename", "p_1", "a", "--one-way"},
         {"status", "--one-way"},
         {"sessions", "--hex=00"},
         {"watch", "--kind=loopback"},
@@ -1786,6 +1932,8 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"port", "show", "p_1", port_option, token_option},
         {"links", port_option, token_option},
         {"link", "show", "l_1", port_option, token_option},
+        {"unlink", "l_1", port_option, token_option},
+        {"port", "rename", "p_1", "a", port_option, token_option},
         {"ping", port_option, token_option},
         {"send", "p_1", "--hex=00", port_option, token_option},
         {"expect", "p_1", "--pattern=00", port_option, token_option},
@@ -1810,6 +1958,8 @@ TEST_CASE("system control: the commands on ports refuse a bad command line")
         {"port", "show", "p_1"},
         {"links"},
         {"link", "show", "l_1"},
+        {"unlink", "l_1"},
+        {"port", "rename", "p_1", "a"},
         {"ping"},
         {"expect", "p_1", "--pattern=00"},
         {"expect", "p_1", "--pattern=00FFab", "--timeout=100000", "--tx"},
