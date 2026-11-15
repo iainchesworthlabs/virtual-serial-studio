@@ -116,7 +116,7 @@ native_handle number_of(HANDLE handle) noexcept
     return reinterpret_cast<native_handle>(handle);
 }
 
-std::optional<std::wstring> wide(std::string_view text)
+std::optional<std::wstring> wide(const std::string& text)
 {
     if (text.empty())
         return std::wstring();
@@ -134,7 +134,7 @@ std::optional<std::wstring> wide(std::string_view text)
     return result;
 }
 
-std::string narrow(std::wstring_view text)
+std::string narrow(const std::wstring& text)
 {
     if (text.empty())
         return {};
@@ -254,7 +254,7 @@ std::optional<std::wstring> environment_block(
             return std::nullopt;
         entries.emplace_back(std::move(*wide_name), std::move(*wide_value));
     }
-    const auto channel_name = wide(channel_variable);
+    const auto channel_name = wide(std::string(channel_variable));
     if (!channel_name)
         return std::nullopt;
     entries.emplace_back(
@@ -307,7 +307,8 @@ public:
             return last_error();
         ready_ = true;
         if (::UpdateProcThreadAttribute(
-                list(), 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles_.data(),
+                list(), 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                static_cast<void*>(handles_.data()),
                 handles_.size() * sizeof(HANDLE), nullptr, nullptr) == 0)
             return last_error();
         return {};

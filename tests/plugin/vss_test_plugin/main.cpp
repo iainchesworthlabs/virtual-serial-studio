@@ -140,7 +140,12 @@ void print_environment()
     }
     std::sort(variables.begin(), variables.end());
     for (const auto& [name, value] : variables)
-        say("env " + name + "=" + value);
+    {
+        std::string line;
+        line.reserve(name.size() + value.size() + 5);
+        line.append("env ").append(name).append("=").append(value);
+        say(line);
+    }
     say("env-end");
 }
 
@@ -340,9 +345,8 @@ std::optional<int> act(std::string_view argument, const char* self)
     return 2;
 }
 
-} // namespace
-
-int main(int argc, char** argv)
+/// What `main` does, where it may throw.
+int run(int argc, char** argv)
 {
     test_plugin::binary_output();
 
@@ -358,4 +362,18 @@ int main(int argc, char** argv)
             return *code;
     }
     return 0;
+}
+
+} // namespace
+
+int main(int argc, char** argv)
+{
+    try
+    {
+        return run(argc, argv);
+    }
+    catch (...)
+    {
+        return 4;
+    }
 }

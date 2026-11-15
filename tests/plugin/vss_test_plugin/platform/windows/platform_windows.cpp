@@ -54,6 +54,8 @@ private:
 
 HANDLE as_handle(std::intptr_t value)
 {
+    // The number is a HANDLE the operating system gave out.
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
     return reinterpret_cast<HANDLE>(value);
 }
 

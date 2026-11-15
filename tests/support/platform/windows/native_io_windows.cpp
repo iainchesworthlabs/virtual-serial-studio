@@ -45,11 +45,13 @@ DWORD milliseconds_until(steady::time_point deadline)
     const auto left =
         std::chrono::ceil<std::chrono::milliseconds>(deadline - steady::now());
     return static_cast<DWORD>(
-        std::clamp<std::int64_t>(left.count(), 0, 24 * 60 * 60 * 1000));
+        std::clamp<std::int64_t>(left.count(), 0, std::int64_t{86'400'000}));
 }
 
 HANDLE as_handle(std::intptr_t value)
 {
+    // The number is a HANDLE the operating system gave out.
+    // NOLINTNEXTLINE(performance-no-int-to-ptr)
     return reinterpret_cast<HANDLE>(value);
 }
 
@@ -216,7 +218,7 @@ void close_handle(std::intptr_t handle)
 
 bool process_exists(std::uint64_t pid)
 {
-    const HANDLE process =
+    HANDLE process =
         ::OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
                       static_cast<DWORD>(pid));
     if (process == nullptr)
@@ -233,7 +235,7 @@ std::intptr_t open_inheritable_handle()
     SECURITY_ATTRIBUTES inheritable{};
     inheritable.nLength = static_cast<DWORD>(sizeof inheritable);
     inheritable.bInheritHandle = TRUE;
-    const HANDLE event = ::CreateEventW(&inheritable, TRUE, FALSE, nullptr);
+    HANDLE event = ::CreateEventW(&inheritable, TRUE, FALSE, nullptr);
     if (event == nullptr)
         return -1;
     return reinterpret_cast<std::intptr_t>(event);
