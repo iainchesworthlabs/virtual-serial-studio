@@ -29,6 +29,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
@@ -647,6 +648,12 @@ struct ring_segment
 
 struct place_state
 {
+    place_state() = default;
+    ~place_state() = default;
+    // A place holds an open file and stays where it was made.
+    place_state(const place_state&) = delete;
+    place_state& operator=(const place_state&) = delete;
+
     fs::path path;
     std::ofstream out;
     /// The hash of the place file as it is written.  A ring writes the file
@@ -666,7 +673,7 @@ struct recording_writer::state
 {
     fs::path folder;
     recording_options options;
-    std::vector<place_state> places;
+    std::deque<place_state> places;
     std::uint64_t limit_ns = 0;
     std::uint64_t bytes = 0;
     std::uint64_t dropped = 0;
@@ -1696,7 +1703,7 @@ struct place_reader::state
         append_number(where, line_number);
         where.push_back(' ');
         where.append(text);
-        return fail(code, std::move(where));
+        return fail(code, where);
     }
 
     /// The next line of the file, without its line feed, or nothing at the

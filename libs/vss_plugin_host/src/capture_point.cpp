@@ -81,6 +81,7 @@ public:
         {
             // A recording that cannot be finished is left without its
             // index, which is how a reader knows it is not whole.
+            current_.reset();
         }
     }
 
@@ -140,9 +141,9 @@ private:
             context_.link.answer(id, std::move(message));
     }
 
-    void refuse(std::uint64_t id, api_errc code, std::string text)
+    void refuse(std::uint64_t id, api_errc code, const std::string& text)
     {
-        answer(id, error_answer(code, std::move(text)));
+        answer(id, error_answer(code, text));
     }
 
     bool running() const noexcept
@@ -306,7 +307,7 @@ private:
     /// Writes what the tap holds into the recording.
     void drain()
     {
-        if (!running() || !current_->tap)
+        if (!current_.has_value() || current_->over || !current_->tap)
             return;
         recording_run& run = *current_;
         const tap_batch batch = run.tap->take(take_items, take_bytes);
