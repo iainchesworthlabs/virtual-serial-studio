@@ -8,6 +8,8 @@
 #
 
 add_library(vss_plugin_host
+  src/bundle_sections.cpp
+  src/decode_store.cpp
   src/process.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
