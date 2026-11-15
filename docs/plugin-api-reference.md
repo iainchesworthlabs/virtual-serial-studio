@@ -66,7 +66,13 @@ restore the state of an instance: the plugin keeps its own files in its data dir
 
 ## Generators
 
-Design: 7.4. The host starts with up to 64 KiB of credit and tops it up as the engine takes bytes. A `generator.write`
+Design: 7.4. An instance is made in two steps, for every kind and not only for a generator. The host first sends
+`instance.create`, with the `kind` and the `type` (the `id` of the extension point in the plugin's manifest) and the
+parameters, and the plugin answers `ok`. Only then does the host send `generator.start` for that `instance` (or
+`fixture.create`, `modifier.create` or `decoder.create` for the other kinds). That is where a plugin learns which type of
+its own an instance is. An adapter has no start message of its own, so `instance.create` is all it gets.
+
+The host starts with up to 64 KiB of credit and tops it up as the engine takes bytes. A `generator.write`
 is a notification, so a write without credit is not answered: the host drops the bytes and counts them, and ends a
 plugin that keeps going. The timing class of a generator (`rules` or `async`) is in the manifest, and a
 `generator.pattern` from an instance that did not declare `rules` is answered with `not_declared`.
@@ -156,7 +162,11 @@ the path of the file the host writes and how large it is so far.
 | `capture.result` | host | answer | none | `running` (true or false); `bytes`, `seconds`, `dropped` (0 or more); `ring` (true or false); `recording` (a path inside the data directory, 1 to 240 bytes); `size` (0 or more: the bytes of that file so far) | 19.4, 19.6 |
 | `timeline.load` | plugin | request | `ok` | `instance`; `recording` (a path inside the data directory, 1 to 240 bytes); `place` (a name); `time_scale` (0.01 to 100, default 1; a number that does not read back as itself is refused); `seed` (optional, 0 or more) | 19.4 |
 | `bundle.prepare` | host | request | `bundle.result` | `section` (token of 1 to 128 bytes); `settings` (JSON object, default `{}`) | 19.5 |
-| `bundle.result` | plugin | answer | none | `files` (list of 0 to 16): each `name` (a path inside the section's folder, 1 to 128 bytes) and `size` (0 to 268435456); the sizes add up to at most 268435456 bytes | 19.5 |
+| `bundle.result` | plugin | answer | none | `files` (list of 0 to 16): each `name` (a path inside the section's folder, by the rules of a manifest path, 1 to 128 bytes) and `size` (0 to 268435456); the sizes add up to at most 268435456 bytes | 19.5 |
+
+The section's folder is `bundles/<section id>/` under the plugin's data directory, by convention. The plugin writes the
+files of a section there before it answers `bundle.prepare`, and each `name` of `bundle.result` is a path inside that
+folder. The host reads the files from there; the plugin is not told where the bundle is saved.
 
 ## Decoders, the decode stream and triggers
 
@@ -185,6 +195,24 @@ The items of `decoder.data` are objects with a text `item` that is one of these.
 | `time` | `t_ns` |
 | `lost` | `place`; `direction`; `from_offset`; `bytes` (1 or more); `from_ns`; `to_ns` (not before `from_ns`) |
 
+## Engine capabilities
+
+`hello_ack.capabilities` lists, by name, what this build of the engine can do. A plugin checks the list for what it
+needs and does without when it is not there: an operation that needs a missing capability is answered with an `error`
+whose value is `unsupported`. These are the names:
+
+| Capability | What it says | Design section |
+|---|---|---|
+| `engine_rules` | The engine runs rule sets for a port (`rules.set`) | 6.6 |
+| `rules_link` | Rule sets can be put on a link | 6.6 |
+| `rules_microseconds` | Delays in rule sets are exact to the microsecond | 6.6 |
+| `route_hook` | The engine has the stage on a route that a modifier uses | 7.6 |
+| `events_bus_fault_detail` | A bus fault event has its value, link and time | 20.4 |
+| `timeline` | The engine plays a recording as a timeline (`timeline.load`) | 19.4 |
+
+`timeline` is not offered in release candidate 6. `timeline.load` is answered with an `error` whose value is
+`unsupported`, and a plugin that replays a recording checks for the capability and shows that it cannot.
+
 ## Not built yet
 
 The design names these, and this version of the API has no message for them.
@@ -195,3 +223,4 @@ The design names these, and this version of the API has no message for them.
 | Progress and cancel of `bundle.prepare` | 19.5 |
 | The `clock` of `hello_ack` | 7.3 |
 | Typed forms of `triggers.query`, `trigger_stats` and `update_rules` | 20.4, 20.8 |
+| A message from the host to a plugin for a user starting a recording. A recorder is an `adapter` instance, made with `instance.create` | 19.1, 19.4 |

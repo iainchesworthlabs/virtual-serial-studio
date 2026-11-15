@@ -118,13 +118,13 @@ void require_refused(std::string_view header, std::string_view fragment,
 
 /// `header` is refused, and the line for the log does not hold `text`: a
 /// detail never repeats what the plugin sent.
-template <class message_type>
+template <class M>
 void require_detail_without(std::string_view header, std::string_view text,
                             byte_buffer blob = {})
 {
     const plugin::api_message message = message_of(header, std::move(blob));
     std::string detail;
-    const auto typed = plugin::decode_as<message_type>(message, &detail);
+    const auto typed = plugin::decode_as<M>(message, &detail);
     REQUIRE(typed.has_error());
     REQUIRE(!detail.empty());
     if (detail.find(text) != std::string::npos)

@@ -495,10 +495,10 @@ TEST_CASE("plugin api: the field and the request of a trigger are checked")
     require_refused<message_type>(field(R"({"name":"c","offset":7})"),
                                   "trigger.publish.field.length: is required");
     // A field of no bytes is a field that is not there.
-    REQUIRE_EQ(
-        accepted<message_type>(field(R"({"name":"c","offset":7,"length":0})"))
-            .field->length,
-        std::uint64_t{0});
+    const auto empty = accepted<message_type>(
+        field(R"({"name":"c","offset":7,"length":0})"));
+    REQUIRE(empty.field.has_value());
+    REQUIRE_EQ(empty.field->length, std::uint64_t{0});
     require_refused<message_type>(
         field(R"({"name":"c","offset":7,"length":-1})"),
         "trigger.publish.field.length: must be a whole number "
