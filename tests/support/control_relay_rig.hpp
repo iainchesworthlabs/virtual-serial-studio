@@ -102,8 +102,8 @@ public:
         vss::plugin::host::control_relay_handlers handlers;
         handlers.approve =
             [this](const vss::plugin::host::control_approval_request& ask,
-                   std::function<void(bool)> answer)
-        { asked(ask, std::move(answer)); };
+                   const std::function<void(bool)>& answer)
+        { asked(ask, answer); };
         handlers.to_plugin = [this](std::uint64_t session,
                                     std::string_view header,
                                     vss::bytes_view blob)
@@ -138,17 +138,25 @@ public:
     /// stops the thread.
     ~relay_rig()
     {
-        std::promise<void> destroyed;
-        std::future<void> gone = destroyed.get_future();
-        boost::asio::post(strand_,
-                          [this, &destroyed]
-                          {
-                              relay_.reset();
-                              destroyed.set_value();
-                          });
-        gone.wait();
-        guard_.reset();
-        thread_.join();
+        try
+        {
+            std::promise<void> destroyed;
+            std::future<void> gone = destroyed.get_future();
+            boost::asio::post(strand_,
+                              [this, &destroyed]
+                              {
+                                  relay_.reset();
+                                  destroyed.set_value();
+                              });
+            gone.wait();
+            guard_.reset();
+            thread_.join();
+        }
+        catch (...)
+        {
+            // best effort: a destructor must not throw, and nothing can act
+            // on a failed stop.
+        }
     }
 
     relay_rig(const relay_rig&) = delete;
@@ -198,10 +206,10 @@ public:
             answer->get_future().share();
         boost::asio::post(
             strand_,
-            [this, answer, request = std::move(request)]() mutable
+            [this, answer, request = std::move(request)]
             {
                 relay_->request_session(
-                    std::move(request),
+                    request,
                     [this,
                      answer](vss::plugin::host::control_session_answer given)
                     {
@@ -463,7 +471,7 @@ public:
 
 private:
     void asked(const vss::plugin::host::control_approval_request& ask,
-               std::function<void(bool)> answer)
+               const std::function<void(bool)>& answer)
     {
         approval_mode mode = approval_mode::approve;
         {

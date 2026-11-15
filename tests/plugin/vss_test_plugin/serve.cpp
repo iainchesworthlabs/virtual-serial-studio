@@ -469,7 +469,7 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
     {
         if (const auto code = parse_number<int>(*text))
         {
-            options.exit_after_ready = *code;
+            options.exit_after_ready = code;
             return true;
         }
         return false;
@@ -533,7 +533,7 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
     {
         if (const auto count = parse_number<std::uint32_t>(*text))
         {
-            options.flood_after_ready = *count;
+            options.flood_after_ready = count;
             return true;
         }
         return false;

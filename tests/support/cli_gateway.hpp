@@ -51,21 +51,29 @@ public:
         gate_.reset();
         // Where the transport leaves lock files beside the sockets, they go
         // with the name.
-        for (const vss::agent::local_endpoint endpoint :
-             {vss::agent::local_endpoint::agent,
-              vss::agent::local_endpoint::control,
-              vss::agent::local_endpoint::control_admin})
+        try
         {
-            const auto address =
-                vss::agent::local_address(endpoint, instance_);
-            if (!address)
-                continue;
-            std::filesystem::path lock(*address);
-            if (lock.extension() != ".sock")
-                continue;
-            lock.replace_extension(".lock");
-            std::error_code ignored;
-            std::filesystem::remove(lock, ignored);
+            for (const vss::agent::local_endpoint endpoint :
+                 {vss::agent::local_endpoint::agent,
+                  vss::agent::local_endpoint::control,
+                  vss::agent::local_endpoint::control_admin})
+            {
+                const auto address =
+                    vss::agent::local_address(endpoint, instance_);
+                if (!address)
+                    continue;
+                std::filesystem::path lock(*address);
+                if (lock.extension() != ".sock")
+                    continue;
+                lock.replace_extension(".lock");
+                std::error_code ignored;
+                std::filesystem::remove(lock, ignored);
+            }
+        }
+        catch (...)
+        {
+            // best effort: a lock file left behind fails no test, and a
+            // destructor has nobody to tell.
         }
     }
 

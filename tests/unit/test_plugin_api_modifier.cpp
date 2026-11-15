@@ -72,7 +72,7 @@ struct create_text
         out += member_text("max_batch_us", us);
         out += member_text("on_timeout", timeout);
         out += member_text("flush_on", flush);
-        out += "}";
+        out += '}';
         return out;
     }
 };
@@ -91,7 +91,7 @@ struct batch_text
         out += member_text("seq", seq);
         out += member_text("ts_ns", ts);
         out += member_text("chunks", chunks);
-        out += "}";
+        out += '}';
         return out;
     }
 };
@@ -108,7 +108,7 @@ struct result_text
         out += member_text("instance", instance);
         out += member_text("seq", seq);
         out += member_text("actions", actions);
-        out += "}";
+        out += '}';
         return out;
     }
 };
@@ -547,7 +547,7 @@ TEST_CASE("plugin api: modifier.batch has between 1 and 256 chunks")
         for (std::size_t i = 0; i < count; ++i)
         {
             if (i != 0)
-                out += ",";
+                out += ',';
             out += chunk_text(i, 1, 1000);
         }
         return out + "]";

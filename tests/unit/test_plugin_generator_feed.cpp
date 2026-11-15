@@ -472,7 +472,9 @@ TEST_CASE("generator feed: a batch is never written early")
     port.clock = at_ms(99);
     REQUIRE_EQ(feed.on_time(at_ms(99), port).written, std::uint64_t{0});
     REQUIRE(port.writes.empty());
-    REQUIRE(*feed.next_wake() == at_ms(100));
+    const auto still_held = feed.next_wake();
+    REQUIRE(still_held.has_value());
+    REQUIRE(*still_held == at_ms(100));
 
     // On time: written at the time asked for, and not late.
     port.clock = at_ms(100);
@@ -511,7 +513,9 @@ TEST_CASE("generator feed: held batches go in order, each at its time")
     port.clock = at_ms(300);
     feed.on_time(at_ms(300), port);
     REQUIRE_EQ(port.writes.size(), std::size_t{1});
-    REQUIRE(*feed.next_wake() == at_ms(400));
+    const auto second_wake = feed.next_wake();
+    REQUIRE(second_wake.has_value());
+    REQUIRE(*second_wake == at_ms(400));
 
     // The owner was late for the next two: both go at once, in order.
     port.clock = at_ms(450);

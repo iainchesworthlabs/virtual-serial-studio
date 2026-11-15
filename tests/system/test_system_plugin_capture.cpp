@@ -325,9 +325,10 @@ std::vector<recording_event> events_of(const fs::path& folder,
         if (next.has_error())
             throw vss_test::failure("a place file was refused: " +
                                     std::string(reader.detail()));
-        if (!next.value().has_value())
+        const auto& event = next.value();
+        if (!event.has_value())
             break;
-        events.push_back(*next.value());
+        events.push_back(*event);
     }
     return events;
 }

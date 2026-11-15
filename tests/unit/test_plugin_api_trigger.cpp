@@ -815,7 +815,7 @@ TEST_CASE("plugin api: a trigger with every optional member gives them back")
     one = none;
     one.request = full.request;
     (void)round_trip(one);
-    one = none;
+    one = std::move(none);
     one.sender = "meter-17";
     (void)round_trip(one);
 }

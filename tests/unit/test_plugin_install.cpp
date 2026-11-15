@@ -911,14 +911,20 @@ TEST_CASE("plugin install: after a crash at each step discovery finds the "
         // work folder and is not found.
         {"new install, before the rename", 1, false, false, {}},
         // A replace cut off before the old plugin is moved: the old one.
-        {"replace, before the old copy is moved", 1, false, true,
-         {id_and(std::string(program_text))}},
+        {"replace, before the old copy is moved",
+         1,
+         false,
+         true,
+         {id_and(program_text)}},
         // Cut off with the old plugin aside and the new one not in place:
         // neither is found, and neither is lost.
         {"replace, between the two renames", 2, false, true, {}},
         // Cut off after both renames: the new plugin, whose old copy is
         // still in the work folder.
-        {"replace, before the old copy is removed", 0, true, true,
+        {"replace, before the old copy is removed",
+         0,
+         true,
+         true,
          {id_and("new program")}},
     };
     for (const step& at : steps)

@@ -755,8 +755,11 @@ TEST_CASE("system control: the gateway shows the ports of the agent")
     const std::string state = value_after("State: ");
     REQUIRE(!edition.empty());
     REQUIRE(!state.empty());
-    REQUIRE(contains(status.output, "Edition: " + edition +
-                                        " (licence: " + state + ")"));
+    std::string edition_line = "Edition: " + edition;
+    edition_line += " (licence: ";
+    edition_line += state;
+    edition_line += ')';
+    REQUIRE(contains(status.output, edition_line));
 
     auto script = connect_client(instance);
     const auto listed = script->list_ports();

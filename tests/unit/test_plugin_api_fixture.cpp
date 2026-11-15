@@ -451,7 +451,7 @@ TEST_CASE("plugin api: rules.set has a depth and a size limit")
             text += R"({"a":)";
         text += "{}";
         for (std::size_t i = 0; i + 1 < depth; ++i)
-            text += "}";
+            text += '}';
         return text;
     };
     REQUIRE_EQ(accepted<message_type>(header, blob_of(nested(16))).data.size(),

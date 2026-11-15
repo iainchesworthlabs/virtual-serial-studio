@@ -1094,7 +1094,7 @@ TEST_CASE("plugin recording: a data line of 4096 bytes is read")
                   std::string(8192, 'c') + "\"");
     spit(folder / "1.jsonl", content);
     std::string index = golden_index();
-    replace_once(index, std::string(golden_sha256), sha256_of(content));
+    replace_once(index, golden_sha256, sha256_of(content));
     replace_once(index, "\"bytes\":2,", "\"bytes\":4096,");
     replace_once(index, "\"dropped\":16", "\"dropped\":0");
     spit(folder / "recording.json", index);
