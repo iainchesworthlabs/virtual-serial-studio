@@ -41,7 +41,7 @@ inline constexpr std::size_t max_parameters_json_size = std::size_t{64} * 1024;
 inline constexpr std::size_t max_parameters_json_depth = 4;
 /// The most bytes of text one value may take in the JSON.  The longest hex
 /// text of `bytes` is below this.
-inline constexpr std::size_t max_parameter_text_size = 16 * 1024;
+inline constexpr std::size_t max_parameter_text_size = std::size_t{16} * 1024;
 /// The most bytes a `path` value may have.
 inline constexpr std::size_t max_path_parameter_length = 1024;
 /// The longest a `duration` value may be: one day, in nanoseconds.  It is the

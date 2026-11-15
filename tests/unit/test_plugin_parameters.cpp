@@ -109,6 +109,20 @@ T value_of(const validation& result)
     return *value;
 }
 
+/// The scope of a checked path value, or an empty one when it has none.
+const path_scope& scope_of(const checked_parameter& item)
+{
+    static const path_scope none;
+    return item.scope ? *item.scope : none;
+}
+
+/// U+202E, built from bytes so the source holds no direction mark.
+std::string bidi_override()
+{
+    return {static_cast<char>(0xe2), static_cast<char>(0x80),
+            static_cast<char>(0xae)};
+}
+
 std::string repeat(char c, std::size_t count)
 {
     return std::string(count, c);
@@ -309,10 +323,11 @@ TEST_CASE("plugin parameters: a string with a control character or a direction m
 {
     const std::string body =
         R"j("type": "string", "max_length": 64, "default": "x")j";
-    for (const char* bad : {"a\nb", "a\tb", "a\x01"
-                                            "b",
-                            "a\x7f", "\xe2\x80\xae" "flip",
-                            "\xe2\x80\x8f", "\xff\xfe", "\xc3"})
+    for (const std::string& bad :
+         {std::string("a\nb"), std::string("a\tb"), std::string("a\x01" "b"),
+          std::string("a\x7f"), bidi_override() + "flip",
+          std::string("\xe2\x80\x8f"), std::string("\xff\xfe"),
+          std::string("\xc3")})
     {
         REQUIRE(refused(check(body, text(bad)), parameter_errc::bad_format));
     }
@@ -545,7 +560,7 @@ TEST_CASE("plugin parameters: every refusal is reported, one for each parameter"
 TEST_CASE("plugin parameters: an unknown name is shown cut short and in plain ASCII")
 {
     raw_parameters values;
-    values.push_back({"\xe2\x80\xae" + repeat('k', 400), whole(1)});
+    values.push_back({bidi_override() + repeat('k', 400), whole(1)});
     const validation result = validate({}, values);
     REQUIRE(!result.ok());
     REQUIRE(result.errors[0].line.size() < 200);
@@ -613,7 +628,7 @@ TEST_CASE("plugin parameters: a full path to a folder is taken as it is")
     REQUIRE(result.ok());
     REQUIRE_EQ(value_of<std::string>(result), base_path());
     REQUIRE(result.values.front().scope.has_value());
-    const path_scope& scope = *result.values.front().scope;
+    const path_scope& scope = scope_of(result.values.front());
     REQUIRE_EQ(scope.path, base_path());
     REQUIRE(scope.kind == path_kind::directory);
     REQUIRE(scope.access == path_access::write);
@@ -625,7 +640,7 @@ TEST_CASE("plugin parameters: a path to a file keeps its kind and access in the 
     const validation result =
         check(file_body, text(base_path() + sep() + "a.txt"));
     REQUIRE(result.ok());
-    const path_scope& scope = *result.values.front().scope;
+    const path_scope& scope = scope_of(result.values.front());
     REQUIRE_EQ(scope.path, base_path() + sep() + "a.txt");
     REQUIRE(scope.kind == path_kind::file);
     REQUIRE(scope.access == path_access::read);
@@ -1020,8 +1035,8 @@ TEST_CASE("plugin parameters: section 19: the settings of the bundle sections")
     chosen.push_back({"description", text(base_path() + sep() + "proto.json")});
     const validation granted = validate(file, chosen);
     REQUIRE(granted.ok());
-    REQUIRE(granted.values.front().scope->access == path_access::read);
-    REQUIRE(granted.values.front().scope->must_exist);
+    REQUIRE(scope_of(granted.values.front()).access == path_access::read);
+    REQUIRE(scope_of(granted.values.front()).must_exist);
 }
 
 TEST_CASE("plugin parameters: section 20: the decoder's silence setting")

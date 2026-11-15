@@ -138,8 +138,12 @@ void check_one_value(const plugin::raw_parameter& raw)
             plugin::to_json(first.values, plugin::value_source::user);
         std::string problem;
         const auto again = plugin::from_json(text, problem);
-        require(again.has_value());
-        const plugin::validation second = plugin::validate(alone, *again);
+        if (!again.has_value())
+        {
+            std::abort();
+        }
+        const plugin::validation second =
+            plugin::validate(alone, *again);
         require(second.ok());
         require(second.values == first.values);
         require(plugin::stable_text(second.values) ==
@@ -149,6 +153,8 @@ void check_one_value(const plugin::raw_parameter& raw)
 
 } // namespace
 
+// libFuzzer looks for exactly this name.
+// NOLINTNEXTLINE(readability-identifier-naming)
 extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
                                       std::size_t size)
 {
@@ -171,7 +177,10 @@ extern "C" int LLVMFuzzerTestOneInput(const std::uint8_t* data,
         }
         std::string again_problem;
         const auto second = plugin::from_json(text, again_problem);
-        require(second.has_value());
+        if (!second.has_value())
+        {
+            std::abort();
+        }
         require(*first == *second);
         for (const plugin::raw_parameter& item : *first)
         {
