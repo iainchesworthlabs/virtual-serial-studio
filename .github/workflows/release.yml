@@ -277,10 +277,14 @@ jobs:
         run: ./tools/ci/check-windows-installer.ps1 -Phase Uninstall
 
       # A pull request does not sign, so the installer above holds unsigned driver files and setup-driver.ps1 refuses
-      # them before it asks Windows anything. A signed run takes the other path, through pnputil, and once hung there
-      # while every pull request run passed. This rehearses that path on the runs that cannot sign: the driver files
-      # are signed in a copy with a throwaway certificate nothing trusts, and the copy is installed, upgraded and
-      # uninstalled with the same check.
+      # them at the signature check, before it asks Windows anything. A signed run gets past that check, and once hung
+      # in pnputil while every pull request run passed. setup-driver.ps1 now also refuses a catalog whose signer is
+      # not in Trusted Publishers (exit 6) before it calls pnputil, so this rehearsal does not reach pnputil. It runs
+      # that check on the runs that cannot sign: the driver files are signed in a copy with a throwaway certificate
+      # nothing trusts, and the copy is installed, upgraded and uninstalled with the same check, which expects the
+      # driver to be refused as not trusted. If the refusal came after pnputil again, the step would hang or end in
+      # another driver state. On a runner with test signing off the files are refused at the signature check, as
+      # in a pull request run.
       - name: Rehearse the signed path of the Windows installer
         if: runner.os == 'Windows' && steps.sign.outputs.mode == 'false'
         shell: pwsh

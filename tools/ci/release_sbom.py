@@ -40,7 +40,10 @@ ROOT = Path(__file__).resolve().parents[2]
 
 REPOSITORY = "iainchesworthlabs/virtual-serial-studio"
 PROGRAM = "virtual-serial-studio"
+# What the source says of itself. A package is conveyed under GPL-3.0-only when a component in it is
+# (Qt Canvas Painter), which document() works out from third_party.json.
 PROGRAM_LICENCE = "GPL-3.0-or-later"
+VERSION_3_ONLY = "GPL-3.0-only"
 SUPPLIER = "Organization: Iain Chesworth Labs"
 CREATOR_TOOL = "Tool: tools/ci/release_sbom.py"
 
@@ -57,6 +60,7 @@ PURL = {
 }
 HOMEPAGE = {
     "Qt": "https://www.qt.io",
+    "Qt Canvas Painter": "https://doc.qt.io/qt-6/qtcanvaspainter-index.html",
     "Boost": "https://www.boost.org",
     "Boost.VirtualSerial": "https://github.com/iainchesworthlabs/virtual-serial",
     "Monocypher": "https://monocypher.org",
@@ -123,6 +127,7 @@ def monocypher_version(root: Path) -> dict[str, str]:
 # third_party.json "notice" -> where its version is pinned.
 COMPONENT_SOURCES = {
     "Qt": qt_version,
+    "Qt Canvas Painter": qt_version,
     "Boost": boost_version,
     "Boost.VirtualSerial": virtual_serial_version,
     "Monocypher": monocypher_version,
@@ -191,6 +196,17 @@ def packages_of(root: Path) -> list[dict]:
 
 
 def document(root: Path, version: str, tag: str, created: datetime) -> dict:
+    packages = packages_of(root)
+    # The source is GPL-3.0-or-later. A release that carries a GPL-3.0-only component can be conveyed
+    # under version 3 only, which is what is concluded for it.
+    only = [p["name"] for p in packages if p["licenseDeclared"] == VERSION_3_ONLY]
+    concluded = VERSION_3_ONLY if only else PROGRAM_LICENCE
+    comment = (
+        f"The source code is {PROGRAM_LICENCE}. The release packages contain {', '.join(only)}, which is "
+        f"{VERSION_3_ONLY}, so they are conveyed under {VERSION_3_ONLY}."
+        if only
+        else ""
+    )
     program = {
         "SPDXID": spdx_id("Package", PROGRAM),
         "name": PROGRAM,
@@ -199,14 +215,14 @@ def document(root: Path, version: str, tag: str, created: datetime) -> dict:
         "downloadLocation": f"git+https://github.com/{REPOSITORY}@{tag}",
         "homepage": f"https://github.com/{REPOSITORY}",
         "filesAnalyzed": False,
-        "licenseConcluded": PROGRAM_LICENCE,
+        "licenseConcluded": concluded,
         "licenseDeclared": PROGRAM_LICENCE,
+        **({"licenseComments": comment} if comment else {}),
         "copyrightText": "NOASSERTION",
         "externalRefs": [
             {"referenceCategory": "PACKAGE-MANAGER", "referenceType": "purl", "referenceLocator": f"pkg:github/{REPOSITORY}@{tag}"}
         ],
     }
-    packages = packages_of(root)
     names = [program["SPDXID"]] + [p["SPDXID"] for p in packages]
     if len(set(names)) != len(names):
         raise SystemExit("release_sbom: two packages have the same SPDX identifier")

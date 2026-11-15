@@ -1895,7 +1895,8 @@ again.
 down before they end. `--verbose` prints the port table every half second while
 `run`, `share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
 --help` lists every option. An option takes its value as `--name=value` or as
-`--name value`; an option a command does not have, a missing value and a value that
+`--name value`, except under `control`, `agent`, `permissions` and `plugin`,
+which take `--name=value` only; an option a command does not have, a missing value and a value that
 is not a number where one is needed end the command with exit code 2 and one line
 on standard error. `vss_cli --version` prints the version of the build, as
 `vss_gui --version` does.

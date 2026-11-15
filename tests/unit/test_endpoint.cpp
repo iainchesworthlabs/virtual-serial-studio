@@ -1017,14 +1017,22 @@ TEST_CASE("endpoint: info reads the transport that reopen swaps in")
             }
         });
 
+    // The reader has to be reading before the swaps begin: on a fast machine
+    // all of them were over before the thread had run once.
+    const bool reading = wait_until([&] { return seen.load() > 0; }, 5000ms);
+
     std::vector<std::shared_ptr<scripted_transport>> swapped;
-    for (int round = 0; round < 200; ++round)
+    swapped.reserve(200);
+    bool reopened = reading;
+    for (int round = 0; round < 200 && reopened; ++round)
     {
         swapped.push_back(make_scripted(*fixture.hub));
-        REQUIRE(fixture.endpoint->reopen(swapped.back()));
+        reopened = fixture.endpoint->reopen(swapped.back()).has_value();
     }
     stop = true;
     reader.join();
+    REQUIRE(reading);
+    REQUIRE(reopened);
 
     // The reader asked the transports it found, one way or another.
     REQUIRE(seen.load() > 0);

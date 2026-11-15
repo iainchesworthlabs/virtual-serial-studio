@@ -13,7 +13,8 @@ version 3 (see below).
 |---|---|---|---|
 | [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) | v0.1.0-beta.2 | Boost Software License 1.0 | Header-only; the serial transport, backends and mock fixture behind every endpoint |
 | [Boost](https://boost.org) | 1.92 headers | Boost Software License 1.0 | Asio, System, JSON |
-| [Qt](https://qt.io) | 6.12.0 | LGPL-3.0-only OR GPL-3.0-only OR commercial; the Qt Canvas Painter module is GPL-3.0-only OR commercial | The GUI; linked dynamically. The release packages carry the Qt libraries, and with them the Qt Canvas Painter library (`Qt6CanvasPainter`) that draws the canvas |
+| [Qt](https://qt.io) | 6.12.0 | LGPL-3.0-only OR GPL-3.0-only OR commercial | The GUI; linked dynamically. The release packages carry the Qt libraries |
+| [Qt Canvas Painter](https://doc.qt.io/qt-6.12/qtcanvaspainter-index.html) | 6.12.0 | GPL-3.0-only OR commercial | The Qt library that draws the canvas (`Qt6CanvasPainter`); linked dynamically and carried in the release packages with the other Qt libraries |
 | [Monocypher](https://monocypher.org) | 4.0.2 | BSD-2-Clause OR CC0-1.0 | Vendored unchanged in `third_party/monocypher` and compiled into the program; the Ed25519 signature check behind licence files (`libs/vss_license`) |
 | [Tracy](https://github.com/wolfpld/tracy) | 0.14.1 (vcpkg) | BSD-3-Clause | Optional profiling client, compiled in when the build finds the vcpkg package (`VSS_TRACY`, on by default in vcpkg builds; the release packages are not built with vcpkg, so they do not contain it), built from an overlay of the vcpkg port (`cmake/vcpkg-ports/tracy`, MIT, adds the manual-lifetime and no-broadcast features); the capture and CSV tools are built from source in CI |
 

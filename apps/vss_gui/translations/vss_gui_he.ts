@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>תוכנית זו היא תוכנה חופשית: ניתן להפיץ אותה מחדש ו/או לשנות אותה בהתאם לתנאי הרישיון הציבורי הכללי של GNU כפי שפורסם על ידי הקרן לתוכנה חופשית, בין בגרסה 3 של הרישיון ובין (לפי בחירתכם) בכל גרסה מאוחרת יותר.</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>תוכנית זו היא תוכנה חופשית: ניתן להפיץ אותה מחדש ו/או לשנות אותה בהתאם לתנאי הרישיון הציבורי הכללי של GNU כפי שפורסם על ידי הקרן לתוכנה חופשית, בגרסה 3 של הרישיון.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studio היא תוכנה חופשית ברישיון הציבורי הכללי של GNU, גרסה 3 ואילך. היא משתמשת ברכיבים אלה:</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studio היא תוכנה חופשית ברישיון הציבורי הכללי של GNU, גרסה 3. היא משתמשת ברכיבים אלה:</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>הרישיון הציבורי הכללי המצומצם של GNU, גרסה 3, או הרישיון הציבורי הכללי של GNU, גרסה 3.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>הרישיון הציבורי הכללי של GNU, גרסה 3.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,8 +328,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>גרסה %1. תוכנה חופשית ברישיון הציבורי הכללי של GNU, גרסה 3 ואילך. מהדורה: %2.</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>גרסה %1. תוכנה חופשית ברישיון הציבורי הכללי של GNU, גרסה 3. מהדורה: %2.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />

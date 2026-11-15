@@ -196,7 +196,7 @@ void AboutDialog::build()
         QCoreApplication::translate(
             "About",
             "Version %1. Free software under the GNU General Public License, "
-            "version 3 or later. Edition: %2.")
+            "version 3. Edition: %2.")
             .arg(info_.full_version(), edition_),
         header);
     sub->setFont(Theme::instance().font(text_style::body));
@@ -225,9 +225,8 @@ void AboutDialog::build()
             "About",
             "This program is free software: you can redistribute it and/or "
             "modify it under the terms of the GNU General Public License as "
-            "published by the Free Software Foundation, either version 3 of "
-            "the "
-            "License, or (at your option) any later version."),
+            "published by the Free Software Foundation, version 3 of the "
+            "License."),
         about_page));
     about_layout->addWidget(body_label(
         QCoreApplication::translate(
@@ -301,7 +300,7 @@ void AboutDialog::build()
         QCoreApplication::translate(
             "About",
             "Virtual Serial Studio is free software under the GNU General "
-            "Public License, version 3 or later. It uses these components:"),
+            "Public License, version 3. It uses these components:"),
         licences_page));
     for (const third_party_component& component :
          bundled_components(profiling_compiled()))

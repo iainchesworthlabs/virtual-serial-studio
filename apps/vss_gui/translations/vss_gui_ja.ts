@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>このプログラムはフリーソフトウェアです。フリーソフトウェア財団が公表したGNU General Public Licenseのバージョン3、または(お好みで)それ以降のバージョンの定める条件の下で、再配布または改変できます。</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>このプログラムはフリーソフトウェアです。フリーソフトウェア財団が公表したGNU General Public Licenseのバージョン3の定める条件の下で、再配布または改変できます。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studioは、GNU General Public License バージョン3以降に基づくフリーソフトウェアです。次のコンポーネントを使用しています。</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studioは、GNU General Public License バージョン3に基づくフリーソフトウェアです。次のコンポーネントを使用しています。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>GNU Lesser General Public License バージョン3、またはGNU General Public License バージョン3。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>GNU General Public License バージョン3。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,8 +328,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>バージョン %1。GNU General Public License バージョン3以降に基づくフリーソフトウェアです。エディション: %2。</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>バージョン %1。GNU General Public License バージョン3に基づくフリーソフトウェアです。エディション: %2。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
