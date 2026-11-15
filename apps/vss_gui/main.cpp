@@ -10,6 +10,7 @@
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
 #include "profiling/stall_watchdog.hpp"
+#include "rendering/render_mode.hpp"
 #include "rendering/render_state.hpp"
 #include "shell/shell_window.hpp"
 #include "shell/single_instance.hpp"
@@ -156,15 +157,10 @@ try
     // setting. The GPU is confirmed later, when the canvas has a device; if it
     // has none the canvas falls back to the CPU and says so.
     {
-        QString render_argument;
-        for (int index = 1; index < argc; ++index)
-        {
-            if (std::strncmp(argv[index], "--render=", 9) == 0)
-                render_argument = QString::fromLocal8Bit(argv[index] + 9);
-        }
         vss::gui::rendering::initialise(
             vss::gui::support::load_ui_settings().render_mode,
-            qEnvironmentVariable("VSS_RENDER"), render_argument);
+            qEnvironmentVariable("VSS_RENDER"),
+            vss::gui::rendering::render_argument(application.arguments()));
         // Qt only asks the graphics device for GPU timings when it is told
         // to when the device is made, at the first window. Reading them makes
         // the canvas wait for the GPU in every frame (several milliseconds a
@@ -218,6 +214,15 @@ try
                                                      "take its place."));
     replace_option.setFlags(QCommandLineOption::HiddenFromHelp);
     parser.addOption(replace_option);
+    // Read before the parser runs, by rendering::initialise; declared here so
+    // that --help lists it and the parser accepts it.
+    const QCommandLineOption render_option(
+        QStringLiteral("render"),
+        QStringLiteral("Draw the canvas with the GPU or the CPU: auto, "
+                       "hardware or software. Wins over VSS_RENDER and the "
+                       "setting."),
+        QStringLiteral("mode"));
+    parser.addOption(render_option);
     // The profiling options are read before the parser runs; they are declared
     // here so --help lists them, and filtered out of what the parser sees.
     const QCommandLineOption profile_option(

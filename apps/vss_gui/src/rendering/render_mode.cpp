@@ -60,6 +60,21 @@ request choose_request(render_mode setting, const QString& environment,
     return {setting, request_source::setting};
 }
 
+QString render_argument(const QStringList& arguments)
+{
+    const QString name = QStringLiteral("--render");
+    QString value;
+    for (qsizetype index = 1; index < arguments.size(); ++index)
+    {
+        const QString& argument = arguments.at(index);
+        if (argument.startsWith(name + QLatin1Char('=')))
+            value = argument.mid(name.size() + 1);
+        else if (argument == name && index + 1 < arguments.size())
+            value = arguments.at(++index);
+    }
+    return value;
+}
+
 present_choice choose_present(const QString& vsync, const QString& no_flip)
 {
     present_choice choice;

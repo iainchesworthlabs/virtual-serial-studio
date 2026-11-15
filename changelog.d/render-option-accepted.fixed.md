@@ -1,0 +1,1 @@
+**`vss_gui --render=software` starts Studio instead of stopping with "Unknown option 'render'".** The option chose the renderer and then the rest of the command line refused it, so Studio quit at once. `--render auto|hardware|software` now works in both forms, `--render=MODE` and `--render MODE`, and `vss_gui --help` lists it.

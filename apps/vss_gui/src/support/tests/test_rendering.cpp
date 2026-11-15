@@ -167,6 +167,32 @@ TEST_CASE("rendering: the offscreen platform is software")
     rendering::set_state({});
 }
 
+TEST_CASE("rendering: --render is read in both forms and the last one wins")
+{
+    const auto program = QStringLiteral("vss_gui");
+    REQUIRE(rendering::render_argument({program}).isEmpty());
+    REQUIRE(rendering::render_argument(
+                {program, QStringLiteral("--render=software")}) ==
+            QStringLiteral("software"));
+    REQUIRE(rendering::render_argument({program, QStringLiteral("--render"),
+                                        QStringLiteral("hardware")}) ==
+            QStringLiteral("hardware"));
+    REQUIRE(rendering::render_argument(
+                {program, QStringLiteral("--render=software"),
+                 QStringLiteral("--render"), QStringLiteral("auto")}) ==
+            QStringLiteral("auto"));
+    // A trailing --render with no value, and options that only start alike,
+    // are not a request.
+    REQUIRE(rendering::render_argument({program, QStringLiteral("--render")})
+                .isEmpty());
+    REQUIRE(rendering::render_argument(
+                {program, QStringLiteral("--rendering=software")})
+                .isEmpty());
+    // The program name is never read as an option.
+    REQUIRE(rendering::render_argument({QStringLiteral("--render=software")})
+                .isEmpty());
+}
+
 TEST_CASE("rendering: no wait for the display unless it is asked for")
 {
     REQUIRE(rendering::choose_present({}, {}).no_wait);

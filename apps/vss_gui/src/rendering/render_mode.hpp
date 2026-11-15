@@ -7,6 +7,7 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 
 namespace vss::gui::rendering
 {
@@ -55,6 +56,11 @@ struct request
 [[nodiscard]] request choose_request(render_mode setting,
                                      const QString& environment,
                                      const QString& command_line);
+
+/// The value of `--render` in a command line, `--render=MODE` or
+/// `--render MODE`, with the program at index 0. The last one wins. Empty
+/// when there is none.
+[[nodiscard]] QString render_argument(const QStringList& arguments);
 
 /// How a window that holds a GPU widget is presented.
 struct present_choice

@@ -350,6 +350,16 @@ if(TARGET vss_gui)
   set_tests_properties(gui_selftest_200 PROPERTIES
     TIMEOUT 300
     ENVIRONMENT "${VSS_QT_FONT_ENV}QT_QPA_PLATFORM=offscreen;QT_SCALE_FACTOR=2;QT_FONT_DPI=192;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
+
+  # --render is read before the command-line parser runs, and the parser must
+  # accept it too: it once stopped Studio with "Unknown option 'render'".
+  # --version leaves before any window is made.
+  add_test(NAME gui_render_option COMMAND vss_gui --render=software --version)
+  add_test(NAME gui_render_option_spaced
+    COMMAND vss_gui --render hardware --version)
+  set_tests_properties(gui_render_option gui_render_option_spaced PROPERTIES
+    TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
 endif()
 
 # The backend tests exist only when Qt and the tests are both enabled.
