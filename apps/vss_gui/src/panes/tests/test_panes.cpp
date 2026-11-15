@@ -372,6 +372,43 @@ TEST_CASE("monitor: ascii, hex, filtering, pause and drop rows")
         QStringLiteral("Not the owner, not forwarded."));
 }
 
+TEST_CASE("monitor: a search follows the text and hex switch, export too")
+{
+    const auto data_lines = [](const vss::gui::MonitorModel& model)
+    { return model.export_text().split(QLatin1Char('\n')).size() - 1; };
+
+    vss::gui::MonitorModel model;
+    model.append_events(
+        {data_event(1, QStringLiteral("terminal"), vss::data_direction::rx,
+                    QByteArrayLiteral("OK")),
+         data_event(1, QStringLiteral("terminal"), vss::data_direction::rx,
+                    QByteArrayLiteral("no"))});
+    model.set_filters(0, true, true, true, QStringLiteral("OK"));
+    REQUIRE_EQ(model.rowCount(), 1);
+    REQUIRE_EQ(data_lines(model), 1);
+
+    // In hex the row reads "4F 4B", which does not contain "OK".
+    model.set_hex(true);
+    REQUIRE_EQ(model.rowCount(), 0);
+    REQUIRE_EQ(data_lines(model), 0);
+    REQUIRE(model.export_capture().records.empty());
+
+    // New traffic is judged by what the table now shows.
+    model.append_events(
+        {data_event(1, QStringLiteral("terminal"), vss::data_direction::rx,
+                    QByteArrayLiteral("OK"))});
+    REQUIRE_EQ(model.rowCount(), 0);
+    REQUIRE_EQ(data_lines(model), 0);
+
+    // Searching the hex text finds rows that the text view does not.
+    model.set_filters(0, true, true, true, QStringLiteral("4F 4B"));
+    REQUIRE_EQ(model.rowCount(), 2);
+    REQUIRE_EQ(data_lines(model), 2);
+    model.set_hex(false);
+    REQUIRE_EQ(model.rowCount(), 0);
+    REQUIRE_EQ(data_lines(model), 0);
+}
+
 namespace
 {
 
@@ -753,6 +790,73 @@ TEST_CASE("ports panel: selection stays in sync with the service")
     REQUIRE_EQ(table->model()->rowCount(), 2);
 }
 
+TEST_CASE("ports panel: a refresh never changes the selection")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("one"), vss::virtual_port_kind::pty, true);
+    const auto second = backend.create_virtual_port(
+        QStringLiteral("two"), vss::virtual_port_kind::pty, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    const auto link = backend.connect_ports(*first, *second, {});
+    REQUIRE(link.has_value());
+
+    vss::gui::PortsPanel panel(backend, selection);
+    panel.resize(360, 300);
+    panel.show();
+    QApplication::processEvents();
+    // The first port is selected once, when the setup first shows.
+    REQUIRE_EQ(selection.port(), *first);
+
+    // A link selected on the canvas: no port is selected, and traffic
+    // counters changing leave it that way.
+    selection.select_port(0);
+    selection.select_link(*link);
+    Q_EMIT backend.stats_changed();
+    Q_EMIT backend.links_changed();
+    Q_EMIT backend.ports_changed();
+    QApplication::processEvents();
+    REQUIRE_EQ(selection.port(), 0);
+    REQUIRE_EQ(selection.link(), *link);
+
+    // Nothing selected at all stays nothing selected.
+    selection.clear();
+    Q_EMIT backend.stats_changed();
+    QApplication::processEvents();
+    REQUIRE_EQ(selection.port(), 0);
+
+    // A port the filter hides is still the selected port.
+    panel.set_advanced(true);
+    selection.select_port(*second);
+    auto* filter = panel.findChild<QLineEdit*>();
+    REQUIRE(filter != nullptr);
+    filter->setText(QStringLiteral("one"));
+    Q_EMIT backend.stats_changed();
+    QApplication::processEvents();
+    REQUIRE_EQ(selection.port(), *second);
+}
+
+TEST_CASE("ports panel: a removed selected port clears the selection")
+{
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::SelectionService selection;
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("one"), vss::virtual_port_kind::pty, true);
+    const auto second = backend.create_virtual_port(
+        QStringLiteral("two"), vss::virtual_port_kind::pty, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    vss::gui::PortsPanel panel(backend, selection);
+    panel.select_port(*second);
+    QApplication::processEvents();
+    REQUIRE_EQ(selection.port(), *second);
+    REQUIRE(backend.remove_port(*second).has_value());
+    QApplication::processEvents();
+    REQUIRE_EQ(selection.port(), 0);
+}
+
 TEST_CASE("ports panel: table columns resize, fit, stretch and persist")
 {
     QSettings().remove(QStringLiteral("ui/portsColumnWidths"));
@@ -1062,6 +1166,25 @@ TEST_CASE("send: a repeat stops when its port goes away")
     // It did not move to the other port.
     panel.repeat_tick();
     REQUIRE(backend.sent().empty());
+}
+
+TEST_CASE("send: the heading follows the selected port")
+{
+    vss::gui::FakeStudioBackend backend;
+    const auto first = backend.create_virtual_port(
+        QStringLiteral("one"), vss::virtual_port_kind::pty, true);
+    const auto second = backend.create_virtual_port(
+        QStringLiteral("two"), vss::virtual_port_kind::pty, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+
+    vss::gui::SendPanel panel(backend);
+    panel.set_selected_port(*first);
+    REQUIRE(panel.target_text().contains(QStringLiteral("one")));
+    panel.set_selected_port(*second);
+    REQUIRE_EQ(panel.selected_port(), *second);
+    REQUIRE(panel.target_text().contains(QStringLiteral("two")));
+    REQUIRE(!panel.target_text().contains(QStringLiteral("one")));
 }
 
 TEST_CASE("send: a pinned target ignores the selection")

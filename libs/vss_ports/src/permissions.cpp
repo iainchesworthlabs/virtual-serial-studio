@@ -9,6 +9,7 @@
 //
 
 #include <vss/core/profile.hpp>
+#include <vss/ports/listen_transport.hpp>
 #include <vss/ports/permissions.hpp>
 
 #include "platform/permissions_platform.hpp"
@@ -25,6 +26,9 @@ namespace vss::permissions
 {
 namespace
 {
+
+/// The three network bits together: domain, private and public.
+constexpr long all_networks = profile_domain | profile_private | profile_public;
 
 std::string lower(std::string_view text)
 {
@@ -257,10 +261,11 @@ std::vector<fact> windows_facts(const windows_observation& seen,
         spec.program = firewall.subject;
         spec.protocol = missing->protocol;
         spec.port = missing->port;
+        // The networks the computer is on now, unless that is every network,
+        // which a rule never covers.
+        const long active = seen.active_profiles & all_networks;
         spec.profiles =
-            seen.active_profiles != 0 && seen.active_profiles != profile_all
-                ? seen.active_profiles
-                : profile_private;
+            active != 0 && active != all_networks ? active : profile_private;
         if (validate(spec).empty())
         {
             firewall.remedy = netsh_add_command(spec);
@@ -645,35 +650,17 @@ bool is_loopback_host(std::string_view host)
 
 bool parse_listen_uri(std::string_view uri, listener& out)
 {
-    constexpr std::string_view tcp_scheme = "tcp-listen://";
-    constexpr std::string_view udp_scheme = "udp-listen://";
-    transport_protocol protocol = transport_protocol::tcp;
-    if (uri.substr(0, tcp_scheme.size()) == tcp_scheme)
-    {
-        uri.remove_prefix(tcp_scheme.size());
-    }
-    else if (uri.substr(0, udp_scheme.size()) == udp_scheme)
-    {
-        protocol = transport_protocol::udp;
-        uri.remove_prefix(udp_scheme.size());
-    }
-    else
-    {
+    // The listening transport reads the address with this function, so the
+    // check sees the same schemes, hosts and `?allow=` lists that it does.
+    const auto address = vss::parse_listen_uri(uri);
+    if (!address || address->port == 0)
         return false;
-    }
-    const auto colon = uri.rfind(':');
-    if (colon == std::string_view::npos)
-        return false;
-    std::string_view host = uri.substr(0, colon);
-    if (host.size() >= 2 && host.front() == '[' && host.back() == ']')
-        host = host.substr(1, host.size() - 2);
-    unsigned long number = 0;
-    if (!parse_number(uri.substr(colon + 1), number) || number == 0 ||
-        number > 65535)
-        return false;
-    out.protocol = protocol;
-    out.host = std::string(host);
-    out.port = static_cast<std::uint16_t>(number);
+    // TCP and RFC 2217 are both a TCP socket to the firewall.
+    out.protocol = address->protocol == listen_protocol::udp
+                       ? transport_protocol::udp
+                       : transport_protocol::tcp;
+    out.host = address->host;
+    out.port = address->port;
     return true;
 }
 
@@ -756,8 +743,11 @@ std::string validate(const firewall_rule_spec& spec)
     }
     if (spec.port == 0)
         return "the port is not chosen";
-    if (spec.profiles == 0 || (spec.profiles & ~7L) != 0)
+    if (spec.profiles == 0 || (spec.profiles & ~all_networks) != 0)
         return "the networks are not chosen";
+    // One rule never covers every network the computer can be on.
+    if ((spec.profiles & all_networks) == all_networks)
+        return "the rule would cover every network";
     return {};
 }
 

@@ -474,7 +474,13 @@ shared notes folder.
 
 A command line tool, offline, in this repository. It is built with the other
 tools (`VSS_BUILD_TOOLS`) as the target `vss_license_program`, and the file is
-named `vss_license`. It is not installed with Studio.
+named `vss_license`. It is the owner's tool: it issues licences, signs
+revocation lists and makes keys, and customers do not need it. It is not
+installed with Studio and is in no installer, archive, disk image, deb or rpm.
+`tools/ci/check_package_contents.py` fails a release if the tool, one of its
+libraries or a key file is in a staged tree or a package, and its test fails
+if an `install()` rule ever names the tool. A customer imports a licence with
+Help, Licence.
 
 | Command | Does |
 |---|---|

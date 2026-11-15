@@ -176,7 +176,8 @@ struct firewall_rule_spec
     transport_protocol protocol = transport_protocol::tcp;
     std::uint16_t port = 0;
     rule_scope scope = rule_scope::local_subnet;
-    /// Bits of `profile_*`. Never `profile_all`.
+    /// Bits of `profile_*`. Never every network: `validate` refuses
+    /// `profile_all` and `profile_domain | profile_private | profile_public`.
     long profiles = profile_private;
 };
 
@@ -368,8 +369,11 @@ std::string_view host_name() noexcept;
 /// address and so is not loopback.
 bool is_loopback_host(std::string_view host);
 
-/// Reads `tcp-listen://host:port` and `udp-listen://host:port` (the host may be
-/// empty or a bracketed IPv6 address). False for anything else.
+/// Reads a listen address with the function the listening transport uses
+/// (`vss::parse_listen_uri`): `tcp-listen://`, `udp-listen://` and
+/// `rfc2217-listen://`, with or without `?allow=`. The host may be empty or a
+/// bracketed IPv6 address. RFC 2217 is TCP to the firewall. False for anything
+/// else, and for port 0, which is not chosen yet.
 bool parse_listen_uri(std::string_view uri, listener& out);
 
 /// True when the Windows list covers the port: "*", "80", "10-20,30".
