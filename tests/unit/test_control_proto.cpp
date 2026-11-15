@@ -248,6 +248,10 @@ TEST_CASE("control proto: every reply survives the wire")
     state.agent_version = "0.1.0";
     const control::reply status{5, state};
     REQUIRE(round_trip(status) == status);
+    state.edition = "enterprise";
+    state.licence_state = "grace";
+    const control::reply licensed{5, state};
+    REQUIRE(round_trip(licensed) == licensed);
 
     control::ports_reply listed;
     listed.revision = 12;
@@ -345,6 +349,22 @@ TEST_CASE("control proto: a reply that is not one is refused")
         std::string(R"({"id":1,"reply":"surprise"})"),
         std::string(R"({"id":1,"reply":"hello"})"),
         std::string(R"({"id":1,"reply":"status","uptime_ms":1,"sessions":1})"),
+        // No licence part, an edition or a state the protocol has no word
+        // for, and an edition with a licence that is not in force.
+        std::string(R"({"id":1,"reply":"status","uptime_ms":1,"sessions":1,)"
+                    R"("agent":{"running":false,"version":""}})"),
+        std::string(R"({"id":1,"reply":"status","uptime_ms":1,"sessions":1,)"
+                    R"("agent":{"running":false,"version":""},)"
+                    R"("licence":{"edition":"gold","state":"valid"}})"),
+        std::string(R"({"id":1,"reply":"status","uptime_ms":1,"sessions":1,)"
+                    R"("agent":{"running":false,"version":""},)"
+                    R"("licence":{"edition":"pro","state":"fine"}})"),
+        std::string(R"({"id":1,"reply":"status","uptime_ms":1,"sessions":1,)"
+                    R"("agent":{"running":false,"version":""},)"
+                    R"("licence":{"edition":"pro","state":"expired"}})"),
+        std::string(R"({"id":1,"reply":"status","uptime_ms":1,"sessions":1,)"
+                    R"("agent":{"running":false,"version":""},)"
+                    R"("licence":{"edition":"pro","state":"none"}})"),
         std::string(R"({"id":1,"reply":"ports","revision":1,"ports":{}})"),
         std::string(R"({"id":1,"reply":"ports","revision":1,"ports":[7],)"
                     R"("links":[]})"),

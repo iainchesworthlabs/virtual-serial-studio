@@ -766,6 +766,29 @@ entitlement check(const status& current, std::string_view feature)
     return answer;
 }
 
+entitlement check(const status& current, std::string_view feature,
+                  time_point released)
+{
+    entitlement answer = check(current, feature);
+    if (answer.granted || current.state != state::expired || !current.value ||
+        !current.value->updates_until)
+    {
+        return answer;
+    }
+    // The licence has ended and nothing else is wrong with it. What was
+    // released within its window still works, if the licence names it.
+    const bool named = std::ranges::any_of(
+        current.value->features, [feature](const std::string& entry)
+        { return feature_matches(entry, feature); });
+    if (named && released <= *current.value->updates_until)
+    {
+        answer.granted = true;
+        answer.reason = reason::ok;
+        answer.by_version_window = true;
+    }
+    return answer;
+}
+
 bool feature_matches(std::string_view entry, std::string_view feature)
 {
     if (entry.ends_with(".*"))

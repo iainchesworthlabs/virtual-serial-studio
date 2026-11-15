@@ -1099,16 +1099,41 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   nothing here changes that page. The two share only the `vss::signed_file` envelope, whose purpose string keeps
   a signature of one kind from passing as the other.
 
-**The owner's procedure, in outline.** The owner runs these; nothing in this work creates or holds a key. OpenSSL 3
-makes and uses Ed25519 keys, so no other tool is needed for the keys themselves.
+**The owner's procedure, in outline.** The owner runs these; nothing in this work holds a key. OpenSSL 3 makes and
+uses Ed25519 keys. `tools/plugin_sign.py keygen` calls OpenSSL to make a key and writes the key file safely. **The
+owner's keys should be protected with a passphrase.** Without one, anyone who can read the key file can sign as that
+key.
 
 ```
-# Once, on the offline computer: the root key.
-openssl genpkey -algorithm ed25519 -out root.key
-openssl pkey -in root.key -pubout -out root.pub
+# Once, on the offline computer: the root key, then one key for each signing key.
+python3 tools/plugin_sign.py keygen --out root.key --key-id root-2026 --passphrase-file root.pass
+python3 tools/plugin_sign.py keygen --out plugins-2026.key --key-id plugins-2026 --passphrase-prompt
 
-# For each signing key.
-openssl genpkey -algorithm ed25519 -out plugins-2026.key
+# Sign with a key. The same passphrase option is given to every command that takes --key.
+python3 tools/plugin_sign.py key-list --key root.key --key-id root-2026 --passphrase-file root.pass \
+    --payload official-keys.payload.json --out official-keys.json
+```
+
+- `keygen` prints the public key as 64 hex characters, which is the text for the key list, and then the key id when
+  `--key-id` is given. `public-key --key plugins-2026.key` prints the same text again.
+- `keygen` makes the file itself, and refuses a file that exists. The file can be read by its owner only: mode 0600
+  on Linux and macOS, and on Windows only the current user (`icacls`). It is removed if anything fails afterwards.
+  The private key is never printed.
+- With a passphrase the key file is encrypted (PKCS#8, AES-256). The passphrase comes from one of three options, and
+  at most one may be given: `--passphrase-file PATH` (the first line of the file), `--passphrase-env NAME` (the
+  value of the environment variable `NAME`) or `--passphrase-prompt` (asked on the terminal, twice for `keygen`).
+  There is no option that takes the passphrase itself, because a command line is kept in the process list and in
+  the shell history, and the passphrase is never read from standard input. The script passes it to OpenSSL in the
+  environment of that one process. Keep a passphrase file on the offline computer only, outside the repository.
+- A key file with a passphrase is refused when no passphrase option is given. The script never waits for a prompt
+  from OpenSSL.
+
+The raw OpenSSL commands do the same work and stay as the alternative. They write a key file without a passphrase
+unless `-aes-256-cbc` is added, and `-out` makes the file with the default permissions, so restrict it first (`umask
+077` on Linux and macOS).
+
+```
+openssl genpkey -algorithm ed25519 -aes-256-cbc -out plugins-2026.key
 openssl pkey -in plugins-2026.key -pubout -out plugins-2026.pub
 
 # The 32 bytes of a public key as hex, for the key list or for Studio's source.
@@ -1118,13 +1143,14 @@ openssl pkey -pubin -in plugins-2026.pub -outform DER | tail -c 32 | xxd -p -c 3
 openssl pkeyutl -sign -inkey root.key -rawin -in message.bin -out signature.bin
 ```
 
-A small script, written with the verifier, builds the message and the envelope around those last two steps. It is
-given the path of a key and calls OpenSSL; it does not make keys and stores nothing. The root public key and the
-first key list are placed in the repository by the owner, as public files.
+`tools/plugin_sign.py` builds the message and the envelope around the last step. It is given the path of a key and
+calls OpenSSL; it stores nothing. The root public key and the first key list are placed in the repository by the
+owner, as public files.
 
-**Other people's keys.** A third-party author makes an Ed25519 key in the same way and signs with it. No root is
-involved: the key is trusted by a user in their own store, or by an administrator in `allow_keys`. A key on a
-hardware token works where the token can sign with Ed25519.
+**Other people's keys.** A third-party author makes an Ed25519 key in the same way, with `keygen` or with OpenSSL,
+and signs with it. No root is involved: the key is trusted by a user in their own store, or by an administrator in
+`allow_keys`. **Such a key can never make a plugin official.** Only a key in the official key list, which a root
+key has signed, does that. A key on a hardware token works where the token can sign with Ed25519.
 
 **How a user gets an author's public key** (decided by the owner). `plugin.sig` carries no public key, on
 purpose: a key taken from the file being checked proves nothing. The author publishes a small **public key
@@ -1160,7 +1186,7 @@ file**, and the user imports it on the Plugins page.
 **What exists.** The root public keys are in `libs/vss_plugin/src/official_roots.cpp` (`root-2026` and
 `root-next`). The first key list, as the text that is signed, is `libs/vss_plugin/keys/official-keys.payload.json`;
 the README beside it has the owner's command to sign it. `tools/plugin_sign.py` builds the three signed files
-around an OpenSSL call.
+around an OpenSSL call, and `keygen` makes a key file.
 
 ## 9. Permissions and sandboxing
 
