@@ -51,6 +51,14 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_permissions_linux.cpp
   unit/test_permissions_macos.cpp
   unit/test_plugin_access.cpp
+  unit/test_plugin_api_adapter.cpp
+  unit/test_plugin_api_capture.cpp
+  unit/test_plugin_api_decoder.cpp
+  unit/test_plugin_api_fixture.cpp
+  unit/test_plugin_api_generator.cpp
+  unit/test_plugin_api_instance.cpp
+  unit/test_plugin_api_modifier.cpp
+  unit/test_plugin_api_trigger.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
   unit/test_plugin_install.cpp
