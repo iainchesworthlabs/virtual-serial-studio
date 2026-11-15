@@ -442,6 +442,39 @@ class ControlRoleTests(RigCase):
         self.assertEqual(set(cases), {"from the second"})
         self.assertEqual(cases["from the second"].find("failure").get("message"), "late")
 
+    def test_a_run_name_and_a_check_that_are_too_long_are_cut_and_not_refused(self):
+        self.addCleanup(self.end_run_quietly)
+        client = self.connect()
+        # More than the gateway takes: 128 bytes of a name, 512 of a message.
+        # The message is an assertion text, as a test framework gives it, with
+        # characters of more than one byte, so a cut inside one is possible.
+        run = client.begin_run("long run " + "r" * 400)
+        self.assertLessEqual(len(run["name"].encode("utf-8")), 128)
+        self.assertTrue(run["name"].endswith("..."))
+
+        long_name = "test_modbus_" + "né" * 300
+        long_message = "assert 1 == 2 " + "€" * 700
+        client.record_in_run(long_name, "failed", message=long_message, duration_ms=5)
+        client.record_in_run("fits", "failed", message="m" * 512)
+        ended = client.end_run()
+        self.assertEqual((ended["tests"], ended["failures"]), (2, 2))
+
+        root = ElementTree.fromstring(client.report_junit(run["run"]))
+        cases = list(root.iter("testcase"))
+        self.assertEqual(len(cases), 2)
+        by_name = {case.get("name"): case for case in cases}
+        self.assertIn("fits", by_name)
+        cut_name = next(name for name in by_name if name != "fits")
+        self.assertTrue(cut_name.startswith("test_modbus_"))
+        self.assertTrue(cut_name.endswith("..."))
+        self.assertLessEqual(len(cut_name.encode("utf-8")), 128)
+        message = by_name[cut_name].find("failure").get("message")
+        self.assertTrue(message.startswith("assert 1 == 2 "))
+        self.assertTrue(message.endswith("..."))
+        self.assertLessEqual(len(message.encode("utf-8")), 512)
+        # A message of exactly 512 bytes is not cut.
+        self.assertEqual(by_name["fits"].find("failure").get("message"), "m" * 512)
+
     def end_run_quietly(self):
         try:
             with self.rig.connect() as client:

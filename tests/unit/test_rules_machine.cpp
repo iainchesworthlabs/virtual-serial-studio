@@ -2788,3 +2788,419 @@ TEST_CASE("rules: machine carries the match count of a rule whose sequence "
         REQUIRE_EQ(got[0].step, std::size_t{0});
     }
 }
+
+// -- the gate: work bounded before it is done
+// -----------------------------------------------
+
+namespace
+{
+
+/// A gate that lets so many firings and so many actions through, and counts
+/// what it is asked.
+class counting_gate final : public firing_gate
+{
+public:
+    counting_gate(std::uint64_t firings, std::uint64_t actions)
+        : firings_left_(firings), actions_left_(actions)
+    {
+    }
+
+    bool admit_firing(time_point) override
+    {
+        ++asked_firings;
+        if (firings_left_ == 0)
+            return false;
+        --firings_left_;
+        return true;
+    }
+
+    bool admit_action() override
+    {
+        ++asked_actions;
+        if (actions_left_ == 0)
+            return false;
+        --actions_left_;
+        return true;
+    }
+
+    std::uint64_t asked_firings = 0;
+    std::uint64_t asked_actions = 0;
+
+private:
+    std::uint64_t firings_left_;
+    std::uint64_t actions_left_;
+};
+
+/// `count` bytes of `byte_hex`, as the hex text of a reply.
+std::string repeated(std::string_view byte_hex, std::size_t count)
+{
+    std::string out;
+    out.reserve(count * (byte_hex.size() + 1));
+    for (std::size_t i = 0; i < count; ++i)
+    {
+        if (i != 0)
+            out += ' ';
+        out += byte_hex;
+    }
+    return out;
+}
+
+/// A rule on one byte that answers with `replies` replies of `size` bytes,
+/// each after a delay drawn from a wide range.
+std::string many_replies(std::size_t replies, std::size_t size)
+{
+    std::string text = R"j({"name": "r", "when": {"bytes": "01"}, "do": [)j";
+    for (std::size_t i = 0; i < replies; ++i)
+    {
+        if (i != 0)
+            text += ", ";
+        text +=
+            R"j({"reply": [")j" + repeated("aa", size) +
+            R"j("], "delay": {"uniform": {"min_us": 0, "max_us": 50000}}})j";
+    }
+    return text + "]}";
+}
+
+} // namespace
+
+TEST_CASE("rules: machine renders nothing for the firings a gate refuses")
+{
+    // One 64 KiB chunk of a byte that matches on every byte, and a reply of
+    // 4096 bytes: 65 536 firings and, without the gate, 256 MiB of replies.
+    machine each(make_set(peer_set(many_replies(1, 4096))), 1);
+    counting_gate gate(100, 1024);
+    std::vector<firing> out;
+    const byte_buffer chunk(65536, byte{1});
+    each.feed(chunk, ms(1), out, &gate);
+
+    // 100 firings were carried out, and every one of the 65 436 after them
+    // was counted and refused.
+    REQUIRE_EQ(out.size(), std::size_t{100});
+    const machine_stats& stats = each.stats();
+    REQUIRE_EQ(stats.firings, std::uint64_t{65536});
+    REQUIRE_EQ(stats.refused, std::uint64_t{65436});
+    REQUIRE_EQ(stats.bytes_seen, std::uint64_t{65536});
+    REQUIRE_EQ(gate.asked_firings, std::uint64_t{65536});
+    // Only what was carried out was built.
+    REQUIRE_EQ(stats.replies, std::uint64_t{100});
+    REQUIRE_EQ(stats.reply_bytes, std::uint64_t{100} * 4096);
+    REQUIRE_EQ(gate.asked_actions, std::uint64_t{100});
+    REQUIRE_EQ(out.back().ordinal, std::uint64_t{100});
+    for (const auto& fired : out)
+    {
+        REQUIRE_EQ(fired.actions.size(), std::size_t{1});
+        REQUIRE_EQ(fired.actions[0].bytes.size(), std::size_t{4096});
+    }
+}
+
+TEST_CASE("rules: machine builds no more actions than a gate allows")
+{
+    // A step of 16 replies, and 2000 matches in one chunk.
+    machine each(make_set(peer_set(many_replies(16, 64))), 1);
+    counting_gate gate(100000, 1024);
+    std::vector<firing> out;
+    each.feed(byte_buffer(2000, byte{1}), ms(1), out, &gate);
+
+    std::size_t planned = 0;
+    for (const auto& fired : out)
+        planned += fired.actions.size();
+    REQUIRE_EQ(planned, std::size_t{1024});
+    REQUIRE_EQ(each.stats().replies, std::uint64_t{1024});
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{2000});
+    REQUIRE_EQ(each.stats().refused, std::uint64_t{0});
+    // Every action was asked, and 1024 were let through.
+    REQUIRE_EQ(gate.asked_actions, std::uint64_t{2000} * 16);
+    // The firing that ran out of room is in `out` with the actions it got,
+    // and the ones after it are there with none.
+    REQUIRE_EQ(out.size(), std::size_t{2000});
+    REQUIRE_EQ(out[63].actions.size(), std::size_t{16});
+    REQUIRE_EQ(out[64].actions.size(), std::size_t{0});
+}
+
+TEST_CASE("rules: machine without a gate admits everything, as before")
+{
+    machine each(make_set(peer_set(many_replies(16, 8))), 1);
+    std::vector<firing> out;
+    each.feed(byte_buffer(70, byte{1}), ms(1), out);
+    REQUIRE_EQ(out.size(), std::size_t{70});
+    for (const auto& fired : out)
+        REQUIRE_EQ(fired.actions.size(), std::size_t{16});
+    REQUIRE_EQ(each.stats().refused, std::uint64_t{0});
+}
+
+TEST_CASE("rules: a refused firing leaves the state, the slots, the step and "
+          "the draws as they were")
+{
+    const std::string document = peer_set(
+        R"j({"name": "r", "when": {"bytes": "01 ??"},
+             "sequence": [
+               {"do": [{"set_state": "b"},
+                       {"set_slot": {"slot": "s", "match": [1, 1]}},
+                       {"reply": ["a0"],
+                        "delay": {"uniform": {"min_us": 0, "max_us": 1000000}}}]},
+               {"do": [{"reply": ["a1"]}]}]})j",
+        R"j("states": ["a", "b"], "slots": {"s": "ee"}, )j");
+
+    // What the first firing of the rule does when nothing refuses it.
+    machine plain(make_set(document), 1);
+    const auto expected = feed(plain, "01 55", ms(1));
+    REQUIRE_EQ(expected.size(), std::size_t{1});
+    REQUIRE_EQ(expected[0].actions.size(), std::size_t{3});
+
+    machine each(make_set(document), 1);
+    counting_gate refusing(0, 1024);
+    std::vector<firing> out;
+    const byte_buffer first = hex("01 55");
+    each.feed(first, ms(1), out, &refusing);
+    REQUIRE(out.empty());
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{1});
+    REQUIRE_EQ(each.stats().refused, std::uint64_t{1});
+    REQUIRE_EQ(each.stats().replies, std::uint64_t{0});
+    REQUIRE_EQ(each.state(), std::size_t{0});
+    REQUIRE(bytes_equal(each.slot(0), hex("ee")));
+    REQUIRE_EQ(refusing.asked_actions, std::uint64_t{0});
+
+    // The next firing is the first of the rule, from the same draw.
+    counting_gate open(10, 10);
+    const byte_buffer second = hex("01 66");
+    each.feed(second, ms(2), out, &open);
+    REQUIRE_EQ(out.size(), std::size_t{1});
+    REQUIRE_EQ(out[0].ordinal, std::uint64_t{1});
+    REQUIRE_EQ(out[0].step, std::size_t{0});
+    // Under a gate only the reply is kept: the state and the slot were
+    // changed at the match.
+    REQUIRE_EQ(out[0].actions.size(), std::size_t{1});
+    REQUIRE_EQ(out[0].actions[0].index, std::size_t{2});
+    REQUIRE(out[0].actions[0].drawn == expected[0].actions[2].drawn);
+    REQUIRE_EQ(each.state(), std::size_t{1});
+    REQUIRE(bytes_equal(each.slot(0), hex("66")));
+}
+
+TEST_CASE("rules: a rule's state and slot changes are not asked of a gate, and "
+          "a refused action still draws its delay")
+{
+    const std::string document = peer_set(
+        R"j({"name": "r", "when": {"bytes": "01 ??"},
+             "do": [{"set_state": "b"},
+                    {"set_slot": {"slot": "s", "match": [1, 1]}},
+                    {"reply": ["a0"],
+                     "delay": {"uniform": {"min_us": 0, "max_us": 1000000}}},
+                    {"reply": ["a1"],
+                     "delay": {"uniform": {"min_us": 0, "max_us": 1000000}}}]})j",
+        R"j("states": ["a", "b"], "slots": {"s": "ee"}, )j");
+
+    machine plain(make_set(document), 1);
+    auto expected = feed(plain, "01 55", ms(1));
+    append(expected, feed(plain, "01 66", ms(2)));
+    REQUIRE_EQ(expected.size(), std::size_t{2});
+
+    machine each(make_set(document), 1);
+    // One action in all: the first reply.
+    counting_gate gate(10, 1);
+    std::vector<firing> out;
+    const byte_buffer first = hex("01 55");
+    each.feed(first, ms(1), out, &gate);
+    REQUIRE_EQ(out.size(), std::size_t{1});
+    // The state and the slot changed, and were not asked for.
+    REQUIRE_EQ(gate.asked_actions, std::uint64_t{2});
+    REQUIRE_EQ(each.state(), std::size_t{1});
+    REQUIRE(bytes_equal(each.slot(0), hex("55")));
+    // Only the reply that was let through is kept, with its place in the
+    // list; the state and the slot are not, under a gate.
+    REQUIRE_EQ(out[0].actions.size(), std::size_t{1});
+    REQUIRE_EQ(out[0].actions[0].index, std::size_t{2});
+    REQUIRE(out[0].actions[0].drawn == expected[0].actions[2].drawn);
+    REQUIRE_EQ(each.stats().replies, std::uint64_t{1});
+
+    // The refused reply drew its delay all the same: the next firing, with
+    // nothing refused, draws what the second firing of the plain machine did.
+    out.clear();
+    const byte_buffer second = hex("01 66");
+    each.feed(second, ms(2), out);
+    REQUIRE_EQ(out.size(), std::size_t{1});
+    REQUIRE_EQ(out[0].actions.size(), std::size_t{4});
+    REQUIRE(out[0].actions[2].drawn == expected[1].actions[2].drawn);
+    REQUIRE(out[0].actions[3].drawn == expected[1].actions[3].drawn);
+}
+
+TEST_CASE("rules: the timeline asks a gate for its actions and not for its "
+          "firings")
+{
+    machine each(make_set(peer_set("", R"j("timeline": [
+        {"at_us": 1000, "do": [{"reply": ["aa"]}, {"reply": ["bb"]}]},
+        {"at_us": 2000, "do": [{"set_state": "b"}, {"reply": ["cc"]}]}
+      ], "states": ["a", "b"], )j")),
+                 1);
+    counting_gate gate(0, 2);
+    const auto timeline = each.start(ms(5), &gate);
+    REQUIRE_EQ(timeline.size(), std::size_t{2});
+    REQUIRE_EQ(gate.asked_firings, std::uint64_t{0});
+    // `aa` and `bb` were let through; `set_state` and `cc` were refused.
+    REQUIRE_EQ(gate.asked_actions, std::uint64_t{4});
+    REQUIRE_EQ(timeline[0].actions.size(), std::size_t{2});
+    REQUIRE_EQ(timeline[1].actions.size(), std::size_t{0});
+    REQUIRE_EQ(each.stats().replies, std::uint64_t{2});
+}
+
+TEST_CASE("rules: a gate is asked for the firings of every kind of rule, and "
+          "is not kept after the call")
+{
+    machine each(make_set(peer_set(
+                     R"j({"name": "bytes", "when": {"bytes": "01"},
+                          "do": [{"mark": "b"}]},
+                         {"name": "quiet", "when": {"quiet_us": 1000},
+                          "do": [{"mark": "q"}]},
+                         {"name": "edge", "when": {"lines": {"cts": true}},
+                          "do": [{"mark": "l"}]},
+                         {"name": "port", "when": {"port": "opened"},
+                          "do": [{"mark": "p"}]})j")),
+                 1);
+    counting_gate gate(0, 10);
+    std::vector<firing> out;
+    const byte_buffer one = hex("01");
+    each.feed(one, ms(1), out, &gate);
+    each.tick(ms(5), out, &gate);
+    each.lines_changed(control_lines{}, lines_of({control_line::cts}), ms(6),
+                       out, &gate);
+    each.port_changed(port_event::opened, ms(7), out, &gate);
+    REQUIRE(out.empty());
+    REQUIRE_EQ(gate.asked_firings, std::uint64_t{4});
+    REQUIRE_EQ(each.stats().refused, std::uint64_t{4});
+    REQUIRE_EQ(each.stats().firings, std::uint64_t{4});
+
+    // A call with no gate admits, so the gate above is not used again.
+    each.feed(one, ms(8), out);
+    REQUIRE_EQ(out.size(), std::size_t{1});
+    REQUIRE_EQ(gate.asked_firings, std::uint64_t{4});
+}
+
+// -- what a firing builds and keeps is bounded -------------------------------
+
+namespace
+{
+
+/// A rule on any one byte that answers with `replies` replies of `parts`
+/// (the text of a reply's parts), each after a minute.
+std::string rule_with_replies(std::size_t replies, const std::string& parts)
+{
+    std::string text = R"j({"name": "r", "when": {"bytes": "??"}, "do": [)j";
+    for (std::size_t i = 0; i < replies; ++i)
+    {
+        if (i != 0)
+            text += ", ";
+        text += R"j({"reply": [)j" + parts +
+                R"j(], "delay": {"fixed_us": 60000000}})j";
+    }
+    return text + "]}";
+}
+
+/// `count` parts that take the slot "s", then `checks` CRCs of the reply.
+std::string slots_then_checks(std::size_t count, std::size_t checks)
+{
+    std::string text;
+    for (std::size_t i = 0; i < count + checks; ++i)
+    {
+        if (i != 0)
+            text += ", ";
+        text +=
+            i < count ? R"j({"slot": "s"})j" : R"j({"crc16_modbus": "reply"})j";
+    }
+    return text;
+}
+
+/// The slot "s" of `size` bytes of 0xaa, as a member of a document.
+std::string slot_of(std::size_t size)
+{
+    return R"j("slots": {"s": ")j" + repeated("aa", size) + R"j("}, )j";
+}
+
+} // namespace
+
+TEST_CASE("rules: machine builds a reply no larger than the limit and keeps "
+          "no more room than that, whatever its parts add up to")
+{
+    // 28 slots of 4096 bytes and 4 checks: 114 KiB of parts for a reply that
+    // may have 4096 bytes.  16 of them for each match, and 64 matches: the
+    // 1024 actions a gate lets through.
+    const std::string parts = slots_then_checks(28, 4);
+    machine each(make_set(peer_set(rule_with_replies(16, parts),
+                                   slot_of(max_slot_bytes))),
+                 1);
+    counting_gate gate(1000, 1024);
+    std::vector<firing> out;
+    each.feed(byte_buffer(64, byte{1}), ms(1), out, &gate);
+
+    REQUIRE_EQ(each.stats().replies, std::uint64_t{1024});
+    REQUIRE_EQ(each.stats().reply_bytes, std::uint64_t{1024 * max_reply_bytes});
+    std::size_t built = 0;
+    std::size_t room = 0;
+    for (const auto& fired : out)
+    {
+        for (const auto& planned : fired.actions)
+        {
+            ++built;
+            room += planned.bytes.capacity();
+            REQUIRE_EQ(planned.bytes.size(), max_reply_bytes);
+            REQUIRE(planned.bytes.capacity() <= max_reply_bytes);
+            REQUIRE(planned.cut);
+        }
+    }
+    REQUIRE_EQ(built, std::size_t{1024});
+    REQUIRE(room <= 1024 * max_reply_bytes);
+}
+
+TEST_CASE("rules: machine cuts a reply in the middle of a check as it did")
+{
+    // 4095 bytes and then a CRC: its first byte is the last the reply has.
+    machine each(
+        make_set(peer_set(rule_with_replies(1, slots_then_checks(1, 1)),
+                          slot_of(max_slot_bytes - 1))),
+        1);
+    const auto got = feed(each, "01", ms(1));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    const planned_action& reply = got[0].actions[0];
+    REQUIRE_EQ(reply.bytes.size(), max_reply_bytes);
+    REQUIRE(reply.cut);
+    REQUIRE(reply.bytes.capacity() <= max_reply_bytes);
+    byte_buffer check;
+    append_check(check_kind::crc16_modbus,
+                 byte_buffer(max_slot_bytes - 1, byte{0xaa}), check);
+    REQUIRE_EQ(reply.bytes.back(), check.front());
+
+    // The same reply a byte shorter is whole, with both bytes of its check.
+    machine whole(
+        make_set(peer_set(rule_with_replies(1, slots_then_checks(1, 1)),
+                          slot_of(max_slot_bytes - 2))),
+        1);
+    const auto fits = feed(whole, "01", ms(1));
+    REQUIRE_EQ(fits[0].actions[0].bytes.size(), max_reply_bytes);
+    REQUIRE(!fits[0].actions[0].cut);
+    REQUIRE(fits[0].actions[0].bytes.capacity() <= max_reply_bytes);
+}
+
+TEST_CASE("rules: machine keeps no state or slot change of a rule under a gate")
+{
+    std::string changes;
+    for (int i = 0; i < 16; ++i)
+        changes += std::string(i != 0 ? ", " : "") + R"j({"set_state": "b"})j";
+    const std::string document = peer_set(
+        R"j({"name": "r", "when": {"bytes": "??"}, "do": [)j" + changes + "]}",
+        R"j("states": ["a", "b"], )j");
+
+    machine each(make_set(document), 1);
+    counting_gate gate(100000, 1024);
+    std::vector<firing> out;
+    each.feed(byte_buffer(1000, byte{1}), ms(1), out, &gate);
+    REQUIRE_EQ(out.size(), std::size_t{1000});
+    for (const auto& fired : out)
+        REQUIRE(fired.actions.empty());
+    REQUIRE_EQ(each.state(), std::size_t{1});
+    // They were not asked for either.
+    REQUIRE_EQ(gate.asked_actions, std::uint64_t{0});
+
+    // With no gate they are still in the firing, as the machine's own users
+    // read them.
+    machine plain(make_set(document), 1);
+    const auto got = feed(plain, "01", ms(1));
+    REQUIRE_EQ(got[0].actions.size(), std::size_t{16});
+}

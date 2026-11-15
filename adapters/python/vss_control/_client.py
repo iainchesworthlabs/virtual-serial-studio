@@ -26,6 +26,8 @@ from ._errors import ControlError, TransportError, error_from_reply
 from ._frame import FrameError, FrameReader
 from ._wire import (
     API_VERSION,
+    MAX_CASE_MESSAGE_SIZE,
+    MAX_RUN_NAME_SIZE,
     Batch,
     WireError,
     clean_text,
@@ -480,18 +482,23 @@ class Client:
 
     def begin_run(self, name):
         """Begins a named run: while it is open the gateway notes how each
-        `expect_bytes` ended and what `record_in_run` tells it.  Returns the
+        `expect_bytes` ended and what `record_in_run` tells it.  A name of more
+        than 128 bytes is cut to 128 and ends in `...`.  Returns the
         run (`run` id, `name`, `open`, `tests`, `failures`, ...).  Raises
         `conflict` while a run of this principal is open."""
-        return self._call("runs.begin", {"name": clean_text(name)}, expect="run")
+        return self._call(
+            "runs.begin", {"name": clean_text(name, MAX_RUN_NAME_SIZE)}, expect="run"
+        )
 
     def record_in_run(self, name, outcome, message="", duration_ms=0):
         """Adds a check of your own to the open run.  `outcome` is `passed`,
-        `failed`, `error` or `skipped`."""
+        `failed`, `error` or `skipped`.  A name of more than 128 bytes and a
+        message of more than 512 are cut to that and end in `...`, so the
+        check is recorded whatever the text is."""
         fields = {
-            "name": clean_text(name),
+            "name": clean_text(name, MAX_RUN_NAME_SIZE),
             "outcome": clean_text(outcome),
-            "message": clean_text(message),
+            "message": clean_text(message, MAX_CASE_MESSAGE_SIZE),
             "duration_ms": _number(duration_ms, "duration_ms", _U64_MAX),
         }
         self._call("runs.record", fields)

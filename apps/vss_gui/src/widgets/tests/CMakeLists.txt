@@ -7,6 +7,7 @@
 if(VSS_BUILD_TESTS)
   add_executable(vss_gui_theme_tests
     main.cpp
+    test_focus_ring.cpp
     test_theme.cpp
     test_widgets.cpp)
 

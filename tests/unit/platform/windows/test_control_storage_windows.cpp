@@ -10,6 +10,7 @@
 //
 
 #include <vss/control/audit_log.hpp>
+#include <vss/control/private_file.hpp>
 #include <vss/core/error.hpp>
 
 #include "platform/private_storage_platform.hpp"
@@ -28,10 +29,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <memory>
 #include <span>
 #include <string>
 #include <string_view>
+#include <system_error>
 #include <utility>
 #include <vector>
 
@@ -348,4 +352,134 @@ TEST_CASE("control storage: random bytes of no length succeed")
     REQUIRE(
         !platform::random_bytes(std::span<std::uint8_t>(untouched).first(0)));
     REQUIRE(all_zero(untouched));
+}
+
+namespace
+{
+
+/// The number of entries in the access list of a file, and whether the list
+/// is protected, read as another program would read them.  Fails the test when
+/// the file has no list or no entry that allows this user.
+struct access_list
+{
+    DWORD entries = 0;
+    bool protected_list = false;
+    bool only_this_user = false;
+};
+
+access_list access_of(const std::filesystem::path& file)
+{
+    const std::wstring name = file.wstring();
+    PACL dacl = nullptr;
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    const DWORD status = ::GetNamedSecurityInfoW(
+        name.c_str(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr,
+        nullptr, &dacl, nullptr, &descriptor);
+    const local_owner release(descriptor);
+    REQUIRE_EQ(status, DWORD{0});
+    REQUIRE(descriptor != nullptr);
+    REQUIRE(dacl != nullptr);
+
+    access_list found;
+    ACL_SIZE_INFORMATION entries{};
+    REQUIRE(::GetAclInformation(dacl, &entries, sizeof(entries),
+                                AclSizeInformation) != 0);
+    found.entries = entries.AceCount;
+    SECURITY_DESCRIPTOR_CONTROL bits = 0;
+    DWORD revision = 0;
+    REQUIRE(::GetSecurityDescriptorControl(descriptor, &bits, &revision) != 0);
+    found.protected_list = (bits & SE_DACL_PROTECTED) != 0;
+
+    const auto user = current_user();
+    found.only_this_user = entries.AceCount == 1;
+    for (DWORD index = 0; index < entries.AceCount; ++index)
+    {
+        void* entry = nullptr;
+        REQUIRE(::GetAce(dacl, index, &entry) != 0);
+        const auto* header = static_cast<const ACE_HEADER*>(entry);
+        if (header->AceType != ACCESS_ALLOWED_ACE_TYPE)
+        {
+            found.only_this_user = false;
+            continue;
+        }
+        auto* allowed = static_cast<ACCESS_ALLOWED_ACE*>(entry);
+        if (::EqualSid(&allowed->SidStart, sid_of(user)) == 0)
+            found.only_this_user = false;
+    }
+    return found;
+}
+
+} // namespace
+
+TEST_CASE("control private file: a file is open to this user alone, in a "
+          "directory that is open to others")
+{
+    const vss_test_support::scratch_directory scratch;
+
+    // The scratch directory is an ordinary one: a file made in it by
+    // the usual means takes the access list of the directory, which names
+    // more than this user.  That is what a file of `--out` met before.
+    const auto ordinary = scratch.path() / "ordinary.txt";
+    {
+        std::ofstream out(ordinary, std::ios::binary);
+        out << "x";
+    }
+    const access_list usual = access_of(ordinary);
+    REQUIRE(!usual.only_this_user);
+
+    const auto file = scratch.path() / "rig.token";
+    REQUIRE(!control::create_private_file(file, "vsst1_example\n"));
+    const access_list found = access_of(file);
+    REQUIRE_EQ(found.entries, DWORD{1});
+    REQUIRE(found.protected_list);
+    REQUIRE(found.only_this_user);
+}
+
+TEST_CASE("control private file: the files of the storage are open to this "
+          "user alone whatever their directory")
+{
+    const vss_test_support::scratch_directory scratch;
+
+    // A file that is written whole, and one that is appended to, in a
+    // directory that the storage did not make.
+    const auto whole = scratch.path() / "whole.json";
+    REQUIRE(!platform::write_private_file(whole, "{}"));
+    const access_list written = access_of(whole);
+    REQUIRE(written.protected_list);
+    REQUIRE(written.only_this_user);
+
+    const auto appended = scratch.path() / "appended.log";
+    {
+        auto opened = platform::open_private_append(appended);
+        REQUIRE(opened);
+        REQUIRE(!(*opened)->append("line\n"));
+    }
+    const access_list log = access_of(appended);
+    REQUIRE(log.protected_list);
+    REQUIRE(log.only_this_user);
+}
+
+TEST_CASE("control private file: a link in place of the name is not followed")
+{
+    const vss_test_support::scratch_directory scratch;
+    const auto target = scratch.path() / "target.txt";
+    {
+        std::ofstream out(target, std::ios::binary);
+        out << "kept";
+    }
+    const auto link = scratch.path() / "link.token";
+    std::error_code made;
+    std::filesystem::create_symlink(target, link, made);
+    // Making a link needs a privilege on Windows that an ordinary account
+    // may not have.  Without it there is no link to test; a file that exists
+    // is refused in test_control_private_file.cpp.
+    if (made)
+        VSS_SKIP("symbolic links cannot be made here");
+
+    REQUIRE(control::create_private_file(link, "vsst1_example\n") ==
+            vss::make_error_code(vss::errc::already_exists));
+    std::ifstream in(target, std::ios::binary);
+    const std::string text{std::istreambuf_iterator<char>(in),
+                           std::istreambuf_iterator<char>()};
+    REQUIRE_EQ(text, std::string("kept"));
 }

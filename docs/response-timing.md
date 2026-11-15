@@ -603,6 +603,7 @@ install and the `rule_set` event that says why a set was suspended.
 | Rules in a set | 256 | Refused at compile |
 | Pattern length | 256 bytes | Refused at compile |
 | Reply length | 4096 bytes | Refused at compile |
+| Check values in one reply | 4 | Refused at compile |
 | States, slots | 64 each; a slot holds 4096 bytes | Refused at compile, or by `set_slot` |
 | Compiled size of a set | 1 MiB | Refused at compile |
 | All sets of a hub | 16 MiB, 256 sets | Refused at install |

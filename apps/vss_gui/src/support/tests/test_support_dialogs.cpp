@@ -499,9 +499,9 @@ TEST_CASE("support bundle dialog: for every file the preview equals the bytes "
 
     struct scenario
     {
-        const char* name;
+        const char* name = nullptr;
         std::function<void()> prepare;
-        const char* ids;
+        const char* ids = nullptr;
     };
     const scenario scenarios[] = {
         {"defaults", [] {},

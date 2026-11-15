@@ -211,8 +211,8 @@ bool IconProvider::mirrors_in_right_to_left(const QString& name)
 QIcon IconProvider::render(const QString& name, std::optional<colour_role> role,
                            const QColor& colour)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.theme.icon.render");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, name.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.theme.icon.render");
+    VSS_PROFILE_ZONE_TEXT(zone, name.toStdString());
     return load(QStringLiteral(":/icons/%1.svg").arg(name), role, colour);
 }
 

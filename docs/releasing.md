@@ -20,9 +20,36 @@ shared publish workflow adds the checks.
 | `virtual-serial-studio-<tag>-windows-x86_64.exe` | Windows 2025 | The same files as the zip, as an NSIS installer that also sets up the driver and the helper service ([below](#the-windows-installer)) |
 
 The release also has `SHA512SUMS`, a detached GPG signature (`.asc`) for every
-file, an SPDX software bill of materials and a build provenance attestation for
-every package. The libraries and headers (the `development` install component)
+file, an SPDX software bill of materials (`sbom.spdx.json`) and a build provenance
+attestation for every package. `SHA512SUMS` lists every file but the signatures,
+the SBOM included. The libraries and headers (the `development` install component)
 are not in the packages.
+
+**The SBOM.** `tools/ci/release_sbom.py` writes it from `third_party.json` and the
+files that pin each version (Qt in `.github/toolchain-versions.json`, Boost in
+`tools/fetch_boost.py`, Boost.VirtualSerial in `cmake/VssVirtualSerial.cmake`,
+Monocypher in `third_party/monocypher/README.md`). It lists the program and what the
+packages hold: Qt, Boost, Boost.VirtualSerial, Monocypher and the bundled fonts. A
+component that only a profiling build has (Tracy) is not in it, because the packages
+do not contain it. A scan of the source tree, which the shared workflow does when it is
+not told otherwise, would list the GitHub Actions the workflows use and miss Qt and
+Boost, so `release.yml` turns that scan off (`generate-sbom: false`) and gives the
+shared workflow this file (`pre-release-script`, `spdx-sbom`). The workflow writes it
+before the sums, so the sums, the signatures and the attestations cover it. A
+component added to `third_party.json` stops the script until `COMPONENT_SOURCES` in
+it says where the version is pinned. It does not list the system libraries that the
+Linux packages depend on, the Windows runtime, or the GUI's platform plug-ins as
+separate components: they come with Qt or with the system.
+
+**Checks before the release is created.** The workflow runs
+`tools/ci/release_verify.sh` (`verify-script`) on the signed files. It fails when a
+file name has a character outside letters, digits, `.`, `_` and `-`, because GitHub
+changes such a character in the name of a release asset (a `~` becomes a `.`) and
+`sha512sum -c SHA512SUMS` would then not find the file; when `SHA512SUMS` lacks a
+file, names one that is not there or has a wrong sum; when a file has no `.asc`; or
+when there is no SBOM. For the same reason the deb of a pre-release is named
+`virtual-serial-studio_0.1.0.rc.1-1_amd64.deb`, with a `.` where the package version
+`0.1.0~rc.1-1` has the tilde.
 
 ## Signing
 
@@ -38,7 +65,8 @@ certificate authority installed. The release notes say so.
 ## Before you tag
 
 `python3 tools/release_preflight.py --tag v0.1.0-rc.1` reads these conditions from
-GitHub and the working tree and lists the ones that are not met. It changes nothing
+GitHub and the working tree and lists the ones that are not met. It judges the commit at
+the tip of `develop`; `--commit <sha>` names another. It changes nothing
 and exits with 1 until all are met, so run it again after each fix.
 
 | Condition | How it is checked |
@@ -46,11 +74,19 @@ and exits with 1 until all are met, so run it again after each fix.
 | The tag matches `CMakeLists.txt` and `vcpkg.json` | `tools/check_release_version.py` |
 | No open code-scanning alert in first-party paths | `gh api "repos/{owner}/{repo}/code-scanning/alerts?state=open&ref=refs/heads/develop"`; paths under `.cache/`, `build/`, `_deps/` and `vcpkg_installed/` are third-party code and do not count |
 | No open issue labelled `nightly-analysis` | `gh issue list --label nightly-analysis` |
-| CI, Nightly, Platform matrix and Docs are green | The latest completed run of each on `develop` (Docs runs for pull requests and `main`, so its latest run on any branch) |
-| The Release dry run is green | The latest completed `release.yml` run on `develop`. The Monday schedule runs on `develop`, the default branch, so this is its status; `gh workflow run release.yml --ref develop` makes one now |
+| CI, Docs and the Release dry run are green on the commit to release | The newest completed run of each on `develop` that ran on that very commit, which is the tip of `develop` unless `--commit` names another. A green run of an older commit does not count: `gh workflow run ci.yml --ref develop` and `gh workflow run release.yml --ref develop` make one now. The push to `develop` that follows a merge makes the CI and Docs runs; a burst of merges is checked as one batch, so wait for the last |
+| The scheduled analyses are green and recent | The newest completed run on `develop` of Nightly, Platform matrix, Static analysis, CodeQL, MSVC analysis and the nightly Fuzz (only its scheduled runs; a push run is a 60-second run) is a success, is no more than two days old, and ran on the commit to release or an ancestor of it. A run that timed out or was cancelled is not a success. Only a scheduled fuzz run clears the Fuzz condition: a run started by hand (`gh workflow run fuzz.yml -f mode=nightly`) is not told apart from a 60-second push run, so after a failed night, fix it and wait for the next one |
 | `docs/signing-key.asc` and `SECURITY.md` are in the repository | The publish job fails after signing when the key is missing |
 | The signing secrets exist | `REPO_GPG_PRIVATE_KEY`, `REPO_GPG_PASSPHRASE`, `RELEASE_BOT_APP_ID` and `RELEASE_BOT_PRIVATE_KEY`, plus the two `WIN_TESTSIGN_*` secrets while `SIGN_WINDOWS` is `test` |
 | The `release` environment has a required reviewer | The owner approves the publish job there |
+
+The dry run takes about an hour and builds the tip of `develop` as it is when it starts. A
+merge in that hour moves the tip, and the three conditions about the commit start again. So
+note the commit the dry run built (the run page shows it), pass it as
+`--commit <sha>` to the preflight, and tag that commit, not the tip. A `workflow_dispatch`
+run cannot name a commit, so a commit whose CI push run was replaced while it waited (a
+burst of merges keeps one waiting run) cannot meet the CI condition: merge or push
+something after it, or tag a later commit.
 
 Make the first release a release candidate, `v0.1.0-rc.1`. It runs the whole publish
 path (checksums, signing, attestation, the GitHub Release) as a pre-release, takes its
@@ -157,7 +193,10 @@ version from `project(VERSION)`. The tag decides the rest:
 
 A tilde sorts before everything, so `0.1.0~rc.1` upgrades to `0.1.0`; an rpm release
 that starts with 0 sorts before the 1 of the final release. The workflow passes the
-label as `-DVSS_PACKAGE_PRERELEASE=rc.1`.
+label as `-DVSS_PACKAGE_PRERELEASE=rc.1`. The deb's file name has a `.` where the
+version has the `~` (`virtual-serial-studio_0.1.0.rc.1-1_amd64.deb`), because GitHub
+would make that change to the name of a release asset and `SHA512SUMS` would name
+a file that is not there.
 
 **Where the files go.** The programs, the Qt libraries and the Qt plug-ins are the
 `runtime` install component, in `/opt/virtual-serial-studio` exactly as in the
@@ -196,7 +235,7 @@ in the code:
 | AppArmor and SELinux | The Setup check prints the lines to add when a profile blocks Studio. The packages ship no profile or policy. A Fedora system with SELinux enforcing was not tried: the container checks run without it, so the labels files under `/opt` get by default are unchecked |
 
 **What the workflow checks.** `tools/ci/check_linux_packages.sh` prints the metadata,
-checks the version against the tag, then installs the deb in an Ubuntu 26.04 container
+checks that no file name has a character GitHub would change, checks the version against the tag, then installs the deb in an Ubuntu 26.04 container
 and the rpm in a Fedora 44 container (both with glibc 2.42 or newer and GCC 16, the
 oldest systems the packages claim), runs `vss_cli selftest`, runs `ldd` on the programs,
 the Qt libraries and the plug-ins Studio uses to find a missing dependency, validates the launcher
@@ -318,7 +357,12 @@ service.
    upgrade and before the uninstall it starts `vss_cli virtual` from the installed folder
    and requires that the installer closed it, and before the uninstall it makes a start at
    sign-in entry and a running setup for the runner's user and requires the entry gone and
-   the setup marked as stopped afterwards.
+   the setup marked as stopped afterwards. After the upgrade it also runs two uninstalls from
+   the install folder and installs again after each: `Uninstall.exe /S _?=<folder>` must leave
+   no PATH entry, helper service, driver package or start at sign-in entry, and
+   `Uninstall.exe /S /VSSUPGRADE=1 _?=<folder>` must keep the PATH entry and leave the scripts
+   in `undo-upgrade`, which, run as the installer runs them, must leave a clean machine. A
+   cancelled upgrade with the wizard on screen is not run on the runner; it is a guest step.
 
 NSIS comes from Chocolatey through the `setup-toolchain` action, at the version in
 `.github/toolchain-versions.json`.
@@ -346,7 +390,9 @@ NSIS comes from Chocolatey through the `setup-toolchain` action, at the version 
   value itself instead, so any length works, every other entry stays as written, a folder
   already there is not added twice, and a PATH that would pass Windows' 32767-character limit
   is left alone and reported. The uninstaller takes the folder out again (an upgrade leaves
-  it). `tools/test_edit_path.py` tests the script against a scratch registry key.
+  it). `tools/test_edit_path.py` tests the script against a scratch registry key; it needs
+  Windows PowerShell and skips without it, so the `Tool tests (Windows)` job of `ci.yml`
+  runs it on a Windows runner and fails when it was skipped.
 - Has a page with a ticked box, **Install the virtual COM port driver and its helper
   service**. A silent install does the same unless it is given `/DRIVER=0`.
 
@@ -377,19 +423,52 @@ a message saying that the driver was not installed, why, what to do (run
 `bin\driver\trust\install-trust.ps1` with the public certificates of the authority that
 signed the build, or turn on test signing on a test machine, then choose **Set up Virtual
 Serial Studio**) and where the log is. A silent install shows nothing, exits 0 and leaves
-the log and the `VssDriver` value; automation reads the value. A signed and trusted
-package installs with no step by hand.
+the log and the `VssDriver` value; automation reads the value. A package signed by
+Microsoft's hardware publisher installs with no step by hand, and so does one whose
+signer is in Trusted Publishers (`trust/install-trust.ps1 -Package` puts it there); a
+valid signature alone is not enough.
 
-**Upgrade and uninstall.** An upgrade runs the old uninstaller in place, and the installer
-tells that apart from a real uninstall (the old uninstaller runs from the install folder
-itself, which a normal uninstall never does): it leaves the driver package, the helper
-service and the ports' COM numbers alone, replaces the files, and runs the set-up again,
-which stops the helper before it replaces `vsscom_helper.exe`. A real uninstall runs
-`bin\driver\remove-driver.ps1`: it stops and deletes the helper service (the ports it made go
-with it), deletes the `vsscom_um` package from the driver store (which removes the devices
-that use it), checks that none is left and removes the helper's folder. It touches no
-certificate and no setting, and no other driver. If it fails, the uninstaller says so and
-keeps `driver-remove.log`.
+**Upgrade and uninstall.** An upgrade runs the old uninstaller first, and the new installer
+tells it so: it starts it with `/VSSUPGRADE=1` (CPack's NSIS template has one line for this,
+and `cmake/packaging/windows/nsis-template.cmake` writes the copy of it that is used; the
+configure step stops if a CMake release moves that line). Only an uninstaller started with
+that switch keeps the driver package, the helper service, the PATH entry and the per-user
+entries. The switch is for the installer's own use. Where the uninstaller runs from does not
+matter: `Uninstall.exe /S _?=<folder>`, which is how an unattended uninstall is made to wait,
+removes the driver, the helper service, the PATH entry and the per-user entries, and
+removes Studio, but leaves `Uninstall.exe` and the install folder, because an uninstaller
+started that way cannot delete itself; a deployment tool has to delete the folder. Passed
+by hand to an ordinary uninstall, `/VSSUPGRADE=1` keeps the driver, the helper service and
+the PATH entry, removes Studio and its uninstaller, and leaves the scripts that finish the
+job in `undo-upgrade` in the install folder (see below).
+
+An upgrade leaves the driver and the ports' COM numbers alone, replaces the files, and runs
+the set-up again, which stops the helper before it replaces `vsscom_helper.exe`. Because the
+old version is gone before the new installer's first page, the old uninstaller also leaves the
+scripts that take those things away in `undo-upgrade` in the install folder. If the person
+cancels, or the install fails (also a silent one, which exits with 2), the new installer
+runs them and takes away the driver, the helper service, the PATH entry and the start at
+sign-in entries, deletes `Uninstall.exe` and `undo-upgrade`, and removes the folder if it is
+empty. So a cancelled or failed upgrade also removes the PATH entry, and an install run
+again without `/ADDTOPATH=1` does not put it back. A finished install deletes `undo-upgrade`.
+This clean-up applies when the version being replaced already has this change, because
+that version's uninstaller makes the scripts. A cancelled upgrade from an older version
+leaves the helper service, the driver and the PATH entry, as it did before. If an installer
+is killed after the old version was removed, `undo-upgrade` stays and Apps & features has no
+entry, so the next install runs no uninstaller; it takes `undo-upgrade` as an unfinished
+upgrade, so that if it is cancelled or fails it runs the clean-up from it, and if it
+finishes it deletes the folder.
+
+A real uninstall runs `bin\driver\remove-driver.ps1`: it stops and deletes the helper service
+(the ports it made go with it), removes the port devices `SWD\VSSCOMUM\*`, absent ones
+included, and then deletes the `vsscom_um` package from the driver store, checks that none
+is left and removes the helper's folder. It touches no certificate and no setting, and no
+other driver. If it fails, the uninstaller says so and keeps `driver-remove.log`. If it
+cannot take the folder out of the PATH, it says so and keeps `path-setup.log` in the install
+folder, which stays with it; a silent uninstall shows no message, so the log is where to
+look. Where the install folder is under Program Files (the default) only administrators can
+change what is in it; a folder chosen somewhere else has the access list of its parent, as
+it already does for the other scripts there.
 
 **A Studio that is running.** Windows cannot replace or delete a program that runs, so
 before an upgrade copies the files and before an uninstall deletes them the installer
@@ -422,7 +501,8 @@ users own, so it never deletes there, skips a folder or file that is a link, and
 file only when it holds the exact text `"stopped": false`. Settings in
 `HKCU\Software\iainchesworthlabs\Virtual Serial Studio` and saved setups are left, as before.
 `tools/test_stop_studio.py` tests the script against scratch folders and a scratch
-registry key.
+registry key; the `Tool tests (Windows)` job of `ci.yml` runs it, and fails when it was
+skipped (`tools/ci/run_tool_tests.py`).
 
 **What was tried.** The Windows 11 guest (`VSS - Windows 11`, from its `clean` snapshot),
 with a package signed by a throwaway certificate, built by
@@ -462,8 +542,10 @@ Publishers `pnputil` asks "Would you like to install this device software?" on t
 where nobody can answer, and waits for ever. A guest reached through `vmrun` has no such
 desktop and `pnputil` refused at once, which is why it was not seen there. Now:
 
-- `setup-driver.ps1` accepts a package that is not trusted outright only when its signer is
-  in Trusted Publishers (`trust/install-trust.ps1` puts it there), and otherwise ends in
+- `setup-driver.ps1` accepts a package only when its catalog is signed by Microsoft's
+  hardware publisher (the name, and a chain that ends in a Microsoft root) or its signer is
+  in Trusted Publishers (`trust/install-trust.ps1` puts it there), whatever the status of
+  the signature and whether test signing is on, and otherwise ends in
   exit 6, `not-trusted`, before it calls `pnputil`. A refusal from `pnputil` for a trust
   error (`0x800B0109` and its neighbours) is exit 6 as well.
 - Every `pnputil` call has a limit (180 seconds to add, 300 to delete), and the whole of

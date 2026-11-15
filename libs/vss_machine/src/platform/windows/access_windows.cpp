@@ -12,7 +12,7 @@
 // as "others too".
 //
 
-#include "platform/access_platform.hpp"
+#include "platform/machine_platform.hpp"
 
 // windows.h first: the other headers need its types.
 // clang-format off
@@ -21,12 +21,14 @@
 #include <sddl.h>
 // clang-format on
 
+#include <boost/system/errc.hpp>
+
 #include <array>
 #include <cstddef>
 #include <memory>
 #include <string_view>
 
-namespace vss::plugin::platform
+namespace vss::machine::platform
 {
 
 namespace
@@ -69,6 +71,11 @@ bool is_administrator(PSID sid) noexcept
     return std::wstring_view(text) == trusted_installer;
 }
 
+boost::system::error_code io_error()
+{
+    return boost::system::errc::make_error_code(boost::system::errc::io_error);
+}
+
 /// The rights that let their holder change the file or folder itself.
 constexpr DWORD change_it =
     FILE_WRITE_DATA | FILE_APPEND_DATA | FILE_DELETE_CHILD | DELETE |
@@ -95,7 +102,8 @@ DWORD file_rights(DWORD mask) noexcept
 
 } // namespace
 
-result<access_finding> examine(const std::filesystem::path& path, bool last)
+boost::system::result<access_finding> examine(const std::filesystem::path& path,
+                                              bool last)
 {
     PSID owner = nullptr;
     PACL list = nullptr;
@@ -105,7 +113,7 @@ result<access_finding> examine(const std::filesystem::path& path, bool last)
         OWNER_SECURITY_INFORMATION | DACL_SECURITY_INFORMATION, &owner,
         nullptr, &list, nullptr, &descriptor);
     if (status != ERROR_SUCCESS)
-        return make_error_code(errc::io_error);
+        return io_error();
     const std::unique_ptr<void, local_free> keep(descriptor);
 
     access_finding found;
@@ -127,14 +135,14 @@ result<access_finding> examine(const std::filesystem::path& path, bool last)
     ACL_SIZE_INFORMATION size{};
     if (::GetAclInformation(list, &size, sizeof(size),
                              AclSizeInformation) == 0)
-        return make_error_code(errc::io_error);
+        return io_error();
 
     const DWORD dangerous = last ? change_it : replace_inside;
     for (DWORD index = 0; index < size.AceCount; ++index)
     {
         void* entry = nullptr;
         if (::GetAce(list, index, &entry) == 0)
-            return make_error_code(errc::io_error);
+            return io_error();
         const auto* const header = static_cast<const ACE_HEADER*>(entry);
 
         // An entry that only passes rights on to what is inside says
@@ -171,4 +179,4 @@ result<access_finding> examine(const std::filesystem::path& path, bool last)
     return found;
 }
 
-} // namespace vss::plugin::platform
+} // namespace vss::machine::platform

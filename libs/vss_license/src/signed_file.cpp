@@ -12,6 +12,7 @@
 #include <boost/json/serialize.hpp>
 
 #include <monocypher-ed25519.h>
+#include <monocypher.h>
 
 #include <algorithm>
 #include <string>
@@ -47,8 +48,9 @@ int sextet(char c)
 /// check. This looks at bytes only and does no arithmetic.
 bool canonical_encoding(std::span<const std::uint8_t, 32> point)
 {
-    const std::uint8_t top = point[31] & 0x7fU;
-    const bool sign = (point[31] & 0x80U) != 0;
+    const std::uint8_t last = point.last<1>()[0];
+    const std::uint8_t top = last & 0x7fU;
+    const bool sign = (last & 0x80U) != 0;
     const auto middle = point.subspan(1, 30);
     const bool middle_ones = std::ranges::all_of(middle, [](std::uint8_t byte)
                                                  { return byte == 0xffU; });
@@ -121,6 +123,9 @@ result<std::vector<std::uint8_t>> base64url_decode(std::string_view text)
         const int value = sextet(c);
         if (value < 0)
         {
+            // The text may be a private key, so what was decoded is wiped
+            // before the vector frees it.
+            crypto_wipe(data.data(), data.size());
             return errc::malformed;
         }
         bits = ((bits << 6U) | static_cast<std::uint32_t>(value)) & 0xffffU;
@@ -135,6 +140,7 @@ result<std::vector<std::uint8_t>> base64url_decode(std::string_view text)
     // The bits left over must be zero, so each value has one spelling.
     if ((bits & ((1U << static_cast<unsigned>(count)) - 1U)) != 0)
     {
+        crypto_wipe(data.data(), data.size());
         return errc::malformed;
     }
     return data;

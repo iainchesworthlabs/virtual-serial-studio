@@ -5,6 +5,7 @@
 //
 
 #include "simple/setup_kinds.hpp"
+#include "dialogs/network_uri.hpp"
 #include "language/bidi.hpp"
 
 #include <vss/core/profile.hpp>
@@ -67,6 +68,28 @@ bool is_network(const std::vector<port_view>& ports, vss::endpoint_id id)
     const auto kind = kind_of(ports, id);
     return kind == vss::endpoint_kind::tcp || kind == vss::endpoint_kind::udp ||
            kind == vss::endpoint_kind::rfc2217;
+}
+
+/// True for the network port the Simple job makes: a TCP server on every
+/// address of this PC with no list of who may connect.  A server bound to one
+/// address, with `?allow=`, for RFC 2217 or UDP, or a client that connects out,
+/// was made in Advanced mode and is changed there: Simple mode would replace it
+/// with a port that anyone on the network can reach.
+bool is_simple_listener(const std::vector<port_view>& ports,
+                        vss::endpoint_id id)
+{
+    for (const auto& port : ports)
+    {
+        if (port.id != id)
+            continue;
+        if (port.path.contains(QLatin1Char('?')))
+            return false;
+        const auto address = parse_network_uri(port.path);
+        return address && address->role == network_role::server &&
+               address->transport == network_transport::tcp &&
+               address->host == QLatin1String("0.0.0.0");
+    }
+    return false;
 }
 
 bool all_programs(const std::vector<port_view>& ports,
@@ -153,7 +176,7 @@ void describe_two_way(setup_view& view, const link_view& link,
     if (device != 0)
     {
         const auto other = device == a ? b : a;
-        if (is_network(ports, other))
+        if (is_simple_listener(ports, other))
         {
             view.kind = job::network;
             view.device = device;

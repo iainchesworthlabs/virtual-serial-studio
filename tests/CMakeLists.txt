@@ -14,6 +14,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_control_junit.cpp
   unit/test_control_limiter.cpp
   unit/test_control_lines.cpp
+  unit/test_control_loopback.cpp
+  unit/test_control_private_file.cpp
   unit/test_control_proto.cpp
   unit/test_control_token.cpp
   unit/test_control_token_file.cpp
@@ -42,6 +44,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_license_signature.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
+  unit/test_machine.cpp
   unit/test_rfc2217.cpp
   unit/test_native_and_com0com.cpp
   unit/test_permissions.cpp
@@ -92,6 +95,7 @@ if(WIN32)
     unit/platform/windows/test_control_storage_windows.cpp
     unit/platform/windows/test_driver_client_windows.cpp
     unit/platform/windows/test_helper_windows.cpp
+    unit/platform/windows/test_machine_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
     unit/platform/windows/test_plugin_access_windows.cpp
     unit/platform/windows/test_plugin_locations_windows.cpp
@@ -101,15 +105,18 @@ elseif(UNIX)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/platform/posix/test_ports_posix.cpp
     unit/platform/posix/test_agent_transport_posix.cpp
     unit/platform/posix/test_control_storage_posix.cpp
+    unit/platform/posix/test_machine_posix.cpp
     unit/platform/posix/test_permissions_posix.cpp
     unit/platform/posix/test_plugin_access_posix.cpp
     unit/platform/posix/test_plugin_locations_posix.cpp)
   # The folders differ between Linux and macOS, so each has its own file.
   if(APPLE)
     list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/macos/test_machine_macos.cpp
       unit/platform/macos/test_plugin_locations_macos.cpp)
   else()
     list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/linux/test_machine_linux.cpp
       unit/platform/linux/test_plugin_locations_linux.cpp)
   endif()
 endif()
@@ -117,9 +124,25 @@ endif()
 # The commands of vss_license, run in the test process.
 if(TARGET vss_license_tool)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/test_license_tool.cpp)
-  if(UNIX)
+  if(WIN32)
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/windows/test_license_tool_windows.cpp)
+  elseif(UNIX)
     list(APPEND VSS_UNIT_TEST_SOURCES
       unit/platform/posix/test_license_tool_posix.cpp)
+  endif()
+endif()
+
+# `vss_cli control ...` run in the test's own process, against a gateway of the
+# test's own, and what it leaves on disk read back as another program would.
+if(TARGET vss_cli_control)
+  list(APPEND VSS_UNIT_TEST_SOURCES unit/test_control_cli_out.cpp)
+  if(WIN32)
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/windows/test_control_cli_out_windows.cpp)
+  else()
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/posix/test_control_cli_out_posix.cpp)
   endif()
 endif()
 
@@ -137,8 +160,11 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
-  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto
+  vss_agent_proto vss_agent_core vss_plugin vss_machine vss_rules vss_control_proto
   vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
+if(TARGET vss_cli_control)
+  target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
+endif()
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE
@@ -170,7 +196,8 @@ endif()
 # separate processes run on every system. CMake chooses the file that knows
 # how to start one.
 if(TARGET vss_cli)
-  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_cli.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_cli.cpp
+    system/test_system_cli.cpp)
   if(WIN32)
     list(APPEND VSS_SYSTEM_TEST_SOURCES
       support/platform/windows/child_process_windows.cpp)
@@ -209,6 +236,9 @@ endif()
 
 if(TARGET vss_cli)
   add_dependencies(vss_system_tests vss_cli)
+  # The command line parser and the devices JSON, which test_system_cli.cpp
+  # calls as well as running the program.
+  target_link_libraries(vss_system_tests PRIVATE vss_cli_core)
   target_compile_definitions(vss_system_tests PRIVATE
     VSS_CLI_PROGRAM="$<TARGET_FILE:vss_cli>")
 endif()

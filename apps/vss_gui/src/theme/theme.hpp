@@ -104,6 +104,18 @@ enum class motion_kind
     dialog
 };
 
+/// The hinting every font from `Theme` asks for, in one place so it can be
+/// changed in one line.  Vertical hinting fits stems to whole pixel rows and
+/// keeps the letter widths of unhinted text; `QFont::PreferDefaultHinting`
+/// also fits them across, which is the classic (and wider) Windows look.
+/// Measured on the `windows` platform at 96 DPI with Segoe UI 13 px, the same
+/// sentence has 64 fully inked pixels with `PreferNoHinting` and 263 with
+/// vertical hinting.  The offscreen platform does not use the platform's font
+/// engine and draws all four settings the same, so judge text on a real
+/// window with a screen grab, not on an offscreen picture.
+inline constexpr QFont::HintingPreference kTextHinting =
+    QFont::PreferVerticalHinting;
+
 /// The single source of colour, type, size and spacing.
 ///
 /// Tokens are compiled into the GUI as `:/tokens/tokens.json` and
