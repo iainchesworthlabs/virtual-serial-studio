@@ -1540,10 +1540,10 @@ try
     }
     const std::string& command = words[*command_index];
 
-    // These four read their own options.
+    // These five read their own options.
     const bool reads_own_options = command == "agent" || command == "control" ||
                                    command == "permissions" ||
-                                   command == "plugin";
+                                   command == "plugin" || command == "licence";
     const auto* const spec =
         reads_own_options ? nullptr : vss_cli::find_command_spec(command);
     if (!reads_own_options && spec == nullptr)
