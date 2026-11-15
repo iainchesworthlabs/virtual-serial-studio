@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // A program that behaves as a hostile or broken plugin would, for the tests
-// of `vss::plugin::host::plugin_process`.  It does what its arguments say, in
-// the order given, and then exits with 0 unless an argument says otherwise.
-// It links nothing of the project.  Every line it prints ends with "\n" and
-// standard output is flushed after each action.
+// of `vss::plugin::host::plugin_process` and `plugin_runner`.  It does what
+// its arguments say, in the order given, and then exits with 0 unless an
+// argument says otherwise.  Only `--serve` uses the project (the plugin API,
+// in serve.cpp).  Every line it prints ends with "\n" and standard output is
+// flushed after each action.
 //
 // Arguments:
 //   --print-arguments     prints "argc=<n>" and then one line "arg <i>:
@@ -18,6 +19,9 @@
 //   --print-directory     prints "cwd <the working directory>"
 //   --stdout=<text>       prints the text and a newline to standard output
 //   --stderr=<text>       prints the text and a newline to standard error
+//   --stdout-hex=<hex>    prints the bytes the hex digits stand for and a
+//                         newline to standard output, so that a line can hold
+//                         control characters or bytes that are not UTF-8
 //   --read-stdin          reads standard input to its end, prints
 //                         "stdin <bytes read>"
 //   --list-descriptors    prints "descriptors <open descriptors>"
@@ -32,14 +36,67 @@
 //   --pid                 prints "pid <process id>"
 //   --flood-stdout=<n>    writes n bytes 'x' to standard output, in chunks of
 //                         4096, and a newline
+//   --allocate=<n>        takes n mebibytes of memory one at a time and
+//                         writes to each; prints "allocated <n>", or
+//                         "allocation-failed <m>" after m of them
+//   --read-file=<path>    prints "read <n>" for the n bytes of the file,
+//                         or "read-failed"
+//   --write-file=<path>   writes a few bytes to the file; prints "written"
+//                         or "write-failed"
+//   --connect=<port>      tries a TCP connection to 127.0.0.1 at the port;
+//                         prints "connected" or "connect-failed"
+//   --open-process=<pid>  tries to open another process; prints
+//                         "process-opened" or "process-refused"
 //   --hang                prints "hanging" and never returns
 //   --crash               ends the process the way a fault does
 //   --exit=<code>         exits at once with the code
+//   --serve               is a plugin: sends "hello" (a request with id 1)
+//                         for the plugin id and version below, and then
+//                         reads the channel.  It goes on with the next
+//                         message on "hello_ack", answers "ping" with "pong",
+//                         answers a request with an op it does not know with
+//                         an "error" (unknown_op), and on "shutdown" sends
+//                         "bye" and exits 0.  When the channel ends it exits
+//                         2.  The modifiers below apply only to `--serve`
+//                         and must come before it on the command line.
+// Modifiers of `--serve`:
+//   --hello-id=<text>     the plugin id its "hello" says (default
+//                         com.example.test)
+//   --hello-version=<text>  the version its "hello" says (default 1.2.0)
+//   --no-hello            serves without ever sending "hello"
+//   --hello-twice         sends "hello" a second time at once (id 2)
+//   --exit-after-ready=<code>  exits with the code as soon as "hello_ack"
+//                         arrives
+//   --crash-after-ready   ends the way a fault does as soon as "hello_ack"
+//                         arrives
+//   --ignore-shutdown     goes on serving after "shutdown" and never sends
+//                         "bye"
+//   --ignore-ping         never answers "ping"
+//   --status=<text>       after "hello_ack" sends a "status" with the level
+//                         warning and the text
+//   --log=<text>          after "hello_ack" sends a "log" message (level
+//                         info) with the text
+//   --send-op=<op>        after "hello_ack" sends a request with the op, an
+//                         empty body and id 2; prints "answer <op of the
+//                         answer>" when the answer arrives, and
+//                         "answer-value <value>" as well when it is an
+//                         "error"
+//   --echo-op=<op>        answers a request with this op with "ok" and
+//                         prints "got <op>"
+//   --garbage-after-ready  after "hello_ack" writes 64 bytes that are not a
+//                         frame
+//   --flood-after-ready=<n>  after "hello_ack" sends n "log" messages as fast
+//                         as it can
+//   --stderr-each=<text>  after "hello_ack" prints the text once to
+//                         standard error
+// When "hello_ack" arrives the modifiers act in the order of the list above
+// (exit, crash, stderr, status, log, send-op, garbage, flood).
 // An argument it does not know makes it print "unknown argument" to standard
 // error and exit with 2.
 //
 
 #include "platform.hpp"
+#include "serve.hpp"
 
 #include <algorithm>
 #include <array>
@@ -48,7 +105,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <ios>
+#include <memory>
+#include <new>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -91,6 +153,25 @@ std::optional<std::string_view> value_after(std::string_view argument,
     if (!argument.starts_with(name))
         return std::nullopt;
     return argument.substr(name.size());
+}
+
+/// The bytes that pairs of hex digits stand for.  Nothing when the text has
+/// an odd number of digits or a character that is not a digit.
+std::optional<std::string> bytes_of_hex(std::string_view digits)
+{
+    if (digits.size() % 2 != 0)
+        return std::nullopt;
+    std::string bytes;
+    for (std::size_t index = 0; index < digits.size(); index += 2)
+    {
+        unsigned value = 0;
+        const auto result = std::from_chars(
+            digits.data() + index, digits.data() + index + 2, value, 16);
+        if (result.ec != std::errc{} || result.ptr != digits.data() + index + 2)
+            return std::nullopt;
+        bytes += static_cast<char>(value);
+    }
+    return bytes;
 }
 
 std::string hex_of(std::string_view bytes)
@@ -239,6 +320,50 @@ std::optional<int> spawn_children(unsigned long long count, const char* self)
     return std::nullopt;
 }
 
+void allocate_memory(unsigned long long mebibytes)
+{
+    constexpr std::size_t chunk = std::size_t{1024} * 1024;
+    // Kept until the process ends, so that the memory stays in use.
+    static std::vector<std::unique_ptr<char[]>> kept;
+    for (unsigned long long made = 0; made < mebibytes; ++made)
+    {
+        std::unique_ptr<char[]> block(new (std::nothrow) char[chunk]);
+        if (!block)
+        {
+            say("allocation-failed " + std::to_string(made));
+            return;
+        }
+        std::memset(block.get(), 0x5a, chunk);
+        kept.push_back(std::move(block));
+    }
+    say("allocated " + std::to_string(mebibytes));
+}
+
+void read_file(const std::string& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open())
+    {
+        say("read-failed");
+        return;
+    }
+    std::size_t total = 0;
+    std::array<char, 4096> buffer{};
+    while (
+        in.read(buffer.data(), static_cast<std::streamsize>(buffer.size())) ||
+        in.gcount() > 0)
+        total += static_cast<std::size_t>(in.gcount());
+    say("read " + std::to_string(total));
+}
+
+void write_file(const std::string& path)
+{
+    std::ofstream out(path, std::ios::binary);
+    out << "written by vss_test_plugin";
+    out.close();
+    say(out.fail() ? "write-failed" : "written");
+}
+
 void flood_standard_output(unsigned long long bytes)
 {
     const std::string chunk(4096, 'x');
@@ -254,8 +379,10 @@ void flood_standard_output(unsigned long long bytes)
 }
 
 /// Does what one argument says.  A value says the program ends with that exit
-/// code; nothing says to go on with the next argument.
-std::optional<int> act(std::string_view argument, const char* self)
+/// code; nothing says to go on with the next argument.  The modifiers of
+/// `--serve` are collected in `serving`.
+std::optional<int> act(std::string_view argument, const char* self,
+                       test_plugin::serve_options& serving)
 {
     if (argument == "--print-environment")
     {
@@ -273,6 +400,14 @@ std::optional<int> act(std::string_view argument, const char* self)
     {
         emit(stderr, std::string(*text) + "\n");
         return std::nullopt;
+    }
+    if (const auto text = value_after(argument, "--stdout-hex="))
+    {
+        if (const auto bytes = bytes_of_hex(*text))
+        {
+            say(*bytes);
+            return std::nullopt;
+        }
     }
     if (argument == "--read-stdin")
     {
@@ -325,6 +460,42 @@ std::optional<int> act(std::string_view argument, const char* self)
             return std::nullopt;
         }
     }
+    if (const auto text = value_after(argument, "--allocate="))
+    {
+        if (const auto count = parse_number<unsigned long long>(*text))
+        {
+            allocate_memory(*count);
+            return std::nullopt;
+        }
+    }
+    if (const auto text = value_after(argument, "--read-file="))
+    {
+        read_file(std::string(*text));
+        return std::nullopt;
+    }
+    if (const auto text = value_after(argument, "--write-file="))
+    {
+        write_file(std::string(*text));
+        return std::nullopt;
+    }
+    if (const auto text = value_after(argument, "--connect="))
+    {
+        if (const auto port = parse_number<unsigned short>(*text))
+        {
+            say(test_plugin::connect_loopback(*port) ? "connected"
+                                                     : "connect-failed");
+            return std::nullopt;
+        }
+    }
+    if (const auto text = value_after(argument, "--open-process="))
+    {
+        if (const auto pid = parse_number<long long>(*text))
+        {
+            say(test_plugin::can_open_process(*pid) ? "process-opened"
+                                                    : "process-refused");
+            return std::nullopt;
+        }
+    }
     if (argument == "--hang")
     {
         say("hanging");
@@ -340,6 +511,10 @@ std::optional<int> act(std::string_view argument, const char* self)
         if (const std::optional<int> code = parse_number<int>(*text))
             return code;
     }
+    if (argument == "--serve")
+        return test_plugin::serve(serving);
+    if (test_plugin::take_serve_modifier(argument, serving))
+        return std::nullopt;
 
     emit(stderr, "unknown argument\n");
     return 2;
@@ -350,6 +525,7 @@ int run(int argc, char** argv)
 {
     test_plugin::binary_output();
 
+    test_plugin::serve_options serving;
     for (int index = 1; index < argc; ++index)
     {
         const std::string_view argument(argv[index]);
@@ -358,7 +534,7 @@ int run(int argc, char** argv)
             print_arguments(argc, argv);
             return 0;
         }
-        if (const std::optional<int> code = act(argument, argv[0]))
+        if (const std::optional<int> code = act(argument, argv[0], serving))
             return *code;
     }
     return 0;

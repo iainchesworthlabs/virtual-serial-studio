@@ -248,10 +248,13 @@ endif()
 # The plugin process tests start vss_test_plugin, a program that does what
 # its arguments say: what a plugin does that behaves, and what one does that
 # does not. CMake chooses the files that know each system.
-add_executable(vss_test_plugin plugin/vss_test_plugin/main.cpp)
+add_executable(vss_test_plugin
+  plugin/vss_test_plugin/main.cpp
+  plugin/vss_test_plugin/serve.cpp)
 target_include_directories(vss_test_plugin PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/plugin/vss_test_plugin)
 target_compile_features(vss_test_plugin PRIVATE cxx_std_23)
+target_link_libraries(vss_test_plugin PRIVATE vss_plugin)
 vss_set_warnings(vss_test_plugin)
 # A build with the address sanitiser of MSVC needs its runtime library when
 # the program starts. A plugin is started with an environment of its own, so
@@ -265,10 +268,20 @@ if(MSVC AND ICL_SANITIZERS MATCHES "address")
             "$<TARGET_FILE_DIR:vss_test_plugin>"
     VERBATIM)
 endif()
-list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_process.cpp)
+list(APPEND VSS_SYSTEM_TEST_SOURCES
+  system/test_system_plugin_process.cpp
+  system/test_system_plugin_runner.cpp
+  system/test_system_plugin_service.cpp
+  system/test_system_plugin_start_plan.cpp)
+# `vss_cli plugin run` starts the program as a child process.
+if(TARGET vss_cli)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_run_cli.cpp)
+endif()
 if(WIN32)
   target_sources(vss_test_plugin PRIVATE
     plugin/vss_test_plugin/platform/windows/platform_windows.cpp)
+  # For the flag that tries a TCP connection.
+  target_link_libraries(vss_test_plugin PRIVATE ws2_32)
   list(APPEND VSS_SYSTEM_TEST_SOURCES
     support/platform/windows/native_io_windows.cpp)
 else()
@@ -294,9 +307,18 @@ vss_set_warnings(vss_system_tests)
 vss_enable_coverage(vss_system_tests)
 
 add_dependencies(vss_system_tests vss_test_plugin)
-target_link_libraries(vss_system_tests PRIVATE vss_plugin_host)
+target_link_libraries(vss_system_tests PRIVATE vss_plugin_host
+  vss_license_test_keys)
+# The name of the runtime library that must sit beside a copy of the test
+# plugin (see the address sanitiser block above), or empty when none is needed.
+if(MSVC AND ICL_SANITIZERS MATCHES "address")
+  set(_vss_test_plugin_runtime "clang_rt.asan_dynamic-x86_64.dll")
+else()
+  set(_vss_test_plugin_runtime "")
+endif()
 target_compile_definitions(vss_system_tests PRIVATE
-  VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>")
+  VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>"
+  VSS_TEST_PLUGIN_RUNTIME="${_vss_test_plugin_runtime}")
 
 add_test(NAME system COMMAND vss_system_tests
   --verbose --junit=${CMAKE_BINARY_DIR}/system-tests.xml)

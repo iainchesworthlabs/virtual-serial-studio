@@ -10,7 +10,11 @@
 
 #include "platform.hpp"
 
+#include <winsock2.h>
+
 #include <windows.h>
+
+#include <cstring>
 
 #include <fcntl.h>
 #include <io.h>
@@ -227,6 +231,64 @@ void crash()
 long long process_id()
 {
     return static_cast<long long>(::GetCurrentProcessId());
+}
+
+bool connect_loopback(unsigned short port)
+{
+    WSADATA data{};
+    if (::WSAStartup(MAKEWORD(2, 2), &data) != 0)
+        return false;
+    bool connected = false;
+    const SOCKET socket = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (socket != INVALID_SOCKET)
+    {
+        // Not blocking, and three seconds at most: a connection that is
+        // quietly dropped would otherwise take the system's own long time.
+        u_long on = 1;
+        ::ioctlsocket(socket, FIONBIO, &on);
+        sockaddr_in address{};
+        address.sin_family = AF_INET;
+        address.sin_port = ::htons(port);
+        address.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
+        sockaddr generic{};
+        std::memcpy(&generic, &address, sizeof(generic));
+        if (::connect(socket, &generic, sizeof(generic)) == 0)
+        {
+            connected = true;
+        }
+        else if (::WSAGetLastError() == WSAEWOULDBLOCK)
+        {
+            fd_set writable;
+            FD_ZERO(&writable);
+            FD_SET(socket, &writable);
+            const timeval limit{3, 0};
+            if (::select(0, nullptr, &writable, nullptr, &limit) == 1)
+            {
+                int failure = 0;
+                int size = sizeof(failure);
+                std::array<char, sizeof(int)> raw{};
+                if (::getsockopt(socket, SOL_SOCKET, SO_ERROR, raw.data(),
+                                 &size) == 0)
+                {
+                    std::memcpy(&failure, raw.data(), sizeof(failure));
+                    connected = failure == 0;
+                }
+            }
+        }
+        ::closesocket(socket);
+    }
+    ::WSACleanup();
+    return connected;
+}
+
+bool can_open_process(long long pid)
+{
+    HANDLE process = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                                   static_cast<DWORD>(pid));
+    if (process == nullptr)
+        return false;
+    ::CloseHandle(process);
+    return true;
 }
 
 } // namespace test_plugin

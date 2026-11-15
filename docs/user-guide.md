@@ -1886,6 +1886,7 @@ again.
 | List the installed plugins | `vss_cli plugin list` (add `--json` for a script) |
 | Check a plugin folder | `vss_cli plugin verify <folder>` |
 | Install or remove a plugin | `vss_cli plugin install <folder>`, `vss_cli plugin remove <id>` |
+| Run one installed plugin | `vss_cli plugin run <id>` (add `--json` for a script) |
 
 `virtual`, `vport`, `bus`, `capture`, `run`, `share`, `join`, `bridge` and
 `loopback` keep running until `Ctrl-C`, `SIGTERM` or, on Linux and macOS, `SIGHUP`
@@ -2173,6 +2174,84 @@ The exit code is 0 when the plugin was installed and 1 when it was not.
 the plugin, such as `com.example.modbus-fixture`, and refuses anything that is
 not a plugin id or a folder that is not a plugin. It does not touch the plugin's
 data. It runs nothing.
+
+### Running a plugin with `vss_cli plugin run`
+
+```bash
+vss_cli plugin run <id> [--root <folder>]... [--data <folder>] [--trust <file>] [--seconds <n>] [--json]
+```
+
+`plugin run` runs one installed plugin the way Studio's plugin host runs it, and
+prints what happens: the plugin starts, says hello, is confined and stops. Use
+it to see a plugin work, from a script, or from the tests of a plugin of your
+own. It runs the plugin until you press `Ctrl-C`, or until the plugin cannot run
+any more. With `--seconds <n>` it stops the plugin after `n` seconds with the
+plugin running. It always stops the plugin in order: the plugin is asked to
+stop, the command waits until it has gone, and only then ends.
+
+It makes no decision about trust. A plugin runs only when the file given with
+`--trust` holds your decision about this exact copy of it, as Studio keeps it.
+A plugin that needs your decision is shown as `needs your decision`, and the
+command ends with exit code 1. Decide in Studio. The command never writes the
+trust file.
+
+```text
+state: starting
+state: running; process 4120; sandbox partial (not applied: system_calls, user_interface)
+output: listening
+log info: ready to serve
+state: stopping; process 4120; sandbox partial (not applied: system_calls, user_interface)
+state: stopped
+```
+
+It prints one line each time the state of the plugin changes, and one line for
+each new line of the plugin's output or log:
+
+- `state:` is `starting`, `running`, `stopping`, `stopped`, `waiting to start
+  again in <n> s (failure <k> of <m>)`, `stopped after failing`, `off`, `needs
+  your decision`, `blocked by the administrator`, `needs a licence` or `cannot
+  be used`. After it come the `reason` code and the `detail` when there is one,
+  the `process` id when the plugin has one, the `sandbox` level and the parts of
+  the sandbox that were not applied, and the `status` the plugin last gave. A
+  plugin that fails is started again after a wait. After `<m>` failures it is
+  not started again.
+- `output:` is a line the plugin wrote to its standard output or standard error.
+- `log` and a level, such as `log info:`, is a message the plugin sent to the
+  log.
+
+Text that comes from a plugin is printed as plain text, and each byte that is
+not printable ASCII is shown as `?`, so a plugin cannot move the cursor or
+change the colours of your terminal.
+
+- `--json` prints one JSON object on each line instead. A change of state has
+  `type` set to `state` and the members `plugin`, `state` (`starting`,
+  `running`, `stopping`, `stopped`, `waiting_to_start_again`,
+  `stopped_after_failing`, `off`, `needs_decision`, `blocked_by_administrator`,
+  `needs_licence` or `cannot_be_used`), `reason`, `detail`, `process_id`,
+  `sandbox` (`level`, `not_applied` and `failure`), `status` (`level`, `text`
+  and `code`), `wait_ms`, `failures` and `failure_limit`. A value that is not
+  known is `null`. A line of output or log has `type` set to `log`, and
+  `plugin`, `source` (`output` or `log`), `level` and `text`. A line the
+  computer has to say, such as a policy file that could not be used, has `type`
+  set to `note` and `text`.
+- `--root <folder>` looks in the folders you give instead of the usual ones, and
+  may be repeated. Each folder counts as your own, and the policy file is not
+  read.
+- `--trust <file>` is the file that holds your decisions about plugins. The
+  default is `trust.json` in your Virtual Serial Studio folder, the folder that
+  holds your `plugins` folder.
+- `--data <folder>` is the folder where plugins keep their data, in a folder of
+  their own under it. The default is `plugin-data` in your Virtual Serial Studio
+  folder.
+- `--seconds <n>` stops the plugin after `n` seconds with the plugin running,
+  from 1 to 2678400. Without it, or with 0, the command runs until `Ctrl-C`.
+
+The command grants a plugin no engine capabilities and reads no licence files, so
+a plugin that needs a licence is shown as `needs a licence`.
+
+The exit code is 0 when the plugin was running and was stopped by `--seconds` or
+by you, 1 when it never ran, or ran and failed too often, and 2 for a command
+line the program does not understand or an id that no plugin has.
 
 ### Where Studio looks for plugins
 

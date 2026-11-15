@@ -8,7 +8,11 @@
 #
 
 add_library(vss_plugin_host
-  src/process.cpp)
+  src/process.cpp
+  src/runner.cpp
+  src/sandbox.cpp
+  src/service.cpp
+  src/start_plan.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
 target_include_directories(vss_plugin_host PUBLIC
@@ -22,13 +26,15 @@ target_link_libraries(vss_plugin_host PUBLIC vss_core Vss::plugin)
 # and macOS share one.
 if(WIN32)
   target_sources(vss_plugin_host PRIVATE
-    src/platform/windows/process_windows.cpp)
+    src/platform/windows/process_windows.cpp
+    src/platform/windows/stream_windows.cpp)
   # advapi32 for the user's SID and the pipe's access list; bcrypt for the
   # random part of a pipe's name.
-  target_link_libraries(vss_plugin_host PRIVATE advapi32 bcrypt)
+  target_link_libraries(vss_plugin_host PRIVATE advapi32 bcrypt userenv)
 else()
   target_sources(vss_plugin_host PRIVATE
-    src/platform/posix/process_posix.cpp)
+    src/platform/posix/process_posix.cpp
+    src/platform/posix/stream_posix.cpp)
 endif()
 
 vss_set_warnings(vss_plugin_host)

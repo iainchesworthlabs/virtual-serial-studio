@@ -157,6 +157,11 @@ plugin_process::~plugin_process() = default;
 plugin_process::plugin_process(plugin_process&&) noexcept = default;
 plugin_process& plugin_process::operator=(plugin_process&&) noexcept = default;
 
+sandbox_report plugin_process::sandbox() const
+{
+    return impl_ ? impl_->sandbox() : sandbox_report{};
+}
+
 std::uint64_t plugin_process::id() const noexcept
 {
     return impl_ ? impl_->id() : 0;

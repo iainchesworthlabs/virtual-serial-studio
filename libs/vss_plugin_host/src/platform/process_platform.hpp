@@ -33,6 +33,7 @@ public:
     impl(const impl&) = delete;
     impl& operator=(const impl&) = delete;
 
+    virtual sandbox_report sandbox() const = 0;
     virtual std::uint64_t id() const noexcept = 0;
     virtual native_handle channel() const noexcept = 0;
     virtual native_handle output() const noexcept = 0;
@@ -56,6 +57,9 @@ start_process(const process_request& request);
 /// `PATH`, and on Windows `SystemRoot`.  Asked of the system, never read
 /// from the host's environment.
 std::vector<std::pair<std::string, std::string>> system_environment();
+
+/// What this system can apply to a plugin.
+sandbox_report available_sandbox();
 
 } // namespace platform
 

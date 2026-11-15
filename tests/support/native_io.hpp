@@ -82,6 +82,9 @@ void close_handle(std::intptr_t handle);
 /// for one to go polls.
 bool process_exists(std::uint64_t pid);
 
+/// The number of this process.
+std::uint64_t own_process_id();
+
 /// Something this process holds open and has marked inheritable, to show that
 /// a plugin does NOT get it: an event on Windows, /dev/null opened without
 /// close-on-exec elsewhere.  Close it with `close_handle`.  -1 when it could

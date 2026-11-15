@@ -1269,6 +1269,33 @@ what was **not** applied. Studio shows that, never the level asked for.
 | Other processes | AppContainer cannot open processes outside; the job has no access to others | A PID namespace where available; otherwise `ptrace` is denied by seccomp, and `/proc` is not readable beyond itself | The profile denies `process-info*` and `signal` to others |
 | What does **not** work | Python or Java runtimes outside the AppContainer-readable area (the host adds an ACE where the user installs one, and says so); a drive under a user profile may not be readable by the container | Distributions with user namespaces disabled (some hardened ones) lose the network and mount isolation; the level is `partial`; kernels before 5.13 lose Landlock | `sandbox_init` is deprecated (but works and is what the system's own tools use); an unsigned binary on Apple Silicon must still be signed ad hoc by the author |
 
+**How the level is worked out.** The launcher reports each part it applied: containment, file system, network,
+other processes, system calls, user interface and limits. The level follows from the parts by one rule on every
+system. `full`: all of them. `partial`: the file system is closed to the plugin and it cannot escape the host's
+kill, and one or more of the others is missing. `none`: anything less. Limits on memory or on the number of
+processes alone are not a sandbox, because a plugin that can read the user's files is not kept apart. A start
+names the least level it will take; when this computer cannot apply that much, nothing is started
+(`sandbox_insufficient`).
+
+**What is built** (`libs/vss_plugin_host`, used by tests only so far):
+
+- **Windows: all parts, level `full`.** A job object (kill on close, a memory limit, a limit on the number of
+  processes, a cap on processor time, no desktop, clipboard or window handles) and an AppContainer made for the
+  plugin, whose name is a hash of the plugin's id. Windows starts a process in a container only when the
+  container is registered for the user, so the first start of a plugin registers it (it appears under
+  `%LOCALAPPDATA%\Packages`), and removing the plugin should remove it. The plugin's directory gets a read
+  entry for the container and the data directory a change entry; a plugin installed for everyone needs that
+  entry set when it is installed, because a user cannot change the access list of a machine folder. The
+  window system's calls are switched off for the process, so **a plugin on Windows cannot load `user32` or
+  `gdi32`**. Windows insists on `LOCALAPPDATA`, `APPDATA`, `USERPROFILE`, `TEMP` and `TMP` in the environment of
+  a container process; the host sets them to the plugin's data directory. The project is built against the
+  Windows 7 interface, so the container functions are looked up when needed; on a Windows without them the
+  level is `none`. Windows has no limit on open files for a job. A plugin granted `net.listen` cannot be
+  reached from this computer itself until Windows is told to allow it (a loopback exemption, which needs an
+  administrator).
+- **Linux and macOS: nothing yet, level `none`.** The process group ends with the host's kill, but a child
+  that makes a session of its own leaves it, so not even containment is claimed.
+
 The sandbox is **defence in depth, not the trust boundary**. The boundary is the three trust levels and the user's
 decision. The unofficial warning in `editions.md` ("It can do anything Studio can") stays as written because the
 level on a given machine may be `partial`, or `none` on an old kernel. The more specific information is shown

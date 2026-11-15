@@ -22,10 +22,10 @@
 //   descriptor, or on Windows the value of a handle.
 // - No other descriptor or handle of the host.
 //
-// What is NOT done here: no sandbox and no limit on memory, processor time
-// or files.  A process started here can do whatever its user can.  The
-// sandbox of section 9 is applied by the launcher, which is not written
-// yet, and nothing in Studio starts a plugin until it is.
+// A request may carry a sandbox profile (sandbox.hpp).  Windows applies
+// all of it (a job object and an AppContainer).  Linux and macOS apply
+// nothing of it yet and report the level `none`.  Nothing in Studio starts
+// a plugin.
 //
 // The process is the head of a group of its own (a job object on Windows; a
 // session and process group elsewhere), so that `kill` ends what it started
@@ -38,6 +38,7 @@
 #pragma once
 
 #include <vss/core/error.hpp>
+#include <vss/plugin/host/sandbox.hpp>
 
 #include <chrono>
 #include <cstdint>
@@ -76,6 +77,15 @@ struct process_request
     /// empty and holds no '=' and no zero byte; a value holds no zero byte;
     /// no name comes twice, and `VSS_PLUGIN_CHANNEL` is not among them.
     std::vector<std::pair<std::string, std::string>> environment;
+    /// What to confine the process to.  Without it nothing is applied but
+    /// the group that `kill` ends.  What was really applied is in
+    /// `plugin_process::sandbox`, and may be less than was asked for: the
+    /// start does not fail because a part could not be applied.
+    std::optional<sandbox_profile> sandbox;
+    /// The least level the start may reach.  When this computer cannot
+    /// apply that much, nothing is started and the start fails with
+    /// `plugin_errc::sandbox_insufficient`.
+    sandbox_level least = sandbox_level::none;
 };
 
 /// The environment of section 7.1 for a plugin: `VSS_PLUGIN_ID`,
@@ -118,6 +128,10 @@ public:
     plugin_process& operator=(plugin_process&&) noexcept;
     plugin_process(const plugin_process&) = delete;
     plugin_process& operator=(const plugin_process&) = delete;
+
+    /// What confines the process: the parts that were applied when it was
+    /// started.
+    sandbox_report sandbox() const;
 
     /// The system's number for the process.
     std::uint64_t id() const noexcept;

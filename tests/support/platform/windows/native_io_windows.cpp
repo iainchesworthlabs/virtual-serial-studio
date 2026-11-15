@@ -216,6 +216,11 @@ void close_handle(std::intptr_t handle)
     static_cast<void>(::CloseHandle(as_handle(handle)));
 }
 
+std::uint64_t own_process_id()
+{
+    return ::GetCurrentProcessId();
+}
+
 bool process_exists(std::uint64_t pid)
 {
     HANDLE process =
