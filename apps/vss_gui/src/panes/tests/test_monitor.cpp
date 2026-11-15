@@ -370,20 +370,29 @@ TEST_CASE("monitor panel: rows and header are as tall as their text needs")
     }
 
     // The rows that fit in the two panes of the design, against today's 28 px
-    // rows under a 28 px header (10 and 4).
+    // rows under a 28 px header (10 and 4). Printed for a person: how many
+    // rows fit depends on the font of the platform, so only what holds with
+    // any font is required.
     vss::gui::Theme::instance().set_density(
         vss::gui::density_mode::comfortable);
     QApplication::processEvents();
     const int header = table->horizontalHeader()->height();
-    const int row = table->rowHeight(0);
-    const int in_screenshot = (308 - header) / row;
-    const int in_dock = (152 - header) / row;
-    std::printf("[monitor after] header %d px, row %d px, rows in 308 px: %d "
-                "(before: 28, 28, 10), rows in 152 px: %d (before: 4)\n",
-                header, row, in_screenshot, in_dock);
-    REQUIRE(row < 28);
-    REQUIRE(in_screenshot > (308 - 28) / 28);
-    REQUIRE(in_dock >= (152 - 28) / 28);
+    const int comfortable_row = table->rowHeight(0);
+    vss::gui::Theme::instance().set_density(vss::gui::density_mode::compact);
+    QApplication::processEvents();
+    const int compact_row = table->rowHeight(0);
+    std::printf("[monitor after] header %d px, row %d px (compact %d px), rows "
+                "in 308 px: %d (before: 28, 28, 10), rows in 152 px: %d "
+                "(before: 4)\n",
+                header, comfortable_row, compact_row,
+                (308 - header) / comfortable_row,
+                (152 - header) / comfortable_row);
+    REQUIRE(compact_row >= 24);
+    REQUIRE(compact_row <= comfortable_row);
+    // The rows hold their text, and are denser than the 28 px they were.
+    REQUIRE(comfortable_row >=
+            QFontMetrics(cell_font(table, vss::gui::text_style::data)).height());
+    REQUIRE(comfortable_row < 28);
 }
 
 TEST_CASE("monitor panel: at 200 percent text nothing is clipped")
@@ -543,7 +552,7 @@ TEST_CASE("monitor panel: a change of language refits the columns")
 
 TEST_CASE("monitor panel: the Density setting changes the Monitor")
 {
-    // T-D4: no call to `set_compact`; the theme alone does it.
+    // T-D4: the theme alone does it.
     const theme_guard guard;
     for (const double factor : {1.0, 2.0})
     {
@@ -581,14 +590,6 @@ TEST_CASE("monitor panel: the Density setting changes the Monitor")
             REQUIRE(compact_row < comfortable_row);
         }
         require_nothing_clipped(table);
-
-        // The shell's small-window layout does not change the row height.
-        fixture.panel.set_compact(true);
-        QApplication::processEvents();
-        REQUIRE_EQ(table->rowHeight(0), compact_row);
-        fixture.panel.set_compact(false);
-        QApplication::processEvents();
-        REQUIRE_EQ(table->rowHeight(0), compact_row);
 
         theme.set_density(vss::gui::density_mode::comfortable);
         QApplication::processEvents();

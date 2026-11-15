@@ -74,20 +74,73 @@ constexpr int kLongestPortName = 24;
 /// Open question 1 of the Monitor design asks the owner whether the Compact
 /// density may use 20 px rows, which needs a written exception to the 24 px
 /// target rule (`06-accessibility.md`, rule 6). It is not answered, so both
-/// densities have the 24 px floor. If the answer is yes, the Compact case
-/// returns 0 and a Compact row is its text plus 2 px above and below.
-int row_floor(density_mode density)
+/// densities have the 24 px floor. If the answer is yes, this takes the
+/// density again and returns 0 for Compact, and a Compact row is its text plus
+/// 2 px above and below.
+int row_floor()
 {
-    const int target = Theme::instance().metric(QStringLiteral("minTarget"));
-    switch (density)
-    {
-    case density_mode::comfortable:
-        return target;
-    case density_mode::compact:
-        return target;
-    }
-    return target;
+    return Theme::instance().metric(QStringLiteral("minTarget"));
 }
+
+/// Sets a flag for as long as it lives and puts it back as it was, so the
+/// scopes may nest.
+class flag_scope
+{
+public:
+    explicit flag_scope(bool& flag) : flag_(flag), before_(flag)
+    {
+        flag_ = true;
+    }
+    flag_scope(const flag_scope&) = delete;
+    flag_scope& operator=(const flag_scope&) = delete;
+    ~flag_scope() { flag_ = before_; }
+
+private:
+    bool& flag_;
+    bool before_;
+};
+
+/// The traffic table. It raises the panel's flag while it handles a key press
+/// or a mouse press, move or release, because those are the moments a change
+/// of the current row is the user's. Qt also changes the current row by itself
+/// (it makes the first row current when focus comes into a table that has no
+/// current row), and that is not the user choosing a row.
+class TrafficTable final : public QTableView
+{
+public:
+    TrafficTable(bool& user_input, QWidget* parent)
+        : QTableView(parent), user_input_(user_input)
+    {
+    }
+
+protected:
+    void keyPressEvent(QKeyEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::keyPressEvent(event);
+    }
+
+    void mousePressEvent(QMouseEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::mousePressEvent(event);
+    }
+
+    void mouseMoveEvent(QMouseEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::mouseMoveEvent(event);
+    }
+
+    void mouseReleaseEvent(QMouseEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::mouseReleaseEvent(event);
+    }
+
+private:
+    bool& user_input_;
+};
 
 QString kind_name(vss::event_kind kind)
 {
@@ -349,7 +402,7 @@ void MonitorPanel::build()
     connect(model_, &QAbstractItemModel::rowsAboutToBeRemoved, this,
             [this](const QModelIndex&, int first, int last)
             { rows_leaving(first, last); });
-    table_ = new QTableView(monitor_page_);
+    table_ = new TrafficTable(user_input_, monitor_page_);
     table_->setObjectName(QStringLiteral("monitorTable"));
     table_->setModel(model_);
     connect(model_, &QAbstractItemModel::rowsRemoved, this,
@@ -529,12 +582,15 @@ void MonitorPanel::build()
     // scrolling back to the end turns it on. The scroll bar's action signal
     // comes only from the user (the wheel, the arrows, a click in the groove,
     // a drag of the handle) and never from code that sets the value, so what
-    // Follow itself does to the view is never taken for the user.
+    // Follow itself does to the view is never taken for the user. A change of
+    // the current row is the user's only while the table handles a key or the
+    // mouse; Qt's own (the first row becomes current when focus comes into the
+    // table) is not.
     connect(table_->selectionModel(), &QItemSelectionModel::currentChanged,
             this,
             [this](const QModelIndex& current, const QModelIndex&)
             {
-                if (rows_leaving_ || !current.isValid())
+                if (!user_input_ || rows_leaving_ || !current.isValid())
                     return;
                 if (current.row() != model_->rowCount() - 1)
                     set_follow(false);
@@ -614,16 +670,22 @@ bool MonitorPanel::eventFilter(QObject* watched, QEvent* event)
         // contents. Preview takes the rest, so it has no width to change.
         auto* key = static_cast<QKeyEvent*>(event);
         const int column = std::max(table_->currentIndex().column(), 0);
-        // Follow: Up, Page Up and Home leave the end; End and Ctrl+End go to
-        // the newest row and follow again; Down and Page Down are the
-        // table's own, and Follow is on again when they reach the end.
+        // Follow: Up and Page Up leave the end; Home and Ctrl+Home go to the
+        // first row and leave it too; End and Ctrl+End go to the newest row
+        // and follow again; Down and Page Down are the table's own, and
+        // Follow is on again when they reach the end. The table's own Home
+        // is "first column", so Home is taken here, as End is.
         switch (key->key())
         {
         case Qt::Key_Up:
         case Qt::Key_PageUp:
-        case Qt::Key_Home:
             set_follow(false);
             break;
+        case Qt::Key_Home:
+            set_follow(false);
+            if (model_->rowCount() > 0)
+                table_->setCurrentIndex(model_->index(0, column));
+            return true;
         case Qt::Key_End:
             if (model_->rowCount() > 0)
             {
@@ -701,12 +763,6 @@ void MonitorPanel::place_controls()
     advanced_bar_->setVisible(advanced_);
 }
 
-void MonitorPanel::set_compact(bool)
-{
-    // The small-window layout of the shell. The row height is the density's
-    // (`apply_metrics`); Comfortable is already the 24 px this used to set.
-}
-
 void MonitorPanel::changeEvent(QEvent* event)
 {
     QWidget::changeEvent(event);
@@ -747,7 +803,7 @@ void MonitorPanel::apply_metrics()
     const int vertical = compact ? theme.space(0) / 2 : theme.space(0);
     const int text = std::max(QFontMetrics(cell_style_.data).height(),
                               QFontMetrics(cell_style_.caption).height());
-    const int row = std::max(row_floor(theme.density()), text + 2 * vertical);
+    const int row = std::max(row_floor(), text + 2 * vertical);
     // The header's own least size depends on its font and would keep a row
     // taller than the rule gives.
     table_->verticalHeader()->setMinimumSectionSize(row);

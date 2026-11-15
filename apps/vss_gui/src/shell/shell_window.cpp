@@ -1767,8 +1767,6 @@ void ShellWindow::apply_compact()
     }
     if (ports_panel_ != nullptr)
         ports_panel_->set_compact(compact_);
-    if (monitor_panel_ != nullptr)
-        monitor_panel_->set_compact(compact_);
     apply_dock_sizes();
 }
 

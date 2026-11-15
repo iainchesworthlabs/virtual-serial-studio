@@ -49,7 +49,6 @@ public:
     explicit MonitorPanel(StudioBackend& backend, QWidget* parent = nullptr);
 
     void set_advanced(bool advanced);
-    void set_compact(bool compact);
     /// The shell's WP7 Log/JSON docks can replace the in-panel tabs.
     void set_show_advanced_tabs(bool show);
     void set_selected_port(vss::endpoint_id id);
@@ -179,6 +178,10 @@ private:
     bool selected_row_leaving_ = false;
     /// Set while a key is passed on to the table by the panel itself.
     bool passing_key_ = false;
+    /// True while the table handles a key press or a mouse press, move or
+    /// release. Only then is a change of the current row the user's: Qt also
+    /// makes a row current by itself when focus comes into the table.
+    bool user_input_ = false;
     bool refreshing_ports_ = false;
     bool show_advanced_tabs_ = true;
     QStringList port_signature_;

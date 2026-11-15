@@ -20,6 +20,7 @@
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QFocusEvent>
 #include <QHeaderView>
 #include <QItemSelectionModel>
 #include <QKeyEvent>
@@ -180,6 +181,31 @@ struct follow_fixture
                           Qt::NoModifier, Qt::NoScrollPhase, false);
         QApplication::sendEvent(table()->viewport(), &event);
         pump();
+    }
+
+    /// Keyboard focus arriving in the table, as Tab or Shift+Tab bring it. Qt
+    /// makes a row current by itself when it comes to a table with none.
+    void focus_in(Qt::FocusReason reason)
+    {
+        QFocusEvent event(QEvent::FocusIn, reason);
+        QApplication::sendEvent(table(), &event);
+        pump();
+    }
+
+    /// The Clear button a person sees.
+    void clear()
+    {
+        for (QPushButton* button : panel.findChildren<QPushButton*>())
+        {
+            if (button->text() == QStringLiteral("Clear") &&
+                button->isVisibleTo(&panel))
+            {
+                button->click();
+                pump();
+                return;
+            }
+        }
+        REQUIRE(false);
     }
 
     void key(int key, Qt::KeyboardModifiers modifiers = Qt::NoModifier)
@@ -525,5 +551,74 @@ TEST_CASE("monitor follow: following is not taken for the user scrolling")
         fixture.feed(100);
         REQUIRE(fixture.follow_is(true));
         REQUIRE(fixture.at_end());
+    }
+}
+
+TEST_CASE("monitor follow: focus coming into the table does not untick it")
+{
+    for (const Qt::FocusReason reason :
+         {Qt::TabFocusReason, Qt::BacktabFocusReason})
+    {
+        follow_fixture fixture;
+        fixture.feed(400);
+        REQUIRE(fixture.follow_is(true));
+        REQUIRE(!fixture.table()->currentIndex().isValid());
+
+        fixture.focus_in(reason);
+        // Qt made a row current, and that was not the user choosing a row.
+        REQUIRE(fixture.table()->currentIndex().isValid());
+        REQUIRE(fixture.follow_is(true));
+        REQUIRE(fixture.at_end());
+        fixture.feed(50);
+        REQUIRE(fixture.follow_is(true));
+        REQUIRE(fixture.at_end());
+    }
+}
+
+TEST_CASE("monitor follow: focus coming in after Clear does not untick it")
+{
+    for (const Qt::FocusReason reason :
+         {Qt::TabFocusReason, Qt::BacktabFocusReason})
+    {
+        follow_fixture fixture;
+        fixture.feed(400);
+        fixture.focus_in(reason);
+        REQUIRE(fixture.follow_is(true));
+
+        // Clear resets the model, so Qt will make a row current again.
+        fixture.clear();
+        REQUIRE_EQ(fixture.table()->model()->rowCount(), 0);
+        fixture.feed(400);
+        REQUIRE(!fixture.table()->currentIndex().isValid());
+        fixture.focus_in(reason);
+        REQUIRE(fixture.table()->currentIndex().isValid());
+        REQUIRE(fixture.follow_is(true));
+        fixture.feed(50);
+        REQUIRE(fixture.follow_is(true));
+        REQUIRE(fixture.at_end());
+    }
+}
+
+TEST_CASE("monitor follow: Home goes to the first row, Ctrl+Home too")
+{
+    for (const Qt::KeyboardModifiers modifiers :
+         {Qt::KeyboardModifiers(Qt::NoModifier),
+          Qt::KeyboardModifiers(Qt::ControlModifier)})
+    {
+        follow_fixture fixture;
+        fixture.feed(400);
+        fixture.key(Qt::Key_End);
+        REQUIRE(fixture.follow_is(true));
+        REQUIRE_EQ(fixture.table()->currentIndex().row(), 399);
+
+        fixture.key(Qt::Key_Home, modifiers);
+        REQUIRE(fixture.follow_is(false));
+        REQUIRE_EQ(fixture.table()->currentIndex().row(), 0);
+        REQUIRE_EQ(fixture.table()->rowAt(0), 0);
+        REQUIRE(!fixture.at_end());
+        // The view stays on the first rows as traffic arrives.
+        fixture.feed(50);
+        REQUIRE_EQ(fixture.table()->rowAt(0), 0);
+        REQUIRE(fixture.follow_is(false));
     }
 }
