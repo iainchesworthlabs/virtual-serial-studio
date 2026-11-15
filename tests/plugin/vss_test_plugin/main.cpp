@@ -122,7 +122,7 @@ void print_arguments(int argc, char** argv)
         text += std::to_string(index);
         text += ": ";
         text += hex_of(argv[index]);
-        text += "\n";
+        text += '\n';
     }
     emit(stdout, text);
 }
