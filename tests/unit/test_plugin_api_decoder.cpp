@@ -5,3 +5,1741 @@
 //
 
 #include <vss/plugin/api_decoder.hpp>
+
+#include "plugin_api_support.hpp"
+#include "test_framework.hpp"
+
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <variant>
+#include <vector>
+
+using namespace vss;
+using namespace vss::plugin;
+using namespace vss::plugin_api_test;
+
+namespace
+{
+
+std::string repeated(char c, std::size_t count)
+{
+    return std::string(count, c);
+}
+
+byte_buffer bytes_of(std::size_t count)
+{
+    byte_buffer out(count);
+    for (std::size_t i = 0; i < count; ++i)
+        out[i] = static_cast<std::uint8_t>(i * 7);
+    return out;
+}
+
+std::string header_of(const api_message& message)
+{
+    return std::get<other_message>(message.body).header;
+}
+
+std::string number_text(std::uint64_t value)
+{
+    return std::to_string(value);
+}
+
+// -- decoder.data, built from the members of each item
+// ---------------------------
+
+using member_list = std::vector<std::pair<std::string_view, std::string_view>>;
+
+struct item_case
+{
+    std::string_view kind;
+    member_list members;
+    /// The bytes that go with it in the blob.
+    std::size_t blob = 0;
+    /// Members that may be left out.
+    std::vector<std::string_view> optional;
+};
+
+/// The item as JSON.  `key` is left out when `value` is empty, and given
+/// `value` when it is not.
+std::string item_text(const item_case& one, std::string_view key = {},
+                      std::string_view value = {})
+{
+    std::string out = R"({"item":")";
+    out.append(one.kind);
+    out.append("\"");
+    for (const auto& [name, text] : one.members)
+    {
+        if (name == key && value.empty())
+            continue;
+        out.append(",\"");
+        out.append(name);
+        out.append("\":");
+        out.append(name == key ? value : text);
+    }
+    out.append("}");
+    return out;
+}
+
+std::string stream(std::string_view items, std::uint64_t seq = 1)
+{
+    std::string out = R"({"op":"decoder.data","seq":)";
+    out.append(number_text(seq));
+    out.append(R"(,"items":[)");
+    out.append(items);
+    out.append("]}");
+    return out;
+}
+
+const std::vector<item_case>& item_cases()
+{
+    static const std::vector<item_case> cases{
+        {"data",
+         {{"place", R"("p")"},
+          {"direction", R"("rx")"},
+          {"offset", "0"},
+          {"t_ns", "1"},
+          {"end_ns", "2"},
+          {"length", "2"}},
+         2,
+         {"end_ns"}},
+        {"line",
+         {{"place", R"("p")"},
+          {"t_ns", "1"},
+          {"lines", R"({"dtr":true})"},
+          {"changed", R"(["dtr"])"}},
+         0,
+         {}},
+        {"line_error",
+         {{"place", R"("p")"}, {"t_ns", "1"}, {"kind", R"("parity")"}},
+         0,
+         {}},
+        {"bus_fault",
+         {{"link", R"("l")"},
+          {"sender", R"("s")"},
+          {"t_ns", "1"},
+          {"fault", R"("overlap")"},
+          {"offset", "0"},
+          {"length", "2"}},
+         0,
+         {}},
+        {"rule",
+         {{"place", R"("p")"},
+          {"t_ns", "1"},
+          {"rule", R"("r")"},
+          {"action", R"("a")"}},
+         0,
+         {}},
+        {"time", {{"t_ns", "1"}}, 0, {}},
+        {"lost",
+         {{"place", R"("p")"},
+          {"direction", R"("tx")"},
+          {"from_offset", "0"},
+          {"bytes", "5"},
+          {"from_ns", "1"},
+          {"to_ns", "2"}},
+         0,
+         {}}};
+    return cases;
+}
+
+const item_case& item_named(std::string_view kind)
+{
+    for (const item_case& one : item_cases())
+    {
+        if (one.kind == kind)
+            return one;
+    }
+    throw vss_test::failure("no such item case");
+}
+
+/// `kind` with `key` set to `value`, as a whole message that has the blob it
+/// needs.
+void require_item_refused(std::string_view kind, std::string_view key,
+                          std::string_view value, std::string_view fragment)
+{
+    const item_case& one = item_named(kind);
+    require_refused<decoder_data_message>(stream(item_text(one, key, value)),
+                                          fragment, bytes_of(one.blob));
+}
+
+decoder_data_message sample_stream()
+{
+    decoder_data_message body;
+    body.seq = 12;
+    decoder_data_item first;
+    first.place = "bus-1";
+    first.direction = decoder_direction::rx;
+    first.offset = 48213;
+    first.t_ns = 18203200000;
+    first.end_ns = 18204113250;
+    first.length = 2;
+    body.items.emplace_back(first);
+    decoder_line_item line;
+    line.place = "bus-1";
+    line.t_ns = 5;
+    line.lines[static_cast<std::size_t>(decoder_line::dtr)] = true;
+    line.lines[static_cast<std::size_t>(decoder_line::cts)] = false;
+    line.changed = {decoder_line::dtr, decoder_line::cts};
+    body.items.emplace_back(line);
+    body.items.emplace_back(
+        decoder_line_error_item{"bus-1", 6, decoder_line_error::line_break});
+    body.items.emplace_back(decoder_bus_fault_item{
+        "link-1", "meter-17", 7, decoder_fault::too_soon, 48215, 3});
+    body.items.emplace_back(decoder_rule_item{"bus-1", 8, "reply", "send"});
+    body.items.emplace_back(decoder_time_item{9});
+    decoder_data_item second;
+    second.place = "bus-1";
+    second.direction = decoder_direction::tx;
+    second.offset = 0;
+    second.t_ns = 10;
+    second.length = 3;
+    body.items.emplace_back(second);
+    body.items.emplace_back(
+        decoder_lost_item{"bus-1", decoder_direction::tx, 3, 4096, 11, 12});
+    body.data = bytes_of(5);
+    return body;
+}
+
+decoder_frame_message sample_frame()
+{
+    decoder_frame_message body;
+    body.instance = 3;
+    body.place = "bus-1";
+    body.direction = decoder_direction::rx;
+    body.offset = 48213;
+    body.length = 10;
+    body.t_start_ns = 18203200000;
+    body.t_end_ns = 18204113250;
+    body.message = "read reply";
+    body.summary = "read reply, 3 values";
+    body.fields = {{"address", 0, 1, "5"}, {"check", 7, 2, "3A91"}};
+    return body;
+}
+
+trigger_publish_message sample_trigger()
+{
+    trigger_publish_message body;
+    body.instance = 3;
+    body.kind = trigger_kind::check;
+    body.when_ns = 18204113250;
+    body.place = "bus-1";
+    body.direction = decoder_direction::rx;
+    body.sender = "meter-17";
+    body.protocol = trigger_protocol{"com.example.meter-bus", "1.2.0"};
+    body.frame =
+        trigger_frame{48213, 10, 18203200000, 18204113250, "read reply"};
+    body.field = trigger_field{"check", 7, 2};
+    body.expected = "3A91";
+    body.actual = "3A90";
+    body.covers = trigger_covers{1, 6};
+    body.cause = trigger_cause{trigger_bus_cause{decoder_fault::overlap, 9912}};
+    body.request = trigger_request{48205, 8, 18201000000};
+    body.text = "Check value is 3A90, expected 3A91.";
+    return body;
+}
+
+const std::string frame_head =
+    R"({"op":"decoder.frame","instance":3,"place":"p","direction":"rx",)"
+    R"("offset":0,"length":10,"t_start_ns":1,"t_end_ns":2,"message":"m")";
+
+const std::string trigger_head =
+    R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":5,)"
+    R"("place":"p","direction":"rx","text":"t")";
+
+} // namespace
+
+// -- decoder.create
+// --------------------------------------------------------------
+
+TEST_CASE("plugin api: decoder.create is written and read")
+{
+    decoder_create_message body;
+    body.instance = 3;
+    body.places = {{"bus-1", 115200, "8N1", true}, {"port-2", 0, "", false}};
+    body.params = R"({"silence":"1750us"})";
+    (void)round_trip(body, 8);
+    const auto written = encode_as(body, 8);
+    REQUIRE(written.has_value());
+    REQUIRE_EQ(
+        header_of(written.value()),
+        std::string(R"({"op":"decoder.create","id":8,"instance":3,"places":)"
+                    R"([{"place":"bus-1","rate":115200,"format":"8N1",)"
+                    R"("bus":true},{"place":"port-2"}],)"
+                    R"("params":{"silence":"1750us"}})"));
+}
+
+TEST_CASE("plugin api: decoder.create has defaults for what it leaves out")
+{
+    const auto read = accepted<decoder_create_message>(
+        R"({"op":"decoder.create","id":1,"instance":2,)"
+        R"("places":[{"place":"a"}]})");
+    REQUIRE_EQ(read.places.size(), std::size_t{1});
+    const decoder_place expected{"a", 0, "", false};
+    REQUIRE(read.places[0] == expected);
+    REQUIRE_EQ(read.params, std::string("{}"));
+}
+
+TEST_CASE("plugin api: decoder.create is refused when it is wrong")
+{
+    using M = decoder_create_message;
+    const std::string head = R"({"op":"decoder.create","id":1,"instance":2,)";
+    require_refused<M>(R"({"op":"decoder.create","id":1,"places":[]})",
+                       "decoder.create.instance: is required");
+    require_refused<M>(head + R"("places":[]})",
+                       "decoder.create.places: has no entries");
+    require_refused<M>(head + R"("x":1})",
+                       "decoder.create.places: is required");
+    require_refused<M>(head + R"("places":{}})",
+                       "decoder.create.places: must be a list");
+    require_refused<M>(head + R"("places":[7]})",
+                       "decoder.create.places[0]: must be an object");
+    require_refused<M>(head + R"("places":[{}]})",
+                       "decoder.create.places[0].place: is required");
+    require_refused<M>(head + R"("places":[{"place":""}]})",
+                       "decoder.create.places[0].place: must not be empty");
+    require_refused<M>(head + R"("places":[{"place":4}]})",
+                       "decoder.create.places[0].place: must be a string");
+    require_refused<M>(head + "\"places\":[{\"place\":\"a\\nb\"}]}",
+                       "decoder.create.places[0].place: must be plain text");
+    require_refused<M>(head + "\"places\":[{\"place\":\"a\\u202eb\"}]}",
+                       "decoder.create.places[0].place: must be plain text");
+    require_refused<M>(head + R"("places":[{"place":"a"},{"place":"a"}]})",
+                       "decoder.create.places[1].place: names a place twice");
+    require_refused<M>(head + R"("places":[{"place":"a","rate":0}]})",
+                       "decoder.create.places[0].rate: must be a whole number "
+                       "from 1 to 100000000");
+    require_refused<M>(head + R"("places":[{"place":"a","rate":"9600"}]})",
+                       "decoder.create.places[0].rate: must be a whole");
+    require_refused<M>(head + R"("places":[{"place":"a","rate":9600.5}]})",
+                       "decoder.create.places[0].rate: must be a whole");
+    require_refused<M>(head + R"("places":[{"place":"a","format":""}]})",
+                       "decoder.create.places[0].format: must not be empty");
+    require_refused<M>(head + R"("places":[{"place":"a","format":7}]})",
+                       "decoder.create.places[0].format: must be a string");
+    require_refused<M>(head + R"("places":[{"place":"a","bus":"yes"}]})",
+                       "decoder.create.places[0].bus: must be true or false");
+    require_refused<M>(head + R"("places":[{"place":"a"}],"params":[]})",
+                       "decoder.create.params: must be a JSON object");
+    require_refused<M>(head + R"("places":[{"place":"a"}]})", "has no bytes",
+                       {1});
+    require_refused<M>(R"({"op":"decoder.create","instance":2,)"
+                       R"("places":[{"place":"a"}]})",
+                       "must have an id");
+    require_refused<M>(R"({"op":"decoder.create","re":1,"instance":2,)"
+                       R"("places":[{"place":"a"}]})",
+                       "must have an id and no re");
+}
+
+TEST_CASE("plugin api: decoder.create has the limits of its members")
+{
+    using M = decoder_create_message;
+    const std::string head = R"({"op":"decoder.create","id":1,"instance":2,)";
+    // The instance.
+    REQUIRE_EQ(accepted<M>(R"({"op":"decoder.create","id":1,"instance":)" +
+                           number_text(max_api_number) +
+                           R"(,"places":[{"place":"a"}]})")
+                   .instance,
+               max_api_number);
+    require_refused<M>(R"({"op":"decoder.create","id":1,"instance":0,)"
+                       R"("places":[{"place":"a"}]})",
+                       "decoder.create.instance: must be a whole number");
+    require_refused<M>(R"({"op":"decoder.create","id":1,"instance":)" +
+                           number_text(max_api_number + 1) +
+                           R"(,"places":[{"place":"a"}]})",
+                       "decoder.create.instance: must be a whole number");
+    // The rate.
+    REQUIRE_EQ(accepted<M>(head + R"("places":[{"place":"a","rate":1}]})")
+                   .places[0]
+                   .rate,
+               std::uint64_t{1});
+    REQUIRE_EQ(
+        accepted<M>(head + R"("places":[{"place":"a","rate":100000000}]})")
+            .places[0]
+            .rate,
+        max_place_rate);
+    require_refused<M>(head + R"("places":[{"place":"a","rate":100000001}]})",
+                       "decoder.create.places[0].rate: must be a whole number");
+    // The names.
+    REQUIRE_EQ(accepted<M>(head + R"("places":[{"place":")" +
+                           repeated('p', max_api_name) + R"("}]})")
+                   .places[0]
+                   .place.size(),
+               max_api_name);
+    require_refused<M>(head + R"("places":[{"place":")" +
+                           repeated('p', max_api_name + 1) + R"("}]})",
+                       "decoder.create.places[0].place: is longer than "
+                       "128 bytes");
+    REQUIRE_EQ(accepted<M>(head + R"("places":[{"place":"a","format":")" +
+                           repeated('f', max_place_format) + R"("}]})")
+                   .places[0]
+                   .format.size(),
+               max_place_format);
+    require_refused<M>(head + R"("places":[{"place":"a","format":")" +
+                           repeated('f', max_place_format + 1) + R"("}]})",
+                       "decoder.create.places[0].format: is longer than "
+                       "16 bytes");
+    // The number of places.
+    const auto places_of = [](std::size_t count)
+    {
+        std::string many;
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            if (i != 0)
+                many += ',';
+            many += R"({"place":"p)" + number_text(i) + R"("})";
+        }
+        return many;
+    };
+    REQUIRE_EQ(accepted<M>(head + R"("places":[)" +
+                           places_of(max_decoder_places) + "]}")
+                   .places.size(),
+               max_decoder_places);
+    require_refused<M>(head + R"("places":[)" +
+                           places_of(max_decoder_places + 1) + "]}",
+                       "decoder.create.places: has more than 64 entries");
+
+    M body;
+    body.instance = 2;
+    require_not_written(body);
+    body.places.assign(max_decoder_places + 1,
+                       decoder_place{"a", 0, "", false});
+    require_not_written(body);
+    body.places.clear();
+    for (std::size_t i = 0; i < max_decoder_places; ++i)
+        body.places.push_back({"p" + number_text(i), 0, "", false});
+    (void)round_trip(body, 1);
+    body.places.back() = body.places.front();
+    require_not_written(body, 1);
+    body.places.back() = {"x", max_place_rate + 1, "", false};
+    require_not_written(body, 1);
+    body.places.back() = {"x", 0, repeated('f', max_place_format + 1), false};
+    require_not_written(body, 1);
+    body.places.back() = {"", 0, "", false};
+    require_not_written(body, 1);
+    body.places.back() = {"x", 0, "", false};
+    body.instance = 0;
+    require_not_written(body, 1);
+    body.instance = 2;
+    body.params = "[]";
+    require_not_written(body, 1);
+    body.params = "{}";
+    require_not_written(body, 0);
+}
+
+// -- decoder.data
+// ----------------------------------------------------------------
+
+TEST_CASE("plugin api: decoder.data is written and read with all its items")
+{
+    const decoder_data_message body = sample_stream();
+    const decoder_data_message read = round_trip(body);
+    REQUIRE(read.data == body.data);
+    REQUIRE_EQ(read.items.size(), std::size_t{8});
+    REQUIRE_EQ(std::get<decoder_data_item>(read.items[0]).length,
+               std::uint64_t{2});
+    REQUIRE(std::get<decoder_line_item>(read.items[1]).changed.size() == 2);
+    REQUIRE(std::get<decoder_lost_item>(read.items[7]).bytes == 4096);
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    REQUIRE(written.value().blob == body.data);
+}
+
+TEST_CASE("plugin api: decoder.data has the header of the design")
+{
+    decoder_data_message body;
+    body.seq = 4;
+    decoder_data_item one;
+    one.place = "p";
+    one.direction = decoder_direction::tx;
+    one.offset = 7;
+    one.t_ns = 100;
+    one.length = 3;
+    body.items.emplace_back(one);
+    one.end_ns = 150;
+    one.length = 1;
+    body.items.emplace_back(one);
+    decoder_line_item line;
+    line.place = "p";
+    line.t_ns = 160;
+    line.lines[static_cast<std::size_t>(decoder_line::rts)] = true;
+    line.lines[static_cast<std::size_t>(decoder_line::ri)] = false;
+    line.changed = {decoder_line::rts};
+    body.items.emplace_back(line);
+    body.items.emplace_back(
+        decoder_line_error_item{"p", 170, decoder_line_error::framing});
+    body.items.emplace_back(
+        decoder_bus_fault_item{"l", "s", 180, decoder_fault::line_held, 11, 4});
+    body.items.emplace_back(decoder_rule_item{"p", 190, "r", "a"});
+    body.items.emplace_back(decoder_time_item{200});
+    body.items.emplace_back(
+        decoder_lost_item{"p", decoder_direction::rx, 1, 2, 3, 4});
+    body.data = bytes_of(4);
+    (void)round_trip(body);
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    REQUIRE_EQ(
+        header_of(written.value()),
+        std::string(
+            R"({"op":"decoder.data","seq":4,"items":[)"
+            R"({"item":"data","place":"p","direction":"tx","offset":7,)"
+            R"("t_ns":100,"length":3},)"
+            R"({"item":"data","place":"p","direction":"tx","offset":7,)"
+            R"("t_ns":100,"end_ns":150,"length":1},)"
+            R"({"item":"line","place":"p","t_ns":160,)"
+            R"("lines":{"rts":true,"ri":false},"changed":["rts"]},)"
+            R"({"item":"line_error","place":"p","t_ns":170,)"
+            R"("kind":"framing"},)"
+            R"({"item":"bus_fault","link":"l","sender":"s","t_ns":180,)"
+            R"("fault":"line_held","offset":11,"length":4},)"
+            R"({"item":"rule","place":"p","t_ns":190,"rule":"r",)"
+            R"("action":"a"},)"
+            R"({"item":"time","t_ns":200},)"
+            R"({"item":"lost","place":"p","direction":"rx","from_offset":1,)"
+            R"("bytes":2,"from_ns":3,"to_ns":4}]})"));
+}
+
+TEST_CASE("plugin api: decoder.data reads every kind of item from its text")
+{
+    for (const item_case& one : item_cases())
+    {
+        const auto read = accepted<decoder_data_message>(stream(item_text(one)),
+                                                         bytes_of(one.blob));
+        REQUIRE_EQ(read.items.size(), std::size_t{1});
+        REQUIRE_EQ(read.items[0].index(),
+                   static_cast<std::size_t>(&one - item_cases().data()));
+        (void)round_trip(read);
+    }
+}
+
+TEST_CASE("plugin api: an item of decoder.data needs each of its members")
+{
+    for (const item_case& one : item_cases())
+    {
+        for (const auto& member : one.members)
+        {
+            bool may_leave_out = false;
+            for (const std::string_view name : one.optional)
+                may_leave_out = may_leave_out || name == member.first;
+            std::string where = "decoder.data.items[0].";
+            where.append(member.first);
+            if (may_leave_out)
+            {
+                (void)accepted<decoder_data_message>(
+                    stream(item_text(one, member.first)), bytes_of(one.blob));
+                continue;
+            }
+            require_item_refused(one.kind, member.first, {},
+                                 where + ": is required");
+            // A list where any other kind of value is wanted.
+            if (member.first != "changed")
+                require_item_refused(one.kind, member.first, "[]",
+                                     where + ": must");
+            require_item_refused(one.kind, member.first, "null",
+                                 where + ": must");
+        }
+    }
+}
+
+TEST_CASE("plugin api: an item of decoder.data is checked as a whole")
+{
+    using M = decoder_data_message;
+    require_refused<M>(stream(R"({"item":"time","t_ns":1})", 0),
+                       "decoder.data.seq: must be a whole number from 1");
+    REQUIRE_EQ(
+        accepted<M>(stream(R"({"item":"time","t_ns":1})", max_api_number)).seq,
+        max_api_number);
+    require_refused<M>(
+        stream(R"({"item":"time","t_ns":1})", max_api_number + 1),
+        "decoder.data.seq: must be a whole number from 1");
+    require_refused<M>(R"({"op":"decoder.data","items":[{"item":"time",)"
+                       R"("t_ns":1}]})",
+                       "decoder.data.seq: is required");
+    require_refused<M>(R"({"op":"decoder.data","seq":1})",
+                       "decoder.data.items: is required");
+    require_refused<M>(R"({"op":"decoder.data","seq":1,"items":{}})",
+                       "decoder.data.items: must be a list");
+    require_refused<M>(stream(""), "decoder.data.items: has no entries");
+    require_refused<M>(stream("7"), "decoder.data.items[0]: must be an object");
+    require_refused<M>(stream(R"({"t_ns":1})"),
+                       "decoder.data.items[0].item: is required");
+    require_refused<M>(stream(R"({"item":1})"),
+                       "decoder.data.items[0].item: must be data, line");
+    // A closed list.
+    require_refused<M>(stream(R"({"item":"frame","t_ns":1})"),
+                       "decoder.data.items[0].item: must be data, line, "
+                       "line_error, bus_fault, rule, time or lost");
+    require_refused<M>(stream(R"({"item":"Time","t_ns":1})"),
+                       "decoder.data.items[0].item: must be data");
+    // The entry that is wrong is the one named.
+    require_refused<M>(stream(R"({"item":"time","t_ns":1},{"item":"time"})"),
+                       "decoder.data.items[1].t_ns: is required");
+    // A member this version does not know is passed over.
+    (void)accepted<M>(stream(R"({"item":"time","t_ns":1,"colour":"red"})"));
+}
+
+TEST_CASE("plugin api: the blob of decoder.data is the bytes of its data items")
+{
+    using M = decoder_data_message;
+    const item_case& data = item_named("data");
+    const std::string two = item_text(data);
+    // No data item, no bytes.
+    (void)accepted<M>(stream(R"({"item":"time","t_ns":1})"));
+    require_refused<M>(stream(R"({"item":"time","t_ns":1})"),
+                       "decoder.data.items: have data lengths that do not add "
+                       "up to the blob",
+                       bytes_of(1));
+    // The lengths must add up to the size, exactly.
+    require_refused<M>(stream(two),
+                       "decoder.data.items: have data lengths that do not add "
+                       "up to the blob");
+    require_refused<M>(stream(two), "do not add up to the blob", bytes_of(1));
+    require_refused<M>(stream(two), "do not add up to the blob", bytes_of(3));
+    require_refused<M>(stream(two + "," + two), "do not add up", bytes_of(3));
+    (void)accepted<M>(stream(two + "," + two), bytes_of(4));
+    (void)accepted<M>(stream(two + R"(,{"item":"time","t_ns":1},)" + two),
+                      bytes_of(4));
+    // Four chunks of 64 KiB fill the blob.
+    const std::string big =
+        item_text(data, "length", number_text(max_decoder_chunk));
+    (void)accepted<M>(stream(big + "," + big + "," + big + "," + big),
+                      bytes_of(max_decoder_blob));
+    require_refused<M>(stream(big + "," + big + "," + big + "," + big),
+                       "has a blob of 262145 bytes",
+                       bytes_of(max_decoder_blob + 1));
+    require_refused<M>(
+        stream(big + "," + big + "," + big + "," + big + "," + item_text(data)),
+        "has a blob of 262146 bytes", bytes_of(max_decoder_blob + 2));
+    // A chunk is 1 to 64 KiB.
+    require_item_refused("data", "length", "0",
+                         "decoder.data.items[0].length: must be a whole "
+                         "number from 1 to 65536");
+    require_item_refused("data", "length", "65537",
+                         "decoder.data.items[0].length: must be a whole "
+                         "number from 1 to 65536");
+    // A header may not carry bytes.
+    (void)accepted<M>(
+        stream(item_text(data)).replace(1, 0, R"("data":"0102",)"),
+        bytes_of(2));
+}
+
+TEST_CASE("plugin api: decoder.data has the limits of its items")
+{
+    using M = decoder_data_message;
+    // The number of items.
+    std::string items;
+    for (std::size_t i = 0; i < max_decoder_items; ++i)
+    {
+        if (i != 0)
+            items += ',';
+        items += R"({"item":"time","t_ns":1})";
+    }
+    REQUIRE_EQ(accepted<M>(stream(items)).items.size(), max_decoder_items);
+    require_refused<M>(stream(items + R"(,{"item":"time","t_ns":1})"),
+                       "decoder.data.items: has more than 256 entries");
+    M body = accepted<M>(stream(items));
+    (void)round_trip(body);
+    body.items.emplace_back(decoder_time_item{1});
+    require_not_written(body);
+    body.items.clear();
+    require_not_written(body);
+    body.items.emplace_back(decoder_time_item{1});
+    body.seq = 0;
+    require_not_written(body);
+    body.seq = 1;
+    (void)round_trip(body);
+    body.data = bytes_of(1);
+    require_not_written(body);
+
+    // The numbers.
+    (void)accepted<M>(stream(R"({"item":"time","t_ns":)" +
+                             number_text(max_api_number) + "}"));
+    require_refused<M>(stream(R"({"item":"time","t_ns":)" +
+                              number_text(max_api_number + 1) + "}"),
+                       "decoder.data.items[0].t_ns: must be a whole number");
+    require_item_refused("time", "t_ns", "-1",
+                         "decoder.data.items[0].t_ns: must be a whole number");
+    require_item_refused("time", "t_ns", "1.5",
+                         "decoder.data.items[0].t_ns: must be a whole number");
+    require_item_refused("time", "t_ns", R"("1")",
+                         "decoder.data.items[0].t_ns: must be a whole number");
+    require_item_refused("lost", "bytes", "0",
+                         "decoder.data.items[0].bytes: must be a whole number "
+                         "from 1");
+    (void)accepted<M>(stream(
+        item_text(item_named("lost"), "bytes", number_text(max_api_number))));
+    require_item_refused("lost", "bytes", number_text(max_api_number + 1),
+                         "decoder.data.items[0].bytes: must be a whole number");
+}
+
+TEST_CASE("plugin api: the times of an item of decoder.data are in order")
+{
+    using M = decoder_data_message;
+    const item_case& data = item_named("data");
+    // end_ns is not before t_ns.
+    (void)accepted<M>(stream(item_text(data, "end_ns", "1")), bytes_of(2));
+    require_item_refused("data", "end_ns", "0",
+                         "decoder.data.items[0].end_ns: must not be before "
+                         "t_ns");
+    // The same for a lost span.
+    const item_case& lost = item_named("lost");
+    (void)accepted<M>(stream(item_text(lost, "to_ns", "1")));
+    require_item_refused("lost", "to_ns", "0",
+                         "decoder.data.items[0].to_ns: must not be before "
+                         "from_ns");
+
+    decoder_data_item one;
+    one.place = "p";
+    one.t_ns = 5;
+    one.end_ns = 4;
+    one.length = 1;
+    decoder_data_message body;
+    body.seq = 1;
+    body.items.emplace_back(one);
+    body.data = bytes_of(1);
+    require_not_written(body);
+    body.items[0] = decoder_lost_item{"p", decoder_direction::rx, 0, 1, 5, 4};
+    body.data.clear();
+    require_not_written(body);
+}
+
+TEST_CASE("plugin api: the names and kinds of the items are checked")
+{
+    using M = decoder_data_message;
+    require_item_refused("data", "place", R"("")",
+                         "decoder.data.items[0].place: must not be empty");
+    require_item_refused("data", "place",
+                         "\"" + repeated('p', max_api_name + 1) + "\"",
+                         "decoder.data.items[0].place: is longer than 128 "
+                         "bytes");
+    (void)accepted<M>(
+        stream(item_text(item_named("data"), "place",
+                         "\"" + repeated('p', max_api_name) + "\"")),
+        bytes_of(2));
+    require_item_refused("data", "place", "\"a\\tb\"",
+                         "decoder.data.items[0].place: must be plain text");
+    require_item_refused("data", "direction", R"("both")",
+                         "decoder.data.items[0].direction: must be rx or tx");
+    require_item_refused("lost", "direction", R"("RX")",
+                         "decoder.data.items[0].direction: must be rx or tx");
+    require_item_refused("line_error", "kind", R"("noise")",
+                         "decoder.data.items[0].kind: must be parity, framing, "
+                         "overrun or break");
+    for (const std::string_view kind :
+         {"parity", "framing", "overrun", "break"})
+    {
+        (void)accepted<M>(stream(item_text(item_named("line_error"), "kind",
+                                           "\"" + std::string(kind) + "\"")));
+    }
+    require_item_refused("bus_fault", "fault", R"("collision")",
+                         "decoder.data.items[0].fault: must be overlap, "
+                         "too_soon, line_held, transmitter_off or overrun");
+    for (const std::string_view fault :
+         {"overlap", "too_soon", "line_held", "transmitter_off", "overrun"})
+    {
+        (void)accepted<M>(stream(item_text(item_named("bus_fault"), "fault",
+                                           "\"" + std::string(fault) + "\"")));
+    }
+    require_item_refused("bus_fault", "length", "0",
+                         "decoder.data.items[0].length: must be a whole number "
+                         "from 1 to 65536");
+    require_item_refused("bus_fault", "link", R"("")",
+                         "decoder.data.items[0].link: must not be empty");
+    require_item_refused("bus_fault", "sender", R"("")",
+                         "decoder.data.items[0].sender: must not be empty");
+    // A rule and its action are plain names of at most 64 bytes.
+    require_item_refused("rule", "rule",
+                         "\"" + repeated('r', max_decoder_name + 1) + "\"",
+                         "decoder.data.items[0].rule: is longer than 64 bytes");
+    require_item_refused("rule", "action",
+                         "\"" + repeated('r', max_decoder_name + 1) + "\"",
+                         "decoder.data.items[0].action: is longer than 64 "
+                         "bytes");
+    (void)accepted<M>(
+        stream(item_text(item_named("rule"), "rule",
+                         "\"" + repeated('r', max_decoder_name) + "\"")));
+    require_item_refused("rule", "rule", R"("")",
+                         "decoder.data.items[0].rule: must not be empty");
+    require_item_refused("rule", "action", "\"a\\u202eb\"",
+                         "decoder.data.items[0].action: must be plain text");
+    require_item_refused("rule", "rule", "\"a\\nb\"",
+                         "decoder.data.items[0].rule: must be plain text");
+}
+
+TEST_CASE("plugin api: the lines of a line item are checked")
+{
+    using M = decoder_data_message;
+    const item_case& line = item_named("line");
+    // Every line, and any of them left out.
+    const auto all = accepted<M>(stream(item_text(
+        line, "lines",
+        R"({"dtr":true,"rts":false,"cts":true,"dsr":false,"dcd":true,"ri":false})")));
+    const auto& all_lines = std::get<decoder_line_item>(all.items[0]);
+    for (std::size_t i = 0; i < max_decoder_lines; ++i)
+        REQUIRE(all_lines.lines[i] == std::optional<bool>(i % 2 == 0));
+    (void)round_trip(all);
+    const auto some =
+        accepted<M>(stream(item_text(line, "lines", R"({"dtr":true,"x":1})")));
+    REQUIRE(std::get<decoder_line_item>(some.items[0]).lines[1] ==
+            std::optional<bool>());
+    (void)accepted<M>(stream(
+        R"({"item":"line","place":"p","t_ns":1,"lines":{},"changed":[]})"));
+    require_item_refused("line", "lines", R"({"dtr":1})",
+                         "decoder.data.items[0].lines.dtr: must be true or "
+                         "false");
+    require_item_refused("line", "lines", "[]",
+                         "decoder.data.items[0].lines: must be an object");
+
+    // `changed` names lines that `lines` gives, none twice, at most six.
+    require_item_refused("line", "changed", R"(["tx"])",
+                         "decoder.data.items[0].changed[0]: must be dtr, rts, "
+                         "cts, dsr, dcd or ri");
+    require_item_refused("line", "changed", "[7]",
+                         "decoder.data.items[0].changed[0]: must be dtr");
+    require_item_refused("line", "changed", R"(["rts"])",
+                         "decoder.data.items[0].changed[0]: is not a line that "
+                         "lines gives");
+    require_item_refused("line", "changed", R"(["dtr","dtr"])",
+                         "decoder.data.items[0].changed[1]: names a line "
+                         "twice");
+    require_item_refused("line", "changed", R"({})",
+                         "decoder.data.items[0].changed: must be a list");
+    require_item_refused(
+        "line", "changed", R"(["dtr","rts","cts","dsr","dcd","ri","dtr"])",
+        "decoder.data.items[0].changed: has more than 6 entries");
+
+    decoder_line_item one;
+    one.place = "p";
+    decoder_data_message body;
+    body.seq = 1;
+    body.items.emplace_back(one);
+    (void)round_trip(body);
+    one.changed = {decoder_line::dtr};
+    body.items[0] = one;
+    require_not_written(body);
+    one.lines[0] = true;
+    body.items[0] = one;
+    (void)round_trip(body);
+    one.changed = {decoder_line::dtr, decoder_line::dtr};
+    body.items[0] = one;
+    require_not_written(body);
+}
+
+TEST_CASE("plugin api: decoder.data is refused with the wrong role or no seq")
+{
+    using M = decoder_data_message;
+    require_refused<M>(R"({"op":"decoder.data","id":3,"seq":1,"items":)"
+                       R"([{"item":"time","t_ns":1}]})",
+                       "neither an id nor a re");
+    require_refused<M>(R"({"op":"decoder.ack","seq":1})",
+                       "is not the message in this frame");
+}
+
+// -- decoder.ack and decoder.stop
+// ------------------------------------------------
+
+TEST_CASE("plugin api: decoder.ack is written and read")
+{
+    using M = decoder_ack_message;
+    M body;
+    body.seq = 77;
+    (void)round_trip(body);
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    REQUIRE_EQ(header_of(written.value()),
+               std::string(R"({"op":"decoder.ack","seq":77})"));
+    REQUIRE_EQ(accepted<M>(R"({"op":"decoder.ack","seq":1})").seq,
+               std::uint64_t{1});
+    REQUIRE_EQ(accepted<M>(R"({"op":"decoder.ack","seq":)" +
+                           number_text(max_api_number) + "}")
+                   .seq,
+               max_api_number);
+    require_refused<M>(R"({"op":"decoder.ack"})",
+                       "decoder.ack.seq: is required");
+    require_refused<M>(R"({"op":"decoder.ack","seq":0})",
+                       "decoder.ack.seq: must be a whole number from 1");
+    require_refused<M>(R"({"op":"decoder.ack","seq":)" +
+                           number_text(max_api_number + 1) + "}",
+                       "decoder.ack.seq: must be a whole number from 1");
+    require_refused<M>(R"({"op":"decoder.ack","seq":"1"})",
+                       "decoder.ack.seq: must be a whole number");
+    require_refused<M>(R"({"op":"decoder.ack","seq":1})", "has no bytes", {1});
+    require_refused<M>(R"({"op":"decoder.ack","id":2,"seq":1})",
+                       "neither an id nor a re");
+    body.seq = 0;
+    require_not_written(body);
+    body.seq = max_api_number + 1;
+    require_not_written(body);
+    body.seq = 1;
+    require_not_written(body, 4);
+}
+
+TEST_CASE("plugin api: decoder.stop is written and read")
+{
+    using M = decoder_stop_message;
+    M body;
+    body.instance = 8;
+    (void)round_trip(body, 2);
+    const auto written = encode_as(body, 2);
+    REQUIRE(written.has_value());
+    REQUIRE_EQ(header_of(written.value()),
+               std::string(R"({"op":"decoder.stop","id":2,"instance":8})"));
+    require_refused<M>(R"({"op":"decoder.stop","id":2})",
+                       "decoder.stop.instance: is required");
+    require_refused<M>(R"({"op":"decoder.stop","id":2,"instance":0})",
+                       "decoder.stop.instance: must be a whole number");
+    require_refused<M>(R"({"op":"decoder.stop","id":2,"instance":8})",
+                       "has no bytes", {1});
+    require_refused<M>(R"({"op":"decoder.stop","instance":8})",
+                       "must have an id");
+    body.instance = 0;
+    require_not_written(body, 2);
+}
+
+// -- decoder.frame
+// ---------------------------------------------------------------
+
+TEST_CASE("plugin api: decoder.frame is written and read")
+{
+    const decoder_frame_message body = sample_frame();
+    (void)round_trip(body);
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    REQUIRE_EQ(header_of(written.value()),
+               std::string(
+                   R"({"op":"decoder.frame","instance":3,"place":"bus-1",)"
+                   R"("direction":"rx","offset":48213,"length":10,)"
+                   R"("t_start_ns":18203200000,"t_end_ns":18204113250,)"
+                   R"("message":"read reply","summary":"read reply, 3 values",)"
+                   R"("fields":[{"name":"address","offset":0,"length":1,)"
+                   R"("value":"5"},{"name":"check","offset":7,"length":2,)"
+                   R"("value":"3A91"}]})"));
+}
+
+TEST_CASE("plugin api: decoder.frame has defaults for what it leaves out")
+{
+    const auto read = accepted<decoder_frame_message>(frame_head + "}");
+    REQUIRE(read.summary.empty());
+    REQUIRE(read.fields.empty());
+    decoder_frame_message body = read;
+    (void)round_trip(body);
+    body.fields = {{"x", 0, 0, ""}};
+    (void)round_trip(body);
+}
+
+TEST_CASE("plugin api: decoder.frame is refused when it is wrong")
+{
+    using M = decoder_frame_message;
+    const auto bad = [](std::string_view from, std::string_view to)
+    {
+        std::string text = frame_head;
+        const std::size_t at = text.find(from);
+        REQUIRE(at != std::string::npos);
+        text.replace(at, from.size(), to);
+        return text + "}";
+    };
+    require_refused<M>(bad(R"("instance":3,)", ""),
+                       "decoder.frame.instance: is required");
+    require_refused<M>(bad(R"("place":"p",)", ""),
+                       "decoder.frame.place: is required");
+    require_refused<M>(bad(R"("direction":"rx",)", ""),
+                       "decoder.frame.direction: is required");
+    require_refused<M>(bad(R"("direction":"rx")", R"("direction":"in")"),
+                       "decoder.frame.direction: must be rx or tx");
+    require_refused<M>(bad(R"("offset":0,)", ""),
+                       "decoder.frame.offset: is required");
+    require_refused<M>(bad(R"("length":10,)", ""),
+                       "decoder.frame.length: is required");
+    require_refused<M>(bad(R"("length":10)", R"("length":0)"),
+                       "decoder.frame.length: must be a whole number from 1 "
+                       "to 65536");
+    require_refused<M>(bad(R"("length":10)", R"("length":65537)"),
+                       "decoder.frame.length: must be a whole number from 1 "
+                       "to 65536");
+    require_refused<M>(bad(R"("t_start_ns":1,)", ""),
+                       "decoder.frame.t_start_ns: is required");
+    require_refused<M>(bad(R"("t_end_ns":2)", R"("t_end_ns":0)"),
+                       "decoder.frame.t_end_ns: must not be before "
+                       "t_start_ns");
+    require_refused<M>(bad(R"("t_end_ns":2,)", ""),
+                       "decoder.frame.t_end_ns: is required");
+    require_refused<M>(bad(R"(,"message":"m")", ""),
+                       "decoder.frame.message: is required");
+    require_refused<M>(bad(R"("message":"m")", R"("message":"")"),
+                       "decoder.frame.message: must not be empty");
+    require_refused<M>(bad(R"("message":"m")", R"("message":5)"),
+                       "decoder.frame.message: must be a string");
+    require_refused<M>(bad(R"("message":"m")", "\"message\":\"a\\nb\""),
+                       "decoder.frame.message: must be plain text");
+    require_refused<M>(
+        bad(R"("message":"m")", "\"message\":\"" + repeated('m', 65) + "\""),
+        "decoder.frame.message: is longer than 64 bytes");
+    require_refused<M>(
+        bad(R"("message":"m")", "\"message\":\"m\",\"summary\":\"a\\u202eb\""),
+        "decoder.frame.summary: must be plain text");
+    require_refused<M>(bad(R"("message":"m")", R"("message":"m","summary":7)"),
+                       "decoder.frame.summary: must be a string");
+    require_refused<M>(bad(R"("message":"m")", R"("message":"m","fields":{})"),
+                       "decoder.frame.fields: must be a list");
+    require_refused<M>(bad(R"("message":"m")", R"("message":"m","fields":[1])"),
+                       "decoder.frame.fields[0]: must be an object");
+    require_refused<M>(frame_head + "}", "has no bytes", {1});
+    require_refused<M>(
+        bad(R"({"op":"decoder.frame",)", R"({"op":"decoder.frame","id":1,)"),
+        "neither an id nor a re");
+}
+
+TEST_CASE("plugin api: decoder.frame has the limits of its members")
+{
+    using M = decoder_frame_message;
+    const auto with = [](std::string_view more)
+    { return frame_head + "," + std::string(more) + "}"; };
+    const std::string text_edge = repeated('s', max_api_text);
+    REQUIRE_EQ(
+        accepted<M>(with("\"summary\":\"" + text_edge + "\"")).summary.size(),
+        max_api_text);
+    require_refused<M>(with("\"summary\":\"" + text_edge + "s\""),
+                       "decoder.frame.summary: is longer than 200 bytes");
+    REQUIRE(accepted<M>(with(R"("summary":"")")).summary.empty());
+    REQUIRE_EQ(accepted<M>(std::string(R"({"op":"decoder.frame","instance":3,)"
+                                       R"("place":"p","direction":"tx",)"
+                                       R"("offset":)") +
+                           number_text(max_api_number) +
+                           R"(,"length":65536,"t_start_ns":)" +
+                           number_text(max_api_number) + R"(,"t_end_ns":)" +
+                           number_text(max_api_number) + R"(,"message":")" +
+                           repeated('m', max_decoder_name) + R"("})")
+                   .offset,
+               max_api_number);
+
+    // The fields.
+    const std::string field_head =
+        R"(,"fields":[{"name":"f","offset":0,"length":10,"value":"v"})";
+    const auto fields = [&](std::string_view more)
+    {
+        return frame_head + std::string(field_head) + "," + std::string(more) +
+               "]}";
+    };
+    REQUIRE_EQ(accepted<M>(frame_head + field_head + "]}").fields.size(),
+               std::size_t{1});
+    require_refused<M>(
+        fields(R"({"name":"g","offset":0,"length":11,"value":""})"),
+        "decoder.frame.fields[1]: does not lie within the "
+        "frame");
+    require_refused<M>(
+        fields(R"({"name":"g","offset":10,"length":1,"value":""})"),
+        "decoder.frame.fields[1]: does not lie within the "
+        "frame");
+    require_refused<M>(
+        fields(R"({"name":"g","offset":11,"length":0,"value":""})"),
+        "decoder.frame.fields[1]: does not lie within the "
+        "frame");
+    (void)accepted<M>(
+        fields(R"({"name":"g","offset":10,"length":0,"value":""})"));
+    (void)accepted<M>(
+        fields(R"({"name":"g","offset":9,"length":1,"value":""})"));
+    require_refused<M>(fields(R"({"offset":1,"length":1,"value":""})"),
+                       "decoder.frame.fields[1].name: is required");
+    require_refused<M>(
+        fields(R"({"name":"","offset":1,"length":1,"value":""})"),
+        "decoder.frame.fields[1].name: must not be empty");
+    require_refused<M>(fields("{\"name\":\"" + repeated('n', 65) +
+                              "\",\"offset\":1,\"length\":1,\"value\":\"\"}"),
+                       "decoder.frame.fields[1].name: is longer than 64 bytes");
+    require_refused<M>(fields(R"({"name":"g","length":1,"value":""})"),
+                       "decoder.frame.fields[1].offset: is required");
+    require_refused<M>(fields(R"({"name":"g","offset":1,"value":""})"),
+                       "decoder.frame.fields[1].length: is required");
+    require_refused<M>(
+        fields(R"({"name":"g","offset":1,"length":65537,"value":""})"),
+        "decoder.frame.fields[1].length: must be a whole number from 0 to "
+        "65536");
+    require_refused<M>(fields(R"({"name":"g","offset":1,"length":1})"),
+                       "decoder.frame.fields[1].value: is required");
+    require_refused<M>(
+        fields("{\"name\":\"g\",\"offset\":1,\"length\":1,\"value\":\"" +
+               repeated('v', max_api_text + 1) + "\"}"),
+        "decoder.frame.fields[1].value: is longer than 200 bytes");
+    require_refused<M>(
+        fields(R"({"name":"g","offset":1,"length":1,"value":"a\u0007"})"),
+        "decoder.frame.fields[1].value: must be plain text");
+    require_refused<M>(
+        fields(R"({"name":"g","offset":1,"length":1,"value":5})"),
+        "decoder.frame.fields[1].value: must be a string");
+    (void)accepted<M>(
+        fields("{\"name\":\"g\",\"offset\":1,\"length\":1,\"value\":\"" +
+               repeated('v', max_api_text) + "\"}"));
+
+    // At most 64 fields.
+    std::string many;
+    for (std::size_t i = 0; i < max_decoder_fields; ++i)
+    {
+        if (i != 0)
+            many += ',';
+        many += R"({"name":"f","offset":0,"length":1,"value":""})";
+    }
+    REQUIRE_EQ(
+        accepted<M>(frame_head + R"(,"fields":[)" + many + "]}").fields.size(),
+        max_decoder_fields);
+    require_refused<M>(
+        frame_head + R"(,"fields":[)" + many +
+            R"(,{"name":"f","offset":0,"length":1,"value":""}]})",
+        "decoder.frame.fields: has more than 64 entries");
+
+    // What cannot be written.
+    decoder_frame_message body = sample_frame();
+    body.fields.assign(max_decoder_fields, decoder_field{"f", 0, 1, ""});
+    (void)round_trip(body);
+    body.fields.push_back({"f", 0, 1, ""});
+    require_not_written(body);
+    body = sample_frame();
+    body.fields = {{"f", 9, 2, ""}};
+    require_not_written(body);
+    body.fields = {{"", 0, 1, ""}};
+    require_not_written(body);
+    body.fields = {{"f", 0, 1, repeated('v', max_api_text + 1)}};
+    require_not_written(body);
+    body = sample_frame();
+    body.length = 0;
+    require_not_written(body);
+    body = sample_frame();
+    body.t_end_ns = body.t_start_ns - 1;
+    require_not_written(body);
+    body = sample_frame();
+    body.message.clear();
+    require_not_written(body);
+    body = sample_frame();
+    body.summary = "a\nb";
+    require_not_written(body);
+    body = sample_frame();
+    body.instance = 0;
+    require_not_written(body);
+    body.instance = 3;
+    require_not_written(body, 2);
+}
+
+// -- trigger.publish
+// -------------------------------------------------------------
+
+TEST_CASE("plugin api: trigger.publish is written and read")
+{
+    const trigger_publish_message body = sample_trigger();
+    (void)round_trip(body);
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    REQUIRE(written.value().blob.empty());
+    REQUIRE_EQ(
+        header_of(written.value()),
+        std::string(
+            R"({"op":"trigger.publish","instance":3,"kind":"check",)"
+            R"("when_ns":18204113250,"place":"bus-1","direction":"rx",)"
+            R"("sender":"meter-17","protocol":{"id":"com.example.meter-bus",)"
+            R"("version":"1.2.0"},"frame":{"offset":48213,"length":10,)"
+            R"("t_start_ns":18203200000,"t_end_ns":18204113250,)"
+            R"("message":"read reply"},"field":{"name":"check","offset":7,)"
+            R"("length":2},"expected":"3A91","actual":"3A90","covers":[1,6],)"
+            R"("cause":{"bus_fault":"overlap","event":9912},)"
+            R"("request":{"offset":48205,"length":8,"t_end_ns":18201000000},)"
+            R"("text":"Check value is 3A90, expected 3A91."})"));
+}
+
+TEST_CASE("plugin api: trigger.publish needs only what every trigger has")
+{
+    using M = trigger_publish_message;
+    const auto read = accepted<M>(trigger_head + "}");
+    REQUIRE(read.kind == trigger_kind::check);
+    REQUIRE(read.sender.empty());
+    REQUIRE(read.code.empty());
+    REQUIRE(!read.protocol.has_value());
+    REQUIRE(!read.frame.has_value());
+    REQUIRE(!read.field.has_value());
+    REQUIRE(read.expected.empty());
+    REQUIRE(!read.covers.has_value());
+    REQUIRE(!read.cause.has_value());
+    REQUIRE(!read.request.has_value());
+    (void)round_trip(read);
+    const auto written = encode_as(read);
+    REQUIRE(written.has_value());
+    REQUIRE_EQ(header_of(written.value()),
+               std::string(R"({"op":"trigger.publish","instance":3,)"
+                           R"("kind":"check","when_ns":5,"place":"p",)"
+                           R"("direction":"rx","text":"t"})"));
+}
+
+TEST_CASE("plugin api: trigger.publish reads each kind")
+{
+    using M = trigger_publish_message;
+    const std::pair<std::string_view, trigger_kind> kinds[] = {
+        {"framing", trigger_kind::framing},
+        {"unknown_type", trigger_kind::unknown_type},
+        {"unknown_value", trigger_kind::unknown_value},
+        {"check", trigger_kind::check},
+        {"length", trigger_kind::length},
+        {"timeout", trigger_kind::timeout},
+        {"sequence", trigger_kind::sequence},
+        {"contention", trigger_kind::contention},
+        {"line_error", trigger_kind::line_error},
+        {"decoder_lost", trigger_kind::decoder_lost}};
+    for (const auto& [name, kind] : kinds)
+    {
+        const auto read = accepted<M>(
+            R"({"op":"trigger.publish","instance":3,"kind":")" +
+            std::string(name) +
+            R"(","when_ns":5,"place":"p","direction":"tx","text":"t"})");
+        REQUIRE(read.kind == kind);
+        (void)round_trip(read);
+    }
+    const auto custom =
+        accepted<M>(R"({"op":"trigger.publish","instance":3,"kind":"custom",)"
+                    R"("code":"meter.low-battery_1","when_ns":5,"place":"p",)"
+                    R"("direction":"tx","text":"t"})");
+    REQUIRE(custom.kind == trigger_kind::custom);
+    REQUIRE_EQ(custom.code, std::string("meter.low-battery_1"));
+    (void)round_trip(custom);
+}
+
+TEST_CASE("plugin api: the kind and code of trigger.publish go together")
+{
+    using M = trigger_publish_message;
+    const std::string rest =
+        R"("when_ns":5,"place":"p","direction":"rx","text":"t"})";
+    const std::string head = R"({"op":"trigger.publish","instance":3,)";
+    require_refused<M>(head + rest, "trigger.publish.kind: is required");
+    require_refused<M>(head + R"("kind":"made_up",)" + rest,
+                       "trigger.publish.kind: must be framing, unknown_type, "
+                       "unknown_value, check, length, timeout, sequence, "
+                       "contention, line_error, decoder_lost or custom");
+    require_refused<M>(head + R"("kind":"Check",)" + rest,
+                       "trigger.publish.kind: must be framing");
+    require_refused<M>(head + R"("kind":4,)" + rest,
+                       "trigger.publish.kind: must be framing");
+    // A code only with `custom`.
+    require_refused<M>(head + R"("kind":"custom",)" + rest,
+                       "trigger.publish.code: is required");
+    require_refused<M>(head + R"("kind":"check","code":"x",)" + rest,
+                       "trigger.publish.code: must be left out unless kind is "
+                       "custom");
+    require_refused<M>(head + R"("kind":"check","code":"",)" + rest,
+                       "trigger.publish.code: must be left out");
+    require_refused<M>(head + R"("kind":"custom","code":"",)" + rest,
+                       "trigger.publish.code: must be 1 to 64 lower-case "
+                       "letters, digits, dots, hyphens and underscores");
+    require_refused<M>(head + R"("kind":"custom","code":"Low",)" + rest,
+                       "trigger.publish.code: must be 1 to 64 lower-case");
+    require_refused<M>(head + R"("kind":"custom","code":"a b",)" + rest,
+                       "trigger.publish.code: must be 1 to 64 lower-case");
+    require_refused<M>(head + R"("kind":"custom","code":5,)" + rest,
+                       "trigger.publish.code: must be a string");
+    (void)accepted<M>(head + R"("kind":"custom","code":")" +
+                      repeated('c', max_decoder_name) + "\"," + rest);
+    require_refused<M>(head + R"("kind":"custom","code":")" +
+                           repeated('c', max_decoder_name + 1) + "\"," + rest,
+                       "trigger.publish.code: must be 1 to 64 lower-case");
+
+    trigger_publish_message body = sample_trigger();
+    body.kind = trigger_kind::custom;
+    require_not_written(body);
+    body.code = "low-battery";
+    (void)round_trip(body);
+    body.kind = trigger_kind::check;
+    require_not_written(body);
+    body.code.clear();
+    (void)round_trip(body);
+    body.kind = trigger_kind::custom;
+    body.code = "Low";
+    require_not_written(body);
+}
+
+TEST_CASE("plugin api: the host stamps a trigger, and the plugin does not")
+{
+    using M = trigger_publish_message;
+    // `from` and the time are not members: they are passed over.
+    const auto read =
+        accepted<M>(trigger_head +
+                    R"(,"from":{"plugin":"x","instance":9},"published_ns":4})");
+    REQUIRE(read == accepted<M>(trigger_head + "}"));
+    // `id` is the id of the frame, and a notification has none.
+    require_refused<M>(
+        R"({"op":"trigger.publish","id":4127,"instance":3,"kind":"check",)"
+        R"("when_ns":5,"place":"p","direction":"rx","text":"t"})",
+        "neither an id nor a re");
+    // A trigger has no bytes.
+    require_refused<M>(trigger_head + "}", "has no bytes", {1});
+    require_refused<M>(trigger_head + "}", "has no bytes", bytes_of(4096));
+}
+
+TEST_CASE("plugin api: trigger.publish needs its members")
+{
+    using M = trigger_publish_message;
+    const auto without = [](std::string_view member)
+    {
+        std::string text = trigger_head + "}";
+        const std::size_t at = text.find(member);
+        REQUIRE(at != std::string::npos);
+        text.erase(at, member.size());
+        return text;
+    };
+    require_refused<M>(without(R"("instance":3,)"),
+                       "trigger.publish.instance: is required");
+    require_refused<M>(without(R"("when_ns":5,)"),
+                       "trigger.publish.when_ns: is required");
+    require_refused<M>(without(R"("place":"p",)"),
+                       "trigger.publish.place: is required");
+    require_refused<M>(without(R"("direction":"rx",)"),
+                       "trigger.publish.direction: is required");
+    require_refused<M>(without(R"(,"text":"t")"),
+                       "trigger.publish.text: is required");
+    require_refused<M>(without(R"("direction":"rx",)") + "",
+                       "trigger.publish.direction");
+    require_refused<M>(
+        R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":5,)"
+        R"("place":"p","direction":"up","text":"t"})",
+        "trigger.publish.direction: must be rx or tx");
+    require_refused<M>(
+        R"({"op":"trigger.publish","instance":0,"kind":"check","when_ns":5,)"
+        R"("place":"p","direction":"rx","text":"t"})",
+        "trigger.publish.instance: must be a whole number");
+    require_refused<M>(
+        R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":-1,)"
+        R"("place":"p","direction":"rx","text":"t"})",
+        "trigger.publish.when_ns: must be a whole number");
+    require_refused<M>(
+        R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":)" +
+            number_text(max_api_number + 1) +
+            R"(,"place":"p","direction":"rx","text":"t"})",
+        "trigger.publish.when_ns: must be a whole number");
+    (void)accepted<M>(
+        R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":)" +
+        number_text(max_api_number) +
+        R"(,"place":"p","direction":"rx","text":"t"})");
+}
+
+TEST_CASE("plugin api: the text and names of trigger.publish are limited")
+{
+    using M = trigger_publish_message;
+    const std::string head =
+        R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":5,)"
+        R"("direction":"rx",)";
+    const auto with = [&](std::string_view place, std::string_view text,
+                          std::string_view more = {})
+    {
+        return head + R"("place":")" + std::string(place) + R"(","text":")" +
+               std::string(text) + "\"" + std::string(more) + "}";
+    };
+    REQUIRE_EQ(accepted<M>(with(repeated('p', max_api_name),
+                                repeated('t', max_api_text)))
+                   .text.size(),
+               max_api_text);
+    require_refused<M>(with("p", repeated('t', max_api_text + 1)),
+                       "trigger.publish.text: is longer than 200 bytes");
+    require_refused<M>(with("p", ""),
+                       "trigger.publish.text: must not be empty");
+    require_refused<M>(with("p", R"(a\nb)"),
+                       "trigger.publish.text: must be plain text");
+    require_refused<M>(with("p", "a\\u202eb"),
+                       "trigger.publish.text: must be plain text");
+    require_refused<M>(with(repeated('p', max_api_name + 1), "t"),
+                       "trigger.publish.place: is longer than 128 bytes");
+    require_refused<M>(with("", "t"),
+                       "trigger.publish.place: must not be empty");
+    require_refused<M>(with("a\\u0001b", "t"),
+                       "trigger.publish.place: must be plain text");
+    // The sender is a name, and may be left out.
+    REQUIRE_EQ(accepted<M>(with("p", "t", R"(,"sender":"meter-17")")).sender,
+               std::string("meter-17"));
+    require_refused<M>(with("p", "t", R"(,"sender":"")"),
+                       "trigger.publish.sender: must not be empty");
+    require_refused<M>(
+        with("p", "t",
+             ",\"sender\":\"" + repeated('s', max_api_name + 1) + "\""),
+        "trigger.publish.sender: is longer than 128 bytes");
+    require_refused<M>(with("p", "t", R"(,"sender":3)"),
+                       "trigger.publish.sender: must be a string");
+
+    trigger_publish_message body = sample_trigger();
+    body.text.clear();
+    require_not_written(body);
+    body.text = repeated('t', max_api_text + 1);
+    require_not_written(body);
+    body.text = "t";
+    body.place = repeated('p', max_api_name + 1);
+    require_not_written(body);
+    body.place = "p";
+    body.sender = repeated('s', max_api_name + 1);
+    require_not_written(body);
+    body.sender.clear();
+    (void)round_trip(body);
+    body.when_ns = max_api_number + 1;
+    require_not_written(body);
+    body.when_ns = 5;
+    body.instance = 0;
+    require_not_written(body);
+    body.instance = 1;
+    require_not_written(body, 3);
+}
+
+TEST_CASE("plugin api: the protocol of a trigger is checked")
+{
+    using M = trigger_publish_message;
+    const auto with = [](std::string_view protocol)
+    { return trigger_head + R"(,"protocol":)" + std::string(protocol) + "}"; };
+    (void)accepted<M>(with(R"({"id":"a","version":"1"})"));
+    require_refused<M>(with("[]"), "trigger.publish.protocol: must be an "
+                                   "object");
+    require_refused<M>(with(R"({"version":"1"})"),
+                       "trigger.publish.protocol.id: is required");
+    require_refused<M>(with(R"({"id":"a"})"),
+                       "trigger.publish.protocol.version: is required");
+    require_refused<M>(with(R"({"id":"","version":"1"})"),
+                       "trigger.publish.protocol.id: must not be empty");
+    require_refused<M>(with(R"({"id":"a","version":""})"),
+                       "trigger.publish.protocol.version: must not be empty");
+    REQUIRE_EQ(accepted<M>(with("{\"id\":\"" + repeated('i', max_protocol_id) +
+                                "\",\"version\":\"" +
+                                repeated('v', max_protocol_version) + "\"}"))
+                   .protocol.has_value(),
+               true);
+    require_refused<M>(with("{\"id\":\"" + repeated('i', max_protocol_id + 1) +
+                            "\",\"version\":\"1\"}"),
+                       "trigger.publish.protocol.id: is longer than 128 bytes");
+    require_refused<M>(with("{\"id\":\"a\",\"version\":\"" +
+                            repeated('v', max_protocol_version + 1) + "\"}"),
+                       "trigger.publish.protocol.version: is longer than 64 "
+                       "bytes");
+    require_refused<M>(with(R"({"id":"a\n","version":"1"})"),
+                       "trigger.publish.protocol.id: must be plain text");
+
+    trigger_publish_message body = sample_trigger();
+    body.protocol = trigger_protocol{"", "1"};
+    require_not_written(body);
+    body.protocol =
+        trigger_protocol{"a", repeated('v', max_protocol_version + 1)};
+    require_not_written(body);
+}
+
+TEST_CASE("plugin api: the frame of a trigger is checked")
+{
+    using M = trigger_publish_message;
+    const auto with = [](std::string_view frame)
+    { return trigger_head + R"(,"frame":)" + std::string(frame) + "}"; };
+    const std::string good =
+        R"({"offset":0,"length":10,"t_start_ns":1,"t_end_ns":2,"message":"m"})";
+    (void)accepted<M>(with(good));
+    require_refused<M>(with("5"), "trigger.publish.frame: must be an object");
+    require_refused<M>(
+        with(R"({"length":10,"t_start_ns":1,"t_end_ns":2,"message":"m"})"),
+        "trigger.publish.frame.offset: is required");
+    require_refused<M>(
+        with(R"({"offset":0,"t_start_ns":1,"t_end_ns":2,"message":"m"})"),
+        "trigger.publish.frame.length: is required");
+    require_refused<M>(
+        with(R"({"offset":0,"length":0,"t_start_ns":1,"t_end_ns":2,)"
+             R"("message":"m"})"),
+        "trigger.publish.frame.length: must be a whole number from 1 to "
+        "65536");
+    require_refused<M>(
+        with(R"({"offset":0,"length":65537,"t_start_ns":1,"t_end_ns":2,)"
+             R"("message":"m"})"),
+        "trigger.publish.frame.length: must be a whole number from 1 to "
+        "65536");
+    (void)accepted<M>(
+        with(R"({"offset":0,"length":65536,"t_start_ns":1,"t_end_ns":2,)"
+             R"("message":"m"})"));
+    require_refused<M>(
+        with(R"({"offset":0,"length":1,"t_end_ns":2,"message":"m"})"),
+        "trigger.publish.frame.t_start_ns: is required");
+    require_refused<M>(
+        with(R"({"offset":0,"length":1,"t_start_ns":1,"message":"m"})"),
+        "trigger.publish.frame.t_end_ns: is required");
+    require_refused<M>(
+        with(R"({"offset":0,"length":1,"t_start_ns":3,"t_end_ns":2,)"
+             R"("message":"m"})"),
+        "trigger.publish.frame.t_end_ns: must not be before t_start_ns");
+    (void)accepted<M>(
+        with(R"({"offset":0,"length":1,"t_start_ns":2,"t_end_ns":2,)"
+             R"("message":"m"})"));
+    require_refused<M>(
+        with(R"({"offset":0,"length":1,"t_start_ns":1,"t_end_ns":2})"),
+        "trigger.publish.frame.message: is required");
+    // The message of a frame may be empty (a frame that is not known).
+    REQUIRE(accepted<M>(with(R"({"offset":0,"length":1,"t_start_ns":1,)"
+                             R"("t_end_ns":2,"message":""})"))
+                .frame.has_value());
+    require_refused<M>(
+        with("{\"offset\":0,\"length\":1,\"t_start_ns\":1,\"t_end_ns\":2,"
+             "\"message\":\"" +
+             repeated('m', max_decoder_name + 1) + "\"}"),
+        "trigger.publish.frame.message: is longer than 64 bytes");
+    require_refused<M>(
+        with(R"({"offset":0,"length":1,"t_start_ns":1,"t_end_ns":2,)"
+             "\"message\":\"a\\u202eb\"}"),
+        "trigger.publish.frame.message: must be plain text");
+
+    trigger_publish_message body = sample_trigger();
+    body.frame = trigger_frame{0, 0, 1, 2, "m"};
+    require_not_written(body);
+    body.frame = trigger_frame{0, 1, 3, 2, "m"};
+    require_not_written(body);
+    body.frame = trigger_frame{0, 1, 2, 3, repeated('m', max_decoder_name + 1)};
+    require_not_written(body);
+    body.frame = trigger_frame{0, 1, 2, 3, ""};
+    (void)round_trip(body);
+}
+
+TEST_CASE("plugin api: the field and the request of a trigger are checked")
+{
+    using M = trigger_publish_message;
+    const auto field = [](std::string_view text)
+    { return trigger_head + R"(,"field":)" + std::string(text) + "}"; };
+    const auto request = [](std::string_view text)
+    { return trigger_head + R"(,"request":)" + std::string(text) + "}"; };
+    (void)accepted<M>(field(R"({"name":"check","offset":7,"length":2})"));
+    require_refused<M>(field("[]"), "trigger.publish.field: must be an object");
+    require_refused<M>(field(R"({"offset":7,"length":2})"),
+                       "trigger.publish.field.name: is required");
+    require_refused<M>(field(R"({"name":"","offset":7,"length":2})"),
+                       "trigger.publish.field.name: must not be empty");
+    require_refused<M>(field("{\"name\":\"" +
+                             repeated('n', max_decoder_name + 1) +
+                             "\",\"offset\":7,\"length\":2}"),
+                       "trigger.publish.field.name: is longer than 64 bytes");
+    require_refused<M>(field(R"({"name":"c","length":2})"),
+                       "trigger.publish.field.offset: is required");
+    require_refused<M>(field(R"({"name":"c","offset":7})"),
+                       "trigger.publish.field.length: is required");
+    require_refused<M>(field(R"({"name":"c","offset":7,"length":0})"),
+                       "trigger.publish.field.length: must be a whole number "
+                       "from 1 to 65536");
+    require_refused<M>(field(R"({"name":"c","offset":7,"length":65537})"),
+                       "trigger.publish.field.length: must be a whole number "
+                       "from 1 to 65536");
+    (void)accepted<M>(field(R"({"name":"c","offset":7,"length":65536})"));
+
+    (void)accepted<M>(request(R"({"offset":4,"length":8,"t_end_ns":9})"));
+    require_refused<M>(request("true"),
+                       "trigger.publish.request: must be an object");
+    require_refused<M>(request(R"({"length":8,"t_end_ns":9})"),
+                       "trigger.publish.request.offset: is required");
+    require_refused<M>(request(R"({"offset":4,"t_end_ns":9})"),
+                       "trigger.publish.request.length: is required");
+    require_refused<M>(request(R"({"offset":4,"length":0,"t_end_ns":9})"),
+                       "trigger.publish.request.length: must be a whole "
+                       "number from 1 to 65536");
+    require_refused<M>(request(R"({"offset":4,"length":65537,"t_end_ns":9})"),
+                       "trigger.publish.request.length: must be a whole "
+                       "number from 1 to 65536");
+    require_refused<M>(request(R"({"offset":4,"length":8})"),
+                       "trigger.publish.request.t_end_ns: is required");
+    require_refused<M>(request(R"({"offset":4,"length":8,"t_end_ns":"9"})"),
+                       "trigger.publish.request.t_end_ns: must be a whole");
+
+    trigger_publish_message body = sample_trigger();
+    body.field = trigger_field{"c", 1, 0};
+    require_not_written(body);
+    body.field = trigger_field{"", 1, 1};
+    require_not_written(body);
+    body.field = trigger_field{"c", 1, 65537};
+    require_not_written(body);
+    body.field = trigger_field{"c", 1, 1};
+    body.request = trigger_request{1, 0, 1};
+    require_not_written(body);
+    body.request = trigger_request{1, 1, max_api_number + 1};
+    require_not_written(body);
+    body.request = trigger_request{1, 65536, max_api_number};
+    (void)round_trip(body);
+}
+
+TEST_CASE("plugin api: the check value of a trigger comes in a pair")
+{
+    using M = trigger_publish_message;
+    const auto with = [](std::string_view more)
+    { return trigger_head + "," + std::string(more) + "}"; };
+    (void)accepted<M>(with(R"("expected":"3A91","actual":"3A90")"));
+    REQUIRE_EQ(
+        accepted<M>(with(R"("expected":"3A91","actual":"3A90")")).expected,
+        std::string("3A91"));
+    require_refused<M>(with(R"("expected":"3A91")"),
+                       "trigger.publish.actual: must be given when the other "
+                       "is");
+    require_refused<M>(with(R"("actual":"3A90")"),
+                       "trigger.publish.expected: must be given when the other "
+                       "is");
+    require_refused<M>(with(R"("expected":"","actual":"3A90")"),
+                       "trigger.publish.expected: must not be empty");
+    require_refused<M>(with(R"("expected":"3A91","actual":"")"),
+                       "trigger.publish.actual: must not be empty");
+    require_refused<M>(with(R"("expected":4,"actual":"3A90")"),
+                       "trigger.publish.expected: must be a string");
+    require_refused<M>(with(R"("expected":"3A91","actual":"a\nb")"),
+                       "trigger.publish.actual: must be plain text");
+    (void)accepted<M>(with("\"expected\":\"" + repeated('a', max_api_name) +
+                           "\",\"actual\":\"" + repeated('b', max_api_name) +
+                           "\""));
+    require_refused<M>(with("\"expected\":\"" +
+                            repeated('a', max_api_name + 1) +
+                            "\",\"actual\":\"1\""),
+                       "trigger.publish.expected: is longer than 128 bytes");
+    require_refused<M>(with("\"expected\":\"1\",\"actual\":\"" +
+                            repeated('b', max_api_name + 1) + "\""),
+                       "trigger.publish.actual: is longer than 128 bytes");
+
+    trigger_publish_message body = sample_trigger();
+    body.actual.clear();
+    require_not_written(body);
+    body.actual = "1";
+    body.expected.clear();
+    require_not_written(body);
+    body.expected = repeated('a', max_api_name + 1);
+    require_not_written(body);
+    body.expected.clear();
+    body.actual.clear();
+    (void)round_trip(body);
+}
+
+TEST_CASE("plugin api: the range that a check value covers is a pair")
+{
+    using M = trigger_publish_message;
+    const auto with = [](std::string_view covers)
+    { return trigger_head + R"(,"covers":)" + std::string(covers) + "}"; };
+    REQUIRE(accepted<M>(with("[1,6]")).covers ==
+            std::optional<trigger_covers>(trigger_covers{1, 6}));
+    REQUIRE(accepted<M>(with("[4,4]")).covers ==
+            std::optional<trigger_covers>(trigger_covers{4, 4}));
+    REQUIRE(
+        accepted<M>(with("[0," + number_text(max_api_number) + "]")).covers ==
+        std::optional<trigger_covers>(trigger_covers{0, max_api_number}));
+    require_refused<M>(with("[6,1]"),
+                       "trigger.publish.covers[1]: must not be before the "
+                       "first entry");
+    require_refused<M>(with("[]"),
+                       "trigger.publish.covers: must have exactly 2 entries");
+    require_refused<M>(with("[1]"),
+                       "trigger.publish.covers: must have exactly 2 entries");
+    require_refused<M>(with("[1,2,3]"),
+                       "trigger.publish.covers: has more than 2 entries");
+    require_refused<M>(with("{}"), "trigger.publish.covers: must be a list");
+    require_refused<M>(with(R"(["1",2])"),
+                       "trigger.publish.covers[0]: must be a whole number");
+    require_refused<M>(with("[1,-2]"),
+                       "trigger.publish.covers[1]: must be a whole number");
+    require_refused<M>(with("[1.5,2]"),
+                       "trigger.publish.covers[0]: must be a whole number");
+    require_refused<M>(with("[1," + number_text(max_api_number + 1) + "]"),
+                       "trigger.publish.covers[1]: must be a whole number");
+
+    trigger_publish_message body = sample_trigger();
+    body.covers = trigger_covers{6, 1};
+    require_not_written(body);
+    body.covers = trigger_covers{1, max_api_number + 1};
+    require_not_written(body);
+    body.covers = trigger_covers{1, 1};
+    (void)round_trip(body);
+}
+
+TEST_CASE("plugin api: the cause of a trigger is one of two")
+{
+    using M = trigger_publish_message;
+    const auto with = [](std::string_view cause)
+    { return trigger_head + R"(,"cause":)" + std::string(cause) + "}"; };
+    REQUIRE(
+        accepted<M>(with(R"({"bus_fault":"overlap","event":9912})")).cause ==
+        std::optional<trigger_cause>(
+            trigger_cause{trigger_bus_cause{decoder_fault::overlap, 9912}}));
+    REQUIRE(
+        accepted<M>(with(R"({"own_action":17})")).cause ==
+        std::optional<trigger_cause>(trigger_cause{trigger_own_action{17}}));
+    for (const std::string_view fault :
+         {"overlap", "too_soon", "line_held", "transmitter_off", "overrun"})
+    {
+        (void)round_trip(accepted<M>(with(
+            "{\"bus_fault\":\"" + std::string(fault) + "\",\"event\":0}")));
+    }
+    require_refused<M>(with("[]"), "trigger.publish.cause: must be an object");
+    require_refused<M>(with("{}"),
+                       "trigger.publish.cause: must have bus_fault or "
+                       "own_action");
+    require_refused<M>(with(R"({"event":4})"),
+                       "trigger.publish.cause: must have bus_fault or "
+                       "own_action");
+    require_refused<M>(
+        with(R"({"bus_fault":"overlap","event":1,"own_action":2})"),
+        "trigger.publish.cause: must have only one of bus_fault and "
+        "own_action");
+    require_refused<M>(with(R"({"bus_fault":"overlap"})"),
+                       "trigger.publish.cause.event: is required");
+    require_refused<M>(with(R"({"bus_fault":"overlap","event":-1})"),
+                       "trigger.publish.cause.event: must be a whole number");
+    require_refused<M>(with(R"({"bus_fault":"overlap","event":)" +
+                            number_text(max_api_number + 1) + "}"),
+                       "trigger.publish.cause.event: must be a whole number");
+    require_refused<M>(with(R"({"bus_fault":"jam","event":1})"),
+                       "trigger.publish.cause.bus_fault: must be overlap, "
+                       "too_soon, line_held, transmitter_off or overrun");
+    require_refused<M>(with(R"({"bus_fault":3,"event":1})"),
+                       "trigger.publish.cause.bus_fault: must be overlap");
+    require_refused<M>(with(R"({"own_action":"x"})"),
+                       "trigger.publish.cause.own_action: must be a whole "
+                       "number");
+    require_refused<M>(with(R"({"own_action":1.5})"),
+                       "trigger.publish.cause.own_action: must be a whole");
+    (void)accepted<M>(
+        with(R"({"own_action":)" + number_text(max_api_number) + "}"));
+
+    trigger_publish_message body = sample_trigger();
+    body.cause = trigger_cause{trigger_own_action{max_api_number + 1}};
+    require_not_written(body);
+    body.cause = trigger_cause{
+        trigger_bus_cause{decoder_fault::overrun, max_api_number + 1}};
+    require_not_written(body);
+    body.cause = trigger_cause{trigger_own_action{3}};
+    (void)round_trip(body);
+    body.cause = trigger_cause{
+        trigger_bus_cause{decoder_fault::transmitter_off, max_api_number}};
+    (void)round_trip(body);
+}
+
+TEST_CASE("plugin api: a trigger with every optional member gives them back")
+{
+    // Each optional member on its own, and all of them.
+    const trigger_publish_message full = sample_trigger();
+    trigger_publish_message none = full;
+    none.sender.clear();
+    none.protocol.reset();
+    none.frame.reset();
+    none.field.reset();
+    none.expected.clear();
+    none.actual.clear();
+    none.covers.reset();
+    none.cause.reset();
+    none.request.reset();
+    (void)round_trip(none);
+    (void)round_trip(full);
+
+    trigger_publish_message one = none;
+    one.protocol = full.protocol;
+    (void)round_trip(one);
+    one = none;
+    one.frame = full.frame;
+    (void)round_trip(one);
+    one = none;
+    one.field = full.field;
+    (void)round_trip(one);
+    one = none;
+    one.expected = full.expected;
+    one.actual = full.actual;
+    (void)round_trip(one);
+    one = none;
+    one.covers = full.covers;
+    (void)round_trip(one);
+    one = none;
+    one.cause = full.cause;
+    (void)round_trip(one);
+    one = none;
+    one.request = full.request;
+    (void)round_trip(one);
+    one = none;
+    one.sender = "meter-17";
+    (void)round_trip(one);
+}
