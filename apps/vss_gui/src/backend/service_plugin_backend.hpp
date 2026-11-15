@@ -90,7 +90,6 @@ public:
     void set_no_isolation(const QString& plugin_id, const QString& hash,
                           bool on) override;
     void start_again(const QString& plugin_id) override;
-    void run_expired(const QString& plugin_id, const QString& hash) override;
     void rescan() override;
     quint64 inspect_plugin(const QString& folder) override;
     void add_plugin(const QString& folder) override;

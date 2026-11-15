@@ -489,9 +489,6 @@ QString action_text(plugin_action action)
         return QCoreApplication::translate("PluginsDialog", "Start again");
     case plugin_action::show_log:
         return QCoreApplication::translate("PluginsDialog", "Show log");
-    case plugin_action::run_until_close:
-        return QCoreApplication::translate("PluginsDialog",
-                                           "Run until Studio closes");
     }
     return {};
 }
@@ -716,10 +713,7 @@ plugin_note_text note_for(const plugin_view& plugin)
             QCoreApplication::translate(
                 "PluginsDialog",
                 "This plugin expired on %1. Look for a newer version.")
-                .arg(date_text(plugin.expires)),
-            plugin.can_run_expired && plugin.trust != plugin_trust::official
-                ? std::vector<plugin_action>{plugin_action::run_until_close}
-                : std::vector<plugin_action>{});
+                .arg(date_text(plugin.expires)));
         break;
     case plugin_note::not_installed:
         set(kind::info,

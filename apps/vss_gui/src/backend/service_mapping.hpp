@@ -23,7 +23,6 @@
 #include <vss/plugin/verify.hpp>
 
 #include <chrono>
-#include <map>
 #include <optional>
 #include <string>
 
@@ -34,11 +33,6 @@ namespace vss::gui
 /// carry these; the adapter reads them off the GUI thread.
 struct service_mapping_inputs
 {
-    /// The manifest of each plugin, by `manifest_key`. A plugin whose
-    /// manifest could not be read has none.
-    std::map<std::string, vss::plugin::manifest> manifests;
-    /// The user's decisions and approved keys.
-    vss::plugin::trust_store trust;
     /// The administrator's policy, or nothing.
     std::optional<vss::plugin::policy> rules;
     vss::plugin::install_kind install = vss::plugin::install_kind::for_one_user;
@@ -49,10 +43,6 @@ struct service_mapping_inputs
     QString user_folder;
     QString machine_folder;
 };
-
-/// The key of a plugin's manifest in `service_mapping_inputs::manifests`: its
-/// folder and its hash.
-std::string manifest_key(const vss::plugin::host::service_plugin& plugin);
 
 /// The page's view of the service. Plugin text is kept as it was given; the
 /// page cleans it before it shows any of it.

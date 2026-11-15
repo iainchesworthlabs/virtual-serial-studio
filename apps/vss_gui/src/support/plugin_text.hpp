@@ -87,8 +87,7 @@ enum class plugin_action
     run_without_isolation,
     licence,
     start_again,
-    show_log,
-    run_until_close
+    show_log
 };
 
 QString action_text(plugin_action action);

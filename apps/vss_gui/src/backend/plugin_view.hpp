@@ -213,8 +213,6 @@ struct plugin_view
     QString used_copy_id;
     bool newer_than_used_copy = false;
     QString this_version_text;
-    /// An expired plugin that is not official can be run until Studio closes.
-    bool can_run_expired = false;
 
     // -- isolation
     plugin_isolation isolation = plugin_isolation::none;
@@ -335,8 +333,7 @@ enum class plugin_request_kind
     rescan,
     add_plugin,
     remove_plugin,
-    start_again,
-    run_expired
+    start_again
 };
 
 enum class plugin_request_error

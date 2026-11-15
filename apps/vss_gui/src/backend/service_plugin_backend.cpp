@@ -59,16 +59,14 @@ std::chrono::year_month_day today_date()
         std::chrono::system_clock::now()));
 }
 
-/// The trust store as the file has it, or an empty one when there is none.
-plug::trust_store load_store(const fs::path& file)
+/// The keys the service holds, as a store in memory. Studio never opens the
+/// trust file itself: the service owns it.
+plug::trust_store keys_of(const host::service_snapshot& snapshot)
 {
-    if (file.empty())
-        return {};
-    std::error_code ignored;
-    if (!fs::exists(file, ignored))
-        return {};
-    auto loaded = plug::load_trust_store(file);
-    return loaded.has_value() ? std::move(loaded.value()) : plug::trust_store{};
+    plug::trust_store store;
+    for (const plug::approved_key& key : snapshot.approved_keys)
+        static_cast<void>(store.approve_key(key));
+    return store;
 }
 
 const host::service_plugin* find_plugin(const host::service_snapshot& snapshot,
@@ -83,8 +81,11 @@ const host::service_plugin* find_plugin(const host::service_snapshot& snapshot,
     return nullptr;
 }
 
+/// The decision as the service holds it, or a new one for this copy.
 plug::plugin_decision decision_of(const host::service_plugin& plugin)
 {
+    if (plugin.decision.has_value())
+        return *plugin.decision;
     plug::plugin_decision decision;
     decision.plugin_id = plugin.id;
     decision.hash = plugin.hash;
@@ -235,8 +236,10 @@ plug::inspect_context ServicePluginBackend::context_now() const
     plug::computer_options computer;
     computer.program_directory = options_.program_directory;
     computer.policy_file = options_.policy_file;
-    computer.trust_file = options_.trust_file;
     plug::inspect_context context = plug::context_for_this_computer(computer);
+    // The keys come from the service, not from the file.
+    if (const auto found = service_->snapshot())
+        context.trust = keys_of(*found);
     context.sandbox = host::available_sandbox().level();
     {
         const std::scoped_lock lock(mutex_);
@@ -248,56 +251,23 @@ plug::inspect_context ServicePluginBackend::context_now() const
 
 void ServicePluginBackend::refresh_extras()
 {
-    // What the service does not carry: the manifests, the decisions and keys,
-    // the policy and what this computer can apply. Read off the GUI thread.
-    const auto snapshot = service_->snapshot();
+    // What the service does not carry: the policy, the licence and what this
+    // computer can apply. Read off the GUI thread.
     auto next = std::make_shared<service_mapping_inputs>();
     plug::computer_options computer;
     computer.program_directory = options_.program_directory;
     computer.policy_file = options_.policy_file;
-    computer.trust_file = options_.trust_file;
     const plug::inspect_context context =
         plug::context_for_this_computer(computer);
     next->rules = context.rules;
     next->install = context.install;
-    if (context.trust.has_value())
-        next->trust = *context.trust;
     next->available = host::available_sandbox();
     next->studio_version = options_.studio_version;
     next->user_folder = options_.user_folder_text;
     next->machine_folder = options_.machine_folder_text;
 
-    std::shared_ptr<const service_mapping_inputs> before;
-    {
-        const std::scoped_lock lock(mutex_);
-        next->licence = licence_;
-        before = extras_;
-    }
-    for (const host::service_plugin& plugin : snapshot->plugins)
-    {
-        const std::string key = manifest_key(plugin);
-        if (before != nullptr)
-        {
-            if (const auto known = before->manifests.find(key);
-                known != before->manifests.end())
-            {
-                next->manifests.emplace(key, known->second);
-                continue;
-            }
-        }
-        if (plugin.hash == plug::plugin_hash{})
-            continue;
-        std::ifstream stream(plugin.directory / "plugin.json",
-                             std::ios::binary);
-        if (!stream)
-            continue;
-        const std::string text((std::istreambuf_iterator<char>(stream)),
-                               std::istreambuf_iterator<char>());
-        auto manifest = plug::parse_manifest(text);
-        if (manifest.has_value())
-            next->manifests.emplace(key, std::move(manifest.value()));
-    }
     const std::scoped_lock lock(mutex_);
+    next->licence = licence_;
     extras_ = std::move(next);
     ++extras_version_;
 }
@@ -338,6 +308,7 @@ void ServicePluginBackend::decide(const plugin_decision_request& request)
                 service_->rescan();
                 return;
             }
+            // An earlier override for this copy stays: it is in the decision.
             plug::plugin_decision decision = decision_of(*plugin);
             decision.enabled = request.switch_on;
             decision.granted.clear();
@@ -349,11 +320,6 @@ void ServicePluginBackend::decide(const plugin_decision_request& request)
                               *parsed) == decision.granted.end())
                     decision.granted.push_back(*parsed);
             }
-            // An earlier override for this copy stays.
-            const plug::trust_store store = load_store(options_.trust_file);
-            if (const plug::plugin_decision* before =
-                    store.find(plugin->id, plugin->hash, plugin->key_id))
-                decision.run_without_sandbox = before->run_without_sandbox;
             service_->decide(std::move(decision));
             plugin_request_result result;
             result.kind = plugin_request_kind::decide;
@@ -399,12 +365,6 @@ void ServicePluginBackend::start_again(const QString& plugin_id)
                       });
 }
 
-void ServicePluginBackend::run_expired(const QString& /*plugin_id*/,
-                                       const QString& /*hash*/)
-{
-    // The service has no "run it until Studio closes" for an expired plugin.
-}
-
 void ServicePluginBackend::rescan()
 {
     rescan_asked_.store(true);
@@ -425,7 +385,7 @@ quint64 ServicePluginBackend::read_key_file(const QString& path)
                                service_->snapshot()->plugins)
                               check.plugin_folders.push_back(each.directory);
                           const plug::trust_store store =
-                              load_store(options_.trust_file);
+                              keys_of(*service_->snapshot());
                           notify_key_file_read(
                               number, read_key_file_view(to_path(path), check,
                                                          store, nullptr));
@@ -444,7 +404,7 @@ void ServicePluginBackend::approve_key(const QString& path,
             key_check_context check;
             check.official = context.official;
             check.rules = context.rules;
-            plug::trust_store store = load_store(options_.trust_file);
+            plug::trust_store store = keys_of(*service_->snapshot());
             plug::approved_key key;
             const plugin_key_file_view view =
                 read_key_file_view(to_path(path), check, store, &key);
@@ -458,16 +418,10 @@ void ServicePluginBackend::approve_key(const QString& path,
             }
             else
             {
+                // The service stores it and judges the plugins anew.
                 key.approved_on = today_date();
-                std::error_code ignored;
-                fs::create_directories(options_.trust_file.parent_path(),
-                                       ignored);
-                if (store.approve_key(key).has_value() &&
-                    plug::save_trust_store(options_.trust_file, store)
-                        .has_value())
-                    result.author = view.author;
-                else
-                    result.error = plugin_request_error::fingerprint_changed;
+                service_->approve_key(std::move(key));
+                result.author = view.author;
             }
             service_->rescan();
             notify_request_finished(result);
@@ -479,12 +433,7 @@ void ServicePluginBackend::remove_key(const QString& key_id)
     boost::asio::post(slow_,
                       [this, key_id]
                       {
-                          plug::trust_store store =
-                              load_store(options_.trust_file);
-                          if (store.forget_key(key_id.toStdString()))
-                              static_cast<void>(plug::save_trust_store(
-                                  options_.trust_file, store));
-                          service_->rescan();
+                          service_->forget_key(key_id.toStdString());
                           plugin_request_result result;
                           result.kind = plugin_request_kind::remove_key;
                           notify_request_finished(result);

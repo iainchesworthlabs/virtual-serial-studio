@@ -21748,11 +21748,6 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
-            <source>Run until Studio closes</source>
-            <translation>运行到 Studio 关闭为止</translation>
-        </message>
-        <message>
-            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Starting.</source>
             <translation>正在启动。</translation>
         </message>

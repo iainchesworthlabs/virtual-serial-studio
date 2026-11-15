@@ -230,13 +230,6 @@ void fill_view_from_manifest(plugin_view& view, const plug::manifest& declared)
     }
 }
 
-std::string manifest_key(const host::service_plugin& plugin)
-{
-    const std::u8string folder = plugin.directory.generic_u8string();
-    return std::string(folder.begin(), folder.end()) + "|" +
-           plug::to_hex(plugin.hash.bytes);
-}
-
 QString sandbox_missing_text(const host::sandbox_report& report)
 {
     QStringList parts;
@@ -328,16 +321,18 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
         }
         if (plugin.level == plug::trust_level::official)
             official_installed = true;
-        if (const plug::approved_key* key =
-                inputs.trust.find_key(plugin.key_id);
-            key != nullptr)
+        // The key's name and day come from the keys the service holds.
+        for (const plug::approved_key& key : snapshot.approved_keys)
         {
-            view.key_name = from_std(key->name);
-            view.key_approved_on = date_of(key->approved_on);
+            if (key.key_id == plugin.key_id)
+            {
+                view.key_name = from_std(key.name);
+                view.key_approved_on = date_of(key.approved_on);
+            }
         }
-        if (const auto found = inputs.manifests.find(manifest_key(plugin));
-            found != inputs.manifests.end())
-            fill_from_manifest(view, found->second);
+        // What the manifest says, when the service could read it.
+        if (plugin.declared.has_value())
+            fill_from_manifest(view, *plugin.declared);
         if (view.name.isEmpty())
             view.name = path_text(plugin.directory.filename());
         if (view.id.isEmpty())
@@ -358,9 +353,7 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
 
         // The decision, if there is one: the wish and the override.
         const plug::plugin_decision* decision =
-            inputs.trust.find(plugin.id, plugin.hash, plugin.key_id);
-        // The service knows whether the plugin is switched on; the decisions
-        // read off the GUI thread may be a moment behind it.
+            plugin.decision.has_value() ? &*plugin.decision : nullptr;
         view.wished_on = plugin.enabled;
         view.override_allowed = override_allowed;
         if (decision != nullptr)
@@ -368,22 +361,6 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
             view.override_active = decision->run_without_sandbox;
             view.override_on = date_of(decision->decided_on);
         }
-        if (decision == nullptr)
-        {
-            if (const plug::plugin_decision* before = inputs.trust.previous(
-                    plugin.id, plugin.hash, plugin.key_id))
-            {
-                view.differs_from_approved = true;
-                for (plugin_permission_view& permission : view.permissions)
-                {
-                    permission.is_new = !std::any_of(
-                        before->granted.begin(), before->granted.end(),
-                        [&permission](plug::permission each)
-                        { return permission_id(each) == permission.id; });
-                }
-            }
-        }
-
         // What this plugin's sandbox is, or what this computer can give it.
         const host::sandbox_report& report =
             plugin.run ? plugin.run->sandbox : inputs.available;

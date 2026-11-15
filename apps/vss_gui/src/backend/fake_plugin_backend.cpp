@@ -265,16 +265,6 @@ void FakePluginBackend::start_again(const QString& plugin_id)
            });
 }
 
-void FakePluginBackend::run_expired(const QString& plugin_id,
-                                    const QString& hash)
-{
-    fake_plugin_request seen;
-    seen.kind = plugin_request_kind::run_expired;
-    seen.plugin_id = plugin_id;
-    seen.hash = hash;
-    record(seen);
-}
-
 void FakePluginBackend::rescan()
 {
     fake_plugin_request seen;
@@ -584,7 +574,6 @@ std::vector<plugin_view> fake_plugin_samples()
         plugin_state::cannot_be_used, plugin_trust::third_party);
     expired.note = plugin_note::expired;
     expired.expires = QDate(2026, 6, 30);
-    expired.can_run_expired = true;
     expired.reason_code = QStringLiteral("expired");
     list.push_back(expired);
 

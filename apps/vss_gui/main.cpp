@@ -5,7 +5,6 @@
 //
 
 #include "backend/engine_studio_backend.hpp"
-#include "backend/library_plugin_backend.hpp"
 #include "backend/service_plugin_backend.hpp"
 #include "backend/licence_store.hpp"
 #include "language/language_choice.hpp"

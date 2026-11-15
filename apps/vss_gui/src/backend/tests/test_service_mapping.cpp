@@ -268,7 +268,6 @@ TEST_CASE("service mapping: policy, licence and isolation reasons")
     REQUIRE(view.note == plugin_note::blocked_protection);
 
     // An override stored for this copy shows in the isolation row.
-    service_mapping_inputs overridden;
     plug::plugin_decision decision;
     decision.plugin_id = "org.example.thing";
     decision.hash.bytes[0] = 0x12;
@@ -277,11 +276,12 @@ TEST_CASE("service mapping: policy, licence and isolation reasons")
     decision.enabled = true;
     decision.run_without_sandbox = true;
     decision.decided_on = day(2026, 11, 14);
-    REQUIRE(overridden.trust.decide(decision).has_value());
     host::service_plugin running = make_entry("org.example.thing");
     running.enabled = true;
+    running.decided = true;
+    running.decision = decision;
     running.run = run_in(plug::run_state::ready);
-    view = one(running, overridden);
+    view = one(running);
     REQUIRE(view.override_active);
     REQUIRE_EQ(view.override_on, QDate(2026, 11, 14));
 }
@@ -351,14 +351,18 @@ TEST_CASE("service mapping: permissions, manifest, decisions, shadowing and "
     point.id = "meter";
     point.name.entries.push_back({"", "Meter"});
     declared.extension_points.push_back(point);
-    inputs.manifests.emplace(manifest_key(plugin), declared);
+    plugin.declared = declared;
     plug::approved_key key;
     key.key_id = "example-1";
     key.name = "Example Instruments";
     key.approved_on = day(2026, 10, 2);
-    REQUIRE(inputs.trust.approve_key(key).has_value());
 
-    const plugin_view view = one(plugin, inputs);
+    host::service_snapshot keyed;
+    keyed.plugins.push_back(plugin);
+    keyed.approved_keys.push_back(key);
+    const plugin_snapshot keyed_view = map_service_snapshot(keyed, inputs);
+    REQUIRE_EQ(keyed_view.plugins.size(), std::size_t{1});
+    const plugin_view& view = keyed_view.plugins.front();
     REQUIRE(view.trust == plugin_trust::third_party);
     REQUIRE_EQ(view.key_name, QStringLiteral("Example Instruments"));
     REQUIRE_EQ(view.key_approved_on, QDate(2026, 10, 2));
@@ -392,24 +396,13 @@ TEST_CASE("service mapping: permissions, manifest, decisions, shadowing and "
     REQUIRE_EQ(mapped.plugins[1].used_copy_folder,
                QStringLiteral("C:/plugins/org.example.same"));
 
-    // A previous decision about another version makes this one "changed".
-    service_mapping_inputs changed;
-    plug::plugin_decision before;
-    before.plugin_id = "org.example.thing";
-    before.hash.bytes[0] = 0x99;
-    before.level = plug::trust_level::unsigned_plugin;
-    before.enabled = true;
-    before.granted = {plug::permission::ports_read};
-    before.decided_on = day(2026, 11, 1);
-    REQUIRE(changed.trust.decide(before).has_value());
+    // A copy whose files changed since it was decided about is "changed".
     host::service_plugin again =
-        with_problem("org.example.thing", plug::plugin_errc::signature_missing);
+        with_problem("org.example.thing", plug::plugin_errc::changed);
     again.asked = {needed, optional_one};
-    const plugin_view revised = one(again, changed);
+    const plugin_view revised = one(again);
     REQUIRE(revised.note == plugin_note::decision_changed);
     REQUIRE(revised.differs_from_approved);
-    REQUIRE(!revised.permissions[0].is_new);
-    REQUIRE(revised.permissions[1].is_new);
 
     // The notes at the top.
     host::service_snapshot noted;

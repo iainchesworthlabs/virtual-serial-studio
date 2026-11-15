@@ -21778,11 +21778,6 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
-            <source>Run until Studio closes</source>
-            <translation>Exécuter jusqu'à la fermeture de Studio</translation>
-        </message>
-        <message>
-            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Starting.</source>
             <translation>Démarrage.</translation>
         </message>

@@ -54,8 +54,6 @@ public:
     virtual void set_no_isolation(const QString& plugin_id, const QString& hash,
                                   bool on) = 0;
     virtual void start_again(const QString& plugin_id) = 0;
-    /// Runs an expired, unofficial plugin until Studio closes.
-    virtual void run_expired(const QString& plugin_id, const QString& hash) = 0;
     virtual void rescan() = 0;
     /// Looks into a plugin folder the user chose and says what it found,
     /// without copying anything. The answer is `plugin_inspected` with the

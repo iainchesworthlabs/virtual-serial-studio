@@ -824,7 +824,6 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
           << QString::number(plugin.wished_on)
           << QString::number(plugin.override_active)
           << QString::number(plugin.override_allowed)
-          << QString::number(plugin.can_run_expired)
           << QString::number(plugin.newer_than_used_copy)
           << QString::number(snapshot.can_run_plugins)
           << QString::number(snapshot.user_plugins_allowed);
@@ -1438,9 +1437,6 @@ void PluginsDialog::do_action(plugin_action action, const plugin_view& plugin)
         }
         break;
     }
-    case plugin_action::run_until_close:
-        backend_.run_expired(plugin.id, plugin.hash);
-        break;
     }
 }
 
@@ -1742,7 +1738,6 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
     case plugin_request_kind::set_no_isolation:
     case plugin_request_kind::remove_plugin:
     case plugin_request_kind::start_again:
-    case plugin_request_kind::run_expired:
         break;
     }
 }

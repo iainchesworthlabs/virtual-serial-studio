@@ -315,7 +315,7 @@ TEST_CASE("plugins page: every state shows its chip, its sentence and its "
          "Can't be used",
          QStringLiteral("This plugin expired on %1. Look for a newer version.")
              .arg(date),
-         {QStringLiteral("Run until Studio closes")}},
+         {}},
         {"org.example.withdrawn",
          nullptr,
          "Can't be used",
