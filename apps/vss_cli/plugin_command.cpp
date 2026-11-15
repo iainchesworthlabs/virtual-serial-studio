@@ -10,8 +10,9 @@
 //           the problem it has, if any, and what the checks before a run say
 //   verify, install, remove
 //           in plugin_install_command.cpp
+//   run     in plugin_run_command.cpp
 //
-// It runs no plugin.  Text that came
+// `list` runs no plugin.  Text that came
 // from a plugin is shown as plain text, so that a plugin cannot move the
 // cursor or change the colours of the terminal.  docs/plugins.md is the
 // design.
@@ -20,6 +21,7 @@
 #include "plugin_command.hpp"
 
 #include "plugin_install_command.hpp"
+#include "plugin_run_command.hpp"
 #include "plugin_support.hpp"
 
 #include <vss/core/error.hpp>
@@ -569,6 +571,7 @@ const char* plugin_usage() noexcept
             "      ran, whatever it found.\n"
             "\n";
         out += plugin_install_usage();
+        out += plugin_run_usage();
         return out;
     }();
     return text.c_str();
@@ -590,6 +593,8 @@ int command_plugin(const std::vector<std::string>& arguments)
         return command_plugin_install(arguments);
     if (verb == "remove")
         return command_plugin_remove(arguments);
+    if (verb == "run")
+        return command_plugin_run(arguments);
     std::fprintf(stderr, "plugin: unknown step %s\n", verb.c_str());
     std::fputs(plugin_usage(), stderr);
     return exit_usage;
