@@ -133,7 +133,10 @@ boost::system::result<write_access> who_can_write(const fs::path& path,
         }
         catch (const std::exception&)
         {
-            // Out of memory again: the answer is still the error.
+            // Out of memory again: the answer is still the error, with
+            // no detail to go with it.
+            if (explain != nullptr)
+                explain->clear();
         }
         return io_error_code();
     }
