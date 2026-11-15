@@ -769,3 +769,35 @@ TEST_CASE("plugin start plan: a plan leaves the detail as it was")
         plan_start(problem, nullptr, context);
     REQUIRE(refused_plan.has_error());
 }
+
+TEST_CASE("plugin start plan: a plugin nobody decided about asks for the "
+          "decision before it says it cannot be isolated")
+{
+    inspection found = good_third_party();
+    found.run = make_error_code(plugin_errc::sandbox_insufficient);
+    found.run_detail = "this computer gives isolation none";
+    std::string detail;
+    const auto undecided =
+        plan_start(found, nullptr, context_for_test(), &detail);
+    REQUIRE(undecided.has_error());
+    REQUIRE(undecided.error() == make_error_code(plugin_errc::key_unknown));
+    REQUIRE(!detail.empty());
+
+    // With a decision that does not allow it, the isolation is the answer.
+    plugin_decision decision;
+    decision.enabled = true;
+    const auto decided =
+        plan_start(found, &decision, context_for_test(), &detail);
+    REQUIRE(decided.has_error());
+    REQUIRE(decided.error() ==
+            make_error_code(plugin_errc::sandbox_insufficient));
+
+    // An official plugin is never asked about.
+    inspection official = good_official();
+    official.run = make_error_code(plugin_errc::sandbox_insufficient);
+    const auto refused =
+        plan_start(official, nullptr, context_for_test(), &detail);
+    REQUIRE(refused.has_error());
+    REQUIRE(refused.error() ==
+            make_error_code(plugin_errc::sandbox_insufficient));
+}

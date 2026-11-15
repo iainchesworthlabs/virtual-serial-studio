@@ -70,6 +70,21 @@ result<start_plan> plan_start(const inspection& found,
         say(detail, "the plugin was not inspected");
         return make_error_code(plugin_errc::manifest_invalid);
     }
+    // A plugin that is not official and that this computer cannot keep
+    // apart may still run when the user says so for this one plugin.  That
+    // is part of the user's decision, so a plugin nobody has decided about
+    // is said to wait for the decision, not to be beyond isolating.
+    const bool undecided_and_unconfined =
+        found.run == make_error_code(plugin_errc::sandbox_insufficient) &&
+        decision == nullptr && *found.level != trust_level::official;
+    if (undecided_and_unconfined)
+    {
+        say(detail, "the plugin waits for your decision; this computer "
+                    "cannot keep it apart from your files");
+        return make_error_code(*found.level == trust_level::unsigned_plugin
+                                   ? plugin_errc::signature_missing
+                                   : plugin_errc::key_unknown);
+    }
     if (found.run)
     {
         say(detail, found.run_detail);

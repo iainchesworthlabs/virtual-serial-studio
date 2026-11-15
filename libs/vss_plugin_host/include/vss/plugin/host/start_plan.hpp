@@ -19,6 +19,10 @@
 //  1. The plugin could be read and its checks passed (`inspect_plugin`:
 //     manifest, layout, files, signature, revocation, expiry, policy, the
 //     plugin API, capabilities, the sandbox minimum).
+//     One exception to the order: a plugin that is not official, that
+//     nobody has decided about, and whose only failed check is that this
+//     computer cannot isolate it, is said to need the decision (rule 3).
+//     Letting one plugin run without isolation is part of that decision.
 //  2. An official plugin that needs a licence is covered by one:
 //     `not_licensed` otherwise.
 //  3. Somebody trusts it.  An official plugin is trusted by the owner's
