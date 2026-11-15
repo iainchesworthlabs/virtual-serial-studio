@@ -106,7 +106,14 @@ class ConversationTests(Setup):
         self.assertEqual(client.hello["principal"], "local:1000")
         self.assertEqual(client.hello["features"], ["expect.bytes"])
         self.gateway.sendall(
-            reply(2, "status", uptime_ms=5, sessions=1, agent={"running": True, "version": "t"})
+            reply(
+                2,
+                "status",
+                uptime_ms=5,
+                sessions=1,
+                agent={"running": True, "version": "t"},
+                licence={"edition": "community", "state": "none"},
+            )
         )
         self.gateway.sendall(reply(3, "done"))
         self.assertEqual(client.status()["agent"]["running"], True)
