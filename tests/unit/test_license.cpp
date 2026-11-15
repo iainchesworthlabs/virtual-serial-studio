@@ -665,7 +665,9 @@ TEST_CASE("licence: the licensee's email address is carried and checked")
     // It is signed with the rest: a licence judged from a file carries it.
     const status judged = evaluate(signed_text(named), on(at(2027, 1, 1)));
     REQUIRE(judged.state == state::valid);
-    REQUIRE_EQ(judged.value->licensee_email,
+    const std::optional<licence> carried = judged.value;
+    REQUIRE(carried.has_value());
+    REQUIRE_EQ(carried->licensee_email,
                std::string("tests@example-lab.invalid"));
 
     for (const std::string_view good :
