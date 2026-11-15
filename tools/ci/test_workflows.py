@@ -16,6 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
 REPORTER = "icl-common-infra/actions/report-nightly-failure@"
+SCHEDULED_CANCEL = "cancelled() && github.event_name == 'schedule'"
 
 
 def steps_using(text: str, marker: str) -> list[list[str]]:
@@ -49,13 +50,15 @@ class NightlyReporters(unittest.TestCase):
     def test_some_workflow_reports(self) -> None:
         self.assertTrue(any(steps_using(w.read_text(encoding="utf-8"), REPORTER) for w in WORKFLOWS))
 
-    def test_every_reporter_runs_for_a_failure_and_for_a_timeout(self) -> None:
+    def test_every_reporter_runs_for_a_failure_and_for_a_timeout_of_a_scheduled_run(self) -> None:
         for workflow in WORKFLOWS:
             for step in steps_using(workflow.read_text(encoding="utf-8"), REPORTER):
                 with self.subTest(workflow=workflow.name, step=step[0].strip()):
                     when = condition(step)
                     self.assertIn("failure()", when)
-                    self.assertIn("cancelled()", when)
+                    self.assertIn(SCHEDULED_CANCEL, when)
+                    # A run started by hand and cancelled by hand must not open an issue.
+                    self.assertNotIn("cancelled()", when.replace(SCHEDULED_CANCEL, ""))
 
     def test_the_check_notices_a_reporter_that_only_looks_for_failure(self) -> None:
         step = [
@@ -66,7 +69,13 @@ class NightlyReporters(unittest.TestCase):
         text = "jobs:\n  a:\n    steps:\n      - run: x\n" + "\n".join(step) + "\n        with:\n          engine: e\n"
         found = steps_using(text, REPORTER)
         self.assertEqual(len(found), 1)
-        self.assertNotIn("cancelled()", condition(found[0]))
+        self.assertNotIn(SCHEDULED_CANCEL, condition(found[0]))
+
+    def test_the_check_notices_a_bare_cancelled(self) -> None:
+        when = "${{ (failure() || cancelled()) && github.ref == 'refs/heads/develop' }}"
+        self.assertNotIn(SCHEDULED_CANCEL, when)
+        guarded = "${{ (failure() || (" + SCHEDULED_CANCEL + ")) && github.ref == 'refs/heads/develop' }}"
+        self.assertNotIn("cancelled()", guarded.replace(SCHEDULED_CANCEL, ""))
 
 
 if __name__ == "__main__":

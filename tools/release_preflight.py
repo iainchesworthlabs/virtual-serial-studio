@@ -211,11 +211,18 @@ def gh(*args: str) -> object | None:
     return merged
 
 
-def runs_query(repo: str, workflow: str, branch: str, head_sha: str | None = None) -> str:
-    """The API path of the newest completed runs of a workflow on a branch, of one commit when given."""
+def runs_query(repo: str, workflow: str, branch: str, head_sha: str | None = None, event: str | None = None) -> str:
+    """The API path of the newest completed runs of a workflow on a branch.
+
+    `head_sha` limits it to one commit and `event` to one event. The server does the filtering because
+    the page holds only 30 runs, and fuzz.yml has a push run for every merge, which can push the
+    night's scheduled run off it.
+    """
     query = f"repos/{repo}/actions/workflows/{workflow}/runs?status=completed&per_page=30&branch={branch}"
     if head_sha:
         query += f"&head_sha={head_sha}"
+    if event:
+        query += f"&event={event}"
     return query
 
 
@@ -223,7 +230,8 @@ def latest_run(
     repo: str, workflow: str, branch: str, head_sha: str | None = None, events: tuple[str, ...] | None = None
 ) -> dict | None | bool:
     """The newest completed run, None when there is none, False when GitHub could not be read."""
-    page = subprocess.run(["gh", "api", runs_query(repo, workflow, branch, head_sha)], capture_output=True, text=True, check=False)
+    event = events[0] if events and len(events) == 1 else None
+    page = subprocess.run(["gh", "api", runs_query(repo, workflow, branch, head_sha, event)], capture_output=True, text=True, check=False)
     if page.returncode != 0:
         return False
     for run in json.loads(page.stdout).get("workflow_runs", []):

@@ -92,10 +92,20 @@ def virtual_serial_version(root: Path) -> dict[str, str]:
     ref = find(r'set\(VSS_VIRTUAL_SERIAL_GIT_TAG "([^"]+)"', text, "VSS_VIRTUAL_SERIAL_GIT_TAG in cmake/VssVirtualSerial.cmake").group(1)
     repository = find(r'"(https://github\.com/[^"]+?)(?:\.git)?"', text[text.index("VSS_VIRTUAL_SERIAL_GIT_REPO") :], "the library repository").group(1)
     if re.fullmatch(r"[0-9a-f]{40}", ref):
-        # A commit is pinned; the version is the tag named beside it.
-        near = text[max(0, text.index(ref) - 300) : text.index(ref) + 300]
-        tag = find(r"\bv[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.-]*", near, "the tag named beside the pinned commit")
-        tag_name = tag.group(0)
+        # A commit is pinned. Its tag is the one written as a comment on the line above the set() or
+        # at the end of its line, such as `# v0.1.0-beta.2`; any other tag nearby is not looked at.
+        lines = text.splitlines()
+        index = next(i for i, line in enumerate(lines) if f'"{ref}"' in line)
+        tag_form = r"#\s*(v[0-9]+\.[0-9]+\.[0-9]+[0-9A-Za-z.-]*)\s*"
+        above = re.fullmatch(r"\s*" + tag_form, lines[index - 1]) if index else None
+        beside = re.search(tag_form + "$", lines[index])
+        found = above or beside
+        if not found:
+            raise SystemExit(
+                "release_sbom: the commit pinned in cmake/VssVirtualSerial.cmake needs its tag in a comment, "
+                "such as `# v0.1.0-beta.2`, on the line above or at the end of the line"
+            )
+        tag_name = found.group(1)
     else:
         tag_name = ref
     return {

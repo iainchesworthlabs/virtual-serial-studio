@@ -28,7 +28,7 @@ echo "rpm: $rpm"
 
 # GitHub renames a release asset whose name has a character outside this set (a "~" becomes a "."), and
 # SHA512SUMS, which the publish job writes before the upload, would then name a file the release does not
-# have. tools/ci/verify_release_files.py makes the same check on the files about to be published.
+# have. tools/ci/release_verify.py makes the same check on the files about to be published.
 for file in "$dist"/*; do
   case ${file##*/} in
     *[!A-Za-z0-9._-]*)

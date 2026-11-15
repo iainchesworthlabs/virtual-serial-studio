@@ -21,7 +21,8 @@ run needs, from the event and the files changed, and the same answer goes to the
 
 A change to documentation, the changelog or licence text skips the builds. The
 list is in `.github/ci/plan.json`: `docs/`, the top-level `README.md`, `CHANGELOG.md`,
-`CONTRIBUTING.md`, `SECURITY.md` and `AGENTS.md`, and the other `README.md` files. It
+`CONTRIBUTING.md`, `SECURITY.md` and `AGENTS.md`, and the `README.md` files under
+`apps/`, `libs/`, `cmake/` and `adapters/`, and `website/README.md`. It
 does not hold `THIRD_PARTY_NOTICES.md`, which a GUI test compares with
 `third_party.json`, so a change to it builds.
 
@@ -90,18 +91,21 @@ fixed. Each analyser has a local command; see [Testing](testing.md#static-analys
 `failure()` is false for a cancelled job. Every step that opens the issue (the
 report of `nightly.yml`, `static-analysis.yml`, `codeql.yml`, `fuzz.yml` and the
 platform matrix, and the PREfast job of `msvc-analysis.yml`) therefore runs when
-the job failed or was cancelled, and `tools/ci/test_workflows.py` fails when one is
-written with `failure()` alone. What each does:
+the job failed, or was cancelled in a scheduled run. `tools/ci/test_workflows.py` fails
+when one is written with `failure()` alone (a timeout would pass unseen) and when one
+reports any cancelled run (a run started by hand and cancelled by hand would open an
+issue for each job in progress, 14 for `nightly.yml`). What each does:
 
 | The job | Issue | Crash input kept (fuzz) |
 |---|---|---|
 | Succeeds | None | None |
 | Fails | Opened, or a comment added to the open one | Uploaded |
-| Runs out of time (cancelled by GitHub) | Opened or commented, with the same text as a failure | Uploaded |
-| Is cancelled by hand | Opened or commented, like a timeout: a step cannot tell the two apart, and a run that did not finish is a gap in the night's results either way | Uploaded |
+| Runs out of time (cancelled by GitHub) in a scheduled run | Opened or commented, with the same text as a failure | Uploaded |
+| Runs out of time in a run started by hand | None; the person who started it is watching it, and `release_preflight.py` still lists the run as not successful | Uploaded |
+| Is cancelled by hand | None for a run started by hand. A scheduled run cancelled by hand is reported like a timeout, because a step cannot tell the two apart | Uploaded |
 
-A pull request run reports nothing; only a run on `develop` does (a scheduled or a
-manual run), and for `fuzz.yml` and the platform matrix only a scheduled run.
+A pull request run reports nothing. A failure on `develop` is reported for a scheduled
+or a manual run; for `fuzz.yml` and the platform matrix only a scheduled run reports.
 
 The platform matrix also looks at the result of its cell jobs: a cell that ran out of
 time uploads no result, and the table would look complete without it, so the report

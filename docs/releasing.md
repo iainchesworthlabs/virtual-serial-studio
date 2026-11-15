@@ -75,10 +75,18 @@ and exits with 1 until all are met, so run it again after each fix.
 | No open code-scanning alert in first-party paths | `gh api "repos/{owner}/{repo}/code-scanning/alerts?state=open&ref=refs/heads/develop"`; paths under `.cache/`, `build/`, `_deps/` and `vcpkg_installed/` are third-party code and do not count |
 | No open issue labelled `nightly-analysis` | `gh issue list --label nightly-analysis` |
 | CI, Docs and the Release dry run are green on the commit to release | The newest completed run of each on `develop` that ran on that very commit, which is the tip of `develop` unless `--commit` names another. A green run of an older commit does not count: `gh workflow run ci.yml --ref develop` and `gh workflow run release.yml --ref develop` make one now. The push to `develop` that follows a merge makes the CI and Docs runs; a burst of merges is checked as one batch, so wait for the last |
-| The scheduled analyses are green and recent | The newest completed run on `develop` of Nightly, Platform matrix, Static analysis, CodeQL, MSVC analysis and the nightly Fuzz (only its scheduled runs; a push run is a 60-second run) is a success, is no more than two days old, and ran on the commit to release or an ancestor of it. A run that timed out or was cancelled is not a success |
+| The scheduled analyses are green and recent | The newest completed run on `develop` of Nightly, Platform matrix, Static analysis, CodeQL, MSVC analysis and the nightly Fuzz (only its scheduled runs; a push run is a 60-second run) is a success, is no more than two days old, and ran on the commit to release or an ancestor of it. A run that timed out or was cancelled is not a success. Only a scheduled fuzz run clears the Fuzz condition: a run started by hand (`gh workflow run fuzz.yml -f mode=nightly`) is not told apart from a 60-second push run, so after a failed night, fix it and wait for the next one |
 | `docs/signing-key.asc` and `SECURITY.md` are in the repository | The publish job fails after signing when the key is missing |
 | The signing secrets exist | `REPO_GPG_PRIVATE_KEY`, `REPO_GPG_PASSPHRASE`, `RELEASE_BOT_APP_ID` and `RELEASE_BOT_PRIVATE_KEY`, plus the two `WIN_TESTSIGN_*` secrets while `SIGN_WINDOWS` is `test` |
 | The `release` environment has a required reviewer | The owner approves the publish job there |
+
+The dry run takes about an hour and builds the tip of `develop` as it is when it starts. A
+merge in that hour moves the tip, and the three conditions about the commit start again. So
+note the commit the dry run built (the run page shows it), pass it as
+`--commit <sha>` to the preflight, and tag that commit, not the tip. A `workflow_dispatch`
+run cannot name a commit, so a commit whose CI push run was replaced while it waited (a
+burst of merges keeps one waiting run) cannot meet the CI condition: merge or push
+something after it, or tag a later commit.
 
 Make the first release a release candidate, `v0.1.0-rc.1`. It runs the whole publish
 path (checksums, signing, attestation, the GitHub Release) as a pre-release, takes its

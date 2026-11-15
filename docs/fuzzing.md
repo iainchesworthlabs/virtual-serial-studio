@@ -32,12 +32,14 @@ night, opens or updates a `nightly-analysis` issue.
 for all of them. The run passes `--budget-minutes 90` (`FUZZ_BUDGET_MINUTES` in
 `fuzz.yml`) and the job's `timeout-minutes` is 120, which holds the budget and the
 build. `tools/fuzz.py` gives each target the time of the mode or an equal share of
-the budget, whichever is less, so the eighth target gets its 10 minutes and a
-nineteenth would shorten them all. Under 5 minutes a target at night (30 seconds on a
-push) the script stops with status 2 and says so: raise the limit, or split the
-targets across jobs. `tools/test_fuzz.py` checks that the limit holds the budget and
-that every target still gets its 10 minutes, so a new target fails the pull request
-that adds it, not a night some weeks later. A target that does not stop within 3
+the budget, whichever is less. The share is 5400 seconds divided by the number of
+targets, so up to nine targets get their 10 minutes, a tenth shortens them all to 9
+minutes, and a nineteenth (284 seconds each) is refused. Under 5 minutes a target at
+night (30 seconds on a push) the script stops with status 2 and says so: raise the
+limit, or split the targets across jobs. `tools/test_fuzz.py` checks that the limit
+holds the budget and that every target still gets its 10 minutes, so the tenth target
+fails the pull request that adds it, until the budget and the limit are raised, and not
+a night some weeks later. A target that does not stop within 3
 minutes of its time is killed and counted as a failure. A run that does run out of time
 is cancelled, not failed; the steps that keep the crash and open the issue run for a
 cancelled run too.

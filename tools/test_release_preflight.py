@@ -145,6 +145,16 @@ class RunQueries(unittest.TestCase):
         self.assertIn(f"head_sha={SHA}", tool.runs_query("o/r", "ci.yml", "develop", SHA))
         self.assertNotIn("head_sha", tool.runs_query("o/r", "nightly.yml", "develop"))
 
+    def test_the_query_for_a_single_event_asks_the_server_for_that_event(self):
+        self.assertIn("event=schedule", tool.runs_query("o/r", "fuzz.yml", "develop", None, "schedule"))
+        self.assertNotIn("event=", tool.runs_query("o/r", "nightly.yml", "develop"))
+        fuzz = next(w for w in tool.WORKFLOWS if w.file == "fuzz.yml")
+        pages = {"fuzz.yml": {"workflow_runs": [self.run_of("schedule")]}}
+        asked, patched = self.fake(pages)
+        with patched:
+            tool.latest_run("o/r", "fuzz.yml", "develop", None, fuzz.events)
+        self.assertIn("event=schedule", asked[0])
+
     def test_the_fuzz_workflow_is_read_and_only_its_scheduled_runs_count(self):
         fuzz = next(w for w in tool.WORKFLOWS if w.file == "fuzz.yml")
         self.assertEqual(fuzz.events, ("schedule",))

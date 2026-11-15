@@ -215,6 +215,9 @@ class ConfigTests(unittest.TestCase):
         candidates = [os.environ.get("ICL_COMMON_INFRA", ""), str(ROOT.parent / "icl-common-infra"), str(ROOT / ".icl-infra")]
         gate = next((Path(c) / "scripts" / "plan_gate.py" for c in candidates if c and (Path(c) / "scripts" / "plan_gate.py").is_file()), None)
         if gate is None:
+            # CI checks the shared scripts out into .icl-infra; a skip there would hide a broken plan.json.
+            if os.environ.get("CI"):
+                self.fail("the shared plan_gate.py is not checked out (.icl-infra), so the planner was not run")
             self.skipTest("no icl-common-infra checkout (set ICL_COMMON_INFRA)")
         spec = importlib.util.spec_from_file_location("plan_gate", gate)
         module = importlib.util.module_from_spec(spec)

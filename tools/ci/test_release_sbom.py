@@ -156,6 +156,32 @@ class Pins(unittest.TestCase):
         (root / ".github/toolchain-versions.json").write_text(json.dumps(pins), encoding="utf-8")
         self.assertIn("6.99.1", {p["versionInfo"] for p in document(root)["packages"]})
 
+    def test_a_library_pinned_by_commit_ignores_another_tag_in_a_comment_nearby(self):
+        root = copy_pins()
+        path = root / "cmake/VssVirtualSerial.cmake"
+        text = path.read_text(encoding="utf-8")
+        commit = "0123456789abcdef0123456789abcdef01234567"
+        text = text.replace(
+            'set(VSS_VIRTUAL_SERIAL_GIT_TAG "v0.1.0-beta.2"',
+            f'# v0.0.9 was the one before\n# the pin moves with each release\nset(VSS_VIRTUAL_SERIAL_GIT_TAG "{commit}"',
+        )
+        path.write_text(text, encoding="utf-8")
+        with self.assertRaises(SystemExit) as caught:
+            document(root)
+        self.assertIn("needs its tag in a comment", str(caught.exception))
+
+    def test_a_tag_at_the_end_of_the_line_of_the_pin_counts(self):
+        root = copy_pins()
+        path = root / "cmake/VssVirtualSerial.cmake"
+        commit = "0123456789abcdef0123456789abcdef01234567"
+        text = path.read_text(encoding="utf-8").replace(
+            'set(VSS_VIRTUAL_SERIAL_GIT_TAG "v0.1.0-beta.2" CACHE STRING',
+            f'set(VSS_VIRTUAL_SERIAL_GIT_TAG "{commit}" # v0.1.0-beta.2',
+        )
+        path.write_text(text, encoding="utf-8")
+        library = next(p for p in document(root)["packages"] if p["name"] == "Boost.VirtualSerial")
+        self.assertEqual(library["versionInfo"], "0.1.0-beta.2")
+
     def test_a_library_pinned_by_commit_takes_its_version_from_the_tag_beside_it(self):
         root = copy_pins()
         path = root / "cmake/VssVirtualSerial.cmake"

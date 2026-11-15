@@ -109,6 +109,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # tools/ci/test_plan_legs.py runs the shared planner over .github/ci/plan.json, and fails here when it is missing.
+      - name: Check out the shared scripts
+        uses: iainchesworthlabs/icl-common-infra/actions/checkout-infra@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
       - name: Validate the changelog
         run: |
           python3 tools/changelog.py --check
@@ -133,8 +136,6 @@ jobs:
           python-version: "3.x"
       - name: Run the tests of tools/, none of the installer script tests skipped
         run: python tools/ci/run_tool_tests.py
-      - name: Run the tests of tools/ci
-        run: python -m unittest discover -s tools/ci -p "test_*.py" -v
 
   design:
     name: Design tokens
