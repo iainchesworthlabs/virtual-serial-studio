@@ -1559,8 +1559,9 @@ fingerprint and whether it can be used, and copies nothing until you choose
 your own plugin folder, for you only, and the new row is selected. Nothing runs.
 The same question shows the command for installing it for everyone,
 `vss_cli plugin install <folder> --for-everyone`, as text to copy: Studio never
-asks for administrator rights. **Remove plugin...** asks first and moves the
-folder to the bin; the plugin's saved data is kept unless you tick the box. An
+asks for administrator rights. **Remove plugin...** asks first and deletes the
+plugin's folder; it does not go to the bin. The plugin's saved data is kept,
+even if you tick the box to delete it. An
 administrator can also put a plugin's folder in the machine plugin folder, which
 the page shows under the list. If your
 administrator has turned your own plugin folder off, those two buttons are
