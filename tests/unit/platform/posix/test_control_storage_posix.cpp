@@ -484,7 +484,9 @@ TEST_CASE("control private file: a file that exists is not used, whoever "
     const std::string text{std::istreambuf_iterator<char>(in),
                            std::istreambuf_iterator<char>()};
     REQUIRE_EQ(text, std::string("mine\n"));
-    REQUIRE_EQ(permission_bits(*status_of(file)), 0644U);
+    const auto kept = status_of(file);
+    REQUIRE(kept.has_value());
+    REQUIRE_EQ(permission_bits(*kept), 0644U);
 }
 
 TEST_CASE("control private file: a link is not followed, to a file or to "
