@@ -2147,3 +2147,109 @@ TEST_CASE("rules scheduler: replacing the set again and again while frames "
     REQUIRE_EQ(done, std::uint64_t{frames});
     REQUIRE_EQ(b.log.size(), frames);
 }
+
+// -- the work of one call is bounded before it is done ------------------------
+
+namespace
+{
+
+/// A rule on one byte that does `replies` replies of `reply_hex`, a minute
+/// from the match.
+std::string waiting_replies(std::size_t replies, std::string_view reply_hex)
+{
+    std::string text =
+        R"j([{"name": "many", "when": {"bytes": "01"}, "do": [)j";
+    for (std::size_t i = 0; i < replies; ++i)
+    {
+        if (i != 0)
+            text += ", ";
+        text += R"j({"reply": [")j" + std::string(reply_hex) +
+                R"j("], "delay": {"fixed_us": 60000000}})j";
+    }
+    return text + "]}]";
+}
+
+} // namespace
+
+TEST_CASE("rules scheduler: one chunk past the budget builds no more replies "
+          "than the budget allows")
+{
+    // A byte that matches on every byte, a reply of 4096 bytes, and one
+    // chunk of 64 KiB: 65 536 matches.  Building every reply first would
+    // cost 256 MiB on the endpoint's strand.
+    bench b(peer_set(waiting_replies(1, times("aa", 4096))),
+            bench::clock_mode::by_hand, 2, true, budget_of(100));
+
+    b.send_raw(std::string(65536, '\x01'));
+    REQUIRE(wait_until([&] { return b.suspensions.size() == 1; }, 5000ms));
+
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE(stats.suspended == suspend_reason::budget);
+    REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
+    REQUIRE_EQ(stats.machine.bytes_seen, std::uint64_t{65536});
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{65536});
+    REQUIRE_EQ(stats.suspended_firings, std::uint64_t{65436});
+    REQUIRE_EQ(stats.machine.refused, std::uint64_t{65436});
+    // The rule fired 100 times, and no more than 100 replies were built.
+    REQUIRE_EQ(stats.machine.firings - stats.machine.refused,
+               std::uint64_t{100});
+    REQUIRE_EQ(stats.machine.replies, std::uint64_t{100});
+    REQUIRE_EQ(stats.machine.reply_bytes, std::uint64_t{100 * 4096});
+    // What the chunk planned before the suspension is discarded with the
+    // queue, and counted.
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{100});
+    REQUIRE_EQ(stats.cancelled, std::uint64_t{100});
+    REQUIRE_EQ(stats.overrun, std::uint64_t{0});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+
+    b.clock.advance(60s);
+    b.require_still(0, "");
+}
+
+TEST_CASE("rules scheduler: one chunk renders at most as many actions as can "
+          "wait")
+{
+    constexpr std::size_t per_match = 16;
+    constexpr std::size_t matches = 2000;
+    bench b(peer_set(waiting_replies(per_match, "aa bb")));
+
+    b.send_raw(std::string(matches, '\x01'));
+
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE(stats.suspended == suspend_reason::none);
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{matches});
+    REQUIRE_EQ(stats.machine.refused, std::uint64_t{0});
+    // 32 000 actions were planned and 1024 were built.
+    REQUIRE_EQ(stats.overrun,
+               std::uint64_t{matches * per_match - max_waiting_actions});
+    REQUIRE_EQ(stats.machine.replies, std::uint64_t{max_waiting_actions});
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{max_waiting_actions});
+    REQUIRE_EQ(b.rules->waiting(), max_waiting_actions);
+
+    // Those that waited from before count against the room of the next call.
+    b.send_raw(std::string(10, '\x01'));
+    const scheduler_stats more = b.rules->stats();
+    REQUIRE_EQ(more.overrun, stats.overrun + 10 * per_match);
+    REQUIRE_EQ(more.machine.replies, std::uint64_t{max_waiting_actions});
+    REQUIRE_EQ(b.rules->waiting(), max_waiting_actions);
+}
+
+TEST_CASE("rules scheduler: a timeline is held to the room for waiting "
+          "actions too")
+{
+    // 70 entries of 16 actions: 1120 in all, 96 more than can wait.
+    std::string actions;
+    for (int i = 0; i < 16; ++i)
+        actions += std::string(i != 0 ? ", " : "") + R"j({"mark": "t"})j";
+    std::string entries;
+    for (int i = 0; i < 70; ++i)
+        entries += std::string(i != 0 ? ", " : "") +
+                   R"j({"at_us": 1000000, "do": [)j" + actions + "]}";
+    bench b(peer_set("[]", R"j("timeline": [)j" + entries + R"j(], )j"));
+
+    REQUIRE_EQ(b.rules->waiting(), max_waiting_actions);
+    const scheduler_stats stats = b.rules->stats();
+    REQUIRE_EQ(stats.scheduled, std::uint64_t{max_waiting_actions});
+    REQUIRE_EQ(stats.overrun, std::uint64_t{96});
+    REQUIRE_EQ(stats.machine.firings, std::uint64_t{0});
+}

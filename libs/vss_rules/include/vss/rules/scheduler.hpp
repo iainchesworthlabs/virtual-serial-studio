@@ -43,7 +43,13 @@
 namespace vss::rules {
 
 /// The most actions that may wait at one place.  One more is not scheduled:
-/// it is counted (`overrun`) and never done.
+/// it is counted (`overrun`) and never done.  It is also the most actions a
+/// set renders for one chunk, one line change, one signal or one tick,
+/// whatever the chunk and the patterns are: an action that would be past it
+/// is refused before its bytes are built.  So one call costs at most
+/// #max_waiting_actions replies of #max_reply_bytes, and a set that fires
+/// faster than its budget is suspended by the firing that overruns it, not
+/// after every firing of the chunk has been planned.
 inline constexpr std::size_t max_waiting_actions = 1024;
 
 /// How many times a second a set may fire.  The budget refills at this rate
@@ -102,7 +108,8 @@ struct scheduler_stats
     std::uint64_t overrun = 0;
     std::uint64_t cancelled = 0;
     /// How often the set was suspended, and the firings that were decided
-    /// and not scheduled because the set was suspended by then.
+    /// and refused because the set was suspended by then (the machine's
+    /// `refused`).
     std::uint64_t suspensions = 0;
     std::uint64_t suspended_firings = 0;
     /// Whether the set is suspended now, and why.
@@ -137,7 +144,8 @@ struct scheduler_hooks
 };
 
 class scheduler final : public read_stage,
-                        public std::enable_shared_from_this<scheduler>
+                        public std::enable_shared_from_this<scheduler>,
+                        private firing_gate
 {
 public:
     /// `run_seed` is used when the set has no seed of its own.
@@ -232,7 +240,14 @@ private:
     /// True when `a` is done after `b`.
     static bool later(const item& a, const item& b) noexcept;
 
-    void schedule(std::vector<firing>& firings, time_point when);
+    /// The machine's questions, asked with `mutex_` held, during a call of
+    /// the machine.
+    bool admit_firing(time_point when) override;
+    bool admit_action() override;
+
+    /// The gate for the next call of the machine.
+    firing_gate* open_gate() noexcept;
+    void schedule(std::vector<firing>& firings);
     bool take_firing(time_point when);
     void suspend_locked(suspend_reason why, time_point when);
     std::optional<time_point> next_wake() const;
@@ -264,6 +279,9 @@ private:
     time_point budget_at_{};
     /// A heap on #later: the next action due is at the front.
     std::vector<item> queue_;
+    /// The actions the call under way has been allowed so far; they join
+    /// `queue_` when the call ends.
+    std::size_t admitted_ = 0;
     std::uint64_t sequence_ = 0;
     /// The time the timer was last asked to wake for, if it is waiting.
     std::optional<time_point> armed_for_;
