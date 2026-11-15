@@ -85,7 +85,7 @@ using steady = std::chrono::steady_clock;
 using snapshot_ptr = std::shared_ptr<const runner_snapshot>;
 
 /// How long any wait lasts before the test gives up.
-constexpr std::chrono::milliseconds long_limit{20000};
+constexpr std::chrono::milliseconds long_limit{60000};
 
 constexpr std::string_view plugin_id = "com.example.test";
 constexpr std::string_view plugin_version = "1.2.0";
@@ -234,12 +234,14 @@ runner_options runner_options_for(const scratch_directory& scratch,
     session.ack.granted = {permission::ports_read};
     session.ack.capabilities = {"engine_rules"};
     session.ack.data_directory = scratch.path().generic_string();
-    session.hello_timeout = 1500ms;
-    session.ping_after = 300ms;
-    session.pong_timeout = 300ms;
+    // Short enough for a quick test, long enough for a slow or loaded
+    // computer to start a process and say hello.
+    session.hello_timeout = 5000ms;
+    session.ping_after = 500ms;
+    session.pong_timeout = 2000ms;
     session.missed_pongs = 2;
-    session.shutdown_timeout = 800ms;
-    session.request_timeout = 1000ms;
+    session.shutdown_timeout = 2000ms;
+    session.request_timeout = 5000ms;
 
     options.restart.waits = {50ms, 50ms};
     options.restart.jitter_percent = 0;

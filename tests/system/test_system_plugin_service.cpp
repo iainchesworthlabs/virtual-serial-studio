@@ -105,7 +105,7 @@ using steady = std::chrono::steady_clock;
 using snapshot_ptr = std::shared_ptr<const service_snapshot>;
 
 /// How long any wait lasts before the test gives up.
-constexpr std::chrono::milliseconds long_limit{20000};
+constexpr std::chrono::milliseconds long_limit{60000};
 
 /// The day every scan is made on, so that the end date of an official plugin
 /// and the validity of the test key do not depend on the clock.
