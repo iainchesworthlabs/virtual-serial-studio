@@ -985,3 +985,89 @@ TEST_CASE("plugin run: --json gives the plugin's reason for a refusal")
     }
     REQUIRE(refused);
 }
+
+// -- secrets ------------------------------------------------------------------
+
+namespace
+{
+
+constexpr std::string_view secret_text = "1234-5678";
+
+/// A plugin that hands the host a secret to show as soon as it is ready.  The
+/// text of the header has quotes, which the manifest carries escaped.
+plugin_spec secret_plugin()
+{
+    plugin_spec spec;
+    spec.arguments = {R"(--send-header={"op":"secret.show",)"
+                      R"("label":"Pairing code","text":"1234-5678",)"
+                      R"("expires_s":300})"};
+    return spec;
+}
+
+/// How many lines of the output have the secret.
+std::size_t lines_with_secret(const std::string& output)
+{
+    return static_cast<std::size_t>(
+        std::ranges::count_if(lines_of(output), [](const std::string& line)
+                              { return contains(line, secret_text); }));
+}
+
+} // namespace
+
+TEST_CASE("plugin run: a secret from the plugin is printed once and answered")
+{
+    const place where;
+    const plugin_spec spec = secret_plugin();
+    static_cast<void>(trusted_plugin(where, spec));
+
+    const cli_result result =
+        run_cli(words_for(where, spec.id, {"--seconds", "1"}));
+    require_exit(result, 0);
+
+    // One line has the secret, and it names the label and the life.
+    const std::vector<std::string> lines = lines_of(result.output);
+    REQUIRE_EQ(lines_with_secret(result.output), std::size_t{1});
+    const std::size_t at = index_of_line_with(lines, secret_text);
+    REQUIRE(at < lines.size());
+    REQUIRE(contains(lines[at], "Pairing code"));
+    REQUIRE(contains(lines[at], "300"));
+
+    // The plugin was told that the user has seen it.
+    REQUIRE(index_of_line_with(lines, "output: answer ok") < lines.size());
+    REQUIRE(index_of_line_with(lines, "answer error") == lines.size());
+}
+
+TEST_CASE("plugin run: --json prints a secret as an object of its own")
+{
+    const place where;
+    const plugin_spec spec = secret_plugin();
+    static_cast<void>(trusted_plugin(where, spec));
+
+    const cli_result result =
+        run_cli(words_for(where, spec.id, {"--seconds", "1", "--json"}));
+    require_exit(result, 0);
+
+    REQUIRE_EQ(lines_with_secret(result.output), std::size_t{1});
+    std::size_t secrets = 0;
+    bool answered = false;
+    for (const std::string& line : lines_of(result.output))
+    {
+        const json::object object = object_of(line);
+        const std::string type = string_at(object, "type");
+        if (type == "log")
+        {
+            answered = answered || (string_at(object, "source") == "output" &&
+                                    string_at(object, "text") == "answer ok");
+            continue;
+        }
+        if (type != "secret")
+            continue;
+        ++secrets;
+        REQUIRE_EQ(string_at(object, "plugin"), spec.id);
+        REQUIRE_EQ(string_at(object, "label"), std::string("Pairing code"));
+        REQUIRE_EQ(string_at(object, "text"), std::string(secret_text));
+        REQUIRE_EQ(number_at(object, "expires_s"), std::int64_t{300});
+    }
+    REQUIRE_EQ(secrets, std::size_t{1});
+    REQUIRE(answered);
+}
