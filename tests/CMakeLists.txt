@@ -50,6 +50,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_access.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
+  unit/test_plugin_install.cpp
   unit/test_plugin_licence.cpp
   unit/test_plugin_lifecycle.cpp
   unit/test_plugin_locations.cpp
@@ -195,6 +196,11 @@ target_include_directories(vss_system_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/support)
 target_link_libraries(vss_system_tests PRIVATE vss_studio vss_testkit
   Vss::BoostJson)
+if(TARGET vss_cli)
+  # The plugin tests make signed plugins with a test key.
+  target_link_libraries(vss_system_tests PRIVATE Vss::plugin Vss::license
+    vss_license_test_keys)
+endif()
 vss_set_warnings(vss_system_tests)
 vss_enable_coverage(vss_system_tests)
 

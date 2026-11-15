@@ -4,7 +4,8 @@
 #
 
 add_executable(vss_cli main.cpp agent_command.cpp control_command.cpp
-  permissions_command.cpp plugin_command.cpp)
+  permissions_command.cpp plugin_command.cpp
+  plugin_install_command.cpp plugin_support.cpp)
 target_compile_features(vss_cli PRIVATE cxx_std_23)
 target_link_libraries(vss_cli PRIVATE Vss::studio Vss::agent_core
   Vss::control_core Vss::plugin Vss::BoostJson vss_testkit)

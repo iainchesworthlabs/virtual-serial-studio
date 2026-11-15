@@ -1696,6 +1696,8 @@ again.
 | Self-test the wiring | `vss_cli selftest` |
 | Check what the system may block | `vss_cli permissions check` |
 | List the installed plugins | `vss_cli plugin list` (add `--json` for a script) |
+| Check a plugin folder | `vss_cli plugin verify <folder>` |
+| Install or remove a plugin | `vss_cli plugin install <folder>`, `vss_cli plugin remove <id>` |
 
 `virtual`, `vport`, `bus` and `capture` keep running until `Ctrl-C` or `SIGTERM`,
 or for `--seconds=N`. `run`, `share`, `join`, `bridge` and `loopback` keep their
@@ -1818,8 +1820,9 @@ vss_cli plugin list [--json] [--root <folder>]...
 ```
 
 `plugin list` shows the plugins that are installed on this computer. It only
-reads. It runs no plugin, checks no signature and changes nothing. This build
-does not run plugins.
+reads. It runs no plugin and changes nothing. This build does not run plugins.
+For each plugin it also makes the checks that come before a run, the same ones
+`plugin verify` makes, and shows what they found.
 
 It starts with whether Studio is installed for everyone on this computer or for
 you only, and with the administrator's policy file, if there is one. Then it
@@ -1830,8 +1833,12 @@ com.example.modbus-fixture  1.2.0  Modbus fixture
   Folder:       C:/Users/me/AppData/Local/VirtualSerialStudio/plugins/modbus-fixture
   Installed for: you only
   Fingerprint:  3f9a1c0d2b7e4a61
-  Signature:    not signed
   State:        found
+  Signature:    Not signed. Studio cannot tell who made it or whether it was changed.
+  Trust:        Unsigned
+  Key:          none
+  May run:      no, sandbox_insufficient: ...
+  Licence:      none needed
 ```
 
 - **Folder** is the plugin's own folder.
@@ -1839,13 +1846,15 @@ com.example.modbus-fixture  1.2.0  Modbus fixture
   Studio`, from the folder the plugin was found in.
 - **Fingerprint** is the first 16 characters of a hash of all the plugin's
   files. A change to any file gives a different fingerprint.
-- **Signature** is `not signed` when the plugin has no `plugin.sig`. When it has
-  one, it is `present, not checked by this build`.
 - **State** is `found` when the plugin's files are in order, and nothing more.
   Otherwise it is the reason, such as `manifest_invalid`, and a line that says
   what is wrong. When two folders hold a plugin with the same id, the copy found
   first counts. The other is `shadowed`, and a `Not used` line names the folder
   of the copy that counts.
+- **Signature**, **Trust**, **Key**, **May run** and **Licence** are what the
+  checks found. They are explained under `plugin verify` below. A plugin whose
+  manifest could not be read has a `Signature` line that says whether there is
+  a `plugin.sig`, and none of the others.
 
 A plugin whose `plugin.json` cannot be read is shown by the name of its folder.
 A plugin folder that cannot be looked through is named after the plugins. Text
@@ -1855,8 +1864,11 @@ printable ASCII is shown as `?`. The JSON keeps valid UTF-8 as it is.
 `--json` prints one JSON object and nothing else: `install` (`for_everyone`,
 `for_one_user` or `null`), `policy` (`file`, `present`, `used` and `detail`),
 `plugins` (one object for each plugin, with `id`, `version`, `name`, `folder`,
-`scope`, `fingerprint`, `signature`, `state`, `detail` and `shadowed_by`) and
-`roots_not_read`. A value that is not known is `null`.
+`scope`, `fingerprint`, `signature`, `state`, `detail` and `shadowed_by`, and
+for a plugin whose manifest was read the members that `plugin verify --json`
+has: `signature_state`, `trust`, `trust_line`, `key_id`, `may_run`,
+`run_reason`, `run_detail` and `licence`) and `roots_not_read`. A value that is
+not known is `null`.
 
 `--root <folder>` looks in the folders you give instead of the usual ones, and
 may be repeated. Each folder counts as your own, and the policy file is not
@@ -1865,6 +1877,106 @@ read. Use it to look at a folder of plugins by hand.
 The exit code is 0 when the command ran, whatever it found: a plugin with a
 problem is a finding, not a failure of the command. It is 2 for a command line
 the program does not understand.
+
+### Checking a plugin with `vss_cli plugin verify`
+
+```bash
+vss_cli plugin verify <folder> [--allow-unsigned] [--json]
+```
+
+`plugin verify` makes the checks that come before a plugin runs, on a plugin
+folder, and says what it found. It only reads. It runs nothing.
+
+```text
+com.example.modbus-fixture  1.2.0  Modbus fixture
+  Folder:       C:/Downloads/modbus-fixture
+  Fingerprint:  3f9a1c0d2b7e4a61
+  Signature:    Signed by Example Ltd. Not verified by Virtual Serial Studio.
+  Trust:        Signed by Example Ltd
+  Key:          example-2026
+  May run:      yes
+  Licence:      none needed
+  Install:      can be installed
+This build does not run plugins.
+```
+
+- **Signature** says whether the signature holds and who made it. "Official"
+  plugins are signed by Virtual Serial Studio. A signature shows who made a
+  plugin and that its files are unchanged. It does not show that the plugin is
+  safe.
+- **Trust** is `Official`, `Signed by <author>`, `Unsigned` or `Signed by an
+  author you have not approved`. The last is a plugin signed with a key that is
+  not on this computer, so the signature could not be checked.
+- **Key** is the id of the signing key, or `none`.
+- **May run** is `yes`, or `no` and the reason code and a line about it, such as
+  `expired` or `sandbox_insufficient`. It says what Studio would decide. This
+  build runs no plugin, whatever it says.
+- **Licence** is `none needed`, `covered`, or `not covered` and why. The command
+  line does not read licence files yet, so for an official plugin that needs an
+  edition it says `not checked`.
+- **Install** is `can be installed`, `cannot be installed` and the reason, or
+  `cannot be installed unless you give --allow-unsigned`.
+
+The exit code is 0 when the plugin can be installed, 1 when it cannot, and 2 for
+a command line the program does not understand. A plugin cannot be installed
+when its folder is not a plugin folder, when a file is not what its manifest
+lists or the folder holds a file it does not list, when its signature does not
+hold, or when it can never run: its id is one that only official plugins may
+use, or it was withdrawn. A plugin that has expired, or that this computer
+cannot isolate, or that the licence does not cover, can be installed; the line
+`May run` says what is wrong. A plugin with no signature can be installed only
+with `--allow-unsigned`.
+
+`--json` prints one JSON object: `id`, `version`, `name`, `folder`,
+`fingerprint`, `problem` and `detail` (why the folder cannot be used, or
+`null`), `signature_state` (`absent`, `invalid`, `valid` or `unknown_key`),
+`trust` (`official`, `third_party_signed`, `signed_unknown_key`, `unsigned` or
+`null`), `trust_line`, `key_id`, `may_run`, `run_reason`, `run_detail`,
+`licence` (`checked`, `covered` and `detail`), `installable` and `install`.
+
+### Installing a plugin with `vss_cli plugin install`
+
+```bash
+vss_cli plugin install <folder> [--for-everyone] [--replace] [--allow-unsigned] [--root <folder>]
+vss_cli plugin remove <id> [--for-everyone] [--root <folder>]
+```
+
+A plugin arrives as a zip file. Studio does not open zip files. Unzip it with
+your system's own tool into a folder of its own, look at the folder with
+`plugin verify`, and install from that folder. The folder must hold
+`plugin.json` and the files it lists, and usually `plugin.sig`.
+
+`plugin install` makes the same checks as `plugin verify`. If they allow it, it
+copies the plugin into your plugin folder, under its id, and prints what it did
+and what the checks found. It runs nothing from the plugin. If a check fails, it
+says which one and writes nothing.
+
+- The files are copied from the folder you give, each one read once, and the
+  copy is checked against the plugin's manifest again before it is put in place.
+  A file that changed while it was being copied stops the install.
+- The copy is made in a new folder beside the plugin folders and is renamed into
+  place in one step, so a failure leaves the old plugin or the new one and never
+  half of each. No folder is left behind when the install fails.
+- A link, or anything that is not a plain file or folder, in the plugin folder
+  stops the install.
+- A plugin with the same id that is already installed stops the install unless
+  you give `--replace`. With it, the old copy is put aside, the new one is put in
+  place and the old one is removed. If putting the new one in place fails, the
+  old one is put back.
+- `--allow-unsigned` is needed for a plugin that has no signature.
+- `--for-everyone` installs into the folder of everyone on this computer. Run
+  the command from a prompt that may write there. Studio does not ask for more
+  rights. It stops with a message when the folder can be changed by someone who
+  is not an administrator, or when it cannot be written.
+- `--root <folder>` installs into the folder you give. The policy file is read
+  as it is for `plugin verify`.
+
+The exit code is 0 when the plugin was installed and 1 when it was not.
+
+`plugin remove` removes the folder of an installed plugin. It takes the id of
+the plugin, such as `com.example.modbus-fixture`, and refuses anything that is
+not a plugin id or a folder that is not a plugin. It does not touch the plugin's
+data. It runs nothing.
 
 ### Where Studio looks for plugins
 
