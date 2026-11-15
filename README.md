@@ -268,6 +268,7 @@ libs/vss_core        hub, endpoints, links, control lines, events
 libs/vss_ports       serial transport, PTY, loopback, com0com, enumeration
 libs/vss_config      JSON topology documents
 libs/vss_license     licence files and the signed envelope (verify, judge, sign)
+libs/vss_update      semantic versions, the signed update feed and the choice of what to offer
 libs/vss_rules       response timing rules: the rule set, its checks and the machine that says what fires when
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
