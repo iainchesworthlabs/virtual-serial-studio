@@ -41,8 +41,7 @@ inline plugin::api_message message_of(std::string_view header,
 /// `body` written, carried through an encoded frame and read as a typed
 /// message again.  The two must be equal.  `number` is the id of a request or
 /// the re of an answer.
-template <class M>
-M round_trip(const M& body, std::uint64_t number = 0)
+template <class M> M round_trip(const M& body, std::uint64_t number = 0)
 {
     const auto written = plugin::encode_as<M>(body, number);
     REQUIRE(written.has_value());
@@ -74,8 +73,7 @@ M round_trip(const M& body, std::uint64_t number = 0)
 }
 
 /// The typed message in `header`, which must be accepted.
-template <class M>
-M accepted(std::string_view header, byte_buffer blob = {})
+template <class M> M accepted(std::string_view header, byte_buffer blob = {})
 {
     std::string detail = "stale";
     const auto typed =

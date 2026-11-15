@@ -26,11 +26,12 @@ what discovery finds.
 | `verify`: whether a plugin may run | `verify.cpp` | Tests only |
 | The licence question for an official plugin | `licence.cpp` | Tests only |
 | The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
+| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
 | The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
 | The restart and quarantine rules | `lifecycle.cpp` | Tests only |
 
-`params.changed`, `instance.create` and `instance.stop` of section 7.3 are not built: the codec passes them through as
-an unknown op.
+The messages of the extension points (sections 7.3 to 7.8, 19 and 20) are typed in `api_*.hpp`, and each can be read
+from and written to an `api_message`. Nothing sends or receives them yet: the host that does is not built.
 
 `vss_cli plugin list` never checks a signature. It does not run `verify` or the licence question and it does not apply
 the policy. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
@@ -489,6 +490,10 @@ in this build". Nothing pretends to carry out a rule it cannot.
 - **The agent's own protocol is private.** How Studio, `vss_cli` and the agent talk to each other
   (`libs/vss_agent_proto`) is an internal matter that changes without notice, and a plugin never speaks it. The
   plugin API borrows its framing (below) and nothing else.
+
+Every message of the extension points is listed, with its direction, its fields and their limits, in
+[the plugin API reference](plugin-api-reference.md). The headers `libs/vss_plugin/include/vss/plugin/api_*.hpp` are the
+definition in code, and where the reference and this section differ the reference follows the code.
 
 ### 7.1 Transport and framing
 

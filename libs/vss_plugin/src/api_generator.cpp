@@ -28,9 +28,8 @@ void read_start(reading& state, const json::object& object,
 {
     constexpr auto where = generator_start_message::op;
     out.instance = instance_of(state, object, where);
-    out.port =
-        number_of(state, object, where, "port", 1, max_api_number, true)
-            .value_or(0);
+    out.port = number_of(state, object, where, "port", 1, max_api_number, true)
+                   .value_or(0);
     out.params = object_text_of(state, object, where, "params", false);
 }
 
@@ -60,9 +59,9 @@ void read_credit(reading& state, const json::object& object,
 {
     constexpr auto where = generator_credit_message::op;
     out.instance = instance_of(state, object, where);
-    out.bytes = number_of(state, object, where, "bytes", 1,
-                          max_generator_credit, true)
-                    .value_or(0);
+    out.bytes =
+        number_of(state, object, where, "bytes", 1, max_generator_credit, true)
+            .value_or(0);
 }
 
 bool write_credit(json::object& header, const generator_credit_message& body)
@@ -78,18 +77,18 @@ void read_pattern(reading& state, const json::object& object,
     constexpr auto where = generator_pattern_message::op;
     out.instance = instance_of(state, object, where);
     blob_between(state, where, out.data, 1, max_pattern_bytes);
-    out.repeat = number_of(state, object, where, "repeat", 0,
-                           max_pattern_repeat, false)
-                     .value_or(1);
-    out.period_us = number_of(state, object, where, "period_us", 0,
-                              max_api_delay_us, false)
-                        .value_or(0);
+    out.repeat =
+        number_of(state, object, where, "repeat", 0, max_pattern_repeat, false)
+            .value_or(1);
+    out.period_us =
+        number_of(state, object, where, "period_us", 0, max_api_delay_us, false)
+            .value_or(0);
     out.burst =
         number_of(state, object, where, "burst", 1, max_pattern_burst, false)
             .value_or(1);
-    out.jitter = number_of(state, object, where, "jitter", 0,
-                           max_api_delay_us, false)
-                     .value_or(0);
+    out.jitter =
+        number_of(state, object, where, "jitter", 0, max_api_delay_us, false)
+            .value_or(0);
 }
 
 bool write_pattern(json::object& header, const generator_pattern_message& body)
@@ -169,8 +168,7 @@ result<generator_credit_message>
 decode_as<generator_credit_message>(const api_message& message,
                                     std::string* explain)
 {
-    return decode_with<generator_credit_message>(message, explain,
-                                                 read_credit);
+    return decode_with<generator_credit_message>(message, explain, read_credit);
 }
 
 template <>

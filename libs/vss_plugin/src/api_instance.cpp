@@ -38,10 +38,10 @@ void read_create(reading& state, const json::object& object,
 {
     constexpr auto where = instance_create_message::op;
     out.instance = instance_of(state, object, where);
-    out.kind = choice_of(state, object, where, "kind", kind_names,
-                         "generator, fixture, modifier, adapter or decoder",
-                         true)
-                   .value_or(extension_kind::generator);
+    out.kind =
+        choice_of(state, object, where, "kind", kind_names,
+                  "generator, fixture, modifier, adapter or decoder", true)
+            .value_or(extension_kind::generator);
     out.type = token_of(state, object, where, "type", max_api_id, true);
     out.params = object_text_of(state, object, where, "params", false);
 }

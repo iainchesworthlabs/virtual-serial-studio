@@ -71,8 +71,7 @@ TEST_CASE("plugin api: generator.start is refused when it is wrong")
                        "generator.start.port: must be a whole number");
     require_refused<M>(head + R"("instance":1,"port":4,"params":null})",
                        "generator.start.params: must be a JSON object");
-    require_refused<M>(head + R"("instance":1,"port":4})", "has no bytes",
-                       {1});
+    require_refused<M>(head + R"("instance":1,"port":4})", "has no bytes", {1});
     require_refused<M>(R"({"op":"generator.start","re":1,"instance":1,)"
                        R"("port":4})",
                        "must have an id");
@@ -121,8 +120,7 @@ TEST_CASE("plugin api: bytes do not travel in the header of generator.write")
     // A "bytes" member is a member this version does not know, so it is
     // passed over, and the blob is what counts.
     const auto read = accepted<generator_write_message>(
-        R"({"op":"generator.write","instance":2,"bytes":"0102"})",
-        bytes_of(3));
+        R"({"op":"generator.write","instance":2,"bytes":"0102"})", bytes_of(3));
     REQUIRE_EQ(read.data.size(), std::size_t{3});
 }
 
@@ -185,7 +183,8 @@ TEST_CASE("plugin api: generator.pattern has defaults for what it leaves out")
 TEST_CASE("plugin api: generator.pattern has the limits of its members")
 {
     using M = generator_pattern_message;
-    const std::string head = R"({"op":"generator.pattern","id":1,"instance":5,)";
+    const std::string head =
+        R"({"op":"generator.pattern","id":1,"instance":5,)";
     const byte_buffer one{1};
     // At the edge, and one past it.
     REQUIRE_EQ(accepted<M>(head + R"("repeat":4294967295})", one).repeat,
@@ -212,9 +211,9 @@ TEST_CASE("plugin api: generator.pattern has the limits of its members")
     require_refused<M>(head + R"("repeat":-1})",
                        "generator.pattern.repeat: must be a whole number", one);
     // The bytes.
-    REQUIRE_EQ(accepted<M>(head + "\"x\":1}", bytes_of(max_pattern_bytes))
-                   .data.size(),
-               max_pattern_bytes);
+    REQUIRE_EQ(
+        accepted<M>(head + "\"x\":1}", bytes_of(max_pattern_bytes)).data.size(),
+        max_pattern_bytes);
     require_refused<M>(head + "\"x\":1}", "has a blob of 0 bytes");
     require_refused<M>(head + "\"x\":1}", "has a blob of 1025 bytes",
                        bytes_of(max_pattern_bytes + 1));
@@ -247,8 +246,8 @@ TEST_CASE("plugin api: the reason of generator.done is limited plain text")
                            repeated('r', max_api_text) + R"("})")
                    .reason.size(),
                max_api_text);
-    require_refused<M>(head + R"("reason":")" + repeated('r', max_api_text + 1) +
-                           R"("})",
+    require_refused<M>(head + R"("reason":")" +
+                           repeated('r', max_api_text + 1) + R"("})",
                        "generator.done.reason: is longer than 200 bytes");
     require_refused<M>(head + R"("reason":""})",
                        "generator.done.reason: must not be empty");

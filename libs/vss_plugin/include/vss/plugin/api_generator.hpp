@@ -173,14 +173,12 @@ result<generator_stop_message>
 decode_as<generator_stop_message>(const api_message&, std::string*);
 template <>
 result<api_message>
-encode_as<generator_stop_message>(const generator_stop_message&,
-                                  std::uint64_t);
+encode_as<generator_stop_message>(const generator_stop_message&, std::uint64_t);
 template <>
 result<generator_done_message>
 decode_as<generator_done_message>(const api_message&, std::string*);
 template <>
 result<api_message>
-encode_as<generator_done_message>(const generator_done_message&,
-                                  std::uint64_t);
+encode_as<generator_done_message>(const generator_done_message&, std::uint64_t);
 
 } // namespace vss::plugin

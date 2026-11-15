@@ -25,27 +25,24 @@ boost::system::error_code check_as(const api_message& message,
     return read.has_error() ? read.error() : boost::system::error_code{};
 }
 
-template <class M>
-result<api_message> recode_as(const api_message& message)
+template <class M> result<api_message> recode_as(const api_message& message)
 {
     const auto read = decode_as<M>(message);
     if (read.has_error())
         return read.error();
-    return encode_as<M>(read.value(), M::role == api_role::request
-                                          ? message.id
-                                          : message.re);
+    return encode_as<M>(read.value(),
+                        M::role == api_role::request ? message.id : message.re);
 }
 
-template <class M>
-constexpr api_op entry() noexcept
+template <class M> constexpr api_op entry() noexcept
 {
     return api_op{M::op, M::from, M::role, &check_as<M>, &recode_as<M>};
 }
 
 constexpr std::array ops{
-    entry<instance_create_message>(),  entry<instance_stop_message>(),
-    entry<params_changed_message>(),   entry<generator_start_message>(),
-    entry<generator_write_message>(),  entry<generator_credit_message>(),
+    entry<instance_create_message>(),   entry<instance_stop_message>(),
+    entry<params_changed_message>(),    entry<generator_start_message>(),
+    entry<generator_write_message>(),   entry<generator_credit_message>(),
     entry<generator_pattern_message>(), entry<generator_stop_message>(),
     entry<generator_done_message>()};
 

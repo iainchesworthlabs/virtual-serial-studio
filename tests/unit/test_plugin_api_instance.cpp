@@ -99,9 +99,9 @@ TEST_CASE("plugin api: instance.create is refused when it is wrong")
                        "instance.create.kind: must be generator");
     require_refused<M>(head + R"("instance":2,"kind":"fixture"})",
                        "instance.create.type: is required");
-    require_refused<M>(
-        head + R"("instance":2,"kind":"fixture","type":"Upper"})",
-        "instance.create.type: must be 1 to 64");
+    require_refused<M>(head +
+                           R"("instance":2,"kind":"fixture","type":"Upper"})",
+                       "instance.create.type: must be 1 to 64");
     require_refused<M>(head + R"("instance":2,"kind":"fixture","type":""})",
                        "instance.create.type: must be 1 to 64");
     require_refused<M>(head + R"("instance":2,"kind":"fixture","type":7})",
@@ -113,9 +113,8 @@ TEST_CASE("plugin api: instance.create is refused when it is wrong")
         head + R"("instance":2,"kind":"fixture","type":"x","params":"{}"})",
         "instance.create.params: must be a JSON object");
     // A blob, and the wrong role.
-    require_refused<M>(
-        head + R"("instance":2,"kind":"fixture","type":"x"})",
-        "instance.create: has no bytes", {1});
+    require_refused<M>(head + R"("instance":2,"kind":"fixture","type":"x"})",
+                       "instance.create: has no bytes", {1});
     require_refused<M>(
         R"({"op":"instance.create","instance":2,"kind":"fixture","type":"x"})",
         "must have an id");
@@ -130,8 +129,8 @@ TEST_CASE("plugin api: the type and the number of an instance are limited")
     using M = instance_create_message;
     const std::string head =
         R"({"op":"instance.create","id":1,"instance":2,"kind":"fixture",)";
-    const auto edge = accepted<M>(head + R"("type":")" +
-                                  repeated('a', max_api_id) + R"("})");
+    const auto edge =
+        accepted<M>(head + R"("type":")" + repeated('a', max_api_id) + R"("})");
     REQUIRE_EQ(edge.type.size(), max_api_id);
     require_refused<M>(head + R"("type":")" + repeated('a', max_api_id + 1) +
                            R"("})",
@@ -182,8 +181,8 @@ TEST_CASE("plugin api: instance.stop is written and read")
     REQUIRE(written.has_value());
     REQUIRE_EQ(header_of(written.value()),
                std::string(R"({"op":"instance.stop","id":3,"instance":9})"));
-    require_refused<instance_stop_message>(
-        R"({"op":"instance.stop","id":3})", "instance.stop.instance: is");
+    require_refused<instance_stop_message>(R"({"op":"instance.stop","id":3})",
+                                           "instance.stop.instance: is");
     require_refused<instance_stop_message>(
         R"({"op":"instance.stop","id":3,"instance":1})", "has no bytes",
         {1, 2});

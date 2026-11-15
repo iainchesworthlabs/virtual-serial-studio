@@ -35,7 +35,8 @@ namespace vss::plugin::detail
 namespace json = boost::json;
 using namespace std::string_view_literals;
 
-// -- the reader's state --------------------------------------------------------
+// -- the reader's state
+// --------------------------------------------------------
 
 /// The reader stops at the first thing that is wrong and keeps the reason.
 struct reading
@@ -62,16 +63,15 @@ std::string member(std::string_view where, std::string_view key);
 /// `where[index]`, for an entry of a list.
 std::string entry(std::string_view where, std::size_t index);
 
-// -- one member ----------------------------------------------------------------
+// -- one member
+// ----------------------------------------------------------------
 
 /// The member as a whole number from `least` to `most`.  Nothing when it is
 /// absent or not one; an absent member is an error only when `required`.
-std::optional<std::uint64_t> number_of(reading& state,
-                                       const json::object& object,
-                                       std::string_view where,
-                                       std::string_view key,
-                                       std::uint64_t least, std::uint64_t most,
-                                       bool required);
+std::optional<std::uint64_t>
+number_of(reading& state, const json::object& object, std::string_view where,
+          std::string_view key, std::uint64_t least, std::uint64_t most,
+          bool required);
 
 /// The member as a number that JSON can write, from `least` to `most`.  It
 /// may be a whole number or a fraction.
@@ -166,17 +166,18 @@ name_of(const std::array<std::pair<std::string_view, Enum>, N>& names,
     return "unknown";
 }
 
-// -- the blob ------------------------------------------------------------------
+// -- the blob
+// ------------------------------------------------------------------
 
 /// The blob must be empty.
 void no_blob(reading& state, std::string_view where, const byte_buffer& blob);
 
 /// The blob must have `least` to `most` bytes.
 void blob_between(reading& state, std::string_view where,
-                  const byte_buffer& blob, std::size_t least,
-                  std::size_t most);
+                  const byte_buffer& blob, std::size_t least, std::size_t most);
 
-// -- writing -------------------------------------------------------------------
+// -- writing
+// -------------------------------------------------------------------
 
 json::string text_value(std::string_view text);
 
@@ -191,7 +192,8 @@ bool put_object_text(json::object& header, std::string_view key,
 /// The bytes as lower-case hex.
 std::string hex_text(const byte_buffer& bytes);
 
-// -- the two functions every message goes through -------------------------------
+// -- the two functions every message goes through
+// -------------------------------
 
 /// Opens the header of `message` for the message `op` with the `role`.  Null,
 /// and a failure, when the message is not that one.

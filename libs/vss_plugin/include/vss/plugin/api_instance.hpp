@@ -99,7 +99,6 @@ result<params_changed_message>
 decode_as<params_changed_message>(const api_message&, std::string*);
 template <>
 result<api_message>
-encode_as<params_changed_message>(const params_changed_message&,
-                                  std::uint64_t);
+encode_as<params_changed_message>(const params_changed_message&, std::uint64_t);
 
 } // namespace vss::plugin

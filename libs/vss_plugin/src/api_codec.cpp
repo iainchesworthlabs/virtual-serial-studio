@@ -142,12 +142,10 @@ std::string entry(std::string_view where, std::size_t index)
     return out;
 }
 
-std::optional<std::uint64_t> number_of(reading& state,
-                                       const json::object& object,
-                                       std::string_view where,
-                                       std::string_view key,
-                                       std::uint64_t least, std::uint64_t most,
-                                       bool required)
+std::optional<std::uint64_t>
+number_of(reading& state, const json::object& object, std::string_view where,
+          std::string_view key, std::uint64_t least, std::uint64_t most,
+          bool required)
 {
     const json::value* const value =
         find_member(state, object, where, key, required);
@@ -156,9 +154,9 @@ std::optional<std::uint64_t> number_of(reading& state,
     const std::optional<std::uint64_t> number = whole_number(*value);
     if (!number || *number < least || *number > most)
     {
-        state.fail(member(where, key),
-                   "must be a whole number from " + std::to_string(least) +
-                       " to " + std::to_string(most));
+        state.fail(member(where, key), "must be a whole number from " +
+                                           std::to_string(least) + " to " +
+                                           std::to_string(most));
         return std::nullopt;
     }
     return number;
@@ -248,12 +246,14 @@ std::string token_of(reading& state, const json::object& object,
         return {};
     }
     const std::string_view text = view_of(value->get_string());
-    const bool good =
-        !text.empty() && text.size() <= most &&
-        std::ranges::all_of(text, [](char c) {
-            return is_lower(c) || is_digit(c) || c == '.' || c == '-' ||
-                   c == '_';
-        });
+    const bool good = !text.empty() && text.size() <= most &&
+                      std::ranges::all_of(text,
+                                          [](char c)
+                                          {
+                                              return is_lower(c) ||
+                                                     is_digit(c) || c == '.' ||
+                                                     c == '-' || c == '_';
+                                          });
     if (!good)
     {
         state.fail(member(where, key),
@@ -329,8 +329,7 @@ std::string object_text_of(reading& state, const json::object& object,
     }
     if (!all_finite(*value))
     {
-        state.fail(member(where, key),
-                   "holds a number that JSON cannot write");
+        state.fail(member(where, key), "holds a number that JSON cannot write");
         return "{}";
     }
     std::string text = json::serialize(*value);
@@ -386,8 +385,7 @@ void no_blob(reading& state, std::string_view where, const byte_buffer& blob)
 }
 
 void blob_between(reading& state, std::string_view where,
-                  const byte_buffer& blob, std::size_t least,
-                  std::size_t most)
+                  const byte_buffer& blob, std::size_t least, std::size_t most)
 {
     if (blob.size() < least || blob.size() > most)
         state.fail(where, "has a blob of " + bytes_text(blob.size()) +
