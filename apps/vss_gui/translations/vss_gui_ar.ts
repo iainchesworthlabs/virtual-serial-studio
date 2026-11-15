@@ -22683,8 +22683,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
-            <translation>ينقل Studio مجلد الإضافة إلى سلة المحذوفات. تحتفظ الإعدادات التي تستخدمها بأجزائها، وتتوقف هذه الأجزاء عن العمل إلى أن تُثبَّت الإضافة من جديد. تبقى بياناتها المحفوظة ما لم تحدّد المربع.</translation>
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>يحذف Studio مجلد الإضافة. تحتفظ الإعدادات التي تستخدمها بأجزائها، وتتوقف هذه الأجزاء عن العمل إلى أن تُثبَّت الإضافة من جديد. تبقى بياناتها المحفوظة ما لم تحدّد المربع.</translation>
         </message>
         <message>
             <location filename="../src/support/plugins_dialog.cpp" line="1" />

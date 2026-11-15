@@ -99,6 +99,8 @@ public:
 private:
     void after_change();
     void refresh_extras();
+    void delete_data_of_gone_plugins();
+    void process_removals();
     vss::plugin::inspect_context context_now() const;
 
     service_plugin_options options_;
@@ -116,6 +118,16 @@ private:
     vss::license::status licence_ = vss::license::no_licence();
     std::shared_ptr<const service_mapping_inputs> extras_;
     quint64 extras_version_ = 0;
+    struct pending_removal
+    {
+        std::string id;
+        bool delete_data = false;
+        int attempts = 0;
+    };
+    /// Plugins switched off to be removed once they have stopped.
+    std::vector<pending_removal> removals_;
+    /// Plugins taken away whose saved data is to go once they have stopped.
+    std::vector<std::string> data_to_delete_;
     mutable plugin_snapshot_ptr cached_;
     mutable std::uint64_t cached_revision_ = 0;
     mutable quint64 cached_extras_ = ~quint64{0};

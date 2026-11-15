@@ -22535,8 +22535,8 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
-            <translation>Studio déplace le dossier du module dans la corbeille. Les configurations qui l'utilisent gardent leurs éléments, qui ne fonctionnent plus tant que le module n'est pas réinstallé. Ses données enregistrées sont conservées sauf si vous cochez la case.</translation>
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>Studio supprime le dossier du module. Les configurations qui l'utilisent gardent leurs éléments, qui ne fonctionnent plus tant que le module n'est pas réinstallé. Ses données enregistrées sont conservées sauf si vous cochez la case.</translation>
         </message>
         <message>
             <location filename="../src/support/plugins_dialog.cpp" line="1" />

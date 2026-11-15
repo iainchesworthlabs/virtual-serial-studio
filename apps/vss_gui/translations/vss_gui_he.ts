@@ -22535,8 +22535,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
-            <translation>Studio מעביר את תיקיית התוסף לסל המיחזור. הגדרות שמשתמשות בו שומרות על החלקים שלהן, והם לא יעבדו עד שהתוסף יותקן שוב. הנתונים השמורים שלו נשארים, אלא אם תסמנו את התיבה.</translation>
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>Studio מוחק את תיקיית התוסף. הגדרות שמשתמשות בו שומרות על החלקים שלהן, והם לא יעבדו עד שהתוסף יותקן שוב. הנתונים השמורים שלו נשארים, אלא אם תסמנו את התיבה.</translation>
         </message>
         <message>
             <location filename="../src/support/plugins_dialog.cpp" line="1" />

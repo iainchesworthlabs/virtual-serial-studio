@@ -15,9 +15,11 @@
 #include <vss/plugin/trust_store.hpp>
 
 #include <boost/asio/post.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <QCoreApplication>
 
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <future>
@@ -216,6 +218,8 @@ void ServicePluginBackend::after_change()
         [this]
         {
             refresh_extras();
+            process_removals();
+            delete_data_of_gone_plugins();
             if (rescan_asked_.load())
             {
                 const auto now = service_->snapshot();
@@ -247,6 +251,40 @@ plug::inspect_context ServicePluginBackend::context_now() const
     }
     context.licence_known = true;
     return context;
+}
+
+void ServicePluginBackend::delete_data_of_gone_plugins()
+{
+    std::vector<std::string> waiting;
+    {
+        const std::scoped_lock lock(mutex_);
+        if (data_to_delete_.empty())
+            return;
+        waiting = data_to_delete_;
+    }
+    const auto now = service_->snapshot();
+    // Not while the folders are being read, and not while the plugin is still
+    // listed: it may still be running.
+    if (!now || now->scanning)
+        return;
+    std::vector<std::string> done;
+    for (const std::string& id : waiting)
+    {
+        const bool listed =
+            std::any_of(now->plugins.begin(), now->plugins.end(),
+                        [&id](const host::service_plugin& each)
+                        { return each.id == id; });
+        if (listed)
+            continue;
+        std::error_code ignored;
+        fs::remove_all(options_.data_root / fs::path(id), ignored);
+        done.push_back(id);
+    }
+    const std::scoped_lock lock(mutex_);
+    for (const std::string& id : done)
+        data_to_delete_.erase(std::remove(data_to_delete_.begin(),
+                                          data_to_delete_.end(), id),
+                              data_to_delete_.end());
 }
 
 void ServicePluginBackend::refresh_extras()
@@ -601,26 +639,126 @@ void ServicePluginBackend::add_plugin(const QString& folder)
 
 void ServicePluginBackend::remove_plugin(const QString& plugin_id,
                                          const QString& hash,
-                                         bool /*delete_saved_data*/)
+                                         bool delete_saved_data)
 {
-    boost::asio::post(slow_,
-                      [this, plugin_id, hash]
-                      {
-                          const auto now = service_->snapshot();
-                          const host::service_plugin* plugin =
-                              find_plugin(*now, plugin_id, hash);
-                          // Only a plugin the user installed is the user's to
-                          // remove.
-                          if (plugin != nullptr &&
-                              plugin->scope == plug::plugin_scope::for_user)
-                              static_cast<void>(plug::remove_plugin(
-                                  options_.user_root, plugin->id));
-                          service_->rescan();
-                          plugin_request_result result;
-                          result.kind = plugin_request_kind::remove_plugin;
-                          result.plugin_id = plugin_id;
-                          notify_request_finished(result);
-                      });
+    boost::asio::post(
+        slow_,
+        [this, plugin_id, hash, delete_saved_data]
+        {
+            const auto now = service_->snapshot();
+            const host::service_plugin* plugin =
+                find_plugin(*now, plugin_id, hash);
+            // Only a plugin the user installed is the user's to remove.
+            if (plugin == nullptr ||
+                plugin->scope != plug::plugin_scope::for_user)
+            {
+                service_->rescan();
+                plugin_request_result result;
+                result.kind = plugin_request_kind::remove_plugin;
+                result.plugin_id = plugin_id;
+                notify_request_finished(result);
+                return;
+            }
+            // A running program cannot be deleted on every system: it is
+            // switched off first, and the folder goes once it has stopped.
+            service_->set_enabled(plugin->id, false);
+            {
+                const std::scoped_lock lock(mutex_);
+                removals_.push_back({plugin->id, delete_saved_data});
+            }
+            process_removals();
+        });
+}
+
+void ServicePluginBackend::process_removals()
+{
+    std::vector<pending_removal> waiting;
+    {
+        const std::scoped_lock lock(mutex_);
+        if (removals_.empty())
+            return;
+        waiting = removals_;
+    }
+    const auto now = service_->snapshot();
+    if (!now)
+        return;
+    std::vector<std::string> finished;
+    bool retry = false;
+    for (const pending_removal& each : waiting)
+    {
+        const auto found =
+            std::find_if(now->plugins.begin(), now->plugins.end(),
+                         [&each](const host::service_plugin& plugin)
+                         { return plugin.id == each.id; });
+        if (found != now->plugins.end() && found->run != nullptr)
+        {
+            const plug::run_state state = found->run->state;
+            if (state != plug::run_state::stopped &&
+                state != plug::run_state::quarantined)
+                continue;
+        }
+        // The program may take a moment to let go of its files after it has
+        // stopped, so a folder that is still there is tried again shortly,
+        // for fifteen seconds at most.
+        const fs::path folder = options_.user_root / fs::path(each.id);
+        std::error_code ignored;
+        if (fs::exists(folder, ignored))
+        {
+            // The library checks the folder first and takes its description
+            // file first. A second try finds what is left of it, which is
+            // the folder of a plugin that was checked a moment ago.
+            if (each.attempts == 0)
+                static_cast<void>(
+                    plug::remove_plugin(options_.user_root, each.id));
+            else
+                fs::remove_all(folder, ignored);
+            if (fs::exists(folder, ignored) && each.attempts < 60)
+            {
+                retry = true;
+                const std::scoped_lock lock(mutex_);
+                for (pending_removal& other : removals_)
+                {
+                    if (other.id == each.id)
+                        ++other.attempts;
+                }
+                continue;
+            }
+        }
+        // The plugin's data folder is named by its id. It goes once the
+        // plugin has gone from the list.
+        const bool plain_name =
+            each.id.find_first_of("/\\") == std::string::npos &&
+            each.id != ".." && each.id != ".";
+        if (each.delete_data && plain_name && !options_.data_root.empty())
+        {
+            const std::scoped_lock lock(mutex_);
+            data_to_delete_.push_back(each.id);
+        }
+        service_->rescan();
+        plugin_request_result result;
+        result.kind = plugin_request_kind::remove_plugin;
+        result.plugin_id = QString::fromStdString(each.id);
+        notify_request_finished(result);
+        finished.push_back(each.id);
+    }
+    const std::scoped_lock lock(mutex_);
+    for (const std::string& id : finished)
+        removals_.erase(
+            std::remove_if(removals_.begin(), removals_.end(),
+                           [&id](const pending_removal& each)
+                           { return each.id == id; }),
+            removals_.end());
+    if (retry && !down_.load())
+    {
+        auto timer = std::make_shared<boost::asio::steady_timer>(io_);
+        timer->expires_after(std::chrono::milliseconds(250));
+        timer->async_wait(
+            [this, timer](const boost::system::error_code& failed)
+            {
+                if (!failed && !down_.load())
+                    boost::asio::post(slow_, [this] { process_removals(); });
+            });
+    }
 }
 
 } // namespace vss::gui

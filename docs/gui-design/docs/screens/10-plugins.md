@@ -160,7 +160,7 @@ Timing sentences, as tooltips and accessible descriptions:
 ### Footer
 Left: quiet "Remove plugin..." (plugins installed for you only; disabled for a plugin installed for everyone with the tooltip "Installed by your administrator", and for one that came with Studio with the tooltip "Came with Studio"). Right: "Copy details" (quiet), Close (primary).
 
-"Remove plugin..." asks first: title "Remove <plugin name>?", text "Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box." Check box "Also delete its saved data" (off). Buttons Cancel (default), "Remove plugin" (danger).
+"Remove plugin..." asks first: title "Remove <plugin name>?", text "Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box." Check box "Also delete its saved data" (off). Buttons Cancel (default), "Remove plugin" (danger).
 
 Copy details gives the plugin id, version, state, reason code, fingerprint, signer key id, who it is installed for, isolation level and the host's message. Never file contents, never a setting marked secret.
 

@@ -766,7 +766,7 @@ PluginRemoveDialog::PluginRemoveDialog(PluginBackend& backend,
             .arg(plain_text(plugin_.name)),
         QCoreApplication::translate(
             "PluginsDialog",
-            "Studio moves the plugin's folder to the bin. Setups that use it "
+            "Studio deletes the plugin's folder. Setups that use it "
             "keep their parts, which stop working until the plugin is "
             "installed again. Its saved data is kept unless you tick the box."),
         520);

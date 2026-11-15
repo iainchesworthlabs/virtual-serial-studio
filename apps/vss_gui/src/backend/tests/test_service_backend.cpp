@@ -197,6 +197,21 @@ TEST_CASE("service backend: the real service runs an unsigned plugin after a "
     REQUIRE(vss_test::wait_until(
         [&] { return state_is(plugin_state::available); }, 60000));
 
+    // Remove it, with its saved data: it is stopped first, then the folder
+    // goes, then the data.
+    const fs::path saved = root / "data" / kPluginId;
+    {
+        std::error_code ignored;
+        fs::create_directories(saved / "data", ignored);
+        write_file(saved / "data" / "note.txt", "kept until removed");
+    }
+    backend.remove_plugin(view.id, view.hash, true);
+    REQUIRE(vss_test::wait_until(
+        [&] { return find_view(backend.snapshot(), id) == nullptr; }, 60000));
+    REQUIRE(vss_test::wait_until([&] { return !fs::exists(plugins / kPluginId); },
+                                 60000));
+    REQUIRE(vss_test::wait_until([&] { return !fs::exists(saved); }, 60000));
+
     // The end of the program: every plugin is stopped, and the call returns.
     backend.shut_down();
 }

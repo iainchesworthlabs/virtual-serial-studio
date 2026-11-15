@@ -22498,8 +22498,8 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/plugin_dialogs.cpp" line="1" />
-            <source>Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
-            <translation>Studio 会将插件的文件夹移到回收站。使用该插件的设置会保留其部分，这些部分在重新安装插件之前无法工作。除非您勾选该选项，否则其保存的数据会保留。</translation>
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>Studio 会删除插件的文件夹。使用该插件的设置会保留其部分，这些部分在重新安装插件之前无法工作。除非您勾选该选项，否则其保存的数据会保留。</translation>
         </message>
         <message>
             <location filename="../src/support/plugins_dialog.cpp" line="1" />
