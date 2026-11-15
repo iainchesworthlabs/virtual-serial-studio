@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>דער פּראָגראַם איז פֿרײַע סאָפֿטווער: איר מעגט אים ווײַטער פֿאַרשפּרייטן און/אָדער טוישן לויט די באַדינגונגען פֿון דער GNU General Public License, ווי פּובליקירט דורך דער Free Software Foundation, אָדער ווערסיע 3 פֿון דער דערלויבעניש, אָדער (לויט אײַער ברירה) יעדער שפּעטערדיקער ווערסיע.</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>דער פּראָגראַם איז פֿרײַע סאָפֿטווער: איר מעגט אים ווײַטער פֿאַרשפּרייטן און/אָדער טוישן לויט די באַדינגונגען פֿון דער GNU General Public License, ווי פּובליקירט דורך דער Free Software Foundation, ווערסיע 3 פֿון דער דערלויבעניש.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studio איז פֿרײַע סאָפֿטווער אונטער דער GNU General Public License, ווערסיע 3 אָדער שפּעטער. עס ניצט די דאָזיקע קאָמפּאָנענטן:</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studio איז פֿרײַע סאָפֿטווער אונטער דער GNU General Public License, ווערסיע 3. עס ניצט די דאָזיקע קאָמפּאָנענטן:</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>GNU Lesser General Public License, ווערסיע 3, אָדער GNU General Public License, ווערסיע 3.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>GNU General Public License, ווערסיע 3.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,8 +328,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>ווערסיע %1. פֿרײַע סאָפֿטווער אונטער דער GNU General Public License, ווערסיע 3 אָדער שפּעטער. אויסגאַבע: %2.</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>ווערסיע %1. פֿרײַע סאָפֿטווער אונטער דער GNU General Public License, ווערסיע 3. אויסגאַבע: %2.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />

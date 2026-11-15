@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>本程序是自由软件：您可以依据自由软件基金会发布的 GNU 通用公共许可证的条款，对本程序进行再发布和/或修改；许可证可以是第 3 版，也可以（由您选择）是任何更高版本。</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>本程序是自由软件：您可以依据自由软件基金会发布的 GNU 通用公共许可证的条款，对本程序进行再发布和/或修改；许可证为第 3 版。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studio 是自由软件，遵循 GNU 通用公共许可证第 3 版或更高版本。它使用以下组件：</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studio 是自由软件，遵循 GNU 通用公共许可证第 3 版。它使用以下组件：</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>GNU 宽通用公共许可证第 3 版，或 GNU 通用公共许可证第 3 版。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>GNU 通用公共许可证第 3 版。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,8 +328,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>版本 %1。自由软件，遵循 GNU 通用公共许可证第 3 版或更高版本。版本类型：%2。</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>版本 %1。自由软件，遵循 GNU 通用公共许可证第 3 版。版本类型：%2。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />

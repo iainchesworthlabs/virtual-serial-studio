@@ -5,7 +5,14 @@
       "notice": "Qt",
       "name": "Qt 6",
       "spdx": "LGPL-3.0-only OR GPL-3.0-only",
-      "shipped": "The release packages carry the Qt 6.12.0 libraries and plug-ins beside the program (qt_generate_deploy_app_script in apps/vss_gui/CMakeLists.txt). That includes the Qt Canvas Painter library, which Qt offers under GPL-3.0-only or a commercial licence, not the LGPL.",
+      "shipped": "The release packages carry the Qt 6.12.0 libraries and plug-ins beside the program (qt_generate_deploy_app_script in apps/vss_gui/CMakeLists.txt). The Qt Canvas Painter library among them is listed on its own.",
+      "condition": ""
+    },
+    {
+      "notice": "Qt Canvas Painter",
+      "name": "Qt Canvas Painter",
+      "spdx": "GPL-3.0-only",
+      "shipped": "The Qt 6.12.0 library that draws the canvas, carried in the release packages with the other Qt libraries. Qt offers it under GPL-3.0-only or a commercial licence, not the LGPL, so a package that contains it is conveyed under version 3 of the GPL.",
       "condition": ""
     },
     {

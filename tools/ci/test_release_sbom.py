@@ -100,7 +100,10 @@ class Contents(unittest.TestCase):
         self.assertEqual(program["name"], "virtual-serial-studio")
         self.assertEqual(program["versionInfo"], "0.1.0-rc.5")
         self.assertEqual(program["licenseDeclared"], "GPL-3.0-or-later")
-        relations = {(r["spdxElementId"], r["relationshipType"], r["relatedSpdxElement"]) for r in doc["relationships"]}
+        # The packages carry Qt Canvas Painter, which is version 3 only, so that is what is concluded.
+        self.assertEqual(program["licenseConcluded"], "GPL-3.0-only")
+        self.assertIn("Qt Canvas Painter", program["licenseComments"])
+        relations ={(r["spdxElementId"], r["relationshipType"], r["relatedSpdxElement"]) for r in doc["relationships"]}
         self.assertIn(("SPDXRef-DOCUMENT", "DESCRIBES", program["SPDXID"]), relations)
         for package in doc["packages"][1:]:
             self.assertIn((program["SPDXID"], "CONTAINS", package["SPDXID"]), relations)
