@@ -57,14 +57,14 @@ constexpr std::array ops{
     entry<modifier_create_message>(),   entry<modifier_batch_message>(),
     entry<modifier_result_message>(),   entry<modifier_stop_message>(),
     entry<agent_call_message>(),        entry<agent_result_message>(),
-    entry<agent_subscribe_message>(),   entry<adapter_state_message>(),
-    entry<capture_start_message>(),     entry<capture_stop_message>(),
-    entry<capture_status_message>(),    entry<capture_result_message>(),
-    entry<timeline_load_message>(),     entry<bundle_prepare_message>(),
-    entry<bundle_result_message>(),     entry<decoder_create_message>(),
-    entry<decoder_data_message>(),      entry<decoder_ack_message>(),
-    entry<decoder_frame_message>(),     entry<trigger_publish_message>(),
-    entry<decoder_stop_message>()};
+    entry<agent_subscribe_message>(),   entry<agent_event_message>(),
+    entry<adapter_state_message>(),     entry<capture_start_message>(),
+    entry<capture_stop_message>(),      entry<capture_status_message>(),
+    entry<capture_result_message>(),    entry<timeline_load_message>(),
+    entry<bundle_prepare_message>(),    entry<bundle_result_message>(),
+    entry<decoder_create_message>(),    entry<decoder_data_message>(),
+    entry<decoder_ack_message>(),       entry<decoder_frame_message>(),
+    entry<trigger_publish_message>(),   entry<decoder_stop_message>()};
 
 } // namespace
 

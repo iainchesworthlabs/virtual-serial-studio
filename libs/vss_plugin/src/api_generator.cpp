@@ -28,15 +28,14 @@ void read_start(reading& state, const json::object& object,
 {
     constexpr auto where = generator_start_message::op();
     out.instance = instance_of(state, object, where);
-    out.port = number_of(state, object, where, "port", 1, max_api_number, true)
-                   .value_or(0);
+    out.place = place_of(state, object, where, "place", true);
     out.params = object_text_of(state, object, where, "params", false);
 }
 
 bool write_start(json::object& header, const generator_start_message& body)
 {
     header.emplace("instance", body.instance);
-    header.emplace("port", body.port);
+    header.emplace("place", text_value(body.place));
     return put_object_text(header, "params", body.params);
 }
 

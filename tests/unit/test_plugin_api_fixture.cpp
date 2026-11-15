@@ -57,17 +57,17 @@ TEST_CASE("plugin api: fixture.create is written and read")
 {
     fixture_create_message body;
     body.instance = 3;
-    body.endpoint = 12;
+    body.place = "COM12";
     body.params = R"({"model":"2000"})";
     (void)round_trip(body, 4);
     const auto written = encode_as(body, 4);
     REQUIRE(written.has_value());
     REQUIRE_EQ(header_of(written.value()),
                std::string(R"({"op":"fixture.create","id":4,"instance":3,)"
-                           R"("endpoint":12,"params":{"model":"2000"}})"));
+                           R"("place":"COM12","params":{"model":"2000"}})"));
     REQUIRE_EQ(accepted<fixture_create_message>(
                    R"({"op":"fixture.create","id":1,"instance":3,)"
-                   R"("endpoint":12})")
+                   R"("place":"COM12"})")
                    .params,
                std::string("{}"));
 }
@@ -76,41 +76,43 @@ TEST_CASE("plugin api: fixture.create is refused when it is wrong")
 {
     using message_type = fixture_create_message;
     const std::string head = R"({"op":"fixture.create","id":1,)";
-    require_refused<message_type>(head + R"("endpoint":4})",
+    require_refused<message_type>(head + R"("place":"p"})",
                                   "fixture.create.instance: is required");
     require_refused<message_type>(
-        head + R"("instance":0,"endpoint":4})",
+        head + R"("instance":0,"place":"p"})",
         "fixture.create.instance: must be a whole number");
     require_refused<message_type>(head + R"("instance":1})",
-                                  "fixture.create.endpoint: is required");
+                                  "fixture.create.place: is required");
+    require_refused<message_type>(head + R"("instance":1,"place":""})",
+                                  "fixture.create.place: must not be empty");
+    require_refused<message_type>(head + R"("instance":1,"place":4})",
+                                  "fixture.create.place: must be a string");
+    require_refused<message_type>(head + R"("instance":1,"place":"a\nb"})",
+                                  "fixture.create.place: must be plain text");
     require_refused<message_type>(
-        head + R"("instance":1,"endpoint":0})",
-        "fixture.create.endpoint: must be a whole number");
+        head + R"("instance":1,"place":")" + std::string(129, 'p') + R"("})",
+        "fixture.create.place: is longer than 128 bytes");
     require_refused<message_type>(
-        head + R"("instance":1,"endpoint":"4"})",
-        "fixture.create.endpoint: must be a whole number");
-    require_refused<message_type>(
-        head + R"("instance":1,"endpoint":9007199254740992})",
-        "fixture.create.endpoint: must be a whole number");
-    require_refused<message_type>(
-        head + R"("instance":1,"endpoint":4,"params":[]})",
+        head + R"("instance":1,"place":"p","params":[]})",
         "fixture.create.params: must be a JSON object");
-    require_refused<message_type>(head + R"("instance":1,"endpoint":4})",
+    require_refused<message_type>(head + R"("instance":1,"place":"p"})",
                                   "has no bytes", {1});
     require_refused<message_type>(
-        R"({"op":"fixture.create","instance":1,"endpoint":4})",
+        R"({"op":"fixture.create","instance":1,"place":"p"})",
         "must have an id");
-    REQUIRE_EQ(accepted<message_type>(head + R"("instance":9007199254740991,)"
-                                             R"("endpoint":9007199254740991})")
-                   .endpoint,
-               max_api_number);
+    REQUIRE_EQ(accepted<message_type>(head +
+                                      R"("instance":9007199254740991,)"
+                                      R"("place":")" +
+                                      std::string(128, 'p') + R"("})")
+                   .place.size(),
+               max_api_name);
     message_type body;
     body.instance = 1;
-    body.endpoint = max_api_number + 1;
+    body.place = std::string(129, 'p');
     require_not_written(body, 1);
-    body.endpoint = 0;
+    body.place.clear();
     require_not_written(body, 1);
-    body.endpoint = 1;
+    body.place = "p";
     body.params = "[]";
     require_not_written(body, 1);
     body.params = "{}";
@@ -245,7 +247,7 @@ TEST_CASE("plugin api: fixture.reply has the limits of its members")
     require_refused<message_type>(header, "has a blob of 0 bytes");
     require_refused<message_type>(header, "has a blob of 4097 bytes",
                                   bytes_of(max_fixture_reply + 1));
-    const byte_buffer one{1};
+    const byte_buffer one = bytes_of(1);
     const auto edge =
         accepted<message_type>(head + R"(,"after_us":60000000})", one).after_us;
     REQUIRE(edge.has_value());
@@ -343,30 +345,29 @@ TEST_CASE("plugin api: fixture.fault has the spellings of the rule parser")
         REQUIRE_EQ(std::string(to_string(one.fault)), std::string(one.text));
         fixture_fault_message body;
         body.instance = 1;
-        body.fault_kind = one.fault;
+        body.fault = one.fault;
         (void)round_trip(body);
         const auto written = encode_as(body);
         REQUIRE(written.has_value());
         REQUIRE_EQ(header_of(written.value()),
-                   R"({"op":"fixture.fault","instance":1,"fault_kind":")" +
+                   R"({"op":"fixture.fault","instance":1,"fault":")" +
                        std::string(one.text) + R"("})");
     }
     using message_type = fixture_fault_message;
     const std::string head = R"({"op":"fixture.fault","instance":1)";
     require_refused<message_type>(head + "}",
-                                  "fixture.fault.fault_kind: is required");
-    require_refused<message_type>(
-        head + R"(,"fault_kind":"hangup"})",
-        "fixture.fault.fault_kind: must be \"parity\"");
-    require_refused<message_type>(head + R"(,"fault_kind":"Parity"})",
-                                  "fixture.fault.fault_kind: must be");
-    require_refused<message_type>(head + R"(,"fault_kind":3})",
-                                  "fixture.fault.fault_kind: must be");
-    require_refused<message_type>(head + R"(,"fault_kind":"parity"})",
+                                  "fixture.fault.fault: is required");
+    require_refused<message_type>(head + R"(,"fault":"hangup"})",
+                                  "fixture.fault.fault: must be \"parity\"");
+    require_refused<message_type>(head + R"(,"fault":"Parity"})",
+                                  "fixture.fault.fault: must be");
+    require_refused<message_type>(head + R"(,"fault":3})",
+                                  "fixture.fault.fault: must be");
+    require_refused<message_type>(head + R"(,"fault":"parity"})",
                                   "has no bytes", {1});
     fixture_fault_message bad;
     bad.instance = 1;
-    bad.fault_kind = static_cast<line_fault>(99);
+    bad.fault = static_cast<line_fault>(99);
     require_not_written(bad);
 }
 
@@ -616,54 +617,62 @@ TEST_CASE("plugin api: rules.event names a rule and the action that fired")
     body.instance = 3;
     body.ts_ns = 5'000'000;
     body.rule = "idn";
-    body.action = 1;
+    body.action = "reply";
     (void)round_trip(body);
     const auto written = encode_as(body);
     REQUIRE(written.has_value());
-    REQUIRE_EQ(header_of(written.value()),
-               std::string(R"({"op":"rules.event","instance":3,)"
-                           R"("ts_ns":5000000,"rule":"idn","action":1})"));
+    REQUIRE_EQ(
+        header_of(written.value()),
+        std::string(R"({"op":"rules.event","instance":3,)"
+                    R"("ts_ns":5000000,"rule":"idn","action":"reply"})"));
 
     using message_type = rules_event_message;
     const std::string head = R"({"op":"rules.event","instance":3,"ts_ns":1,)";
     REQUIRE_EQ(accepted<message_type>(head + R"("rule":")" +
                                       repeated('r', max_rule_name) +
-                                      R"(","action":15})")
-                   .action,
-               std::uint64_t{15});
-    require_refused<message_type>(
-        head + R"("rule":"a","action":16})",
-        "rules.event.action: must be a whole number from 0 to 15");
-    require_refused<message_type>(head + R"("rule":"a","action":-1})",
-                                  "rules.event.action");
-    require_refused<message_type>(head + R"("rule":"a","action":"0"})",
-                                  "rules.event.action");
+                                      R"(","action":"mark"})")
+                   .rule.size(),
+               max_rule_name);
+    REQUIRE_EQ(accepted<message_type>(head + R"("rule":"a","action":")" +
+                                      repeated('x', max_rule_name) + R"("})")
+                   .action.size(),
+               max_rule_name);
+    require_refused<message_type>(head + R"("rule":"a","action":")" +
+                                      repeated('x', max_rule_name + 1) +
+                                      R"("})",
+                                  "rules.event.action: is longer than 64");
+    require_refused<message_type>(head + R"("rule":"a","action":0})",
+                                  "rules.event.action: must be a string");
+    require_refused<message_type>(head + R"("rule":"a","action":""})",
+                                  "rules.event.action: must not be empty");
+    require_refused<message_type>(head + R"("rule":"a","action":"a\nb"})",
+                                  "rules.event.action: must be plain text");
     require_refused<message_type>(head + R"("rule":"a"})",
                                   "rules.event.action: is required");
-    require_refused<message_type>(head + R"("action":0})",
+    require_refused<message_type>(head + R"("action":"mark"})",
                                   "rules.event.rule: is required");
-    require_refused<message_type>(head + R"("rule":"","action":0})",
+    require_refused<message_type>(head + R"("rule":"","action":"mark"})",
                                   "rules.event.rule: must not be empty");
     require_refused<message_type>(head + R"("rule":")" +
                                       repeated('r', max_rule_name + 1) +
-                                      R"(","action":0})",
+                                      R"(","action":"mark"})",
                                   "rules.event.rule: is longer than 64 bytes");
-    require_refused<message_type>(head + R"("rule":"a\nb","action":0})",
+    require_refused<message_type>(head + R"("rule":"a\nb","action":"mark"})",
                                   "rules.event.rule: must be plain text");
-    require_refused<message_type>(head + R"("rule":4,"action":0})",
+    require_refused<message_type>(head + R"("rule":4,"action":"mark"})",
                                   "rules.event.rule: must be a string");
-    require_refused<message_type>(head + R"("rule":"a","action":0})",
+    require_refused<message_type>(head + R"("rule":"a","action":"mark"})",
                                   "has no bytes", {1});
     require_refused<message_type>(
         R"({"op":"rules.event","instance":3,"rule":"a",)"
-        R"("action":0})",
+        R"("action":"mark"})",
         "rules.event.ts_ns: is required");
     body.rule.clear();
     require_not_written(body);
     body.rule = repeated('r', max_rule_name + 1);
     require_not_written(body);
     body.rule = "a";
-    body.action = max_rule_actions;
+    body.action.clear();
     require_not_written(body);
 }
 
@@ -743,4 +752,27 @@ TEST_CASE("plugin api: the rule limits of the messages are the rule model's")
     REQUIRE_EQ(max_rule_name, std::size_t{64});
     REQUIRE_EQ(max_rule_actions, std::size_t{16});
     REQUIRE_EQ(max_rule_count, std::size_t{256});
+}
+
+TEST_CASE("plugin api: a rules.set detail never repeats what the plugin sent")
+{
+    using message_type = rules_set_message;
+    const std::string head = R"({"op":"rules.set","id":1,"instance":2})";
+    // A key twice is named only as a key twice, not by its name.
+    require_detail_without<message_type>(
+        head, "hostile_key_7f3a",
+        blob_of(R"({"hostile_key_7f3a":1,"hostile_key_7f3a":2})"));
+    require_refused<message_type>(
+        head, "rules.set.data: has a key given twice in one object",
+        blob_of(R"({"hostile_key_7f3a":1,"hostile_key_7f3a":2})"));
+    require_detail_without<message_type>(head, "hostile_key_7f3a",
+                                         blob_of(R"({"hostile_key_7f3a":)"));
+}
+
+TEST_CASE("plugin api: a fixture fault has one key for its kind")
+{
+    // The key is `fault` here and in a modifier action.
+    require_refused<fixture_fault_message>(
+        R"({"op":"fixture.fault","instance":1,"fault_kind":"parity"})",
+        "fixture.fault.fault: is required");
 }

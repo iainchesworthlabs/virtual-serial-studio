@@ -19,7 +19,9 @@
 #include <vss/agent/proto/frame.hpp>
 #include <vss/core/bytes.hpp>
 #include <vss/core/error.hpp>
+#include <vss/plugin/api_fixture.hpp>
 #include <vss/plugin/api_message.hpp>
+#include <vss/plugin/api_modifier.hpp>
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/protocol.hpp>
 
@@ -246,6 +248,40 @@ void check_accepted(const plugin::api_message& first, const agent::frame& frame)
     }
 }
 
+/// The two functions that the host runs on what a plugin sent: the answer to a
+/// rule set, which must be a message that can be written, and the bounds of a
+/// modifier's result, which must not wrap for any size of batch.
+void check_host_functions(const plugin::api_message& message)
+{
+    if (message.op == plugin::rules_set_message::op())
+    {
+        const auto typed =
+            plugin::decode_as<plugin::rules_set_message>(message);
+        require(typed.has_value());
+        const plugin::rules_result_message answer =
+            plugin::check_rule_set(*typed);
+        require(plugin::encode_as(answer, 1).has_value());
+    }
+    else if (message.op == plugin::modifier_result_message::op())
+    {
+        const auto typed =
+            plugin::decode_as<plugin::modifier_result_message>(message);
+        require(typed.has_value());
+        // A larger batch allows at least what a smaller one does, and nothing
+        // wraps for the largest.
+        const std::size_t sizes[] = {0, 1, 256, plugin::max_modifier_batch,
+                                     static_cast<std::size_t>(-1)};
+        bool allowed = false;
+        for (const std::size_t size : sizes)
+        {
+            const bool within =
+                plugin::modifier_result_within_bounds(size, *typed);
+            require(within || !allowed);
+            allowed = within;
+        }
+    }
+}
+
 /// A message of an extension point is read as its own struct.  What is
 /// refused has a reason, and what is accepted is written again; the
 /// message that is written reads back as itself and is written as the same
@@ -289,6 +325,7 @@ void check_extension(const plugin::api_message& message)
     const auto back = plugin::decode_message(*frame);
     require(back.has_value());
     require(*back == *once);
+    check_host_functions(message);
 }
 
 void check_frame(const agent::frame& frame)

@@ -85,7 +85,7 @@ std::string item_text(const item_case& one, std::string_view key = {},
 
 std::string stream(std::string_view items, std::uint64_t seq = 1)
 {
-    std::string out = R"({"op":"decoder.data","seq":)";
+    std::string out = R"({"op":"decoder.data","instance":3,"seq":)";
     out.append(number_text(seq));
     out.append(R"(,"items":[)");
     out.append(items);
@@ -117,10 +117,11 @@ const std::vector<item_case>& item_cases()
          0,
          {}},
         {"bus_fault",
-         {{"link", R"("l")"},
+         {{"place", R"("l")"},
           {"sender", R"("s")"},
           {"t_ns", "1"},
           {"fault", R"("overlap")"},
+          {"event", "5"},
           {"offset", "0"},
           {"length", "2"}},
          0,
@@ -168,6 +169,7 @@ void require_item_refused(std::string_view kind, std::string_view key,
 decoder_data_message sample_stream()
 {
     decoder_data_message body;
+    body.instance = 3;
     body.seq = 12;
     decoder_data_item first;
     first.place = "bus-1";
@@ -187,7 +189,7 @@ decoder_data_message sample_stream()
     body.items.emplace_back(
         decoder_line_error_item{"bus-1", 6, decoder_line_error::line_break});
     body.items.emplace_back(decoder_bus_fault_item{
-        "link-1", "meter-17", 7, decoder_fault::too_soon, 48215, 3});
+        "link-1", "meter-17", 7, decoder_fault::too_soon, 9912, 48215, 3});
     body.items.emplace_back(decoder_rule_item{"bus-1", 8, "reply", "send"});
     body.items.emplace_back(decoder_time_item{9});
     decoder_data_item second;
@@ -447,6 +449,7 @@ TEST_CASE("plugin api: decoder.data is written and read with all its items")
 TEST_CASE("plugin api: decoder.data has the header of the design")
 {
     decoder_data_message body;
+    body.instance = 3;
     body.seq = 4;
     decoder_data_item one;
     one.place = "p";
@@ -467,8 +470,8 @@ TEST_CASE("plugin api: decoder.data has the header of the design")
     body.items.emplace_back(line);
     body.items.emplace_back(
         decoder_line_error_item{"p", 170, decoder_line_error::framing});
-    body.items.emplace_back(
-        decoder_bus_fault_item{"l", "s", 180, decoder_fault::line_held, 11, 4});
+    body.items.emplace_back(decoder_bus_fault_item{
+        "l", "s", 180, decoder_fault::line_held, 5, 11, 4});
     body.items.emplace_back(decoder_rule_item{"p", 190, "r", "a"});
     body.items.emplace_back(decoder_time_item{200});
     body.items.emplace_back(
@@ -480,7 +483,7 @@ TEST_CASE("plugin api: decoder.data has the header of the design")
     REQUIRE_EQ(
         header_of(written.value()),
         std::string(
-            R"({"op":"decoder.data","seq":4,"items":[)"
+            R"({"op":"decoder.data","instance":3,"seq":4,"items":[)"
             R"({"item":"data","place":"p","direction":"tx","offset":7,)"
             R"("t_ns":100,"length":3},)"
             R"({"item":"data","place":"p","direction":"tx","offset":7,)"
@@ -489,8 +492,8 @@ TEST_CASE("plugin api: decoder.data has the header of the design")
             R"("lines":{"rts":true,"ri":false},"changed":["rts"]},)"
             R"({"item":"line_error","place":"p","t_ns":170,)"
             R"("kind":"framing"},)"
-            R"({"item":"bus_fault","link":"l","sender":"s","t_ns":180,)"
-            R"("fault":"line_held","offset":11,"length":4},)"
+            R"({"item":"bus_fault","place":"l","sender":"s","t_ns":180,)"
+            R"("fault":"line_held","event":5,"offset":11,"length":4},)"
             R"({"item":"rule","place":"p","t_ns":190,"rule":"r",)"
             R"("action":"a"},)"
             R"({"item":"time","t_ns":200},)"
@@ -554,13 +557,15 @@ TEST_CASE("plugin api: an item of decoder.data is checked as a whole")
         stream(R"({"item":"time","t_ns":1})", max_api_number + 1),
         "decoder.data.seq: must be a whole number from 1");
     require_refused<message_type>(
-        R"({"op":"decoder.data","items":[{"item":"time",)"
+        R"({"op":"decoder.data","instance":3,"items":[{"item":"time",)"
         R"("t_ns":1}]})",
         "decoder.data.seq: is required");
-    require_refused<message_type>(R"({"op":"decoder.data","seq":1})",
-                                  "decoder.data.items: is required");
-    require_refused<message_type>(R"({"op":"decoder.data","seq":1,"items":{}})",
-                                  "decoder.data.items: must be a list");
+    require_refused<message_type>(
+        R"({"op":"decoder.data","instance":3,"seq":1})",
+        "decoder.data.items: is required");
+    require_refused<message_type>(
+        R"({"op":"decoder.data","instance":3,"seq":1,"items":{}})",
+        "decoder.data.items: must be a list");
     require_refused<message_type>(stream(""),
                                   "decoder.data.items: has no entries");
     require_refused<message_type>(stream("7"),
@@ -651,7 +656,7 @@ TEST_CASE("plugin api: decoder.data has the limits of its items")
                max_decoder_items);
     require_refused<message_type>(
         stream(items + R"(,{"item":"time","t_ns":1})"),
-        "decoder.data.items: has more than 256 entries");
+        "decoder.data.items: has more than 128 entries");
     message_type body = accepted<message_type>(stream(items));
     (void)round_trip(body);
     body.items.emplace_back(decoder_time_item{1});
@@ -711,6 +716,7 @@ TEST_CASE("plugin api: the times of an item of decoder.data are in order")
     one.end_ns = 4;
     one.length = 1;
     decoder_data_message body;
+    body.instance = 3;
     body.seq = 1;
     body.items.emplace_back(one);
     body.data = bytes_of(1);
@@ -762,8 +768,12 @@ TEST_CASE("plugin api: the names and kinds of the items are checked")
     require_item_refused("bus_fault", "length", "0",
                          "decoder.data.items[0].length: must be a whole number "
                          "from 1 to 65536");
-    require_item_refused("bus_fault", "link", R"("")",
-                         "decoder.data.items[0].link: must not be empty");
+    require_item_refused("bus_fault", "place", R"("")",
+                         "decoder.data.items[0].place: must not be empty");
+    require_item_refused("bus_fault", "event", "-1",
+                         "decoder.data.items[0].event: must be a whole number");
+    require_item_refused("bus_fault", "event", R"("5")",
+                         "decoder.data.items[0].event: must be a whole number");
     require_item_refused("bus_fault", "sender", R"("")",
                          "decoder.data.items[0].sender: must not be empty");
     // A rule and its action are plain names of at most 64 bytes.
@@ -830,6 +840,7 @@ TEST_CASE("plugin api: the lines of a line item are checked")
     decoder_line_item one;
     one.place = "p";
     decoder_data_message body;
+    body.instance = 3;
     body.seq = 1;
     body.items.emplace_back(one);
     (void)round_trip(body);
@@ -848,11 +859,12 @@ TEST_CASE("plugin api: decoder.data is refused with the wrong role or no seq")
 {
     using message_type = decoder_data_message;
     require_refused<message_type>(
-        R"({"op":"decoder.data","id":3,"seq":1,"items":)"
+        R"({"op":"decoder.data","id":3,"instance":3,"seq":1,"items":)"
         R"([{"item":"time","t_ns":1}]})",
         "neither an id nor a re");
-    require_refused<message_type>(R"({"op":"decoder.ack","seq":1})",
-                                  "is not the message in this frame");
+    require_refused<message_type>(
+        R"({"op":"decoder.ack","instance":3,"seq":1})",
+        "is not the message in this frame");
 }
 
 // -- decoder.ack and decoder.stop
@@ -862,32 +874,47 @@ TEST_CASE("plugin api: decoder.ack is written and read")
 {
     using message_type = decoder_ack_message;
     message_type body;
+    body.instance = 3;
     body.seq = 77;
     (void)round_trip(body);
     const auto written = encode_as(body);
     REQUIRE(written.has_value());
     REQUIRE_EQ(header_of(written.value()),
-               std::string(R"({"op":"decoder.ack","seq":77})"));
-    REQUIRE_EQ(accepted<message_type>(R"({"op":"decoder.ack","seq":1})").seq,
-               std::uint64_t{1});
-    REQUIRE_EQ(accepted<message_type>(R"({"op":"decoder.ack","seq":)" +
-                                      number_text(max_api_number) + "}")
-                   .seq,
-               max_api_number);
-    require_refused<message_type>(R"({"op":"decoder.ack"})",
+               std::string(R"({"op":"decoder.ack","instance":3,"seq":77})"));
+    REQUIRE_EQ(
+        accepted<message_type>(R"({"op":"decoder.ack","instance":3,"seq":1})")
+            .seq,
+        std::uint64_t{1});
+    REQUIRE_EQ(
+        accepted<message_type>(R"({"op":"decoder.ack","instance":3,"seq":)" +
+                               number_text(max_api_number) + "}")
+            .seq,
+        max_api_number);
+    require_refused<message_type>(R"({"op":"decoder.ack","instance":3})",
                                   "decoder.ack.seq: is required");
-    require_refused<message_type>(
-        R"({"op":"decoder.ack","seq":0})",
-        "decoder.ack.seq: must be a whole number from 1");
-    require_refused<message_type>(
-        R"({"op":"decoder.ack","seq":)" + number_text(max_api_number + 1) + "}",
-        "decoder.ack.seq: must be a whole number from 1");
-    require_refused<message_type>(R"({"op":"decoder.ack","seq":"1"})",
-                                  "decoder.ack.seq: must be a whole number");
     require_refused<message_type>(R"({"op":"decoder.ack","seq":1})",
-                                  "has no bytes", {1});
-    require_refused<message_type>(R"({"op":"decoder.ack","id":2,"seq":1})",
-                                  "neither an id nor a re");
+                                  "decoder.ack.instance: is required");
+    require_refused<message_type>(
+        R"({"op":"decoder.ack","instance":0,"seq":1})",
+        "decoder.ack.instance: must be a whole");
+    require_refused<decoder_data_message>(
+        R"({"op":"decoder.data","seq":1,"items":[{"item":"time","t_ns":1}]})",
+        "decoder.data.instance: is required");
+    require_refused<message_type>(
+        R"({"op":"decoder.ack","instance":3,"seq":0})",
+        "decoder.ack.seq: must be a whole number from 1");
+    require_refused<message_type>(
+        R"({"op":"decoder.ack","instance":3,"seq":)" +
+            number_text(max_api_number + 1) + "}",
+        "decoder.ack.seq: must be a whole number from 1");
+    require_refused<message_type>(
+        R"({"op":"decoder.ack","instance":3,"seq":"1"})",
+        "decoder.ack.seq: must be a whole number");
+    require_refused<message_type>(
+        R"({"op":"decoder.ack","instance":3,"seq":1})", "has no bytes", {1});
+    require_refused<message_type>(
+        R"({"op":"decoder.ack","id":2,"instance":3,"seq":1})",
+        "neither an id nor a re");
     body.seq = 0;
     require_not_written(body);
     body.seq = max_api_number + 1;
@@ -1155,4 +1182,123 @@ TEST_CASE("plugin api: decoder.frame has the limits of its members")
     require_not_written(body);
     body.instance = 3;
     require_not_written(body, 2);
+}
+
+TEST_CASE("plugin api: the largest decoder.data fits in a header")
+{
+    // The longest item is a bus_fault with two names of 128 bytes, the
+    // largest number in every member and the longest fault name: under 520
+    // bytes, and 128 of them are under the header limit of 65,536.  The test
+    // holds the real figure.
+    decoder_data_message body;
+    body.instance = max_api_number;
+    body.seq = max_api_number;
+    for (std::size_t i = 0; i < max_decoder_items; ++i)
+    {
+        decoder_bus_fault_item item;
+        item.place = repeated('p', max_api_name);
+        item.sender = repeated('s', max_api_name);
+        item.t_ns = max_api_number;
+        item.fault = decoder_fault::transmitter_off;
+        item.event = max_api_number;
+        item.offset = max_api_number;
+        item.length = max_decoder_chunk;
+        body.items.emplace_back(item);
+    }
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    const std::size_t size =
+        std::get<other_message>(written.value().body).header.size();
+    REQUIRE(size < max_header_size);
+    (void)round_trip(body);
+    // One more item is refused by the limit of the list.
+    body.items.emplace_back(decoder_time_item{1});
+    require_not_written(body);
+}
+
+TEST_CASE("plugin api: a decoder.data of the longest data and rule items fits")
+{
+    decoder_data_message body;
+    body.instance = 1;
+    body.seq = 1;
+    for (std::size_t i = 0; i < max_decoder_items; ++i)
+    {
+        decoder_data_item item;
+        item.place = repeated('p', max_api_name);
+        item.direction = decoder_direction::tx;
+        item.offset = max_api_number;
+        item.t_ns = max_api_number;
+        item.end_ns = max_api_number;
+        item.length = 1;
+        body.items.emplace_back(item);
+        body.data.push_back(1);
+    }
+    REQUIRE(encode_as(body).has_value());
+    body.items.clear();
+    for (std::size_t i = 0; i < max_decoder_items; ++i)
+    {
+        body.items.emplace_back(decoder_rule_item{
+            repeated('p', max_api_name), max_api_number,
+            repeated('r', max_decoder_name), repeated('a', max_decoder_name)});
+    }
+    body.data.clear();
+    REQUIRE(encode_as(body).has_value());
+}
+
+TEST_CASE("plugin api: a bus_fault item names its place and its event")
+{
+    using message_type = decoder_data_message;
+    const std::string item =
+        R"({"item":"bus_fault","place":"l","sender":"s","t_ns":1,)"
+        R"("fault":"overlap","event":9912,"offset":0,"length":1})";
+    const auto read = accepted<message_type>(stream(item));
+    const auto& fault = std::get<decoder_bus_fault_item>(read.items[0]);
+    REQUIRE_EQ(fault.place, std::string("l"));
+    REQUIRE_EQ(fault.event, std::uint64_t{9912});
+    // The old key for the place is not read as one.
+    require_refused<message_type>(
+        stream(R"({"item":"bus_fault","link":"l","sender":"s","t_ns":1,)"
+               R"("fault":"overlap","event":1,"offset":0,"length":1})"),
+        "decoder.data.items[0].place: is required");
+    require_refused<message_type>(
+        stream(R"({"item":"bus_fault","place":"l","sender":"s","t_ns":1,)"
+               R"("fault":"overlap","offset":0,"length":1})"),
+        "decoder.data.items[0].event: is required");
+}
+
+TEST_CASE("plugin api: decoder.data and decoder.ack carry their instance")
+{
+    decoder_ack_message ack;
+    ack.instance = 9;
+    ack.seq = 4;
+    const auto read = round_trip(ack);
+    REQUIRE_EQ(read.instance, std::uint64_t{9});
+    ack.instance = 0;
+    require_not_written(ack);
+    decoder_data_message data = sample_stream();
+    data.instance = 0;
+    require_not_written(data);
+    data.instance = max_api_number + 1;
+    require_not_written(data);
+}
+
+TEST_CASE("plugin api: a decoder.frame field may have no bytes")
+{
+    using message_type = decoder_frame_message;
+    decoder_frame_message body = sample_frame();
+    body.fields.clear();
+    body.fields.push_back(decoder_field{"empty", 10, 0, ""});
+    (void)round_trip(body);
+    body.fields[0].length = max_decoder_chunk + 1;
+    require_not_written(body);
+    body.length = max_decoder_chunk;
+    body.fields[0] = decoder_field{"all", 0, max_decoder_chunk, "v"};
+    (void)round_trip(body);
+    body.fields[0] = decoder_field{"over", 1, max_decoder_chunk, "v"};
+    require_not_written(body);
+    require_refused<message_type>(
+        frame_head + R"(,"fields":[{"name":"f","offset":0,"length":)" +
+            number_text(max_decoder_chunk + 1) + R"(,"value":"v"}]})",
+        "decoder.frame.fields[0].length: must be a whole number from 0 to "
+        "65536");
 }

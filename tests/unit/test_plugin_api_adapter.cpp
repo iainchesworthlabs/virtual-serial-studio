@@ -284,16 +284,16 @@ TEST_CASE("plugin api: agent.subscribe is refused when it is wrong")
                                   "must have an id");
 }
 
-TEST_CASE("plugin api: agent.subscribe has up to 256 places of 128 bytes")
+TEST_CASE("plugin api: agent.subscribe has up to 128 places of 128 bytes")
 {
     using message_type = agent_subscribe_message;
     const std::string head = R"({"op":"agent.subscribe","id":1,"places":)";
     REQUIRE_EQ(
-        accepted<message_type>(head + place_list(256) + "}").places.size(),
-        std::size_t{256});
+        accepted<message_type>(head + place_list(128) + "}").places.size(),
+        std::size_t{128});
     require_refused<message_type>(
-        head + place_list(257) + "}",
-        "agent.subscribe.places: has more than 256 entries");
+        head + place_list(129) + "}",
+        "agent.subscribe.places: has more than 128 entries");
     REQUIRE_EQ(
         accepted<message_type>(head + "[\"" + repeated('n', 128) + "\"]}")
             .places[0]
@@ -304,7 +304,7 @@ TEST_CASE("plugin api: agent.subscribe has up to 256 places of 128 bytes")
         "agent.subscribe.places[0]: must be 1 to 128 bytes");
 
     message_type body;
-    for (std::size_t i = 0; i < 256; ++i)
+    for (std::size_t i = 0; i < 128; ++i)
         body.places.push_back("p" + std::to_string(i));
     (void)round_trip(body, 3);
     body.places.push_back("one more");
@@ -461,4 +461,94 @@ TEST_CASE("plugin api: a request of an adapter is answered plugin_unavailable")
     // The same for every request number.
     REQUIRE(
         encode_message(make_plugin_unavailable(max_message_id)).has_value());
+}
+
+TEST_CASE("plugin api: agent.event is written and read")
+{
+    agent_event_message body;
+    body.subscription = 12;
+    body.kind = "data";
+    body.place = "COM7";
+    body.t_ns = 18204113250;
+    body.data = {1, 2, 3};
+    const auto read = round_trip(body);
+    REQUIRE(read.data == body.data);
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    REQUIRE(written.value().blob == body.data);
+    REQUIRE_EQ(header_of(written.value()),
+               std::string(R"({"op":"agent.event","subscription":12,)"
+                           R"("kind":"data","place":"COM7",)"
+                           R"("t_ns":18204113250})"));
+    // An event without bytes, as a subscription without data gets.
+    body.kind = "counters";
+    body.data.clear();
+    (void)round_trip(body);
+}
+
+TEST_CASE("plugin api: agent.event is refused when it is wrong")
+{
+    using message_type = agent_event_message;
+    const std::string head = R"({"op":"agent.event",)";
+    const std::string rest =
+        R"("subscription":1,"kind":"data","place":"p","t_ns":2})";
+    (void)accepted<message_type>(head + rest);
+    require_refused<message_type>(head +
+                                      R"("kind":"data","place":"p","t_ns":2})",
+                                  "agent.event.subscription: is required");
+    require_refused<message_type>(
+        head + R"("subscription":0,"kind":"data","place":"p","t_ns":2})",
+        "agent.event.subscription: must be a whole number");
+    require_refused<message_type>(
+        head + R"("subscription":1,"place":"p","t_ns":2})",
+        "agent.event.kind: is required");
+    require_refused<message_type>(
+        head + R"("subscription":1,"kind":"Data","place":"p","t_ns":2})",
+        "agent.event.kind: must be 1 to 64");
+    require_refused<message_type>(
+        head + R"("subscription":1,"kind":"data","t_ns":2})",
+        "agent.event.place: is required");
+    require_refused<message_type>(
+        head + R"("subscription":1,"kind":"data","place":"","t_ns":2})",
+        "agent.event.place: must not be empty");
+    require_refused<message_type>(
+        head + R"("subscription":1,"kind":"data","place":"p"})",
+        "agent.event.t_ns: is required");
+    require_refused<message_type>(
+        head + R"("subscription":1,"kind":"data","place":"p","t_ns":-1})",
+        "agent.event.t_ns: must be a whole number");
+    require_refused<message_type>(R"({"op":"agent.event","id":1,)" + rest,
+                                  "neither an id nor a re");
+    require_refused<message_type>(R"({"op":"agent.event","re":1,)" + rest,
+                                  "neither an id nor a re");
+    // The bytes: none to 64 KiB.
+    REQUIRE_EQ(
+        accepted<message_type>(head + rest, bytes_of(max_agent_event_data))
+            .data.size(),
+        max_agent_event_data);
+    require_refused<message_type>(head + rest, "has a blob of 65537 bytes",
+                                  bytes_of(max_agent_event_data + 1));
+    agent_event_message body;
+    body.subscription = 1;
+    body.kind = "k";
+    body.place = "p";
+    body.data = bytes_of(max_agent_event_data + 1);
+    require_not_written(body);
+    body.data.clear();
+    body.kind = repeated('k', max_agent_event_kind + 1);
+    require_not_written(body);
+    body.kind = repeated('k', max_agent_event_kind);
+    (void)round_trip(body);
+    body.place = repeated('p', max_api_name + 1);
+    require_not_written(body);
+}
+
+TEST_CASE("plugin api: no place of agent.subscribe is named twice")
+{
+    require_refused<agent_subscribe_message>(
+        R"({"op":"agent.subscribe","id":1,"places":["a","b","a"]})",
+        "agent.subscribe.places: names a place twice");
+    agent_subscribe_message body;
+    body.places = {"a", "a"};
+    require_not_written(body, 1);
 }
