@@ -869,6 +869,8 @@ TEST_CASE("plugin runner: the revision goes up and a snapshot never changes")
 
     const snapshot_ptr first = runner->snapshot();
     REQUIRE(first != nullptr);
+    // A copy on purpose: it is compared with the snapshot later.
+    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
     runner_snapshot first_copy = *first;
 
     std::uint64_t latest_revision = first->revision;
@@ -890,6 +892,7 @@ TEST_CASE("plugin runner: the revision goes up and a snapshot never changes")
                             latest.status.has_value() &&
                             find_line(latest, false, "two") != nullptr;
                  });
+    // NOLINTNEXTLINE(performance-unnecessary-copy-initialization)
     runner_snapshot middle_copy = *middle;
     REQUIRE(middle->revision > first->revision);
 

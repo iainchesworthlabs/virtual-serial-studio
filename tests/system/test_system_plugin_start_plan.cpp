@@ -101,6 +101,7 @@ std::vector<permission_request> asking(const std::vector<permission>& required,
                                        const std::vector<permission>& optional)
 {
     std::vector<permission_request> requests;
+    requests.reserve(required.size() + optional.size());
     for (const permission name : required)
         requests.push_back(ask(name, true));
     for (const permission name : optional)

@@ -487,7 +487,7 @@ std::uint64_t process_of(const service_plugin& entry)
 /// waited for and what the last snapshot was, when the limit passes first.
 template <class Predicate>
 snapshot_ptr wait_for(const plugin_service& service, std::string_view what,
-                      Predicate predicate,
+                      const Predicate& predicate,
                       std::chrono::milliseconds limit = long_limit)
 {
     const auto deadline = steady::now() + limit;
@@ -627,10 +627,17 @@ public:
             // Nothing can be done about it here, and a destructor does not
             // throw.  The thread is stopped below.
         }
-        if (thread_.joinable())
+        try
         {
-            context_.stop();
-            thread_.join();
+            if (thread_.joinable())
+            {
+                context_.stop();
+                thread_.join();
+            }
+        }
+        catch (...) // NOLINT(bugprone-empty-catch)
+        {
+            // The same: a destructor does not throw.
         }
     }
 
@@ -1231,7 +1238,7 @@ TEST_CASE("plugin service: a plugin that needs a licence runs when a licence "
     static_cast<void>(
         make_plugin(fixture.plugins_directory(), licensed_plugin()));
     service_options options = fixture.options();
-    const lic::status covered = licence_that_covers_official_plugins();
+    lic::status covered = licence_that_covers_official_plugins();
     options.licence = [covered] { return covered; };
     plugin_service& service = fixture.start(std::move(options));
     service.rescan();
