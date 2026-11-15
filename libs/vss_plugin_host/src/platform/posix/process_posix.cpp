@@ -196,11 +196,12 @@ struct child_plan
     // Signals as a new program expects them: none ignored, none blocked.
     struct sigaction standard{};
     standard.sa_handler = SIG_DFL;
-    ::sigemptyset(&standard.sa_mask);
+    // No scope before these two: macOS makes them macros.
+    sigemptyset(&standard.sa_mask);
     for (int signal_number = 1; signal_number < NSIG; ++signal_number)
         ::sigaction(signal_number, &standard, nullptr);
     sigset_t none;
-    ::sigemptyset(&none);
+    sigemptyset(&none);
     ::sigprocmask(SIG_SETMASK, &none, nullptr);
 
     if (failed == 0 && (::dup2(plan.input, plugin_input) < 0 ||
