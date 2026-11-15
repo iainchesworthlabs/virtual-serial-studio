@@ -11,6 +11,7 @@
 
 #include "test_framework.hpp"
 
+#include <vss/ports/listen_transport.hpp>
 #include <vss/ports/permissions.hpp>
 
 #include <string>
@@ -333,6 +334,89 @@ TEST_CASE("permissions: a firewall rule that would open too much is refused")
     bad = spec;
     bad.profiles = 0;
     REQUIRE(!validate(bad).empty());
+    // The three networks together are every network, however they are written.
+    bad = spec;
+    bad.profiles = profile_domain | profile_private | profile_public;
+    REQUIRE(!validate(bad).empty());
+    bad.scope = rule_scope::any_address;
+    REQUIRE(!validate(bad).empty());
+    bad = spec;
+    bad.profiles = 8;
+    REQUIRE(!validate(bad).empty());
+
+    // Any one or two of them are fine.
+    for (const long profiles :
+         {profile_domain, profile_private, profile_public,
+          profile_domain | profile_private, profile_private | profile_public,
+          profile_domain | profile_public})
+    {
+        bad = spec;
+        bad.profiles = profiles;
+        REQUIRE(validate(bad).empty());
+    }
+}
+
+TEST_CASE("permissions: the helper refuses a rule for every network")
+{
+    // What any program running as the user could ask the helper to do, as
+    // `vss_cli permissions firewall-allow` reads it.
+    const std::vector<std::string> every_network = {
+        "permissions",
+        "firewall-allow",
+        "--program=C:\\Studio\\bin\\vss_gui.exe",
+        "--protocol=tcp",
+        "--port=4001",
+        "--scope=any",
+        "--profiles=domain,private,public"};
+    const auto step = parse_elevated_arguments(every_network);
+    REQUIRE(step.has_value());
+    REQUIRE(!validate(step->spec).empty());
+
+    // The same words in another order are the same set of networks.
+    auto reordered = every_network;
+    reordered[6] = "--profiles=public,domain,private";
+    const auto again = parse_elevated_arguments(reordered);
+    REQUIRE(again.has_value());
+    REQUIRE(!validate(again->spec).empty());
+
+    // Two networks, and the default scope, are accepted.
+    auto two = every_network;
+    two[5] = "--scope=local-subnet";
+    two[6] = "--profiles=domain,private";
+    const auto accepted = parse_elevated_arguments(two);
+    REQUIRE(accepted.has_value());
+    REQUIRE(accepted->spec.scope == rule_scope::local_subnet);
+    REQUIRE(validate(accepted->spec).empty());
+
+    // No network named is refused too.
+    auto none = every_network;
+    none[6] = "--profiles=";
+    const auto empty = parse_elevated_arguments(none);
+    REQUIRE(empty.has_value());
+    REQUIRE(!validate(empty->spec).empty());
+}
+
+TEST_CASE("permissions: a computer on every network is offered the private one")
+{
+    // Windows reports every network when adapters are on a domain, a private
+    // and a public network at once. The rule Studio offers must still be one
+    // the helper accepts.
+    auto seen = firewall_on_with({});
+    seen.windows.active_profiles =
+        profile_domain | profile_private | profile_public;
+    const auto facts = evaluate(seen, listening_on("0.0.0.0", 4001), "windows");
+    const fact* firewall = find(facts, topic::windows_firewall);
+    REQUIRE(firewall != nullptr);
+    REQUIRE(firewall->status == state::attention);
+    REQUIRE(!firewall->remedy.empty());
+    REQUIRE(firewall->remedy.find("profile=private") != std::string::npos);
+    REQUIRE(firewall->remedy.find("domain") == std::string::npos);
+
+    seen.windows.active_profiles = profile_all;
+    const auto from_all =
+        evaluate(seen, listening_on("0.0.0.0", 4001), "windows");
+    REQUIRE(find(from_all, topic::windows_firewall)
+                ->remedy.find("profile=private") != std::string::npos);
 }
 
 TEST_CASE("permissions: the elevated helper arguments round-trip and nothing "
@@ -442,4 +526,95 @@ TEST_CASE("permissions: listen addresses are read as the engine reads them")
           "tcp-listen://127.0.0.1:0", "tcp-listen://127.0.0.1:70000",
           "udp-listen://:x", ""})
         REQUIRE(!parse_listen_uri(bad, each));
+}
+
+TEST_CASE("permissions: RFC 2217 listeners and allow lists are read")
+{
+    listener each;
+    REQUIRE(parse_listen_uri("rfc2217-listen://0.0.0.0:7001", each));
+    REQUIRE(each.protocol == transport_protocol::tcp);
+    REQUIRE_EQ(each.host, std::string("0.0.0.0"));
+    REQUIRE_EQ(each.port, std::uint16_t{7001});
+
+    REQUIRE(parse_listen_uri("tcp-listen://0.0.0.0:4001?allow=192.168.1.0/24",
+                             each));
+    REQUIRE(each.protocol == transport_protocol::tcp);
+    REQUIRE_EQ(each.host, std::string("0.0.0.0"));
+    REQUIRE_EQ(each.port, std::uint16_t{4001});
+
+    REQUIRE(parse_listen_uri("udp-listen://[::]:5000?allow=fd00::/8,10.0.0.0/8",
+                             each));
+    REQUIRE(each.protocol == transport_protocol::udp);
+    REQUIRE_EQ(each.host, std::string("::"));
+    REQUIRE_EQ(each.port, std::uint16_t{5000});
+
+    REQUIRE(parse_listen_uri("rfc2217-listen://[::1]:7002?allow=::1", each));
+    REQUIRE_EQ(each.host, std::string("::1"));
+    REQUIRE_EQ(each.port, std::uint16_t{7002});
+
+    // What the transport refuses is refused here too.
+    for (const char* bad :
+         {"tcp-listen://0.0.0.0:4001?deny=10.0.0.0/8",
+          "tcp-listen://0.0.0.0:4001?allow=not-an-address",
+          "rfc2217-listen://0.0.0.0", "rfc2217-listen://0.0.0.0:0",
+          "rfc2217-listen://:x", "rfc2217://0.0.0.0:7001"})
+        REQUIRE(!parse_listen_uri(bad, each));
+}
+
+TEST_CASE("permissions: the check sees every scheme the listening transport "
+          "accepts")
+{
+    // The switch has no default, so a new `listen_protocol` stops this file
+    // compiling until it is listed here and given a case below.
+    constexpr vss::listen_protocol protocols[] = {
+        vss::listen_protocol::tcp, vss::listen_protocol::udp,
+        vss::listen_protocol::rfc2217};
+    for (const vss::listen_protocol protocol : protocols)
+    {
+        transport_protocol expected = transport_protocol::tcp;
+        switch (protocol)
+        {
+        case vss::listen_protocol::tcp:
+        case vss::listen_protocol::rfc2217:
+            expected = transport_protocol::tcp;
+            break;
+        case vss::listen_protocol::udp:
+            expected = transport_protocol::udp;
+            break;
+        }
+
+        for (const bool with_allow : {false, true})
+        {
+            vss::listen_address address;
+            address.protocol = protocol;
+            address.host = "0.0.0.0";
+            address.port = 7001;
+            if (with_allow)
+                address.allow = {"192.168.1.0/24", "10.0.0.5"};
+            const std::string uri = vss::make_listen_uri(address);
+
+            // The transport accepts it ...
+            REQUIRE(vss::is_listen_uri(uri));
+            REQUIRE(vss::parse_listen_uri(uri).has_value());
+
+            // ... so the check must see it, with the same host and port.
+            listener each;
+            REQUIRE(parse_listen_uri(uri, each));
+            REQUIRE(each.protocol == expected);
+            REQUIRE_EQ(each.host, address.host);
+            REQUIRE_EQ(each.port, address.port);
+
+            // And an exposed listener with no rule is reported, not dropped.
+            context ask;
+            ask.program_path = program;
+            ask.listeners.push_back(each);
+            const auto facts = evaluate(firewall_on_with({}), ask, "windows");
+            const fact* firewall = find(facts, topic::windows_firewall);
+            REQUIRE(firewall != nullptr);
+            REQUIRE(firewall->status == state::attention);
+            REQUIRE_EQ(firewall->why, std::string(reason::no_allow_rule));
+            REQUIRE_EQ(firewall->port, std::uint16_t{7001});
+            REQUIRE(firewall->protocol == expected);
+        }
+    }
 }
