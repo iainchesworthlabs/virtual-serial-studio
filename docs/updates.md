@@ -1,8 +1,8 @@
 # Online updates (design)
 
-Status: **proposal**, written on 15 November 2026. The owner decided the main points the same day; section 13
-records them and lists what is still open. Part of it is built, with no window and no request: see
-[What is built](#what-is-built). Section 12 is the order of work.
+Status: written on 15 November 2026 as a proposal. The owner decided the main points the same day and that the
+check ships in release candidate 6; section 13 records the decisions and lists what is still open. Most of it is
+built: see [What is built](#what-is-built). Section 12 is the order of work.
 
 Studio learns that a newer version of itself, or of an official plugin, has been published, tells the user, and
 on a yes downloads it, checks it and starts the install. This page is the design: what the user sees, the file
@@ -15,16 +15,38 @@ It builds on [Licensing](licensing.md) (the signed-file envelope and the Ed25519
 
 ## What is built
 
-**This build does not check for updates and makes no request.** Two parts exist, with tests:
+**Studio checks for updates, for itself.** It asks first, makes no request until the person has said yes or
+checks by hand, and can download, check and start the install of a newer Studio. Updates of plugins are not built
+(section 8). The parts outside Studio, with tests:
 
 | Part | Where | Used by |
 |---|---|---|
 | Semantic versions, the reader and verifier of the signed feed, and the choice of what to offer | `libs/vss_update` | Its unit tests and a fuzz target. Nothing in Studio calls it yet |
 | The tool that builds, signs and verifies a feed | `tools/update_feed.py` | Its tests. No workflow runs it yet |
 
-The list of feed keys built into the program is empty, so the reader refuses every feed with "no update keys"
-until the owner adds the public halves (section 5). Everything else on this page (the request, the timer, the
-screens, the download, the install step, the publishing job, the copy on the website) is not built.
+The parts in Studio, with tests:
+
+| Part | Where |
+|---|---|
+| The service: settings, timer, check, download, the question at first start, what to say unasked | `apps/vss_gui/src/updates/update_service.*` |
+| The transport, the only code that makes a request | `apps/vss_gui/src/updates/network_transport.*` |
+| The kind of install, the checked file and the hand-over to the system, one file for each system | `apps/vss_gui/src/updates/platform/` |
+| The screens: the banner, the status bar chip, the Updates tab of About, the Updates group of Settings, Help > Check for updates and the update dialog | `apps/vss_gui/src/shell/`, `apps/vss_gui/src/support/` |
+| The policy key `update_check` | `libs/vss_plugin` (the policy reader) |
+
+**The list of feed keys built into the program is empty**, so a build says "This build cannot check for updates"
+and makes no request until the owner adds the public halves (section 5).
+
+Not built: the plugin rows and the plugin install hand-over (section 8), a silent Windows upgrade and the other
+later work of section 7.3. Known limits of what is built:
+
+- While Windows shows its administrator prompt for the installer, Studio's window does not answer. The prompt is
+  on its own desktop, so nothing of Studio can be used then anyway.
+- The installer starts before Studio asks about unsaved changes. If the person keeps Studio open at that
+  question, the installer asks for Studio to be closed, as it does for any upgrade.
+- A proxy that asks for a user name and a password is not supported: the check then fails as "could not reach
+  the update server".
+- A check by hand does not run while a download is running.
 
 ## 1. Scope
 
@@ -87,7 +109,7 @@ The words below are the proposal for the screen spec (`docs/gui-design/docs/scre
 |---|---|
 | Help menu | **Check for updates...**, after Support and before About. In the action registry, so Search actions finds it |
 | About dialog | A new **Updates** tab, second, after About. The header's sub line is unchanged |
-| Settings | An **Updates** group: "Check for updates automatically" and "Include pre-release versions" |
+| Settings | An **Updates** group at the end of the General page: "Check for updates automatically" and "Include pre-release versions" |
 | First start | The question of section 3.5, once |
 | Status bar | A chip, "Update available", only while there is one. It opens the update dialog |
 | Plugins page (when it exists) | A row's version shows "1.3.0 available" with the same dialog behind it |
@@ -317,10 +339,15 @@ with the first.
 - The `User-Agent` is the fixed text `VirtualSerialStudio`. It carries no version, no operating system and no
   identifier. Studio downloads the whole feed and chooses for itself, so the server is never told what is
   installed.
+- Every other header has one value, the same on every computer: `Accept-Language: *` and
+  `Accept-Encoding: identity` (Qt would otherwise send the system's language and the encodings that its build
+  knows), `Cache-Control: no-cache` and `Pragma: no-cache` (so that a proxy gives a fresh copy), `Host` and
+  `Connection: Keep-Alive`. A test reads the request header by header.
 - TLS errors are never ignored and there is no "continue anyway".
 - No redirect is followed for the feed. A download (section 7) follows redirects to `https` addresses only, since
   GitHub serves release files from a second host, and the hash decides whether the bytes are right.
-- The system's proxy settings are used. Labs sit behind proxies.
+- The system's proxy settings are used. Labs sit behind proxies. A proxy that asks for a password is not
+  supported.
 - 15 seconds to connect and receive; a body over 64 KiB is cut off and refused.
 
 What the server can see is what any web server sees of any request: the address the request came from and the
@@ -350,11 +377,16 @@ file.
 
 ### 6.4 Threads
 
-`QNetworkAccessManager` lives on the GUI thread and is asynchronous, so nothing waits. Verifying a feed is one
-Ed25519 check of a few kilobytes and is done where the reply arrives. A download is hashed as its bytes arrive, in
-pieces of at most 64 KiB, so no single step is long. The file is written through a `QSaveFile`-like temporary and
-never exists under its final name until the hash matched. Nothing in the update code touches the hub, an endpoint
-strand or the agent.
+The service lives on the GUI thread and never waits. The requests run on a thread of their own, because
+finding the system's proxy and loading the certificate store can each take longer than the window may be held up.
+That thread is started by the first request: a Studio that never checks starts no thread, loads no TLS code and
+opens no socket. Replies come back to the GUI thread through queued calls, in order, and a download hands on a
+bounded number of pieces at a time, so a slow disk cannot make it hold the whole file in memory.
+
+Verifying a feed is one Ed25519 check of a few kilobytes and is done where the reply arrives. A download is
+written to a folder of its own under the cache folder, then read back through the checked file (section 7.2) and
+hashed in pieces of at most 64 KiB, one piece for each turn of the event loop, so no single step is long. Nothing
+in the update code touches the hub, an endpoint strand or the agent.
 
 ## 7. Download and install
 
@@ -376,25 +408,30 @@ anything by itself: it only chooses which published file is offered, and the has
 
 ### 7.2 Download
 
-- Into Studio's own cache folder (`QStandardPaths::CacheLocation`, `updates/`), under a temporary name. Files left
-  there from an earlier run are deleted at start.
+- Into a new folder with a random name under Studio's own cache folder (`QStandardPaths::CacheLocation`,
+  `updates/`), under the file's own name: an installer has to be called `.exe` for Windows to run it, so the
+  folder is what is temporary. What an earlier run left under `updates/` is deleted at start. An archive is moved
+  to the person's Downloads folder only after its hash matched, under a name that overwrites nothing.
 - The size in the feed is the limit, and the SHA-512 of what arrived must equal the feed's. Anything else is
   deleted and reported (section 3.3).
 - **What is checked is what runs** (the rule of `docs/plugins.md`, section 5.4). On Windows the file is opened once
   with writing and deleting denied to others, hashed through that handle, and the handle is kept until the
   installer process has started. A program running as the same user therefore cannot swap the file between the
-  check and the moment Windows asks for administrator rights. Elsewhere the file is handed to a system tool that
-  asks for its own confirmation, and the same open-then-hash order is used.
+  check and the moment Windows asks for administrator rights. macOS and Linux cannot hold a file still that way.
+  On macOS the checked disk image is opened by the system and the person copies the app. On Linux the step that
+  runs as the administrator does not trust the file it is given: it copies the package into a folder that only
+  the administrator can reach, compares the copy's SHA-512 with the one from the signed feed, and installs the
+  copy.
 
 ### 7.3 Install, by kind
 
 | Kind | After the download is checked |
 |---|---|
-| `windows-installer` | Studio says what will happen ("Studio will close and the installer will start."), stops the running ports the way Quit does, starts the installer and exits. The installer asks for administrator rights itself, shows its own pages and upgrades in place (`docs/releasing.md`, "Upgrade and uninstall"): the driver, the helper service and the COM numbers are kept |
+| `windows-installer` | Studio says what will happen ("Studio will close and the installer will start."), starts the installer and then closes the way Quit does, which stops the running ports. The installer comes first so that a person who says no to the administrator prompt keeps Studio and its ports as they were. The installer asks for administrator rights itself, shows its own pages and upgrades in place (`docs/releasing.md`, "Upgrade and uninstall"): the driver, the helper service and the COM numbers are kept |
 | `windows-zip` | Saved to the Downloads folder. "Show in folder". The text says that this copy was unpacked from an archive and that the new one is unpacked in its place |
 | `macos-dmg` | The disk image is opened. The text says to quit Studio and drag the app onto Applications. Studio does not replace its own bundle in the first version |
 | `macos-archive` | As `windows-zip` |
-| `linux-deb`, `linux-rpm` | The command is shown with a Copy button (`sudo apt install <file>`, `sudo dnf install <file>`), and, where `pkexec` exists, a button that runs it through `pkexec`, as the serial group step does. Then "Restart Studio to use the new version." |
+| `linux-deb`, `linux-rpm` | The command is shown with a Copy button (`sudo apt install <file>`, `sudo dnf install <file>`), and, where `pkexec` and the package tool exist, a button that installs through `pkexec`: one fixed script that copies the package to a folder of the administrator's, checks the copy's SHA-512 and runs `apt-get install` or `dnf install` on the copy (section 7.2). Then "Restart Studio to use the new version." |
 | `linux-archive` | As `windows-zip` |
 
 Studio never raises its own rights. Every step that needs an administrator is a system prompt that the user
@@ -411,12 +448,13 @@ HTTPS needs a TLS backend in the Qt that ships:
 
 | System | Backend | Change |
 |---|---|---|
-| Windows | Schannel (`tls/qschannelbackend.dll`) | The deploy step should already copy it because the program links `Qt6::Network`. The release check gains a test that it is there |
+| Windows | Schannel (`plugins/tls/qschannelbackend.dll`) | The deploy step already copies it, because the program links `Qt6::Network`. The release job asks the installed copy |
 | macOS | Secure Transport, in the bundle's `PlugIns/tls` | The same |
-| Linux | OpenSSL (`plugins/tls/libqopensslbackend.so`), which loads the system's `libssl.so.3` | The backend goes into `plugins/tls`; the deb and rpm depend on the system's OpenSSL 3 package; `check_linux_packages.sh` adds the file to its `ldd` list |
+| Linux | OpenSSL (`plugins/tls/libqopensslbackend.so`), which loads the system's `libssl.so.3` when it is first used | The plug-in is already in the package. It is not linked to OpenSSL, so `ldd` cannot show the need: the deb and rpm now depend on the system's OpenSSL 3, and `check_linux_packages.sh` asks the installed copy in a clean container |
 
-`vss_gui --selftest` gains one line: whether TLS is available. A package without it fails the release job, not the
-user's first check.
+`vss_gui --check-tls` says whether this copy can make a TLS connection and exits with 0 or 1. It makes no
+connection. The release job runs it on the installed copy of each system, so a package without a TLS backend
+fails the release job, not the user's first check.
 
 ## 8. Plugins
 
@@ -456,11 +494,13 @@ window when there is a Plugins page to put them on (section 12, step 7).
 | The feed: verify, parse, limits | `libs/vss_update` | Uses `vss::license::signed_file`. A fuzz target for the reader |
 | The choice: channel, newer-than, the file for an install kind, plugin candidates | `libs/vss_update` | Pure functions of the feed, the running version and the installed plugins |
 | The feed keys | `libs/vss_update/src/trusted_keys_release.cpp` | Public halves only. Empty until the owner adds them |
-| The service: timer, state, settings, policy | `apps/vss_gui/src/updates/update_service.*` | A `QObject` on the GUI thread. Talks to the network through a small `feed_transport` interface, so every test uses a fake and no test opens a socket |
-| The transport | `apps/vss_gui/src/updates/network_transport.*` | The only file that includes `QNetworkAccessManager` |
-| The kind of install | `apps/vss_gui/src/updates/platform/<system>/install_kind.cpp` | One file for each system, chosen in CMake |
-| Download, hash, hand-over | `apps/vss_gui/src/updates/update_download.*` and `platform/<system>/start_install.cpp` | The Windows file holds the handle (section 7.2) |
-| The screens | `apps/vss_gui/src/updates/update_dialog.*`, the Updates tab in `support/about_dialog.cpp`, the rows in `support/settings_dialog.cpp`, the action in `shell/` | Strings from the screen spec, in `tr()` |
+| The service: timer, state, settings, the check and the download | `apps/vss_gui/src/updates/update_service.*` | A `QObject` on the GUI thread. Talks to the network through a small `feed_transport` interface, so its tests use a fake and open no socket |
+| The transport | `apps/vss_gui/src/updates/network_transport.*` | The only file that includes `QNetworkAccessManager`. Its tests run a web server on the loopback address |
+| The service as the program runs it: the built-in keys, the policy, the real clock and folders | `apps/vss_gui/src/updates/program_updates.*` | `main` makes one and gives its service to the window |
+| The kind of install | `apps/vss_gui/src/updates/platform/<system>/install_kind_<system>.cpp` | One file for each system, chosen in CMake |
+| The checked file and the hand-over | `apps/vss_gui/src/updates/checked_file.hpp`, `platform/<system>/checked_file_<system>.cpp` | The Windows file holds the handle (section 7.2) |
+| The package step of Linux | `apps/vss_gui/src/updates/package_install.*`, `platform/linux/package_install_linux.cpp` | The administrator's step checks its own copy (section 7.2) |
+| The screens | `apps/vss_gui/src/support/update_dialog.*`, `support/update_text.*`, the Updates tab in `support/about_dialog.cpp`, the group in `support/settings_dialog.cpp`, `shell/update_notice.*`, the chip in `shell/status_bar.*`, the action in `shell/shell_window.cpp` | Strings from the screen spec, in `tr()` |
 | The feed tool | `tools/update_feed.py`, `tools/test_update_feed.py` | Builds the payload from a release's files and `SHA512SUMS`, signs it by calling OpenSSL as `tools/plugin_sign.py` does, and verifies a feed with a public key |
 | Publishing | `.github/workflows/release.yml` (a `feed` job after `publish`), `tools/site_build.py` (copies the newest feed to `updates/v1/feed.json`) | Section 10 |
 
@@ -518,9 +558,9 @@ It is left out of the first version to keep it small.
 
 ## 12. Order of work
 
-Each step is one pull request against `develop`, with its tests and a changelog fragment where the user sees a
-change. Steps 1 and 2 touch no window and make no request, so they can merge before the owner has decided the
-points of section 13.
+Steps 1 to 6 are done, in three pull requests: step 1, the tool of step 2 and step 3 in the first; the rest of
+step 2 in the second; steps 4, 5 and 6 together in the third, because the rule of section 2 becomes true with the
+request. Step 7 waits for the Plugins page.
 
 | Step | What | Size and who |
 |---|---|---|

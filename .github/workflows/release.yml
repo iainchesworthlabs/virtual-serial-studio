@@ -266,6 +266,8 @@ jobs:
           installed="$PROGRAMFILES/Virtual Serial Studio"
           "$installed/bin/vss_cli.exe" selftest
           "$installed/bin/vss_gui.exe" --version
+          # The check for updates needs a TLS backend in the Qt that was installed (docs/updates.md, section 7.4).
+          "$installed/bin/vss_gui.exe" --check-tls
 
       - name: Uninstall the Windows installer
         if: runner.os == 'Windows'
@@ -371,6 +373,8 @@ jobs:
           test "$(readlink "$mount/Applications")" = "/Applications"
           "$mount/bin/vss_cli" selftest
           "$mount/vss_gui.app/Contents/MacOS/vss_gui" --version
+          # The check for updates needs a TLS backend in the bundle (docs/updates.md, section 7.4).
+          "$mount/vss_gui.app/Contents/MacOS/vss_gui" --check-tls
 
       - name: Upload
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

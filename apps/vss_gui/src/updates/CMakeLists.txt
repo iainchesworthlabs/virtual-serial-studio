@@ -18,6 +18,8 @@ add_library(vss_gui_updates STATIC
   package_install.hpp
   plain_checked_file.cpp
   plain_checked_file.hpp
+  program_updates.cpp
+  program_updates.hpp
   update_service.cpp
   update_service.hpp
   update_types.hpp)
@@ -34,6 +36,9 @@ target_link_libraries(vss_gui_updates PUBLIC
   Qt6::Core
   Qt6::Gui
   Qt6::Network)
+# The administrator's policy file is read with the plugin library's reader,
+# which owns the file's format and the test of who may change it.
+target_link_libraries(vss_gui_updates PRIVATE Vss::plugin)
 
 if(WIN32)
   target_link_libraries(vss_gui_updates PRIVATE shell32)

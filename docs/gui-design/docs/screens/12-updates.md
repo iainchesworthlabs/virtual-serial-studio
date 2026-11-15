@@ -77,7 +77,7 @@ Buttons in the tab, right aligned: "Check now" (disabled while checking, and in 
 Acceptance: every state can be shown from a test; the status sentence is announced when it changes; "Check now" works with the keyboard only and returns focus to itself when the check ends; the tab works at 200 percent text.
 
 ## Settings, the Updates group
-Context `SettingsDialog`. A group "Updates" after the last group.
+Context `SettingsDialog`. A group "Updates" at the end of the General page, after its last group.
 
 | Control | Label | Help line |
 |---|---|---|
