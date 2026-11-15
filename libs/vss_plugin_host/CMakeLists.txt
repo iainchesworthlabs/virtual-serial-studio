@@ -11,6 +11,7 @@ add_library(vss_plugin_host
   src/process.cpp
   src/runner.cpp
   src/sandbox.cpp
+  src/service.cpp
   src/start_plan.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 

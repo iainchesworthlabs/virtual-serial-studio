@@ -61,6 +61,7 @@
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/host/process.hpp>
 #include <vss/plugin/host/runner.hpp>
+#include <vss/plugin/host/service.hpp>
 #include <vss/plugin/host/start_plan.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/licence.hpp>
