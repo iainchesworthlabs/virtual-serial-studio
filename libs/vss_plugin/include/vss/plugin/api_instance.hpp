@@ -32,9 +32,12 @@ inline constexpr std::size_t max_api_id = 64;
 /// for the same thing, and this one is the generic form.
 struct instance_create_message
 {
-    static constexpr std::string_view op = "instance.create";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept
+    {
+        return "instance.create";
+    }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     /// The number the host gives the instance.  The plugin uses it in every
     /// message about the instance.
@@ -54,9 +57,9 @@ struct instance_create_message
 /// everything the instance had.
 struct instance_stop_message
 {
-    static constexpr std::string_view op = "instance.stop";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "instance.stop"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
 
@@ -69,9 +72,9 @@ struct instance_stop_message
 /// which Studio shows beside the parameter.
 struct params_changed_message
 {
-    static constexpr std::string_view op = "params.changed";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "params.changed"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// The parameters that changed, as one JSON object, already checked.

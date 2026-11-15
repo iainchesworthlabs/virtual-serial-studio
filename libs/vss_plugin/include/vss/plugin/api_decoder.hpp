@@ -240,9 +240,9 @@ using decoder_item =
 /// Creates a decoder on its places.  The plugin answers "ok".
 struct decoder_create_message
 {
-    static constexpr std::string_view op = "decoder.create";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "decoder.create"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// 1 to `max_decoder_places` places, no place twice.
@@ -259,9 +259,9 @@ struct decoder_create_message
 /// size.  The message names no instance (section 20.6 gives none).
 struct decoder_data_message
 {
-    static constexpr std::string_view op = "decoder.data";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "decoder.data"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     /// 1 to `max_api_number`.
     std::uint64_t seq = 0;
@@ -277,9 +277,9 @@ struct decoder_data_message
 /// The plugin has taken the stream up to this `seq`.
 struct decoder_ack_message
 {
-    static constexpr std::string_view op = "decoder.ack";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "decoder.ack"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     /// 1 to `max_api_number`.
     std::uint64_t seq = 0;
@@ -308,9 +308,9 @@ struct decoder_field
 /// A decoded frame, for the traffic view.
 struct decoder_frame_message
 {
-    static constexpr std::string_view op = "decoder.frame";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "decoder.frame"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     std::string place;
@@ -424,9 +424,12 @@ struct trigger_request
 /// its time.  No bytes are in it.
 struct trigger_publish_message
 {
-    static constexpr std::string_view op = "trigger.publish";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept
+    {
+        return "trigger.publish";
+    }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     trigger_kind kind = trigger_kind::framing;
@@ -458,9 +461,9 @@ struct trigger_publish_message
 /// Stops a decoder.  The plugin answers "ok".
 struct decoder_stop_message
 {
-    static constexpr std::string_view op = "decoder.stop";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "decoder.stop"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
 

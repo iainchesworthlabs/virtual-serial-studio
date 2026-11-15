@@ -163,7 +163,7 @@ void refuse_without_ring(reading& state, const json::object& object,
 void read_start(reading& state, const json::object& object,
                 capture_start_message& out)
 {
-    constexpr auto where = capture_start_message::op;
+    constexpr auto where = capture_start_message::op();
     out.places =
         names_of(state, object, where, "places", 1, max_capture_places, true);
     out.limit_bytes = number_of(state, object, where, "limit_bytes", 1,
@@ -232,7 +232,7 @@ bool write_status(json::object&, const capture_status_message&)
 void read_capture_result(reading& state, const json::object& object,
                          capture_result_message& out)
 {
-    constexpr auto where = capture_result_message::op;
+    constexpr auto where = capture_result_message::op();
     out.running =
         bool_of(state, object, where, "running", true).value_or(false);
     out.bytes =
@@ -289,7 +289,7 @@ bool reads_back(double number)
 void read_timeline(reading& state, const json::object& object,
                    timeline_load_message& out)
 {
-    constexpr auto where = timeline_load_message::op;
+    constexpr auto where = timeline_load_message::op();
     out.instance =
         number_of(state, object, where, "instance", 1, max_api_number, true)
             .value_or(0);
@@ -320,7 +320,7 @@ bool write_timeline(json::object& header, const timeline_load_message& body)
 void read_prepare(reading& state, const json::object& object,
                   bundle_prepare_message& out)
 {
-    constexpr auto where = bundle_prepare_message::op;
+    constexpr auto where = bundle_prepare_message::op();
     out.section = token_of(state, object, where, "section", max_api_name, true);
     out.settings = object_text_of(state, object, where, "settings", false);
 }
@@ -347,7 +347,7 @@ bool plain_file_name(std::string_view name) noexcept
 void read_files(reading& state, const json::object& object,
                 bundle_result_message& out)
 {
-    constexpr auto where = bundle_result_message::op;
+    constexpr auto where = bundle_result_message::op();
     const json::array* const list =
         list_of(state, object, where, "files", max_bundle_files, true);
     if (list == nullptr)

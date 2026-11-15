@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -45,7 +46,7 @@ template <class M> M round_trip(const M& body, std::uint64_t number = 0)
 {
     const auto written = plugin::encode_as<M>(body, number);
     REQUIRE(written.has_value());
-    REQUIRE_EQ(written.value().op, std::string(M::op));
+    REQUIRE_EQ(written.value().op, std::string(M::op()));
 
     const auto frame = plugin::encode_message(written.value());
     REQUIRE(frame.has_value());
@@ -55,9 +56,10 @@ template <class M> M round_trip(const M& body, std::uint64_t number = 0)
     reader.feed(bytes.value());
     auto next = reader.next();
     REQUIRE(next.has_value());
-    REQUIRE(next.value().has_value());
+    const std::optional<agent::frame>& ready = next.value();
+    REQUIRE(ready.has_value());
 
-    const auto decoded = plugin::decode_message(*next.value());
+    const auto decoded = plugin::decode_message(*ready);
     REQUIRE(decoded.has_value());
     std::string detail = "stale";
     const auto typed = plugin::decode_as<M>(decoded.value(), &detail);

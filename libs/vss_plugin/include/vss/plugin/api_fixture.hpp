@@ -85,9 +85,9 @@ std::string_view to_string(line_fault value) noexcept;
 /// Makes a fixture on an endpoint.  The plugin answers "ok".
 struct fixture_create_message
 {
-    static constexpr std::string_view op = "fixture.create";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "fixture.create"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// The endpoint the fixture is on: 1 to `max_api_number`.
@@ -103,9 +103,9 @@ struct fixture_create_message
 /// of arrivals into one message.
 struct fixture_data_message
 {
-    static constexpr std::string_view op = "fixture.data";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "fixture.data"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     /// The engine's clock, in nanoseconds: 0 to `max_api_number`.
@@ -120,9 +120,9 @@ struct fixture_data_message
 /// The lines the program set have changed.
 struct fixture_line_message
 {
-    static constexpr std::string_view op = "fixture.line";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "fixture.line"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     std::uint64_t ts_ns = 0;
@@ -137,9 +137,9 @@ struct fixture_line_message
 /// and writes them at that time.
 struct fixture_reply_message
 {
-    static constexpr std::string_view op = "fixture.reply";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "fixture.reply"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     /// 1 to `max_fixture_reply` bytes, in the blob.
@@ -154,9 +154,12 @@ struct fixture_reply_message
 /// Sets the lines of the fixture.  At least one of `dtr` and `rts` is given.
 struct fixture_line_set_message
 {
-    static constexpr std::string_view op = "fixture.line.set";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept
+    {
+        return "fixture.line.set";
+    }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     std::optional<bool> dtr;
@@ -171,9 +174,9 @@ struct fixture_line_set_message
 /// Raises a fault on the fixture's endpoint.
 struct fixture_fault_message
 {
-    static constexpr std::string_view op = "fixture.fault";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "fixture.fault"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     line_fault fault_kind = line_fault::parity;
@@ -187,9 +190,9 @@ struct fixture_fault_message
 /// answers with a `rules.result`.
 struct rules_set_message
 {
-    static constexpr std::string_view op = "rules.set";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "rules.set"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// The bytes of the document.
@@ -202,9 +205,9 @@ struct rules_set_message
 /// The host's answer to a `rules.set`.  The design does not name it.
 struct rules_result_message
 {
-    static constexpr std::string_view op = "rules.result";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::answer;
+    static constexpr std::string_view op() noexcept { return "rules.result"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::answer; }
 
     bool accepted = false;
     /// Only when not accepted: the zero-based number of the rule the first
@@ -225,9 +228,9 @@ struct rules_result_message
 /// the number of the action in the list that fired, counted from 0.
 struct rules_event_message
 {
-    static constexpr std::string_view op = "rules.event";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "rules.event"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     std::uint64_t ts_ns = 0;
@@ -253,20 +256,19 @@ result<fixture_create_message>
 decode_as<fixture_create_message>(const api_message&, std::string*);
 template <>
 result<api_message>
-encode_as<fixture_create_message>(const fixture_create_message&,
-                                  std::uint64_t);
+encode_as<fixture_create_message>(const fixture_create_message&, std::uint64_t);
 template <>
-result<fixture_data_message>
-decode_as<fixture_data_message>(const api_message&, std::string*);
+result<fixture_data_message> decode_as<fixture_data_message>(const api_message&,
+                                                             std::string*);
 template <>
-result<api_message>
-encode_as<fixture_data_message>(const fixture_data_message&, std::uint64_t);
+result<api_message> encode_as<fixture_data_message>(const fixture_data_message&,
+                                                    std::uint64_t);
 template <>
-result<fixture_line_message>
-decode_as<fixture_line_message>(const api_message&, std::string*);
+result<fixture_line_message> decode_as<fixture_line_message>(const api_message&,
+                                                             std::string*);
 template <>
-result<api_message>
-encode_as<fixture_line_message>(const fixture_line_message&, std::uint64_t);
+result<api_message> encode_as<fixture_line_message>(const fixture_line_message&,
+                                                    std::uint64_t);
 template <>
 result<fixture_reply_message>
 decode_as<fixture_reply_message>(const api_message&, std::string*);
@@ -287,22 +289,22 @@ template <>
 result<api_message>
 encode_as<fixture_fault_message>(const fixture_fault_message&, std::uint64_t);
 template <>
-result<rules_set_message>
-decode_as<rules_set_message>(const api_message&, std::string*);
+result<rules_set_message> decode_as<rules_set_message>(const api_message&,
+                                                       std::string*);
 template <>
-result<api_message>
-encode_as<rules_set_message>(const rules_set_message&, std::uint64_t);
+result<api_message> encode_as<rules_set_message>(const rules_set_message&,
+                                                 std::uint64_t);
 template <>
-result<rules_result_message>
-decode_as<rules_result_message>(const api_message&, std::string*);
+result<rules_result_message> decode_as<rules_result_message>(const api_message&,
+                                                             std::string*);
 template <>
-result<api_message>
-encode_as<rules_result_message>(const rules_result_message&, std::uint64_t);
+result<api_message> encode_as<rules_result_message>(const rules_result_message&,
+                                                    std::uint64_t);
 template <>
-result<rules_event_message>
-decode_as<rules_event_message>(const api_message&, std::string*);
+result<rules_event_message> decode_as<rules_event_message>(const api_message&,
+                                                           std::string*);
 template <>
-result<api_message>
-encode_as<rules_event_message>(const rules_event_message&, std::uint64_t);
+result<api_message> encode_as<rules_event_message>(const rules_event_message&,
+                                                   std::uint64_t);
 
 } // namespace vss::plugin

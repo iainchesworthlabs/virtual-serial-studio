@@ -47,9 +47,9 @@ inline constexpr std::size_t max_adapter_protocol = 64;
 /// error.
 struct agent_call_message
 {
-    static constexpr std::string_view op = "agent.call";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "agent.call"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     /// The operation of the agent protocol, as 1 to `max_agent_op` lower-case
     /// letters, digits, dots, hyphens and underscores.  Its name in the
@@ -68,9 +68,9 @@ struct agent_call_message
 /// The answer to `agent.call`.
 struct agent_result_message
 {
-    static constexpr std::string_view op = "agent.result";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::answer;
+    static constexpr std::string_view op() noexcept { return "agent.result"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::answer; }
 
     /// What the operation returned, as one JSON object.  "{}" for nothing.
     std::string result = "{}";
@@ -84,9 +84,12 @@ struct agent_result_message
 /// Asks for the agent's events.  The host answers "ok" or an error.
 struct agent_subscribe_message
 {
-    static constexpr std::string_view op = "agent.subscribe";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept
+    {
+        return "agent.subscribe";
+    }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     /// False is the events without traffic bytes.  True asks for the bytes
     /// too, and needs `traffic.tap`.  These are not the bytes of the blob:
@@ -103,9 +106,9 @@ struct agent_subscribe_message
 /// What the adapter listens on, for the plugin's page.
 struct adapter_state_message
 {
-    static constexpr std::string_view op = "adapter.state";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "adapter.state"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     bool listening = false;
     /// The exact address, 1 to `max_adapter_address` bytes of plain text.

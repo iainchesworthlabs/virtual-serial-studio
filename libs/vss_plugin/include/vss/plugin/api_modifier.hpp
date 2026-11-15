@@ -61,9 +61,12 @@ std::string_view to_string(timeout_action value) noexcept;
 /// Makes a modifier on one direction of a link.  The plugin answers "ok".
 struct modifier_create_message
 {
-    static constexpr std::string_view op = "modifier.create";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept
+    {
+        return "modifier.create";
+    }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// 1 to `max_api_number`.
@@ -105,9 +108,9 @@ struct modifier_chunk
 /// of them are the blob.
 struct modifier_batch_message
 {
-    static constexpr std::string_view op = "modifier.batch";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "modifier.batch"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     /// The number the result carries back: 1 to `max_api_number`.
@@ -175,9 +178,12 @@ struct modifier_action
 /// The plugin's answer to a batch.
 struct modifier_result_message
 {
-    static constexpr std::string_view op = "modifier.result";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept
+    {
+        return "modifier.result";
+    }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     /// The `seq` of the batch this answers.
@@ -194,9 +200,9 @@ struct modifier_result_message
 /// Stops a modifier.  The plugin answers "ok".
 struct modifier_stop_message
 {
-    static constexpr std::string_view op = "modifier.stop";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "modifier.stop"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
 
@@ -210,9 +216,8 @@ struct modifier_stop_message
 /// of a `split`, which has `parts` less one of them) add up to at most
 /// `max_api_delay_us`.  A result that is not within them fails the whole
 /// batch.
-bool modifier_result_within_bounds(std::size_t batch_bytes,
-                                   const modifier_result_message& result)
-    noexcept;
+bool modifier_result_within_bounds(
+    std::size_t batch_bytes, const modifier_result_message& result) noexcept;
 
 template <>
 result<modifier_create_message>
@@ -226,8 +231,7 @@ result<modifier_batch_message>
 decode_as<modifier_batch_message>(const api_message&, std::string*);
 template <>
 result<api_message>
-encode_as<modifier_batch_message>(const modifier_batch_message&,
-                                  std::uint64_t);
+encode_as<modifier_batch_message>(const modifier_batch_message&, std::uint64_t);
 template <>
 result<modifier_result_message>
 decode_as<modifier_result_message>(const api_message&, std::string*);

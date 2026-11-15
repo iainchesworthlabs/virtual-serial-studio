@@ -85,8 +85,8 @@ inline constexpr std::uint64_t max_api_delay_us = 60'000'000;
 /// Reads the typed message `M` from `message`.
 ///
 /// `api_errc::bad_request` when the message is not one of the plugin API's
-/// own bodies (it is not an `other_message`), its "op" is not `M::op`, its
-/// "id" and "re" are not what `M::role` needs, or a member is missing, has
+/// own bodies (it is not an `other_message`), its "op" is not `M::op()`, its
+/// "id" and "re" are not what `M::role()` needs, or a member is missing, has
 /// the wrong type, is out of range, is too long or is not plain text.
 /// `detail`, when given, receives one line for the log; it names the member
 /// and never repeats what the plugin sent.

@@ -35,13 +35,13 @@ template <class M> result<api_message> recode_as(const api_message& message)
     const auto read = decode_as<M>(message);
     if (read.has_error())
         return read.error();
-    return encode_as<M>(read.value(),
-                        M::role == api_role::request ? message.id : message.re);
+    return encode_as<M>(
+        read.value(), M::role() == api_role::request ? message.id : message.re);
 }
 
 template <class M> constexpr api_op entry() noexcept
 {
-    return api_op{M::op, M::from, M::role, &check_as<M>, &recode_as<M>};
+    return api_op{M::op(), M::from(), M::role(), &check_as<M>, &recode_as<M>};
 }
 
 constexpr std::array ops{

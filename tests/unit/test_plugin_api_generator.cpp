@@ -57,24 +57,30 @@ TEST_CASE("plugin api: generator.start is written and read")
 
 TEST_CASE("plugin api: generator.start is refused when it is wrong")
 {
-    using M = generator_start_message;
+    using message_type = generator_start_message;
     const std::string head = R"({"op":"generator.start","id":1,)";
-    require_refused<M>(head + R"("port":4})",
-                       "generator.start.instance: is required");
-    require_refused<M>(head + R"("instance":1})",
-                       "generator.start.port: is required");
-    require_refused<M>(head + R"("instance":1,"port":0})",
-                       "generator.start.port: must be a whole number");
-    require_refused<M>(head + R"("instance":1,"port":1.5})",
-                       "generator.start.port: must be a whole number");
-    require_refused<M>(head + R"("instance":1,"port":"4"})",
-                       "generator.start.port: must be a whole number");
-    require_refused<M>(head + R"("instance":1,"port":4,"params":null})",
-                       "generator.start.params: must be a JSON object");
-    require_refused<M>(head + R"("instance":1,"port":4})", "has no bytes", {1});
-    require_refused<M>(R"({"op":"generator.start","re":1,"instance":1,)"
-                       R"("port":4})",
-                       "must have an id");
+    require_refused<message_type>(head + R"("port":4})",
+                                  "generator.start.instance: is required");
+    require_refused<message_type>(head + R"("instance":1})",
+                                  "generator.start.port: is required");
+    require_refused<message_type>(
+        head + R"("instance":1,"port":0})",
+        "generator.start.port: must be a whole number");
+    require_refused<message_type>(
+        head + R"("instance":1,"port":1.5})",
+        "generator.start.port: must be a whole number");
+    require_refused<message_type>(
+        head + R"("instance":1,"port":"4"})",
+        "generator.start.port: must be a whole number");
+    require_refused<message_type>(
+        head + R"("instance":1,"port":4,"params":null})",
+        "generator.start.params: must be a JSON object");
+    require_refused<message_type>(head + R"("instance":1,"port":4})",
+                                  "has no bytes", {1});
+    require_refused<message_type>(
+        R"({"op":"generator.start","re":1,"instance":1,)"
+        R"("port":4})",
+        "must have an id");
 }
 
 TEST_CASE("plugin api: generator.write keeps its bytes in the blob")
@@ -93,16 +99,18 @@ TEST_CASE("plugin api: generator.write keeps its bytes in the blob")
 
 TEST_CASE("plugin api: generator.write has between 1 and 64 KiB")
 {
-    using M = generator_write_message;
+    using message_type = generator_write_message;
     const std::string header = R"({"op":"generator.write","instance":2})";
-    REQUIRE_EQ(accepted<M>(header, bytes_of(1)).data.size(), std::size_t{1});
-    REQUIRE_EQ(accepted<M>(header, bytes_of(max_generator_write)).data.size(),
+    REQUIRE_EQ(accepted<message_type>(header, bytes_of(1)).data.size(),
+               std::size_t{1});
+    REQUIRE_EQ(accepted<message_type>(header, bytes_of(max_generator_write))
+                   .data.size(),
                max_generator_write);
-    require_refused<M>(header, "has a blob of 0 bytes");
-    require_refused<M>(header, "has a blob of 65537 bytes",
-                       bytes_of(max_generator_write + 1));
+    require_refused<message_type>(header, "has a blob of 0 bytes");
+    require_refused<message_type>(header, "has a blob of 65537 bytes",
+                                  bytes_of(max_generator_write + 1));
 
-    M body;
+    message_type body;
     body.instance = 2;
     require_not_written(body);
     body.data = bytes_of(max_generator_write + 1);
@@ -111,8 +119,9 @@ TEST_CASE("plugin api: generator.write has between 1 and 64 KiB")
     (void)round_trip(body);
     // It is a notification: no id.
     require_not_written(body, 5);
-    require_refused<M>(R"({"op":"generator.write","id":4,"instance":2})",
-                       "neither an id nor a re", bytes_of(3));
+    require_refused<message_type>(
+        R"({"op":"generator.write","id":4,"instance":2})",
+        "neither an id nor a re", bytes_of(3));
 }
 
 TEST_CASE("plugin api: bytes do not travel in the header of generator.write")
@@ -130,20 +139,25 @@ TEST_CASE("plugin api: generator.credit is written and read")
     body.instance = 2;
     body.bytes = 4096;
     (void)round_trip(body);
-    using M = generator_credit_message;
+    using message_type = generator_credit_message;
     const std::string head = R"({"op":"generator.credit","instance":2,)";
-    REQUIRE_EQ(accepted<M>(head + R"("bytes":1})").bytes, std::uint64_t{1});
-    REQUIRE_EQ(accepted<M>(head + R"("bytes":65536})").bytes,
+    REQUIRE_EQ(accepted<message_type>(head + R"("bytes":1})").bytes,
+               std::uint64_t{1});
+    REQUIRE_EQ(accepted<message_type>(head + R"("bytes":65536})").bytes,
                max_generator_credit);
-    require_refused<M>(head + R"("bytes":0})",
-                       "generator.credit.bytes: must be a whole number from 1");
-    require_refused<M>(head + R"("bytes":65537})",
-                       "generator.credit.bytes: must be a whole number from 1");
-    require_refused<M>(head + R"("bytes":-5})", "generator.credit.bytes");
-    require_refused<M>(head + R"("bytes":"9"})", "generator.credit.bytes");
-    require_refused<M>(R"({"op":"generator.credit","instance":2})",
-                       "generator.credit.bytes: is required");
-    require_refused<M>(head + R"("bytes":9})", "has no bytes", {1});
+    require_refused<message_type>(
+        head + R"("bytes":0})",
+        "generator.credit.bytes: must be a whole number from 1");
+    require_refused<message_type>(
+        head + R"("bytes":65537})",
+        "generator.credit.bytes: must be a whole number from 1");
+    require_refused<message_type>(head + R"("bytes":-5})",
+                                  "generator.credit.bytes");
+    require_refused<message_type>(head + R"("bytes":"9"})",
+                                  "generator.credit.bytes");
+    require_refused<message_type>(R"({"op":"generator.credit","instance":2})",
+                                  "generator.credit.bytes: is required");
+    require_refused<message_type>(head + R"("bytes":9})", "has no bytes", {1});
     body.bytes = max_generator_credit + 1;
     require_not_written(body);
     body.bytes = 0;
@@ -182,41 +196,51 @@ TEST_CASE("plugin api: generator.pattern has defaults for what it leaves out")
 
 TEST_CASE("plugin api: generator.pattern has the limits of its members")
 {
-    using M = generator_pattern_message;
+    using message_type = generator_pattern_message;
     const std::string head =
         R"({"op":"generator.pattern","id":1,"instance":5,)";
     const byte_buffer one{1};
     // At the edge, and one past it.
-    REQUIRE_EQ(accepted<M>(head + R"("repeat":4294967295})", one).repeat,
-               max_pattern_repeat);
-    require_refused<M>(head + R"("repeat":4294967296})",
-                       "generator.pattern.repeat: must be a whole number", one);
-    REQUIRE_EQ(accepted<M>(head + R"("period_us":60000000})", one).period_us,
+    REQUIRE_EQ(
+        accepted<message_type>(head + R"("repeat":4294967295})", one).repeat,
+        max_pattern_repeat);
+    require_refused<message_type>(
+        head + R"("repeat":4294967296})",
+        "generator.pattern.repeat: must be a whole number", one);
+    REQUIRE_EQ(accepted<message_type>(head + R"("period_us":60000000})", one)
+                   .period_us,
                max_api_delay_us);
-    require_refused<M>(head + R"("period_us":60000001})",
-                       "generator.pattern.period_us: must be a whole number",
-                       one);
-    REQUIRE_EQ(accepted<M>(head + R"("burst":4096})", one).burst,
+    require_refused<message_type>(
+        head + R"("period_us":60000001})",
+        "generator.pattern.period_us: must be a whole number", one);
+    REQUIRE_EQ(accepted<message_type>(head + R"("burst":4096})", one).burst,
                max_pattern_burst);
-    require_refused<M>(head + R"("burst":4097})",
-                       "generator.pattern.burst: must be a whole number", one);
-    require_refused<M>(head + R"("burst":0})",
-                       "generator.pattern.burst: must be a whole number", one);
-    REQUIRE_EQ(accepted<M>(head + R"("jitter":60000000})", one).jitter,
-               max_api_delay_us);
-    require_refused<M>(head + R"("jitter":60000001})",
-                       "generator.pattern.jitter: must be a whole number", one);
-    require_refused<M>(head + R"("jitter":"2"})",
-                       "generator.pattern.jitter: must be a whole number", one);
-    require_refused<M>(head + R"("repeat":-1})",
-                       "generator.pattern.repeat: must be a whole number", one);
+    require_refused<message_type>(
+        head + R"("burst":4097})",
+        "generator.pattern.burst: must be a whole number", one);
+    require_refused<message_type>(
+        head + R"("burst":0})",
+        "generator.pattern.burst: must be a whole number", one);
+    REQUIRE_EQ(
+        accepted<message_type>(head + R"("jitter":60000000})", one).jitter,
+        max_api_delay_us);
+    require_refused<message_type>(
+        head + R"("jitter":60000001})",
+        "generator.pattern.jitter: must be a whole number", one);
+    require_refused<message_type>(
+        head + R"("jitter":"2"})",
+        "generator.pattern.jitter: must be a whole number", one);
+    require_refused<message_type>(
+        head + R"("repeat":-1})",
+        "generator.pattern.repeat: must be a whole number", one);
     // The bytes.
     REQUIRE_EQ(
-        accepted<M>(head + "\"x\":1}", bytes_of(max_pattern_bytes)).data.size(),
+        accepted<message_type>(head + "\"x\":1}", bytes_of(max_pattern_bytes))
+            .data.size(),
         max_pattern_bytes);
-    require_refused<M>(head + "\"x\":1}", "has a blob of 0 bytes");
-    require_refused<M>(head + "\"x\":1}", "has a blob of 1025 bytes",
-                       bytes_of(max_pattern_bytes + 1));
+    require_refused<message_type>(head + "\"x\":1}", "has a blob of 0 bytes");
+    require_refused<message_type>(head + "\"x\":1}", "has a blob of 1025 bytes",
+                                  bytes_of(max_pattern_bytes + 1));
 }
 
 TEST_CASE("plugin api: generator.stop and generator.done are written and read")
@@ -240,26 +264,26 @@ TEST_CASE("plugin api: generator.stop and generator.done are written and read")
 
 TEST_CASE("plugin api: the reason of generator.done is limited plain text")
 {
-    using M = generator_done_message;
+    using message_type = generator_done_message;
     const std::string head = R"({"op":"generator.done","instance":8,)";
-    REQUIRE_EQ(accepted<M>(head + R"("reason":")" +
-                           repeated('r', max_api_text) + R"("})")
+    REQUIRE_EQ(accepted<message_type>(head + R"("reason":")" +
+                                      repeated('r', max_api_text) + R"("})")
                    .reason.size(),
                max_api_text);
-    require_refused<M>(head + R"("reason":")" +
-                           repeated('r', max_api_text + 1) + R"("})",
-                       "generator.done.reason: is longer than 200 bytes");
-    require_refused<M>(head + R"("reason":""})",
-                       "generator.done.reason: must not be empty");
-    require_refused<M>(head + R"("reason":"a\nb"})",
-                       "generator.done.reason: must be plain text");
-    require_refused<M>(head + "\"reason\":\"a\u202eb\"}",
-                       "generator.done.reason: must be plain text");
-    require_refused<M>(R"({"op":"generator.done","instance":8})",
-                       "generator.done.reason: is required");
-    require_refused<M>(head + R"("reason":7})",
-                       "generator.done.reason: must be a string");
-    M body;
+    require_refused<message_type>(
+        head + R"("reason":")" + repeated('r', max_api_text + 1) + R"("})",
+        "generator.done.reason: is longer than 200 bytes");
+    require_refused<message_type>(head + R"("reason":""})",
+                                  "generator.done.reason: must not be empty");
+    require_refused<message_type>(head + R"("reason":"a\nb"})",
+                                  "generator.done.reason: must be plain text");
+    require_refused<message_type>(head + "\"reason\":\"a\u202eb\"}",
+                                  "generator.done.reason: must be plain text");
+    require_refused<message_type>(R"({"op":"generator.done","instance":8})",
+                                  "generator.done.reason: is required");
+    require_refused<message_type>(head + R"("reason":7})",
+                                  "generator.done.reason: must be a string");
+    message_type body;
     body.instance = 8;
     body.reason = repeated('r', max_api_text + 1);
     require_not_written(body);

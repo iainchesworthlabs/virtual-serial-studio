@@ -46,12 +46,13 @@ std::uint64_t time_of(reading& state, const json::object& object,
         .value_or(0);
 }
 
-// -- fixture.create ------------------------------------------------------------
+// -- fixture.create
+// ------------------------------------------------------------
 
 void read_create(reading& state, const json::object& object,
                  fixture_create_message& out)
 {
-    constexpr auto where = fixture_create_message::op;
+    constexpr auto where = fixture_create_message::op();
     out.instance = instance_of(state, object, where);
     out.endpoint =
         number_of(state, object, where, "endpoint", 1, max_api_number, true)
@@ -66,12 +67,13 @@ bool write_create(json::object& header, const fixture_create_message& body)
     return put_object_text(header, "params", body.params);
 }
 
-// -- fixture.data --------------------------------------------------------------
+// -- fixture.data
+// --------------------------------------------------------------
 
 void read_data(reading& state, const json::object& object,
                fixture_data_message& out)
 {
-    constexpr auto where = fixture_data_message::op;
+    constexpr auto where = fixture_data_message::op();
     out.instance = instance_of(state, object, where);
     out.ts_ns = time_of(state, object, where);
     blob_between(state, where, out.data, 1, max_fixture_data);
@@ -84,12 +86,13 @@ bool write_data(json::object& header, const fixture_data_message& body)
     return true;
 }
 
-// -- fixture.line --------------------------------------------------------------
+// -- fixture.line
+// --------------------------------------------------------------
 
 void read_line(reading& state, const json::object& object,
                fixture_line_message& out)
 {
-    constexpr auto where = fixture_line_message::op;
+    constexpr auto where = fixture_line_message::op();
     out.instance = instance_of(state, object, where);
     out.ts_ns = time_of(state, object, where);
     out.dtr = bool_of(state, object, where, "dtr", true).value_or(false);
@@ -105,16 +108,17 @@ bool write_line(json::object& header, const fixture_line_message& body)
     return true;
 }
 
-// -- fixture.reply -------------------------------------------------------------
+// -- fixture.reply
+// -------------------------------------------------------------
 
 void read_reply(reading& state, const json::object& object,
                 fixture_reply_message& out)
 {
-    constexpr auto where = fixture_reply_message::op;
+    constexpr auto where = fixture_reply_message::op();
     out.instance = instance_of(state, object, where);
     blob_between(state, where, out.data, 1, max_fixture_reply);
-    out.after_us = number_of(state, object, where, "after_us", 0,
-                             max_api_delay_us, false);
+    out.after_us =
+        number_of(state, object, where, "after_us", 0, max_api_delay_us, false);
 }
 
 bool write_reply(json::object& header, const fixture_reply_message& body)
@@ -125,17 +129,18 @@ bool write_reply(json::object& header, const fixture_reply_message& body)
     return true;
 }
 
-// -- fixture.line.set ----------------------------------------------------------
+// -- fixture.line.set
+// ----------------------------------------------------------
 
 void read_line_set(reading& state, const json::object& object,
                    fixture_line_set_message& out)
 {
-    constexpr auto where = fixture_line_set_message::op;
+    constexpr auto where = fixture_line_set_message::op();
     out.instance = instance_of(state, object, where);
     out.dtr = bool_of(state, object, where, "dtr", false);
     out.rts = bool_of(state, object, where, "rts", false);
-    out.after_us = number_of(state, object, where, "after_us", 0,
-                             max_api_delay_us, false);
+    out.after_us =
+        number_of(state, object, where, "after_us", 0, max_api_delay_us, false);
     if (!state.failed() && !out.dtr.has_value() && !out.rts.has_value())
         state.fail(where, "needs dtr or rts, or both");
 }
@@ -152,12 +157,13 @@ bool write_line_set(json::object& header, const fixture_line_set_message& body)
     return true;
 }
 
-// -- fixture.fault -------------------------------------------------------------
+// -- fixture.fault
+// -------------------------------------------------------------
 
 void read_fault(reading& state, const json::object& object,
                 fixture_fault_message& out)
 {
-    constexpr auto where = fixture_fault_message::op;
+    constexpr auto where = fixture_fault_message::op();
     out.instance = instance_of(state, object, where);
     const auto kind = choice_of(
         state, object, where, "fault_kind", line_fault_names,
@@ -175,12 +181,13 @@ bool write_fault(json::object& header, const fixture_fault_message& body)
     return true;
 }
 
-// -- rules.set -----------------------------------------------------------------
+// -- rules.set
+// -----------------------------------------------------------------
 
 void read_rules_set(reading& state, const json::object& object,
                     rules_set_message& out)
 {
-    constexpr auto where = rules_set_message::op;
+    constexpr auto where = rules_set_message::op();
     out.instance = instance_of(state, object, where);
     blob_between(state, where, out.data, 1, max_api_blob);
     if (state.failed())
@@ -204,12 +211,13 @@ bool write_rules_set(json::object& header, const rules_set_message& body)
     return true;
 }
 
-// -- rules.result --------------------------------------------------------------
+// -- rules.result
+// --------------------------------------------------------------
 
 void read_rules_result(reading& state, const json::object& object,
                        rules_result_message& out)
 {
-    constexpr auto where = rules_result_message::op;
+    constexpr auto where = rules_result_message::op();
     out.accepted =
         bool_of(state, object, where, "accepted", true).value_or(false);
     if (state.failed())
@@ -224,8 +232,8 @@ void read_rules_result(reading& state, const json::object& object,
         }
         return;
     }
-    out.rule = number_of(state, object, where, "rule", 0, max_rule_count - 1,
-                         false);
+    out.rule =
+        number_of(state, object, where, "rule", 0, max_rule_count - 1, false);
     out.path = text_of(state, object, where, "path", max_rules_path, false);
     out.reason =
         text_of(state, object, where, "reason", max_api_text, true, true);
@@ -244,18 +252,19 @@ bool write_rules_result(json::object& header, const rules_result_message& body)
     return true;
 }
 
-// -- rules.event ---------------------------------------------------------------
+// -- rules.event
+// ---------------------------------------------------------------
 
 void read_rules_event(reading& state, const json::object& object,
                       rules_event_message& out)
 {
-    constexpr auto where = rules_event_message::op;
+    constexpr auto where = rules_event_message::op();
     out.instance = instance_of(state, object, where);
     out.ts_ns = time_of(state, object, where);
     out.rule = text_of(state, object, where, "rule", max_rule_name, true, true);
-    out.action = number_of(state, object, where, "action", 0,
-                           max_rule_actions - 1, true)
-                     .value_or(0);
+    out.action =
+        number_of(state, object, where, "action", 0, max_rule_actions - 1, true)
+            .value_or(0);
 }
 
 bool write_rules_event(json::object& header, const rules_event_message& body)
@@ -267,7 +276,8 @@ bool write_rules_event(json::object& header, const rules_event_message& body)
     return true;
 }
 
-// -- check_rule_set ------------------------------------------------------------
+// -- check_rule_set
+// ------------------------------------------------------------
 
 /// Plain ASCII, at most `most` bytes: anything else becomes a question mark.
 std::string plain_ascii(std::string_view text, std::size_t most)
@@ -454,9 +464,8 @@ decode_as<rules_set_message>(const api_message& message, std::string* explain)
 }
 
 template <>
-result<api_message>
-encode_as<rules_set_message>(const rules_set_message& body,
-                             std::uint64_t number)
+result<api_message> encode_as<rules_set_message>(const rules_set_message& body,
+                                                 std::uint64_t number)
 {
     return detail::encode_with(body, number, write_rules_set);
 }
@@ -480,8 +489,7 @@ encode_as<rules_result_message>(const rules_result_message& body,
 
 template <>
 result<rules_event_message>
-decode_as<rules_event_message>(const api_message& message,
-                               std::string* explain)
+decode_as<rules_event_message>(const api_message& message, std::string* explain)
 {
     return detail::decode_with<rules_event_message>(message, explain,
                                                     read_rules_event);

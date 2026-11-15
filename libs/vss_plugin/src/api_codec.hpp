@@ -222,13 +222,13 @@ result<M> decode_with(const api_message& message, std::string* explain,
         reading state;
         M out;
         const std::optional<json::value> root =
-            open_message(state, message, M::op, M::role);
+            open_message(state, message, M::op(), M::role());
         if (root && !state.failed())
         {
             if constexpr (has_bytes<M>)
                 out.data = message.blob;
             else
-                no_blob(state, M::op, message.blob);
+                no_blob(state, M::op(), message.blob);
             if (!state.failed())
                 read(state, root->get_object(), out);
         }
@@ -258,7 +258,7 @@ result<api_message> encode_with(const M& body, std::uint64_t number,
 {
     try
     {
-        if (M::role == api_role::notification && number != 0)
+        if (M::role() == api_role::notification && number != 0)
             return make_error_code(api_errc::bad_request);
         json::object header;
         if (!write(header, body))
@@ -267,7 +267,7 @@ result<api_message> encode_with(const M& body, std::uint64_t number,
         if constexpr (has_bytes<M>)
             blob = body.data;
         result<api_message> out = close_message(
-            M::op, M::role, number, std::move(header), std::move(blob));
+            M::op(), M::role(), number, std::move(header), std::move(blob));
         if (out.has_error())
             return out;
         if (const auto again = decode_as<M>(out.value()); again.has_error())

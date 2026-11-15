@@ -26,7 +26,7 @@ std::uint64_t instance_of(reading& state, const json::object& object,
 void read_start(reading& state, const json::object& object,
                 generator_start_message& out)
 {
-    constexpr auto where = generator_start_message::op;
+    constexpr auto where = generator_start_message::op();
     out.instance = instance_of(state, object, where);
     out.port = number_of(state, object, where, "port", 1, max_api_number, true)
                    .value_or(0);
@@ -43,7 +43,7 @@ bool write_start(json::object& header, const generator_start_message& body)
 void read_write(reading& state, const json::object& object,
                 generator_write_message& out)
 {
-    constexpr auto where = generator_write_message::op;
+    constexpr auto where = generator_write_message::op();
     out.instance = instance_of(state, object, where);
     blob_between(state, where, out.data, 1, max_generator_write);
 }
@@ -57,7 +57,7 @@ bool write_write(json::object& header, const generator_write_message& body)
 void read_credit(reading& state, const json::object& object,
                  generator_credit_message& out)
 {
-    constexpr auto where = generator_credit_message::op;
+    constexpr auto where = generator_credit_message::op();
     out.instance = instance_of(state, object, where);
     out.bytes =
         number_of(state, object, where, "bytes", 1, max_generator_credit, true)
@@ -74,7 +74,7 @@ bool write_credit(json::object& header, const generator_credit_message& body)
 void read_pattern(reading& state, const json::object& object,
                   generator_pattern_message& out)
 {
-    constexpr auto where = generator_pattern_message::op;
+    constexpr auto where = generator_pattern_message::op();
     out.instance = instance_of(state, object, where);
     blob_between(state, where, out.data, 1, max_pattern_bytes);
     out.repeat =
@@ -104,7 +104,7 @@ bool write_pattern(json::object& header, const generator_pattern_message& body)
 void read_stop(reading& state, const json::object& object,
                generator_stop_message& out)
 {
-    out.instance = instance_of(state, object, generator_stop_message::op);
+    out.instance = instance_of(state, object, generator_stop_message::op());
 }
 
 bool write_stop(json::object& header, const generator_stop_message& body)
@@ -116,7 +116,7 @@ bool write_stop(json::object& header, const generator_stop_message& body)
 void read_done(reading& state, const json::object& object,
                generator_done_message& out)
 {
-    constexpr auto where = generator_done_message::op;
+    constexpr auto where = generator_done_message::op();
     out.instance = instance_of(state, object, where);
     out.reason =
         text_of(state, object, where, "reason", max_api_text, true, true);

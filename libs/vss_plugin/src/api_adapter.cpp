@@ -75,7 +75,7 @@ json::array names_value(const std::vector<std::string>& names)
 void read_call(reading& state, const json::object& object,
                agent_call_message& out)
 {
-    constexpr auto where = agent_call_message::op;
+    constexpr auto where = agent_call_message::op();
     out.agent_op =
         token_of(state, object, where, "agent_op", max_agent_op, true);
     out.args = object_text_of(state, object, where, "args", false);
@@ -91,7 +91,7 @@ bool write_call(json::object& header, const agent_call_message& body)
 void read_result(reading& state, const json::object& object,
                  agent_result_message& out)
 {
-    constexpr auto where = agent_result_message::op;
+    constexpr auto where = agent_result_message::op();
     out.result = object_text_of(state, object, where, "result", false);
     blob_between(state, where, out.data, 0, max_api_blob);
 }
@@ -104,7 +104,7 @@ bool write_result(json::object& header, const agent_result_message& body)
 void read_subscribe(reading& state, const json::object& object,
                     agent_subscribe_message& out)
 {
-    constexpr auto where = agent_subscribe_message::op;
+    constexpr auto where = agent_subscribe_message::op();
     out.data = bool_of(state, object, where, "data", false).value_or(false);
     out.places = names_of(state, object, where, "places", max_subscribe_places);
 }
@@ -120,7 +120,7 @@ bool write_subscribe(json::object& header, const agent_subscribe_message& body)
 void read_state(reading& state, const json::object& object,
                 adapter_state_message& out)
 {
-    constexpr auto where = adapter_state_message::op;
+    constexpr auto where = adapter_state_message::op();
     out.listening =
         bool_of(state, object, where, "listening", true).value_or(false);
     if (out.listening)

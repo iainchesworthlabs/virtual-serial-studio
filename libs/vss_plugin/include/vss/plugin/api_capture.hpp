@@ -98,9 +98,9 @@ struct snapshot_spec
 /// error (`not_granted` for a place `traffic.tap` does not cover).
 struct capture_start_message
 {
-    static constexpr std::string_view op = "capture.start";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "capture.start"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     /// 1 to `max_capture_places` names, each 1 to `max_api_name` bytes of
     /// plain text, none twice.
@@ -126,9 +126,9 @@ struct capture_start_message
 /// Stops the recording.  The host answers "ok" or an error.
 struct capture_stop_message
 {
-    static constexpr std::string_view op = "capture.stop";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "capture.stop"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     friend bool operator==(const capture_stop_message&,
                            const capture_stop_message&) = default;
@@ -137,9 +137,9 @@ struct capture_stop_message
 /// Asks how the recording is going.  The host answers `capture.result`.
 struct capture_status_message
 {
-    static constexpr std::string_view op = "capture.status";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "capture.status"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     friend bool operator==(const capture_status_message&,
                            const capture_status_message&) = default;
@@ -148,9 +148,9 @@ struct capture_status_message
 /// The answer to `capture.status`.
 struct capture_result_message
 {
-    static constexpr std::string_view op = "capture.result";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::answer;
+    static constexpr std::string_view op() noexcept { return "capture.result"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::answer; }
 
     bool running = false;
     /// Bytes recorded so far, 0 to `max_api_number`.
@@ -170,9 +170,9 @@ struct capture_result_message
 /// plugin's request; the host answers "ok" or an error.
 struct timeline_load_message
 {
-    static constexpr std::string_view op = "timeline.load";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "timeline.load"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// The recording inside the plugin's data directory: 1 to
@@ -194,9 +194,9 @@ struct timeline_load_message
 /// plugin answers `bundle.result`, or an error, within 30 seconds.
 struct bundle_prepare_message
 {
-    static constexpr std::string_view op = "bundle.prepare";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "bundle.prepare"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     /// The id of the section: 1 to `max_api_name` lower-case letters, digits,
     /// dots, hyphens and underscores, such as `traffic`, or a plugin id
@@ -225,9 +225,9 @@ struct bundle_file
 /// The answer to `bundle.prepare`.
 struct bundle_result_message
 {
-    static constexpr std::string_view op = "bundle.result";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::answer;
+    static constexpr std::string_view op() noexcept { return "bundle.result"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::answer; }
 
     /// 0 to `max_bundle_files` files, no name twice.  The sizes add up to at
     /// most `max_bundle_section_bytes`.

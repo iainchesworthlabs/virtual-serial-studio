@@ -42,9 +42,12 @@ inline constexpr std::uint64_t max_pattern_repeat = 4'294'967'295u;
 /// Starts a generator on a port.  The plugin answers "ok".
 struct generator_start_message
 {
-    static constexpr std::string_view op = "generator.start";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept
+    {
+        return "generator.start";
+    }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// The endpoint the bytes go to.
@@ -59,9 +62,12 @@ struct generator_start_message
 /// Bytes for the port, in the blob.  Needs credit.
 struct generator_write_message
 {
-    static constexpr std::string_view op = "generator.write";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept
+    {
+        return "generator.write";
+    }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     /// 1 to `max_generator_write` bytes.  They travel in the blob.
@@ -74,9 +80,12 @@ struct generator_write_message
 /// The plugin may send this many more bytes.
 struct generator_credit_message
 {
-    static constexpr std::string_view op = "generator.credit";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept
+    {
+        return "generator.credit";
+    }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     /// 1 to `max_generator_credit`.
@@ -90,9 +99,12 @@ struct generator_credit_message
 /// bytes are in the blob, and the host answers "ok" or an "error".
 struct generator_pattern_message
 {
-    static constexpr std::string_view op = "generator.pattern";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept
+    {
+        return "generator.pattern";
+    }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
     /// 1 to `max_pattern_bytes` bytes, in the blob.
@@ -115,9 +127,9 @@ struct generator_pattern_message
 /// Stops a generator.  The plugin answers "ok".
 struct generator_stop_message
 {
-    static constexpr std::string_view op = "generator.stop";
-    static constexpr api_side from = api_side::host;
-    static constexpr api_role role = api_role::request;
+    static constexpr std::string_view op() noexcept { return "generator.stop"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
 
@@ -128,9 +140,9 @@ struct generator_stop_message
 /// The generator has nothing more to send.
 struct generator_done_message
 {
-    static constexpr std::string_view op = "generator.done";
-    static constexpr api_side from = api_side::plugin;
-    static constexpr api_role role = api_role::notification;
+    static constexpr std::string_view op() noexcept { return "generator.done"; }
+    static constexpr api_side from() noexcept { return api_side::plugin; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
     /// At most `max_api_text` bytes.  Plain text.

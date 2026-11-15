@@ -36,7 +36,7 @@ std::uint64_t instance_of(reading& state, const json::object& object,
 void read_create(reading& state, const json::object& object,
                  instance_create_message& out)
 {
-    constexpr auto where = instance_create_message::op;
+    constexpr auto where = instance_create_message::op();
     out.instance = instance_of(state, object, where);
     out.kind =
         choice_of(state, object, where, "kind", kind_names,
@@ -57,7 +57,7 @@ bool write_create(json::object& header, const instance_create_message& body)
 void read_stop(reading& state, const json::object& object,
                instance_stop_message& out)
 {
-    out.instance = instance_of(state, object, instance_stop_message::op);
+    out.instance = instance_of(state, object, instance_stop_message::op());
 }
 
 bool write_stop(json::object& header, const instance_stop_message& body)
@@ -69,7 +69,7 @@ bool write_stop(json::object& header, const instance_stop_message& body)
 void read_changed(reading& state, const json::object& object,
                   params_changed_message& out)
 {
-    constexpr auto where = params_changed_message::op;
+    constexpr auto where = params_changed_message::op();
     out.instance = instance_of(state, object, where);
     out.params = object_text_of(state, object, where, "params", true);
 }

@@ -114,8 +114,7 @@ struct result_text
 };
 
 /// A batch of one chunk with `bytes` bytes.
-std::string chunk_text(std::size_t offset, std::size_t length,
-                       std::uint64_t ts)
+std::string chunk_text(std::size_t offset, std::size_t length, std::uint64_t ts)
 {
     return "{\"offset\":" + std::to_string(offset) +
            ",\"length\":" + std::to_string(length) +
@@ -238,106 +237,126 @@ TEST_CASE("plugin api: modifier.create is written and read")
 
 TEST_CASE("plugin api: modifier.create is refused when it is wrong")
 {
-    using M = modifier_create_message;
+    using message_type = modifier_create_message;
     const std::string op = "modifier.create.";
     create_text text;
     text.instance.clear();
-    require_refused<M>(text.str(), op + "instance: is required");
+    require_refused<message_type>(text.str(), op + "instance: is required");
     text = {};
     text.instance = "0";
-    require_refused<M>(text.str(), op + "instance: must be a whole number");
+    require_refused<message_type>(text.str(),
+                                  op + "instance: must be a whole number");
     text = {};
     text.link.clear();
-    require_refused<M>(text.str(), op + "link: is required");
+    require_refused<message_type>(text.str(), op + "link: is required");
     text = {};
     text.link = R"("9")";
-    require_refused<M>(text.str(), op + "link: must be a whole number");
+    require_refused<message_type>(text.str(),
+                                  op + "link: must be a whole number");
     text = {};
     text.direction.clear();
-    require_refused<M>(text.str(), op + "direction: is required");
+    require_refused<message_type>(text.str(), op + "direction: is required");
     text = {};
     text.direction = R"("both")";
-    require_refused<M>(text.str(), op + "direction: must be \"a_to_b\"");
+    require_refused<message_type>(text.str(),
+                                  op + "direction: must be \"a_to_b\"");
     text = {};
     text.direction = "1";
-    require_refused<M>(text.str(), op + "direction: must be");
+    require_refused<message_type>(text.str(), op + "direction: must be");
     text = {};
     text.budget.clear();
-    require_refused<M>(text.str(), op + "budget_us: is required");
+    require_refused<message_type>(text.str(), op + "budget_us: is required");
     text = {};
     text.bytes.clear();
-    require_refused<M>(text.str(), op + "max_batch_bytes: is required");
+    require_refused<message_type>(text.str(),
+                                  op + "max_batch_bytes: is required");
     text = {};
     text.us.clear();
-    require_refused<M>(text.str(), op + "max_batch_us: is required");
+    require_refused<message_type>(text.str(), op + "max_batch_us: is required");
     text = {};
     text.timeout.clear();
-    require_refused<M>(text.str(), op + "on_timeout: is required");
+    require_refused<message_type>(text.str(), op + "on_timeout: is required");
     text = {};
     text.timeout = R"("fail_shut")";
-    require_refused<M>(text.str(), op + "on_timeout: must be \"fail_open\"");
+    require_refused<message_type>(text.str(),
+                                  op + "on_timeout: must be \"fail_open\"");
     text = {};
     text.params = R"("x")";
-    require_refused<M>(text.str(), op + "params: must be a JSON object");
+    require_refused<message_type>(text.str(),
+                                  op + "params: must be a JSON object");
     text = {};
     text.flush = R"("\n")";
-    require_refused<M>(text.str(), op + "flush_on: must be a whole number");
+    require_refused<message_type>(text.str(),
+                                  op + "flush_on: must be a whole number");
     text = {};
-    require_refused<M>(text.str(), "has no bytes", {1});
+    require_refused<message_type>(text.str(), "has no bytes", {1});
     text.id.clear();
-    require_refused<M>(text.str(), "must have an id");
+    require_refused<message_type>(text.str(), "must have an id");
 }
 
 TEST_CASE("plugin api: modifier.create has the limits of its members")
 {
-    using M = modifier_create_message;
+    using message_type = modifier_create_message;
     const std::string op = "modifier.create.";
     create_text text;
     text.budget = "1";
-    REQUIRE_EQ(accepted<M>(text.str()).budget_us, std::uint64_t{1});
+    REQUIRE_EQ(accepted<message_type>(text.str()).budget_us, std::uint64_t{1});
     text.budget = "1000000";
-    REQUIRE_EQ(accepted<M>(text.str()).budget_us, max_modifier_budget_us);
+    REQUIRE_EQ(accepted<message_type>(text.str()).budget_us,
+               max_modifier_budget_us);
     text.budget = "0";
-    require_refused<M>(text.str(), op + "budget_us: must be a whole number");
+    require_refused<message_type>(text.str(),
+                                  op + "budget_us: must be a whole number");
     text.budget = "1000001";
-    require_refused<M>(text.str(), op + "budget_us: must be a whole number");
+    require_refused<message_type>(text.str(),
+                                  op + "budget_us: must be a whole number");
     text = {};
     text.bytes = "1";
-    REQUIRE_EQ(accepted<M>(text.str()).max_batch_bytes, std::uint64_t{1});
+    REQUIRE_EQ(accepted<message_type>(text.str()).max_batch_bytes,
+               std::uint64_t{1});
     text.bytes = "65536";
-    REQUIRE_EQ(accepted<M>(text.str()).max_batch_bytes, max_modifier_batch);
+    REQUIRE_EQ(accepted<message_type>(text.str()).max_batch_bytes,
+               max_modifier_batch);
     text.bytes = "0";
-    require_refused<M>(text.str(), op + "max_batch_bytes: must be a whole");
+    require_refused<message_type>(text.str(),
+                                  op + "max_batch_bytes: must be a whole");
     text.bytes = "65537";
-    require_refused<M>(text.str(), op + "max_batch_bytes: must be a whole");
+    require_refused<message_type>(text.str(),
+                                  op + "max_batch_bytes: must be a whole");
     text = {};
     text.us = "1";
-    REQUIRE_EQ(accepted<M>(text.str()).max_batch_us, std::uint64_t{1});
+    REQUIRE_EQ(accepted<message_type>(text.str()).max_batch_us,
+               std::uint64_t{1});
     text.us = "1000000";
-    REQUIRE_EQ(accepted<M>(text.str()).max_batch_us, max_modifier_batch_us);
+    REQUIRE_EQ(accepted<message_type>(text.str()).max_batch_us,
+               max_modifier_batch_us);
     text.us = "0";
-    require_refused<M>(text.str(), op + "max_batch_us: must be a whole");
+    require_refused<message_type>(text.str(),
+                                  op + "max_batch_us: must be a whole");
     text.us = "1000001";
-    require_refused<M>(text.str(), op + "max_batch_us: must be a whole");
+    require_refused<message_type>(text.str(),
+                                  op + "max_batch_us: must be a whole");
     text = {};
     text.link = "9007199254740991";
-    REQUIRE_EQ(accepted<M>(text.str()).link, max_api_number);
+    REQUIRE_EQ(accepted<message_type>(text.str()).link, max_api_number);
     text.link = "9007199254740992";
-    require_refused<M>(text.str(), op + "link: must be a whole");
+    require_refused<message_type>(text.str(), op + "link: must be a whole");
     text = {};
     text.flush = "0";
-    REQUIRE_EQ(static_cast<int>(accepted<M>(text.str()).flush_on.value_or(9)),
+    REQUIRE_EQ(static_cast<int>(
+                   accepted<message_type>(text.str()).flush_on.value_or(9)),
                0);
     text.flush = "255";
-    REQUIRE_EQ(static_cast<int>(accepted<M>(text.str()).flush_on.value_or(9)),
+    REQUIRE_EQ(static_cast<int>(
+                   accepted<message_type>(text.str()).flush_on.value_or(9)),
                255);
     text.flush = "256";
-    require_refused<M>(text.str(),
-                       op + "flush_on: must be a whole number from 0 to 255");
+    require_refused<message_type>(
+        text.str(), op + "flush_on: must be a whole number from 0 to 255");
     text.flush = "-1";
-    require_refused<M>(text.str(), op + "flush_on");
+    require_refused<message_type>(text.str(), op + "flush_on");
 
-    M body = create_body();
+    message_type body = create_body();
     body.budget_us = 0;
     require_not_written(body, 5);
     body.budget_us = max_modifier_budget_us + 1;
@@ -383,45 +402,49 @@ TEST_CASE("plugin api: modifier.batch keeps its bytes in the blob")
 
 TEST_CASE("plugin api: modifier.batch is refused when its members are wrong")
 {
-    using M = modifier_batch_message;
+    using message_type = modifier_batch_message;
     const std::string op = "modifier.batch.";
     const byte_buffer data = bytes_of(8);
-    REQUIRE_EQ(accepted<M>(batch_text{}.str(), data).chunks.size(),
+    REQUIRE_EQ(accepted<message_type>(batch_text{}.str(), data).chunks.size(),
                std::size_t{1});
     batch_text text;
     text.instance.clear();
-    require_refused<M>(text.str(), op + "instance: is required", data);
+    require_refused<message_type>(text.str(), op + "instance: is required",
+                                  data);
     text = {};
     text.seq.clear();
-    require_refused<M>(text.str(), op + "seq: is required", data);
+    require_refused<message_type>(text.str(), op + "seq: is required", data);
     text.seq = "0";
-    require_refused<M>(text.str(), op + "seq: must be a whole number from 1",
-                       data);
+    require_refused<message_type>(
+        text.str(), op + "seq: must be a whole number from 1", data);
     text.seq = "9007199254740992";
-    require_refused<M>(text.str(), op + "seq: must be a whole number", data);
+    require_refused<message_type>(text.str(),
+                                  op + "seq: must be a whole number", data);
     text.seq = "9007199254740991";
-    REQUIRE_EQ(accepted<M>(text.str(), data).seq, max_api_number);
+    REQUIRE_EQ(accepted<message_type>(text.str(), data).seq, max_api_number);
     text = {};
     text.ts.clear();
-    require_refused<M>(text.str(), op + "ts_ns: is required", data);
+    require_refused<message_type>(text.str(), op + "ts_ns: is required", data);
     text.ts = "-1";
-    require_refused<M>(text.str(), op + "ts_ns: must be a whole number", data);
+    require_refused<message_type>(text.str(),
+                                  op + "ts_ns: must be a whole number", data);
     text = {};
     text.chunks.clear();
-    require_refused<M>(text.str(), op + "chunks: is required", data);
+    require_refused<message_type>(text.str(), op + "chunks: is required", data);
     text.chunks = "{}";
-    require_refused<M>(text.str(), op + "chunks: must be a list", data);
+    require_refused<message_type>(text.str(), op + "chunks: must be a list",
+                                  data);
     text.chunks = "[]";
-    require_refused<M>(text.str(), op + "chunks: must have at least 1 entry",
-                       data);
+    require_refused<message_type>(
+        text.str(), op + "chunks: must have at least 1 entry", data);
     text = {};
-    require_refused<M>(text.str(), "has a blob of 0 bytes");
-    require_refused<M>(text.str(), "has a blob of 65537 bytes",
-                       bytes_of(max_modifier_batch + 1));
-    REQUIRE_EQ(accepted<M>(text.str(), bytes_of(max_modifier_batch))
+    require_refused<message_type>(text.str(), "has a blob of 0 bytes");
+    require_refused<message_type>(text.str(), "has a blob of 65537 bytes",
+                                  bytes_of(max_modifier_batch + 1));
+    REQUIRE_EQ(accepted<message_type>(text.str(), bytes_of(max_modifier_batch))
                    .data.size(),
                max_modifier_batch);
-    require_refused<M>(
+    require_refused<message_type>(
         R"({"op":"modifier.batch","id":2,"instance":3,"seq":1,"ts_ns":1,)"
         R"("chunks":[{"offset":0,"length":1,"ts_ns":1}]})",
         "neither an id nor a re", data);
@@ -429,79 +452,95 @@ TEST_CASE("plugin api: modifier.batch is refused when its members are wrong")
 
 TEST_CASE("plugin api: the chunks of a modifier.batch are checked one by one")
 {
-    using M = modifier_batch_message;
+    using message_type = modifier_batch_message;
     const std::string op = "modifier.batch.chunks[";
     const byte_buffer data = bytes_of(8);
     batch_text text;
     text.chunks = "[3]";
-    require_refused<M>(text.str(), op + "0]: must be an object", data);
+    require_refused<message_type>(text.str(), op + "0]: must be an object",
+                                  data);
     text.chunks = R"([{"length":8,"ts_ns":1000}])";
-    require_refused<M>(text.str(), op + "0].offset: is required", data);
+    require_refused<message_type>(text.str(), op + "0].offset: is required",
+                                  data);
     text.chunks = R"([{"offset":0,"ts_ns":1000}])";
-    require_refused<M>(text.str(), op + "0].length: is required", data);
+    require_refused<message_type>(text.str(), op + "0].length: is required",
+                                  data);
     text.chunks = R"([{"offset":0,"length":8}])";
-    require_refused<M>(text.str(), op + "0].ts_ns: is required", data);
+    require_refused<message_type>(text.str(), op + "0].ts_ns: is required",
+                                  data);
     text.chunks = R"([{"offset":-1,"length":8,"ts_ns":1000}])";
-    require_refused<M>(text.str(), op + "0].offset: must be a whole", data);
+    require_refused<message_type>(text.str(), op + "0].offset: must be a whole",
+                                  data);
     text.chunks = R"([{"offset":0,"length":0,"ts_ns":1000}])";
-    require_refused<M>(text.str(), op + "0].length: must be a whole number from 1",
-                       data);
+    require_refused<message_type>(
+        text.str(), op + "0].length: must be a whole number from 1", data);
     text.chunks = R"([{"offset":"0","length":8,"ts_ns":1000}])";
-    require_refused<M>(text.str(), op + "0].offset: must be a whole", data);
+    require_refused<message_type>(text.str(), op + "0].offset: must be a whole",
+                                  data);
     text.chunks = R"([{"offset":0,"length":8.5,"ts_ns":1000}])";
-    require_refused<M>(text.str(), op + "0].length: must be a whole", data);
+    require_refused<message_type>(text.str(), op + "0].length: must be a whole",
+                                  data);
     // Inside the blob: the last byte, and one past it.
     text.chunks = "[" + chunk_text(7, 1, 1000) + "]";
-    REQUIRE_EQ(accepted<M>(text.str(), data).chunks.size(), std::size_t{1});
+    REQUIRE_EQ(accepted<message_type>(text.str(), data).chunks.size(),
+               std::size_t{1});
     text.chunks = "[" + chunk_text(7, 2, 1000) + "]";
-    require_refused<M>(text.str(), op + "0]: is not inside the blob", data);
+    require_refused<message_type>(text.str(), op + "0]: is not inside the blob",
+                                  data);
     text.chunks = "[" + chunk_text(8, 1, 1000) + "]";
-    require_refused<M>(text.str(), op + "0]: is not inside the blob", data);
+    require_refused<message_type>(text.str(), op + "0]: is not inside the blob",
+                                  data);
     text.chunks = "[" + chunk_text(0, 9, 1000) + "]";
-    require_refused<M>(text.str(), op + "0]: is not inside the blob", data);
+    require_refused<message_type>(text.str(), op + "0]: is not inside the blob",
+                                  data);
     // A range that would wrap if the sum were taken first.
     text.chunks = "[" + chunk_text(65536, 65536, 1000) + "]";
-    require_refused<M>(text.str(), op + "0]: is not inside the blob", data);
+    require_refused<message_type>(text.str(), op + "0]: is not inside the blob",
+                                  data);
     // In order, and not overlapping.
-    text.chunks = "[" + chunk_text(0, 4, 1000) + "," + chunk_text(4, 4, 1000) +
-                  "]";
-    REQUIRE_EQ(accepted<M>(text.str(), data).chunks.size(), std::size_t{2});
-    text.chunks = "[" + chunk_text(0, 4, 1000) + "," + chunk_text(3, 4, 1000) +
-                  "]";
-    require_refused<M>(text.str(), op + "1]: is not after the chunk before it",
-                       data);
-    text.chunks = "[" + chunk_text(4, 4, 1000) + "," + chunk_text(0, 4, 1000) +
-                  "]";
-    require_refused<M>(text.str(), op + "1]: is not after the chunk before it",
-                       data);
+    text.chunks =
+        "[" + chunk_text(0, 4, 1000) + "," + chunk_text(4, 4, 1000) + "]";
+    REQUIRE_EQ(accepted<message_type>(text.str(), data).chunks.size(),
+               std::size_t{2});
+    text.chunks =
+        "[" + chunk_text(0, 4, 1000) + "," + chunk_text(3, 4, 1000) + "]";
+    require_refused<message_type>(
+        text.str(), op + "1]: is not after the chunk before it", data);
+    text.chunks =
+        "[" + chunk_text(4, 4, 1000) + "," + chunk_text(0, 4, 1000) + "]";
+    require_refused<message_type>(
+        text.str(), op + "1]: is not after the chunk before it", data);
     // A gap between chunks is allowed.
-    text.chunks = "[" + chunk_text(0, 2, 1000) + "," + chunk_text(6, 2, 1000) +
-                  "]";
-    REQUIRE_EQ(accepted<M>(text.str(), data).chunks.size(), std::size_t{2});
+    text.chunks =
+        "[" + chunk_text(0, 2, 1000) + "," + chunk_text(6, 2, 1000) + "]";
+    REQUIRE_EQ(accepted<message_type>(text.str(), data).chunks.size(),
+               std::size_t{2});
     // Times do not go back, and the first is the time of the batch.
     text.chunks = "[" + chunk_text(0, 2, 1001) + "]";
-    require_refused<M>(text.str(),
-                       op + "0].ts_ns: of the first chunk must be the ts_ns",
-                       data);
+    require_refused<message_type>(
+        text.str(), op + "0].ts_ns: of the first chunk must be the ts_ns",
+        data);
     text.chunks = "[" + chunk_text(0, 2, 999) + "]";
-    require_refused<M>(text.str(),
-                       op + "0].ts_ns: of the first chunk must be the ts_ns",
-                       data);
-    text.chunks = "[" + chunk_text(0, 2, 1000) + "," + chunk_text(2, 2, 999) +
-                  "]";
-    require_refused<M>(text.str(),
-                       op + "1].ts_ns: must not be before the chunk before it",
-                       data);
+    require_refused<message_type>(
+        text.str(), op + "0].ts_ns: of the first chunk must be the ts_ns",
+        data);
+    text.chunks =
+        "[" + chunk_text(0, 2, 1000) + "," + chunk_text(2, 2, 999) + "]";
+    require_refused<message_type>(
+        text.str(), op + "1].ts_ns: must not be before the chunk before it",
+        data);
     text.chunks = "[" + chunk_text(0, 2, 1000) + "," + chunk_text(2, 2, 1000) +
                   "," + chunk_text(4, 2, 2000) + "]";
-    REQUIRE_EQ(accepted<M>(text.str(), data).chunks.size(), std::size_t{3});
+    REQUIRE_EQ(accepted<message_type>(text.str(), data).chunks.size(),
+               std::size_t{3});
 }
 
 TEST_CASE("plugin api: modifier.batch has between 1 and 256 chunks")
 {
-    using M = modifier_batch_message;
+    using message_type = modifier_batch_message;
     const byte_buffer data = bytes_of(max_modifier_chunks + 10);
-    const auto list = [](std::size_t count) {
+    const auto list = [](std::size_t count)
+    {
         std::string out = "[";
         for (std::size_t i = 0; i < count; ++i)
         {
@@ -513,19 +552,19 @@ TEST_CASE("plugin api: modifier.batch has between 1 and 256 chunks")
     };
     batch_text text;
     text.chunks = list(max_modifier_chunks);
-    REQUIRE_EQ(accepted<M>(text.str(), data).chunks.size(),
+    REQUIRE_EQ(accepted<message_type>(text.str(), data).chunks.size(),
                max_modifier_chunks);
     text.chunks = list(max_modifier_chunks + 1);
-    require_refused<M>(text.str(), "modifier.batch.chunks: has more than 256",
-                       data);
+    require_refused<message_type>(
+        text.str(), "modifier.batch.chunks: has more than 256", data);
     // A list that is long and whose entries are all wrong is refused for its
     // length, before any entry is read.
     std::string bad = "[";
     for (std::size_t i = 0; i < max_modifier_chunks + 1; ++i)
         bad += i == 0 ? "7" : ",7";
     text.chunks = bad + "]";
-    require_refused<M>(text.str(), "modifier.batch.chunks: has more than 256",
-                       data);
+    require_refused<message_type>(
+        text.str(), "modifier.batch.chunks: has more than 256", data);
 
     modifier_batch_message body = batch_body();
     body.chunks.assign(max_modifier_chunks, {});
@@ -596,43 +635,51 @@ TEST_CASE("plugin api: modifier.result has no bytes when no action needs them")
     body.data = bytes_of(max_api_blob + 1);
     body.actions = {action_of(modifier_action_kind::pass)};
     require_not_written(body);
-    require_refused<modifier_result_message>(
-        result_text{}.str(), "has a blob of 262145 bytes",
-        bytes_of(max_api_blob + 1));
+    require_refused<modifier_result_message>(result_text{}.str(),
+                                             "has a blob of 262145 bytes",
+                                             bytes_of(max_api_blob + 1));
 }
 
 TEST_CASE("plugin api: modifier.result is refused when its members are wrong")
 {
-    using M = modifier_result_message;
+    using message_type = modifier_result_message;
     const std::string op = "modifier.result.";
     result_text text;
-    REQUIRE_EQ(accepted<M>(text.str()).actions.size(), std::size_t{1});
+    REQUIRE_EQ(accepted<message_type>(text.str()).actions.size(),
+               std::size_t{1});
     text.instance.clear();
-    require_refused<M>(text.str(), op + "instance: is required");
+    require_refused<message_type>(text.str(), op + "instance: is required");
     text = {};
     text.seq.clear();
-    require_refused<M>(text.str(), op + "seq: is required");
+    require_refused<message_type>(text.str(), op + "seq: is required");
     text.seq = "0";
-    require_refused<M>(text.str(), op + "seq: must be a whole number from 1");
+    require_refused<message_type>(text.str(),
+                                  op + "seq: must be a whole number from 1");
     text = {};
     text.actions.clear();
-    require_refused<M>(text.str(), op + "actions: is required");
+    require_refused<message_type>(text.str(), op + "actions: is required");
     text.actions = "5";
-    require_refused<M>(text.str(), op + "actions: must be a list");
+    require_refused<message_type>(text.str(), op + "actions: must be a list");
     text.actions = "[]";
-    require_refused<M>(text.str(), op + "actions: must have at least 1 entry");
+    require_refused<message_type>(text.str(),
+                                  op + "actions: must have at least 1 entry");
     text.actions = "[7]";
-    require_refused<M>(text.str(), op + "actions[0]: must be an object");
+    require_refused<message_type>(text.str(),
+                                  op + "actions[0]: must be an object");
     text.actions = "[{}]";
-    require_refused<M>(text.str(), op + "actions[0].action: is required");
+    require_refused<message_type>(text.str(),
+                                  op + "actions[0].action: is required");
     text.actions = R"([{"action":"pass"},{"action":"explode"}])";
-    require_refused<M>(text.str(), op + "actions[1].action: must be \"pass\"");
+    require_refused<message_type>(text.str(),
+                                  op + "actions[1].action: must be \"pass\"");
     text.actions = R"([{"action":4}])";
-    require_refused<M>(text.str(), op + "actions[0].action: must be");
+    require_refused<message_type>(text.str(),
+                                  op + "actions[0].action: must be");
     text.actions = R"([{"action":"Pass"}])";
-    require_refused<M>(text.str(), op + "actions[0].action: must be");
+    require_refused<message_type>(text.str(),
+                                  op + "actions[0].action: must be");
     text = {};
-    require_refused<M>(
+    require_refused<message_type>(
         R"({"op":"modifier.result","id":3,"instance":3,"seq":1,)"
         R"("actions":[{"action":"pass"}]})",
         "neither an id nor a re");
@@ -640,112 +687,135 @@ TEST_CASE("plugin api: modifier.result is refused when its members are wrong")
 
 TEST_CASE("plugin api: the actions of a modifier.result have their members")
 {
-    using M = modifier_result_message;
+    using message_type = modifier_result_message;
     const std::string op = "modifier.result.actions[0].";
     const byte_buffer data = bytes_of(10);
     result_text text;
-    const auto one = [&](std::string_view action) {
+    const auto one = [&](std::string_view action)
+    {
         text.actions = "[" + std::string(action) + "]";
         return text.str();
     };
     // Range actions.
-    REQUIRE_EQ(accepted<M>(one(R"({"action":"replace","offset":0,"length":0})"),
-                           data)
+    REQUIRE_EQ(accepted<message_type>(
+                   one(R"({"action":"replace","offset":0,"length":0})"), data)
                    .actions[0]
                    .length,
                std::uint64_t{0});
-    REQUIRE_EQ(accepted<M>(one(R"({"action":"replace","offset":10,"length":0})"),
-                           data)
+    REQUIRE_EQ(accepted<message_type>(
+                   one(R"({"action":"replace","offset":10,"length":0})"), data)
                    .actions[0]
                    .offset,
                std::uint64_t{10});
-    require_refused<M>(one(R"({"action":"replace","offset":0})"),
-                       op + "length: is required", data);
-    require_refused<M>(one(R"({"action":"replace","length":1})"),
-                       op + "offset: is required", data);
-    require_refused<M>(one(R"({"action":"replace","offset":0,"length":-1})"),
-                       op + "length: must be a whole number", data);
-    require_refused<M>(one(R"({"action":"replace","offset":0,"length":11})"),
-                       "modifier.result.actions[0]: has a range that is not "
-                       "inside the result blob",
-                       data);
-    require_refused<M>(one(R"({"action":"replace","offset":11,"length":0})"),
-                       "has a range that is not inside the result blob", data);
-    require_refused<M>(one(R"({"action":"replace","offset":6,"length":5})"),
-                       "has a range that is not inside the result blob", data);
-    require_refused<M>(one(R"({"action":"replace","offset":0,"length":1})"),
-                       "has a range that is not inside the result blob");
+    require_refused<message_type>(one(R"({"action":"replace","offset":0})"),
+                                  op + "length: is required", data);
+    require_refused<message_type>(one(R"({"action":"replace","length":1})"),
+                                  op + "offset: is required", data);
+    require_refused<message_type>(
+        one(R"({"action":"replace","offset":0,"length":-1})"),
+        op + "length: must be a whole number", data);
+    require_refused<message_type>(
+        one(R"({"action":"replace","offset":0,"length":11})"),
+        "modifier.result.actions[0]: has a range that is not "
+        "inside the result blob",
+        data);
+    require_refused<message_type>(
+        one(R"({"action":"replace","offset":11,"length":0})"),
+        "has a range that is not inside the result blob", data);
+    require_refused<message_type>(
+        one(R"({"action":"replace","offset":6,"length":5})"),
+        "has a range that is not inside the result blob", data);
+    require_refused<message_type>(
+        one(R"({"action":"replace","offset":0,"length":1})"),
+        "has a range that is not inside the result blob");
     for (const std::string_view kind : {"insert_before", "insert_after"})
     {
         const std::string head = R"({"action":")" + std::string(kind) + "\"";
-        REQUIRE_EQ(accepted<M>(one(head + R"(,"offset":9,"length":1})"), data)
+        REQUIRE_EQ(accepted<message_type>(
+                       one(head + R"(,"offset":9,"length":1})"), data)
                        .actions[0]
                        .length,
                    std::uint64_t{1});
-        require_refused<M>(one(head + R"(,"offset":0,"length":0})"),
-                           op + "length: must be a whole number from 1", data);
-        require_refused<M>(one(head + R"(,"offset":9,"length":2})"),
-                           "has a range that is not inside the result blob",
-                           data);
-        require_refused<M>(one(head + R"(,"length":1})"),
-                           op + "offset: is required", data);
+        require_refused<message_type>(
+            one(head + R"(,"offset":0,"length":0})"),
+            op + "length: must be a whole number from 1", data);
+        require_refused<message_type>(
+            one(head + R"(,"offset":9,"length":2})"),
+            "has a range that is not inside the result blob", data);
+        require_refused<message_type>(one(head + R"(,"length":1})"),
+                                      op + "offset: is required", data);
     }
     // A range that is too large for the number is refused before it is added.
-    require_refused<M>(one(R"({"action":"replace","offset":262144,"length":)"
-                           R"(262144})"),
-                       "has a range that is not inside the result blob", data);
-    require_refused<M>(one(R"({"action":"replace","offset":262145,"length":0})"),
-                       op + "offset: must be a whole number", data);
+    require_refused<message_type>(
+        one(R"({"action":"replace","offset":262144,"length":)"
+            R"(262144})"),
+        "has a range that is not inside the result blob", data);
+    require_refused<message_type>(
+        one(R"({"action":"replace","offset":262145,"length":0})"),
+        op + "offset: must be a whole number", data);
     // Delay.
-    REQUIRE_EQ(accepted<M>(one(R"({"action":"delay_us","us":1})")).actions[0].us,
+    REQUIRE_EQ(accepted<message_type>(one(R"({"action":"delay_us","us":1})"))
+                   .actions[0]
+                   .us,
                std::uint64_t{1});
     REQUIRE_EQ(
-        accepted<M>(one(R"({"action":"delay_us","us":60000000})")).actions[0].us,
+        accepted<message_type>(one(R"({"action":"delay_us","us":60000000})"))
+            .actions[0]
+            .us,
         max_api_delay_us);
-    require_refused<M>(one(R"({"action":"delay_us","us":0})"),
-                       op + "us: must be a whole number from 1");
-    require_refused<M>(one(R"({"action":"delay_us","us":60000001})"),
-                       op + "us: must be a whole number");
-    require_refused<M>(one(R"({"action":"delay_us"})"), op + "us: is required");
+    require_refused<message_type>(one(R"({"action":"delay_us","us":0})"),
+                                  op + "us: must be a whole number from 1");
+    require_refused<message_type>(one(R"({"action":"delay_us","us":60000001})"),
+                                  op + "us: must be a whole number");
+    require_refused<message_type>(one(R"({"action":"delay_us"})"),
+                                  op + "us: is required");
     // Split.
-    REQUIRE_EQ(
-        accepted<M>(one(R"({"action":"split","parts":2,"gap_us":0})"))
-            .actions[0]
-            .parts,
-        std::uint64_t{2});
-    REQUIRE_EQ(
-        accepted<M>(one(R"({"action":"split","parts":16,"gap_us":60000000})"))
-            .actions[0]
-            .gap_us,
-        max_api_delay_us);
-    require_refused<M>(one(R"({"action":"split","parts":1,"gap_us":0})"),
-                       op + "parts: must be a whole number from 2 to 16");
-    require_refused<M>(one(R"({"action":"split","parts":17,"gap_us":0})"),
-                       op + "parts: must be a whole number from 2 to 16");
-    require_refused<M>(one(R"({"action":"split","parts":2,"gap_us":60000001})"),
-                       op + "gap_us: must be a whole number");
-    require_refused<M>(one(R"({"action":"split","gap_us":1})"),
-                       op + "parts: is required");
-    require_refused<M>(one(R"({"action":"split","parts":2})"),
-                       op + "gap_us: is required");
+    REQUIRE_EQ(accepted<message_type>(
+                   one(R"({"action":"split","parts":2,"gap_us":0})"))
+                   .actions[0]
+                   .parts,
+               std::uint64_t{2});
+    REQUIRE_EQ(accepted<message_type>(
+                   one(R"({"action":"split","parts":16,"gap_us":60000000})"))
+                   .actions[0]
+                   .gap_us,
+               max_api_delay_us);
+    require_refused<message_type>(
+        one(R"({"action":"split","parts":1,"gap_us":0})"),
+        op + "parts: must be a whole number from 2 to 16");
+    require_refused<message_type>(
+        one(R"({"action":"split","parts":17,"gap_us":0})"),
+        op + "parts: must be a whole number from 2 to 16");
+    require_refused<message_type>(
+        one(R"({"action":"split","parts":2,"gap_us":60000001})"),
+        op + "gap_us: must be a whole number");
+    require_refused<message_type>(one(R"({"action":"split","gap_us":1})"),
+                                  op + "parts: is required");
+    require_refused<message_type>(one(R"({"action":"split","parts":2})"),
+                                  op + "gap_us: is required");
     // Fault.
-    REQUIRE(accepted<M>(one(R"({"action":"fault","fault":"hang_up"})"))
-                .actions[0]
-                .fault == line_fault::hang_up);
-    require_refused<M>(one(R"({"action":"fault"})"), op + "fault: is required");
-    require_refused<M>(one(R"({"action":"fault","fault":"smoke"})"),
-                       op + "fault: must be \"parity\"");
+    REQUIRE(
+        accepted<message_type>(one(R"({"action":"fault","fault":"hang_up"})"))
+            .actions[0]
+            .fault == line_fault::hang_up);
+    require_refused<message_type>(one(R"({"action":"fault"})"),
+                                  op + "fault: is required");
+    require_refused<message_type>(one(R"({"action":"fault","fault":"smoke"})"),
+                                  op + "fault: must be \"parity\"");
     // Pass and drop need nothing, and what else they carry is passed over.
-    REQUIRE(accepted<M>(one(R"({"action":"pass","us":5})")).actions[0].kind ==
-            modifier_action_kind::pass);
-    REQUIRE(accepted<M>(one(R"({"action":"drop"})")).actions[0].kind ==
-            modifier_action_kind::drop);
+    REQUIRE(accepted<message_type>(one(R"({"action":"pass","us":5})"))
+                .actions[0]
+                .kind == modifier_action_kind::pass);
+    REQUIRE(
+        accepted<message_type>(one(R"({"action":"drop"})")).actions[0].kind ==
+        modifier_action_kind::drop);
 }
 
 TEST_CASE("plugin api: modifier.result has between 1 and 256 actions")
 {
-    using M = modifier_result_message;
-    const auto list = [](std::size_t count) {
+    using message_type = modifier_result_message;
+    const auto list = [](std::size_t count)
+    {
         std::string out = "[";
         for (std::size_t i = 0; i < count; ++i)
             out += i == 0 ? R"({"action":"pass"})" : R"(,{"action":"pass"})";
@@ -753,16 +823,19 @@ TEST_CASE("plugin api: modifier.result has between 1 and 256 actions")
     };
     result_text text;
     text.actions = list(max_modifier_chunks);
-    REQUIRE_EQ(accepted<M>(text.str()).actions.size(), max_modifier_chunks);
+    REQUIRE_EQ(accepted<message_type>(text.str()).actions.size(),
+               max_modifier_chunks);
     text.actions = list(max_modifier_chunks + 1);
-    require_refused<M>(text.str(), "modifier.result.actions: has more than 256");
+    require_refused<message_type>(text.str(),
+                                  "modifier.result.actions: has more than 256");
     std::string bad = "[";
     for (std::size_t i = 0; i < max_modifier_chunks + 1; ++i)
         bad += i == 0 ? "7" : ",7";
     text.actions = bad + "]";
-    require_refused<M>(text.str(), "modifier.result.actions: has more than 256");
+    require_refused<message_type>(text.str(),
+                                  "modifier.result.actions: has more than 256");
 
-    M body = result_body();
+    message_type body = result_body();
     body.actions.assign(max_modifier_chunks,
                         action_of(modifier_action_kind::pass));
     (void)round_trip(body);
@@ -803,8 +876,8 @@ TEST_CASE("plugin api: modifier.stop is written and read")
     REQUIRE(written.has_value());
     REQUIRE_EQ(header_of(written.value()),
                std::string(R"({"op":"modifier.stop","id":2,"instance":8})"));
-    require_refused<modifier_stop_message>(
-        R"({"op":"modifier.stop","id":2})", "modifier.stop.instance: is");
+    require_refused<modifier_stop_message>(R"({"op":"modifier.stop","id":2})",
+                                           "modifier.stop.instance: is");
     require_refused<modifier_stop_message>(
         R"({"op":"modifier.stop","id":2,"instance":8})", "has no bytes", {1});
     require_refused<modifier_stop_message>(

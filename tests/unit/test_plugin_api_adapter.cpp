@@ -94,42 +94,43 @@ TEST_CASE("plugin api: agent.call is written and read")
 
 TEST_CASE("plugin api: agent.call is refused when it is wrong")
 {
-    using M = agent_call_message;
+    using message_type = agent_call_message;
     const std::string head = R"({"op":"agent.call","id":1,)";
-    require_refused<M>(R"({"op":"agent.call","id":1})",
-                       "agent.call.agent_op: is required");
-    require_refused<M>(head + R"("agent_op":7})",
-                       "agent.call.agent_op: must be a string");
-    require_refused<M>(head + R"("agent_op":""})",
-                       "agent.call.agent_op: must be 1 to 64");
-    require_refused<M>(head + R"("agent_op":"List"})",
-                       "agent.call.agent_op: must be 1 to 64");
-    require_refused<M>(head + R"("agent_op":"a b"})",
-                       "agent.call.agent_op: must be 1 to 64");
-    require_refused<M>(head + R"("agent_op":"a/b"})",
-                       "agent.call.agent_op: must be 1 to 64");
-    require_refused<M>(head + R"("agent_op":"list","args":null})",
-                       "agent.call.args: must be a JSON object");
-    require_refused<M>(head + R"("agent_op":"list","args":[1]})",
-                       "agent.call.args: must be a JSON object");
-    require_refused<M>(R"({"op":"agent.call","re":1,"agent_op":"list"})",
-                       "must have an id");
-    require_refused<M>(R"({"op":"agent.call","agent_op":"list"})",
-                       "must have an id");
+    require_refused<message_type>(R"({"op":"agent.call","id":1})",
+                                  "agent.call.agent_op: is required");
+    require_refused<message_type>(head + R"("agent_op":7})",
+                                  "agent.call.agent_op: must be a string");
+    require_refused<message_type>(head + R"("agent_op":""})",
+                                  "agent.call.agent_op: must be 1 to 64");
+    require_refused<message_type>(head + R"("agent_op":"List"})",
+                                  "agent.call.agent_op: must be 1 to 64");
+    require_refused<message_type>(head + R"("agent_op":"a b"})",
+                                  "agent.call.agent_op: must be 1 to 64");
+    require_refused<message_type>(head + R"("agent_op":"a/b"})",
+                                  "agent.call.agent_op: must be 1 to 64");
+    require_refused<message_type>(head + R"("agent_op":"list","args":null})",
+                                  "agent.call.args: must be a JSON object");
+    require_refused<message_type>(head + R"("agent_op":"list","args":[1]})",
+                                  "agent.call.args: must be a JSON object");
+    require_refused<message_type>(
+        R"({"op":"agent.call","re":1,"agent_op":"list"})", "must have an id");
+    require_refused<message_type>(R"({"op":"agent.call","agent_op":"list"})",
+                                  "must have an id");
 }
 
 TEST_CASE("plugin api: the operation of agent.call is a token of 64 bytes")
 {
-    using M = agent_call_message;
+    using message_type = agent_call_message;
     const std::string head = R"({"op":"agent.call","id":1,"agent_op":")";
-    REQUIRE_EQ(accepted<M>(head + repeated('a', 64) + "\"}").agent_op.size(),
+    REQUIRE_EQ(accepted<message_type>(head + repeated('a', 64) + "\"}")
+                   .agent_op.size(),
                std::size_t{64});
-    REQUIRE_EQ(accepted<M>(head + "a.b-c_9\"}").agent_op,
+    REQUIRE_EQ(accepted<message_type>(head + "a.b-c_9\"}").agent_op,
                std::string("a.b-c_9"));
-    require_refused<M>(head + repeated('a', 65) + "\"}",
-                       "agent.call.agent_op: must be 1 to 64");
+    require_refused<message_type>(head + repeated('a', 65) + "\"}",
+                                  "agent.call.agent_op: must be 1 to 64");
 
-    M body;
+    message_type body;
     body.agent_op = repeated('a', 64);
     (void)round_trip(body, 1);
     body.agent_op = repeated('a', 65);
@@ -150,16 +151,17 @@ TEST_CASE("plugin api: the operation of agent.call is a token of 64 bytes")
 
 TEST_CASE("plugin api: agent.call has 0 to 256 KiB of bytes in the blob")
 {
-    using M = agent_call_message;
+    using message_type = agent_call_message;
     const std::string header =
         R"({"op":"agent.call","id":1,"agent_op":"send"})";
-    REQUIRE_EQ(accepted<M>(header, bytes_of(max_api_blob)).data.size(),
-               max_api_blob);
-    REQUIRE_EQ(accepted<M>(header).data.size(), std::size_t{0});
-    require_refused<M>(header, "has a blob of 262145 bytes",
-                       bytes_of(max_api_blob + 1));
+    REQUIRE_EQ(
+        accepted<message_type>(header, bytes_of(max_api_blob)).data.size(),
+        max_api_blob);
+    REQUIRE_EQ(accepted<message_type>(header).data.size(), std::size_t{0});
+    require_refused<message_type>(header, "has a blob of 262145 bytes",
+                                  bytes_of(max_api_blob + 1));
 
-    M body;
+    message_type body;
     body.agent_op = "send";
     body.data = bytes_of(max_api_blob);
     (void)round_trip(body, 2);
@@ -192,23 +194,25 @@ TEST_CASE("plugin api: agent.result is written and read")
 
 TEST_CASE("plugin api: agent.result is refused when it is wrong")
 {
-    using M = agent_result_message;
+    using message_type = agent_result_message;
     const std::string head = R"({"op":"agent.result","re":3,)";
-    require_refused<M>(head + R"("result":1})",
-                       "agent.result.result: must be a JSON object");
-    require_refused<M>(head + R"("result":null})",
-                       "agent.result.result: must be a JSON object");
-    require_refused<M>(R"({"op":"agent.result","id":3,"result":{}})",
-                       "must have a re and no id");
-    require_refused<M>(R"({"op":"agent.result","result":{}})",
-                       "must have a re and no id");
-    REQUIRE_EQ(accepted<M>(head + R"("result":{}})", bytes_of(max_api_blob))
-                   .data.size(),
-               max_api_blob);
-    require_refused<M>(head + R"("result":{}})", "has a blob of 262145 bytes",
-                       bytes_of(max_api_blob + 1));
+    require_refused<message_type>(head + R"("result":1})",
+                                  "agent.result.result: must be a JSON object");
+    require_refused<message_type>(head + R"("result":null})",
+                                  "agent.result.result: must be a JSON object");
+    require_refused<message_type>(R"({"op":"agent.result","id":3,"result":{}})",
+                                  "must have a re and no id");
+    require_refused<message_type>(R"({"op":"agent.result","result":{}})",
+                                  "must have a re and no id");
+    REQUIRE_EQ(
+        accepted<message_type>(head + R"("result":{}})", bytes_of(max_api_blob))
+            .data.size(),
+        max_api_blob);
+    require_refused<message_type>(head + R"("result":{}})",
+                                  "has a blob of 262145 bytes",
+                                  bytes_of(max_api_blob + 1));
 
-    M body;
+    message_type body;
     body.data = bytes_of(max_api_blob + 1);
     require_not_written(body, 3);
     body.data.clear();
@@ -249,45 +253,57 @@ TEST_CASE("plugin api: agent.subscribe is written and read")
 
 TEST_CASE("plugin api: agent.subscribe is refused when it is wrong")
 {
-    using M = agent_subscribe_message;
+    using message_type = agent_subscribe_message;
     const std::string head = R"({"op":"agent.subscribe","id":1,)";
-    require_refused<M>(head + R"("data":1})",
-                       "agent.subscribe.data: must be true or false");
-    require_refused<M>(head + R"("data":"true"})",
-                       "agent.subscribe.data: must be true or false");
-    require_refused<M>(head + R"("places":"COM7"})",
-                       "agent.subscribe.places: must be a list");
-    require_refused<M>(head + R"("places":[7]})",
-                       "agent.subscribe.places[0]: must be a string");
-    require_refused<M>(head + R"("places":["a",null]})",
-                       "agent.subscribe.places[1]: must be a string");
-    require_refused<M>(head + R"("places":[""]})",
-                       "agent.subscribe.places[0]: must be 1 to 128 bytes");
-    require_refused<M>(head + R"("places":["a\nb"]})",
-                       "agent.subscribe.places[0]: must be plain text");
-    require_refused<M>(head + "\"places\":[\"a\xe2\x80\xae"
-                              "b\"]}",
-                       "agent.subscribe.places[0]: must be plain text");
-    require_refused<M>(head + R"("data":true})", "has no bytes", {1});
-    require_refused<M>(R"({"op":"agent.subscribe","re":1})", "must have an id");
+    require_refused<message_type>(
+        head + R"("data":1})", "agent.subscribe.data: must be true or false");
+    require_refused<message_type>(
+        head + R"("data":"true"})",
+        "agent.subscribe.data: must be true or false");
+    require_refused<message_type>(head + R"("places":"COM7"})",
+                                  "agent.subscribe.places: must be a list");
+    require_refused<message_type>(
+        head + R"("places":[7]})",
+        "agent.subscribe.places[0]: must be a string");
+    require_refused<message_type>(
+        head + R"("places":["a",null]})",
+        "agent.subscribe.places[1]: must be a string");
+    require_refused<message_type>(
+        head + R"("places":[""]})",
+        "agent.subscribe.places[0]: must be 1 to 128 bytes");
+    require_refused<message_type>(
+        head + R"("places":["a\nb"]})",
+        "agent.subscribe.places[0]: must be plain text");
+    require_refused<message_type>(
+        head + "\"places\":[\"a\xe2\x80\x8f"
+               "b\"]}",
+        "agent.subscribe.places[0]: must be plain text");
+    require_refused<message_type>(head + R"("data":true})", "has no bytes",
+                                  {1});
+    require_refused<message_type>(R"({"op":"agent.subscribe","re":1})",
+                                  "must have an id");
 }
 
 TEST_CASE("plugin api: agent.subscribe has up to 256 places of 128 bytes")
 {
-    using M = agent_subscribe_message;
+    using message_type = agent_subscribe_message;
     const std::string head = R"({"op":"agent.subscribe","id":1,"places":)";
-    REQUIRE_EQ(accepted<M>(head + place_list(256) + "}").places.size(),
-               std::size_t{256});
-    require_refused<M>(head + place_list(257) + "}",
-                       "agent.subscribe.places: has more than 256 entries");
-    REQUIRE_EQ(accepted<M>(head + "[\"" + repeated('n', 128) + "\"]}")
-                   .places[0]
-                   .size(),
-               max_api_name);
-    require_refused<M>(head + "[\"" + repeated('n', 129) + "\"]}",
-                       "agent.subscribe.places[0]: must be 1 to 128 bytes");
+    REQUIRE_EQ(
+        accepted<message_type>(head + place_list(256) + "}").places.size(),
+        std::size_t{256});
+    require_refused<message_type>(
+        head + place_list(257) + "}",
+        "agent.subscribe.places: has more than 256 entries");
+    REQUIRE_EQ(
+        accepted<message_type>(head + "[\"" + repeated('n', 128) + "\"]}")
+            .places[0]
+            .size(),
+        max_api_name);
+    require_refused<message_type>(
+        head + "[\"" + repeated('n', 129) + "\"]}",
+        "agent.subscribe.places[0]: must be 1 to 128 bytes");
 
-    M body;
+    message_type body;
     for (std::size_t i = 0; i < 256; ++i)
         body.places.push_back("p" + std::to_string(i));
     (void)round_trip(body, 3);
@@ -328,58 +344,63 @@ TEST_CASE("plugin api: adapter.state is written and read")
 
 TEST_CASE("plugin api: adapter.state is refused when it is wrong")
 {
-    using M = adapter_state_message;
+    using message_type = adapter_state_message;
     const std::string head = R"({"op":"adapter.state",)";
-    require_refused<M>(head + R"("address":"a:1","protocol":"p"})",
-                       "adapter.state.listening: is required");
-    require_refused<M>(head + R"("listening":"yes","protocol":"p"})",
-                       "adapter.state.listening: must be true or false");
-    require_refused<M>(head + R"("listening":true,"protocol":"p"})",
-                       "adapter.state.address: is required");
-    require_refused<M>(head +
-                           R"("listening":true,"address":"","protocol":"p"})",
-                       "adapter.state.address: must not be empty");
-    require_refused<M>(head + R"("listening":true,"address":4,"protocol":"p"})",
-                       "adapter.state.address: must be a string");
-    require_refused<M>(head + R"("listening":true,"address":"a\tb",)"
-                              R"("protocol":"p"})",
-                       "adapter.state.address: must be plain text");
-    require_refused<M>(head + R"("listening":false,"address":"a:1",)"
-                              R"("protocol":"p"})",
-                       "adapter.state.address: must not be given when "
-                       "listening is false");
-    require_refused<M>(head + R"("listening":false,"address":null,)"
-                              R"("protocol":"p"})",
-                       "adapter.state.address: must not be given");
-    require_refused<M>(head + R"("listening":false})",
-                       "adapter.state.protocol: is required");
-    require_refused<M>(head + R"("listening":false,"protocol":""})",
-                       "adapter.state.protocol: must not be empty");
-    require_refused<M>(head + R"("listening":false,"protocol":3})",
-                       "adapter.state.protocol: must be a string");
-    require_refused<M>(head + R"("listening":false,"protocol":"p"})",
-                       "has no bytes", {1});
-    require_refused<M>(R"({"op":"adapter.state","id":2,"listening":false,)"
-                       R"("protocol":"p"})",
-                       "neither an id nor a re");
+    require_refused<message_type>(head + R"("address":"a:1","protocol":"p"})",
+                                  "adapter.state.listening: is required");
+    require_refused<message_type>(
+        head + R"("listening":"yes","protocol":"p"})",
+        "adapter.state.listening: must be true or false");
+    require_refused<message_type>(head + R"("listening":true,"protocol":"p"})",
+                                  "adapter.state.address: is required");
+    require_refused<message_type>(
+        head + R"("listening":true,"address":"","protocol":"p"})",
+        "adapter.state.address: must not be empty");
+    require_refused<message_type>(
+        head + R"("listening":true,"address":4,"protocol":"p"})",
+        "adapter.state.address: must be a string");
+    require_refused<message_type>(head + R"("listening":true,"address":"a\tb",)"
+                                         R"("protocol":"p"})",
+                                  "adapter.state.address: must be plain text");
+    require_refused<message_type>(
+        head + R"("listening":false,"address":"a:1",)"
+               R"("protocol":"p"})",
+        "adapter.state.address: must not be given when "
+        "listening is false");
+    require_refused<message_type>(head + R"("listening":false,"address":null,)"
+                                         R"("protocol":"p"})",
+                                  "adapter.state.address: must not be given");
+    require_refused<message_type>(head + R"("listening":false})",
+                                  "adapter.state.protocol: is required");
+    require_refused<message_type>(head + R"("listening":false,"protocol":""})",
+                                  "adapter.state.protocol: must not be empty");
+    require_refused<message_type>(head + R"("listening":false,"protocol":3})",
+                                  "adapter.state.protocol: must be a string");
+    require_refused<message_type>(head + R"("listening":false,"protocol":"p"})",
+                                  "has no bytes", {1});
+    require_refused<message_type>(
+        R"({"op":"adapter.state","id":2,"listening":false,)"
+        R"("protocol":"p"})",
+        "neither an id nor a re");
 }
 
 TEST_CASE("plugin api: adapter.state has the limits of its members")
 {
-    using M = adapter_state_message;
+    using message_type = adapter_state_message;
     const std::string head = R"({"op":"adapter.state","listening":true,)";
-    REQUIRE_EQ(accepted<M>(head + R"("address":")" + repeated('a', 256) +
-                           R"(","protocol":")" + repeated('p', 64) + "\"}")
+    REQUIRE_EQ(accepted<message_type>(head + R"("address":")" +
+                                      repeated('a', 256) + R"(","protocol":")" +
+                                      repeated('p', 64) + "\"}")
                    .address.size(),
                max_adapter_address);
-    require_refused<M>(head + R"("address":")" + repeated('a', 257) +
-                           R"(","protocol":"p"})",
-                       "adapter.state.address: is longer than 256 bytes");
-    require_refused<M>(head + R"("address":"a","protocol":")" +
-                           repeated('p', 65) + "\"}",
-                       "adapter.state.protocol: is longer than 64 bytes");
+    require_refused<message_type>(
+        head + R"("address":")" + repeated('a', 257) + R"(","protocol":"p"})",
+        "adapter.state.address: is longer than 256 bytes");
+    require_refused<message_type>(
+        head + R"("address":"a","protocol":")" + repeated('p', 65) + "\"}",
+        "adapter.state.protocol: is longer than 64 bytes");
 
-    M body;
+    message_type body;
     body.listening = true;
     body.address = repeated('a', 256);
     body.protocol = repeated('p', 64);

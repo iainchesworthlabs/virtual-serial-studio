@@ -78,47 +78,54 @@ TEST_CASE("plugin api: instance.create without params has none")
 
 TEST_CASE("plugin api: instance.create is refused when it is wrong")
 {
-    using M = instance_create_message;
+    using message_type = instance_create_message;
     const std::string head = R"({"op":"instance.create","id":1,)";
-    require_refused<M>(head + R"("kind":"fixture","type":"x"})",
-                       "instance.create.instance: is required");
-    require_refused<M>(head + R"("instance":0,"kind":"fixture","type":"x"})",
-                       "instance.create.instance: must be a whole number");
-    require_refused<M>(head + R"("instance":"2","kind":"fixture","type":"x"})",
-                       "instance.create.instance: must be a whole number");
-    require_refused<M>(head + R"("instance":-1,"kind":"fixture","type":"x"})",
-                       "instance.create.instance: must be a whole number");
-    require_refused<M>(
+    require_refused<message_type>(head + R"("kind":"fixture","type":"x"})",
+                                  "instance.create.instance: is required");
+    require_refused<message_type>(
+        head + R"("instance":0,"kind":"fixture","type":"x"})",
+        "instance.create.instance: must be a whole number");
+    require_refused<message_type>(
+        head + R"("instance":"2","kind":"fixture","type":"x"})",
+        "instance.create.instance: must be a whole number");
+    require_refused<message_type>(
+        head + R"("instance":-1,"kind":"fixture","type":"x"})",
+        "instance.create.instance: must be a whole number");
+    require_refused<message_type>(
         head + R"("instance":9007199254740992,"kind":"fixture","type":"x"})",
         "instance.create.instance: must be a whole number");
-    require_refused<M>(head + R"("instance":2,"type":"x"})",
-                       "instance.create.kind: is required");
-    require_refused<M>(head + R"("instance":2,"kind":"daemon","type":"x"})",
-                       "instance.create.kind: must be generator");
-    require_refused<M>(head + R"("instance":2,"kind":5,"type":"x"})",
-                       "instance.create.kind: must be generator");
-    require_refused<M>(head + R"("instance":2,"kind":"fixture"})",
-                       "instance.create.type: is required");
-    require_refused<M>(head +
-                           R"("instance":2,"kind":"fixture","type":"Upper"})",
-                       "instance.create.type: must be 1 to 64");
-    require_refused<M>(head + R"("instance":2,"kind":"fixture","type":""})",
-                       "instance.create.type: must be 1 to 64");
-    require_refused<M>(head + R"("instance":2,"kind":"fixture","type":7})",
-                       "instance.create.type: must be a string");
-    require_refused<M>(
+    require_refused<message_type>(head + R"("instance":2,"type":"x"})",
+                                  "instance.create.kind: is required");
+    require_refused<message_type>(
+        head + R"("instance":2,"kind":"daemon","type":"x"})",
+        "instance.create.kind: must be generator");
+    require_refused<message_type>(head + R"("instance":2,"kind":5,"type":"x"})",
+                                  "instance.create.kind: must be generator");
+    require_refused<message_type>(head + R"("instance":2,"kind":"fixture"})",
+                                  "instance.create.type: is required");
+    require_refused<message_type>(
+        head + R"("instance":2,"kind":"fixture","type":"Upper"})",
+        "instance.create.type: must be 1 to 64");
+    require_refused<message_type>(
+        head + R"("instance":2,"kind":"fixture","type":""})",
+        "instance.create.type: must be 1 to 64");
+    require_refused<message_type>(
+        head + R"("instance":2,"kind":"fixture","type":7})",
+        "instance.create.type: must be a string");
+    require_refused<message_type>(
         head + R"("instance":2,"kind":"fixture","type":"x","params":[]})",
         "instance.create.params: must be a JSON object");
-    require_refused<M>(
+    require_refused<message_type>(
         head + R"("instance":2,"kind":"fixture","type":"x","params":"{}"})",
         "instance.create.params: must be a JSON object");
     // A blob, and the wrong role.
-    require_refused<M>(head + R"("instance":2,"kind":"fixture","type":"x"})",
-                       "instance.create: has no bytes", {1});
-    require_refused<M>(
+    require_refused<message_type>(
+        head + R"("instance":2,"kind":"fixture","type":"x"})",
+        "instance.create: has no bytes", {1});
+    require_refused<message_type>(
         R"({"op":"instance.create","instance":2,"kind":"fixture","type":"x"})",
         "must have an id");
-    require_refused<M>(
+    require_refused<message_type>(
         R"({"op":"instance.create","re":4,"instance":2,"kind":"fixture",)"
         R"("type":"x"})",
         "must have an id and no re");
@@ -126,15 +133,15 @@ TEST_CASE("plugin api: instance.create is refused when it is wrong")
 
 TEST_CASE("plugin api: the type and the number of an instance are limited")
 {
-    using M = instance_create_message;
+    using message_type = instance_create_message;
     const std::string head =
         R"({"op":"instance.create","id":1,"instance":2,"kind":"fixture",)";
-    const auto edge =
-        accepted<M>(head + R"("type":")" + repeated('a', max_api_id) + R"("})");
+    const auto edge = accepted<message_type>(
+        head + R"("type":")" + repeated('a', max_api_id) + R"("})");
     REQUIRE_EQ(edge.type.size(), max_api_id);
-    require_refused<M>(head + R"("type":")" + repeated('a', max_api_id + 1) +
-                           R"("})",
-                       "instance.create.type: must be 1 to 64");
+    require_refused<message_type>(head + R"("type":")" +
+                                      repeated('a', max_api_id + 1) + R"("})",
+                                  "instance.create.type: must be 1 to 64");
 
     instance_create_message body;
     body.instance = 2;
@@ -155,15 +162,15 @@ TEST_CASE("plugin api: the type and the number of an instance are limited")
 
 TEST_CASE("plugin api: params may nest as far as the header allows")
 {
-    using M = instance_create_message;
+    using message_type = instance_create_message;
     const std::string head =
         R"({"op":"instance.create","id":1,"instance":2,"kind":"fixture",)"
         R"("type":"x","params":)";
     // The header is 1 deep, so params may hold 6 more levels.
     const std::string six = R"({"a":{"b":{"c":{"d":{"e":{}}}}}})";
-    REQUIRE_EQ(accepted<M>(head + six + "}").params, six);
+    REQUIRE_EQ(accepted<message_type>(head + six + "}").params, six);
     // One more level than the header allows is not written.
-    M body;
+    message_type body;
     body.instance = 2;
     body.type = "x";
     body.params = R"({"a":{"b":{"c":{"d":{"e":{"f":{"g":{}}}}}}}})";

@@ -48,12 +48,13 @@ std::uint64_t sequence_of(reading& state, const json::object& object,
         .value_or(0);
 }
 
-// -- modifier.create -----------------------------------------------------------
+// -- modifier.create
+// -----------------------------------------------------------
 
 void read_create(reading& state, const json::object& object,
                  modifier_create_message& out)
 {
-    constexpr auto where = modifier_create_message::op;
+    constexpr auto where = modifier_create_message::op();
     out.instance = instance_of(state, object, where);
     out.link = number_of(state, object, where, "link", 1, max_api_number, true)
                    .value_or(0);
@@ -77,7 +78,8 @@ void read_create(reading& state, const json::object& object,
                   "\"fail_open\" or \"fail_closed\"", true);
     if (action.has_value())
         out.on_timeout = *action;
-    const auto flush = number_of(state, object, where, "flush_on", 0, 255, false);
+    const auto flush =
+        number_of(state, object, where, "flush_on", 0, 255, false);
     if (flush.has_value())
         out.flush_on = static_cast<std::uint8_t>(*flush);
 }
@@ -98,16 +100,18 @@ bool write_create(json::object& header, const modifier_create_message& body)
     return true;
 }
 
-// -- modifier.batch ------------------------------------------------------------
+// -- modifier.batch
+// ------------------------------------------------------------
 
 void read_batch(reading& state, const json::object& object,
                 modifier_batch_message& out)
 {
-    constexpr auto where = modifier_batch_message::op;
+    constexpr auto where = modifier_batch_message::op();
     out.instance = instance_of(state, object, where);
     out.seq = sequence_of(state, object, where);
-    out.ts_ns = number_of(state, object, where, "ts_ns", 0, max_api_number, true)
-                    .value_or(0);
+    out.ts_ns =
+        number_of(state, object, where, "ts_ns", 0, max_api_number, true)
+            .value_or(0);
     blob_between(state, where, out.data, 1, max_modifier_batch);
     // The length of the list is checked before any entry is read.
     const json::array* const list =
@@ -130,12 +134,12 @@ void read_batch(reading& state, const json::object& object,
         if (item == nullptr)
             return;
         modifier_chunk chunk;
-        chunk.offset = number_of(state, *item, here, "offset", 0,
-                                 max_modifier_batch, true)
-                           .value_or(0);
-        chunk.length = number_of(state, *item, here, "length", 1,
-                                 max_modifier_batch, true)
-                           .value_or(0);
+        chunk.offset =
+            number_of(state, *item, here, "offset", 0, max_modifier_batch, true)
+                .value_or(0);
+        chunk.length =
+            number_of(state, *item, here, "length", 1, max_modifier_batch, true)
+                .value_or(0);
         chunk.ts_ns =
             number_of(state, *item, here, "ts_ns", 0, max_api_number, true)
                 .value_or(0);
@@ -182,17 +186,18 @@ bool write_batch(json::object& header, const modifier_batch_message& body)
     return true;
 }
 
-// -- modifier.result -----------------------------------------------------------
+// -- modifier.result
+// -----------------------------------------------------------
 
 void read_action(reading& state, const json::object& object,
                  const std::string& where, std::size_t blob_size,
                  modifier_action& out)
 {
-    const auto kind = choice_of(
-        state, object, where, "action", action_names,
-        "\"pass\", \"drop\", \"replace\", \"delay_us\", \"split\", "
-        "\"insert_before\", \"insert_after\" or \"fault\"",
-        true);
+    const auto kind =
+        choice_of(state, object, where, "action", action_names,
+                  "\"pass\", \"drop\", \"replace\", \"delay_us\", \"split\", "
+                  "\"insert_before\", \"insert_after\" or \"fault\"",
+                  true);
     if (!kind.has_value())
         return;
     out.kind = *kind;
@@ -215,17 +220,18 @@ void read_action(reading& state, const json::object& object,
     }
     else if (out.kind == modifier_action_kind::delay_us)
     {
-        out.us = number_of(state, object, where, "us", 1, max_api_delay_us, true)
-                     .value_or(0);
+        out.us =
+            number_of(state, object, where, "us", 1, max_api_delay_us, true)
+                .value_or(0);
     }
     else if (out.kind == modifier_action_kind::split)
     {
         out.parts = number_of(state, object, where, "parts", 2,
                               max_modifier_parts, true)
                         .value_or(0);
-        out.gap_us = number_of(state, object, where, "gap_us", 0,
-                               max_api_delay_us, true)
-                         .value_or(0);
+        out.gap_us =
+            number_of(state, object, where, "gap_us", 0, max_api_delay_us, true)
+                .value_or(0);
     }
     else if (out.kind == modifier_action_kind::fault)
     {
@@ -242,7 +248,7 @@ void read_action(reading& state, const json::object& object,
 void read_result(reading& state, const json::object& object,
                  modifier_result_message& out)
 {
-    constexpr auto where = modifier_result_message::op;
+    constexpr auto where = modifier_result_message::op();
     out.instance = instance_of(state, object, where);
     out.seq = sequence_of(state, object, where);
     blob_between(state, where, out.data, 0, max_api_blob);
@@ -311,12 +317,13 @@ bool write_result(json::object& header, const modifier_result_message& body)
     return true;
 }
 
-// -- modifier.stop -------------------------------------------------------------
+// -- modifier.stop
+// -------------------------------------------------------------
 
 void read_stop(reading& state, const json::object& object,
                modifier_stop_message& out)
 {
-    out.instance = instance_of(state, object, modifier_stop_message::op);
+    out.instance = instance_of(state, object, modifier_stop_message::op());
 }
 
 bool write_stop(json::object& header, const modifier_stop_message& body)
@@ -342,9 +349,8 @@ std::string_view to_string(modifier_action_kind value) noexcept
     return name_of(action_names, value);
 }
 
-bool modifier_result_within_bounds(std::size_t batch_bytes,
-                                   const modifier_result_message& result)
-    noexcept
+bool modifier_result_within_bounds(
+    std::size_t batch_bytes, const modifier_result_message& result) noexcept
 {
     // Four times the batch and a little more, without overflow.
     const std::size_t size = result.data.size();
@@ -364,8 +370,7 @@ bool modifier_result_within_bounds(std::size_t batch_bytes,
         {
             term = action.us;
         }
-        else if (action.kind == modifier_action_kind::split &&
-                 action.parts > 1)
+        else if (action.kind == modifier_action_kind::split && action.parts > 1)
         {
             const std::uint64_t gaps = action.parts - 1;
             if (action.gap_us > max_api_delay_us / gaps)

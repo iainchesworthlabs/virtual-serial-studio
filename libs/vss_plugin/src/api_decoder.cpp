@@ -366,8 +366,9 @@ json::object write_item(const decoder_line_item& item)
     json::object lines;
     for (std::size_t i = 0; i < line_names.size(); ++i)
     {
-        if (item.lines[i].has_value())
-            lines.emplace(line_names[i].first, *item.lines[i]);
+        const std::optional<bool>& line = item.lines[i];
+        if (line.has_value())
+            lines.emplace(line_names[i].first, *line);
     }
     out.emplace("lines", std::move(lines));
     json::array changed;
@@ -458,7 +459,7 @@ void read_place(reading& state, const json::value& value, std::string_view at,
 void read_create(reading& state, const json::object& object,
                  decoder_create_message& out)
 {
-    constexpr auto where = decoder_create_message::op;
+    constexpr auto where = decoder_create_message::op();
     out.instance = instance_of(state, object, where);
     const json::array* const list =
         list_of(state, object, where, "places", max_decoder_places, true);
@@ -501,7 +502,7 @@ bool write_create(json::object& header, const decoder_create_message& body)
 void read_data(reading& state, const json::object& object,
                decoder_data_message& out)
 {
-    constexpr auto where = decoder_data_message::op;
+    constexpr auto where = decoder_data_message::op();
     out.seq = whole_of(state, object, where, "seq", 1);
     blob_between(state, where, out.data, 0, max_decoder_blob);
     const json::array* const list =
@@ -544,7 +545,7 @@ bool write_data(json::object& header, const decoder_data_message& body)
 void read_ack(reading& state, const json::object& object,
               decoder_ack_message& out)
 {
-    out.seq = whole_of(state, object, decoder_ack_message::op, "seq", 1);
+    out.seq = whole_of(state, object, decoder_ack_message::op(), "seq", 1);
 }
 
 bool write_ack(json::object& header, const decoder_ack_message& body)
@@ -578,7 +579,7 @@ void read_field(reading& state, const json::value& value, std::string_view at,
 void read_frame(reading& state, const json::object& object,
                 decoder_frame_message& out)
 {
-    constexpr auto where = decoder_frame_message::op;
+    constexpr auto where = decoder_frame_message::op();
     out.instance = instance_of(state, object, where);
     out.place = name_member(state, object, where, "place");
     out.direction = direction_member(state, object, where);
@@ -771,7 +772,7 @@ void read_trigger_request(reading& state, const json::object& object,
 void read_publish(reading& state, const json::object& object,
                   trigger_publish_message& out)
 {
-    constexpr auto where = trigger_publish_message::op;
+    constexpr auto where = trigger_publish_message::op();
     out.instance = instance_of(state, object, where);
     out.kind = choice_of(state, object, where, "kind", trigger_kind_names,
                          "framing, unknown_type, unknown_value, check, "
@@ -893,7 +894,7 @@ bool write_publish(json::object& header, const trigger_publish_message& body)
 void read_stop(reading& state, const json::object& object,
                decoder_stop_message& out)
 {
-    out.instance = instance_of(state, object, decoder_stop_message::op);
+    out.instance = instance_of(state, object, decoder_stop_message::op());
 }
 
 bool write_stop(json::object& header, const decoder_stop_message& body)
