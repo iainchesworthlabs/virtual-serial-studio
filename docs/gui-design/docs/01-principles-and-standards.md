@@ -23,7 +23,7 @@ Benchmark: **WCAG 2.2 AA** (WCAG 3.0 is still a working draft). Also ISO 9241-11
 | 1.4.12 Text spacing | Do not clip text when line height or spacing increases. |
 | 2.1.1 Keyboard | Every action works without a pointer. No keyboard traps (2.1.2). |
 | 2.4.3 Focus order | Reading order: menu, toolbar, ports, topology, inspector, send, monitor, status bar. |
-| 2.4.7 Focus visible | 2px ring, 2px offset, `focus` token, on every focusable control. |
+| 2.4.7 Focus visible | 2px `focus` ring just inside the control's outer edge, on every focusable control (see `02-design-tokens.md`, item 5). |
 | 2.4.11 Focus not obscured | Docks, toasts and popups never cover the focused control. |
 | 2.5.7 Dragging movements | Nothing requires dragging. Topology nodes move with arrow keys, and every link can be made in the Connect dialog. |
 | 2.5.8 Target size | 24 by 24 px minimum for any pointer target. Prefer 28 to 34. |

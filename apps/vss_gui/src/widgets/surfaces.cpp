@@ -327,12 +327,7 @@ void ActionTile::paintEvent(QPaintEvent* event)
     painter.drawRoundedRect(frame, radius, radius);
 
     if (hasFocus() && FocusRingStyle::keyboard_focus())
-    {
-        painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen(theme.colour(colour_role::focus), 2.0));
-        painter.drawRoundedRect(QRectF(rect()).adjusted(1, 1, -1, -1), radius,
-                                radius);
-    }
+        FocusRingStyle::paint_ring(painter, QRectF(rect()), radius + 1);
 }
 
 void ActionTile::enterEvent(QEnterEvent* event)
