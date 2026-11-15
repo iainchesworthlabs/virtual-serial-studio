@@ -242,7 +242,8 @@ endif()
 
 # The control tests start vss_gate beside them.
 if(TARGET vss_agent AND TARGET vss_cli AND TARGET vss_gate)
-  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp
+    system/test_system_plugin_control_relay_gateway.cpp)
 endif()
 
 # The plugin process tests start vss_test_plugin, a program that does what
@@ -269,6 +270,7 @@ if(MSVC AND ICL_SANITIZERS MATCHES "address")
     VERBATIM)
 endif()
 list(APPEND VSS_SYSTEM_TEST_SOURCES
+  system/test_system_plugin_control_relay.cpp
   system/test_system_plugin_process.cpp
   system/test_system_plugin_runner.cpp
   system/test_system_plugin_service.cpp
