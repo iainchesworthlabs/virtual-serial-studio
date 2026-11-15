@@ -64,6 +64,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_api_modifier.cpp
   unit/test_plugin_api_ops.cpp
   unit/test_plugin_api_trigger.cpp
+  unit/test_plugin_bundle_sections.cpp
+  unit/test_plugin_decode_store.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_generator_feed.cpp
   unit/test_plugin_hash.cpp

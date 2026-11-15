@@ -8,7 +8,9 @@
 #
 
 add_library(vss_plugin_host
+  src/bundle_sections.cpp
   src/control_relay.cpp
+  src/decode_store.cpp
   src/generator_feed.cpp
   src/instances.cpp
   src/process.cpp
