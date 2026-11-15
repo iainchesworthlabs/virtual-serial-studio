@@ -55,6 +55,7 @@ public:
     void start_again(const QString& plugin_id) override;
     void run_expired(const QString& plugin_id, const QString& hash) override;
     void rescan() override;
+    quint64 inspect_plugin(const QString& folder) override;
     void add_plugin(const QString& folder) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;
@@ -69,6 +70,9 @@ public:
                 const std::function<void(plugin_view&)>& edit);
     /// What `read_key_file(path)` answers.
     void set_key_file(const QString& path, plugin_key_file_view key);
+    /// What `inspect_plugin(folder)` answers. A folder nobody set is not a
+    /// plugin.
+    void set_inspection(const QString& folder, plugin_inspection_view found);
     /// The error the next `add_plugin` fails with.
     void fail_next_add(plugin_request_error error, const QString& plugin_name);
 
@@ -77,6 +81,8 @@ public:
         return requests_;
     }
     void clear_requests() { requests_.clear(); }
+    /// The folders `inspect_plugin` was asked about.
+    const QStringList& inspected() const noexcept { return inspected_; }
     int count_of(plugin_request_kind kind) const;
 
     /// Delivers what was queued, so a test sees the signals now.
@@ -90,6 +96,8 @@ private:
     std::shared_ptr<plugin_snapshot> snapshot_;
     std::vector<fake_plugin_request> requests_;
     QHash<QString, plugin_key_file_view> key_files_;
+    QHash<QString, plugin_inspection_view> inspections_;
+    QStringList inspected_;
     quint64 next_request_ = 1;
     plugin_request_error add_error_ = plugin_request_error::none;
     QString add_error_name_;

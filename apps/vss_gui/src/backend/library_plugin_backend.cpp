@@ -45,6 +45,13 @@ std::string text_of(const fs::path& path)
     return std::string(text.begin(), text.end());
 }
 
+QString path_text(const fs::path& path)
+{
+    const std::u8string text = path.generic_u8string();
+    return QString::fromUtf8(reinterpret_cast<const char*>(text.data()),
+                             static_cast<qsizetype>(text.size()));
+}
+
 std::chrono::year_month_day today_date()
 {
     return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(
@@ -83,7 +90,8 @@ plugin_gather_options default_plugin_gather_options()
         if (root.scope == plug::plugin_scope::with_studio)
             options.official_keys_file = root.directory / "official-keys.json";
     }
-    options.studio_version = QCoreApplication::applicationVersion().toStdString();
+    options.studio_version =
+        QCoreApplication::applicationVersion().toStdString();
     return options;
 }
 
@@ -139,8 +147,7 @@ public:
             decision.decided_on = today_date();
             for (const QString& id : request.granted)
             {
-                const auto parsed =
-                    plug::parse_permission(id.toStdString());
+                const auto parsed = plug::parse_permission(id.toStdString());
                 if (parsed.has_value() &&
                     std::find(decision.granted.begin(), decision.granted.end(),
                               parsed.value()) == decision.granted.end())
@@ -174,7 +181,8 @@ public:
         finished(plugin_request_kind::set_enabled, plugin_id);
     }
 
-    void set_no_isolation(const QString& plugin_id, const QString& hash, bool on)
+    void set_no_isolation(const QString& plugin_id, const QString& hash,
+                          bool on)
     {
         if (const plugin_record* record = find(plugin_id, hash))
         {
@@ -194,8 +202,8 @@ public:
 
     void read_key(quint64 request, const QString& path)
     {
-        const plugin_key_file_view view = read_key_file_view(
-            to_path(path), gathered_, store_, nullptr);
+        const plugin_key_file_view view =
+            read_key_file_view(to_path(path), gathered_, store_, nullptr);
         owner_->notify_key_file_read(request, view);
     }
 
@@ -246,6 +254,69 @@ public:
         finished(plugin_request_kind::run_expired, plugin_id);
     }
 
+    void inspect(quint64 request, const QString& folder)
+    {
+        plugin_inspection_view out;
+        out.folder = folder;
+        const fs::path source = to_path(folder);
+        std::error_code ignored;
+        std::ifstream stream(source / "plugin.json", std::ios::binary);
+        const std::string text((std::istreambuf_iterator<char>(stream)),
+                               std::istreambuf_iterator<char>());
+        const auto manifest =
+            stream ? plug::parse_manifest(text)
+                   : vss::result<plug::manifest>(
+                         vss::make_error_code(vss::errc::io_error));
+        if (!manifest.has_value())
+        {
+            out.failure = plugin_inspection_view::problem::not_a_plugin;
+            owner_->notify_plugin_inspected(request, out);
+            return;
+        }
+        out.plugin.id = QString::fromStdString(manifest->id);
+        out.plugin.name = QString::fromStdString(manifest->name);
+        if (gathered_.user_root.empty() ||
+            !gathered_.snapshot.user_plugins_allowed)
+        {
+            out.failure = plugin_inspection_view::problem::cannot_write;
+            owner_->notify_plugin_inspected(request, out);
+            return;
+        }
+        for (const plugin_record& record : gathered_.records)
+        {
+            if (record.scope == plug::plugin_scope::for_user &&
+                record.id == out.plugin.id)
+            {
+                out.failure =
+                    plugin_inspection_view::problem::already_installed;
+                owner_->notify_plugin_inspected(request, out);
+                return;
+            }
+        }
+        // The verdict the plugin would get as one of the user's own: the folder
+        // is looked at in place, as the only plugin of a root of its own.
+        plugin_gather_options look = options_;
+        look.roots.clear();
+        plug::plugin_root root;
+        root.directory = source.parent_path();
+        root.scope = plug::plugin_scope::for_user;
+        look.roots.push_back(root);
+        const plugin_gathered found = gather_plugins(look, store_);
+        const QString where = path_text(source);
+        for (const plugin_view& each : found.snapshot.plugins)
+        {
+            if (each.folder == where)
+            {
+                out.plugin = each;
+                out.failure = plugin_inspection_view::problem::none;
+                out.can_install = each.state != plugin_state::cannot_be_used;
+            }
+        }
+        if (out.failure != plugin_inspection_view::problem::none)
+            out.failure = plugin_inspection_view::problem::not_a_plugin;
+        owner_->notify_plugin_inspected(request, out);
+    }
+
     void add_plugin(const QString& folder)
     {
         plugin_request_result result;
@@ -271,7 +342,8 @@ public:
         }
         const QString name = QString::fromStdString(manifest->name);
         result.plugin_name = name;
-        if (gathered_.user_root.empty() || !gathered_.snapshot.user_plugins_allowed)
+        if (gathered_.user_root.empty() ||
+            !gathered_.snapshot.user_plugins_allowed)
         {
             result.error = plugin_request_error::cannot_write;
             owner_->notify_request_finished(result);
@@ -325,7 +397,8 @@ public:
     }
 
 private:
-    const plugin_record* find(const QString& plugin_id, const QString& hash) const
+    const plugin_record* find(const QString& plugin_id,
+                              const QString& hash) const
     {
         for (const plugin_record& record : gathered_.records)
         {
@@ -352,8 +425,10 @@ private:
         if (options_.trust_store_file.empty())
             return;
         std::error_code ignored;
-        fs::create_directories(options_.trust_store_file.parent_path(), ignored);
-        static_cast<void>(plug::save_trust_store(options_.trust_store_file, store_));
+        fs::create_directories(options_.trust_store_file.parent_path(),
+                               ignored);
+        static_cast<void>(
+            plug::save_trust_store(options_.trust_store_file, store_));
     }
 
     void finished(plugin_request_kind kind, const QString& plugin_id)
@@ -374,7 +449,8 @@ private:
 
 LibraryPluginBackend::LibraryPluginBackend(plugin_gather_options options,
                                            QObject* parent)
-    : PluginBackend(parent), snapshot_(std::make_shared<const plugin_snapshot>())
+    : PluginBackend(parent),
+      snapshot_(std::make_shared<const plugin_snapshot>())
 {
     worker_ = new Worker(this, std::move(options));
     worker_->moveToThread(&thread_);
@@ -407,60 +483,57 @@ void LibraryPluginBackend::publish(plugin_snapshot_ptr snapshot)
 
 void LibraryPluginBackend::set_licence(const vss::license::status& status)
 {
-    QMetaObject::invokeMethod(worker_, [worker = worker_, status]
-                              { worker->set_licence(status); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, status] { worker->set_licence(status); },
+        Qt::QueuedConnection);
 }
 
 void LibraryPluginBackend::decide(const plugin_decision_request& request)
 {
-    QMetaObject::invokeMethod(worker_, [worker = worker_, request]
-                              { worker->decide(request); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, request] { worker->decide(request); },
+        Qt::QueuedConnection);
 }
 
 void LibraryPluginBackend::set_enabled(const QString& plugin_id,
                                        const QString& hash, bool on)
 {
-    QMetaObject::invokeMethod(worker_,
-                              [worker = worker_, plugin_id, hash, on]
-                              { worker->set_enabled(plugin_id, hash, on); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, plugin_id, hash, on]
+        { worker->set_enabled(plugin_id, hash, on); }, Qt::QueuedConnection);
 }
 
 quint64 LibraryPluginBackend::read_key_file(const QString& path)
 {
     const quint64 number = next_request_.fetch_add(1);
-    QMetaObject::invokeMethod(worker_,
-                              [worker = worker_, number, path]
-                              { worker->read_key(number, path); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, number, path]
+        { worker->read_key(number, path); }, Qt::QueuedConnection);
     return number;
 }
 
 void LibraryPluginBackend::approve_key(const QString& path,
                                        const QString& fingerprint)
 {
-    QMetaObject::invokeMethod(worker_,
-                              [worker = worker_, path, fingerprint]
-                              { worker->approve_key(path, fingerprint); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, path, fingerprint]
+        { worker->approve_key(path, fingerprint); }, Qt::QueuedConnection);
 }
 
 void LibraryPluginBackend::remove_key(const QString& key_id)
 {
-    QMetaObject::invokeMethod(worker_, [worker = worker_, key_id]
-                              { worker->remove_key(key_id); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, key_id] { worker->remove_key(key_id); },
+        Qt::QueuedConnection);
 }
 
 void LibraryPluginBackend::set_no_isolation(const QString& plugin_id,
                                             const QString& hash, bool on)
 {
-    QMetaObject::invokeMethod(worker_,
-                              [worker = worker_, plugin_id, hash, on]
-                              { worker->set_no_isolation(plugin_id, hash, on); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, plugin_id, hash, on]
+        { worker->set_no_isolation(plugin_id, hash, on); },
+        Qt::QueuedConnection);
 }
 
 void LibraryPluginBackend::start_again(const QString& /*plugin_id*/)
@@ -473,34 +546,41 @@ void LibraryPluginBackend::start_again(const QString& /*plugin_id*/)
 void LibraryPluginBackend::run_expired(const QString& plugin_id,
                                        const QString& hash)
 {
-    QMetaObject::invokeMethod(worker_,
-                              [worker = worker_, plugin_id, hash]
-                              { worker->run_expired(plugin_id, hash); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, plugin_id, hash]
+        { worker->run_expired(plugin_id, hash); }, Qt::QueuedConnection);
 }
 
 void LibraryPluginBackend::rescan()
 {
-    QMetaObject::invokeMethod(worker_, [worker = worker_]
-                              { worker->rescan_and_report(); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_] { worker->rescan_and_report(); },
+        Qt::QueuedConnection);
+}
+
+quint64 LibraryPluginBackend::inspect_plugin(const QString& folder)
+{
+    const quint64 number = next_request_.fetch_add(1);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, number, folder]
+        { worker->inspect(number, folder); }, Qt::QueuedConnection);
+    return number;
 }
 
 void LibraryPluginBackend::add_plugin(const QString& folder)
 {
-    QMetaObject::invokeMethod(worker_, [worker = worker_, folder]
-                              { worker->add_plugin(folder); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, folder] { worker->add_plugin(folder); },
+        Qt::QueuedConnection);
 }
 
 void LibraryPluginBackend::remove_plugin(const QString& plugin_id,
                                          const QString& hash,
                                          bool /*delete_saved_data*/)
 {
-    QMetaObject::invokeMethod(worker_,
-                              [worker = worker_, plugin_id, hash]
-                              { worker->remove_plugin(plugin_id, hash); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        worker_, [worker = worker_, plugin_id, hash]
+        { worker->remove_plugin(plugin_id, hash); }, Qt::QueuedConnection);
 }
 
 } // namespace vss::gui

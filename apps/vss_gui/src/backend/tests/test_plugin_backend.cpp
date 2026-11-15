@@ -158,8 +158,7 @@ plug::plugin_hash hash_of_view(const plugin_view& view)
     return *parsed;
 }
 
-plug::plugin_decision decision_for(const plugin_view& view,
-                                   bool enabled = true)
+plug::plugin_decision decision_for(const plugin_view& view, bool enabled = true)
 {
     plug::plugin_decision decision;
     decision.plugin_id = view.id.toStdString();
@@ -219,11 +218,10 @@ void sign_plugin(const fs::path& directory, const manifest_parts& parts,
                  std::string_view key_id, std::uint8_t fill)
 {
     const std::string manifest = manifest_text(parts);
-    const std::string claim = R"({ "plugin_id": ")" + parts.id +
-                              R"(", "version": ")" + parts.version +
-                              R"(", "manifest_sha512": ")" +
-                              plug::to_hex(plug::sha512_of(manifest)) +
-                              R"(" })";
+    const std::string claim =
+        R"({ "plugin_id": ")" + parts.id + R"(", "version": ")" +
+        parts.version + R"(", "manifest_sha512": ")" +
+        plug::to_hex(plug::sha512_of(manifest)) + R"(" })";
     write_file(directory / "plugin.sig",
                signed_text(plug::plugin_purpose, key_id, claim, fill));
 }
@@ -696,7 +694,8 @@ TEST_CASE("plugin backend: a burst of changes is announced once, and every "
     REQUIRE_EQ(announcements, 0);
     backend.flush();
     REQUIRE_EQ(announcements, 1);
-    REQUIRE_EQ(backend.snapshot()->plugins.size(), fake_plugin_samples().size());
+    REQUIRE_EQ(backend.snapshot()->plugins.size(),
+               fake_plugin_samples().size());
 
     backend.rescan();
     backend.set_enabled(QStringLiteral("a"), QStringLiteral("b"), true);
@@ -747,9 +746,9 @@ TEST_CASE("plugin backend: the real backend stores decisions and keys on its "
     const auto stored = plug::load_trust_store(options.trust_store_file);
     REQUIRE(stored.has_value());
     REQUIRE_EQ(stored->decisions().size(), std::size_t{1});
-    REQUIRE_EQ(QString::fromStdString(
-                   plug::to_hex(stored->decisions()[0].hash.bytes)),
-               view.hash);
+    REQUIRE_EQ(
+        QString::fromStdString(plug::to_hex(stored->decisions()[0].hash.bytes)),
+        view.hash);
     REQUIRE(stored->decisions()[0].enabled);
 
     // A decision for a hash that no plugin has changes nothing.
@@ -767,10 +766,10 @@ TEST_CASE("plugin backend: the real backend stores decisions and keys on its "
                std::string(R"({ "key_id": "author-1", "public_key": ")") +
                    public_key + R"(", "name": "Author Name" })");
     std::vector<std::pair<quint64, plugin_key_file_view>> key_reads;
-    QObject::connect(&backend, &PluginBackend::key_file_read, &backend,
-                     [&key_reads](quint64 request,
-                                  const plugin_key_file_view& found)
-                     { key_reads.emplace_back(request, found); });
+    QObject::connect(
+        &backend, &PluginBackend::key_file_read, &backend,
+        [&key_reads](quint64 request, const plugin_key_file_view& found)
+        { key_reads.emplace_back(request, found); });
     const quint64 number =
         backend.read_key_file(QString::fromStdWString(key_file.wstring()));
     REQUIRE(vss_test::wait_until([&] { return key_reads.size() == 1; }));
@@ -831,8 +830,7 @@ TEST_CASE("plugin backend: add a plugin to the user's folder")
     backend.add_plugin(
         QString::fromStdWString((path_of(dir) / "empty").wstring()));
     REQUIRE(vss_test::wait_until([&] { return done.size() >= 2; }));
-    REQUIRE(done.back().error ==
-            plugin_request_error::not_a_plugin);
+    REQUIRE(done.back().error == plugin_request_error::not_a_plugin);
 
     backend.add_plugin(QString::fromStdWString(source.wstring()));
     REQUIRE(vss_test::wait_until(
@@ -845,6 +843,67 @@ TEST_CASE("plugin backend: add a plugin to the user's folder")
     const std::size_t before = done.size();
     backend.add_plugin(QString::fromStdWString(source.wstring()));
     REQUIRE(vss_test::wait_until([&] { return done.size() > before; }));
-    REQUIRE(done.back().error ==
-            plugin_request_error::already_installed);
+    REQUIRE(done.back().error == plugin_request_error::already_installed);
+}
+
+TEST_CASE("plugin backend: a folder is inspected off the GUI thread before "
+          "anything is copied")
+{
+    QTemporaryDir dir;
+    const fs::path user = path_of(dir) / "user";
+    fs::create_directories(user);
+    const manifest_parts parts;
+    const fs::path source =
+        make_plugin(path_of(dir) / "elsewhere", "tool", parts);
+    manifest_parts listed_parts;
+    listed_parts.id = "org.example.listed";
+    listed_parts.list_files = true;
+    const fs::path bad =
+        make_plugin(path_of(dir) / "elsewhere", "bad", listed_parts);
+    write_file(bad / "bin" / "prog", "changed after listing");
+    fs::create_directories(path_of(dir) / "empty");
+
+    plugin_gather_options options = options_for(user);
+    options.sandbox = plug::sandbox_level::full;
+    LibraryPluginBackend backend(options);
+    std::vector<std::pair<quint64, plugin_inspection_view>> seen;
+    QObject::connect(
+        &backend, &PluginBackend::plugin_inspected, &backend,
+        [&seen](quint64 request, const plugin_inspection_view& found)
+        { seen.emplace_back(request, found); });
+    const auto ask = [&](const fs::path& folder)
+    {
+        const std::size_t before = seen.size();
+        const quint64 number =
+            backend.inspect_plugin(QString::fromStdWString(folder.wstring()));
+        REQUIRE(vss_test::wait_until([&] { return seen.size() > before; }));
+        REQUIRE_EQ(seen.back().first, number);
+        return seen.back().second;
+    };
+
+    plugin_inspection_view found = ask(source);
+    REQUIRE(found.failure == plugin_inspection_view::problem::none);
+    REQUIRE(found.can_install);
+    REQUIRE_EQ(found.plugin.id, QStringLiteral("org.example.tool"));
+    REQUIRE(found.plugin.state == plugin_state::needs_decision);
+    // Looking copied nothing.
+    REQUIRE(backend.snapshot()->plugins.empty());
+
+    found = ask(bad);
+    REQUIRE(found.failure == plugin_inspection_view::problem::none);
+    REQUIRE(!found.can_install);
+    REQUIRE(found.plugin.state == plugin_state::cannot_be_used);
+
+    found = ask(path_of(dir) / "empty");
+    REQUIRE(found.failure == plugin_inspection_view::problem::not_a_plugin);
+    REQUIRE(!found.can_install);
+
+    // Once it is added, the same plugin is refused.
+    backend.add_plugin(QString::fromStdWString(source.wstring()));
+    REQUIRE(vss_test::wait_until(
+        [&] { return !backend.snapshot()->plugins.empty(); }));
+    found = ask(source);
+    REQUIRE(found.failure ==
+            plugin_inspection_view::problem::already_installed);
+    REQUIRE(!found.can_install);
 }

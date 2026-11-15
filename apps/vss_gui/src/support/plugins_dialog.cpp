@@ -27,6 +27,7 @@
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -35,7 +36,6 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
-#include <QKeyEvent>
 #include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
@@ -51,11 +51,6 @@ namespace
 
 constexpr int kListWidth = 320;
 constexpr int kMaxLogLines = 200;
-
-QString translate(const char* text)
-{
-    return QCoreApplication::translate("PluginsDialog", text);
-}
 
 QPushButton* make_button(const QString& text, const char* role, QWidget* parent,
                          const QString& object_name = {})
@@ -146,7 +141,10 @@ public:
         toggle_switch->blockSignals(true);
         toggle_switch->setChecked(switch_shown_on(plugin));
         toggle_switch->blockSignals(false);
-        word->setText(toggle_switch->isChecked() ? translate("On") : translate("Off"));
+        word->setText(
+            toggle_switch->isChecked()
+                ? QCoreApplication::translate("PluginsDialog", "On")
+                : QCoreApplication::translate("PluginsDialog", "Off"));
         toggle_switch->setAccessibleName(plain_text(plugin.name));
         QString reason;
         if (!usable)
@@ -189,6 +187,8 @@ PluginsDialog::PluginsDialog(PluginBackend& backend, QWidget* parent)
             &PluginsDialog::on_request_finished);
     connect(&backend_, &PluginBackend::key_file_read, this,
             &PluginsDialog::on_key_file_read);
+    connect(&backend_, &PluginBackend::plugin_inspected, this,
+            &PluginsDialog::on_plugin_inspected);
 }
 
 void PluginsDialog::build()
@@ -272,14 +272,17 @@ void PluginsDialog::build()
 
     filter_ = new QLineEdit(left);
     filter_->setObjectName(QStringLiteral("pluginsFilter"));
-    filter_->setPlaceholderText(translate("Filter plugins"));
-    filter_->setAccessibleName(translate("Filter plugins"));
+    filter_->setPlaceholderText(
+        QCoreApplication::translate("PluginsDialog", "Filter plugins"));
+    filter_->setAccessibleName(
+        QCoreApplication::translate("PluginsDialog", "Filter plugins"));
     filter_->setClearButtonEnabled(true);
     left_layout->addWidget(filter_);
 
     list_ = new QListWidget(left);
     list_->setObjectName(QStringLiteral("pluginsList"));
-    list_->setAccessibleName(translate("Installed plugins"));
+    list_->setAccessibleName(
+        QCoreApplication::translate("PluginsDialog", "Installed plugins"));
     list_->setSelectionMode(QAbstractItemView::SingleSelection);
     list_->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     list_->setVerticalScrollMode(QAbstractItemView::ScrollPerPixel);
@@ -291,18 +294,23 @@ void PluginsDialog::build()
     auto* empty_layout = new QVBoxLayout(empty_);
     empty_layout->setContentsMargins(8, 16, 8, 16);
     empty_layout->setSpacing(8);
-    empty_title_ = make_plain_label(translate("No plugins are installed"), empty_,
-                                    text_style::heading);
+    empty_title_ =
+        make_plain_label(QCoreApplication::translate(
+                             "PluginsDialog", "No plugins are installed"),
+                         empty_, text_style::heading);
     empty_title_->setObjectName(QStringLiteral("pluginsEmptyTitle"));
     empty_layout->addWidget(empty_title_);
     empty_text_ = make_muted_label(
-        translate("Plugins are folders that you or your administrator put in "
-                  "the plugin folder. Studio does not download anything."),
+        QCoreApplication::translate(
+            "PluginsDialog",
+            "Plugins are folders that you or your administrator put in "
+            "the plugin folder. Studio does not download anything."),
         empty_);
     empty_text_->setObjectName(QStringLiteral("pluginsEmptyText"));
     empty_layout->addWidget(empty_text_);
-    empty_button_ = make_button(translate("Open the plugin folder"), nullptr,
-                                empty_, QStringLiteral("pluginsEmptyOpen"));
+    empty_button_ = make_button(
+        QCoreApplication::translate("PluginsDialog", "Open the plugin folder"),
+        nullptr, empty_, QStringLiteral("pluginsEmptyOpen"));
     connect(empty_button_, &QPushButton::clicked, this,
             [this] { open_plugin_folder(); });
     empty_layout->addWidget(empty_button_, 0, Qt::AlignLeft);
@@ -310,18 +318,22 @@ void PluginsDialog::build()
     left_layout->addWidget(empty_, 1);
     empty_->hide();
 
-    add_ = make_button(translate("Add a plugin..."), "quiet", left,
-                       QStringLiteral("pluginsAdd"));
+    add_ = make_button(
+        QCoreApplication::translate("PluginsDialog", "Add a plugin..."),
+        "quiet", left, QStringLiteral("pluginsAdd"));
     connect(add_, &QPushButton::clicked, this, [this] { add_plugin(); });
-    import_ = make_button(translate("Import a key..."), "quiet", left,
-                          QStringLiteral("pluginsImportKey"));
+    import_ = make_button(
+        QCoreApplication::translate("PluginsDialog", "Import a key..."),
+        "quiet", left, QStringLiteral("pluginsImportKey"));
     connect(import_, &QPushButton::clicked, this, [this] { import_key(); });
-    folder_ = make_button(translate("Open the plugin folder"), "quiet", left,
-                          QStringLiteral("pluginsOpenFolder"));
+    folder_ = make_button(
+        QCoreApplication::translate("PluginsDialog", "Open the plugin folder"),
+        "quiet", left, QStringLiteral("pluginsOpenFolder"));
     connect(folder_, &QPushButton::clicked, this,
             [this] { open_plugin_folder(); });
-    check_ = make_button(translate("Check again"), "quiet", left,
-                         QStringLiteral("pluginsCheckAgain"));
+    check_ =
+        make_button(QCoreApplication::translate("PluginsDialog", "Check again"),
+                    "quiet", left, QStringLiteral("pluginsCheckAgain"));
     connect(check_, &QPushButton::clicked, this, [this] { check_again(); });
     for (QPushButton* button : {add_, import_, folder_, check_})
         left_layout->addWidget(button, 0, Qt::AlignLeft);
@@ -330,7 +342,8 @@ void PluginsDialog::build()
     auto* machine_layout = new QHBoxLayout(machine_row);
     machine_layout->setContentsMargins(0, 0, 0, 0);
     machine_layout->setSpacing(4);
-    machine_line_ = make_muted_label(QString(), machine_row, text_style::caption);
+    machine_line_ =
+        make_muted_label(QString(), machine_row, text_style::caption);
     machine_line_->setObjectName(QStringLiteral("pluginsMachineLine"));
     machine_line_->setTextInteractionFlags(Qt::TextSelectableByMouse);
     machine_layout->addWidget(machine_line_, 1);
@@ -340,7 +353,8 @@ void PluginsDialog::build()
             [this]
             {
                 ToastManager::instance().show(
-                    this, translate("Path copied."));
+                    this, QCoreApplication::translate("PluginsDialog",
+                                                      "Path copied."));
             });
     machine_layout->addWidget(machine_copy_, 0, Qt::AlignTop);
     left_layout->addWidget(machine_row);
@@ -352,7 +366,8 @@ void PluginsDialog::build()
     detail_scroll_->setWidgetResizable(true);
     detail_scroll_->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     detail_scroll_->setFocusPolicy(Qt::StrongFocus);
-    detail_scroll_->setAccessibleName(translate("Plugin details"));
+    detail_scroll_->setAccessibleName(
+        QCoreApplication::translate("PluginsDialog", "Plugin details"));
     detail_ = new QWidget(detail_scroll_);
     detail_scroll_->setWidget(detail_);
     body->addWidget(detail_scroll_, 1);
@@ -361,16 +376,19 @@ void PluginsDialog::build()
     // -- footer
     QHBoxLayout* footer_layout = nullptr;
     QFrame* footer = make_dialog_footer(this, footer_layout);
-    remove_ = make_button(translate("Remove plugin..."), "quiet", footer,
-                          QStringLiteral("pluginsRemove"));
-    connect(remove_, &QPushButton::clicked, this, [this] { remove_selected(); });
+    remove_ = make_button(
+        QCoreApplication::translate("PluginsDialog", "Remove plugin..."),
+        "quiet", footer, QStringLiteral("pluginsRemove"));
+    connect(remove_, &QPushButton::clicked, this,
+            [this] { remove_selected(); });
     footer_layout->insertWidget(0, remove_);
-    copy_ = make_button(translate("Copy details"), "quiet", footer,
-                        QStringLiteral("pluginsCopyDetails"));
+    copy_ = make_button(
+        QCoreApplication::translate("PluginsDialog", "Copy details"), "quiet",
+        footer, QStringLiteral("pluginsCopyDetails"));
     connect(copy_, &QPushButton::clicked, this, [this] { copy_details(); });
     footer_layout->addWidget(copy_);
-    close_ = make_button(translate("Close"), "primary", footer,
-                         QStringLiteral("pluginsClose"));
+    close_ = make_button(QCoreApplication::translate("PluginsDialog", "Close"),
+                         "primary", footer, QStringLiteral("pluginsClose"));
     close_->setDefault(true);
     connect(close_, &QPushButton::clicked, this, &QDialog::accept);
     footer_layout->addWidget(close_);
@@ -464,7 +482,8 @@ void PluginsDialog::refresh_header(const plugin_snapshot& snapshot)
     }
 
     const bool user_folder_usable = snapshot.user_plugins_allowed;
-    const QString reason = translate(
+    const QString reason = QCoreApplication::translate(
+        "PluginsDialog",
         "Your administrator installs the plugins on this computer.");
     add_->setEnabled(user_folder_usable);
     folder_->setEnabled(user_folder_usable);
@@ -478,10 +497,13 @@ void PluginsDialog::refresh_header(const plugin_snapshot& snapshot)
 
     const QString machine = plain_text(snapshot.machine_folder);
     machine_line_->setText(
-        translate("To install a plugin for everyone on this computer, an "
-                  "administrator puts its folder in %1.")
+        QCoreApplication::translate(
+            "PluginsDialog",
+            "To install a plugin for everyone on this computer, an "
+            "administrator puts its folder in %1.")
             .arg(wrappable_text(machine)));
-    machine_copy_->set_copy_text(machine, translate("folder path"));
+    machine_copy_->set_copy_text(
+        machine, QCoreApplication::translate("PluginsDialog", "folder path"));
     machine_copy_->setVisible(!machine.isEmpty());
 }
 
@@ -515,21 +537,20 @@ std::vector<ordered_row> order_rows(const plugin_snapshot& snapshot)
         else
             main.push_back(&each);
     }
-    std::stable_sort(
-        main.begin(), main.end(),
-        [](const plugin_view* left, const plugin_view* right)
-        {
-            const bool left_first = needs_attention(left->state);
-            const bool right_first = needs_attention(right->state);
-            if (left_first != right_first)
-                return left_first;
-            const int by_name = QString::compare(plain_text(left->name),
-                                                 plain_text(right->name),
-                                                 Qt::CaseInsensitive);
-            if (by_name != 0)
-                return by_name < 0;
-            return left->id < right->id;
-        });
+    std::stable_sort(main.begin(), main.end(),
+                     [](const plugin_view* left, const plugin_view* right)
+                     {
+                         const bool left_first = needs_attention(left->state);
+                         const bool right_first = needs_attention(right->state);
+                         if (left_first != right_first)
+                             return left_first;
+                         const int by_name = QString::compare(
+                             plain_text(left->name), plain_text(right->name),
+                             Qt::CaseInsensitive);
+                         if (by_name != 0)
+                             return by_name < 0;
+                         return left->id < right->id;
+                     });
     std::vector<ordered_row> rows;
     for (const plugin_view* each : main)
     {
@@ -628,8 +649,7 @@ void PluginsDialog::refresh_list(const plugin_snapshot& snapshot)
     if (target >= 0)
     {
         list_->setCurrentRow(target);
-        selected_key_ =
-            list_->item(target)->data(Qt::UserRole).toString();
+        selected_key_ = list_->item(target)->data(Qt::UserRole).toString();
     }
     else
     {
@@ -677,8 +697,7 @@ void PluginsDialog::apply_filter()
             for (const plugin_view& each : snapshot_->plugins)
             {
                 if (key_of(each) == key &&
-                    plain_text(each.name).contains(needle,
-                                                   Qt::CaseInsensitive))
+                    plain_text(each.name).contains(needle, Qt::CaseInsensitive))
                     matches = true;
             }
         }
@@ -694,12 +713,14 @@ void PluginsDialog::apply_filter()
     empty_button_->setVisible(none_installed);
     if (no_match)
     {
-        empty_text_->setText(translate("No plugin matches %1.")
+        empty_text_->setText(QCoreApplication::translate(
+                                 "PluginsDialog", "No plugin matches %1.")
                                  .arg(plain_text(filter_->text())));
     }
     else
     {
-        empty_text_->setText(translate(
+        empty_text_->setText(QCoreApplication::translate(
+            "PluginsDialog",
             "Plugins are folders that you or your administrator put in the "
             "plugin folder. Studio does not download anything."));
     }
@@ -710,8 +731,8 @@ void PluginsDialog::apply_filter()
 void PluginsDialog::on_current_row_changed()
 {
     QListWidgetItem* item = list_->currentItem();
-    selected_key_ = item != nullptr ? item->data(Qt::UserRole).toString()
-                                    : QString();
+    selected_key_ =
+        item != nullptr ? item->data(Qt::UserRole).toString() : QString();
     refresh_detail();
 }
 
@@ -726,8 +747,8 @@ Switch* PluginsDialog::row_switch(const QString& plugin_id,
                                : key == plugin_id + QLatin1Char('|') + folder;
         if (by_id)
         {
-            auto* row = static_cast<Row*>(
-                list_->itemWidget(list_->item(index)));
+            auto* row =
+                static_cast<Row*>(list_->itemWidget(list_->item(index)));
             return row != nullptr ? row->toggle_switch : nullptr;
         }
     }
@@ -775,11 +796,11 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
           << plugin.description << plugin.folder << plugin.key_id
           << plugin.key_name << plugin.key_approved_on.toString(Qt::ISODate)
           << plugin.hash << plugin.reason_code << plugin.detail
-          << plugin.limit_name << plugin.capability_name << plugin.studio_version
-          << plugin.expires.toString(Qt::ISODate) << plugin.used_copy_folder
-          << plugin.used_copy_author << plugin.used_copy_id
-          << plugin.isolation_missing << plugin.override_on.toString(Qt::ISODate)
-          << plugin.runtime_name;
+          << plugin.limit_name << plugin.capability_name
+          << plugin.studio_version << plugin.expires.toString(Qt::ISODate)
+          << plugin.used_copy_folder << plugin.used_copy_author
+          << plugin.used_copy_id << plugin.isolation_missing
+          << plugin.override_on.toString(Qt::ISODate) << plugin.runtime_name;
     parts << QString::number(static_cast<int>(plugin.state))
           << QString::number(static_cast<int>(plugin.note))
           << QString::number(static_cast<int>(plugin.trust))
@@ -792,7 +813,8 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
           << QString::number(plugin.attempt)
           << QString::number(plugin.failure_count)
           << QString::number(plugin.budget_us)
-          << QString::number(plugin.wished_on) << QString::number(plugin.override_active)
+          << QString::number(plugin.wished_on)
+          << QString::number(plugin.override_active)
           << QString::number(plugin.override_allowed)
           << QString::number(plugin.can_run_expired)
           << QString::number(plugin.newer_than_used_copy)
@@ -804,7 +826,8 @@ QString PluginsDialog::detail_signature(const plugin_view& plugin,
     {
         parts << each.id << QString::number(each.required) << each.reason
               << each.scope.join(QLatin1Char('\x1f'))
-              << QString::number(each.turned_down) << QString::number(each.is_new);
+              << QString::number(each.turned_down)
+              << QString::number(each.is_new);
     }
     for (const plugin_use& each : plugin.used_in)
         parts << each.text << each.target_id;
@@ -829,10 +852,10 @@ void PluginsDialog::refresh_detail()
                 key_of(*plugin) &&
             announced_state_key_ != state_key && isVisible())
         {
-            announce_polite(this, QCoreApplication::translate(
-                                      "PluginsDialog", "%1, %2")
-                                      .arg(plain_text(plugin->name),
-                                           state_text(plugin->state)));
+            announce_polite(
+                this,
+                QCoreApplication::translate("PluginsDialog", "%1, %2")
+                    .arg(plain_text(plugin->name), state_text(plugin->state)));
         }
         announced_state_key_ = state_key;
     }
@@ -849,10 +872,12 @@ void PluginsDialog::refresh_detail()
                       plugin->installed_for == plugin_installed_for::you_only;
     if (plugin != nullptr &&
         plugin->installed_for == plugin_installed_for::everyone)
-        remove_reason = translate("Installed by your administrator");
+        remove_reason = QCoreApplication::translate(
+            "PluginsDialog", "Installed by your administrator");
     else if (plugin != nullptr &&
              plugin->installed_for == plugin_installed_for::with_studio)
-        remove_reason = translate("Came with Studio");
+        remove_reason =
+            QCoreApplication::translate("PluginsDialog", "Came with Studio");
     remove_->setEnabled(can_remove);
     remove_->setToolTip(remove_reason);
     remove_->setAccessibleDescription(remove_reason);
@@ -865,8 +890,8 @@ void PluginsDialog::refresh_detail()
         return;
     shown_detail_signature_ = signature;
 
-    const bool had_focus = detail_ != nullptr && detail_->isAncestorOf(
-                               QApplication::focusWidget());
+    const bool had_focus = detail_ != nullptr &&
+                           detail_->isAncestorOf(QApplication::focusWidget());
     const int scroll_position = detail_scroll_->verticalScrollBar()->value();
 
     auto* root = new QWidget();
@@ -879,7 +904,9 @@ void PluginsDialog::refresh_detail()
     if (plugin == nullptr)
     {
         auto* none = make_muted_label(
-            translate("Select a plugin to see its details."), root);
+            QCoreApplication::translate("PluginsDialog",
+                                        "Select a plugin to see its details."),
+            root);
         none->setObjectName(QStringLiteral("pluginsNoSelection"));
         layout->addWidget(none);
         layout->addStretch(1);
@@ -899,8 +926,8 @@ void PluginsDialog::refresh_detail()
     auto* mark = new Tag(plugin_mark_text(), Tag::variant::n, root);
     mark->setObjectName(QStringLiteral("pluginDetailMark"));
     heading_row->addWidget(mark, 0, Qt::AlignVCenter);
-    auto* chip = new StatusChip(state_text(view.state), chip_kind(view.state),
-                                root);
+    auto* chip =
+        new StatusChip(state_text(view.state), chip_kind(view.state), root);
     chip->setObjectName(QStringLiteral("pluginDetailChip"));
     heading_row->addWidget(chip, 0, Qt::AlignVCenter);
     layout->addLayout(heading_row);
@@ -922,10 +949,10 @@ void PluginsDialog::refresh_detail()
             actions_box->setLayout(actions);
             for (const plugin_action action : note.actions)
             {
-                QPushButton* button = make_button(
-                    action_text(action), "quiet", root,
-                    QStringLiteral("pluginAction.%1")
-                        .arg(static_cast<int>(action)));
+                QPushButton* button =
+                    make_button(action_text(action), "quiet", root,
+                                QStringLiteral("pluginAction.%1")
+                                    .arg(static_cast<int>(action)));
                 connect(button, &QPushButton::clicked, this,
                         [this, action, copy_of_view]
                         { do_action(action, copy_of_view); });
@@ -953,8 +980,8 @@ void PluginsDialog::refresh_detail()
     form->setRowWrapPolicy(QFormLayout::WrapLongRows);
     form->setHorizontalSpacing(16);
     form->setVerticalSpacing(8);
-    const auto row = [&](const QString& label, QWidget* value,
-                         const QString& object_name)
+    const auto row =
+        [&](const QString& label, QWidget* value, const QString& object_name)
     {
         value->setObjectName(object_name);
         form->addRow(make_muted_label(label, root), value);
@@ -965,24 +992,24 @@ void PluginsDialog::refresh_detail()
         QStringList lines;
         for (const plugin_addition& each : view.adds)
             lines << addition_text(each);
-        row(translate("What it adds"),
+        row(QCoreApplication::translate("PluginsDialog", "What it adds"),
             make_plain_label(lines.join(QLatin1Char('\n')), root,
                              text_style::body, true),
             QStringLiteral("pluginDetailAdds"));
     }
     if (!plain_text(view.description).isEmpty())
     {
-        row(translate("Description"),
+        row(QCoreApplication::translate("PluginsDialog", "Description"),
             make_plain_label(view.description, root, text_style::body, true),
             QStringLiteral("pluginDetailDescription"));
     }
     if (!plain_text(view.version).isEmpty())
     {
-        row(translate("Version"),
+        row(QCoreApplication::translate("PluginsDialog", "Version"),
             make_fixed_label(plain_text(view.version), root),
             QStringLiteral("pluginDetailVersion"));
     }
-    row(translate("Made by"),
+    row(QCoreApplication::translate("PluginsDialog", "Made by"),
         make_plain_label(view.trust == plugin_trust::official
                              ? display_author(view)
                              : view.author,
@@ -1006,8 +1033,8 @@ void PluginsDialog::refresh_detail()
         {
             // Only the host's own trust level draws this; nothing a plugin
             // says about itself can.
-            auto* badge = new Tag(official_badge_text(), Tag::variant::ok,
-                                  signature_box);
+            auto* badge =
+                new Tag(official_badge_text(), Tag::variant::ok, signature_box);
             badge->setObjectName(QStringLiteral("pluginOfficialBadge"));
             badge->setAccessibleName(official_badge_text());
             sentence_row->addWidget(badge, 0, Qt::AlignTop);
@@ -1015,17 +1042,21 @@ void PluginsDialog::refresh_detail()
         signature_layout->addLayout(sentence_row);
         if (view.trust == plugin_trust::unknown_key)
         {
-            QPushButton* import_button = make_button(
-                translate("Import the author's key..."), "quiet",
-                signature_box, QStringLiteral("pluginDetailImportKey"));
+            QPushButton* import_button =
+                make_button(QCoreApplication::translate(
+                                "PluginsDialog", "Import the author's key..."),
+                            "quiet", signature_box,
+                            QStringLiteral("pluginDetailImportKey"));
             connect(import_button, &QPushButton::clicked, this,
                     [this] { import_key(); });
             signature_layout->addWidget(import_button, 0, Qt::AlignLeft);
         }
         signature_layout->addWidget(make_muted_label(
-            translate("A signature shows who made a plugin and that its files "
-                      "are unchanged. It does not show that the plugin is "
-                      "safe."),
+            QCoreApplication::translate(
+                "PluginsDialog",
+                "A signature shows who made a plugin and that its files "
+                "are unchanged. It does not show that the plugin is "
+                "safe."),
             signature_box, text_style::caption));
         const QString runtime = runtime_line(view);
         if (!runtime.isEmpty())
@@ -1036,8 +1067,8 @@ void PluginsDialog::refresh_detail()
             warn->set_text(runtime);
             signature_layout->addWidget(warn);
         }
-        row(translate("Signature"), signature_box,
-            QStringLiteral("pluginDetailSignature"));
+        row(QCoreApplication::translate("PluginsDialog", "Signature"),
+            signature_box, QStringLiteral("pluginDetailSignature"));
     }
 
     if (view.trust == plugin_trust::third_party && !view.key_id.isEmpty())
@@ -1048,7 +1079,8 @@ void PluginsDialog::refresh_detail()
         key_layout->setSpacing(4);
         const QString key_text =
             view.key_approved_on.isValid()
-                ? translate("%1, approved on %2")
+                ? QCoreApplication::translate("PluginsDialog",
+                                              "%1, approved on %2")
                       .arg(plain_text(view.key_id),
                            QLocale().toString(view.key_approved_on,
                                               QLocale::LongFormat))
@@ -1057,13 +1089,13 @@ void PluginsDialog::refresh_detail()
         key_label->setObjectName(QStringLiteral("pluginDetailKeyText"));
         key_layout->addWidget(key_label);
         QPushButton* remove_key_button = make_button(
-            translate("Remove this key..."), "quiet", key_box,
-            QStringLiteral("pluginDetailRemoveKey"));
+            QCoreApplication::translate("PluginsDialog", "Remove this key..."),
+            "quiet", key_box, QStringLiteral("pluginDetailRemoveKey"));
         connect(remove_key_button, &QPushButton::clicked, this,
                 [this, copy_of_view] { remove_key(copy_of_view); });
         key_layout->addWidget(remove_key_button, 0, Qt::AlignLeft);
-        row(translate("Signing key"), key_box,
-            QStringLiteral("pluginDetailKey"));
+        row(QCoreApplication::translate("PluginsDialog", "Signing key"),
+            key_box, QStringLiteral("pluginDetailKey"));
     }
 
     if (!view.fingerprint.isEmpty())
@@ -1076,24 +1108,27 @@ void PluginsDialog::refresh_detail()
         print->setObjectName(QStringLiteral("pluginDetailFingerprintText"));
         print_layout->addWidget(print, 0, Qt::AlignVCenter);
         auto* copy_button = new CopyButton(print_box);
-        copy_button->setObjectName(QStringLiteral("pluginDetailFingerprintCopy"));
-        copy_button->set_copy_text(plain_text(view.fingerprint),
-                                   translate("fingerprint"));
+        copy_button->setObjectName(
+            QStringLiteral("pluginDetailFingerprintCopy"));
+        copy_button->set_copy_text(
+            plain_text(view.fingerprint),
+            QCoreApplication::translate("PluginsDialog", "fingerprint"));
         connect(copy_button, &CopyButton::copied, this,
                 [this]
                 {
                     ToastManager::instance().show(
-                        this, translate("Fingerprint copied."));
+                        this, QCoreApplication::translate(
+                                  "PluginsDialog", "Fingerprint copied."));
                 });
         print_layout->addWidget(copy_button, 0, Qt::AlignVCenter);
         print_layout->addStretch(1);
-        row(translate("Fingerprint"), print_box,
-            QStringLiteral("pluginDetailFingerprint"));
+        row(QCoreApplication::translate("PluginsDialog", "Fingerprint"),
+            print_box, QStringLiteral("pluginDetailFingerprint"));
     }
 
     if (view.expires.isValid())
     {
-        row(translate("Expires"),
+        row(QCoreApplication::translate("PluginsDialog", "Expires"),
             make_plain_label(
                 QLocale().toString(view.expires, QLocale::LongFormat), root),
             QStringLiteral("pluginDetailExpires"));
@@ -1101,10 +1136,10 @@ void PluginsDialog::refresh_detail()
 
     if (view.state == plugin_state::needs_licence)
     {
-        row(translate("Licence"),
-            make_plain_label(reason_sentence(view.licence_reason,
-                                             view.licence_status),
-                             root),
+        row(QCoreApplication::translate("PluginsDialog", "Licence"),
+            make_plain_label(
+                reason_sentence(view.licence_reason, view.licence_status),
+                root),
             QStringLiteral("pluginDetailLicence"));
     }
     else if (view.trust == plugin_trust::official &&
@@ -1113,8 +1148,10 @@ void PluginsDialog::refresh_detail()
               view.state == plugin_state::off ||
               view.state == plugin_state::stopped))
     {
-        row(translate("Licence"),
-            make_plain_label(translate("Included in your licence"), root),
+        row(QCoreApplication::translate("PluginsDialog", "Licence"),
+            make_plain_label(QCoreApplication::translate(
+                                 "PluginsDialog", "Included in your licence"),
+                             root),
             QStringLiteral("pluginDetailLicence"));
     }
 
@@ -1123,21 +1160,21 @@ void PluginsDialog::refresh_detail()
         auto* timing = make_plain_label(timing_text(view.timing), root);
         timing->setToolTip(timing_sentence(view));
         timing->setAccessibleDescription(timing_sentence(view));
-        row(translate("Timing"), timing, QStringLiteral("pluginDetailTiming"));
+        row(QCoreApplication::translate("PluginsDialog", "Timing"), timing,
+            QStringLiteral("pluginDetailTiming"));
 
         auto* isolation_box = new QWidget(root);
         auto* isolation_layout = new QHBoxLayout(isolation_box);
         isolation_layout->setContentsMargins(0, 0, 0, 0);
         isolation_layout->setSpacing(8);
-        auto* isolation =
-            make_plain_label(isolation_text(view), isolation_box);
+        auto* isolation = make_plain_label(isolation_text(view), isolation_box);
         isolation->setObjectName(QStringLiteral("pluginDetailIsolationText"));
         isolation_layout->addWidget(isolation, 1);
         if (view.override_active)
         {
             QPushButton* undo = make_button(
-                translate("Undo"), "quiet", isolation_box,
-                QStringLiteral("pluginDetailUndoIsolation"));
+                QCoreApplication::translate("PluginsDialog", "Undo"), "quiet",
+                isolation_box, QStringLiteral("pluginDetailUndoIsolation"));
             connect(undo, &QPushButton::clicked, this,
                     [this, copy_of_view]
                     {
@@ -1146,10 +1183,10 @@ void PluginsDialog::refresh_detail()
                     });
             isolation_layout->addWidget(undo, 0, Qt::AlignTop);
         }
-        row(translate("Isolation"), isolation_box,
-            QStringLiteral("pluginDetailIsolation"));
+        row(QCoreApplication::translate("PluginsDialog", "Isolation"),
+            isolation_box, QStringLiteral("pluginDetailIsolation"));
 
-        row(translate("Installed for"),
+        row(QCoreApplication::translate("PluginsDialog", "Installed for"),
             make_plain_label(installed_for_text(view.installed_for), root),
             QStringLiteral("pluginDetailInstalledFor"));
     }
@@ -1168,19 +1205,21 @@ void PluginsDialog::refresh_detail()
         path_row->addWidget(path, 1);
         auto* copy_button = new CopyButton(folder_box);
         copy_button->setObjectName(QStringLiteral("pluginDetailFolderCopy"));
-        copy_button->set_copy_text(plain_text(view.folder),
-                                   translate("folder path"));
+        copy_button->set_copy_text(
+            plain_text(view.folder),
+            QCoreApplication::translate("PluginsDialog", "folder path"));
         connect(copy_button, &CopyButton::copied, this,
                 [this]
                 {
-                    ToastManager::instance().show(this,
-                                                  translate("Path copied."));
+                    ToastManager::instance().show(
+                        this, QCoreApplication::translate("PluginsDialog",
+                                                          "Path copied."));
                 });
         path_row->addWidget(copy_button, 0, Qt::AlignTop);
         folder_layout->addLayout(path_row);
-        QPushButton* show = make_button(translate("Show in folder"), "quiet",
-                                        folder_box,
-                                        QStringLiteral("pluginDetailShowFolder"));
+        QPushButton* show = make_button(
+            QCoreApplication::translate("PluginsDialog", "Show in folder"),
+            "quiet", folder_box, QStringLiteral("pluginDetailShowFolder"));
         connect(show, &QPushButton::clicked, this,
                 [this, copy_of_view]
                 {
@@ -1191,7 +1230,7 @@ void PluginsDialog::refresh_detail()
                             QUrl::fromLocalFile(open_path_text(copy_of_view)));
                 });
         folder_layout->addWidget(show, 0, Qt::AlignLeft);
-        row(translate("Folder"), folder_box,
+        row(QCoreApplication::translate("PluginsDialog", "Folder"), folder_box,
             QStringLiteral("pluginDetailFolder"));
     }
     layout->addLayout(form);
@@ -1200,7 +1239,8 @@ void PluginsDialog::refresh_detail()
     if (!view.permissions.empty())
     {
         auto* permissions_heading = make_plain_label(
-            translate("What it may do"), root, text_style::heading);
+            QCoreApplication::translate("PluginsDialog", "What it may do"),
+            root, text_style::heading);
         permissions_heading->setObjectName(QStringLiteral("pluginDetailMayDo"));
         layout->addWidget(permissions_heading);
         for (const plugin_permission_view& each : view.permissions)
@@ -1208,18 +1248,23 @@ void PluginsDialog::refresh_detail()
             const QString reason =
                 each.reason.isEmpty()
                     ? QString()
-                    : translate("The plugin says: %1").arg(quoted(each.reason));
+                    : QCoreApplication::translate("PluginsDialog",
+                                                  "The plugin says: %1")
+                          .arg(quoted(each.reason));
             QFrame* line = make_permission_row(
                 permission_sentence(each), is_amber_permission(each.id),
                 !each.turned_down,
-                each.turned_down ? translate("Not allowed") : QString(), reason,
-                root);
+                each.turned_down ? QCoreApplication::translate("PluginsDialog",
+                                                               "Not allowed")
+                                 : QString(),
+                reason, root);
             line->setObjectName(QStringLiteral("permission.") + each.id);
             layout->addWidget(line);
         }
         QPushButton* change = make_button(
-            translate("Change what it may do..."), "quiet", root,
-            QStringLiteral("pluginDetailChangePermissions"));
+            QCoreApplication::translate("PluginsDialog",
+                                        "Change what it may do..."),
+            "quiet", root, QStringLiteral("pluginDetailChangePermissions"));
         const bool by_administrator =
             view.installed_for == plugin_installed_for::everyone;
         const bool decidable = view.state == plugin_state::needs_decision ||
@@ -1231,9 +1276,10 @@ void PluginsDialog::refresh_detail()
         change->setEnabled(!by_administrator && decidable);
         if (by_administrator)
         {
-            change->setToolTip(translate("Set by your administrator"));
-            change->setAccessibleDescription(
-                translate("Set by your administrator"));
+            change->setToolTip(QCoreApplication::translate(
+                "PluginsDialog", "Set by your administrator"));
+            change->setAccessibleDescription(QCoreApplication::translate(
+                "PluginsDialog", "Set by your administrator"));
         }
         connect(change, &QPushButton::clicked, this,
                 [this, copy_of_view] { review(copy_of_view, true); });
@@ -1241,12 +1287,16 @@ void PluginsDialog::refresh_detail()
     }
 
     // -- where it is used
-    auto* used_heading = make_plain_label(translate("Used in this setup"), root,
-                                          text_style::heading);
+    auto* used_heading = make_plain_label(
+        QCoreApplication::translate("PluginsDialog", "Used in this setup"),
+        root, text_style::heading);
     layout->addWidget(used_heading);
     if (view.used_in.empty())
     {
-        auto* none = make_muted_label(translate("Not used in this setup."), root);
+        auto* none =
+            make_muted_label(QCoreApplication::translate(
+                                 "PluginsDialog", "Not used in this setup."),
+                             root);
         none->setObjectName(QStringLiteral("pluginDetailNotUsed"));
         layout->addWidget(none);
     }
@@ -1254,11 +1304,11 @@ void PluginsDialog::refresh_detail()
     {
         auto* use_row = new QHBoxLayout();
         use_row->setSpacing(8);
-        use_row->addWidget(make_plain_label(use.text, root, text_style::body,
-                                            true),
-                           1);
-        QPushButton* show = make_button(translate("Show"), "quiet", root,
-                                        QStringLiteral("pluginDetailShowUse"));
+        use_row->addWidget(
+            make_plain_label(use.text, root, text_style::body, true), 1);
+        QPushButton* show =
+            make_button(QCoreApplication::translate("PluginsDialog", "Show"),
+                        "quiet", root, QStringLiteral("pluginDetailShowUse"));
         show->setAccessibleDescription(plain_text(use.text));
         const QString target = use.target_id;
         connect(show, &QPushButton::clicked, this,
@@ -1270,10 +1320,12 @@ void PluginsDialog::refresh_detail()
     // -- the log
     if (!view.log.empty())
     {
-        const int shown = std::min<int>(kMaxLogLines,
-                                        static_cast<int>(view.log.size()));
+        const int shown =
+            std::min<int>(kMaxLogLines, static_cast<int>(view.log.size()));
         auto* log = new Disclosure(
-            translate("Recent messages (%1)").arg(shown), root);
+            QCoreApplication::translate("PluginsDialog", "Recent messages (%1)")
+                .arg(shown),
+            root);
         log->setObjectName(QStringLiteral("pluginDetailLog"));
         auto* content = new QWidget();
         auto* content_layout = new QVBoxLayout(content);
@@ -1284,34 +1336,39 @@ void PluginsDialog::refresh_detail()
         text->setReadOnly(true);
         text->setLineWrapMode(QPlainTextEdit::WidgetWidth);
         text->setFont(Theme::instance().font(text_style::data));
-        text->setAccessibleName(translate("Messages from %1")
-                                    .arg(plain_text(view.name)));
+        text->setAccessibleName(
+            QCoreApplication::translate("PluginsDialog", "Messages from %1")
+                .arg(plain_text(view.name)));
         text->setMinimumHeight(120);
         QStringList lines;
         const int first = static_cast<int>(view.log.size()) - shown;
         for (int index = first; index < static_cast<int>(view.log.size());
              ++index)
         {
-            const plugin_log_line& line = view.log[static_cast<std::size_t>(index)];
+            const plugin_log_line& line =
+                view.log[static_cast<std::size_t>(index)];
             lines << QStringLiteral("%1 %2").arg(
                 QLocale().toString(line.time, QLocale::ShortFormat),
                 plain_text(line.text));
         }
         text->setPlainText(lines.join(QLatin1Char('\n')));
         content_layout->addWidget(text);
-        QPushButton* copy_log = make_button(translate("Copy"), "quiet", content,
-                                            QStringLiteral("pluginDetailCopyLog"));
+        QPushButton* copy_log = make_button(
+            QCoreApplication::translate("PluginsDialog", "Copy"), "quiet",
+            content, QStringLiteral("pluginDetailCopyLog"));
         connect(copy_log, &QPushButton::clicked, this,
                 [this, text]
                 {
                     QGuiApplication::clipboard()->setText(text->toPlainText());
-                    ToastManager::instance().show(this,
-                                                  translate("Copied."));
+                    ToastManager::instance().show(
+                        this, QCoreApplication::translate("PluginsDialog",
+                                                          "Copied."));
                 });
         content_layout->addWidget(copy_log, 0, Qt::AlignLeft);
-        content_layout->addWidget(
-            make_muted_label(translate("These lines come from the plugin."),
-                             content, text_style::caption));
+        content_layout->addWidget(make_muted_label(
+            QCoreApplication::translate("PluginsDialog",
+                                        "These lines come from the plugin."),
+            content, text_style::caption));
         log->set_content(content);
         layout->addWidget(log);
     }
@@ -1331,8 +1388,9 @@ void PluginsDialog::do_action(plugin_action action, const plugin_view& plugin)
     case plugin_action::start_now:
     case plugin_action::start_again:
         backend_.start_again(plugin.id);
-        Q_EMIT status_message(translate("%1 started again.")
-                                  .arg(plain_text(plugin.name)));
+        Q_EMIT status_message(
+            QCoreApplication::translate("PluginsDialog", "%1 started again.")
+                .arg(plain_text(plugin.name)));
         break;
     case plugin_action::review_and_decide:
         review(plugin);
@@ -1395,20 +1453,21 @@ void PluginsDialog::on_switch_clicked(const QString& plugin_id,
     backend_.set_enabled(view.id, view.hash, on);
     if (snapshot_->can_run_plugins)
     {
-        Q_EMIT status_message(on ? translate("%1 is on.")
-                                       .arg(plain_text(view.name))
-                                 : translate("%1 is off.")
-                                       .arg(plain_text(view.name)));
+        Q_EMIT status_message(
+            on ? QCoreApplication::translate("PluginsDialog", "%1 is on.")
+                     .arg(plain_text(view.name))
+               : QCoreApplication::translate("PluginsDialog", "%1 is off.")
+                     .arg(plain_text(view.name)));
     }
 }
 
 void PluginsDialog::review(const plugin_view& plugin, bool permissions_step)
 {
-    PluginDecisionDialog dialog(
-        backend_, plugin,
-        permissions_step ? PluginDecisionDialog::mode::permissions
-                         : PluginDecisionDialog::mode::decide,
-        this);
+    PluginDecisionDialog dialog(backend_, plugin,
+                                permissions_step
+                                    ? PluginDecisionDialog::mode::permissions
+                                    : PluginDecisionDialog::mode::decide,
+                                this);
     connect(&dialog, &PluginDecisionDialog::import_key_requested, this,
             [this] { QTimer::singleShot(0, this, [this] { import_key(); }); });
     dialog.exec();
@@ -1433,9 +1492,13 @@ void PluginsDialog::remove_selected()
 void PluginsDialog::remove_key(const plugin_view& plugin)
 {
     ConfirmDialog dialog(
-        translate("Remove the key of %1?").arg(display_author(plugin)),
-        translate("Plugins signed with this key stop running and ask again."),
-        translate("Remove key"), translate("Cancel"), true, this);
+        QCoreApplication::translate("PluginsDialog", "Remove the key of %1?")
+            .arg(display_author(plugin)),
+        QCoreApplication::translate(
+            "PluginsDialog",
+            "Plugins signed with this key stop running and ask again."),
+        QCoreApplication::translate("PluginsDialog", "Remove key"),
+        QCoreApplication::translate("PluginsDialog", "Cancel"), true, this);
     if (dialog.exec() != QDialog::Accepted)
         return;
     backend_.remove_key(plugin.key_id);
@@ -1446,10 +1509,12 @@ void PluginsDialog::copy_details()
     const QString text = details_text();
     if (text.isEmpty() && snapshot_ &&
         snapshot_->banner == plugin_banner::policy_untrusted)
-        QGuiApplication::clipboard()->setText(plain_text(snapshot_->policy_detail));
+        QGuiApplication::clipboard()->setText(
+            plain_text(snapshot_->policy_detail));
     else
         QGuiApplication::clipboard()->setText(text);
-    ToastManager::instance().show(this, translate("Details copied."));
+    ToastManager::instance().show(
+        this, QCoreApplication::translate("PluginsDialog", "Details copied."));
 }
 
 void PluginsDialog::add_plugin()
@@ -1461,15 +1526,30 @@ void PluginsDialog::add_plugin()
         folder = folder_picker_();
     else
         folder = QFileDialog::getExistingDirectory(
-            this, translate("Choose a plugin's folder"));
+            this, QCoreApplication::translate("PluginsDialog",
+                                              "Choose a plugin's folder"));
     if (folder.isEmpty())
         return;
     clear_message();
     before_add_.clear();
     for (int index = 0; index < list_->count(); ++index)
-        before_add_.push_back(list_->item(index)->data(Qt::UserRole).toString());
+        before_add_.push_back(
+            list_->item(index)->data(Qt::UserRole).toString());
+    // The host looks first, and the person sees what it found before
+    // anything is copied.
+    pending_inspection_ = backend_.inspect_plugin(folder);
+}
+
+void PluginsDialog::on_plugin_inspected(quint64 request,
+                                        const plugin_inspection_view& found)
+{
+    if (request != pending_inspection_)
+        return;
+    pending_inspection_ = 0;
     waiting_for_add_ = true;
-    backend_.add_plugin(folder);
+    PluginInstallDialog dialog(backend_, found, this);
+    if (dialog.exec() != QDialog::Accepted)
+        waiting_for_add_ = false;
 }
 
 void PluginsDialog::import_key()
@@ -1482,8 +1562,12 @@ void PluginsDialog::import_key()
     else
     {
         path = QFileDialog::getOpenFileName(
-            this, translate("Choose an author's public key file"), QString(),
-            translate("Plugin key files (*.vsskey.json)"));
+            this,
+            QCoreApplication::translate("PluginsDialog",
+                                        "Choose an author's public key file"),
+            QString(),
+            QCoreApplication::translate("PluginsDialog",
+                                        "Plugin key files (*.vsskey.json)"));
     }
     if (path.isEmpty())
         return;
@@ -1493,8 +1577,10 @@ void PluginsDialog::import_key()
     const QString name = QFileInfo(path).fileName();
     if (plain_text(name) != name)
     {
-        show_message(NoteBanner::kind::warn,
-                     translate("That file is not a plugin key file."));
+        show_message(
+            NoteBanner::kind::warn,
+            QCoreApplication::translate("PluginsDialog",
+                                        "That file is not a plugin key file."));
         return;
     }
     pending_key_request_ = backend_.read_key_file(path);
@@ -1547,22 +1633,27 @@ void PluginsDialog::on_key_file_read(quint64 request,
     }
     case problem::not_a_key_file:
     case problem::text_not_plain:
-        show_message(NoteBanner::kind::warn,
-                     translate("That file is not a plugin key file."));
+        show_message(
+            NoteBanner::kind::warn,
+            QCoreApplication::translate("PluginsDialog",
+                                        "That file is not a plugin key file."));
         break;
     case problem::id_in_use:
         show_message(
             NoteBanner::kind::warn,
-            translate("A key with the id %1 is already approved. An id cannot "
-                      "change its key.")
+            QCoreApplication::translate(
+                "PluginsDialog",
+                "A key with the id %1 is already approved. An id cannot "
+                "change its key.")
                 .arg(plain_text(key.key_id)));
         break;
     case problem::id_is_official_or_administrators:
-        show_message(
-            NoteBanner::kind::warn,
-            translate("The id %1 belongs to a key that is already on this "
-                      "computer.")
-                .arg(plain_text(key.key_id)));
+        show_message(NoteBanner::kind::warn,
+                     QCoreApplication::translate(
+                         "PluginsDialog",
+                         "The id %1 belongs to a key that is already on this "
+                         "computer.")
+                         .arg(plain_text(key.key_id)));
         break;
     }
 }
@@ -1574,7 +1665,8 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
     case plugin_request_kind::rescan:
         ToastManager::instance().show(
             this, result.count == 1
-                      ? translate("Checked. 1 plugin found.")
+                      ? QCoreApplication::translate("PluginsDialog",
+                                                    "Checked. 1 plugin found.")
                       : QCoreApplication::translate(
                             "PluginsDialog", "Checked. %n plugins found.",
                             nullptr, result.count));
@@ -1583,8 +1675,9 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
         if (result.error == plugin_request_error::none)
         {
             ToastManager::instance().show(
-                this,
-                translate("Added for you only. Review it before it runs."));
+                this, QCoreApplication::translate(
+                          "PluginsDialog",
+                          "Added for you only. Review it before it runs."));
             break;
         }
         waiting_for_add_ = false;
@@ -1592,29 +1685,36 @@ void PluginsDialog::on_request_finished(const plugin_request_result& result)
         {
             show_message(
                 NoteBanner::kind::warn,
-                translate("%1 is already installed for you. Remove it first to "
-                          "add a different copy.")
+                QCoreApplication::translate(
+                    "PluginsDialog",
+                    "%1 is already installed for you. Remove it first to "
+                    "add a different copy.")
                     .arg(plain_text(result.plugin_name)));
         }
         else if (result.error == plugin_request_error::not_a_plugin)
         {
             show_message(
                 NoteBanner::kind::warn,
-                translate("That folder is not a plugin. A plugin's folder holds "
-                          "a file named plugin.json."));
+                QCoreApplication::translate(
+                    "PluginsDialog",
+                    "That folder is not a plugin. A plugin's folder holds "
+                    "a file named plugin.json."));
         }
         break;
     case plugin_request_kind::approve_key:
         if (result.error == plugin_request_error::none)
         {
             ToastManager::instance().show(
-                this, translate("The key of %1 is approved.")
+                this, QCoreApplication::translate("PluginsDialog",
+                                                  "The key of %1 is approved.")
                           .arg(plain_text(result.author)));
         }
         else
         {
-            show_message(NoteBanner::kind::warn,
-                         translate("That file is not a plugin key file."));
+            show_message(
+                NoteBanner::kind::warn,
+                QCoreApplication::translate(
+                    "PluginsDialog", "That file is not a plugin key file."));
         }
         break;
     case plugin_request_kind::decide:
@@ -1642,9 +1742,9 @@ void PluginsDialog::keyPressEvent(QKeyEvent* event)
 void PluginsDialog::move_focus_between_panes()
 {
     QWidget* focus = QApplication::focusWidget();
-    const bool in_detail = focus != nullptr &&
-                           (detail_scroll_ == focus ||
-                            detail_scroll_->isAncestorOf(focus));
+    const bool in_detail =
+        focus != nullptr &&
+        (detail_scroll_ == focus || detail_scroll_->isAncestorOf(focus));
     if (in_detail)
     {
         list_->setFocus(Qt::TabFocusReason);

@@ -57,7 +57,10 @@ public:
 
     explicit PluginsDialog(PluginBackend& backend, QWidget* parent = nullptr);
 
-    void set_folder_picker(path_picker picker) { folder_picker_ = std::move(picker); }
+    void set_folder_picker(path_picker picker)
+    {
+        folder_picker_ = std::move(picker);
+    }
     void set_key_picker(path_picker picker) { key_picker_ = std::move(picker); }
     void set_path_opener(path_opener opener) { opener_ = std::move(opener); }
 
@@ -121,6 +124,8 @@ private:
     void on_snapshot_changed();
     void on_request_finished(const plugin_request_result& result);
     void on_key_file_read(quint64 request, const plugin_key_file_view& key);
+    void on_plugin_inspected(quint64 request,
+                             const plugin_inspection_view& found);
     void refresh_all();
     void refresh_header(const plugin_snapshot& snapshot);
     void refresh_list(const plugin_snapshot& snapshot);
@@ -151,6 +156,7 @@ private:
     bool waiting_for_add_ = false;
     bool rebuilding_ = false;
     quint64 pending_key_request_ = 0;
+    quint64 pending_inspection_ = 0;
 
     StatusChip* header_chip_ = nullptr;
     NoteBanner* top_note_ = nullptr;

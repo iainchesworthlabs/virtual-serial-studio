@@ -58,6 +58,7 @@ public:
     void start_again(const QString& plugin_id) override;
     void run_expired(const QString& plugin_id, const QString& hash) override;
     void rescan() override;
+    quint64 inspect_plugin(const QString& folder) override;
     void add_plugin(const QString& folder) override;
     void remove_plugin(const QString& plugin_id, const QString& hash,
                        bool delete_saved_data) override;

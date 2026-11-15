@@ -15,6 +15,7 @@ PluginBackend::PluginBackend(QObject* parent) : QObject(parent)
 {
     qRegisterMetaType<vss::gui::plugin_request_result>();
     qRegisterMetaType<vss::gui::plugin_key_file_view>();
+    qRegisterMetaType<vss::gui::plugin_inspection_view>();
 }
 
 PluginBackend::~PluginBackend() = default;
@@ -47,6 +48,14 @@ void PluginBackend::notify_key_file_read(quint64 request,
     QMetaObject::invokeMethod(
         this, [this, request, key] { Q_EMIT key_file_read(request, key); },
         Qt::QueuedConnection);
+}
+
+void PluginBackend::notify_plugin_inspected(quint64 request,
+                                            const plugin_inspection_view& found)
+{
+    QMetaObject::invokeMethod(
+        this, [this, request, found]
+        { Q_EMIT plugin_inspected(request, found); }, Qt::QueuedConnection);
 }
 
 } // namespace vss::gui

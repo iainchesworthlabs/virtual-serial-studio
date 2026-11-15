@@ -82,7 +82,8 @@ QSize ElidedLabel::minimumSizeHint() const
 
 QSize ElidedLabel::sizeHint() const
 {
-    return QSize(fontMetrics().horizontalAdvance(full_), fontMetrics().height());
+    return QSize(fontMetrics().horizontalAdvance(full_),
+                 fontMetrics().height());
 }
 
 void ElidedLabel::resizeEvent(QResizeEvent* event)
@@ -223,13 +224,13 @@ QFrame* make_permission_row(const QString& sentence, bool amber, bool allowed,
 
     auto* mark = new QLabel(row);
     mark->setFixedSize(16, 16);
-    const QString icon = amber ? QStringLiteral("warning")
-                               : (allowed ? QStringLiteral("done")
-                                          : QStringLiteral("minus"));
-    mark->setPixmap(IconProvider::instance()
-                        .icon(icon, amber ? colour_role::noteWarnText
-                                          : colour_role::ink2)
-                        .pixmap(16, 16));
+    const QString icon =
+        amber ? QStringLiteral("warning")
+              : (allowed ? QStringLiteral("done") : QStringLiteral("minus"));
+    mark->setPixmap(
+        IconProvider::instance()
+            .icon(icon, amber ? colour_role::noteWarnText : colour_role::ink2)
+            .pixmap(16, 16));
     mark->setAttribute(Qt::WA_TransparentForMouseEvents);
     line->addWidget(mark, 0, Qt::AlignTop);
 

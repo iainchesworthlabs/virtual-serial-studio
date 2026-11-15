@@ -282,6 +282,29 @@ struct plugin_key_file_view
     bool inside_plugin_folder = false;
 };
 
+/// What the host found in a plugin folder the user chose, before anything is
+/// copied. `plugin` holds the verdict as the list would show it once the
+/// plugin was installed for this user.
+struct plugin_inspection_view
+{
+    enum class problem
+    {
+        none,
+        /// The folder has no readable plugin.json.
+        not_a_plugin,
+        /// A plugin with this id is installed for the user already.
+        already_installed,
+        /// The user's own plugin folder is off, or cannot be written.
+        cannot_write
+    };
+    problem failure = problem::not_a_plugin;
+    /// The folder the user chose.
+    QString folder;
+    plugin_view plugin;
+    /// The plugin can be added: nothing is wrong that adding would not fix.
+    bool can_install = false;
+};
+
 enum class plugin_request_kind
 {
     decide,
@@ -338,3 +361,4 @@ struct plugin_decision_request
 
 Q_DECLARE_METATYPE(vss::gui::plugin_request_result)
 Q_DECLARE_METATYPE(vss::gui::plugin_key_file_view)
+Q_DECLARE_METATYPE(vss::gui::plugin_inspection_view)

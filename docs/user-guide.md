@@ -1515,10 +1515,17 @@ that version of that plugin with your own access to your files and the network.
 
 ### Adding and removing a plugin
 
-**Add a plugin...** copies a plugin's folder into your own plugin folder, for you
-only, and selects it. Nothing runs. **Remove plugin...** moves it to the bin. To
-install a plugin for everyone on the computer, an administrator puts its folder
-in the machine plugin folder, which the page shows under the list. If your
+**Add a plugin...** asks for a plugin's folder and looks into it first. A
+question shows the plugin's version, who made it, what its signature says, its
+fingerprint and whether it can be used, and copies nothing until you choose
+**Add plugin**. A plugin that cannot be used cannot be added. The copy goes into
+your own plugin folder, for you only, and the new row is selected. Nothing runs.
+The same question shows the command for installing it for everyone,
+`vss_cli plugin install <folder> --for-everyone`, as text to copy: Studio never
+asks for administrator rights. **Remove plugin...** asks first and moves the
+folder to the bin; the plugin's saved data is kept unless you tick the box. An
+administrator can also put a plugin's folder in the machine plugin folder, which
+the page shows under the list. If your
 administrator has turned your own plugin folder off, those two buttons are
 disabled.
 

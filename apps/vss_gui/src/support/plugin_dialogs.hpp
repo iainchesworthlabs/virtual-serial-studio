@@ -154,6 +154,35 @@ private:
     QPushButton* run_ = nullptr;
 };
 
+/// "Add <plugin name>?" (width 560): what Studio found in the folder the user
+/// chose, before anything is copied. A plugin that cannot be used, or that is
+/// installed already, cannot be confirmed.
+class PluginInstallDialog final : public QDialog
+{
+    Q_OBJECT
+
+public:
+    PluginInstallDialog(PluginBackend& backend,
+                        const plugin_inspection_view& found,
+                        QWidget* parent = nullptr);
+
+    QPushButton* cancel_button() const noexcept { return cancel_; }
+    QPushButton* add_button() const noexcept { return add_; }
+    NoteBanner* banner() const noexcept { return note_; }
+    /// The command for installing it for everyone, as text to copy.
+    QString everyone_command() const noexcept { return command_; }
+
+    void add();
+
+private:
+    PluginBackend& backend_;
+    plugin_inspection_view found_;
+    QString command_;
+    NoteBanner* note_ = nullptr;
+    QPushButton* cancel_ = nullptr;
+    QPushButton* add_ = nullptr;
+};
+
 /// "Remove <plugin name>?": Cancel is the default.
 class PluginRemoveDialog final : public QDialog
 {

@@ -83,6 +83,29 @@ void FakePluginBackend::set_key_file(const QString& path,
     key_files_.insert(path, std::move(key));
 }
 
+void FakePluginBackend::set_inspection(const QString& folder,
+                                       plugin_inspection_view found)
+{
+    found.folder = folder;
+    inspections_.insert(folder, std::move(found));
+}
+
+quint64 FakePluginBackend::inspect_plugin(const QString& folder)
+{
+    const quint64 number = next_request_++;
+    // Looking is not a change: it is recorded apart from the requests that
+    // change something.
+    inspected_.push_back(folder);
+    plugin_inspection_view answer;
+    const auto found = inspections_.constFind(folder);
+    if (found != inspections_.constEnd())
+        answer = found.value();
+    else
+        answer.folder = folder;
+    notify_plugin_inspected(number, answer);
+    return number;
+}
+
 void FakePluginBackend::fail_next_add(plugin_request_error error,
                                       const QString& plugin_name)
 {
@@ -235,8 +258,9 @@ void FakePluginBackend::start_again(const QString& plugin_id)
     change(plugin_id,
            [this](plugin_view& plugin)
            {
-               plugin.state = snapshot_->can_run_plugins ? plugin_state::starting
-                                                         : plugin_state::off;
+               plugin.state = snapshot_->can_run_plugins
+                                  ? plugin_state::starting
+                                  : plugin_state::off;
                plugin.note = plugin_note::none;
            });
 }
@@ -326,12 +350,14 @@ plugin_view base(const QString& id, const QString& name, plugin_state state,
     view.description = QStringLiteral("Answers like a device on the bus.");
     view.installed_for = plugin_installed_for::you_only;
     view.hash = QStringLiteral("0123456789abcdef") +
-                QString::number(qHash(id), 16).rightJustified(16, QLatin1Char('0'))
+                QString::number(qHash(id), 16)
+                    .rightJustified(16, QLatin1Char('0'))
                     .repeated(7);
     view.fingerprint = view.hash.left(16);
     view.folder = QStringLiteral("C:/Users/you/Studio/plugins/") + name;
     view.isolation = plugin_isolation::none;
-    view.adds.push_back({plugin_addition_kind::fixture, name + QStringLiteral(" device")});
+    view.adds.push_back(
+        {plugin_addition_kind::fixture, name + QStringLiteral(" device")});
     view.permissions.push_back(permission(QStringLiteral("ports.read"), true));
     switch (trust)
     {
@@ -363,9 +389,10 @@ std::vector<plugin_view> fake_plugin_samples()
 {
     std::vector<plugin_view> list;
 
-    plugin_view available = base(QStringLiteral("com.virtualserialstudio.modbus"),
-                                 QStringLiteral("Modbus fixture"),
-                                 plugin_state::available, plugin_trust::official);
+    plugin_view available =
+        base(QStringLiteral("com.virtualserialstudio.modbus"),
+             QStringLiteral("Modbus fixture"), plugin_state::available,
+             plugin_trust::official);
     available.wished_on = true;
     available.isolation = plugin_isolation::full;
     available.timing = plugin_timing::by_studio;
@@ -380,9 +407,9 @@ std::vector<plugin_view> fake_plugin_samples()
              QStringLiteral("Answered request %1").arg(line)});
     list.push_back(available);
 
-    plugin_view starting = base(QStringLiteral("org.example.replay"),
-                                QStringLiteral("Replay"), plugin_state::starting,
-                                plugin_trust::third_party);
+    plugin_view starting =
+        base(QStringLiteral("org.example.replay"), QStringLiteral("Replay"),
+             plugin_state::starting, plugin_trust::third_party);
     starting.wished_on = true;
     starting.note = plugin_note::backing_off;
     starting.back_off_seconds = 4;
@@ -393,127 +420,131 @@ std::vector<plugin_view> fake_plugin_samples()
     starting.timing = plugin_timing::beside;
     list.push_back(starting);
 
-    plugin_view off = base(QStringLiteral("org.example.noise"),
-                           QStringLiteral("Line noise"), plugin_state::off,
-                           plugin_trust::third_party);
+    plugin_view off =
+        base(QStringLiteral("org.example.noise"), QStringLiteral("Line noise"),
+             plugin_state::off, plugin_trust::third_party);
     off.timing = plugin_timing::in_path;
     off.budget_us = 800;
     off.isolation = plugin_isolation::full;
-    off.permissions.push_back(permission(QStringLiteral("modifier.inline"), true,
+    off.permissions.push_back(permission(QStringLiteral("modifier.inline"),
+                                         true,
                                          QStringLiteral("To corrupt bytes.")));
-    off.permissions.push_back(permission(QStringLiteral("net.listen"), false, {},
+    off.permissions.push_back(permission(QStringLiteral("net.listen"), false,
+                                         {},
                                          {QStringLiteral("127.0.0.1:5020")}));
     off.permissions.push_back(permission(QStringLiteral("net.outbound"), false,
                                          {}, {QStringLiteral("example.org")}));
-    off.adds.push_back({plugin_addition_kind::link_behaviour,
-                        QStringLiteral("Noisy line")});
+    off.adds.push_back(
+        {plugin_addition_kind::link_behaviour, QStringLiteral("Noisy line")});
     list.push_back(off);
 
-    plugin_view decision = base(QStringLiteral("org.hobby.scanner"),
-                                QStringLiteral("Barcode scanner"),
-                                plugin_state::needs_decision,
-                                plugin_trust::unsigned_plugin);
+    plugin_view decision = base(
+        QStringLiteral("org.hobby.scanner"), QStringLiteral("Barcode scanner"),
+        plugin_state::needs_decision, plugin_trust::unsigned_plugin);
     decision.note = plugin_note::decision_first;
     decision.reason_code = QStringLiteral("untrusted");
     decision.isolation = plugin_isolation::partial;
     decision.isolation_missing = QStringLiteral("No network isolation");
     decision.runtime_name = QStringLiteral("python3");
-    decision.permissions.push_back(permission(QStringLiteral("fs.write"), false,
-                                              QStringLiteral("To save a log.")));
+    decision.permissions.push_back(permission(
+        QStringLiteral("fs.write"), false, QStringLiteral("To save a log.")));
     decision.permissions.push_back(
         permission(QStringLiteral("process.spawn"), true));
     list.push_back(decision);
 
-    plugin_view changed = base(QStringLiteral("org.example.changed"),
-                               QStringLiteral("Changed plugin"),
-                               plugin_state::needs_decision,
-                               plugin_trust::third_party);
+    plugin_view changed = base(
+        QStringLiteral("org.example.changed"), QStringLiteral("Changed plugin"),
+        plugin_state::needs_decision, plugin_trust::third_party);
     changed.note = plugin_note::decision_changed;
     changed.reason_code = QStringLiteral("changed");
     changed.differs_from_approved = true;
     changed.isolation = plugin_isolation::full;
-    changed.permissions.push_back(permission(QStringLiteral("net.outbound"), false,
-                                             QStringLiteral("To check for updates."),
-                                             {QStringLiteral("updates.example.org")}));
+    changed.permissions.push_back(
+        permission(QStringLiteral("net.outbound"), false,
+                   QStringLiteral("To check for updates."),
+                   {QStringLiteral("updates.example.org")}));
     changed.permissions.back().is_new = true;
     list.push_back(changed);
 
-    plugin_view unknown = base(QStringLiteral("org.unknown.thing"),
-                               QStringLiteral("Unknown maker tool"),
-                               plugin_state::needs_decision,
-                               plugin_trust::unknown_key);
+    plugin_view unknown =
+        base(QStringLiteral("org.unknown.thing"),
+             QStringLiteral("Unknown maker tool"), plugin_state::needs_decision,
+             plugin_trust::unknown_key);
     unknown.note = plugin_note::decision_first;
     unknown.reason_code = QStringLiteral("key_unknown");
     unknown.isolation = plugin_isolation::full;
     list.push_back(unknown);
 
-    plugin_view blocked = base(QStringLiteral("org.example.blocked"),
-                               QStringLiteral("Blocked tool"),
-                               plugin_state::blocked, plugin_trust::unsigned_plugin);
+    plugin_view blocked = base(
+        QStringLiteral("org.example.blocked"), QStringLiteral("Blocked tool"),
+        plugin_state::blocked, plugin_trust::unsigned_plugin);
     blocked.note = plugin_note::blocked_official_only;
     blocked.reason_code = QStringLiteral("policy");
     blocked.installed_for = plugin_installed_for::everyone;
     list.push_back(blocked);
 
-    plugin_view named = base(QStringLiteral("org.example.named"),
-                             QStringLiteral("Named tool"), plugin_state::blocked,
-                             plugin_trust::third_party);
+    plugin_view named =
+        base(QStringLiteral("org.example.named"), QStringLiteral("Named tool"),
+             plugin_state::blocked, plugin_trust::third_party);
     named.note = plugin_note::blocked_named;
     named.reason_code = QStringLiteral("policy");
     named.installed_for = plugin_installed_for::everyone;
     list.push_back(named);
 
-    plugin_view protection = base(QStringLiteral("org.example.protect"),
-                                  QStringLiteral("Protected tool"),
-                                  plugin_state::blocked, plugin_trust::third_party);
+    plugin_view protection = base(
+        QStringLiteral("org.example.protect"), QStringLiteral("Protected tool"),
+        plugin_state::blocked, plugin_trust::third_party);
     protection.note = plugin_note::blocked_protection;
     protection.reason_code = QStringLiteral("sandbox_insufficient");
     protection.installed_for = plugin_installed_for::everyone;
     list.push_back(protection);
 
-    plugin_view isolation = base(QStringLiteral("org.example.isolate"),
-                                 QStringLiteral("Loop tester"),
-                                 plugin_state::needs_isolation,
-                                 plugin_trust::third_party);
+    plugin_view isolation = base(
+        QStringLiteral("org.example.isolate"), QStringLiteral("Loop tester"),
+        plugin_state::needs_isolation, plugin_trust::third_party);
     isolation.note = plugin_note::isolation_override;
     isolation.reason_code = QStringLiteral("sandbox_insufficient");
     isolation.override_allowed = true;
     list.push_back(isolation);
 
-    plugin_view no_override = base(QStringLiteral("org.example.isolate2"),
-                                   QStringLiteral("Shared tester"),
-                                   plugin_state::blocked,
-                                   plugin_trust::third_party);
+    plugin_view no_override = base(
+        QStringLiteral("org.example.isolate2"), QStringLiteral("Shared tester"),
+        plugin_state::blocked, plugin_trust::third_party);
     no_override.note = plugin_note::isolation_no_override;
     no_override.reason_code = QStringLiteral("sandbox_insufficient");
     no_override.installed_for = plugin_installed_for::everyone;
     list.push_back(no_override);
 
-    plugin_view unused = base(QStringLiteral("com.virtualserialstudio.modbus"),
-                              QStringLiteral("Modbus fixture"),
-                              plugin_state::not_used, plugin_trust::unsigned_plugin);
+    plugin_view unused =
+        base(QStringLiteral("com.virtualserialstudio.modbus"),
+             QStringLiteral("Modbus fixture"), plugin_state::not_used,
+             plugin_trust::unsigned_plugin);
     unused.note = plugin_note::not_used_different_signer;
     unused.reason_code = QStringLiteral("shadowed");
     unused.version = QStringLiteral("1.3.0");
-    unused.used_copy_folder = QStringLiteral("C:/Program Files/Studio/studio-plugins/modbus");
+    unused.used_copy_folder =
+        QStringLiteral("C:/Program Files/Studio/studio-plugins/modbus");
     unused.used_copy_trust = plugin_trust::official;
     unused.used_copy_id = available.id;
     unused.used_copy_folder = available.folder;
-    unused.folder = QStringLiteral("C:/Users/you/Studio/plugins/Modbus fixture (your copy)");
+    unused.folder = QStringLiteral(
+        "C:/Users/you/Studio/plugins/Modbus fixture (your copy)");
     unused.hash = QStringLiteral("fedcba9876543210") + unused.hash.mid(16);
     unused.fingerprint = unused.hash.left(16);
     list.push_back(unused);
 
-    plugin_view reserved = base(QStringLiteral("com.virtualserialstudio.fake"),
-                                QStringLiteral("Pretend official"),
-                                plugin_state::not_used, plugin_trust::unsigned_plugin);
+    plugin_view reserved =
+        base(QStringLiteral("com.virtualserialstudio.fake"),
+             QStringLiteral("Pretend official"), plugin_state::not_used,
+             plugin_trust::unsigned_plugin);
     reserved.note = plugin_note::not_used_reserved;
     reserved.reason_code = QStringLiteral("reserved_id");
     list.push_back(reserved);
 
-    plugin_view licence = base(QStringLiteral("com.virtualserialstudio.decode"),
-                               QStringLiteral("Protocol decoding"),
-                               plugin_state::needs_licence, plugin_trust::official);
+    plugin_view licence =
+        base(QStringLiteral("com.virtualserialstudio.decode"),
+             QStringLiteral("Protocol decoding"), plugin_state::needs_licence,
+             plugin_trust::official);
     licence.note = plugin_note::needs_licence;
     licence.reason_code = QStringLiteral("not_licensed");
     licence.wished_on = true;
@@ -521,9 +552,9 @@ std::vector<plugin_view> fake_plugin_samples()
     licence.isolation = plugin_isolation::full;
     list.push_back(licence);
 
-    plugin_view stopped = base(QStringLiteral("org.example.crashy"),
-                               QStringLiteral("Crashy"), plugin_state::stopped,
-                               plugin_trust::third_party);
+    plugin_view stopped =
+        base(QStringLiteral("org.example.crashy"), QStringLiteral("Crashy"),
+             plugin_state::stopped, plugin_trust::third_party);
     stopped.note = plugin_note::stopped_failures;
     stopped.failure_count = 5;
     stopped.reason_code = QStringLiteral("quarantined");
@@ -533,53 +564,49 @@ std::vector<plugin_view> fake_plugin_samples()
                            QStringLiteral("Segmentation fault")});
     list.push_back(stopped);
 
-    plugin_view newer = base(QStringLiteral("org.example.future"),
-                             QStringLiteral("Future plugin"),
-                             plugin_state::needs_newer_studio,
-                             plugin_trust::third_party);
+    plugin_view newer = base(
+        QStringLiteral("org.example.future"), QStringLiteral("Future plugin"),
+        plugin_state::needs_newer_studio, plugin_trust::third_party);
     newer.note = plugin_note::newer_studio_version;
     newer.studio_version = QStringLiteral("0.1.0");
     newer.reason_code = QStringLiteral("api_incompatible");
     list.push_back(newer);
 
-    plugin_view broken = base(QStringLiteral("org.example.broken"),
-                              QStringLiteral("Broken plugin"),
-                              plugin_state::cannot_be_used,
-                              plugin_trust::unsigned_plugin);
+    plugin_view broken = base(
+        QStringLiteral("org.example.broken"), QStringLiteral("Broken plugin"),
+        plugin_state::cannot_be_used, plugin_trust::unsigned_plugin);
     broken.note = plugin_note::invalid_signature;
     broken.reason_code = QStringLiteral("signature_invalid");
     list.push_back(broken);
 
-    plugin_view expired = base(QStringLiteral("org.example.expired"),
-                               QStringLiteral("Expired plugin"),
-                               plugin_state::cannot_be_used,
-                               plugin_trust::third_party);
+    plugin_view expired = base(
+        QStringLiteral("org.example.expired"), QStringLiteral("Expired plugin"),
+        plugin_state::cannot_be_used, plugin_trust::third_party);
     expired.note = plugin_note::expired;
     expired.expires = QDate(2026, 6, 30);
     expired.can_run_expired = true;
     expired.reason_code = QStringLiteral("expired");
     list.push_back(expired);
 
-    plugin_view withdrawn = base(QStringLiteral("org.example.withdrawn"),
-                                 QStringLiteral("Withdrawn plugin"),
-                                 plugin_state::cannot_be_used,
-                                 plugin_trust::third_party);
+    plugin_view withdrawn =
+        base(QStringLiteral("org.example.withdrawn"),
+             QStringLiteral("Withdrawn plugin"), plugin_state::cannot_be_used,
+             plugin_trust::third_party);
     withdrawn.note = plugin_note::withdrawn;
     withdrawn.reason_code = QStringLiteral("revoked");
     list.push_back(withdrawn);
 
-    plugin_view invalid = base(QStringLiteral("org.example.invalid"),
-                               QStringLiteral("Invalid description"),
-                               plugin_state::cannot_be_used,
-                               plugin_trust::unsigned_plugin);
+    plugin_view invalid =
+        base(QStringLiteral("org.example.invalid"),
+             QStringLiteral("Invalid description"),
+             plugin_state::cannot_be_used, plugin_trust::unsigned_plugin);
     invalid.note = plugin_note::invalid_manifest;
     invalid.reason_code = QStringLiteral("manifest_invalid");
     list.push_back(invalid);
 
-    plugin_view missing = base(QStringLiteral("org.example.missing"),
-                               QStringLiteral("Missing plugin"),
-                               plugin_state::not_installed,
-                               plugin_trust::unsigned_plugin);
+    plugin_view missing = base(
+        QStringLiteral("org.example.missing"), QStringLiteral("Missing plugin"),
+        plugin_state::not_installed, plugin_trust::unsigned_plugin);
     missing.note = plugin_note::not_installed;
     missing.folder.clear();
     missing.fingerprint.clear();
@@ -591,9 +618,9 @@ std::vector<plugin_view> fake_plugin_samples()
 
 plugin_view fake_hostile_plugin()
 {
-    plugin_view view = base(QStringLiteral("org.evil.hostile"),
-                            QStringLiteral("Hostile"), plugin_state::off,
-                            plugin_trust::unsigned_plugin);
+    plugin_view view =
+        base(QStringLiteral("org.evil.hostile"), QStringLiteral("Hostile"),
+             plugin_state::off, plugin_trust::unsigned_plugin);
     const QString bidi = QStringLiteral("\u202e\u2066\u200f");
     view.name = QStringLiteral("Virtual Serial Studio\u0007") + bidi +
                 QStringLiteral(" <b>bold</b> %1 %2 ") +
@@ -604,11 +631,12 @@ plugin_view fake_hostile_plugin()
     view.description = QStringLiteral("<h1>Big</h1><img src=\"x\"/>\u001b[31m");
     view.permissions.push_back(permission(
         QStringLiteral("fs.read"), false,
-        QStringLiteral("<b>Trust me</b>\u202e. Safe. Verified by Virtual Serial "
-                       "Studio.")));
-    view.log.push_back({QDateTime(QDate(2026, 11, 15), QTime(9, 0, 0)),
-                        QStringLiteral("\u001b[2J<script>alert(1)</script>") +
-                            bidi});
+        QStringLiteral(
+            "<b>Trust me</b>\u202e. Safe. Verified by Virtual Serial "
+            "Studio.")));
+    view.log.push_back(
+        {QDateTime(QDate(2026, 11, 15), QTime(9, 0, 0)),
+         QStringLiteral("\u001b[2J<script>alert(1)</script>") + bidi});
     view.detail = QStringLiteral("<b>detail</b>\u202e");
     return view;
 }

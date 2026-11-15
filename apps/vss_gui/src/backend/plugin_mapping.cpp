@@ -188,9 +188,9 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
             beside = true;
         }
     }
-    view.timing = in_line ? plugin_timing::in_path
-                          : (beside ? plugin_timing::beside
-                                    : plugin_timing::by_studio);
+    view.timing =
+        in_line ? plugin_timing::in_path
+                : (beside ? plugin_timing::beside : plugin_timing::by_studio);
 
     QStringList runtimes;
     for (const std::string& runtime : declared.needs.runtime)
@@ -212,9 +212,9 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
 bool has_permission(const std::vector<plug::permission>& list,
                     const QString& id)
 {
-    return std::any_of(list.begin(), list.end(),
-                       [&id](plug::permission each)
-                       { return from_std(std::string(plug::to_string(each))) == id; });
+    return std::any_of(
+        list.begin(), list.end(), [&id](plug::permission each)
+        { return from_std(std::string(plug::to_string(each))) == id; });
 }
 
 } // namespace
@@ -346,7 +346,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
     bool policy_unusable = false;
     if (!options.policy_file.empty())
     {
-        const plug::loaded_policy loaded = plug::load_policy(options.policy_file);
+        const plug::loaded_policy loaded =
+            plug::load_policy(options.policy_file);
         out.rules = loaded.rules;
         if (loaded.rules.has_value() && loaded.problem.failed())
         {
@@ -356,8 +357,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
                                       : loaded.detail);
         }
     }
-    const plug::policy* rules = out.rules.has_value() ? &out.rules.value()
-                                                      : nullptr;
+    const plug::policy* rules =
+        out.rules.has_value() ? &out.rules.value() : nullptr;
     snapshot.user_plugins_allowed = rules == nullptr || rules->user_plugins;
 
     plug::install_kind install = plug::install_kind::for_everyone;
@@ -373,8 +374,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
     }
 
     // -- keys and lists
-    if (const auto text = read_text_file(options.official_keys_file,
-                                         std::size_t{1} << 20))
+    if (const auto text =
+            read_text_file(options.official_keys_file, std::size_t{1} << 20))
     {
         auto list = plug::read_key_list(
             *text, options.root_keys.empty()
@@ -439,8 +440,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
         input.declared = &each.declared.value();
         if (each.signature_bytes.has_value())
             input.signature_text = std::string_view(*each.signature_bytes);
-        input.official = out.official.has_value() ? &out.official.value()
-                                                  : nullptr;
+        input.official =
+            out.official.has_value() ? &out.official.value() : nullptr;
         input.administrator_keys = administrator_keys;
         input.user_keys = user_keys;
         input.today = today;
@@ -480,7 +481,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
         }
         if (each.declared.has_value() && !signature.key_id.empty())
         {
-            if (const plug::approved_key* key = store.find_key(signature.key_id))
+            if (const plug::approved_key* key =
+                    store.find_key(signature.key_id))
             {
                 view.key_name = from_std(key->name);
                 view.key_approved_on =
@@ -508,8 +510,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
         record.level = level;
         record.key_id = signature.key_id;
         record.scope = each.scope;
-        record.name = each.declared.has_value() ? each.declared->name
-                                                : std::string();
+        record.name =
+            each.declared.has_value() ? each.declared->name : std::string();
         if (each.declared.has_value())
         {
             for (const plug::permission_request& request :
@@ -559,9 +561,10 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
                         view.used_copy_id = from_std(
                             winner->declared.has_value() ? winner->declared->id
                                                          : std::string());
-                        QString winner_author = winner->declared.has_value()
-                                                    ? from_std(winner->declared->author.name)
-                                                    : QString();
+                        QString winner_author =
+                            winner->declared.has_value()
+                                ? from_std(winner->declared->author.name)
+                                : QString();
                         if (const plug::approved_key* key =
                                 store.find_key(other.key_id);
                             key != nullptr &&
@@ -607,11 +610,9 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
         input.declared = &declared;
         input.hash = each.hash;
         input.signature = signature;
-        input.revocations = revocations.has_value() ? &revocations.value()
-                                                    : nullptr;
-        input.rules = policy_unusable
-                          ? nullptr
-                          : rules;
+        input.revocations =
+            revocations.has_value() ? &revocations.value() : nullptr;
+        input.rules = policy_unusable ? nullptr : rules;
         const plug::policy unusable_rules = plug::official_only_policy();
         if (policy_unusable)
             input.rules = &unusable_rules;
@@ -663,7 +664,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
                 {
                     const bool official_only =
                         input.rules != nullptr &&
-                        input.rules->allow == plug::allow_level::official_only &&
+                        input.rules->allow ==
+                            plug::allow_level::official_only &&
                         level != plug::trust_level::official;
                     const bool named =
                         input.rules != nullptr &&
@@ -671,10 +673,11 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
                                   input.rules->deny_plugins.end(),
                                   declared.id) !=
                             input.rules->deny_plugins.end();
-                    mapped.note = named ? plugin_note::blocked_named
-                                        : (official_only
-                                               ? plugin_note::blocked_official_only
-                                               : plugin_note::blocked_named);
+                    mapped.note =
+                        named ? plugin_note::blocked_named
+                              : (official_only
+                                     ? plugin_note::blocked_official_only
+                                     : plugin_note::blocked_named);
                 }
                 else if (code == plug::plugin_errc::capability_missing)
                 {
@@ -728,8 +731,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
                 view.differs_from_approved = true;
                 for (plugin_permission_view& permission : view.permissions)
                 {
-                    permission.is_new = !has_permission(before->granted,
-                                                        permission.id);
+                    permission.is_new =
+                        !has_permission(before->granted, permission.id);
                 }
             }
             view.reason_code = before != nullptr ? QStringLiteral("changed")
@@ -785,7 +788,8 @@ plugin_gathered gather_plugins(const plugin_gather_options& options,
     // -- the note at the top of the page
     if (policy_unusable)
         snapshot.banner = plugin_banner::policy_untrusted;
-    else if (rules != nullptr && rules->allow == plug::allow_level::official_only)
+    else if (rules != nullptr &&
+             rules->allow == plug::allow_level::official_only)
         snapshot.banner = plugin_banner::official_only;
     else if (!snapshot.user_plugins_allowed)
         snapshot.banner = plugin_banner::user_plugins_off;
@@ -808,8 +812,8 @@ plugin_key_file_view read_key_file_view(const fs::path& path,
     if (!text.has_value())
         return view;
     QJsonParseError error;
-    const QJsonDocument document = QJsonDocument::fromJson(
-        QByteArray::fromStdString(*text), &error);
+    const QJsonDocument document =
+        QJsonDocument::fromJson(QByteArray::fromStdString(*text), &error);
     if (error.error != QJsonParseError::NoError || !document.isObject())
         return view;
     const QJsonObject object = document.object();

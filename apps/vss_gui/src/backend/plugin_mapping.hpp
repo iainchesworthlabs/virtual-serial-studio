@@ -125,9 +125,10 @@ plugin_reason_state state_for_reason(vss::plugin::plugin_errc code,
                                      bool override_possible);
 
 /// The public key file's fields, read and checked. `failure` says why not.
-plugin_key_file_view read_key_file_view(
-    const std::filesystem::path& path, const plugin_gathered& found,
-    const vss::plugin::trust_store& store, vss::plugin::approved_key* key_out);
+plugin_key_file_view read_key_file_view(const std::filesystem::path& path,
+                                        const plugin_gathered& found,
+                                        const vss::plugin::trust_store& store,
+                                        vss::plugin::approved_key* key_out);
 
 /// The hash text of a plugin, 128 hex characters.
 QString hash_text(const vss::plugin::plugin_hash& hash);

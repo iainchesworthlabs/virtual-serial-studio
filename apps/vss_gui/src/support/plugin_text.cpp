@@ -263,10 +263,11 @@ QString permission_sentence(const plugin_permission_view& permission)
             "Cause line errors and disconnections, and set timed replies.");
     if (id == QLatin1String("serial.devices"))
         return QCoreApplication::translate(
-            "PluginsDialog", "See the list of serial devices on this computer.");
+            "PluginsDialog",
+            "See the list of serial devices on this computer.");
     if (id == QLatin1String("fs.read"))
-        return QCoreApplication::translate("PluginsDialog",
-                                           "Read files in a folder you choose.");
+        return QCoreApplication::translate(
+            "PluginsDialog", "Read files in a folder you choose.");
     if (id == QLatin1String("fs.write"))
         return QCoreApplication::translate(
             "PluginsDialog", "Write files in a folder you choose.");
@@ -350,8 +351,8 @@ QString isolation_text(const plugin_view& plugin)
 {
     if (plugin.override_active)
     {
-        return QCoreApplication::translate(
-                   "PluginsDialog", "None. You allowed this on %1.")
+        return QCoreApplication::translate("PluginsDialog",
+                                           "None. You allowed this on %1.")
             .arg(date_text(plugin.override_on));
     }
     switch (plugin.isolation)
@@ -416,8 +417,7 @@ QString installed_for_text(plugin_installed_for installed)
     case plugin_installed_for::you_only:
         return QCoreApplication::translate("PluginsDialog", "You only");
     case plugin_installed_for::with_studio:
-        return QCoreApplication::translate("PluginsDialog",
-                                           "Came with Studio");
+        return QCoreApplication::translate("PluginsDialog", "Came with Studio");
     }
     return {};
 }
@@ -561,9 +561,9 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "not official."));
         break;
     case plugin_note::blocked_named:
-        set(kind::info,
-            QCoreApplication::translate(
-                "PluginsDialog", "Your administrator has blocked this plugin."));
+        set(kind::info, QCoreApplication::translate(
+                            "PluginsDialog",
+                            "Your administrator has blocked this plugin."));
         break;
     case plugin_note::blocked_protection:
         set(kind::info,
@@ -619,9 +619,9 @@ plugin_note_text note_for(const plugin_view& plugin)
                 "PluginsDialog",
                 "Another plugin with the same identifier is installed, %1. "
                 "This one, %2, is not used. They are not the same plugin.")
-                .arg(trust_line(plugin.used_copy_trust,
-                                plugin.used_copy_author),
-                     trust_line(plugin)),
+                .arg(
+                    trust_line(plugin.used_copy_trust, plugin.used_copy_author),
+                    trust_line(plugin)),
             {plugin_action::show_used_copy, plugin_action::copy_details});
         break;
     case plugin_note::not_used_reserved:
@@ -785,11 +785,11 @@ QString dialog_sub()
 QString header_chip_text(int on, int attention)
 {
     if (attention == 1)
-        return QCoreApplication::translate("PluginsDialog", "1 needs attention");
-    if (attention > 1)
         return QCoreApplication::translate("PluginsDialog",
-                                           "%n need attention", nullptr,
-                                           attention);
+                                           "1 needs attention");
+    if (attention > 1)
+        return QCoreApplication::translate("PluginsDialog", "%n need attention",
+                                           nullptr, attention);
     return QCoreApplication::translate("PluginsDialog", "%n on", nullptr, on);
 }
 
