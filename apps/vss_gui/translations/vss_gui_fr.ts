@@ -3303,6 +3303,11 @@ Réseaux : %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>Impossible de modifier la configuration. Studio a signalé : %1. La configuration précédente n'a pas pu être rétablie.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio n'a pas pu lire quels numéros COM Windows conserve ; il en choisit donc un libre à la création du port et l'affiche quand le port est prêt.</translation>
         </message>
@@ -18084,6 +18089,11 @@ Réseaux : %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>Impossible de modifier la configuration. Studio a signalé : %1. L'état précédent a été rétabli là où Studio le pouvait.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>Impossible de modifier la configuration. Studio a signalé : %1. La configuration précédente n'a pas pu être rétablie.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

@@ -3307,6 +3307,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. تعذرت إعادة الإعداد السابق.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
         </message>
@@ -18132,6 +18137,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. أعاد Studio ما كان موجودًا من قبل قدر ما استطاع.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. تعذرت إعادة الإعداد السابق.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

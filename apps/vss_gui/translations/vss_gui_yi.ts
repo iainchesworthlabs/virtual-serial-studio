@@ -3303,6 +3303,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. Studio האָט געמאָלדן: %1. די פֿריִערדיקע אײַנשטעלונג האָט נישט געקענט צוריקגעשטעלט ווערן.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio האָט נישט געקענט לייענען וועלכע COM־נומערן Windows האַלט, דעריבער קלײַבט עס אויס אַ פֿרײַען ווען דער פּאָרט ווערט באַשאַפֿן און ווײַזט אים ווען דער פּאָרט איז גרייט.</translation>
         </message>
@@ -18084,6 +18089,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. Studio האָט געמאָלדן: %1. וואָס איז פֿריִער געווען איז צוריקגעשטעלט געוואָרן וווּ Studio האָט געקענט.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>ס׳האָט נישט געקענט ענדערן די אײַנשטעלונג. Studio האָט געמאָלדן: %1. די פֿריִערדיקע אײַנשטעלונג האָט נישט געקענט צוריקגעשטעלט ווערן.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
