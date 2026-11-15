@@ -590,9 +590,9 @@ TEST_CASE("plugin start plan: the profile follows what was granted")
     struct profile_case
     {
         std::vector<permission> asked;
-        bool listen;
-        bool outbound;
-        bool spawn;
+        bool listen = false;
+        bool outbound = false;
+        bool spawn = false;
     };
     const std::vector<profile_case> cases{
         {{}, false, false, false},
@@ -662,9 +662,9 @@ TEST_CASE("plugin start plan: the least level is the minimum or none")
 {
     struct level_case
     {
-        bool below_min_sandbox;
-        sandbox_level minimum;
-        sandbox_level expected;
+        bool below_min_sandbox = false;
+        sandbox_level minimum = sandbox_level::none;
+        sandbox_level expected = sandbox_level::none;
     };
     const std::vector<level_case> cases{
         {true, sandbox_level::partial, sandbox_level::none},
