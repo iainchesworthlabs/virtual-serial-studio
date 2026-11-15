@@ -55,7 +55,8 @@ and Enterprise add plugins (connectivity, automation, monitoring), the Microsoft
 | Studio and command line tool | Yes | Yes | Yes |
 | Windows driver | Test-signed by Iain Chesworth Labs, built from source | Signed through Microsoft | Signed through Microsoft |
 | Official plugins, signed by the owner | No | Yes | Yes |
-| Test harness, scripting and remote monitoring plugins | No | Yes | Yes |
+| The control endpoint on the same computer (`vss_gate`) and its Python client | Yes | Yes | Yes |
+| Test harness plugins, and remote control and monitoring from another computer | No | Yes | Yes |
 | Third-party plugins | Yes, with a warning | Yes, with a warning | Yes, with a warning |
 | Administrator policy that allows official plugins only | Yes | Yes | Yes |
 | Support | Community | Support included | Support agreement |
@@ -177,14 +178,16 @@ All of this is in the first version.
 | Bindings for other languages | C and C++ (a stable C ABI), C# and .NET, Java, Node.js; the C ABI is what the others wrap, so a lab can bind its own language |
 | Robot Framework library | The same, as keywords for Robot Framework, an open-source, keyword-driven test automation framework (Python-based) that many hardware and QA labs use to write tests as readable tables |
 | TestStand and LabVIEW wrappers | For lab test rigs |
-| Remote control endpoint | Run Studio from a CI machine or a rig controller; off until the user enables it |
+| Remote control and monitoring | One computer of a seat controls or watches a running Studio on the other, such as a CI machine or a rig controller |
 | Reports | JUnit XML and a plain log of a run, for CI systems |
 
-The control endpoint is local only by default (see "Access to the control
-endpoint" below). The adapters check the licence file. The Python client in
-`adapters/python` is not one of them: the owner has decided that it is in the
-Community edition, so it checks no licence. It is in the source tree and is
-not in the installers or packages. The plugin API stays
+The adapters check the licence file. Two things that this table once held are
+not among them: the owner has decided that the control endpoint on the same
+computer (`vss_gate`) and the Python client in `adapters/python` are in the
+Community edition, so they check no licence. Both are in the source tree and
+are not in the installers or packages. The endpoint is local only by default
+(see "Access to the control endpoint" below). Which edition the reports of a
+run belong to is not decided. The plugin API stays
 public, documented and free, so third parties can write their own plugins; Pro
 is the maintained, supported, compatibility-tested set built on it, and that
 set is private. The agent's internal protocol is private too and may change
@@ -192,7 +195,9 @@ between versions.
 
 ### Access to the control endpoint
 
-Security is designed in, and each step needs more setup than the last:
+The endpoint on the same computer is in the Community edition. Reaching it
+from another computer is Pro. Security is designed in, and each step needs
+more setup than the last:
 
 1. **Local only (default).** A local socket or loopback, reachable only by
    programs on the same computer and account.
