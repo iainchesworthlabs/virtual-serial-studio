@@ -215,7 +215,7 @@ TEST_CASE("plugin secret: a good request shows the secret, cleaned, and is "
     rig fixture(true, "  Test\a   plugin ");
     const api_message request =
         decoded(header_with(R"("label":"  Pairing\u0007   code ",)"
-                            R"("text":" 12 34  56 \u00e9 ","expires_s":300)"));
+                            R"("text":" 12 34  56 ~ ","expires_s":300)"));
     REQUIRE(fixture.offer(request));
 
     REQUIRE_EQ(fixture.shown.size(), std::size_t{1});
@@ -223,7 +223,7 @@ TEST_CASE("plugin secret: a good request shows the secret, cleaned, and is "
     REQUIRE_EQ(secret.plugin_id, std::string("com.example.secret"));
     REQUIRE_EQ(secret.plugin_name, std::string("Test plugin"));
     REQUIRE_EQ(secret.label, std::string("Pairing code"));
-    REQUIRE_EQ(secret.text, std::string(" 12 34  56 \xc3\xa9 "));
+    REQUIRE_EQ(secret.text, std::string(" 12 34  56 ~ "));
     REQUIRE(secret.expires == 300s);
 
     // Nothing is answered while the user has not seen it.
@@ -389,6 +389,16 @@ std::vector<bad_case> bad_requests()
         R"("label":"Code","text":"12\t34","expires_s":300)");
     add("a text with a delete character",
         R"("label":"Code","text":"12\u007f34","expires_s":300)");
+    // Only the printable characters of ASCII are shown the same by every
+    // program, so nothing else is taken as a secret.
+    add("a text with a letter outside ASCII",
+        R"("label":"Code","text":"12\u00e934","expires_s":300)");
+    add("a text with a character that turns the text round",
+        R"("label":"Code","text":"12\u202e34","expires_s":300)");
+    add("a text with a line separator",
+        R"("label":"Code","text":"12\u202834","expires_s":300)");
+    add("a text with a character that cannot be seen",
+        R"("label":"Code","text":"12\u200b34","expires_s":300)");
     add("a label of control characters only",
         R"("label":"\u0001\u0002\u0003","text":"1234","expires_s":300)");
     add("a label of spaces only",
