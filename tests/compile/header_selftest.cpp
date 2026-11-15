@@ -46,6 +46,7 @@
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
+#include <vss/plugin/host/generator_feed.hpp>
 #include <vss/plugin/host/process.hpp>
 #include <vss/plugin/licence.hpp>
 #include <vss/plugin/lifecycle.hpp>

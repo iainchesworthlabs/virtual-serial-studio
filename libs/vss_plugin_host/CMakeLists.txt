@@ -8,6 +8,7 @@
 #
 
 add_library(vss_plugin_host
+  src/generator_feed.cpp
   src/process.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
