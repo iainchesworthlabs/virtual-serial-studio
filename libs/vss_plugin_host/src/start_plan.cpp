@@ -114,11 +114,14 @@ result<start_plan> plan_start(const inspection& found,
     // 5. Permissions: what is granted, and whether that is enough.
     for (const permission_request& asked : declared.permissions)
     {
+        // Its own data directory is always the plugin's, whatever a
+        // policy or a decision says.
+        const bool own_data = asked.name == permission::data_private;
         const bool denied = holds(verified.denied_permissions, asked.name);
         const bool given =
-            !denied &&
-            (official || asked.name == permission::data_private ||
-             (decision != nullptr && holds(decision->granted, asked.name)));
+            own_data ||
+            (!denied && (official || (decision != nullptr &&
+                                      holds(decision->granted, asked.name))));
         if (given)
         {
             if (!holds(plan.granted, asked.name))
@@ -132,9 +135,10 @@ result<start_plan> plan_start(const inspection& found,
             say(detail, text);
             return make_error_code(plugin_errc::permission_denied);
         }
-        plan.withheld.push_back(asked.name);
+        if (!holds(plan.withheld, asked.name))
+            plan.withheld.push_back(asked.name);
     }
-    // Its own data directory is always the plugin's.
+    // Also when the manifest does not ask for it.
     if (!holds(plan.granted, permission::data_private))
         plan.granted.push_back(permission::data_private);
 
