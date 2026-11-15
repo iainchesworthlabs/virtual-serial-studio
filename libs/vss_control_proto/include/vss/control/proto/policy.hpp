@@ -210,7 +210,9 @@ enum class operation
     links_list,
     links_get,
     ping,
-    session_close
+    session_close,
+    links_disconnect,
+    ports_rename
 };
 
 struct operation_info

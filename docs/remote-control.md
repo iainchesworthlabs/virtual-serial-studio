@@ -11,8 +11,8 @@ are built from source, so an installed `vss_cli` has the `control` and `agent` c
 owner has decided that `vss_agent` and `vss_gate` will be in the installers and packages.
 
 - **Built:** the local endpoint (L1) and loopback TCP (L2); tokens, scopes and ceilings; the audit log; the
-  read-only monitor (`events.subscribe`, `traffic.subscribe`); `ports.create`, `ports.remove`, `links.connect`,
-  `ports.send`, `expect.bytes`, runs and the JUnit report; and the Python client.
+  read-only monitor (`events.subscribe`, `traffic.subscribe`); `ports.create`, `ports.remove`, `ports.rename`,
+  `links.connect`, `links.disconnect`, `ports.send`, `expect.bytes`, runs and the JUnit report; and the Python client.
 - **Not built:** TLS and the remote case (L3), so one computer cannot yet control another; the OAuth 2.0 and OpenID
   Connect interface; recording; triggers; the C ABI and the other language bindings; Studio's side (the status chip and
   the sessions list); `idempotency_key`; and every operation and scope that the table in [section
@@ -627,7 +627,7 @@ validates the resulting access token. No sign-in page exists in Studio and none 
 ### Operations and scopes
 
 The table is the design. The "Built" column says what the code has: the table in `libs/vss_control_proto/src/policy.cpp`
-has 27 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
+has 29 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
 design's, except where the Notes say the code asks for another.
 
 | Operation | Scope | Built | Notes |
@@ -641,7 +641,8 @@ design's, except where the Notes say the code asks for another.
 | `traffic.subscribe`, `traffic.unsubscribe` | `monitor.data` | Yes | The bytes. A subscription may name the ports it wants. The port filter of a token is not built: a `monitor.data` token reads every port |
 | `traffic.history` | `monitor.data` | Not built | It needs pages of the hub's ring from the agent |
 | `ports.create`, `ports.remove`, `links.connect` | `control.ports` | Yes | "Own ports only, if set" is not built: a caller may change any port of the agent. The only kind of port is the in-process loopback |
-| `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set` | `control.ports` | Not built | The agent has no request for them |
+| `ports.rename`, `links.disconnect` | `control.ports` | Yes | The new name is in the audit record, as the name of a new port is. The engine refuses a name another port has (`engine.already_exists`) and an empty name (`engine.invalid_argument`). Taking a link away leaves both ports |
+| `ports.settings`, `lines.set` | `control.ports` | Not built | The agent has no request for them |
 | `ports.send` | `control.data` | Yes | Bytes in the blob; 64 KiB at most |
 | `scripts.set`, `scripts.clear` | `control.data` | Not built | |
 | `faults.inject`, `timing.set` | `control.faults` | Not built | Nothing of the response timing rules is reachable through the gateway, the CLI or the Python client yet: the engine is a library with no entry point today. The owner has decided that the next release candidate gives rule sets a way in through the setup file; operations on rules through the gateway are not planned for it ([response timing](response-timing.md)) |
@@ -994,8 +995,8 @@ API yet. The same holds for the Python client, which makes the same requests.
 | Every change is recorded, and the bytes are not | One record for each of the four operations, with who, which port, and the outcome, also when it was refused by the engine or was no request at all; the bytes of a send are searched for in everything the gateway keeps and are not there, only their number | |
 | Without an agent nothing is half done | A change says `unavailable` and the session stays; when the agent is back the same session makes a port | |
 
-Not built here, and why: `links.disconnect`, `ports.rename`, `ports.settings` and `lines.set` have no request in
-the agent yet; `idempotency_key` waits for the first operation whose repeat would do harm (a second `ports.create`
+Not built here, and why: `ports.settings` and `lines.set` have no request in the agent yet (`links.disconnect` and
+`ports.rename` are built, below); `idempotency_key` waits for the first operation whose repeat would do harm (a second `ports.create`
 makes a second port, which a caller can see and remove).
 
 ### What `expect.bytes` built
@@ -1081,6 +1082,33 @@ the Python client, make the requests; the Python client's `close()` now sends `s
 | A session that asks to close is closed after its answer, and only it | The reply is read, then the connection is closed: the next request fails and the session is gone from `sessions.list` while the others are not. Requests in the same write after `session.close` are not read. The audit log has `session.closed` with the reason `closed_by_client` and no record of an operation | A client that never reads the answer is closed by the time limit that closes one that never reads an error (`handshake_timeout`); that is the same code, and it is not run again for `session.close` |
 | The Python client leaves no session behind | `close()` sends `session.close`, ignores any error from it and closes its end; a gateway that does not answer costs one call's time limit, not more. The gateway's count of sessions drops after it | |
 
+### What disconnect and rename built
+
+`links.disconnect` and `ports.rename` under `control.ports`. The agent has two new requests, `disconnect` and
+`rename_port`, which call `studio::disconnect` and `studio::rename_port`; nothing that was in the agent's protocol
+changed. `vss_cli control unlink <id>` and `vss_cli control port rename <id> <name>`, and `disconnect_link` and
+`rename_port` in the C++ client and the Python client, make the requests. Like `port remove`, the two commands print
+nothing when they work.
+
+```
+{"id": 9, "op": "links.disconnect", "link": "l_2"}
+{"id": 9, "reply": "done"}
+{"id": 10, "op": "ports.rename", "port": "p_3", "name": "bench"}
+{"id": 10, "reply": "done"}
+```
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| A link that is disconnected stops carrying bytes, and the ports stay | A pattern sent to one end of a link is found at the other; after `links.disconnect` the list has no link and both ports, the revision is higher, `links.get` says `not_found`, and the same send is not found at the other end within 300 ms but is found at the end it was sent to. The two ports can be linked again | |
+| A port that is renamed has its new name everywhere the list is read | `ports.list`, `ports.get` and another session's `ports.get` give the new name and the revision is higher. A name another port has is `engine.already_exists`, an empty name is `engine.invalid_argument` and a port that is not there is `engine.not_found`; a name of 1024 bytes is taken. The port keeps its id, so a link to it goes on carrying bytes | A rename of a port that is advertised by a link (a pseudo terminal) moves the link; the agent makes no such port, so no test reaches it |
+| The agent refuses both on a connection that only looks | A read-only connection to the agent is refused `permission_denied` for `disconnect` and `rename_port`, whether or not the id is one, and the list does not change. The agent counts the refusals as it counts the others | |
+| Both need `control.ports` and nothing else | A monitor, with or without `monitor.data`, and a session with `monitor.data` and `control.data` are refused `forbidden` for both, whether or not the id is one, and the agent is never asked. A session with `monitor` and `control.ports` may do both | |
+| An id that is not one is not passed on | `COM3`, `p_`, a name, nothing, a number with a leading zero or a sign, a trailing space, and a port's id given as a link's (and the other way round) are `invalid_argument`. A well-formed id that nothing has is the engine's `engine.not_found`, as for `ports.remove`; so is a link that was already disconnected | |
+| Every use is in the audit log, without bytes and without a token | One record for each use with who, the operation, the id and the outcome (`ok`, `engine.not_found`, `engine.invalid_argument`, `invalid_argument`); `ports.rename` also has the new name, as `ports.create` has. An id that was not one is not written down as it came. Bytes that were sent and the token that was used are searched for in everything the gateway keeps and are not there | |
+| Without an agent nothing is half done | Both say `unavailable` and are in the audit log with that outcome; when the agent is back the same session renames a port | |
+| The command line and the Python client make the same requests | `vss_cli control unlink` and `port rename` against a real `vss_agent` and `vss_gate`: the link goes and bytes stop, the name changes in `vss_cli agent ports` and `port show`, a name in use and a port that is not there fail with the engine's name, and a monitor is refused. `link <id> <id>`, `link show`, `port create`, `port remove` and `port show` work as before. Bad command lines get the usage text. `disconnect_link` and `rename_port` send the two requests and raise the errors the gateway sends | |
+| What the agent's list says changes with them | The agent's revision goes up for each, and a stream of another session is sent a batch with the new revision | The engine publishes no event for a rename or for a link taken away, so the stream says only that the list changed; a program that wants to know which port or link has to read the list again. The `hello` reply has no feature for the two, so a program learns that a gateway lacks them from `unsupported` |
+
 ### What is not built
 
 Everything in the table of section 9 that is marked "Not built", gathered here in one place:
@@ -1088,7 +1116,7 @@ Everything in the table of section 9 that is marked "Not built", gathered here i
 - Reading: `lines.get`, `traffic.history`, and the endpoint state and the
   counters in `status`. `status` has the edition and the state of the licence, but `vss_gate` does not read a licence
   yet, so it always reports `community` and `none`.
-- Changing ports: `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set`, `scripts.set`, `scripts.clear`,
+- Changing ports: `ports.settings`, `lines.set`, `scripts.set`, `scripts.clear`,
   `topology.apply`, `topology.snapshot`, and "own ports only" for a scoped token.
 - Faults and timing: `faults.inject` and `timing.set`. The response timing rules engine is built as a library only,
   with no way in yet from the gateway, the CLI or the Python client, so a harness cannot install, replace or remove a

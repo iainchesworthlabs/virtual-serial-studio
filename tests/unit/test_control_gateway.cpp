@@ -883,7 +883,7 @@ TEST_CASE("control gateway: an operation this gateway does not have costs an "
     fixture env;
     raw_client raw(env.instance.name());
     say_hello(raw);
-    REQUIRE(raw.send(wire_of_header(R"({"id":5,"op":"ports.rename"})")));
+    REQUIRE(raw.send(wire_of_header(R"({"id":5,"op":"ports.settings"})")));
     const control::reply answer = read_reply(raw);
     REQUIRE_EQ(answer.id, std::uint64_t{5});
     REQUIRE_EQ(error_of(answer).code, std::string("unsupported"));
@@ -3336,6 +3336,350 @@ struct made_pair
 };
 
 } // namespace
+
+// -- taking a link away and renaming a port -----------------------------------
+
+TEST_CASE("control gateway: a link that is disconnected stops carrying bytes, "
+          "and the ports stay")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "driver");
+    auto watcher = env.connect(false, "watcher");
+    const made_pair pair(*driver);
+
+    const auto before = driver->list_ports();
+    REQUIRE(before);
+    REQUIRE_EQ(before->links.size(), std::size_t{1});
+    const std::string link = before->links.front().id;
+
+    // The link carries bytes from left to right.
+    control::expect_bytes_request first = expecting(pair.right, "one");
+    first.send_port = pair.left;
+    first.send = vss::to_bytes("one");
+    REQUIRE(driver->expect_bytes(first));
+
+    // A session that watches the ports is told that they changed.
+    const auto started = watcher->subscribe_events(every(10));
+    REQUIRE(started);
+
+    REQUIRE(driver->disconnect_link(link));
+    const auto after = driver->list_ports();
+    REQUIRE(after);
+    REQUIRE(after->links.empty());
+    REQUIRE_EQ(after->ports.size(), std::size_t{2});
+    REQUIRE(after->revision > before->revision);
+    const auto none = driver->list_links();
+    REQUIRE(none);
+    REQUIRE(none->empty());
+    const auto gone = driver->get_link(link);
+    REQUIRE(!gone);
+    REQUIRE_EQ(gone.error(), code(control::api_errc::not_found));
+    // The engine publishes no event of its own for a link taken away; the
+    // stream says that the list changed by its revision.
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         { return batch.revision >= after->revision; }));
+
+    // What is sent to left now stays at left.
+    control::expect_bytes_request second = expecting(pair.right, "two", 300);
+    second.send_port = pair.left;
+    second.send = vss::to_bytes("two");
+    const auto missed = driver->expect_bytes(second);
+    REQUIRE(!missed);
+    REQUIRE_EQ(missed.error(), code(control::api_errc::timeout));
+    control::expect_bytes_request kept = expecting(pair.left, "two");
+    kept.send_port = pair.left;
+    kept.send = vss::to_bytes("two");
+    REQUIRE(driver->expect_bytes(kept));
+
+    // The same id again is not found, as one that nothing ever had; both are
+    // the engine's answer, as for `ports.remove`.
+    const auto again = driver->disconnect_link(link);
+    REQUIRE(!again);
+    REQUIRE_EQ(again.error(), engine(vss::errc::not_found));
+    const auto nowhere = driver->disconnect_link("l_999999");
+    REQUIRE(!nowhere);
+    REQUIRE_EQ(nowhere.error(), engine(vss::errc::not_found));
+    // The message is the gateway's: nothing of the engine's wording crosses.
+    REQUIRE_EQ(driver->last_error_message(),
+               std::string("the engine refused the request"));
+
+    // The ports can be linked again, and the link carries bytes again.
+    const auto relinked = driver->connect_ports(pair.left, pair.right, true);
+    REQUIRE(relinked);
+    REQUIRE(*relinked != link);
+    control::expect_bytes_request third = expecting(pair.right, "three");
+    third.send_port = pair.left;
+    third.send = vss::to_bytes("three");
+    REQUIRE(driver->expect_bytes(third));
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{2});
+}
+
+TEST_CASE("control gateway: a port that is renamed has its new name in the "
+          "list")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "driver");
+    auto watcher = env.connect(false, "watcher");
+    const auto left = driver->create_port("left");
+    const auto right = driver->create_port("right");
+    REQUIRE(left);
+    REQUIRE(right);
+
+    const auto before = driver->list_ports();
+    REQUIRE(before);
+    const auto started = watcher->subscribe_events(every(10));
+    REQUIRE(started);
+
+    REQUIRE(driver->rename_port(*left, "bench"));
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE(listed->revision > before->revision);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{2});
+    for (const control::port_entry& entry : listed->ports)
+    {
+        REQUIRE_EQ(entry.name, entry.id == *left ? std::string("bench")
+                                                 : std::string("right"));
+    }
+    const auto one = driver->get_port(*left);
+    REQUIRE(one);
+    REQUIRE_EQ(one->name, std::string("bench"));
+    // Another session reads the same name.
+    const auto other = watcher->get_port(*left);
+    REQUIRE(other);
+    REQUIRE_EQ(other->name, std::string("bench"));
+    // The engine publishes no event of its own for a rename; the stream says
+    // that the list changed by its revision.
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         { return batch.revision >= listed->revision; }));
+
+    // The name the port left is free, and one that is taken is refused.
+    REQUIRE(driver->rename_port(*right, "left"));
+    const auto taken = driver->rename_port(*left, "left");
+    REQUIRE(!taken);
+    REQUIRE_EQ(taken.error(), engine(vss::errc::already_exists));
+    const auto empty = driver->rename_port(*left, "");
+    REQUIRE(!empty);
+    REQUIRE_EQ(empty.error(), engine(vss::errc::invalid_argument));
+    const auto missing = driver->rename_port("p_999999", "x");
+    REQUIRE(!missing);
+    REQUIRE_EQ(missing.error(), engine(vss::errc::not_found));
+    REQUIRE_EQ(driver->last_error_message(),
+               std::string("the engine refused the request"));
+    // Its own name again is not an error.
+    REQUIRE(driver->rename_port(*left, "bench"));
+
+    // A name as long as a name may be.
+    const std::string longest(control::max_text_size, 'n');
+    REQUIRE(driver->rename_port(*left, longest));
+    const auto long_one = driver->get_port(*left);
+    REQUIRE(long_one);
+    REQUIRE_EQ(long_one->name, longest);
+
+    // Bytes still go where they went: the id did not change.
+    REQUIRE(driver->connect_ports(*left, *right, true));
+    control::expect_bytes_request wanted = expecting(*right, "ok");
+    wanted.send_port = *left;
+    wanted.send = vss::to_bytes("ok");
+    REQUIRE(driver->expect_bytes(wanted));
+    const auto last = driver->list_ports();
+    REQUIRE(last);
+    REQUIRE_EQ(last->ports.size(), std::size_t{2});
+}
+
+TEST_CASE("control gateway: a monitor can neither disconnect nor rename")
+{
+    {
+        fixture env;
+        const traffic_rig rig(env);
+        const std::string a = control::port_id_text(rig.a);
+        auto watcher = env.connect();
+        const auto before = watcher->list_ports();
+        REQUIRE(before);
+        REQUIRE_EQ(before->links.size(), std::size_t{2});
+
+        const auto unlinked = watcher->disconnect_link(before->links[0].id);
+        REQUIRE(!unlinked);
+        REQUIRE_EQ(unlinked.error(), code(control::api_errc::forbidden));
+        const auto renamed = watcher->rename_port(a, "mine");
+        REQUIRE(!renamed);
+        REQUIRE_EQ(renamed.error(), code(control::api_errc::forbidden));
+        // The refusal does not depend on whether the id is one.
+        const auto odd_link = watcher->disconnect_link("nonsense");
+        REQUIRE(!odd_link);
+        REQUIRE_EQ(odd_link.error(), code(control::api_errc::forbidden));
+        const auto odd_port = watcher->rename_port("nonsense", "mine");
+        REQUIRE(!odd_port);
+        REQUIRE_EQ(odd_port.error(), code(control::api_errc::forbidden));
+
+        const auto after = watcher->list_ports();
+        REQUIRE(after);
+        REQUIRE(*after == *before);
+        REQUIRE_EQ(env.gate.counters().forbidden, std::uint64_t{4});
+        // Refused by the gateway: the agent was never asked.
+        REQUIRE_EQ(env.backend->server.counters().read_only_refused,
+                   std::uint64_t{0});
+    }
+    {
+        // Sending bytes and looking are not the right to arrange ports.
+        fixture env(with_local_scopes({control::scope::monitor,
+                                       control::scope::monitor_data,
+                                       control::scope::control_data}));
+        const traffic_rig rig(env);
+        auto speaker = env.connect();
+        const auto listed = speaker->list_ports();
+        REQUIRE(listed);
+        REQUIRE_EQ(listed->links.size(), std::size_t{2});
+        const auto unlinked = speaker->disconnect_link(listed->links[0].id);
+        REQUIRE(!unlinked);
+        REQUIRE_EQ(unlinked.error(), code(control::api_errc::forbidden));
+        const auto renamed =
+            speaker->rename_port(control::port_id_text(rig.a), "x");
+        REQUIRE(!renamed);
+        REQUIRE_EQ(renamed.error(), code(control::api_errc::forbidden));
+    }
+    {
+        // Arranging ports is the right to do both.
+        fixture env(with_local_scopes(
+            {control::scope::monitor, control::scope::control_ports}));
+        const traffic_rig rig(env);
+        auto arranger = env.connect();
+        const auto listed = arranger->list_ports();
+        REQUIRE(listed);
+        REQUIRE_EQ(listed->links.size(), std::size_t{2});
+        REQUIRE(arranger->rename_port(control::port_id_text(rig.a), "x"));
+        REQUIRE(arranger->disconnect_link(listed->links[0].id));
+    }
+}
+
+TEST_CASE("control gateway: an id that is not one is not passed on, and one "
+          "that nothing has is not found")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect();
+    const made_pair pair(*driver);
+
+    for (const char* const bad :
+         {"COM3", "l_", "left", "", "l_-1", "l_01", "p_1", "l_1 "})
+    {
+        const auto unlinked = driver->disconnect_link(bad);
+        REQUIRE(!unlinked);
+        REQUIRE_EQ(unlinked.error(), code(control::api_errc::invalid_argument));
+    }
+    for (const char* const bad :
+         {"COM3", "p_", "left", "", "p_-1", "p_01", "l_1", "p_1 "})
+    {
+        const auto renamed = driver->rename_port(bad, "name");
+        REQUIRE(!renamed);
+        REQUIRE_EQ(renamed.error(), code(control::api_errc::invalid_argument));
+    }
+    const auto no_link = driver->disconnect_link("l_999999");
+    REQUIRE(!no_link);
+    REQUIRE_EQ(no_link.error(), engine(vss::errc::not_found));
+    const auto no_port = driver->rename_port("p_999999", "name");
+    REQUIRE(!no_port);
+    REQUIRE_EQ(no_port.error(), engine(vss::errc::not_found));
+
+    // After all of it the session is as good as it was, and nothing changed.
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{2});
+    REQUIRE_EQ(listed->links.size(), std::size_t{1});
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+}
+
+TEST_CASE("control gateway: without an agent a disconnect and a rename say so")
+{
+    fixture env(with_local_scopes(control::role_control()), false);
+    auto driver = env.connect();
+    const auto unlinked = driver->disconnect_link("l_1");
+    REQUIRE(!unlinked);
+    REQUIRE_EQ(unlinked.error(), code(control::api_errc::unavailable));
+    const auto renamed = driver->rename_port("p_1", "x");
+    REQUIRE(!renamed);
+    REQUIRE_EQ(renamed.error(), code(control::api_errc::unavailable));
+
+    // The refusals are in the audit log, and the session goes on.
+    const auto unlinks = operations_named(env, "links.disconnect");
+    REQUIRE_EQ(unlinks.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(unlinks[0], "outcome"), std::string("unavailable"));
+    const auto renames = operations_named(env, "ports.rename");
+    REQUIRE_EQ(renames.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(renames[0], "outcome"), std::string("unavailable"));
+
+    env.start_agent();
+    const auto later = driver->create_port("later");
+    REQUIRE(later);
+    REQUIRE(driver->rename_port(*later, "latest"));
+}
+
+TEST_CASE("control gateway: a disconnect and a rename are in the audit log, "
+          "without bytes and without a token")
+{
+    fixture env;
+    const control::token_created_reply made =
+        make_token(env, {control::scope::monitor, control::scope::control_ports,
+                         control::scope::control_data});
+    const std::string canary = "CANARY-5e1d77-do-not-log";
+    std::string left;
+    std::string link;
+    {
+        auto connected = connect_with(env, made.token);
+        REQUIRE(connected);
+        auto& driver = **connected;
+        const made_pair pair(driver);
+        left = pair.left;
+        const auto listed = driver.list_ports();
+        REQUIRE(listed);
+        link = listed->links.front().id;
+        REQUIRE(driver.send(pair.left, vss::to_bytes(canary)));
+        REQUIRE(driver.rename_port(pair.left, "bench"));
+        REQUIRE(!driver.rename_port(pair.left, ""));
+        REQUIRE(!driver.rename_port("p_999999", "x"));
+        REQUIRE(!driver.rename_port("not a port\n{\"event\":\"forged\"}", "x"));
+        REQUIRE(driver.disconnect_link(link));
+        REQUIRE(!driver.disconnect_link(link));
+        REQUIRE(!driver.disconnect_link("not a link\n{\"event\":\"forged\"}"));
+    }
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+
+    const auto unlinks = operations_named(env, "links.disconnect");
+    REQUIRE_EQ(unlinks.size(), std::size_t{3});
+    REQUIRE_EQ(text_of(unlinks[0], "link"), link);
+    REQUIRE_EQ(text_of(unlinks[0], "outcome"), std::string("ok"));
+    REQUIRE_EQ(text_of(unlinks[0], "principal"), "token:" + made.entry.id);
+    REQUIRE_EQ(text_of(unlinks[1], "link"), link);
+    REQUIRE_EQ(text_of(unlinks[1], "outcome"), std::string("engine.not_found"));
+    // An id that was not one is not written down as it came.
+    REQUIRE(text_of(unlinks[2], "link").empty());
+    REQUIRE_EQ(text_of(unlinks[2], "outcome"), std::string("invalid_argument"));
+
+    // The new name is in the record, as the name of a new port is.
+    const auto renames = operations_named(env, "ports.rename");
+    REQUIRE_EQ(renames.size(), std::size_t{4});
+    REQUIRE_EQ(text_of(renames[0], "port"), left);
+    REQUIRE_EQ(text_of(renames[0], "name"), std::string("bench"));
+    REQUIRE_EQ(text_of(renames[0], "outcome"), std::string("ok"));
+    REQUIRE_EQ(text_of(renames[0], "principal"), "token:" + made.entry.id);
+    REQUIRE_EQ(text_of(renames[1], "port"), left);
+    REQUIRE_EQ(text_of(renames[1], "outcome"),
+               std::string("engine.invalid_argument"));
+    REQUIRE_EQ(text_of(renames[2], "outcome"), std::string("engine.not_found"));
+    REQUIRE(text_of(renames[3], "port").empty());
+    REQUIRE_EQ(text_of(renames[3], "outcome"), std::string("invalid_argument"));
+
+    // Neither the bytes that were sent, nor the token, nor what a caller
+    // made up in place of an id, is anywhere the gateway keeps things.
+    const std::string kept = everything_kept(env.audit_directory);
+    REQUIRE(!holds(kept, canary));
+    REQUIRE(!holds(kept, "forged"));
+    REQUIRE(!holds(kept, made.token.expose()));
+    REQUIRE(!holds(kept, "vsst1_"));
+    require_intact(env.audit_directory);
+}
 
 TEST_CASE("control gateway: bytes that are sent are waited for in the same "
           "request, and found")

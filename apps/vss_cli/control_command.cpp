@@ -73,9 +73,11 @@ enum class action_kind
     port_create,
     port_remove,
     port_show,
+    port_rename,
     link,
     links,
     link_show,
+    unlink,
     ping,
     send,
     expect,
@@ -111,10 +113,11 @@ struct control_arguments
     std::uint64_t count = 0;
     /// For `kick`: the number of the session.
     std::uint64_t session = 0;
-    /// For `port create`, `port remove`, `port show`, `link` and `send`: the
-    /// name or kind of a port, the ports (the second is for `link`), whether a
-    /// link goes one way, and the bytes to send.  `link show` has the id of
-    /// the link in `link_id`.
+    /// For `port create`, `port remove`, `port show`, `port rename`, `link`
+    /// and `send`: the name or kind of a port (`port rename` has the new name
+    /// in `name`), the ports (the second is for `link`), whether a link goes
+    /// one way, and the bytes to send.  `link show` and `unlink` have the id
+    /// of the link in `link_id`.
     std::string name;
     std::string kind;
     std::string port;
@@ -668,6 +671,29 @@ control_arguments parse_command(const raw_arguments& raw)
         parsed.valid = true;
         return parsed;
     }
+    if (words.size() == 4 && words[0] == "port" && words[1] == "rename")
+    {
+        if (!no_foreign_options(raw) || !no_port_options(raw) ||
+            words[2].empty() || words[3].empty())
+            return parsed;
+        parsed.action = action_kind::port_rename;
+        parsed.port = words[2];
+        parsed.name = words[3];
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
+    if (words.size() == 2 && words[0] == "unlink")
+    {
+        if (!no_foreign_options(raw) || !no_port_options(raw) ||
+            words[1].empty())
+            return parsed;
+        parsed.action = action_kind::unlink;
+        parsed.link_id = words[1];
+        parsed.token_file = raw.token_file;
+        parsed.valid = true;
+        return parsed;
+    }
     if (words.size() == 1 && (words[0] == "links" || words[0] == "ping"))
     {
         if (!no_foreign_options(raw) || !no_port_options(raw))
@@ -811,12 +837,16 @@ const char* action_name(action_kind action) noexcept
         return "port remove";
     case action_kind::port_show:
         return "port show";
+    case action_kind::port_rename:
+        return "port rename";
     case action_kind::link:
         return "link";
     case action_kind::links:
         return "links";
     case action_kind::link_show:
         return "link show";
+    case action_kind::unlink:
+        return "unlink";
     case action_kind::ping:
         return "ping";
     case action_kind::send:
@@ -1262,6 +1292,22 @@ int port_remove(client& gateway, const std::string& port)
     return exit_ok;
 }
 
+int port_rename(client& gateway, const control_arguments& args)
+{
+    const auto renamed = gateway.rename_port(args.port, args.name);
+    if (!renamed)
+        return report_with_code("port rename", renamed.error(), gateway);
+    return exit_ok;
+}
+
+int unlink_ports(client& gateway, const std::string& link)
+{
+    const auto removed = gateway.disconnect_link(link);
+    if (!removed)
+        return report_with_code("unlink", removed.error(), gateway);
+    return exit_ok;
+}
+
 int link_ports(client& gateway, const control_arguments& args)
 {
     const auto made =
@@ -1590,15 +1636,22 @@ const char* control_usage() noexcept
            "           [--instance=<name>] [--token-file=<file>]\n"
            "  vss_cli control port remove <id> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
+           "  vss_cli control port rename <id> <name> [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
            "  vss_cli control link <id> <id> [--one-way] [--instance=<name>]\n"
+           "           [--token-file=<file>]\n"
+           "  vss_cli control unlink <id> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
            "  vss_cli control send <id> --hex=<digits> [--instance=<name>]\n"
            "           [--token-file=<file>]\n"
-           "      Make and remove ports, link them and send bytes to one.\n"
+           "      Make, rename and remove ports, link and unlink them, and\n"
+           "      send bytes to one.\n"
            "      port create prints the id of the new port (p_3), and link\n"
            "      prints the id of the link (l_2).  A link joins the two\n"
            "      ports both ways, or with --one-way from the first to the\n"
-           "      second.  send takes the bytes as hex digits, two for each\n"
+           "      second.  unlink takes away the link with that id and leaves\n"
+           "      the ports.  port rename gives a port a new name.  send\n"
+           "      takes the bytes as hex digits, two for each\n"
            "      byte and no spaces, as in --hex=00ff68690d0a.  It sends\n"
            "      64 KiB at most.  These need the scope control.ports, and\n"
            "      send needs control.data; the default role of this user\n"
@@ -1665,8 +1718,8 @@ const char* control_usage() noexcept
            "\n"
            "  vss_cli control <command> ... --loopback-port=<port>\n"
            "           --token-file=<file>\n"
-           "      status, watch, port, link, links, ping, send, expect and "
-           "run\n"
+           "      status, watch, port, link, unlink, links, ping, send, expect "
+           "and run\n"
            "      can connect over TCP to 127.0.0.1 at the port (1 to 65535)\n"
            "      that `vss_gate --loopback-port=<port>` listens on, instead\n"
            "      of the pipe or socket.  Nobody is known by the system over\n"
@@ -1740,6 +1793,10 @@ int command_control(const std::vector<std::string>& arguments)
         return port_remove(gateway, args.port);
     case action_kind::port_show:
         return port_show(gateway, args.port);
+    case action_kind::port_rename:
+        return port_rename(gateway, args);
+    case action_kind::unlink:
+        return unlink_ports(gateway, args.link_id);
     case action_kind::link:
         return link_ports(gateway, args);
     case action_kind::links:

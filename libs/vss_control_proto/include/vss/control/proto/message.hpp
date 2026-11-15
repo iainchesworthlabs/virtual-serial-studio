@@ -283,6 +283,25 @@ struct links_connect_request
                            const links_connect_request&) = default;
 };
 
+/// Takes away the link with this id (`l_2`).  The ports stay.
+struct links_disconnect_request
+{
+    std::string link;
+
+    friend bool operator==(const links_disconnect_request&,
+                           const links_disconnect_request&) = default;
+};
+
+/// Gives the port with this id (`p_3`) a new name.
+struct ports_rename_request
+{
+    std::string port;
+    std::string name;
+
+    friend bool operator==(const ports_rename_request&,
+                           const ports_rename_request&) = default;
+};
+
 /// Writes bytes to a port.  The bytes are the frame's blob; it is the one
 /// request that has one.
 struct ports_send_request
@@ -374,7 +393,8 @@ using request_body = std::variant<
     ports_remove_request, links_connect_request, ports_send_request,
     expect_bytes_request, runs_begin_request, runs_end_request,
     runs_record_request, report_junit_request, ports_get_request,
-    links_list_request, links_get_request, ping_request, session_close_request>;
+    links_list_request, links_get_request, ping_request, session_close_request,
+    links_disconnect_request, ports_rename_request>;
 
 struct request
 {

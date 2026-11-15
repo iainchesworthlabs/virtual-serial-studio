@@ -87,6 +87,13 @@ public:
     result<std::string> create_port(const std::string& name,
                                     const std::string& kind = {});
     result<void> remove_port(const std::string& port);
+    /// Gives a port (`p_3`) a new name.  It needs `control.ports`.  The
+    /// engine's refusals (an empty name, a name another port has) come as
+    /// `engine.<name>` errors; `api_errc::not_found` for an id no port has.
+    result<void> rename_port(const std::string& port, const std::string& name);
+    /// Takes away a link (`l_2`).  The ports stay.  It needs
+    /// `control.ports`; `api_errc::not_found` for an id no link has.
+    result<void> disconnect_link(const std::string& link);
     /// Links two ports, both ways or from `first` to `second` only, and
     /// gives the link's id (`l_2`).
     result<std::string> connect_ports(const std::string& first,

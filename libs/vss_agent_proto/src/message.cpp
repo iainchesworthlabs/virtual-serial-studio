@@ -346,6 +346,17 @@ struct request_writer
     {
         header["op"] = "shutdown";
     }
+    void operator()(const disconnect_request& body) const
+    {
+        header["op"] = "disconnect";
+        header["link"] = body.link;
+    }
+    void operator()(const rename_port_request& body) const
+    {
+        header["op"] = "rename_port";
+        header["endpoint"] = body.endpoint;
+        header["name"] = clean_text(body.name);
+    }
 };
 
 result<request_body> read_request_body(const json::object& header,
@@ -411,6 +422,21 @@ result<request_body> read_request_body(const json::object& header,
     }
     if (op == "shutdown")
         return request_body{shutdown_request{}};
+    if (op == "disconnect")
+    {
+        disconnect_request body;
+        if (!read_u64(header, "link", body.link))
+            return malformed();
+        return request_body{body};
+    }
+    if (op == "rename_port")
+    {
+        rename_port_request body;
+        if (!read_u64(header, "endpoint", body.endpoint) ||
+            !read_text(header, "name", body.name))
+            return malformed();
+        return request_body{std::move(body)};
+    }
     return make_error_code(protocol_errc::unknown_operation);
 }
 

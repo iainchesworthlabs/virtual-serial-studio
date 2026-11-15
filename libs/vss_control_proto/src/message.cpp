@@ -341,6 +341,15 @@ struct request_writer
         header["second"] = clean_text(body.second);
         header["one_way"] = body.one_way;
     }
+    void operator()(const links_disconnect_request& body) const
+    {
+        header["link"] = clean_text(body.link);
+    }
+    void operator()(const ports_rename_request& body) const
+    {
+        header["port"] = clean_text(body.port);
+        header["name"] = clean_text(body.name);
+    }
     void operator()(const ports_send_request& body) const
     {
         header["port"] = clean_text(body.port);
@@ -507,6 +516,21 @@ result<request_body> read_request_body(operation wanted,
             return malformed();
         if (header.contains("one_way") &&
             !read_bool(header, "one_way", body.one_way))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::links_disconnect:
+    {
+        links_disconnect_request body;
+        if (!read_text(header, "link", body.link))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::ports_rename:
+    {
+        ports_rename_request body;
+        if (!read_text(header, "port", body.port) ||
+            !read_text(header, "name", body.name))
             return malformed();
         return request_body{std::move(body)};
     }
@@ -1274,6 +1298,14 @@ operation operation_of(const request_body& body)
         operation operator()(const links_connect_request&) const noexcept
         {
             return operation::links_connect;
+        }
+        operation operator()(const links_disconnect_request&) const noexcept
+        {
+            return operation::links_disconnect;
+        }
+        operation operator()(const ports_rename_request&) const noexcept
+        {
+            return operation::ports_rename;
         }
         operation operator()(const ports_send_request&) const noexcept
         {
