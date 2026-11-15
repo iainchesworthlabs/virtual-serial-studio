@@ -16,6 +16,7 @@
 #include <vss/core/bytes.hpp>
 #include <vss/plugin/protocol.hpp>
 
+#include <algorithm>
 #include <array>
 #include <charconv>
 #include <cstddef>
@@ -337,12 +338,25 @@ private:
         return std::nullopt;
     }
 
-    /// A request of an extension point: "ok" when it is the one that is
-    /// echoed, "unknown_op" otherwise.
+    /// A request of an extension point: "ok" when its op is one that is
+    /// echoed, "refused" when it is one that is refused, "unknown_op"
+    /// otherwise.
     std::optional<int> take_request(const api_message& message)
     {
-        const bool echoed =
-            options_.echo_op.has_value() && message.op == *options_.echo_op;
+        if (std::ranges::find(options_.refuse_ops, message.op) !=
+            options_.refuse_ops.end())
+        {
+            std::string line = "got ";
+            line.append(message.op);
+            print_line(stdout, line);
+            const api_message refusal = make_error(
+                message.id, api_errc::refused, "refused by the test plugin");
+            if (!channel_.send(refusal))
+                return exit_write_failed;
+            return std::nullopt;
+        }
+        const bool echoed = std::ranges::find(options_.echo_ops, message.op) !=
+                            options_.echo_ops.end();
         if (echoed)
         {
             std::string line = "got ";
@@ -443,7 +457,12 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
     }
     if (const auto text = value_after(argument, "--echo-op="))
     {
-        options.echo_op = std::string(*text);
+        options.echo_ops.emplace_back(*text);
+        return true;
+    }
+    if (const auto text = value_after(argument, "--refuse-op="))
+    {
+        options.refuse_ops.emplace_back(*text);
         return true;
     }
     if (argument == "--garbage-after-ready")

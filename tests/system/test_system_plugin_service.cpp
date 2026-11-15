@@ -66,6 +66,7 @@
 #include <vector>
 
 using vss::error_code;
+using vss::plugin::extension_kind;
 using vss::plugin::inspect_context;
 using vss::plugin::key_bytes;
 using vss::plugin::key_list;
@@ -83,7 +84,11 @@ using vss::plugin::sha512_of;
 using vss::plugin::to_hex;
 using vss::plugin::trust_level;
 using vss::plugin::host::available_sandbox;
+using vss::plugin::host::instance_spec;
+using vss::plugin::host::instance_state;
+using vss::plugin::host::instance_view;
 using vss::plugin::host::plugin_service;
+using vss::plugin::host::runner_log_line;
 using vss::plugin::host::service_options;
 using vss::plugin::host::service_plugin;
 using vss::plugin::host::service_snapshot;
@@ -247,6 +252,13 @@ struct plugin_spec
     /// What the plugin's second file, `data.txt`, holds.  The plugin has no
     /// such file when this is empty.
     std::string data;
+    /// What the manifest gives the program after the id and the version and
+    /// before `--serve`: the modifiers of the test plugin.
+    std::vector<std::string> arguments{};
+    /// The extension points of the manifest, each as the text of a JSON
+    /// object.  The manifest declares the generator `pulse` when there are
+    /// none.
+    std::vector<std::string> points{};
 };
 
 plugin_spec official_plugin(std::string_view id)
@@ -298,7 +310,14 @@ std::string manifest_text(const plugin_spec& spec)
     out.append(program.name);
     out.append("\", \"args\": [ \"--hello-id=");
     out.append(spec.id);
-    out.append("\", \"--hello-version=1.2.0\", \"--serve\" ],\n");
+    out.append("\", \"--hello-version=1.2.0\"");
+    for (const std::string& argument : spec.arguments)
+    {
+        out.append(", \"");
+        out.append(argument);
+        out.append("\"");
+    }
+    out.append(", \"--serve\" ],\n");
     out.append("    \"platforms\": [ \"windows-x64\", \"windows-arm64\", ");
     out.append("\"linux-x64\", \"linux-arm64\", \"macos-x64\", ");
     out.append("\"macos-arm64\" ] },\n");
@@ -308,8 +327,17 @@ std::string manifest_text(const plugin_spec& spec)
     out.append("    { \"name\": \"ports.write\", \"required\": false, ");
     out.append("\"reason\": \"To write to the ports.\" }\n  ],\n");
     out.append("  \"extension_points\": [\n");
-    out.append("    { \"kind\": \"generator\", \"id\": \"pulse\", ");
-    out.append("\"name\": \"Pulse\" }\n  ],\n");
+    if (spec.points.empty())
+    {
+        out.append("    { \"kind\": \"generator\", \"id\": \"pulse\", ");
+        out.append("\"name\": \"Pulse\" }");
+    }
+    for (std::size_t index = 0; index < spec.points.size(); ++index)
+    {
+        out.append(index == 0 ? "    " : ",\n    ");
+        out.append(spec.points[index]);
+    }
+    out.append("\n  ],\n");
     out.append("  \"files\": [ ");
     bool first = true;
     for (const program_facts& file : test_plugin_facts())
@@ -563,6 +591,65 @@ auto is_off(std::string_view id)
         return entry != nullptr && !entry->enabled && entry->run == nullptr &&
                !entry->problem.failed();
     };
+}
+
+/// The instance of the plugin with this number, or null.  It points into
+/// `plugin`.
+const instance_view* instance_in(const service_plugin& plugin,
+                                 std::uint64_t number)
+{
+    for (const instance_view& item : plugin.instances)
+    {
+        if (item.spec.instance == number)
+            return &item;
+    }
+    return nullptr;
+}
+
+/// A line of the output or log of the plugin's run is exactly `text`.
+bool log_has(const service_plugin& plugin, std::string_view text)
+{
+    if (plugin.run == nullptr)
+        return false;
+    return std::ranges::any_of(plugin.run->log,
+                               [text](const runner_log_line& line)
+                               { return line.text == text; });
+}
+
+/// The plugin has the instance, in this state.
+auto instance_is(std::string_view id, std::uint64_t number,
+                 instance_state state)
+{
+    return [name = std::string(id), number,
+            state](const service_snapshot& snapshot)
+    {
+        const service_plugin* const entry = find(snapshot, name);
+        if (entry == nullptr)
+            return false;
+        const instance_view* const item = instance_in(*entry, number);
+        return item != nullptr && item->state == state;
+    };
+}
+
+/// The plugin's run has printed the line.
+auto has_line(std::string_view id, std::string_view text)
+{
+    return [name = std::string(id),
+            line = std::string(text)](const service_snapshot& snapshot)
+    {
+        const service_plugin* const entry = find(snapshot, name);
+        return entry != nullptr && log_has(*entry, line);
+    };
+}
+
+/// Waits until the plugin's run has printed the line.
+snapshot_ptr wait_for_line(const plugin_service& service, std::string_view id,
+                           std::string_view text)
+{
+    std::string what = "the plugin to print \"";
+    what.append(text);
+    what.append("\"");
+    return wait_for(service, what, has_line(id, text));
 }
 
 /// Waits until no process has the number, up to the long limit.
@@ -1405,4 +1492,211 @@ TEST_CASE("plugin service: an approved key is kept by the service and shown")
     const auto after = load_trust_store(fixture.trust_file());
     REQUIRE(after.has_value());
     REQUIRE(after.value().find_key("acme-2026") == nullptr);
+}
+
+// -- instances ----------------------------------------------------------------
+
+namespace
+{
+
+/// An official plugin whose manifest declares the adapter `recorder`, and
+/// whose program answers what `modifiers` say, as the test plugin does.
+plugin_spec recorder_plugin(std::vector<std::string> modifiers)
+{
+    plugin_spec spec = official_plugin(official_id);
+    spec.points = {R"({ "kind": "adapter", "id": "recorder", )"
+                   R"("name": "Recorder" })"};
+    spec.arguments = std::move(modifiers);
+    return spec;
+}
+
+/// The three messages of an instance, answered with "ok".
+std::vector<std::string> echo_instance_messages()
+{
+    return {"--echo-op=instance.create", "--echo-op=params.changed",
+            "--echo-op=instance.stop"};
+}
+
+instance_spec recorder_instance(std::uint64_t number, std::string params = "{}")
+{
+    instance_spec spec;
+    spec.instance = number;
+    spec.kind = extension_kind::adapter;
+    spec.type = "recorder";
+    spec.params = std::move(params);
+    return spec;
+}
+
+} // namespace
+
+TEST_CASE("plugin service: the instances wanted of a plugin are created and "
+          "kept in step")
+{
+    service_fixture fixture;
+    static_cast<void>(make_plugin(fixture.plugins_directory(),
+                                  recorder_plugin(echo_instance_messages())));
+    plugin_service& service = fixture.start();
+    service.set_instances(std::string(official_id), {recorder_instance(1)});
+    service.rescan();
+
+    const snapshot_ptr running =
+        wait_for(service, "the instance to run",
+                 instance_is(official_id, 1, instance_state::running));
+    const service_plugin& entry = entry_of(*running, official_id);
+    REQUIRE_EQ(entry.instances.size(), std::size_t{1});
+    const instance_view& item = entry.instances.front();
+    REQUIRE_EQ(item.spec.instance, std::uint64_t{1});
+    REQUIRE(item.spec.kind == extension_kind::adapter);
+    REQUIRE_EQ(item.spec.type, "recorder");
+    REQUIRE(!item.problem.failed());
+    REQUIRE(item.reason.empty());
+    REQUIRE(!item.params_pending);
+    static_cast<void>(
+        wait_for_line(service, official_id, "got instance.create"));
+
+    // New parameters are told to the plugin, and the instance goes on.
+    service.set_instances(std::string(official_id),
+                          {recorder_instance(1, R"({ "channel": 2 })")});
+    const snapshot_ptr changed =
+        wait_for(service, "the plugin to be told the new parameters",
+                 [](const service_snapshot& latest)
+                 {
+                     const service_plugin* const plugin =
+                         find(latest, official_id);
+                     if (plugin == nullptr)
+                         return false;
+                     const instance_view* const found = instance_in(*plugin, 1);
+                     return found != nullptr &&
+                            found->state == instance_state::running &&
+                            !found->params_pending &&
+                            found->spec.params == R"({ "channel": 2 })" &&
+                            log_has(*plugin, "got params.changed");
+                 });
+    const instance_view* const kept =
+        instance_in(entry_of(*changed, official_id), 1);
+    REQUIRE(kept != nullptr);
+    REQUIRE(!kept->problem.failed());
+
+    // An empty list stops the instance, and then it is gone.
+    service.set_instances(std::string(official_id), {});
+    static_cast<void>(wait_for(service, "the instance to be stopped and gone",
+                               [](const service_snapshot& latest)
+                               {
+                                   const service_plugin* const plugin =
+                                       find(latest, official_id);
+                                   return plugin != nullptr &&
+                                          plugin->instances.empty() &&
+                                          log_has(*plugin, "got instance.stop");
+                               }));
+}
+
+TEST_CASE("plugin service: an instance the plugin refuses is refused")
+{
+    service_fixture fixture;
+    static_cast<void>(
+        make_plugin(fixture.plugins_directory(),
+                    recorder_plugin({"--refuse-op=instance.create"})));
+    plugin_service& service = fixture.start();
+    service.set_instances(std::string(official_id), {recorder_instance(1)});
+    service.rescan();
+
+    const snapshot_ptr refused =
+        wait_for(service, "the instance to be refused",
+                 instance_is(official_id, 1, instance_state::refused));
+    const service_plugin& entry = entry_of(*refused, official_id);
+    const instance_view* const item = instance_in(entry, 1);
+    REQUIRE(item != nullptr);
+    REQUIRE(has_code(item->problem, plugin_errc::misbehaving));
+    REQUIRE_EQ(item->reason, "refused by the test plugin");
+    // The plugin itself goes on.
+    REQUIRE(entry.run != nullptr);
+    REQUIRE(entry.run->state == run_state::ready);
+}
+
+TEST_CASE("plugin service: an instance of a type the manifest does not "
+          "declare is refused before the plugin is asked")
+{
+    service_fixture fixture;
+    static_cast<void>(make_plugin(fixture.plugins_directory(),
+                                  recorder_plugin(echo_instance_messages())));
+    plugin_service& service = fixture.start();
+    instance_spec unknown = recorder_instance(1);
+    unknown.type = "playback";
+    service.set_instances(std::string(official_id), {unknown});
+    service.rescan();
+
+    static_cast<void>(
+        wait_for(service, "the plugin to be ready", is_ready(official_id)));
+    const snapshot_ptr refused =
+        wait_for(service, "the instance to be refused",
+                 instance_is(official_id, 1, instance_state::refused));
+    const service_plugin& entry = entry_of(*refused, official_id);
+    const instance_view* const item = instance_in(entry, 1);
+    REQUIRE(item != nullptr);
+    REQUIRE(has_code(item->problem, plugin_errc::capability_missing));
+    REQUIRE(item->reason.empty());
+    REQUIRE(!log_has(entry, "got instance.create"));
+}
+
+TEST_CASE("plugin service: a plugin switched off and on has its instance "
+          "created again")
+{
+    service_fixture fixture;
+    static_cast<void>(make_plugin(fixture.plugins_directory(),
+                                  recorder_plugin(echo_instance_messages())));
+    plugin_service& service = fixture.start();
+    service.set_instances(std::string(official_id), {recorder_instance(1)});
+    service.rescan();
+
+    const snapshot_ptr first =
+        wait_for(service, "the instance to run",
+                 instance_is(official_id, 1, instance_state::running));
+    const std::uint64_t first_pid = process_of(entry_of(*first, official_id));
+    static_cast<void>(
+        wait_for_line(service, official_id, "got instance.create"));
+
+    service.set_enabled(std::string(official_id), false);
+    static_cast<void>(
+        wait_for(service, "the plugin to be off", is_off(official_id)));
+    REQUIRE(wait_until_gone(first_pid));
+
+    service.set_enabled(std::string(official_id), true);
+    const snapshot_ptr again = wait_for(
+        service, "the instance to be created again",
+        [first_pid](const service_snapshot& latest)
+        {
+            const service_plugin* const plugin = find(latest, official_id);
+            if (plugin == nullptr || plugin->run == nullptr ||
+                plugin->run->process_id == first_pid)
+                return false;
+            const instance_view* const item = instance_in(*plugin, 1);
+            return item != nullptr && item->state == instance_state::running &&
+                   log_has(*plugin, "got instance.create");
+        });
+    REQUIRE(process_of(entry_of(*again, official_id)) != first_pid);
+}
+
+TEST_CASE("plugin service: instances wanted of a plugin that is not "
+          "installed are kept")
+{
+    service_fixture fixture;
+    plugin_service& service = fixture.start();
+    service.set_instances("com.example.nothere", {recorder_instance(1)});
+    service.set_instances(std::string(official_id), {recorder_instance(1)});
+    service.rescan();
+
+    const snapshot_ptr none = wait_for(
+        service, "the scan to finish", [](const service_snapshot& latest)
+        { return latest.scans >= 1 && !latest.scanning; });
+    REQUIRE(none->plugins.empty());
+
+    // The plugin is installed afterwards and has the instance that was
+    // wanted of it all along.
+    static_cast<void>(make_plugin(fixture.plugins_directory(),
+                                  recorder_plugin(echo_instance_messages())));
+    service.rescan();
+    const snapshot_ptr running =
+        wait_for(service, "the instance to run",
+                 instance_is(official_id, 1, instance_state::running));
+    REQUIRE_EQ(running->plugins.size(), std::size_t{1});
 }

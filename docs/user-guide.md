@@ -2195,7 +2195,7 @@ data. It runs nothing.
 ### Running a plugin with `vss_cli plugin run`
 
 ```bash
-vss_cli plugin run <id> [--root <folder>]... [--data <folder>] [--trust <file>] [--seconds <n>] [--json]
+vss_cli plugin run <id> [--root <folder>]... [--data <folder>] [--trust <file>] [--seconds <n>] [--json] [--instance <kind>:<type>[=<params>]]...
 ```
 
 `plugin run` runs one installed plugin the way Studio's plugin host runs it, and
@@ -2262,13 +2262,54 @@ change the colours of your terminal.
   folder.
 - `--seconds <n>` stops the plugin after `n` seconds with the plugin running,
   from 1 to 2678400. Without it, or with 0, the command runs until `Ctrl-C`.
+  With `--instance`, the seconds count from when the plugin is running and each
+  instance is running or refused.
+- `--instance <kind>:<type>[=<params>]` asks the plugin host for an instance of
+  an extension point of the plugin, and may be repeated. `<kind>` is
+  `generator`, `fixture`, `modifier`, `adapter` or `decoder`, `<type>` is the
+  `id` of the extension point in the plugin's manifest, and `<params>` is the
+  text of a JSON object of at most 64 KiB. Without `=<params>` the parameters
+  are `{}`. The command checks only that the parameters are a JSON object; the
+  host checks the kind and the type against the manifest, and the plugin is
+  free to refuse the parameters. The instances are numbered 1, 2, 3 in the order
+  given. A bad `--instance` ends the command with exit code 2 and one line that
+  says what is wrong.
 
 The command grants a plugin no engine capabilities and reads no licence files, so
 a plugin that needs a licence is shown as `needs a licence`.
 
+#### Instances
+
+With `--instance`, the command prints one line each time the state of an
+instance changes:
+
+```text
+instance 1 adapter:recorder: waiting
+instance 1 adapter:recorder: running
+instance 2 adapter:nothing: refused; problem capability_missing
+instance 3 adapter:recorder: refused; problem misbehaving; reason "refused by the test plugin"
+```
+
+After the number and the kind and type comes the state: `waiting` (the plugin is
+not ready), `creating`, `running`, `refused` or `stopping`. A refused instance
+has the `problem`, a reason code such as `capability_missing` (the manifest has
+no such extension point), `too_many` (the manifest allows no more of the type),
+`misbehaving` (the plugin answered with an error) or `unresponsive` (the plugin
+did not answer), and the `reason` the plugin gave, as plain text. A line is
+printed again when the problem or the reason changes. A state that lasts only a
+moment may not be printed.
+
+With `--json` a change of an instance has `type` set to `instance` and the
+members `plugin`, `instance` (the number), `kind`, `instance_type`, `state`,
+`problem` (the code, or `null`), `reason` (the plugin's text, or `null`) and
+`params_pending`.
+
 The exit code is 0 when the plugin was running and was stopped by `--seconds` or
 by you, 1 when it never ran, or ran and failed too often, and 2 for a command
-line the program does not understand or an id that no plugin has.
+line the program does not understand or an id that no plugin has. When
+`--instance` was given and the command ends by `--seconds`, it is 0 only when
+every instance was running at some point; otherwise it is 1, and one line names
+the first instance that never ran.
 
 ### Where Studio looks for plugins
 

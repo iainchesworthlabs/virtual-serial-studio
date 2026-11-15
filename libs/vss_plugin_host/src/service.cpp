@@ -9,6 +9,7 @@
 #include <vss/core/error.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
+#include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/host/start_plan.hpp>
@@ -208,6 +209,16 @@ public:
              { static_cast<void>(store.forget(id, hash, key_id)); });
     }
 
+    void set_instances(const std::string& plugin_id,
+                       std::vector<instance_spec> wanted)
+    {
+        const auto found = running_.find(plugin_id);
+        if (found != running_.end())
+            found->second.instances->want(wanted);
+        wanted_[plugin_id] = std::move(wanted);
+        publish_soon();
+    }
+
     void approve_key(approved_key key)
     {
         scan(
@@ -263,6 +274,10 @@ private:
     struct running_plugin
     {
         std::shared_ptr<plugin_runner> runner;
+        std::shared_ptr<plugin_instances> instances;
+        /// The start of the plugin that the instances were last told is
+        /// ready; 0 when they were told it has gone.
+        std::uint64_t ready_start = 0;
         plugin_hash hash;
         std::vector<permission> granted;
     };
@@ -357,7 +372,16 @@ private:
             }
             shown.decided = decision != nullptr;
             if (decision != nullptr)
+            {
                 shown.decision = *decision;
+            }
+            else if (context.trust.has_value() && checked.declared.has_value())
+            {
+                const plugin_decision* const earlier = context.trust->previous(
+                    checked.declared->id, checked.hash, checked.key_id);
+                if (earlier != nullptr)
+                    shown.earlier_decision = *earlier;
+            }
 
             std::string detail;
             auto planned = plan_start(checked, decision, plan, &detail);
@@ -422,11 +446,31 @@ private:
                 entry.runner =
                     plugin_runner::create(boost::asio::any_io_executor(strand_),
                                           std::move(scanned.plan->options));
-                entry.runner->on_change(
+                entry.instances = std::make_shared<plugin_instances>(
+                    scanned.shown.declared.has_value()
+                        ? scanned.shown.declared->extension_points
+                        : std::vector<extension_point>{},
+                    [runner =
+                         entry.runner](api_message message,
+                                       plugin_instances::answer_handler handler)
+                    {
+                        runner->request(std::move(message), std::move(handler));
+                    });
+                entry.instances->on_change(
                     [weak = weak_from_this()]()
                     {
                         if (const auto self = weak.lock())
-                            self->post([](impl& me) { me.publish_soon(); });
+                            self->publish_soon();
+                    });
+                if (const auto wanted = wanted_.find(id);
+                    wanted != wanted_.end())
+                    entry.instances->want(wanted->second);
+                entry.runner->on_change(
+                    [weak = weak_from_this(), id]()
+                    {
+                        if (const auto self = weak.lock())
+                            self->post([id](impl& me)
+                                       { me.runner_changed(id); });
                     });
                 entry.runner->start();
                 keep.emplace(id, std::move(entry));
@@ -466,6 +510,31 @@ private:
                     }
                 });
         }
+    }
+
+    /// A runner's snapshot changed: its instances are told when the
+    /// plugin became ready and when it went.
+    void runner_changed(const std::string& id)
+    {
+        const auto found = running_.find(id);
+        if (found != running_.end())
+        {
+            running_plugin& entry = found->second;
+            const auto now = entry.runner->snapshot();
+            const bool ready = now->state == run_state::ready;
+            if (entry.ready_start != 0 &&
+                (!ready || now->starts != entry.ready_start))
+            {
+                entry.ready_start = 0;
+                entry.instances->plugin_gone();
+            }
+            if (ready && entry.ready_start == 0)
+            {
+                entry.ready_start = now->starts;
+                entry.instances->plugin_ready();
+            }
+        }
+        publish_soon();
     }
 
     void wait_for_stops()
@@ -538,7 +607,10 @@ private:
             const auto found = running_.find(plugin.id);
             if (found != running_.end() && !plugin.problem &&
                 found->second.hash == plugin.hash)
+            {
                 plugin.run = found->second.runner->snapshot();
+                plugin.instances = found->second.instances->views();
+            }
         }
         next->notes = notes_;
         next->approved_keys = approved_keys_;
@@ -563,6 +635,8 @@ private:
     std::vector<service_plugin> shown_;
     std::vector<std::string> notes_;
     std::vector<approved_key> approved_keys_;
+    /// The instances wanted of each plugin, by its id.
+    std::map<std::string, std::vector<instance_spec>> wanted_;
     std::map<std::string, running_plugin> running_;
     /// Runners that were told to stop and have not yet.
     std::vector<std::shared_ptr<plugin_runner>> leaving_;
@@ -629,6 +703,14 @@ void plugin_service::forget(std::string plugin_id)
             self.when_scanned([plugin_id = std::move(plugin_id)](impl& me)
                               { me.forget(plugin_id); });
         });
+}
+
+void plugin_service::set_instances(std::string plugin_id,
+                                   std::vector<instance_spec> wanted)
+{
+    impl_->post([plugin_id = std::move(plugin_id),
+                 wanted = std::move(wanted)](impl& self) mutable
+                { self.set_instances(plugin_id, std::move(wanted)); });
 }
 
 void plugin_service::approve_key(approved_key key)
