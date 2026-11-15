@@ -123,6 +123,102 @@ public:
             });
     }
 
+    /// Runs `work` now, or after the scan that is under way.
+    void when_scanned(std::function<void(impl&)> work)
+    {
+        if (scanning_)
+            after_scan_.push_back(std::move(work));
+        else
+            work(*this);
+    }
+
+    const service_plugin* find_shown(std::string_view plugin_id) const
+    {
+        // The copy that counts is the one without a problem of discovery;
+        // failing that, the first.
+        const service_plugin* first = nullptr;
+        for (const service_plugin& plugin : shown_)
+        {
+            if (plugin.id != plugin_id)
+                continue;
+            if (plugin.level.has_value())
+                return &plugin;
+            if (first == nullptr)
+                first = &plugin;
+        }
+        return first;
+    }
+
+    void set_enabled(const std::string& plugin_id, bool enabled)
+    {
+        const service_plugin* const found = find_shown(plugin_id);
+        if (found == nullptr)
+            return;
+        // The decision is about this exact copy.
+        plugin_decision decision;
+        decision.plugin_id = found->id;
+        decision.hash = found->hash;
+        decision.key_id = found->key_id;
+        decision.level = found->level.value_or(trust_level::unsigned_plugin);
+        decision.enabled = enabled;
+        for (const permission_request& asked : found->asked)
+            decision.granted.push_back(asked.name);
+        const bool official = found->level == trust_level::official;
+        scan(
+            [decision, official,
+             enabled](trust_store& store, const inspect_context& context,
+                      std::vector<std::string>& notes) mutable
+            {
+                const plugin_decision* const old = store.find(
+                    decision.plugin_id, decision.hash, decision.key_id);
+                if (old != nullptr)
+                {
+                    decision = *old;
+                    decision.enabled = enabled;
+                }
+                else if (!official)
+                {
+                    // Nobody decided about this copy.  Only an official
+                    // plugin can be switched without a decision.
+                    notes.emplace_back(
+                        "The plugin waits for your decision first.");
+                    return;
+                }
+                keep(store, std::move(decision), context, notes);
+            });
+    }
+
+    void decide(plugin_decision decision)
+    {
+        scan([decision = std::move(decision)](
+                 trust_store& store, const inspect_context& context,
+                 std::vector<std::string>& notes) mutable
+             { keep(store, std::move(decision), context, notes); });
+    }
+
+    void forget(const std::string& plugin_id)
+    {
+        const service_plugin* const found = find_shown(plugin_id);
+        if (found == nullptr)
+            return;
+        scan([id = found->id, hash = found->hash, key_id = found->key_id](
+                 trust_store& store, const inspect_context&,
+                 std::vector<std::string>&)
+             { static_cast<void>(store.forget(id, hash, key_id)); });
+    }
+
+    /// Puts a decision in the store, dated today, and says so when the
+    /// store will not take it.
+    static void keep(trust_store& store, plugin_decision decision,
+                     const inspect_context& context,
+                     std::vector<std::string>& notes)
+    {
+        decision.decided_on = std::chrono::year_month_day{context.today};
+        if (const auto stored = store.decide(std::move(decision)); !stored)
+            notes.emplace_back(
+                "Your decision about a plugin could not be kept.");
+    }
+
     std::shared_ptr<plugin_runner> runner(std::string_view plugin_id) const
     {
         const auto found = running_.find(std::string(plugin_id));
@@ -146,6 +242,7 @@ private:
     {
         std::shared_ptr<plugin_runner> runner;
         plugin_hash hash;
+        std::vector<permission> granted;
     };
 
     /// On the worker thread: everything that reads a disk.
@@ -157,11 +254,11 @@ private:
             context_for_this_computer(options.computer, &result.notes);
         context.sandbox = available_sandbox().level();
         context.capabilities = options.plan.capabilities;
-        if (options.licence)
-        {
-            context.licence = options.licence();
-            context.licence_known = true;
-        }
+        // With nobody to ask, there is no licence: a plugin that needs
+        // one does not run.
+        context.licence =
+            options.licence ? options.licence() : license::no_licence();
+        context.licence_known = true;
         if (options.change_context_for_tests)
             options.change_context_for_tests(context);
         if (change)
@@ -281,9 +378,10 @@ private:
             const bool runs = scanned.plan.has_value() && !closed_ &&
                               !id.empty() && keep.find(id) == keep.end();
             if (runs && old != running_.end() &&
-                old->second.hash == scanned.shown.hash)
+                old->second.hash == scanned.shown.hash &&
+                old->second.granted == scanned.shown.granted)
             {
-                // The same copy still runs.
+                // The same copy still runs, with the same permissions.
                 keep.insert(*old);
                 running_.erase(old);
             }
@@ -291,6 +389,7 @@ private:
             {
                 running_plugin entry;
                 entry.hash = scanned.shown.hash;
+                entry.granted = scanned.shown.granted;
                 entry.runner =
                     plugin_runner::create(boost::asio::any_io_executor(strand_),
                                           std::move(scanned.plan->options));
@@ -313,6 +412,12 @@ private:
             leaving_.push_back(std::move(entry.runner));
         }
         running_ = std::move(keep);
+        publish_now();
+
+        auto later = std::move(after_scan_);
+        after_scan_.clear();
+        for (auto& work : later)
+            work(*this);
         publish_soon();
 
         if (!waiting_changes_.empty() && !closed_)
@@ -399,8 +504,11 @@ private:
         next->plugins = shown_;
         for (service_plugin& plugin : next->plugins)
         {
+            // A copy that another stands before shares its id and not
+            // its run.
             const auto found = running_.find(plugin.id);
-            if (found != running_.end())
+            if (found != running_.end() && !plugin.problem &&
+                found->second.hash == plugin.hash)
                 plugin.run = found->second.runner->snapshot();
         }
         next->notes = notes_;
@@ -417,6 +525,8 @@ private:
 
     bool scanning_ = false;
     bool closed_ = false;
+    /// Calls that came while a scan ran.  They need what the scan finds.
+    std::vector<std::function<void(impl&)>> after_scan_;
     std::vector<store_change> waiting_changes_;
     std::vector<service_plugin> shown_;
     std::vector<std::string> notes_;
@@ -466,70 +576,16 @@ void plugin_service::set_enabled(std::string plugin_id, bool enabled)
     impl_->post(
         [plugin_id = std::move(plugin_id), enabled](impl& self) mutable
         {
-            const auto now = self.snapshot();
-            const auto found =
-                std::ranges::find(now->plugins, plugin_id, &service_plugin::id);
-            if (found == now->plugins.end())
-                return;
-            // The decision is about this exact copy.
-            plugin_decision decision;
-            decision.plugin_id = found->id;
-            decision.hash = found->hash;
-            decision.key_id = found->key_id;
-            decision.level =
-                found->level.value_or(trust_level::unsigned_plugin);
-            decision.enabled = enabled;
-            const bool decided = found->decided;
-            const bool official = found->level == trust_level::official;
-            const std::vector<permission> granted = found->granted;
-            self.scan(
-                [decision, decided, official,
-                 granted](trust_store& store, const inspect_context&,
-                          std::vector<std::string>& notes) mutable
-                {
-                    const plugin_decision* const old = store.find(
-                        decision.plugin_id, decision.hash, decision.key_id);
-                    if (old != nullptr)
-                    {
-                        plugin_decision changed = *old;
-                        changed.enabled = decision.enabled;
-                        static_cast<void>(store.decide(std::move(changed)));
-                        return;
-                    }
-                    // Nobody decided about this copy.  Only an official
-                    // plugin can be switched without a decision.
-                    static_cast<void>(decided);
-                    if (!official)
-                    {
-                        notes.emplace_back(
-                            "The plugin waits for your decision first.");
-                        return;
-                    }
-                    decision.granted = granted;
-                    static_cast<void>(store.decide(std::move(decision)));
-                });
+            self.when_scanned(
+                [plugin_id = std::move(plugin_id), enabled](impl& me)
+                { me.set_enabled(plugin_id, enabled); });
         });
 }
 
 void plugin_service::decide(plugin_decision decision)
 {
-    impl_->post(
-        [decision = std::move(decision)](impl& self) mutable
-        {
-            self.scan(
-                [decision = std::move(decision)](
-                    trust_store& store, const inspect_context&,
-                    std::vector<std::string>& notes) mutable
-                {
-                    if (const auto stored = store.decide(std::move(decision));
-                        !stored)
-                    {
-                        notes.emplace_back(
-                            "Your decision about a plugin could not "
-                            "be kept.");
-                    }
-                });
-        });
+    impl_->post([decision = std::move(decision)](impl& self) mutable
+                { self.decide(std::move(decision)); });
 }
 
 void plugin_service::forget(std::string plugin_id)
@@ -537,16 +593,8 @@ void plugin_service::forget(std::string plugin_id)
     impl_->post(
         [plugin_id = std::move(plugin_id)](impl& self) mutable
         {
-            const auto now = self.snapshot();
-            const auto found =
-                std::ranges::find(now->plugins, plugin_id, &service_plugin::id);
-            if (found == now->plugins.end())
-                return;
-            self.scan([id = found->id, hash = found->hash,
-                       key_id = found->key_id](trust_store& store,
-                                               const inspect_context&,
-                                               std::vector<std::string>&)
-                      { static_cast<void>(store.forget(id, hash, key_id)); });
+            self.when_scanned([plugin_id = std::move(plugin_id)](impl& me)
+                              { me.forget(plugin_id); });
         });
 }
 

@@ -257,6 +257,7 @@ vss_set_warnings(vss_test_plugin)
 list(APPEND VSS_SYSTEM_TEST_SOURCES
   system/test_system_plugin_process.cpp
   system/test_system_plugin_runner.cpp
+  system/test_system_plugin_service.cpp
   system/test_system_plugin_start_plan.cpp)
 if(WIN32)
   target_sources(vss_test_plugin PRIVATE
@@ -288,7 +289,8 @@ vss_set_warnings(vss_system_tests)
 vss_enable_coverage(vss_system_tests)
 
 add_dependencies(vss_system_tests vss_test_plugin)
-target_link_libraries(vss_system_tests PRIVATE vss_plugin_host)
+target_link_libraries(vss_system_tests PRIVATE vss_plugin_host
+  vss_license_test_keys)
 target_compile_definitions(vss_system_tests PRIVATE
   VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>")
 
