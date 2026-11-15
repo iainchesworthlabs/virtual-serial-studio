@@ -9444,6 +9444,16 @@ Networks: %5</source>
             <source>Support bundle</source>
             <translation>حزمة الدعم</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
+            <source>Plugins...</source>
+            <translation>الإضافات...</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
+            <source>plugin plugins extension fixture generator trust</source>
+            <translation>إضافة إضافات امتداد تجهيزة مولّد ثقة plugin plugins</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -21074,6 +21084,850 @@ Networks: %5</source>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Support ended with your licence on %1.</source>
             <translation>انتهى الدعم مع ترخيصك في %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginDecisionDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Switch on %1?</source>
+            <translation>تشغيل %1؟</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run a plugin from %1?</source>
+            <translation>تشغيل إضافة من %1؟</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run an unofficial plugin?</source>
+            <translation>تشغيل إضافة غير رسمية؟</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>موقّعة من Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1, whose plugins you have approved before. Not verified by Virtual Serial Studio.</source>
+            <translation>موقّعة من %1، الذي سبق أن وافقت على إضافاته. لم يتحقق منها Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio. Only run it if you know who that is.</source>
+            <translation>موقّعة من %1. لم يتحقق منها Virtual Serial Studio. لا تشغّلها إلا إذا كنت تعرف من هو.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Unofficial plugin. It can do anything Studio can.</source>
+            <translation>إضافة غير رسمية. تستطيع فعل كل ما يستطيعه Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>لا يستطيع Studio معرفة من صنعها أو هل جرى تغييرها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It is signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>موقّعة بمفتاح لا يملكه Studio (%1)، لذلك لم يمكن فحص التوقيع.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>التشغيل</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run this plugin</source>
+            <translation>تشغيل هذه الإضافة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run anyway</source>
+            <translation>التشغيل على أي حال</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio runs it apart from your files and other programs.</source>
+            <translation>يشغّلها Studio بمعزل عن ملفاتك والبرامج الأخرى.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio can only partly keep it apart on this computer: %1.</source>
+            <translation>لا يستطيع Studio عزلها على هذا الكمبيوتر إلا جزئيًا: %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer. It runs with your own access to files and the network.</source>
+            <translation>لا يستطيع Studio عزلها على هذا الكمبيوتر. ستعمل بصلاحياتك أنت في الوصول إلى الملفات والشبكة.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer, so it will not run here.</source>
+            <translation>لا يستطيع Studio عزلها على هذا الكمبيوتر، لذلك لن تعمل هنا.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>استيراد مفتاح المؤلف...</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>This is a different version from the one you approved.</source>
+            <translation>هذا إصدار مختلف عن الذي وافقت عليه.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks for more than before:</source>
+            <translation>تطلب أكثر مما طلبته من قبل:</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>الإصدار</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>البصمة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>ما تضيفه</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks to:</source>
+            <translation>تطلب ما يلي:</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Needed</source>
+            <translation>مطلوب</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>إلغاء</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Decide anyway</source>
+            <translation>القرار على أي حال</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginKeyImportDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve the key of %1?</source>
+            <translation>الموافقة على مفتاح %1؟</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Plugins signed with this key will be shown as signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>ستظهر الإضافات الموقّعة بهذا المفتاح على أنها موقّعة من %1. لم يتحقق منها Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Author</source>
+            <translation>المؤلف</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Key id</source>
+            <translation>معرّف المفتاح</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>البصمة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>تم نسخ البصمة.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>البصمة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>File</source>
+            <translation>الملف</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Compare the fingerprint with the one the author published, on their website or in a message from them. If they differ, do not approve the key.</source>
+            <translation>قارن البصمة بالبصمة التي نشرها المؤلف على موقعه أو في رسالة منه. إذا اختلفتا فلا توافق على المفتاح.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>This key file came with the plugin. Anyone who changed the plugin could have changed this file too, so compare the fingerprint with one from somewhere else.</source>
+            <translation>جاء ملف المفتاح هذا مع الإضافة. من غيّر الإضافة ربما غيّر هذا الملف أيضًا، لذلك قارن البصمة ببصمة من مصدر آخر.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>The fingerprint is the one the author published</source>
+            <translation>البصمة هي التي نشرها المؤلف</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>إلغاء</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve this key</source>
+            <translation>الموافقة على هذا المفتاح</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNoIsolationDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run %1 without isolation?</source>
+            <translation>تشغيل %1 دون عزل؟</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>It will run with your own access to your files, the network and other programs.</source>
+            <translation>ستعمل بصلاحياتك أنت في الوصول إلى ملفاتك والشبكة والبرامج الأخرى.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>لا يستطيع Studio معرفة من صنعها أو هل جرى تغييرها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>الإصدار</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>البصمة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>This applies to this version of this plugin only. A changed plugin asks again.</source>
+            <translation>ينطبق هذا على هذا الإصدار من هذه الإضافة فقط. إذا تغيّرت الإضافة فسيُطلب رأيك من جديد.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>I understand that Studio is not keeping this plugin apart</source>
+            <translation>أفهم أن Studio لا يعزل هذه الإضافة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>إلغاء</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Run without isolation</source>
+            <translation>التشغيل دون عزل</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginsDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Official</source>
+            <translation>رسمية</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1</source>
+            <translation>موقّعة من %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Unsigned</source>
+            <translation>غير موقّعة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by an author you have not approved</source>
+            <translation>موقّعة من مؤلف لم توافق عليه</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>On</source>
+            <translation>قيد التشغيل</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Starting</source>
+            <translation>قيد البدء</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Off</source>
+            <translation>متوقفة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Needs your decision</source>
+            <translation>تحتاج إلى قرارك</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Blocked</source>
+            <translation>محظورة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not isolated</source>
+            <translation>غير معزولة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not used</source>
+            <translation>غير مستخدمة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Needs a licence</source>
+            <translation>تحتاج إلى ترخيص</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Stopped</source>
+            <translation>توقف</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not compatible</source>
+            <translation>غير متوافقة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Can't be used</source>
+            <translation>لا يمكن استخدامها</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not installed</source>
+            <translation>غير مثبتة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%1, %2, %3</source>
+            <translation>%1، %2، %3</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%1, version %2</source>
+            <translation>%1، الإصدار %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>غير متاح في هذا الإصدار</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>See your ports and links, their state and their counters.</source>
+            <translation>عرض المنافذ والوصلات وحالتها وعدّاداتها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Read the data that passes through the ports and links you use it on.</source>
+            <translation>قراءة البيانات التي تمر عبر المنافذ والوصلات التي تستخدمها عليها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Send data from the ports you use it on.</source>
+            <translation>إرسال البيانات من المنافذ التي تستخدمها عليها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Add, remove and connect ports and links.</source>
+            <translation>إضافة المنافذ والوصلات وإزالتها وتوصيلها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Hold, change or drop data on the links you use it on.</source>
+            <translation>إبقاء البيانات على الوصلات التي تستخدمها عليها، أو تغييرها أو إسقاطها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Cause line errors and disconnections, and set timed replies.</source>
+            <translation>إحداث أخطاء في الخط وحالات قطع الاتصال، وضبط ردود بتوقيت محدد.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>See the list of serial devices on this computer.</source>
+            <translation>عرض قائمة الأجهزة التسلسلية في هذا الكمبيوتر.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Read files in a folder you choose.</source>
+            <translation>قراءة الملفات في مجلد تختاره.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Write files in a folder you choose.</source>
+            <translation>كتابة الملفات في مجلد تختاره.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>, </source>
+            <translation>، </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections from programs on this computer, on %1.</source>
+            <translation>قبول الاتصالات من البرامج الموجودة على هذا الكمبيوتر، على %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections on %1.</source>
+            <translation>قبول الاتصالات على %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Connect to %1.</source>
+            <translation>الاتصال بـ %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Start other programs.</source>
+            <translation>تشغيل برامج أخرى.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Add a section to a support bundle. You see it and choose whether to include it.</source>
+            <translation>إضافة قسم إلى حزمة الدعم. ترى القسم وتختار هل تضمّنه.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>موقّعة من Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>موقّعة من %1. لم يتحقق منها Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>موقّعة بمفتاح لا يملكه Studio (%1)، لذلك لم يمكن فحص التوقيع.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not signed. Studio cannot tell who made it or whether it was changed.</source>
+            <translation>غير موقّعة. لا يستطيع Studio معرفة من صنعها أو هل جرى تغييرها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>None. You allowed this on %1.</source>
+            <translation>لا شيء. سمحت بذلك في %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Full</source>
+            <translation>كامل</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Partial: %1</source>
+            <translation>جزئي: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>None on this computer</source>
+            <translation>لا شيء على هذا الكمبيوتر</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Timed by Studio</source>
+            <translation>التوقيت من Studio</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>In the path of the data</source>
+            <translation>في مسار البيانات</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Beside the data</source>
+            <translation>بجانب البيانات</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
+            <translation>ينفّذ Studio قواعد هذه الإضافة بنفسه، لذلك يكون توقيتها دقيقًا وتستمر في العمل إذا توقفت الإضافة.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Data on a link waits for this plugin, for up to %n microseconds each time.</source>
+            <translation>
+                <numerusform>تنتظر البيانات على الوصلة هذه الإضافة مدة تصل إلى %n ميكروثانية في كل مرة.</numerusform>
+                <numerusform>تنتظر البيانات على الوصلة هذه الإضافة مدة تصل إلى %n ميكروثانية في كل مرة.</numerusform>
+                <numerusform>تنتظر البيانات على الوصلة هذه الإضافة مدة تصل إلى %n ميكروثانيتين في كل مرة.</numerusform>
+                <numerusform>تنتظر البيانات على الوصلة هذه الإضافة مدة تصل إلى %n ميكروثوانٍ في كل مرة.</numerusform>
+                <numerusform>تنتظر البيانات على الوصلة هذه الإضافة مدة تصل إلى %n ميكروثانية في كل مرة.</numerusform>
+                <numerusform>تنتظر البيانات على الوصلة هذه الإضافة مدة تصل إلى %n ميكروثانية في كل مرة.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin watches and acts, and data never waits for it.</source>
+            <translation>تراقب هذه الإضافة وتتصرف، ولا تنتظرها البيانات أبدًا.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Everyone on this computer</source>
+            <translation>كل من يستخدم هذا الكمبيوتر</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>You only</source>
+            <translation>أنت فقط</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Came with Studio</source>
+            <translation>جاءت مع Studio</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Fixture: %1</source>
+            <translation>التجهيزة: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Generator: %1</source>
+            <translation>المولّد: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Link behaviour: %1</source>
+            <translation>سلوك الوصلة: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Connection: %1</source>
+            <translation>الاتصال: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Uses the %1 on this computer. Those files are not covered by the signature.</source>
+            <translation>تستخدم %1 الموجودة على هذا الكمبيوتر. هذه الملفات لا يشملها التوقيع.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Plugin</source>
+            <translation>الإضافة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Start now</source>
+            <translation>البدء الآن</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>المراجعة والقرار</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Show the copy that is used</source>
+            <translation>عرض النسخة المستخدمة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>نسخ التفاصيل</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run without isolation...</source>
+            <translation>التشغيل دون عزل...</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Licence</source>
+            <translation>الترخيص</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Start again</source>
+            <translation>البدء مجدداً</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Show log</source>
+            <translation>عرض السجل</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run until Studio closes</source>
+            <translation>التشغيل حتى يُغلق Studio</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Starting.</source>
+            <translation>قيد البدء.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in 1 second (attempt %1 of 5).</source>
+            <translation>توقفت على نحو غير متوقع. ستبدأ من جديد بعد ثانية واحدة (المحاولة %1 من 5).</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in %n seconds (attempt %1 of 5).</source>
+            <translation>
+                <numerusform>توقفت على نحو غير متوقع. ستبدأ من جديد بعد %n ثانية (المحاولة %1 من 5).</numerusform>
+                <numerusform>توقفت على نحو غير متوقع. ستبدأ من جديد بعد %n ثانية (المحاولة %1 من 5).</numerusform>
+                <numerusform>توقفت على نحو غير متوقع. ستبدأ من جديد بعد %n ثانيتين (المحاولة %1 من 5).</numerusform>
+                <numerusform>توقفت على نحو غير متوقع. ستبدأ من جديد بعد %n ثوانٍ (المحاولة %1 من 5).</numerusform>
+                <numerusform>توقفت على نحو غير متوقع. ستبدأ من جديد بعد %n ثانية (المحاولة %1 من 5).</numerusform>
+                <numerusform>توقفت على نحو غير متوقع. ستبدأ من جديد بعد %n ثانية (المحاولة %1 من 5).</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>You have not decided whether to run this plugin.</source>
+            <translation>لم تقرر بعد هل تُشغَّل هذه الإضافة.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin changed since you approved it. Review it again before it runs.</source>
+            <translation>تغيّرت هذه الإضافة منذ وافقت عليها. راجعها من جديد قبل أن تعمل.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins. This one is not official.</source>
+            <translation>يسمح المسؤول بالإضافات الرسمية فقط. وهذه الإضافة ليست رسمية.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator has blocked this plugin.</source>
+            <translation>حظر المسؤول هذه الإضافة.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator requires more isolation than this computer can give this plugin.</source>
+            <translation>يشترط المسؤول عزلًا أكثر مما يستطيع هذا الكمبيوتر توفيره لهذه الإضافة.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run. Only your administrator can allow it.</source>
+            <translation>لا يستطيع Studio عزل هذه الإضافة عن ملفاتك والبرامج الأخرى على هذا الكمبيوتر، لذلك لن تعمل. المسؤول وحده يستطيع السماح بها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run.</source>
+            <translation>لا يستطيع Studio عزل هذه الإضافة عن ملفاتك والبرامج الأخرى على هذا الكمبيوتر، لذلك لن تعمل.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy is newer (version %1), and it is still not used. Ask your administrator to update the copy for everyone.</source>
+            <translation>تُستخدم النسخة المثبتة لكل من يستخدم الكمبيوتر. هذه النسخة أحدث (الإصدار %1)، ومع ذلك فهي غير مستخدمة. اطلب من المسؤول تحديث النسخة المخصصة للجميع.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
+            <translation>تُستخدم النسخة المثبتة لكل من يستخدم الكمبيوتر. أما هذه النسخة، المثبتة لك وحدك، فلا تُستخدم.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Another plugin with the same identifier is installed, %1. This one, %2, is not used. They are not the same plugin.</source>
+            <translation>هناك إضافة أخرى بالمعرّف نفسه مثبتة، %1. هذه الإضافة، %2، غير مستخدمة. وهما ليستا الإضافة نفسها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Its identifier is one that only official plugins may use, and it is not signed by Virtual Serial Studio. It will not run.</source>
+            <translation>معرّفها لا يجوز استخدامه إلا للإضافات الرسمية، وهي غير موقّعة من Virtual Serial Studio. لن تعمل.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%1 Its settings are kept, and it runs again when a licence allows it.</source>
+            <translation>%1 تبقى إعداداتها محفوظة، وتعمل من جديد عندما يسمح بذلك ترخيص.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It stopped %n times in 10 minutes, so Studio stopped starting it.</source>
+            <translation>
+                <numerusform>توقفت %n مرة خلال 10 دقائق، فتوقف Studio عن بدء تشغيلها.</numerusform>
+                <numerusform>توقفت %n مرة خلال 10 دقائق، فتوقف Studio عن بدء تشغيلها.</numerusform>
+                <numerusform>توقفت %n مرتين خلال 10 دقائق، فتوقف Studio عن بدء تشغيلها.</numerusform>
+                <numerusform>توقفت %n مرات خلال 10 دقائق، فتوقف Studio عن بدء تشغيلها.</numerusform>
+                <numerusform>توقفت %n مرة خلال 10 دقائق، فتوقف Studio عن بدء تشغيلها.</numerusform>
+                <numerusform>توقفت %n مرة خلال 10 دقائق، فتوقف Studio عن بدء تشغيلها.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It did not answer, so Studio stopped it.</source>
+            <translation>لم تردّ، فأوقفها Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It sent more than it is allowed to (%1), so Studio stopped it.</source>
+            <translation>أرسلت أكثر مما يُسمح لها به (%1)، فأوقفها Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs a newer version of Studio. This is version %1.</source>
+            <translation>تحتاج هذه الإضافة إلى إصدار أحدث من Studio. هذا هو الإصدار %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs something this build does not have: %1.</source>
+            <translation>تحتاج هذه الإضافة إلى شيء غير موجود في هذا الإصدار: %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was made for an older version of Studio. Ask its author for a newer one.</source>
+            <translation>صُنعت هذه الإضافة لإصدار أقدم من Studio. اطلب من مؤلفها إصدارًا أحدث.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Its description file is not valid, so Studio cannot tell what it is.</source>
+            <translation>ملف وصفها غير صالح، لذلك لا يستطيع Studio معرفة ماهيتها.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
+            <translation>توقيعها لا يطابق ملفاتها. ربما جرى تغيير الملفات. احصل على الإضافة من مؤلفها من جديد.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was withdrawn by Virtual Serial Studio. It will not run.</source>
+            <translation>سحب Virtual Serial Studio هذه الإضافة. لن تعمل.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin expired on %1. Look for a newer version.</source>
+            <translation>انتهت صلاحية هذه الإضافة في %1. ابحث عن إصدار أحدث.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>A setup uses this plugin, and it is not installed on this computer. Its parts of the setup are kept.</source>
+            <translation>هناك إعداد يستخدم هذه الإضافة، وهي غير مثبتة على هذا الكمبيوتر. أجزاء الإعداد الخاصة بها محفوظة.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>A policy file was found on this computer and could not be trusted, so only official plugins will run.</source>
+            <translation>عُثر على ملف سياسات في هذا الكمبيوتر ولم يمكن الوثوق به، لذلك ستعمل الإضافات الرسمية فقط.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins on this computer.</source>
+            <translation>يسمح المسؤول بالإضافات الرسمية فقط على هذا الكمبيوتر.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer. Plugins in your own plugin folder are not used.</source>
+            <translation>المسؤول هو الذي يثبّت الإضافات على هذا الكمبيوتر. الإضافات الموجودة في مجلد الإضافات الخاص بك لا تُستخدم.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Official plugins need a Pro licence.</source>
+            <translation>الإضافات الرسمية تحتاج إلى ترخيص Pro.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>الإضافات</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Plugins add fixtures, generators, link behaviours and connections to other tools. Each one runs as its own program, apart from Studio.</source>
+            <translation>تضيف الإضافات تجهيزات ومولّدات وسلوكيات للوصلات واتصالات بأدوات أخرى. تعمل كل إضافة كبرنامج مستقل بعيدًا عن Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>1 needs attention</source>
+            <translation>1 تحتاج إلى انتباه</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%n need attention</source>
+            <translation>
+                <numerusform>%n تحتاج إلى انتباه</numerusform>
+                <numerusform>%n تحتاج إلى انتباه</numerusform>
+                <numerusform>%n تحتاجان إلى انتباه</numerusform>
+                <numerusform>%n تحتاج إلى انتباه</numerusform>
+                <numerusform>%n تحتاج إلى انتباه</numerusform>
+                <numerusform>%n تحتاج إلى انتباه</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%n on</source>
+            <translation>
+                <numerusform>%n قيد التشغيل</numerusform>
+                <numerusform>%n قيد التشغيل</numerusform>
+                <numerusform>%n قيد التشغيل</numerusform>
+                <numerusform>%n قيد التشغيل</numerusform>
+                <numerusform>%n قيد التشغيل</numerusform>
+                <numerusform>%n قيد التشغيل</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>The plugin says: %1</source>
+            <translation>تقول الإضافة: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove %1?</source>
+            <translation>إزالة %1؟</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again.</source>
+            <translation>ينقل Studio مجلد الإضافة إلى سلة المحذوفات. تحتفظ الإعدادات التي تستخدمها بأجزائها، وتتوقف هذه الأجزاء عن العمل إلى أن تُثبَّت الإضافة من جديد.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Also delete its saved data</source>
+            <translation>احذف أيضًا بياناتها المحفوظة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>إلغاء</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove plugin</source>
+            <translation>إزالة الإضافة</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1، %2</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. %n plugins found.</source>
+            <translation>
+                <numerusform>تم الفحص. عدد الإضافات التي عُثر عليها: %n.</numerusform>
+                <numerusform>تم الفحص. عُثر على %n إضافة.</numerusform>
+                <numerusform>تم الفحص. عُثر على %n إضافتين.</numerusform>
+                <numerusform>تم الفحص. عُثر على %n إضافات.</numerusform>
+                <numerusform>تم الفحص. عُثر على %n إضافة.</numerusform>
+                <numerusform>تم الفحص. عُثر على %n إضافة.</numerusform>
+            </translation>
         </message>
     </context>
 </TS>

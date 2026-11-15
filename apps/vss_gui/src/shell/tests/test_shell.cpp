@@ -2483,3 +2483,60 @@ TEST_CASE("licence notice: Dismiss on a wrong date hides it for the day")
     REQUIRE(!hidden(notice));
     clear_settings();
 }
+
+TEST_CASE("plugins: Tools has Plugins after Setup check, with no shortcut, "
+          "found by search, and off with a reason in a build without a host")
+{
+    clear_settings();
+    for (const bool has_host : {false, true})
+    {
+        vss::gui::FakeStudioBackend backend;
+        vss::gui::capabilities caps;
+        caps.plugins = has_host;
+        backend.set_capabilities(caps);
+        vss::gui::ShellWindow window(backend);
+        window.show();
+        QApplication::processEvents();
+
+        QMenu* tools = nullptr;
+        for (QAction* top : window.menuBar()->actions())
+        {
+            if (top->menu() != nullptr &&
+                top->text().remove(QLatin1Char('&')) == QStringLiteral("Tools"))
+                tools = top->menu();
+        }
+        REQUIRE(tools != nullptr);
+        QAction* setup = nullptr;
+        QAction* plugins = nullptr;
+        bool plugins_follows_setup = false;
+        for (QAction* each : tools->actions())
+        {
+            if (each->text() == QStringLiteral("Setup check"))
+                setup = each;
+            else if (each->text() == QStringLiteral("Plugins..."))
+            {
+                plugins = each;
+                plugins_follows_setup = setup != nullptr;
+            }
+            else if (setup != nullptr && plugins == nullptr)
+                setup = nullptr;
+        }
+        REQUIRE(setup != nullptr);
+        REQUIRE(plugins != nullptr);
+        REQUIRE(plugins_follows_setup);
+        REQUIRE(plugins->shortcut().isEmpty());
+        REQUIRE_EQ(plugins->isEnabled(), has_host);
+        if (!has_host)
+        {
+            REQUIRE_EQ(plugins->toolTip(),
+                       QStringLiteral("Not available in this build"));
+        }
+        // Search actions finds it as "Plugins".
+        bool found = false;
+        for (QAction* each : window.findChildren<vss::gui::ActionRegistry*>()
+                                 .value(0)
+                                 ->search(QStringLiteral("Plugins")))
+            found = found || each->text() == QStringLiteral("Plugins...");
+        REQUIRE(found);
+    }
+}

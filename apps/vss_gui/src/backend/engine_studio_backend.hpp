@@ -8,6 +8,7 @@
 #define VSS_GUI_BACKEND_ENGINE_STUDIO_BACKEND_HPP
 
 #include "backend/licence_store.hpp"
+#include "backend/plugin_backend.hpp"
 #include "backend/studio_backend.hpp"
 
 #include <chrono>
@@ -90,6 +91,10 @@ public:
     licence_view licence() const override;
     licence_import_result import_licence(const QString& path) override;
     bool remove_licence(const QString& file_name) override;
+    /// Gives the backend its plugin host. Without one `caps().plugins` is
+    /// false and the Plugins page is not available.
+    void set_plugin_backend(std::unique_ptr<PluginBackend> host);
+    PluginBackend* plugin_backend() const override { return plugins_.get(); }
     driver_check check_driver() const override;
     std::chrono::milliseconds probe_cache_age() const override
     {
@@ -186,6 +191,7 @@ private:
     /// platform cannot tell.
     QTimer* peer_timer_ = nullptr;
     std::unique_ptr<licence_store> licences_;
+    std::unique_ptr<PluginBackend> plugins_;
     QTimer* licence_timer_ = nullptr;
     bool rebuild_scheduled_ = false;
     /// Guards `ports_` and `links_`: a job that runs off the GUI thread (making

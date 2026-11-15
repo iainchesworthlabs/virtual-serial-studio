@@ -5,6 +5,7 @@
 //
 
 #include "backend/engine_studio_backend.hpp"
+#include "backend/library_plugin_backend.hpp"
 #include "backend/licence_store.hpp"
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
@@ -322,6 +323,19 @@ try
                 licences.build_time = *built;
             backend.set_licence_store(
                 std::make_unique<vss::gui::licence_store>(std::move(licences)));
+        }
+        {
+            // The plugin host: it finds and checks the installed plugins on a
+            // thread of its own and starts none. The licence in use tells it
+            // whether an official plugin is licensed.
+            auto plugins = std::make_unique<vss::gui::LibraryPluginBackend>(
+                vss::gui::default_plugin_gather_options());
+            vss::gui::LibraryPluginBackend* host = plugins.get();
+            host->set_licence(backend.licence().status);
+            QObject::connect(&backend, &vss::gui::StudioBackend::licence_changed,
+                             host, [&backend, host]
+                             { host->set_licence(backend.licence().status); });
+            backend.set_plugin_backend(std::move(plugins));
         }
         if (parser.isSet(screenshot_option))
         {

@@ -52,6 +52,7 @@
 #include "support/driver_setup_dialog.hpp"
 #include "support/help_contents_dialog.hpp"
 #include "support/licence_dialog.hpp"
+#include "support/plugins_dialog.hpp"
 #include "support/running_setup.hpp"
 #include "support/settings.hpp"
 #include "support/settings_dialog.hpp"
@@ -444,6 +445,10 @@ void ShellWindow::build_actions()
     add(QStringLiteral("tools.setupCheck"), tr("Setup check"),
         tr("driver com0com permissions"), {}, {}, action_level::simple,
         [this] { open_setup_check(); });
+    add(QStringLiteral("tools.plugins"), tr("Plugins..."),
+        tr("plugin plugins extension fixture generator trust"), {}, {},
+        action_level::simple, [this] { open_plugins(); }, false,
+        [this] { return backend_.caps().plugins; });
     add(QStringLiteral("tools.benchmark"), tr("Benchmark"),
         tr("throughput speed"), {}, {}, action_level::advanced,
         [this] { open_benchmark(); });
@@ -577,6 +582,11 @@ void ShellWindow::build_actions()
     {
         network->setToolTip(tr("Not available in this build"));
     }
+    if (QAction* plugins = registry_.action(QStringLiteral("tools.plugins"));
+        plugins != nullptr && !backend_.caps().plugins)
+    {
+        plugins->setToolTip(tr("Not available in this build"));
+    }
     if (QAction* share = registry_.action(QStringLiteral("topology.share"));
         share != nullptr && !backend_.caps().share)
     {
@@ -679,6 +689,7 @@ void ShellWindow::build_menus()
     QMenu* tools = add_menu(tr("&Tools"));
     add(tools, QStringLiteral("tools.search"));
     add(tools, QStringLiteral("tools.setupCheck"));
+    add(tools, QStringLiteral("tools.plugins"));
     add(tools, QStringLiteral("tools.benchmark"));
     tools->addSeparator();
     add(tools, QStringLiteral("tools.refresh"));
@@ -2968,6 +2979,19 @@ void ShellWindow::open_about()
     AboutDialog dialog(backend_, this);
     connect(&dialog, &AboutDialog::bundle_requested, this,
             &ShellWindow::open_bundle);
+    dialog.exec();
+}
+
+void ShellWindow::open_plugins()
+{
+    PluginBackend* host = backend_.plugin_backend();
+    if (host == nullptr)
+        return;
+    PluginsDialog dialog(*host, this);
+    connect(&dialog, &PluginsDialog::licence_requested, this,
+            [this] { QTimer::singleShot(0, this, [this] { open_licence(); }); });
+    connect(&dialog, &PluginsDialog::status_message, this,
+            [this](const QString& text) { status_->showMessage(text, 4000); });
     dialog.exec();
 }
 

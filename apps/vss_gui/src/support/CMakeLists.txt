@@ -34,6 +34,14 @@ add_library(vss_gui_support STATIC
   licence_text.hpp
   permission_dialog.cpp
   permission_dialog.hpp
+  plugin_dialogs.cpp
+  plugin_dialogs.hpp
+  plugin_text.cpp
+  plugin_text.hpp
+  plugin_widgets.cpp
+  plugin_widgets.hpp
+  plugins_dialog.cpp
+  plugins_dialog.hpp
   permission_rows.cpp
   permission_rows.hpp
   redact.cpp

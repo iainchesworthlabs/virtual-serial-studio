@@ -9420,6 +9420,16 @@ Networks: %5</source>
             <source>Support bundle</source>
             <translation>שטיצע־פּעקל</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
+            <source>Plugins...</source>
+            <translation>פּלאַגינס...</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
+            <source>plugin plugins extension fixture generator trust</source>
+            <translation>פּלאַגין פּלאַגינס פּלאַגין צוגאַב פֿיקסטשער דזשענעראַטאָר צוטרוי plugin plugins</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
@@ -20958,6 +20968,826 @@ Networks: %5</source>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Support ended with your licence on %1.</source>
             <translation>די שטיצע האָט זיך געענדיקט מיט אײַער דערלויבעניש דעם %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginDecisionDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Switch on %1?</source>
+            <translation>אָנשטעלן %1?</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run a plugin from %1?</source>
+            <translation>לויפֿן אַ פּלאַגין פֿון %1?</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run an unofficial plugin?</source>
+            <translation>לויפֿן אַן נישט־אָפֿיציעלן פּלאַגין?</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>אונטערגעשריבן דורך Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1, whose plugins you have approved before. Not verified by Virtual Serial Studio.</source>
+            <translation>אונטערגעשריבן דורך %1, וועמענס פּלאַגינס איר האָט פֿריִער באַשטעטיקט. נישט באַשטעטיקט דורך Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio. Only run it if you know who that is.</source>
+            <translation>אונטערגעשריבן דורך %1. נישט באַשטעטיקט דורך Virtual Serial Studio. לויפֿט אים בלויז אויב איר ווייסט ווער דאָס איז.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Unofficial plugin. It can do anything Studio can.</source>
+            <translation>נישט־אָפֿיציעלער פּלאַגין. ער קען טאָן אַלץ וואָס Studio קען.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio קען נישט זאָגן ווער האָט אים געמאַכט אָדער צי ער איז געביטן געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It is signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>ער איז אונטערגעשריבן מיט אַ שליסל וואָס Studio האָט נישט (%1), דעריבער האָט מען נישט געקענט אָפּשאַצן די אונטערשריפֿט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>אָנשטעלן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run this plugin</source>
+            <translation>לויפֿן דעם פּלאַגין</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run anyway</source>
+            <translation>לויפֿן טראָץ דעם</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio runs it apart from your files and other programs.</source>
+            <translation>Studio לאָזט אים לויפֿן אָפּגעשיידט פֿון אײַערע טעקעס און אַנדערע פּראָגראַמען.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio can only partly keep it apart on this computer: %1.</source>
+            <translation>Studio קען אים נאָר טיילווײַז אָפּשיידן אויף דעם קאָמפּיוטער: %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer. It runs with your own access to files and the network.</source>
+            <translation>Studio קען אים נישט אָפּשיידן אויף דעם קאָמפּיוטער. ער לויפֿט מיט אײַער אײגענעם צוטריט צו טעקעס און דעם נעץ.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer, so it will not run here.</source>
+            <translation>Studio קען אים נישט אָפּשיידן אויף דעם קאָמפּיוטער, דעריבער וועט ער דאָ נישט לויפֿן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>אימפּאָרטירן דעם שליסל פֿון דעם מחבר...</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>This is a different version from the one you approved.</source>
+            <translation>דאָס איז אַן אַנדערע ווערסיע ווי די וואָס איר האָט באַשטעטיקט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks for more than before:</source>
+            <translation>ער בעט מער ווי פֿריִער:</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>פֿינגערפּרינט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>וואָס ער לייגט צו</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks to:</source>
+            <translation>ער בעט צו:</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Needed</source>
+            <translation>נויטיק</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Decide anyway</source>
+            <translation>באַשליסן טראָץ דעם</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginKeyImportDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve the key of %1?</source>
+            <translation>באַשטעטיקן דעם שליסל פֿון %1?</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Plugins signed with this key will be shown as signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>פּלאַגינס אונטערגעשריבן מיט דעם שליסל וועלן געוויזן ווערן ווי אונטערגעשריבן דורך %1. נישט באַשטעטיקט דורך Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Author</source>
+            <translation>מחבר</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Key id</source>
+            <translation>שליסל־נומער</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>פֿינגערפּרינט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>פֿינגערפּרינט קאָפּירט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>פֿינגערפּרינט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>File</source>
+            <translation>טעקע</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Compare the fingerprint with the one the author published, on their website or in a message from them. If they differ, do not approve the key.</source>
+            <translation>פֿאַרגלײַכט דעם פֿינגערפּרינט מיט דעם וואָס דער מחבר האָט פּובליקירט, אויף זײַן וועבזײַטל אָדער אין אַ מעלדונג פֿון אים. אויב זיי זענען אַנדערש, באַשטעטיקט נישט דעם שליסל.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>This key file came with the plugin. Anyone who changed the plugin could have changed this file too, so compare the fingerprint with one from somewhere else.</source>
+            <translation>די שליסל־טעקע איז געקומען מיטן פּלאַגין. יעדער וואָס האָט געביטן דעם פּלאַגין קען האָבן געביטן אויך די טעקע, דעריבער פֿאַרגלײַכט דעם פֿינגערפּרינט מיט איינעם פֿון אַן אַנדער אָרט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>The fingerprint is the one the author published</source>
+            <translation>דער פֿינגערפּרינט איז דער וואָס דער מחבר האָט פּובליקירט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve this key</source>
+            <translation>באַשטעטיקן דעם שליסל</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNoIsolationDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run %1 without isolation?</source>
+            <translation>לויפֿן %1 אָן אָפּשיידונג?</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>It will run with your own access to your files, the network and other programs.</source>
+            <translation>ער וועט לויפֿן מיט אײַער אײגענעם צוטריט צו אײַערע טעקעס, דעם נעץ און אַנדערע פּראָגראַמען.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio קען נישט זאָגן ווער האָט אים געמאַכט אָדער צי ער איז געביטן געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>פֿינגערפּרינט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>This applies to this version of this plugin only. A changed plugin asks again.</source>
+            <translation>דאָס גילט נאָר פֿאַר דער דאָזיקער ווערסיע פֿון דעם פּלאַגין. אַ געביטענער פּלאַגין פֿרעגט ווידער.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>I understand that Studio is not keeping this plugin apart</source>
+            <translation>איך פֿאַרשטיי אַז Studio האַלט נישט דעם פּלאַגין אָפּגעשיידט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Run without isolation</source>
+            <translation>לויפֿן אָן אָפּשיידונג</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginsDialog</name>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Official</source>
+            <translation>אָפֿיציעל</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1</source>
+            <translation>אונטערגעשריבן דורך %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Unsigned</source>
+            <translation>נישט אונטערגעשריבן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by an author you have not approved</source>
+            <translation>אונטערגעשריבן דורך אַ מחבר וועמען איר האָט נישט באַשטעטיקט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>On</source>
+            <translation>אָנגעשטעלט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Starting</source>
+            <translation>הייבט אָן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Off</source>
+            <translation>אויסגעשטעלט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Needs your decision</source>
+            <translation>דאַרף אײַער באַשלוס</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Blocked</source>
+            <translation>בלאָקירט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not isolated</source>
+            <translation>נישט אָפּגעשיידט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not used</source>
+            <translation>נישט גענוצט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Needs a licence</source>
+            <translation>דאַרף אַ דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Stopped</source>
+            <translation>אָפּגעשטעלט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not compatible</source>
+            <translation>נישט צוגעפּאַסט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Can't be used</source>
+            <translation>קען נישט גענוצט ווערן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not installed</source>
+            <translation>נישט אינסטאַלירט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%1, %2, %3</source>
+            <translation>%1, %2, %3</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%1, version %2</source>
+            <translation>%1, ווערסיע %2</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>See your ports and links, their state and their counters.</source>
+            <translation>זען אײַערע פּאָרטן און לינקס, זייער צושטאַנד און זייערע ציילער.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Read the data that passes through the ports and links you use it on.</source>
+            <translation>לײענען די דאַטן וואָס גייען דורך די פּאָרטן און לינקס וווּ איר ניצט אים.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Send data from the ports you use it on.</source>
+            <translation>שיקן דאַטן פֿון די פּאָרטן וווּ איר ניצט אים.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Add, remove and connect ports and links.</source>
+            <translation>צוגעבן, אַראָפּנעמען און פֿאַרבינדן פּאָרטן און לינקס.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Hold, change or drop data on the links you use it on.</source>
+            <translation>האַלטן, טוישן אָדער אַוועקוואַרפֿן דאַטן אויף די לינקס וווּ איר ניצט אים.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Cause line errors and disconnections, and set timed replies.</source>
+            <translation>פֿאַרשאַפֿן ליניע־טעותן און אָפּשטעלן פֿאַרבינדונגען, און שטעלן צײַט־געמאָסטענע ענטפֿערס.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>See the list of serial devices on this computer.</source>
+            <translation>זען די רשימה פֿון סעריע־אַפּאַראַטן אויף דעם קאָמפּיוטער.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Read files in a folder you choose.</source>
+            <translation>לײענען טעקעס אין אַ טעקע וואָס איר קלײַבט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Write files in a folder you choose.</source>
+            <translation>שרײַבן טעקעס אין אַ טעקע וואָס איר קלײַבט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>, </source>
+            <translation>, </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections from programs on this computer, on %1.</source>
+            <translation>אָננעמען פֿאַרבינדונגען פֿון פּראָגראַמען אויף דעם קאָמפּיוטער, אויף %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections on %1.</source>
+            <translation>אָננעמען פֿאַרבינדונגען אויף %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Connect to %1.</source>
+            <translation>פֿאַרבינדן צו %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Start other programs.</source>
+            <translation>אָנהייבן אַנדערע פּראָגראַמען.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Add a section to a support bundle. You see it and choose whether to include it.</source>
+            <translation>צוגעבן אַ אָפּטייל צו אַ שטיצע־פּעקל. איר זעט אים און קלײַבט צי אײַנשליסן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>אונטערגעשריבן דורך Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>אונטערגעשריבן דורך %1. נישט באַשטעטיקט דורך Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>אונטערגעשריבן מיט אַ שליסל וואָס Studio האָט נישט (%1), דעריבער האָט מען נישט געקענט אָפּשאַצן די אונטערשריפֿט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Not signed. Studio cannot tell who made it or whether it was changed.</source>
+            <translation>נישט אונטערגעשריבן. Studio קען נישט זאָגן ווער האָט אים געמאַכט אָדער צי ער איז געביטן געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>None. You allowed this on %1.</source>
+            <translation>קיינער. איר האָט דאָס דערלויבט אום %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Full</source>
+            <translation>פֿול</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Partial: %1</source>
+            <translation>טיילווײַז: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>None on this computer</source>
+            <translation>קיין איינער אויף דעם קאָמפּיוטער</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Timed by Studio</source>
+            <translation>צײַט געמאָסטן דורך Studio</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>In the path of the data</source>
+            <translation>אין דעם וועג פֿון די דאַטן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Beside the data</source>
+            <translation>לעבן די דאַטן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
+            <translation>Studio פֿירט אויס די כּללים פֿון דעם פּלאַגין אַליין, דעריבער איז זײַן צײַט־מעסטונג גענוי און ער האַלט אָן צו אַרבעטן אויב דער פּלאַגין שטעלט זיך אָפּ.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Data on a link waits for this plugin, for up to %n microseconds each time.</source>
+            <translation>
+                <numerusform>דאַטן אויף אַ לינק וואַרטן אויף דעם פּלאַגין, ביז %n מיקראָסעקונדע יעדעס מאָל.</numerusform>
+                <numerusform>דאַטן אויף אַ לינק וואַרטן אויף דעם פּלאַגין, ביז %n מיקראָסעקונדעס יעדעס מאָל.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin watches and acts, and data never waits for it.</source>
+            <translation>דער פּלאַגין קוקט און טוט, און דאַטן וואַרטן קיינמאָל נישט אויף אים.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Everyone on this computer</source>
+            <translation>יעדער אויף דעם קאָמפּיוטער</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>You only</source>
+            <translation>נאָר איר</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Came with Studio</source>
+            <translation>געקומען מיט Studio</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Fixture: %1</source>
+            <translation>פֿיקסטשער: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Generator: %1</source>
+            <translation>דזשענעראַטאָר: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Link behaviour: %1</source>
+            <translation>לינק־אויפֿפֿירונג: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Connection: %1</source>
+            <translation>פֿאַרבינדונג: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Uses the %1 on this computer. Those files are not covered by the signature.</source>
+            <translation>ניצט די %1 אויף דעם קאָמפּיוטער. יענע טעקעס זענען נישט געדעקט דורך דער אונטערשריפֿט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Plugin</source>
+            <translation>פּלאַגין</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Start now</source>
+            <translation>אָנהייבן איצט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>איבערקוקן און באַשליסן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Show the copy that is used</source>
+            <translation>ווײַזן די קאָפּיע וואָס ווערט גענוצט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>קאָפּירן פּרטים</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run without isolation...</source>
+            <translation>לויפֿן אָן אָפּשיידונג...</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Licence</source>
+            <translation>דערלויבעניש</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Start again</source>
+            <translation>ווידער אָנהייבן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Show log</source>
+            <translation>ווײַזן דעם לאָג</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Run until Studio closes</source>
+            <translation>לויפֿן ביז Studio ווערט פֿאַרמאַכט</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Starting.</source>
+            <translation>הייבט אָן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in 1 second (attempt %1 of 5).</source>
+            <translation>ער האָט זיך אומגעריכט אָפּגעשטעלט. הייבט אָן ווידער אין 1 סעקונדע (פּרובירונג %1 פֿון 5).</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in %n seconds (attempt %1 of 5).</source>
+            <translation>
+                <numerusform>ער האָט זיך אומגעריכט אָפּגעשטעלט. הייבט אָן ווידער אין %n סעקונדע (פּרובירונג %1 פֿון 5).</numerusform>
+                <numerusform>ער האָט זיך אומגעריכט אָפּגעשטעלט. הייבט אָן ווידער אין %n סעקונדעס (פּרובירונג %1 פֿון 5).</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>You have not decided whether to run this plugin.</source>
+            <translation>איר האָט נאָך נישט באַשלאָסן צי צו לויפֿן דעם פּלאַגין.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin changed since you approved it. Review it again before it runs.</source>
+            <translation>דער פּלאַגין איז געביטן געוואָרן זינט איר האָט אים באַשטעטיקט. קוקט אים איבער ווידער איידער ער לויפֿט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins. This one is not official.</source>
+            <translation>אײַער אַדמיניסטראַטאָר דערלויבט בלויז אָפֿיציעלע פּלאַגינס. דער דאָזיקער איז נישט אָפֿיציעל.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator has blocked this plugin.</source>
+            <translation>אײַער אַדמיניסטראַטאָר האָט בלאָקירט דעם דאָזיקן פּלאַגין.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator requires more isolation than this computer can give this plugin.</source>
+            <translation>אײַער אַדמיניסטראַטאָר פֿאָדערט מער אָפּשיידונג ווי דער קאָמפּיוטער קען געבן דעם פּלאַגין.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run. Only your administrator can allow it.</source>
+            <translation>Studio קען נישט אָפּשיידן דעם פּלאַגין פֿון אײַערע טעקעס און אַנדערע פּראָגראַמען אויף דעם קאָמפּיוטער, דעריבער וועט ער נישט לויפֿן. בלויז אײַער אַדמיניסטראַטאָר קען דאָס דערלויבן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run.</source>
+            <translation>Studio קען נישט אָפּשיידן דעם פּלאַגין פֿון אײַערע טעקעס און אַנדערע פּראָגראַמען אויף דעם קאָמפּיוטער, דעריבער וועט ער נישט לויפֿן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy is newer (version %1), and it is still not used. Ask your administrator to update the copy for everyone.</source>
+            <translation>די קאָפּיע אינסטאַלירט פֿאַר אַלעמען ווערט גענוצט. די דאָזיקע קאָפּיע איז נײַער (ווערסיע %1), און זי ווערט נאָך אַלץ נישט גענוצט. בעט אײַער אַדמיניסטראַטאָר צו דערנײַען די קאָפּיע פֿאַר אַלעמען.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
+            <translation>די קאָפּיע אינסטאַלירט פֿאַר אַלעמען ווערט גענוצט. די דאָזיקע קאָפּיע, אינסטאַלירט נאָר פֿאַר אײַך, ווערט נישט גענוצט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Another plugin with the same identifier is installed, %1. This one, %2, is not used. They are not the same plugin.</source>
+            <translation>אַן אַנדער פּלאַגין מיט דער זעלבער לעבעלע איז אינסטאַלירט, %1. דער דאָזיקער, %2, ווערט נישט גענוצט. זיי זענען נישט דער זעלבער פּלאַגין.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Its identifier is one that only official plugins may use, and it is not signed by Virtual Serial Studio. It will not run.</source>
+            <translation>זײַן לעבעלע איז איינע וואָס בלויז אָפֿיציעלע פּלאַגינס מעגן נוצן, און ער איז נישט אונטערגעשריבן דורך Virtual Serial Studio. ער וועט נישט לויפֿן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%1 Its settings are kept, and it runs again when a licence allows it.</source>
+            <translation>%1 זײַנע אײַנשטעלונגען ווערן געהאַלטן, און עס לויפֿט ווידער ווען אַ דערלויבעניש לאָזט עס.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It stopped %n times in 10 minutes, so Studio stopped starting it.</source>
+            <translation>
+                <numerusform>ער האָט זיך אָפּגעשטעלט %n מאָל אין 10 מינוט, דעריבער האָט Studio אויפֿגעהערט אים אָנהייבן.</numerusform>
+                <numerusform>ער האָט זיך אָפּגעשטעלט %n מאָל אין 10 מינוט, דעריבער האָט Studio אויפֿגעהערט אים אָנהייבן.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It did not answer, so Studio stopped it.</source>
+            <translation>ער האָט נישט געענטפֿערט, דעריבער האָט Studio אים אָפּגעשטעלט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>It sent more than it is allowed to (%1), so Studio stopped it.</source>
+            <translation>ער האָט געשיקט מער ווי ער טאָר (%1), דעריבער האָט Studio אים אָפּגעשטעלט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs a newer version of Studio. This is version %1.</source>
+            <translation>דער פּלאַגין דאַרף אַ נײַערע ווערסיע פֿון Studio. דאָס איז ווערסיע %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs something this build does not have: %1.</source>
+            <translation>דער פּלאַגין דאַרף עפּעס וואָס די דאָזיקע ווערסיע האָט נישט: %1.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was made for an older version of Studio. Ask its author for a newer one.</source>
+            <translation>דער פּלאַגין איז געמאַכט געוואָרן פֿאַר אַן עלטערער ווערסיע פֿון Studio. בעט זײַן מחבר אַ נײַערן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Its description file is not valid, so Studio cannot tell what it is.</source>
+            <translation>זײַן באַשרײַבונג־טעקע איז נישט גילטיק, דעריבער קען Studio נישט זאָגן וואָס ער איז.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
+            <translation>זײַן אונטערשריפֿט פּאַסט נישט צו זײַנע טעקעס. זיי קענען זײַן געביטן געוואָרן. באַקומט דעם פּלאַגין ווידער פֿון זײַן מחבר.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was withdrawn by Virtual Serial Studio. It will not run.</source>
+            <translation>דער פּלאַגין איז צוריקגעצויגן געוואָרן דורך Virtual Serial Studio. ער וועט נישט לויפֿן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>This plugin expired on %1. Look for a newer version.</source>
+            <translation>דער פּלאַגין איז אָפּגעלאָפֿן אום %1. זוכט אַ נײַערע ווערסיע.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>A setup uses this plugin, and it is not installed on this computer. Its parts of the setup are kept.</source>
+            <translation>אַ סעטאַפּ ניצט דעם פּלאַגין, און ער איז נישט אינסטאַלירט אויף דעם קאָמפּיוטער. די טיילן פֿון דעם סעטאַפּ ווערן געהאַלטן.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>A policy file was found on this computer and could not be trusted, so only official plugins will run.</source>
+            <translation>אַ פּאָליסי־טעקע איז געפֿונען געוואָרן אויף דעם קאָמפּיוטער און מען האָט איר נישט געקענט צוטרוינען, דעריבער לויפֿן בלויז אָפֿיציעלע פּלאַגינס.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins on this computer.</source>
+            <translation>אײַער אַדמיניסטראַטאָר דערלויבט בלויז אָפֿיציעלע פּלאַגינס אויף דעם קאָמפּיוטער.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer. Plugins in your own plugin folder are not used.</source>
+            <translation>אײַער אַדמיניסטראַטאָר אינסטאַלירט די פּלאַגינס אויף דעם קאָמפּיוטער. פּלאַגינס אין אײַער אײגענער פּלאַגין־טעקע ווערן נישט גענוצט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Official plugins need a Pro licence.</source>
+            <translation>אָפֿיציעלע פּלאַגינס דאַרפֿן אַ Pro דערלויבעניש.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>פּלאַגינס</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>Plugins add fixtures, generators, link behaviours and connections to other tools. Each one runs as its own program, apart from Studio.</source>
+            <translation>פּלאַגינס לייגן צו פֿיקסטשערס, דזשענעראַטאָרן, לינק־אויפֿפֿירונגען און פֿאַרבינדונגען צו אַנדערע געצייג. יעדער לויפֿט ווי אַ באַזונדערער פּראָגראַם, אָפּגעשיידט פֿון Studio.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>1 needs attention</source>
+            <translation>1 דאַרף אויפֿמערקזאַמקייט</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%n need attention</source>
+            <translation>
+                <numerusform>%n דאַרף אויפֿמערקזאַמקייט</numerusform>
+                <numerusform>%n דאַרפֿן אויפֿמערקזאַמקייט</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
+            <source>%n on</source>
+            <translation>
+                <numerusform>%n אָנגעשטעלט</numerusform>
+                <numerusform>%n אָנגעשטעלט</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>The plugin says: %1</source>
+            <translation>דער פּלאַגין זאָגט: %1</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove %1?</source>
+            <translation>אַוועקנעמען %1?</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio moves the plugin's folder to the bin. Setups that use it keep their parts, which stop working until the plugin is installed again.</source>
+            <translation>Studio שיבט די טעקע פֿון דעם פּלאַגין אין אָפּפֿאַל־קאָרב. סעטאַפּס וואָס ניצן אים האַלטן זייערע טיילן, וואָס הערן אויף צו אַרבעטן ביז דער פּלאַגין ווערט ווידער אינסטאַלירט.</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Also delete its saved data</source>
+            <translation>אויך אויסמעקן זײַנע געראטעוועטע דאַטן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove plugin</source>
+            <translation>אַראָפּנעמען דעם פּלאַגין</translation>
+        </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-page/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. %n plugins found.</source>
+            <translation>
+                <numerusform>געקוקט. %n פּלאַגין געפֿונען.</numerusform>
+                <numerusform>געקוקט. %n פּלאַגינס געפֿונען.</numerusform>
+            </translation>
         </message>
     </context>
 </TS>

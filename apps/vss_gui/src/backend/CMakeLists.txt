@@ -18,6 +18,15 @@ add_library(vss_gui_backend STATIC
   licence_store.cpp
   licence_store.hpp
   licence_view.hpp
+  plugin_backend.cpp
+  plugin_backend.hpp
+  plugin_view.hpp
+  fake_plugin_backend.cpp
+  fake_plugin_backend.hpp
+  library_plugin_backend.cpp
+  library_plugin_backend.hpp
+  plugin_mapping.cpp
+  plugin_mapping.hpp
   studio_backend.hpp
   engine_studio_backend.hpp
   fake_studio_backend.hpp
@@ -34,7 +43,7 @@ add_library(vss_gui_backend STATIC
 target_include_directories(vss_gui_backend PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Qt6::Core)
+target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Vss::plugin Qt6::Core)
 target_compile_features(vss_gui_backend PUBLIC cxx_std_23)
 target_compile_definitions(vss_gui_backend PRIVATE QT_NO_KEYWORDS)
 icl_platform_sources(vss_gui_backend
@@ -58,7 +67,8 @@ if(VSS_BUILD_TESTS)
     tests/test_canvas_edit.cpp
     tests/test_com_numbers.cpp
     tests/test_driver_error.cpp
-    tests/test_licence_store.cpp)
+    tests/test_licence_store.cpp
+    tests/test_plugin_backend.cpp)
 
   target_include_directories(vss_gui_backend_tests PRIVATE
     ${CMAKE_SOURCE_DIR}/tests/framework)
