@@ -230,14 +230,15 @@ int command_firewall_step(const std::vector<std::string>& arguments)
 const char* permissions_usage() noexcept
 {
     return "  vss_cli permissions check [--json] "
-           "[--listen=tcp-listen://host:port]\n"
+           "[--listen=<tcp|udp|rfc2217>-listen://host:port]\n"
            "      Say what the operating system may stop Studio doing and the\n"
            "      smallest step to fix it. Reads only; changes nothing.\n"
            "\n"
            "  vss_cli permissions firewall-allow|firewall-remove "
            "--program=<path>\n"
            "      --protocol=tcp|udp --port=N [--scope=local-subnet|any]\n"
-           "      --profiles=domain,private,public\n"
+           "      --profiles=domain,private,public (one or two of them; never\n"
+           "      all three)\n"
            "      Windows only, needs administrator rights. The graphical\n"
            "      interface runs this after you agree; it adds or removes one\n"
            "      Windows Firewall rule for one of our programs.\n"
