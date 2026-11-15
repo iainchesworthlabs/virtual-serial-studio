@@ -8,7 +8,6 @@
 #
 
 add_library(vss_plugin_host
-<<<<<<< HEAD
   src/control_relay.cpp
   src/extension.cpp
   src/instances.cpp
@@ -18,11 +17,8 @@ add_library(vss_plugin_host
   src/sandbox.cpp
   src/secret_point.cpp
   src/service.cpp
-  src/start_plan.cpp)
-=======
-  src/process.cpp
+  src/start_plan.cpp
   src/traffic_tap.cpp)
->>>>>>> feature/plugin-traffic-tap
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
 target_include_directories(vss_plugin_host PUBLIC
