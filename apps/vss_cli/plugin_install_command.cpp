@@ -192,6 +192,13 @@ decision install_decision(const plug::inspection& found, bool allow_unsigned)
                    "because it is not signed";
         return out;
     }
+    if (why == plug::plugin_errc::key_unknown)
+    {
+        out.text = "cannot be installed unless you give --allow-unsigned, "
+                   "because it is signed with a key nobody has approved, so "
+                   "nothing shows who made it";
+        return out;
+    }
     out.text = "cannot be installed, " + sup::code_text(why);
     if (!detail.empty())
         out.text += ": " + sup::plain(detail);
@@ -415,8 +422,10 @@ int command_plugin_remove(const std::vector<std::string>& arguments)
         return exit_refused;
 
     std::string detail;
+    plug::remove_options removing;
+    removing.for_everyone = given.for_everyone;
     const vss::result<void> done =
-        plug::remove_plugin(*target, given.subject, nullptr, &detail);
+        plug::remove_plugin(*target, given.subject, removing, &detail);
     if (done.has_error())
     {
         std::string text = "plugin remove: not removed, " +

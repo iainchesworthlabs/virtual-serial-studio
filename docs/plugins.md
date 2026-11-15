@@ -179,6 +179,8 @@ Rules:
   owned by the user or by an administrator, with no write access for others (Windows: the ACL is read, and an entry
   that grants write to `Everyone` or `Users` on a machine or install root rejects the plugin).
 - At most 64 plugins, and a manifest of at most 256 KiB. More is `rejected: too_many` or `manifest_too_large`.
+- An entry of a root whose name starts with a dot is skipped, whatever it is. `vss_cli plugin install` works in
+  `<root>/.vss-work/`, and a folder there, finished or half made, is never a plugin.
 
 **Scope.** A plugin has a scope, from the root it was found in. The host's view of a plugin carries it and the
 Plugins page shows it (`screens/10-plugins.md`).
@@ -273,13 +275,21 @@ anything from the plugin. It looks at the source with the checks of 5.3 and refu
 wrong, whose files are not the ones the manifest lists, whose signature does not hold, whose id only official plugins may
 use, or that was revoked; a plugin without a signature needs `--allow-unsigned`. An expired plugin, one that this computer
 cannot isolate and one the licence does not cover are installed, with what is wrong reported, because those depend on
-the computer and change. Each file is read once from one open handle and its digest is taken as it is copied; the copy is
-made in a new folder inside the root and measured again, and must have the hash of the first look, before it is renamed
-to `<root>/<plugin id>` in one step. The plugin id becomes a folder name only when the manifest reader accepted it and it
+the computer and change. The folder is measured, then each file is copied from one open handle with its digest taken as it is
+copied, and must be the file that was measured; the bytes of `plugin.json` and `plugin.sig` that were parsed and
+checked must be the measured ones, so the files copied are the files judged. A file keeps its owner's read and execute
+bits, is never writable by the group or others, and the program the manifest runs is executable for its owner. The copy
+is made in `<root>/.vss-work/<unique>/`, measured again, and must have the hash of the first look, before it is renamed
+to `<root>/<plugin id>` in one step; on a replace the old folder is moved into the same work folder, and a work folder
+that cannot be removed is an error that names it. Discovery skips every entry of a root whose name starts with a dot,
+so the work folder, and what a cut-off install leaves in it, is never a plugin; the next install clears it. A source
+signed with a key nobody approved is treated like an unsigned one and needs `--allow-unsigned`. The plugin id becomes a folder name only when the manifest reader accepted it and it
 does not begin with the name of a Windows device (`con`, `nul`, `com1`, and so on), on every system. A copy is not
 flushed to disk before the rename, because the standard library has no portable way to do it, so a power loss can leave
 a folder whose files are shorter than they were; the next look at it finds the files wrong. The machine root is written only when only an
-administrator can change it. The package is taken as a folder: Studio has no zip reader, and the user unzips a plugin
+administrator can change it, and it is never made by a command that cannot: when it is not there, the nearest folder
+above it that is must pass the same test. A plugin installed for everyone may not run confined until a later step gives
+the confined plugin read access to it. The package is taken as a folder: Studio has no zip reader, and the user unzips a plugin
 with the system's own tool.
 
 ### 5.3 Verify

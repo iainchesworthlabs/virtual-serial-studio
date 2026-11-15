@@ -6,6 +6,7 @@
 
 #include "plugin_support.hpp"
 
+#include <vss/control/audit_log.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/licence.hpp>
 #include <vss/plugin/locations.hpp>
@@ -231,6 +232,12 @@ computer this_computer(bool read_policy)
         out.policy_file = plug::plugin_locations_for(programs).policy_file;
         options.policy_file = out.policy_file;
     }
+    // The user's decisions are in `trust.json` beside the gateway's own
+    // folder in the user's state directory.  No file there means nothing is
+    // approved.
+    const vss::result<fs::path> state = vss::control::default_audit_directory();
+    if (state.has_value())
+        options.trust_file = state.value().parent_path() / "trust.json";
     out.context = plug::context_for_this_computer(options, &out.notes);
     return out;
 }

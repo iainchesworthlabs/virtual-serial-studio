@@ -330,6 +330,12 @@ void look_through(const plugin_root& root, discovery& out)
 
     for (const root_entry& entry : entries)
     {
+        // A name that starts with a dot is never a plugin: it is where an
+        // install works (`.vss-work`) or a file a system keeps in a folder.
+        if (entry.name.starts_with('.'))
+        {
+            continue;
+        }
         take_entry(root, entry, out);
     }
 }

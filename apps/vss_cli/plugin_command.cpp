@@ -236,9 +236,19 @@ std::string state_text(const vss::error_code& problem)
 }
 
 /// Whether the plugin has a `plugin.sig`.  A signature that could not be
-/// read, because it is a link or too large, is still there.
-bool has_signature(const plug::found_plugin& each)
+/// read, because it is a link or too large, is still there.  When the
+/// plugin was looked at for a verdict, the answer is from that look, so that
+/// it agrees with the verdict.
+bool has_signature(const plug::found_plugin& each,
+                   const plug::inspection* verdict)
 {
+    if (verdict != nullptr && !verdict->files.empty())
+    {
+        return std::any_of(verdict->files.begin(), verdict->files.end(),
+                           [](const plug::file_entry& file) {
+                               return file.path == plug::signature_file_name;
+                           });
+    }
     if (each.signature_bytes.has_value())
         return true;
     return std::any_of(each.files.begin(), each.files.end(),
@@ -246,9 +256,14 @@ bool has_signature(const plug::found_plugin& each)
                        { return file.path == plug::signature_file_name; });
 }
 
-/// The fingerprint, or nothing when the files were never measured.
-std::optional<std::string> fingerprint(const plug::found_plugin& each)
+/// The fingerprint, or nothing when the files were never measured.  It is
+/// the one of the look that gave the verdict, when there is one, so that the
+/// two are of the same files.
+std::optional<std::string> fingerprint(const plug::found_plugin& each,
+                                       const plug::inspection* verdict)
 {
+    if (verdict != nullptr && !verdict->files.empty())
+        return verdict->hash.short_text();
     if (each.files.empty())
         return std::nullopt;
     return each.hash.short_text();
@@ -311,13 +326,13 @@ void add_plugin(std::string& out, const plug::found_plugin& each,
     out += '\n';
     add_line(out, "Folder:       ", plain(path_text(each.directory)));
     add_line(out, "Installed for: ", installed_for(each.scope));
-    const std::optional<std::string> print = fingerprint(each);
+    const std::optional<std::string> print = fingerprint(each, verdict);
     add_line(out, "Fingerprint:  ",
              print.has_value() ? plain(print.value()) : "not worked out");
     if (verdict == nullptr)
     {
         add_line(out, "Signature:    ",
-                 has_signature(each) ? "present, not checked"
+                 has_signature(each, verdict) ? "present, not checked"
                                      : "not signed");
     }
     std::string state = state_text(each.problem);
@@ -472,8 +487,8 @@ json::value plugin_json(const plug::found_plugin& each,
     }
     item["folder"] = text_value(path_text(each.directory));
     item["scope"] = text_value(plug::to_string(each.scope));
-    item["fingerprint"] = optional_text_value(fingerprint(each));
-    item["signature"] = has_signature(each) ? "present" : "none";
+    item["fingerprint"] = optional_text_value(fingerprint(each, verdict));
+    item["signature"] = has_signature(each, verdict) ? "present" : "none";
     item["state"] = text_value(state_text(each.problem));
     item["detail"] = text_value(each.detail);
     const std::optional<std::size_t>& shadowed_by = each.shadowed_by;

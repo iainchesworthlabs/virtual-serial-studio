@@ -23,9 +23,9 @@ result<verify_result> refuse(plugin_errc code, std::string* explain,
     return make_error_code(code);
 }
 
-/// The level of a plugin whose signature is not `invalid`, and not `valid`
-/// with an unknown origin: the caller refuses those first.
-trust_level level_of(const signature_finding& signature) noexcept
+} // namespace
+
+trust_level trust_level_of(const signature_finding& signature) noexcept
 {
     if (signature.state == signature_state::unknown_key)
         return trust_level::signed_unknown_key;
@@ -35,8 +35,6 @@ trust_level level_of(const signature_finding& signature) noexcept
                ? trust_level::official
                : trust_level::third_party_signed;
 }
-
-} // namespace
 
 std::string_view to_string(trust_level value) noexcept
 {
@@ -103,7 +101,7 @@ result<verify_result> verify(const verify_input& input, std::string* explain)
     }
 
     verify_result out;
-    out.level = level_of(input.signature);
+    out.level = trust_level_of(input.signature);
     if (names_key)
         out.key_id = input.signature.key_id;
     const bool official = out.level == trust_level::official;

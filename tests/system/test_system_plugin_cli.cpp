@@ -577,7 +577,20 @@ TEST_CASE("plugin cli: verify says what the checks found and exits 0 for a "
     const fs::path folder =
         make_signed_plugin(scratch.path(), "signed", "com.example.signed");
 
-    const cli_result result = run_cli({"verify", folder.string()});
+    // A key nobody approved proves nothing about who made the plugin, so the
+    // plugin installs only with --allow-unsigned, and the answer says which
+    // it is.
+    const cli_result refused = run_cli({"verify", folder.string()});
+    REQUIRE_EQ(refused.code.value_or(-1), 1);
+    const auto why = line_starting(lines_of(refused.output),
+                                   "  Install:      ", 0);
+    REQUIRE(why.has_value());
+    REQUIRE(why.value().find("--allow-unsigned") != std::string::npos);
+    REQUIRE(why.value().find("signed with a key nobody has approved") !=
+            std::string::npos);
+
+    const cli_result result =
+        run_cli({"verify", "--allow-unsigned", folder.string()});
     REQUIRE_EQ(result.code.value_or(-1), 0);
     const std::vector<std::string> lines = lines_of(result.output);
     REQUIRE(has_line(lines, "com.example.signed  1.2.0  Modbus fixture"));
@@ -591,7 +604,8 @@ TEST_CASE("plugin cli: verify says what the checks found and exits 0 for a "
     REQUIRE(may_run.has_value());
     REQUIRE_EQ(lines.back(), std::string("This build does not run plugins."));
 
-    const cli_result as_json = run_cli({"verify", "--json", folder.string()});
+    const cli_result as_json =
+        run_cli({"verify", "--json", "--allow-unsigned", folder.string()});
     REQUIRE_EQ(as_json.code.value_or(-1), 0);
     const json::object item = parse_output(as_json.output).as_object();
     REQUIRE_EQ(text_of(item.at("id")), std::string("com.example.signed"));
@@ -624,6 +638,28 @@ TEST_CASE("plugin cli: verify exits 1 for an unsigned plugin unless "
     const cli_result allowed =
         run_cli({"verify", "--allow-unsigned", folder.string()});
     REQUIRE_EQ(allowed.code.value_or(-1), 0);
+}
+
+TEST_CASE("plugin cli: verify exits 1 for an id that install would refuse")
+{
+    const scratch_directory scratch;
+    const fs::path folder =
+        make_plugin(scratch.path(), "device", "con.example");
+
+    const cli_result result =
+        run_cli({"verify", "--allow-unsigned", folder.string()});
+    REQUIRE_EQ(result.code.value_or(-1), 1);
+    const auto install = line_starting(lines_of(result.output),
+                                       "  Install:      ", 0);
+    REQUIRE(install.has_value());
+    REQUIRE(install.value().find("layout_invalid") != std::string::npos);
+
+    const fs::path root = scratch.path() / "installed";
+    const cli_result refused = run_cli({"install", folder.string(),
+                                        "--allow-unsigned", "--root",
+                                        root.string()});
+    REQUIRE_EQ(refused.code.value_or(-1), 1);
+    REQUIRE(names_in(root).empty());
 }
 
 TEST_CASE("plugin cli: verify exits 1 for a plugin whose file was changed")
@@ -667,8 +703,15 @@ TEST_CASE("plugin cli: an installed plugin is listed with its verdict")
         make_signed_plugin(scratch.path(), "source", "com.example.signed");
     const fs::path root = scratch.path() / "installed";
 
-    const cli_result done =
+    const cli_result without =
         run_cli({"install", source.string(), "--root", root.string()});
+    REQUIRE_EQ(without.code.value_or(-1), 1);
+    REQUIRE(without.output.find("key_unknown") != std::string::npos);
+    REQUIRE(names_in(root).empty());
+
+    const cli_result done = run_cli({"install", source.string(),
+                                     "--allow-unsigned", "--root",
+                                     root.string()});
     REQUIRE_EQ(done.code.value_or(-1), 0);
     const std::vector<std::string> lines = lines_of(done.output);
     REQUIRE(has_line(lines, "Installed com.example.signed  1.2.0  Modbus "
@@ -768,12 +811,20 @@ TEST_CASE("plugin cli: install --for-everyone refuses a folder that others "
         make_signed_plugin(scratch.path(), "source", "com.example.signed");
     const fs::path root = scratch.path() / "machine";
 
-    const cli_result result = run_cli({"install", source.string(),
-                                       "--for-everyone", "--root",
-                                       root.string()});
+    const cli_result result =
+        run_cli({"install", source.string(), "--allow-unsigned",
+                 "--for-everyone", "--root", root.string()});
     REQUIRE_EQ(result.code.value_or(-1), 1);
     REQUIRE(result.output.find("administrator") != std::string::npos);
-    REQUIRE(names_in(root).empty());
+    // The folder is not made.
+    REQUIRE(!fs::exists(root));
+
+    const cli_result removal = run_cli({"remove", "com.example.signed",
+                                        "--for-everyone", "--root",
+                                        root.string()});
+    REQUIRE_EQ(removal.code.value_or(-1), 1);
+    REQUIRE(removal.output.find("administrator") != std::string::npos);
+    REQUIRE(!fs::exists(root));
 }
 
 TEST_CASE("plugin cli: remove takes a plugin out and keeps the others")
@@ -784,14 +835,14 @@ TEST_CASE("plugin cli: remove takes a plugin out and keeps the others")
         make_signed_plugin(scratch.path(), "one", "com.example.one");
     const fs::path two =
         make_signed_plugin(scratch.path(), "two", "com.example.two");
-    REQUIRE_EQ(
-        run_cli({"install", one.string(), "--root", root.string()})
-            .code.value_or(-1),
-        0);
-    REQUIRE_EQ(
-        run_cli({"install", two.string(), "--root", root.string()})
-            .code.value_or(-1),
-        0);
+    REQUIRE_EQ(run_cli({"install", one.string(), "--allow-unsigned", "--root",
+                        root.string()})
+                   .code.value_or(-1),
+               0);
+    REQUIRE_EQ(run_cli({"install", two.string(), "--allow-unsigned", "--root",
+                        root.string()})
+                   .code.value_or(-1),
+               0);
 
     const cli_result removed =
         run_cli({"remove", "com.example.one", "--root", root.string()});

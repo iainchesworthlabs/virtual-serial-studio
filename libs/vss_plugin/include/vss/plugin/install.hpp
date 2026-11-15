@@ -127,6 +127,12 @@ struct inspection
 /// checked against the manifest, `plugin.sig` is read and checked
 /// (`check_signature`), `verify` is run, and `check_licence` when the
 /// manifest names an edition.  Nothing escapes as an exception.
+///
+/// The bytes of `plugin.json` and `plugin.sig` that were parsed and checked
+/// are held to the measurement of the folder: when the measured digest of
+/// either is not the digest of those bytes, or `plugin.sig` was found by one
+/// and not the other, the folder changed while it was being looked at and
+/// `problem` is `changed`.
 inspection inspect_plugin(const std::filesystem::path& directory,
                           const inspect_context& context);
 
@@ -138,9 +144,12 @@ inspection inspect_plugin(const std::filesystem::path& directory,
 bool blocks_install(const inspection& found) noexcept;
 
 /// Why a plugin folder would not be installed, or success: what
-/// `blocks_install` says, and `signature_missing` for a plugin with no
-/// signature unless `allow_unsigned`.  `detail`, when given, receives one
-/// line for a person.
+/// `blocks_install` says; `layout_invalid` for an id that cannot be the name
+/// of a folder; `signature_missing` for a plugin with no signature and
+/// `key_unknown` for one signed with a key nobody approved, both unless
+/// `allow_unsigned` (an unknown key proves nothing about who made the
+/// plugin, so it counts as no signature).  `detail`, when given, receives
+/// one line for a person.
 error_code install_refusal(const inspection& found, bool allow_unsigned,
                            std::string* detail = nullptr);
 
@@ -182,6 +191,10 @@ struct file_operations
                              const std::filesystem::path& to)>
         rename;
     std::function<error_code(const std::filesystem::path& path)> remove_all;
+    /// Called, when set, after the source was inspected and before the first
+    /// file is copied.  Only a test sets it, to change the source at that
+    /// moment.
+    std::function<void(const std::filesystem::path& source)> inspected;
 };
 
 file_operations default_file_operations();
@@ -198,7 +211,9 @@ struct install_options
     /// Replace a plugin of the same id that is already installed.
     bool replace = false;
     /// The target is the machine folder: it must not be writable by anyone
-    /// but an administrator, and the install is refused when it is.
+    /// but an administrator, and the install is refused when it is.  A
+    /// machine folder that is not there is made only when the nearest folder
+    /// above it that is there passes the same test.
     bool for_everyone = false;
     inspect_context context;
     /// Null: the real file operations.
@@ -225,16 +240,29 @@ struct install_report
 /// are refused (`layout_invalid`).  For the machine folder, `permission_denied`
 /// when someone but an administrator can write to it.
 ///
-/// Each file is read once, from one open handle, and its digest is taken as
-/// it is copied; a file that is not what the first look found is refused
-/// with `changed`.  The copy goes to a new folder inside `target_root` and
+/// The folder is measured (every file's size and digest); then each file is
+/// opened again and copied, with its digest taken as it is copied, and a
+/// file that is not what the measurement found is refused with `changed`.
+/// The bytes of `plugin.json` and `plugin.sig` that were judged are held to
+/// the measurement as well (see `inspect_plugin`), so the files copied are
+/// the files judged.  Each copy keeps the owner's read and execute bits of
+/// its source and the read and execute bits for others, always has owner
+/// read and write, never has group or other write, and the program the
+/// manifest names to run is executable for its owner.
+///
+/// The copy goes to a work folder, `<target_root>/.vss-work/<unique>/`, that
+/// discovery never reads (it skips every name that starts with a dot), and
 /// the folder it makes is measured again before it is renamed to the
-/// plugin's id.  No temporary folder is left behind on any failure.
+/// plugin's id.  Work folders left by an install that was cut off are
+/// removed when the next install starts.  No work folder is left behind on
+/// a failure, except the one that a failed removal names.
 ///
 /// A plugin with this id that is already there is refused with
 /// `errc::already_exists` unless `replace` is set; then the old folder is
-/// renamed aside, the new one renamed in, and the old one removed.  When
-/// the second rename fails the old one is put back.
+/// moved into the work folder, the new one renamed in, and the work folder
+/// removed.  When the second rename fails the old one is put back.  When
+/// the work folder cannot be removed the new plugin is in place and the
+/// result is an `errc::io_error` whose detail names what is left over.
 ///
 /// `target_root` is made when it is not there.  `detail`, when given,
 /// receives one line for a person.
@@ -243,14 +271,24 @@ result<install_report> install_plugin(const std::filesystem::path& source,
                                       const install_options& options,
                                       std::string* detail = nullptr);
 
+struct remove_options
+{
+    /// The root is the machine folder: the removal is refused with
+    /// `errc::permission_denied` unless only administrators can write to the
+    /// folder, or to the nearest folder above it that is there.
+    bool for_everyone = false;
+    /// Null: the real file operations.
+    const file_operations* operations = nullptr;
+};
+
 /// Removes `<target_root>/<plugin_id>`: the plugin's folder, never its data
 /// directory.  `errc::invalid_argument` for an id that is not a plugin id
 /// or cannot be a folder name; `errc::not_found` when there is no such
-/// folder; `layout_invalid` when it is a link, or has no `plugin.json`.
-/// Nothing is removed then.
+/// folder; `layout_invalid` when it is a link, a junction or has no
+/// `plugin.json`.  Nothing is removed then.
 result<void> remove_plugin(const std::filesystem::path& target_root,
                            std::string_view plugin_id,
-                           const file_operations* operations = nullptr,
+                           const remove_options& options = {},
                            std::string* detail = nullptr);
 
 } // namespace vss::plugin
