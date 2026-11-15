@@ -546,7 +546,9 @@ result<app_container> prepare_container(const sandbox_profile& profile)
         return make_error_code(plugin_errc::sandbox_insufficient);
     container.sid.reset(raw);
 
-    constexpr DWORD read = FILE_GENERIC_READ | FILE_GENERIC_EXECUTE;
+    // Read and run.  FILE_EXECUTE is the one right of "generic execute"
+    // that "generic read" does not already hold.
+    constexpr DWORD read = FILE_GENERIC_READ | FILE_EXECUTE;
     // Everything but changing who may reach the directory.
     constexpr DWORD change = FILE_ALL_ACCESS & ~(WRITE_DAC | WRITE_OWNER);
     if (const error_code failed =
