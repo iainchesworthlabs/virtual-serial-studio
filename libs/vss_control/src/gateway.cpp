@@ -2569,6 +2569,12 @@ private:
             if (const auto* linking =
                     std::get_if<links_connect_request>(&asked.body))
                 return connect_ports(client, asked.id, *linking);
+            if (const auto* unlinking =
+                    std::get_if<links_disconnect_request>(&asked.body))
+                return disconnect_link(client, asked.id, *unlinking);
+            if (const auto* renaming =
+                    std::get_if<ports_rename_request>(&asked.body))
+                return rename_port(client, asked.id, *renaming);
             if (const auto* sending =
                     std::get_if<ports_send_request>(&asked.body))
                 return send_bytes(client, asked.id, *sending);
@@ -2727,6 +2733,49 @@ private:
                        {"second", second ? wanted.second : std::string()},
                        {"one_way", wanted.one_way ? "yes" : "no"},
                        {"link", made_id}},
+                      outcome_name(answer));
+        return answer;
+    }
+
+    reply disconnect_link(session& client, std::uint64_t id,
+                          const links_disconnect_request& wanted)
+    {
+        const auto link = parse_link_id(wanted.link);
+        reply answer = error_reply_for(id, api_errc::invalid_argument);
+        if (link)
+        {
+            answer = error_reply_for(id, api_errc::unavailable);
+            if (agent::client* const source = agent_of(client))
+            {
+                const auto removed = source->disconnect(*link);
+                answer = removed ? reply{id, done_reply{}}
+                                 : agent_refused(client, id, removed.error());
+            }
+        }
+        record_change(client, operation::links_disconnect,
+                      {{"link", link ? wanted.link : std::string()}},
+                      outcome_name(answer));
+        return answer;
+    }
+
+    reply rename_port(session& client, std::uint64_t id,
+                      const ports_rename_request& wanted)
+    {
+        const auto port = parse_port_id(wanted.port);
+        reply answer = error_reply_for(id, api_errc::invalid_argument);
+        if (port)
+        {
+            answer = error_reply_for(id, api_errc::unavailable);
+            if (agent::client* const source = agent_of(client))
+            {
+                const auto renamed = source->rename_port(*port, wanted.name);
+                answer = renamed ? reply{id, done_reply{}}
+                                 : agent_refused(client, id, renamed.error());
+            }
+        }
+        record_change(client, operation::ports_rename,
+                      {{"port", port ? wanted.port : std::string()},
+                       {"name", wanted.name}},
                       outcome_name(answer));
         return answer;
     }

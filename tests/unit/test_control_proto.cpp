@@ -146,7 +146,11 @@ constexpr std::array expected_operations{
                  control::scope::monitor},
     expected_row{control::operation::ping, "ping", std::nullopt},
     expected_row{control::operation::session_close, "session.close",
-                 std::nullopt}};
+                 std::nullopt},
+    expected_row{control::operation::links_disconnect, "links.disconnect",
+                 control::scope::control_ports},
+    expected_row{control::operation::ports_rename, "ports.rename",
+                 control::scope::control_ports}};
 
 } // namespace
 
@@ -330,7 +334,7 @@ TEST_CASE("control proto: a request that is not one is refused")
 
 TEST_CASE("control proto: an operation that does not exist is unsupported")
 {
-    for (const char* name : {"ports.rename", "tokens.forge", "HELLO", "",
+    for (const char* name : {"ports.settings", "tokens.forge", "HELLO", "",
                              "status ", "endpoint.enable"})
     {
         const auto decoded = control::decode_request(
@@ -623,17 +627,19 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
     REQUIRE(!control::info_of(control::operation::sessions_list).mutating);
     for (const control::operation changing :
          {control::operation::ports_create, control::operation::ports_remove,
-          control::operation::links_connect, control::operation::ports_send})
+          control::operation::links_connect, control::operation::ports_send,
+          control::operation::links_disconnect,
+          control::operation::ports_rename})
     {
         REQUIRE(control::info_of(changing).mutating);
     }
-    REQUIRE(control::find_operation("ports.rename") == nullptr);
+    REQUIRE(control::find_operation("ports.settings") == nullptr);
     REQUIRE(control::find_operation("") == nullptr);
 }
 
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 27 * 256 * 4
+    // Every operation, every set of scopes, every transport: 29 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -1208,6 +1214,98 @@ TEST_CASE("control proto: the requests that change ports survive the wire")
     large.data.assign(control::max_send_size + 1, vss::byte{0x55});
     const control::request too_much{35, large};
     REQUIRE(round_trip(too_much) == too_much);
+}
+
+TEST_CASE("control proto: disconnecting a link and renaming a port survive "
+          "the wire")
+{
+    const control::request unlink{36, control::links_disconnect_request{"l_2"}};
+    REQUIRE(round_trip(unlink) == unlink);
+    const control::request rename{
+        37, control::ports_rename_request{"p_3", "bench"}};
+    REQUIRE(round_trip(rename) == rename);
+    // An id the gateway will not know, and a name as short and as long as a
+    // name may be, are still read, so that the gateway answers them.
+    for (const char* const odd : {"", "nonsense", "p_1", "l_01"})
+    {
+        const control::request asking{38,
+                                      control::links_disconnect_request{odd}};
+        REQUIRE(round_trip(asking) == asking);
+    }
+    const control::request empty{39, control::ports_rename_request{"p_1", ""}};
+    REQUIRE(round_trip(empty) == empty);
+    const control::request longest{
+        40, control::ports_rename_request{
+                "p_1", std::string(control::max_text_size, 'n')}};
+    REQUIRE(round_trip(longest) == longest);
+
+    // The wire form: the operation's name and one field for each part.
+    REQUIRE_EQ(
+        control::encode(unlink).header,
+        std::string(R"({"id":36,"op":"links.disconnect","link":"l_2"})"));
+    REQUIRE_EQ(
+        control::encode(rename).header,
+        std::string(
+            R"({"id":37,"op":"ports.rename","port":"p_3","name":"bench"})"));
+    REQUIRE(control::operation_of(unlink.body) ==
+            control::operation::links_disconnect);
+    REQUIRE(control::operation_of(rename.body) ==
+            control::operation::ports_rename);
+
+    // A name that is not valid UTF-8 is made safe on the way out.
+    const control::request odd_name{
+        41, control::ports_rename_request{"p_1", "a\xffz"}};
+    const auto cleaned = control::decode_request(control::encode(odd_name));
+    REQUIRE(cleaned);
+    REQUIRE_EQ(std::get<control::ports_rename_request>(cleaned->body).name,
+               std::string("a?z"));
+
+    // A field this version does not know is ignored, as for every request.
+    const auto later = control::decode_request(header_frame(
+        R"({"id":1,"op":"ports.rename","port":"p_1","name":"a","later":1})"));
+    REQUIRE(later);
+}
+
+TEST_CASE("control proto: a disconnect or a rename that is not one is refused")
+{
+    const std::string too_long(control::max_text_size + 1, 'n');
+    const std::array bad{
+        std::string(R"({"id":1,"op":"links.disconnect"})"),
+        std::string(R"({"id":1,"op":"links.disconnect","link":3})"),
+        std::string(R"({"id":1,"op":"links.disconnect","link":null})"),
+        std::string(R"({"id":1,"op":"links.disconnect","link":["l_1"]})"),
+        // The field of another operation is not the one.
+        std::string(R"({"id":1,"op":"links.disconnect","port":"l_1"})"),
+        std::string(R"({"id":1,"op":"links.disconnect","link":")") + too_long +
+            "\"}",
+        std::string(R"({"id":1,"op":"ports.rename"})"),
+        std::string(R"({"id":1,"op":"ports.rename","port":"p_1"})"),
+        std::string(R"({"id":1,"op":"ports.rename","name":"a"})"),
+        std::string(R"({"id":1,"op":"ports.rename","port":3,"name":"a"})"),
+        std::string(R"({"id":1,"op":"ports.rename","port":"p_1","name":3})"),
+        std::string(R"({"id":1,"op":"ports.rename","port":"p_1","name":null})"),
+        std::string(
+            R"({"id":1,"op":"ports.rename","port":"p_1","name":["a"]})"),
+        std::string(R"({"id":1,"op":"ports.rename","port":"p_1","name":")") +
+            too_long + "\"}",
+        std::string(R"({"id":1,"op":"ports.rename","port":")") + too_long +
+            R"(","name":"a"})"};
+    for (const std::string& header : bad)
+    {
+        const auto decoded = control::decode_request(header_frame(header));
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
+    for (const control::request_body& body :
+         {control::request_body{control::links_disconnect_request{"l_1"}},
+          control::request_body{control::ports_rename_request{"p_1", "a"}}})
+    {
+        control::frame carried = control::encode(control::request{1, body});
+        carried.blob = {vss::byte{1}};
+        const auto decoded = control::decode_request(carried);
+        REQUIRE(!decoded);
+        REQUIRE_EQ(decoded.error(), code(control::api_errc::invalid_argument));
+    }
 }
 
 TEST_CASE("control proto: only a send carries bytes, and a change that is "

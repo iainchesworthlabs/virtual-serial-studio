@@ -222,6 +222,12 @@ std::vector<request> sample_requests()
     out.push_back(
         make_request(13, subscribe_request{false, default_event_interval_ms}));
     out.push_back(make_request(14, shutdown_request{}));
+    out.push_back(make_request(15, disconnect_request{3}));
+    out.push_back(make_request(16, rename_port_request{4, "bench"}));
+    out.push_back(make_request(17, rename_port_request{5, ""}));
+    out.push_back(make_request(max_u64, disconnect_request{max_u64}));
+    out.push_back(
+        make_request(max_u64 - 2, rename_port_request{max_u64, "\xd7\xa9"}));
     out.push_back(
         make_request(max_u64, connect_request{max_u64, max_u64 - 1, true}));
     out.push_back(make_request(max_u64, remove_port_request{max_u64}));
@@ -1000,6 +1006,19 @@ TEST_CASE("agent proto: a request header that is not a request is malformed")
         R"({"id":1,"op":"remove_port","endpoint":-1})",
         R"({"id":1,"op":"remove_port","endpoint":"2"})",
         R"({"id":1,"op":"remove_port","endpoint":2.5})",
+        R"({"id":1,"op":"disconnect"})",
+        R"({"id":1,"op":"disconnect","link":-1})",
+        R"({"id":1,"op":"disconnect","link":"2"})",
+        R"({"id":1,"op":"disconnect","link":2.5})",
+        R"({"id":1,"op":"disconnect","link":null})",
+        R"({"id":1,"op":"disconnect","endpoint":2})",
+        R"({"id":1,"op":"rename_port","name":"a"})",
+        R"({"id":1,"op":"rename_port","endpoint":2})",
+        R"({"id":1,"op":"rename_port","endpoint":-1,"name":"a"})",
+        R"({"id":1,"op":"rename_port","endpoint":"2","name":"a"})",
+        R"({"id":1,"op":"rename_port","endpoint":2,"name":7})",
+        R"({"id":1,"op":"rename_port","endpoint":2,"name":null})",
+        R"({"id":1,"op":"rename_port","endpoint":2,"name":["a"]})",
         R"({"id":1,"op":"connect","first":1,"second":2})",
         R"({"id":1,"op":"connect","first":1,"second":2,"one_way":"no"})",
         R"({"id":1,"op":"connect","first":1,"second":2,"one_way":0})",
@@ -1174,6 +1193,38 @@ TEST_CASE("agent proto: a batch header that is not a batch is malformed")
         require_malformed_message(batch_json({std::string(event)}));
 }
 
+TEST_CASE("agent proto: disconnect and rename_port have their own wire names")
+{
+    const auto unlinking =
+        decode_request(hand_frame(R"({"id":5,"op":"disconnect","link":9})"));
+    REQUIRE(unlinking);
+    const auto* unlink = std::get_if<disconnect_request>(&unlinking->body);
+    REQUIRE(unlink != nullptr);
+    REQUIRE_EQ(unlink->link, link_id{9});
+
+    const auto renaming = decode_request(hand_frame(
+        R"({"id":6,"op":"rename_port","endpoint":3,"name":"bench"})"));
+    REQUIRE(renaming);
+    const auto* rename = std::get_if<rename_port_request>(&renaming->body);
+    REQUIRE(rename != nullptr);
+    REQUIRE_EQ(rename->endpoint, endpoint_id{3});
+    REQUIRE_EQ(rename->name, std::string("bench"));
+
+    // A name that is not valid UTF-8 is cleaned on the way out, as the name of
+    // a new port is.
+    const frame wire =
+        encode(make_request(7, rename_port_request{3, "a\xffz"}));
+    const auto cleaned = decode_request(wire);
+    REQUIRE(cleaned);
+    REQUIRE_EQ(std::get<rename_port_request>(cleaned->body).name,
+               std::string("a?z"));
+
+    // Neither carries a blob.
+    require_malformed_request(R"({"id":1,"op":"disconnect","link":1})", {0});
+    require_malformed_request(
+        R"({"id":1,"op":"rename_port","endpoint":1,"name":"a"})", {0});
+}
+
 TEST_CASE("agent proto: a name over max_text_size is malformed")
 {
     const std::string longest = std::string(max_text_size, 'n');
@@ -1186,6 +1237,15 @@ TEST_CASE("agent proto: a name over max_text_size is malformed")
 
     require_malformed_request(R"({"id":1,"op":"create_port","name":")" +
                               too_long + R"(","kind":"mock"})");
+
+    // A new name for a port has the limit of the name of a new port.
+    const auto rename_fits = decode_request(
+        hand_frame(R"({"id":1,"op":"rename_port","endpoint":2,"name":")" +
+                   longest + R"("})"));
+    REQUIRE(rename_fits);
+    require_malformed_request(
+        R"({"id":1,"op":"rename_port","endpoint":2,"name":")" + too_long +
+        R"("})");
     require_malformed_request(R"({"id":1,"op":"create_port","name":"a",)"
                               R"("kind":")" +
                               too_long + R"("})");

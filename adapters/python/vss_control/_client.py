@@ -388,6 +388,14 @@ class Client:
         """Removes the port with this id.  Needs `control.ports`."""
         self._call("ports.remove", {"port": clean_text(port)})
 
+    def rename_port(self, port, name):
+        """Gives the port with this id a new name.  Needs `control.ports`.
+        Raises `invalid_argument` for an id that is not of the form `p_3`,
+        `not_found` for one that no port has, and `engine.invalid_argument`
+        for an empty name or `engine.already_exists` for a name another port
+        has."""
+        self._call("ports.rename", {"port": clean_text(port), "name": clean_text(name)})
+
     def connect_ports(self, first, second, one_way=False):
         """Links two ports, both ways or from `first` to `second` only, and
         returns the id of the link (`l_1`).  Needs `control.ports`."""
@@ -397,6 +405,12 @@ class Client:
             "one_way": bool(one_way),
         }
         return self._call("links.connect", fields, expect="created")["created"]
+
+    def disconnect_link(self, link):
+        """Takes away the link with this id; the ports stay.  Needs
+        `control.ports`.  Raises `invalid_argument` for an id that is not of
+        the form `l_2` and `not_found` for one that no link has."""
+        self._call("links.disconnect", {"link": clean_text(link)})
 
     def send(self, port, data):
         """Writes bytes to a port.  Needs `control.data`; the gateway takes

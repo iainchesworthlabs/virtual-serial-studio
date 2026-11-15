@@ -437,6 +437,17 @@ result<void> client::remove_port(const std::string& port)
     return carried_out(impl_->call(ports_remove_request{port}));
 }
 
+result<void> client::rename_port(const std::string& port,
+                                 const std::string& name)
+{
+    return carried_out(impl_->call(ports_rename_request{port, name}));
+}
+
+result<void> client::disconnect_link(const std::string& link)
+{
+    return carried_out(impl_->call(links_disconnect_request{link}));
+}
+
 result<std::string> client::connect_ports(const std::string& first,
                                           const std::string& second,
                                           bool one_way)
