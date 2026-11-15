@@ -135,11 +135,7 @@ bool parse(const std::vector<std::string>& arguments, options& out)
             }
             out.root = fs::path(argument.substr(7));
         }
-        else if (argument.rfind("--", 0) == 0)
-        {
-            return complain(argument);
-        }
-        else if (out.subject.empty())
+        else if (out.subject.empty() && argument.rfind("--", 0) != 0)
         {
             out.subject = argument;
         }

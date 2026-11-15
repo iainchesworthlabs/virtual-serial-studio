@@ -251,6 +251,13 @@ bool make_file_link(const fs::path& target, const fs::path& link_path)
     return !ec;
 }
 
+/// The trust level of an inspection that has one.
+trust_level level_of(const inspection& found)
+{
+    REQUIRE(found.level.has_value());
+    return found.level.value_or(trust_level::unsigned_plugin);
+}
+
 plugin_hash hash_of_folder(const fs::path& directory)
 {
     const auto files = measure_directory(directory);
@@ -289,7 +296,7 @@ TEST_CASE("plugin install: an official plugin is looked at in one result")
     REQUIRE(found.signature.origin == key_origin::official);
     REQUIRE_EQ(found.signature.key_id, std::string("plugins-2026"));
     REQUIRE(found.level.has_value());
-    REQUIRE(found.level.value() == trust_level::official);
+    REQUIRE(level_of(found) == trust_level::official);
     REQUIRE_EQ(found.key_id, std::string("plugins-2026"));
     REQUIRE(!found.run.failed());
     REQUIRE(found.hash == hash_of_folder(directory));
@@ -306,7 +313,7 @@ TEST_CASE("plugin install: a plugin signed with an approved key is "
     REQUIRE(!found.problem.failed());
     REQUIRE(found.signature.state == signature_state::valid);
     REQUIRE(found.signature.origin == key_origin::user);
-    REQUIRE(found.level.value() == trust_level::third_party_signed);
+    REQUIRE(level_of(found) == trust_level::third_party_signed);
     REQUIRE(!found.run.failed());
     REQUIRE(!blocks_install(found));
 }
@@ -318,7 +325,7 @@ TEST_CASE("plugin install: a plugin with no signature is unsigned")
     const inspection found = inspect_plugin(directory, make_context());
     REQUIRE(!found.problem.failed());
     REQUIRE(found.signature.state == signature_state::absent);
-    REQUIRE(found.level.value() == trust_level::unsigned_plugin);
+    REQUIRE(level_of(found) == trust_level::unsigned_plugin);
     REQUIRE(!blocks_install(found));
 }
 
@@ -332,7 +339,7 @@ TEST_CASE("plugin install: a key nobody has leaves the plugin signed with an "
     REQUIRE(!found.problem.failed());
     REQUIRE(found.signature.state == signature_state::unknown_key);
     REQUIRE_EQ(found.signature.key_id, std::string("nobody-1"));
-    REQUIRE(found.level.value() == trust_level::signed_unknown_key);
+    REQUIRE(level_of(found) == trust_level::signed_unknown_key);
     REQUIRE(!blocks_install(found));
 }
 
@@ -386,7 +393,7 @@ TEST_CASE("plugin install: an expired plugin is reported and still "
     inspection found = inspect_plugin(expired, make_context());
     REQUIRE(!found.problem.failed());
     REQUIRE(found.run == plugin_errc::expired);
-    REQUIRE(found.level.value() == trust_level::third_party_signed);
+    REQUIRE(level_of(found) == trust_level::third_party_signed);
     REQUIRE(!blocks_install(found));
 
     const fs::path revoked = make_third_party(scratch.path(), "revoked");
@@ -473,7 +480,7 @@ TEST_CASE("plugin install: a good official plugin is copied, and the copy has "
     REQUIRE(report.directory == root / "com.virtualserialstudio.protocol");
     REQUIRE(!report.replaced);
     REQUIRE(report.warning.empty());
-    REQUIRE(report.found.level.value() == trust_level::official);
+    REQUIRE(level_of(report.found) == trust_level::official);
     REQUIRE(hash_of_folder(report.directory) == hash_of_folder(source));
     REQUIRE_EQ(read_file(report.directory / "bin" / "prog"),
                std::string(program_text));
@@ -485,7 +492,7 @@ TEST_CASE("plugin install: a good official plugin is copied, and the copy has "
     // The copy inspects the same as the source.
     const inspection again = inspect_plugin(report.directory, make_context());
     REQUIRE(!again.problem.failed());
-    REQUIRE(again.level.value() == trust_level::official);
+    REQUIRE(level_of(again) == trust_level::official);
 }
 
 TEST_CASE("plugin install: a third-party plugin signed with an approved key "
@@ -497,7 +504,7 @@ TEST_CASE("plugin install: a third-party plugin signed with an approved key "
     const auto done =
         install_plugin(source, root, make_options(make_context()));
     REQUIRE(done.has_value());
-    REQUIRE(done.value().found.level.value() ==
+    REQUIRE(level_of(done.value().found) ==
             trust_level::third_party_signed);
     REQUIRE(hash_of_folder(done.value().directory) == hash_of_folder(source));
 }
@@ -515,7 +522,7 @@ TEST_CASE("plugin install: an unsigned plugin installs only with "
     options.allow_unsigned = true;
     const auto done = install_plugin(source, root, options);
     REQUIRE(done.has_value());
-    REQUIRE(done.value().found.level.value() == trust_level::unsigned_plugin);
+    REQUIRE(level_of(done.value().found) == trust_level::unsigned_plugin);
     REQUIRE(hash_of_folder(done.value().directory) == hash_of_folder(source));
 }
 
@@ -528,7 +535,7 @@ TEST_CASE("plugin install: a signed plugin with a key nobody has installs "
     const auto done = install_plugin(source, scratch.path() / "installed",
                                      make_options(make_context()));
     REQUIRE(done.has_value());
-    REQUIRE(done.value().found.level.value() ==
+    REQUIRE(level_of(done.value().found) ==
             trust_level::signed_unknown_key);
 }
 
@@ -659,6 +666,9 @@ TEST_CASE("plugin install: the same id is refused unless replace is set")
             hash_of_folder(two));
 }
 
+namespace
+{
+
 /// File operations that fail on the call number given (counting both
 /// renames, from 1) and otherwise do the real thing.
 struct failing_operations
@@ -687,6 +697,8 @@ struct failing_operations
         return out;
     }
 };
+
+} // namespace
 
 TEST_CASE("plugin install: a failure between the two renames of a replace "
           "puts the old plugin back")
@@ -986,6 +998,6 @@ TEST_CASE("plugin install: a context for this computer reads the trust store "
     // So a third-party plugin does not run under it.
     const fs::path directory = make_third_party(scratch.path(), "third");
     const inspection found = inspect_plugin(directory, context);
-    REQUIRE(found.level.value() == trust_level::third_party_signed);
+    REQUIRE(level_of(found) == trust_level::third_party_signed);
     REQUIRE(found.run == plugin_errc::policy);
 }

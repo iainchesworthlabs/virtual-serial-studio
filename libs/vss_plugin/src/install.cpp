@@ -310,7 +310,7 @@ result<fs::path> make_work_folder(const fs::path& root,
         name += std::to_string(stamp);
         name += '-';
         name += std::to_string(name_counter.fetch_add(1));
-        const fs::path path = root / name;
+        fs::path path = root / name;
         std::error_code ec;
         if (fs::create_directory(path, ec))
             return path;
