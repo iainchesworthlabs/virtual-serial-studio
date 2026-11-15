@@ -13,6 +13,7 @@ add_library(vss_plugin
   src/error.cpp
   src/hash.cpp
   src/licence.cpp
+  src/lifecycle.cpp
   src/locations.cpp
   src/manifest.cpp
   src/measure.cpp
