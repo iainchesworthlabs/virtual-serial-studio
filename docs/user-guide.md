@@ -1101,7 +1101,7 @@ accepts these forms, and you can type them in Advanced and in `vss_cli`:
 | `serial://COM3?baud=115200` | A real serial device with framing options. |
 | `tcp://host:port` | A TCP client: Studio connects to a server. |
 | `udp://host:port` | UDP datagrams sent to and received from one address. |
-| `tcp-listen://host:port` | A TCP server: Studio waits for other computers. Any number can connect; what you send goes to all of them. |
+| `tcp-listen://host:port` | A TCP server: Studio waits for other computers. Up to 32 can connect; what you send goes to all of them. |
 | `udp-listen://host:port` | UDP datagrams from any sender; replies go to the senders heard from lately. |
 | `rfc2217://host:port` | RFC 2217 serial-over-network: Studio connects to an access server. |
 | `rfc2217-listen://host:port` | An RFC 2217 access server: Studio waits for serial-over-network clients such as pySerial's `rfc2217://`. |
@@ -1146,6 +1146,17 @@ bridge` warn when such a server can be reached from another computer and has no
 Every connection Studio accepts is set to send what it writes at once, so a
 short reply (a reply to a poll on a serial bus, for example) is not held back
 waiting for more data.
+
+### Clients that do not keep up
+
+A `tcp-listen` or `rfc2217-listen` port keeps what it has to send to each
+client separately. A client that falls more than 1 MiB behind, or takes no data
+for 30 seconds, is disconnected, and the port's log says which address and why.
+The other clients and the device are not held back. A port takes up to 32
+clients at once; the next is closed as soon as it connects and the log says so
+(once every 10 seconds at most). If the system cannot accept a connection, for
+example because it has run out of file descriptors, the port waits 100 ms and
+then longer, up to 5 seconds, before it tries again, and says so once.
 
 ### A device on another computer
 

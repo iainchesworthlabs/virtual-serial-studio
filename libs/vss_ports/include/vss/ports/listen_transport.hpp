@@ -10,6 +10,7 @@
 #include <vss/core/transport.hpp>
 
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -17,7 +18,8 @@
 #include <string_view>
 #include <vector>
 
-namespace vss {
+namespace vss
+{
 
 enum class listen_protocol
 {
@@ -42,8 +44,49 @@ struct listen_address
     /// ignored.
     std::vector<std::string> allow;
 
-    friend bool operator==(const listen_address&, const listen_address&) = default;
+    friend bool operator==(const listen_address&,
+                           const listen_address&) = default;
 };
+
+/// What a listening port puts up with from its clients. The defaults suit the
+/// studio; a test can lower them.
+struct listen_limits
+{
+    /// Clients connected at once. A connection over the limit is closed as
+    /// soon as it is accepted. Each client costs a descriptor, a 4 KiB read
+    /// buffer and up to #max_client_queue_bytes of queued output, so 32 is
+    /// at most 32 MiB of queues. That is more computers than one serial
+    /// device is shared with, and few enough that a script opening
+    /// connections cannot use up the process's descriptors.
+    std::size_t max_clients = 32;
+
+    /// Bytes waiting to be sent to one client, payload and RFC 2217 replies
+    /// together. A client that falls further behind is disconnected, so one
+    /// client that stops reading cannot hold memory without limit or stop the
+    /// others. The endpoint holds up to 8 MiB for the whole port
+    /// (`endpoint_options::max_write_queue_bytes`); one client may be 1 MiB
+    /// behind, which is about 90 seconds of a serial line running flat out at
+    /// 115200 baud.
+    std::size_t max_client_queue_bytes = std::size_t{1} << 20;
+
+    /// How long a client with data waiting may take none of it. Not a limit on
+    /// how long a transfer lasts: every part the client takes starts the time
+    /// again. A hung program is found in half a minute, and a slow link is
+    /// not mistaken for one, since a part is 64 KiB at most.
+    std::chrono::milliseconds write_deadline{30000};
+
+    /// The wait after the first failed accept (for example when the process is
+    /// out of descriptors). It doubles on each further failure up to the
+    /// last. Without a wait, a connection that cannot be accepted stays in the
+    /// backlog and accept fails again at once, using a whole processor.
+    std::chrono::milliseconds accept_retry_first{100};
+    std::chrono::milliseconds accept_retry_last{5000};
+};
+
+/// The wait before accept is tried again after `failures` failures in a row
+/// (0 for the first): the first wait, doubled each time, up to the last.
+std::chrono::milliseconds accept_retry_delay(std::size_t failures,
+                                             const listen_limits& limits);
 
 /// True for `tcp-listen://`, `udp-listen://` and `rfc2217-listen://`, the
 /// schemes of an endpoint that waits for others to connect instead of
@@ -73,10 +116,15 @@ std::string make_listen_uri(const listen_address& address);
 
 /// A byte channel that waits for other computers.
 ///
-/// TCP: any number of clients may connect. What they send is read by the hub in
-/// the order it arrives, and what the hub writes goes to every client that is
-/// connected at that moment. With no client connected a write succeeds and the
-/// bytes are dropped, as on a serial port with nothing plugged in.
+/// TCP: up to #listen_limits::max_clients clients may connect. What they send
+/// is read by the hub in the order it arrives, and what the hub writes goes to
+/// every client that is connected at that moment. With no client connected a
+/// write succeeds and the bytes are dropped, as on a serial port with nothing
+/// plugged in. A write completes when its bytes are queued for the clients,
+/// not when they have been taken. A client that falls behind
+/// #listen_limits::max_client_queue_bytes, or takes nothing for
+/// #listen_limits::write_deadline, is disconnected with a notice (see
+/// #transport::set_notice_sink); the others are not held back.
 ///
 /// UDP: datagrams from anyone are read, and a write is sent to every sender
 /// heard from lately (up to sixteen).
@@ -94,7 +142,7 @@ public:
     /// Binds and starts listening. `ec` is set when the address is in use or
     /// cannot be bound.
     listen_transport(const executor_type& executor, listen_address address,
-                     error_code& ec);
+                     error_code& ec, listen_limits limits = {});
     ~listen_transport() override;
 
     listen_transport(const listen_transport&) = delete;
@@ -127,8 +175,14 @@ public:
     std::optional<std::size_t> client_count() const noexcept override;
 
     /// TCP connections closed, and UDP datagrams ignored, because the allow
-    /// list did not admit the sender.
+    /// list did not admit the sender, and TCP connections closed because the
+    /// port already had its most clients.
     std::size_t refused_count() const noexcept;
+
+    /// Reports the clients the transport disconnects or refuses, and a failing
+    /// accept, by their addresses. Called on the transport's strand; not called
+    /// after close().
+    void set_notice_sink(notice_sink sink) override;
 
 private:
     class state;

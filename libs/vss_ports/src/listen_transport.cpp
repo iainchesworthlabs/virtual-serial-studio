@@ -17,12 +17,14 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/post.hpp>
+#include <boost/asio/steady_timer.hpp>
 #include <boost/asio/strand.hpp>
 #include <boost/asio/write.hpp>
 
 #include <algorithm>
 #include <array>
 #include <charconv>
+#include <chrono>
 #include <cstring>
 #include <deque>
 #include <functional>
@@ -30,11 +32,13 @@
 #include <optional>
 #include <vector>
 
-namespace vss {
+namespace vss
+{
 
 namespace asio = boost::asio;
 
-namespace {
+namespace
+{
 
 constexpr std::string_view tcp_scheme = "tcp-listen://";
 constexpr std::string_view udp_scheme = "udp-listen://";
@@ -46,6 +50,34 @@ constexpr std::size_t chunk_size = 4096;
 constexpr std::size_t udp_peer_limit = 16;
 constexpr std::size_t allow_limit = 64;
 constexpr std::string_view allow_key = "allow=";
+
+/// The most written to a socket in one operation. A client's write deadline
+/// starts again after each, so a large write to a slow link makes progress
+/// that can be seen, and a stuck client is found within one deadline however
+/// large the write.
+constexpr std::size_t write_slice = 64U * 1024U;
+
+/// The shortest time between two notices that clients were refused for lack of
+/// room. A script opening connections as fast as it can would otherwise fill
+/// the log; the notice that follows says how many were left out.
+constexpr std::chrono::seconds refused_notice_interval{10};
+
+/// `address:port`, with brackets round an IPv6 address.
+std::string describe_endpoint(const asio::ip::tcp::endpoint& endpoint)
+{
+    const std::string address = endpoint.address().to_string();
+    const std::string port = std::to_string(endpoint.port());
+    if (endpoint.address().is_v6())
+        return '[' + address + "]:" + port;
+    return address + ':' + port;
+}
+
+std::string describe_duration(std::chrono::milliseconds time)
+{
+    if (time.count() >= 1000 && time.count() % 1000 == 0)
+        return std::to_string(time.count() / 1000) + " s";
+    return std::to_string(time.count()) + " ms";
+}
 
 /// One entry of an allow list: an address and how many leading bits of it a
 /// client must share.
@@ -151,6 +183,18 @@ bool rules_admit(const std::vector<allow_rule>& rules,
 }
 
 } // namespace
+
+std::chrono::milliseconds accept_retry_delay(std::size_t failures,
+                                             const listen_limits& limits)
+{
+    // A first wait of nothing could never grow.
+    auto delay =
+        std::max(limits.accept_retry_first, std::chrono::milliseconds{1});
+    for (std::size_t step = 0;
+         step < failures && delay < limits.accept_retry_last; ++step)
+        delay *= 2;
+    return std::min(delay, limits.accept_retry_last);
+}
 
 bool allow_list_admits(const std::vector<std::string>& list,
                        std::string_view address)
@@ -308,12 +352,11 @@ std::string make_listen_uri(const listen_address& address)
 class listen_transport::state : public std::enable_shared_from_this<state>
 {
 public:
-    state(const executor_type& executor, listen_address address)
-        : executor_(executor)
-        , strand_(asio::make_strand(executor))
-        , address_(std::move(address))
-        , acceptor_(strand_)
-        , datagrams_(strand_)
+    state(const executor_type& executor, listen_address address,
+          listen_limits limits)
+        : executor_(executor), strand_(asio::make_strand(executor)),
+          address_(std::move(address)), limits_(limits), acceptor_(strand_),
+          datagrams_(strand_), accept_timer_(strand_)
     {
     }
 
@@ -441,6 +484,11 @@ public:
     {
         VSS_PROFILE_ZONE("ports.listen.close");
         open_.store(false);
+        {
+            // A notice after close would reach an endpoint that has let go.
+            std::lock_guard lock(notice_mutex_);
+            notice_sink_ = nullptr;
+        }
         abort_pending_read();
         asio::post(strand_, [self = shared_from_this()] { self->shut_down(); });
     }
@@ -451,6 +499,13 @@ public:
         // A read posted before this call has not reached the strand yet.
         asio::post(strand_,
                    [self = shared_from_this()] { self->abort_pending_read(); });
+    }
+
+    void set_notice_sink(transport::notice_sink sink)
+    {
+        std::lock_guard lock(notice_mutex_);
+        if (open_.load())
+            notice_sink_ = std::move(sink);
     }
 
     /// Only the RFC 2217 role has control lines.
@@ -502,18 +557,23 @@ private:
 
     struct outgoing
     {
+        /// Shared by every client the bytes go to.
         std::shared_ptr<std::string> bytes;
-        std::function<void(error_code)> done;
+        /// How much of it the socket has taken.
+        std::size_t sent = 0;
     };
 
     struct client
     {
-        explicit client(asio::ip::tcp::socket accepted)
-            : socket(std::move(accepted))
+        client(asio::ip::tcp::socket accepted, std::string address)
+            : socket(std::move(accepted)), name(std::move(address)),
+              deadline(socket.get_executor())
         {
         }
 
         asio::ip::tcp::socket socket;
+        /// Where it connected from, for the notices.
+        std::string name;
         std::array<char, chunk_size> buffer{};
         bool reading = false;
         /// Present for the RFC 2217 role: the Telnet and COM-PORT state.
@@ -521,7 +581,17 @@ private:
         /// A socket takes one write at a time, and payload and protocol
         /// replies share it.
         std::deque<outgoing> queue;
+        /// Bytes in the queue the socket has not taken yet.
+        std::size_t queued = 0;
         bool writing = false;
+        /// Set once the client is closed and forgotten. Handlers that were
+        /// already waiting for it find out here.
+        bool dropped = false;
+        /// Fires when the write in progress has made no progress for the
+        /// write deadline. The generation tells a stale wait from the
+        /// current one.
+        asio::steady_timer deadline;
+        std::uint64_t deadline_generation = 0;
     };
 
     /// The parked read, removed from the state; empty when none is waiting.
@@ -542,9 +612,8 @@ private:
 
     void complete(io_handler handler, error_code ec, std::size_t count)
     {
-        asio::post(executor_,
-                   [handler = std::move(handler), ec, count]() mutable
-                   { handler(ec, count); });
+        asio::post(executor_, [handler = std::move(handler), ec,
+                               count]() mutable { handler(ec, count); });
     }
 
     // -- TCP ---------------------------------------------------------------
@@ -559,9 +628,11 @@ private:
                 if (ec)
                 {
                     if (!self->closed_ && ec != asio::error::operation_aborted)
-                        self->accept_next();
+                        self->accept_failed(ec);
                     return;
                 }
+                self->accept_failures_ = 0;
+                self->accept_failure_noticed_ = false;
                 boost::system::error_code remote_ec;
                 const auto remote = socket.remote_endpoint(remote_ec);
                 if (remote_ec || !rules_admit(self->rules_, remote.address()))
@@ -574,18 +645,29 @@ private:
                     self->accept_next();
                     return;
                 }
+                if (self->clients_.size() >= self->limits_.max_clients)
+                {
+                    boost::system::error_code ignored;
+                    socket.close(ignored);
+                    self->refused_.fetch_add(1);
+                    VSS_PROFILE_MESSAGE("ports.tcp.full");
+                    self->note_full(describe_endpoint(remote));
+                    self->accept_next();
+                    return;
+                }
                 // A reply must not wait for more data to share a packet with.
                 boost::system::error_code ignored;
                 socket.set_option(asio::ip::tcp::no_delay(true), ignored);
-                auto made = std::make_shared<client>(std::move(socket));
+                auto made = std::make_shared<client>(std::move(socket),
+                                                     describe_endpoint(remote));
+                self->clients_.push_back(made);
+                self->peers_.store(self->clients_.size());
                 if (self->serial_role())
                 {
                     made->session.emplace();
                     self->enqueue(made, std::make_shared<std::string>(
                                             made->session->greeting()));
                 }
-                self->clients_.push_back(made);
-                self->peers_.store(self->clients_.size());
                 VSS_PROFILE_PLOT("ports.tcp.clients", self->clients_.size());
                 VSS_PROFILE_MESSAGE("ports.tcp.client_connected");
                 self->read_client(made);
@@ -593,9 +675,69 @@ private:
             });
     }
 
+    /// Accept failed, most likely for want of descriptors. The connection that
+    /// could not be accepted is still in the backlog, so trying again at once
+    /// fails again at once. Wait, for longer each time, and say so once.
+    void accept_failed(error_code ec)
+    {
+        VSS_PROFILE_MESSAGE("ports.tcp.accept_failed");
+        const auto delay = accept_retry_delay(accept_failures_, limits_);
+        ++accept_failures_;
+        if (!accept_failure_noticed_)
+        {
+            accept_failure_noticed_ = true;
+            notify("Accepting connections failed (" + ec.message() +
+                   "). Trying again in " + describe_duration(delay) +
+                   ", and waiting longer, up to " +
+                   describe_duration(limits_.accept_retry_last) +
+                   ", while it keeps failing.");
+        }
+        accept_timer_.expires_after(delay);
+        accept_timer_.async_wait(
+            [self = shared_from_this()](error_code wait_ec)
+            {
+                if (!wait_ec && !self->closed_)
+                    self->accept_next();
+            });
+    }
+
+    /// A connection was closed because the port has its most clients.
+    void note_full(const std::string& name)
+    {
+        const auto now = std::chrono::steady_clock::now();
+        if (full_noticed_ && now - last_full_notice_ < refused_notice_interval)
+        {
+            ++full_unreported_;
+            return;
+        }
+        std::string text = "Refused client " + name +
+                           ": this port already has " +
+                           std::to_string(limits_.max_clients) + " clients.";
+        if (full_unreported_ > 0)
+        {
+            text += " " + std::to_string(full_unreported_) +
+                    " more were refused since the last notice.";
+        }
+        full_noticed_ = true;
+        full_unreported_ = 0;
+        last_full_notice_ = now;
+        notify(std::move(text));
+    }
+
+    void notify(std::string text)
+    {
+        transport::notice_sink sink;
+        {
+            std::lock_guard lock(notice_mutex_);
+            sink = notice_sink_;
+        }
+        if (sink)
+            sink(std::move(text));
+    }
+
     void read_client(const std::shared_ptr<client>& peer)
     {
-        if (closed_ || peer->reading)
+        if (closed_ || peer->dropped || peer->reading)
             return;
         if (received_.size() >= receive_limit)
             return; // read_client runs again from deliver() once drained
@@ -607,9 +749,9 @@ private:
                 VSS_PROFILE_ZONE_NAMED(zone, "ports.tcp.receive");
                 VSS_PROFILE_ZONE_VALUE(zone, count);
                 peer->reading = false;
-                if (ec)
+                if (ec || peer->dropped)
                 {
-                    self->drop(peer);
+                    self->drop(peer, {});
                     return;
                 }
                 if (peer->session)
@@ -639,8 +781,8 @@ private:
             return;
         VSS_PROFILE_ZONE("ports.rfc2217.consume");
         rfc2217::session& session = *slot;
-        const auto fed = session.feed(
-            std::string_view(peer->buffer.data(), count));
+        const auto fed =
+            session.feed(std::string_view(peer->buffer.data(), count));
         received_.insert(received_.end(), fed.data.begin(), fed.data.end());
         if (!fed.reply.empty())
             enqueue(peer, std::make_shared<std::string>(fed.reply));
@@ -674,60 +816,106 @@ private:
         return inputs_;
     }
 
+    /// Queues bytes for one client. A client further behind than the limit is
+    /// disconnected: it is not reading, and nothing is gained by holding more
+    /// for it. An empty queue always takes the bytes, so one large write is
+    /// not refused for its size alone.
     void enqueue(const std::shared_ptr<client>& peer,
-                 std::shared_ptr<std::string> bytes,
-                 std::function<void(error_code)> done = {})
+                 std::shared_ptr<std::string> bytes)
     {
-        peer->queue.push_back(outgoing{std::move(bytes), std::move(done)});
+        if (peer->dropped || bytes->empty())
+            return;
+        const std::size_t size = bytes->size();
+        if (peer->queued > 0 &&
+            peer->queued + size > limits_.max_client_queue_bytes)
+        {
+            drop(peer, "it is more than " +
+                           std::to_string(limits_.max_client_queue_bytes) +
+                           " bytes behind in taking what this port sends.");
+            return;
+        }
+        peer->queue.push_back(outgoing{std::move(bytes), 0});
+        peer->queued += size;
         if (!peer->writing)
             write_next(peer);
     }
 
     void write_next(const std::shared_ptr<client>& peer)
     {
+        if (peer->dropped)
+            return;
         if (peer->queue.empty())
         {
             peer->writing = false;
+            ++peer->deadline_generation;
+            peer->deadline.cancel();
             return;
         }
         peer->writing = true;
-        const outgoing item = peer->queue.front();
-        asio::async_write(
-            peer->socket, asio::buffer(*item.bytes),
-            [self = shared_from_this(), peer, item](error_code ec, std::size_t)
+        const outgoing& item = peer->queue.front();
+        const std::size_t take =
+            std::min(write_slice, item.bytes->size() - item.sent);
+        arm_deadline(peer);
+        asio::async_write(peer->socket,
+                          asio::buffer(item.bytes->data() + item.sent, take),
+                          [self = shared_from_this(), peer,
+                           bytes = item.bytes](error_code ec, std::size_t count)
+                          {
+                              VSS_PROFILE_ZONE("ports.tcp.sent");
+                              if (peer->dropped)
+                                  return;
+                              if (ec)
+                              {
+                                  // Nothing more can be sent.
+                                  self->drop(peer, {});
+                                  return;
+                              }
+                              auto& front = peer->queue.front();
+                              front.sent += count;
+                              peer->queued -= count;
+                              if (front.sent >= front.bytes->size())
+                                  peer->queue.pop_front();
+                              self->write_next(peer);
+                          });
+    }
+
+    /// Starts the time a client has to take the next part.
+    void arm_deadline(const std::shared_ptr<client>& peer)
+    {
+        const std::uint64_t generation = ++peer->deadline_generation;
+        peer->deadline.expires_after(limits_.write_deadline);
+        peer->deadline.async_wait(
+            [self = shared_from_this(), peer, generation](error_code ec)
             {
-                VSS_PROFILE_ZONE("ports.tcp.sent");
-                if (!peer->queue.empty())
-                    peer->queue.pop_front();
-                if (item.done)
-                    item.done(ec);
-                if (ec)
-                {
-                    // Nothing more can be sent; tell whoever still waits.
-                    auto rest = std::move(peer->queue);
-                    peer->queue.clear();
-                    peer->writing = false;
-                    for (auto& waiting : rest)
-                    {
-                        if (waiting.done)
-                            waiting.done(ec);
-                    }
-                    self->drop(peer);
+                if (ec || peer->dropped ||
+                    generation != peer->deadline_generation)
                     return;
-                }
-                self->write_next(peer);
+                self->drop(peer,
+                           "it took no data for " +
+                               describe_duration(self->limits_.write_deadline) +
+                               ".");
             });
     }
 
-    void drop(const std::shared_ptr<client>& peer)
+    /// Closes a client and forgets it. `reason`, when there is one, is a
+    /// notice: the client did not leave of its own accord.
+    void drop(const std::shared_ptr<client>& peer, const std::string& reason)
     {
+        if (peer->dropped)
+            return;
         VSS_PROFILE_ZONE("ports.tcp.drop");
+        peer->dropped = true;
         boost::system::error_code ignored;
         peer->socket.close(ignored);
+        peer->deadline.cancel();
+        peer->queue.clear();
+        peer->queued = 0;
         std::erase(clients_, peer);
         peers_.store(clients_.size());
         VSS_PROFILE_PLOT("ports.tcp.clients", clients_.size());
         VSS_PROFILE_MESSAGE("ports.tcp.client_dropped");
+        if (!reason.empty())
+            notify("Disconnected client " + peer->name + " because " + reason);
     }
 
     // -- UDP ---------------------------------------------------------------
@@ -838,25 +1026,17 @@ private:
                 complete(std::move(handler), {}, size); // nobody to tell
                 return;
             }
-            auto remaining = std::make_shared<std::size_t>(clients_.size());
-            auto shared_handler =
-                std::make_shared<io_handler>(std::move(handler));
             const std::string_view view(payload->data(), payload->size());
             auto wire = std::make_shared<std::string>(
                 serial_role() ? rfc2217::session::encode(view)
                               : std::string(view));
+            // enqueue can drop a client, which changes clients_.
             const auto targets = clients_;
             for (const auto& peer : targets)
-            {
-                enqueue(peer, wire,
-                        [self = shared_from_this(), remaining, shared_handler,
-                         size](error_code)
-                        {
-                            if (--*remaining == 0)
-                                self->complete(std::move(*shared_handler), {},
-                                               size);
-                        });
-            }
+                enqueue(peer, wire);
+            // Done when the clients have it queued: a client that is slow to
+            // take it must not hold up the others, or the device.
+            complete(std::move(handler), {}, size);
             return;
         }
 
@@ -886,7 +1066,8 @@ private:
     void notify_modem(control_lines inputs)
     {
         VSS_PROFILE_ZONE("ports.rfc2217.modem");
-        for (const auto& peer : clients_)
+        const auto targets = clients_; // enqueue can drop a client
+        for (const auto& peer : targets)
         {
             auto& slot = peer->session;
             if (!slot || !slot->com_port_active())
@@ -906,9 +1087,14 @@ private:
         closed_ = true;
         boost::system::error_code ignored;
         acceptor_.close(ignored);
+        accept_timer_.cancel();
         datagrams_.close(ignored);
         for (const auto& peer : clients_)
+        {
+            peer->dropped = true;
             peer->socket.close(ignored);
+            peer->deadline.cancel();
+        }
         clients_.clear();
         peers_.store(0);
         abort_pending_read();
@@ -917,8 +1103,18 @@ private:
     executor_type executor_;
     asio::strand<executor_type> strand_;
     listen_address address_;
+    listen_limits limits_;
     asio::ip::tcp::acceptor acceptor_;
     asio::ip::udp::socket datagrams_;
+    /// Waits out a failed accept.
+    asio::steady_timer accept_timer_;
+    /// Accepts that failed in a row, and whether the first has been reported.
+    std::size_t accept_failures_ = 0;
+    bool accept_failure_noticed_ = false;
+    /// Connections refused for lack of room since the last notice about it.
+    bool full_noticed_ = false;
+    std::size_t full_unreported_ = 0;
+    std::chrono::steady_clock::time_point last_full_notice_{};
 
     std::vector<std::shared_ptr<client>> clients_;
     std::deque<asio::ip::udp::endpoint> senders_;
@@ -942,6 +1138,10 @@ private:
     control_lines inputs_;
     control_lines outputs_;
 
+    /// Where notices go. close() clears it from any thread.
+    std::mutex notice_mutex_;
+    transport::notice_sink notice_sink_;
+
     std::atomic<bool> open_{false};
     std::atomic<std::uint16_t> port_{0};
     std::atomic<std::size_t> peers_{0};
@@ -949,8 +1149,9 @@ private:
 };
 
 listen_transport::listen_transport(const executor_type& executor,
-                                   listen_address address, error_code& ec)
-    : state_(std::make_shared<state>(executor, std::move(address)))
+                                   listen_address address, error_code& ec,
+                                   listen_limits limits)
+    : state_(std::make_shared<state>(executor, std::move(address), limits))
 {
     ec = state_->open();
     if (!ec)
@@ -1052,6 +1253,11 @@ std::optional<std::size_t> listen_transport::client_count() const noexcept
 std::size_t listen_transport::refused_count() const noexcept
 {
     return state_->refused();
+}
+
+void listen_transport::set_notice_sink(notice_sink sink)
+{
+    state_->set_notice_sink(std::move(sink));
 }
 
 } // namespace vss

@@ -15,12 +15,15 @@
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ip/udp.hpp>
 #include <boost/asio/read.hpp>
+#include <boost/asio/socket_base.hpp>
 #include <boost/asio/write.hpp>
 
+#include <algorithm>
 #include <array>
 #include <chrono>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -29,7 +32,8 @@ using namespace vss;
 namespace asio = boost::asio;
 using namespace std::chrono_literals;
 
-namespace {
+namespace
+{
 
 /// An io_context that runs on its own thread, like the hub's.
 struct loop
@@ -48,7 +52,8 @@ struct loop
         }
         catch (...)
         {
-            // best effort: a destructor must not throw, and nothing can act on a failed stop
+            // best effort: a destructor must not throw, and nothing can act on
+            // a failed stop
         }
         thread.join();
     }
@@ -104,8 +109,8 @@ bool wait_for_peers(const listen_transport& transport, std::size_t count)
     return false;
 }
 
-std::unique_ptr<listen_transport> listen_on(loop& running,
-                                            listen_protocol protocol)
+std::unique_ptr<listen_transport>
+listen_on(loop& running, listen_protocol protocol, listen_limits limits = {})
 {
     listen_address address;
     address.protocol = protocol;
@@ -113,7 +118,7 @@ std::unique_ptr<listen_transport> listen_on(loop& running,
     address.port = 0;
     error_code ec;
     auto transport = std::make_unique<listen_transport>(
-        running.io.get_executor(), address, ec);
+        running.io.get_executor(), address, ec, limits);
     REQUIRE(!ec);
     REQUIRE(transport->local_port() != 0);
     return transport;
@@ -160,11 +165,11 @@ TEST_CASE("listen: parsing the URIs")
     REQUIRE(is_listen_uri("tcp-listen://x"));
     REQUIRE(!is_listen_uri("tcp://127.0.0.1:4001"));
     for (const char* bad :
-         {"tcp-listen://", "tcp-listen://127.0.0.1", "tcp-listen://127.0.0.1:",
-          "tcp-listen://127.0.0.1:70000", "tcp-listen://host.example:4001",
-          "tcp-listen://[::1:4001", "tcp-listen://::1:4001",
-          "tcp-listen://127.0.0.1:40x1", "tcp-listen://127.0.0.1:4001/path",
-          "serial://COM3"})
+         {"tcp-listen://", "tcp-listen://127.0.0.1",
+          "tcp-listen://127.0.0.1:", "tcp-listen://127.0.0.1:70000",
+          "tcp-listen://host.example:4001", "tcp-listen://[::1:4001",
+          "tcp-listen://::1:4001", "tcp-listen://127.0.0.1:40x1",
+          "tcp-listen://127.0.0.1:4001/path", "serial://COM3"})
     {
         REQUIRE(!parse_listen_uri(bad).has_value());
     }
@@ -517,7 +522,8 @@ TEST_CASE("listen: datagrams from outside the allow list are ignored")
     REQUIRE_EQ(read_from(transport, 200ms).error, asio::error::timed_out);
 }
 
-TEST_CASE("listen: the client count is available through the transport interface")
+TEST_CASE(
+    "listen: the client count is available through the transport interface")
 {
     loop running;
     auto transport = listen_on(running, listen_protocol::tcp);
@@ -540,4 +546,275 @@ TEST_CASE("listen: the client count is available through the transport interface
     first.close();
     REQUIRE(wait_for_peers(*transport, 1));
     REQUIRE_EQ(*as_transport.client_count(), std::size_t{1});
+}
+
+namespace
+{
+
+/// What a transport said through its notice sink.
+struct notice_log
+{
+    std::mutex mutex;
+    std::vector<std::string> lines;
+
+    void add(std::string text)
+    {
+        std::lock_guard lock(mutex);
+        lines.push_back(std::move(text));
+    }
+
+    /// How many notices contain `part`.
+    std::size_t count(const std::string& part)
+    {
+        std::lock_guard lock(mutex);
+        return static_cast<std::size_t>(std::count_if(
+            lines.begin(), lines.end(), [&](const std::string& line)
+            { return line.find(part) != std::string::npos; }));
+    }
+};
+
+std::shared_ptr<notice_log> collect_notices(listen_transport& transport)
+{
+    auto log = std::make_shared<notice_log>();
+    transport.set_notice_sink([log](std::string text)
+                              { log->add(std::move(text)); });
+    return log;
+}
+
+/// A client with a small receive buffer, so that one that does not read
+/// stops the server's writes after a little data.
+asio::ip::tcp::socket connect_small(asio::io_context& io, std::uint16_t port)
+{
+    asio::ip::tcp::socket socket(io, asio::ip::tcp::v4());
+    socket.set_option(asio::socket_base::receive_buffer_size(4096));
+    socket.connect({asio::ip::make_address("127.0.0.1"), port});
+    return socket;
+}
+
+/// `size` bytes of a pattern that tells where in the stream they belong.
+std::string pattern(std::size_t offset, std::size_t size)
+{
+    std::string text(size, '\0');
+    for (std::size_t index = 0; index < size; ++index)
+        text[index] = static_cast<char>('a' + (offset + index) % 26);
+    return text;
+}
+
+/// Appends what `socket` has now to `into`, without waiting.
+void drain(asio::ip::tcp::socket& socket, std::string& into)
+{
+    std::array<char, 65536> buffer{};
+    boost::system::error_code ec;
+    while (socket.available(ec) > 0 && !ec)
+    {
+        const std::size_t count = socket.read_some(asio::buffer(buffer), ec);
+        into.append(buffer.data(), count);
+    }
+}
+
+/// True once the server has closed `socket`, waited for up to three seconds.
+bool closed_by_server(asio::ip::tcp::socket& socket)
+{
+    socket.non_blocking(true);
+    return wait_for(
+        [&]
+        {
+            std::array<char, 8> buffer{};
+            boost::system::error_code ec;
+            socket.read_some(asio::buffer(buffer), ec);
+            return ec == asio::error::eof ||
+                   ec == asio::error::connection_reset;
+        });
+}
+
+/// Reads until `into` holds `total` bytes; false if that takes over three
+/// seconds.
+bool receive_until(asio::ip::tcp::socket& socket, std::string& into,
+                   std::size_t total)
+{
+    return wait_for(
+        [&]
+        {
+            drain(socket, into);
+            return into.size() >= total;
+        });
+}
+
+} // namespace
+
+TEST_CASE("listen: a client that stops reading is dropped and the other keeps "
+          "receiving")
+{
+    loop running;
+    listen_limits limits;
+    limits.max_client_queue_bytes = std::size_t{256} * 1024;
+    auto transport = listen_on(running, listen_protocol::tcp, limits);
+    const auto notices = collect_notices(*transport);
+
+    asio::io_context client_io;
+    auto stuck = connect_small(client_io, transport->local_port());
+    auto good = connect_to(client_io, transport->local_port());
+    REQUIRE(wait_for_peers(*transport, 2));
+    const std::string stuck_name =
+        "127.0.0.1:" + std::to_string(stuck.local_endpoint().port());
+
+    // The stuck client never reads. Every write must still complete, and the
+    // other client must receive every byte, until the stuck one is dropped.
+    constexpr std::size_t part = 16 * 1024;
+    constexpr std::size_t most = std::size_t{128} * 1024 * 1024;
+    std::string got;
+    std::size_t sent = 0;
+    while (transport->peer_count() == 2 && sent < most)
+    {
+        REQUIRE_EQ(write_to(*transport, pattern(sent, part)), part);
+        sent += part;
+        drain(good, got);
+    }
+    REQUIRE(wait_for_peers(*transport, 1));
+    REQUIRE(sent < most);
+    REQUIRE(receive_until(good, got, sent));
+    REQUIRE(got == pattern(0, sent));
+
+    REQUIRE_EQ(notices->count("Disconnected client " + stuck_name),
+               std::size_t{1});
+    REQUIRE_EQ(notices->count("bytes behind"), std::size_t{1});
+
+    // The port goes on serving the one that is left.
+    REQUIRE_EQ(write_to(*transport, "after"), std::size_t{5});
+    REQUIRE(receive_until(good, got, sent + 5));
+    REQUIRE_EQ(got.substr(sent), std::string("after"));
+}
+
+TEST_CASE("listen: a client that takes no data for the deadline is dropped")
+{
+    loop running;
+    listen_limits limits;
+    // A queue bound far above what is written, so only the deadline acts.
+    limits.max_client_queue_bytes = std::size_t{1} << 30;
+    limits.write_deadline = 300ms;
+    auto transport = listen_on(running, listen_protocol::tcp, limits);
+    const auto notices = collect_notices(*transport);
+
+    asio::io_context client_io;
+    auto stuck = connect_small(client_io, transport->local_port());
+    auto good = connect_to(client_io, transport->local_port());
+    REQUIRE(wait_for_peers(*transport, 2));
+    const std::string stuck_name =
+        "127.0.0.1:" + std::to_string(stuck.local_endpoint().port());
+
+    // About 8 MB a second: the socket buffers fill in well under a second and
+    // the queue stays far below its bound while the deadline runs out.
+    constexpr std::size_t part = 16 * 1024;
+    const auto give_up = std::chrono::steady_clock::now() + 20s;
+    std::string got;
+    std::size_t sent = 0;
+    while (transport->peer_count() == 2 &&
+           std::chrono::steady_clock::now() < give_up)
+    {
+        REQUIRE_EQ(write_to(*transport, pattern(sent, part)), part);
+        sent += part;
+        drain(good, got);
+        std::this_thread::sleep_for(2ms);
+    }
+    REQUIRE(wait_for_peers(*transport, 1));
+    REQUIRE(receive_until(good, got, sent));
+    REQUIRE(got == pattern(0, sent));
+    REQUIRE_EQ(notices->count("Disconnected client " + stuck_name),
+               std::size_t{1});
+    REQUIRE_EQ(notices->count("took no data for 300 ms"), std::size_t{1});
+}
+
+TEST_CASE("listen: a client over the limit is closed at once with a notice")
+{
+    loop running;
+    listen_limits limits;
+    limits.max_clients = 2;
+    auto transport = listen_on(running, listen_protocol::tcp, limits);
+    const auto notices = collect_notices(*transport);
+
+    asio::io_context client_io;
+    auto first = connect_to(client_io, transport->local_port());
+    auto second = connect_to(client_io, transport->local_port());
+    REQUIRE(wait_for_peers(*transport, 2));
+
+    auto over = connect_to(client_io, transport->local_port());
+    REQUIRE(closed_by_server(over));
+    REQUIRE(wait_for([&] { return transport->refused_count() == 1; }));
+    REQUIRE_EQ(transport->peer_count(), std::size_t{2});
+    REQUIRE_EQ(notices->count("Refused client 127.0.0.1:"), std::size_t{1});
+    REQUIRE_EQ(notices->count("already has 2 clients"), std::size_t{1});
+
+    // A flood of connections is counted but does not fill the log.
+    auto again = connect_to(client_io, transport->local_port());
+    REQUIRE(closed_by_server(again));
+    REQUIRE(wait_for([&] { return transport->refused_count() == 2; }));
+    REQUIRE_EQ(notices->count("Refused client"), std::size_t{1});
+
+    // The clients that were there are served, and a place that is freed is
+    // taken by the next.
+    asio::write(first, asio::buffer(std::string("one")));
+    REQUIRE_EQ(read_from(*transport).text, std::string("one"));
+    second.close();
+    REQUIRE(wait_for_peers(*transport, 1));
+    auto third = connect_to(client_io, transport->local_port());
+    REQUIRE(wait_for_peers(*transport, 2));
+}
+
+TEST_CASE("listen: an RFC 2217 client that sends requests and never reads is "
+          "dropped")
+{
+    loop running;
+    listen_limits limits;
+    limits.max_client_queue_bytes = std::size_t{64} * 1024;
+    auto transport = listen_on(running, listen_protocol::rfc2217, limits);
+    const auto notices = collect_notices(*transport);
+
+    asio::io_context client_io;
+    auto client = connect_small(client_io, transport->local_port());
+    REQUIRE(wait_for_peers(*transport, 1));
+
+    // IAC SB COM-PORT SIGNATURE IAC SE: six bytes that ask for a 27 byte
+    // reply.
+    const std::string request = {
+        static_cast<char>(0xFF), static_cast<char>(0xFA), 0x2C, 0x00,
+        static_cast<char>(0xFF), static_cast<char>(0xF0)};
+    std::string block;
+    for (int index = 0; index < 2000; ++index)
+        block += request;
+
+    // Without a bound the replies pile up in the server for as long as the
+    // client sends: 32 MB of requests would be 144 MB of replies.
+    constexpr std::size_t most = std::size_t{32} * 1024 * 1024;
+    std::size_t sent = 0;
+    while (transport->peer_count() == 1 && sent < most)
+    {
+        boost::system::error_code ec;
+        asio::write(client, asio::buffer(block), ec);
+        if (ec)
+            break;
+        sent += block.size();
+    }
+    REQUIRE(wait_for_peers(*transport, 0));
+    REQUIRE(sent < most);
+    REQUIRE_EQ(notices->count("Disconnected client 127.0.0.1:"),
+               std::size_t{1});
+    REQUIRE_EQ(notices->count("bytes behind"), std::size_t{1});
+}
+
+TEST_CASE("listen: a failed accept waits longer each time, up to a limit")
+{
+    const listen_limits limits;
+    REQUIRE(accept_retry_delay(0, limits) == 100ms);
+    REQUIRE(accept_retry_delay(1, limits) == 200ms);
+    REQUIRE(accept_retry_delay(2, limits) == 400ms);
+    REQUIRE(accept_retry_delay(5, limits) == 3200ms);
+    REQUIRE(accept_retry_delay(6, limits) == 5000ms);
+    REQUIRE(accept_retry_delay(1000000, limits) == 5000ms);
+
+    // A first wait of nothing still waits, and still grows.
+    listen_limits none;
+    none.accept_retry_first = 0ms;
+    none.accept_retry_last = 1000ms;
+    REQUIRE(accept_retry_delay(0, none) == 1ms);
+    REQUIRE(accept_retry_delay(3, none) == 8ms);
 }
