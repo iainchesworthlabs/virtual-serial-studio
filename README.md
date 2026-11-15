@@ -32,7 +32,7 @@ abstraction that lets the transport be replaced.
 | Watch traffic without disturbing it | One-way `monitor` links and a bounded traffic ring buffer |
 | Put several programs on one multi-drop line | A `bus` link: each port hears every other and never itself, with a `join` to a listen-only tap |
 | Record traffic with exact times | `vss_cli capture` and the monitor's **Export capture** write every byte as `.cap`, CSV or JSON Lines |
-| Script a device | The serial library's mock backend is exposed as an endpoint |
+| Script a device | `vss_cli respond` makes a port answer from a JSON script of rules, and the serial library's mock backend is exposed as an endpoint (**Ports, Mock fixture**) |
 | Save and reload a topology | Validated JSON documents, opened by the GUI and by `vss_cli run` |
 | Measure the data path | `vss_cli bench` and a CI performance suite with enforced floors |
 
@@ -42,6 +42,8 @@ abstraction that lets the transport be replaced.
 - [docs/ux.md](docs/ux.md) — who the interface is for, the simple/advanced design, and the human-factors decisions.
 - [docs/architecture.md](docs/architecture.md) — how the libraries, hub and transports fit together.
 - [docs/scenarios.md](docs/scenarios.md) — worked recipes for share, join, bridge and loopback.
+- [docs/agent.md](docs/agent.md) and [docs/remote-control.md](docs/remote-control.md) — the per-user agent and the control gateway, both first slices that are built from source and not installed.
+- [docs/plugins.md](docs/plugins.md), [docs/licensing.md](docs/licensing.md), [docs/editions.md](docs/editions.md) and [docs/response-timing.md](docs/response-timing.md) — the designs for plugins, licence files, the editions and response timing rules. Studio does not run plugins yet, and nothing in the window or the command line uses the response timing rules.
 - [docs/profiling.md](docs/profiling.md) — Tracy zones and how to capture a trace.
 - [docs/posix-virtual-ports.md](docs/posix-virtual-ports.md) — stable virtual ports on Linux and macOS.
 - [docs/windows-com-driver.md](docs/windows-com-driver.md) — the optional Windows COM port driver.
@@ -70,13 +72,15 @@ ctest --preset linux-release
 vss_gui
 ```
 
-An empty window offers four jobs: give my program a serial port, connect two
-programs, share one device, and watch traffic. `Ports -> Add port` creates a
-virtual port, a linked pair or a real device and tells you the path another
-application should open. `Topology` links ports and shares a device with
-several programs, and the monitor shows the traffic as it flows. Advanced mode
-adds network endpoints, fixtures and the expert panels to the same window.
-`File -> Save` stores the topology as JSON.
+Simple mode, the default, opens with your setups and a page of eleven jobs in
+four groups, among them give my program a serial port, connect two programs to
+each other, share my device with several programs and see the data on a port.
+Advanced mode shows the diagram: `Ports -> Add port` creates a virtual port, a
+linked pair or a real device and tells you the path another application should
+open, `Topology` links ports and shares a device with several programs, and the
+monitor shows the traffic as it flows. Advanced mode also has network
+endpoints, mock fixtures and the expert panels. `File -> Save` stores the setup
+as JSON.
 
 The GUI can also prove itself without a display or a user:
 
@@ -113,6 +117,11 @@ vss_cli control run begin smoke     # open a named run; every `expect` of this u
 ```
 
 Run `vss_cli --help` for the full list.
+
+The installers and packages carry `vss_gui` and `vss_cli` only. `vss_agent`,
+`vss_gate` and `adapters/python`, which the last lines above use, are built from
+source (see [docs/building.md](docs/building.md)). The ports they make are
+in-process loopback ports.
 
 ### From Python
 
@@ -191,7 +200,7 @@ vss_config       vss_ports          vss_core
 | Platform | Kind | What a third-party application opens |
 |---|---|---|
 | Linux, macOS | `pty` | `/dev/pts/N` — a real terminal that behaves like a serial port |
-| Windows | `auto` with com0com installed | One end of a com0com null-modem pair, e.g. `COM5` |
+| Windows | `auto`, or `windows-driver` | A `COMn` port made by Studio's own `vsscom` driver when it is installed; otherwise one end of a com0com null-modem pair, e.g. `COM5`, when com0com is installed |
 | Any | `loopback` | An in-process device: useful for demos, monitoring and tests |
 
 `auto` picks the best available kind and reports the path it chose. A pair is
@@ -257,6 +266,7 @@ libs/vss_core        hub, endpoints, links, control lines, events
 libs/vss_ports       serial transport, PTY, loopback, com0com, enumeration
 libs/vss_config      JSON topology documents
 libs/vss_license     licence files and the signed envelope (verify, judge, sign)
+libs/vss_rules       response timing rules: the rule set, its checks and the machine that says what fires when
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent
@@ -270,10 +280,13 @@ apps/vss_agent       keeps ports running without the window (a first slice)
 apps/vss_gate        serves the control API to this user's programs (a first slice)
 apps/vss_license     reads, checks and issues licence files; the owner's tool, not installed
 apps/vss_gui         Qt 6 desktop application
+adapters/python      the Python client of the control gateway (in the source tree, not packaged)
 tests/               in-tree framework, unit and system suites
 perf/                performance suite and floors
 cmake/               dependency, warning, coverage and sanitizer helpers
 drivers/windows      the vsscom kernel-mode and user-mode COM port drivers
+packaging/linux      the launcher entry and the Debian copyright file of the Linux packages
+website/             the source of the product website
 tools/               Boost fetch, changelog, coverage, performance and Tracy
                      reports, fuzz and analysis drivers, the PTY pair helper,
                      CI planning and the VM harness
@@ -288,8 +301,9 @@ docs/                user guide, design notes and scenario recipes
   The application detects the driver, prefers it over com0com when present, and
   accepts `"virtual_kind": "windows-driver"` in saved topologies. The
   kernel-mode driver package is unsigned, so it loads only with test signing on;
-  the user-mode package is test-signed in CI. The driver raises no line-error
-  events (`EV_ERR`, `EV_BREAK`).
+  the user-mode package is test-signed in CI. The driver raises `EV_ERR` and
+  `EV_BREAK` only for the line errors that Studio injects from Advanced mode;
+  a virtual port has no line to fail.
 * A named-pipe virtual port is not implemented.
 * Two loopback virtual ports cannot be linked duplex: a loopback device echoes
   its writes into its own receive path, which is a feedback loop. The GUI's
@@ -302,9 +316,10 @@ docs/                user guide, design notes and scenario recipes
 
 ## Roadmap
 
-1. **Windows COM driver** — the serial contract, the setup script and the guest
-   tests are done. What is left is signing the kernel-mode package and an
-   installer (there is no MSI yet).
+1. **Windows COM driver** — the serial contract, the setup script, the guest
+   tests and a Windows installer (which carries the user-mode driver and its
+   helper service) are done. What is left is signing the kernel-mode package,
+   which the installer does not include.
 2. **Named-pipe virtual ports** — a cross-process port for applications that
    accept a pipe path, useful on machines without a driver.
 3. **macOS `/dev/cu.*` aliases** — an opt-in helper that creates a symlink with
