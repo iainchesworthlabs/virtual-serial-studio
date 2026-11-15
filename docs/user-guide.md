@@ -542,6 +542,9 @@ The same setup as a topology file, for `vss_cli run` or **File → Open**:
 }
 ```
 
+A topology file must have `"version": 1`, and a member Studio does not know
+is an error, so a misspelt name is found when the file is opened.
+
 From the command line, `vss_cli bus --virtual=3 --tap=virtual` makes the three
 bus ports and the listener and prints the port each program should open.
 

@@ -263,7 +263,7 @@ try {
     $madeRunning = -not (Test-Path -LiteralPath $running)
     if ($madeRunning) {
       New-Item -ItemType Directory -Force -Path $data | Out-Null
-      Set-Content -LiteralPath $running -NoNewline -Encoding ascii -Value '{"dirty":false,"documentPath":"","setup":{"links":[],"ports":[{"kind":"virtual","name":"check","virtual_kind":"loopback"}]},"stopped":false,"version":1}'
+      Set-Content -LiteralPath $running -NoNewline -Encoding ascii -Value '{"dirty":false,"documentPath":"","setup":{"links":[],"ports":[{"kind":"virtual","name":"check","virtual_kind":"loopback"}],"version":1},"stopped":false,"version":1}'
     }
     $held = Start-Held 'uninstall'
 

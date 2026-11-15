@@ -1309,3 +1309,173 @@ TEST_CASE("studio: a setup without plugins is saved without the key")
     REQUIRE(text.has_value());
     REQUIRE(text->find("plugins") == std::string::npos);
 }
+
+namespace
+{
+
+config::port_entry loopback_entry(const std::string& name)
+{
+    config::port_entry port;
+    port.name = name;
+    port.kind = "virtual";
+    port.virtual_kind = "loopback";
+    return port;
+}
+
+/// A setup with ports in an order that is not the order of their names, a
+/// fixture with a target other than the default, a name and a description.
+config::document ordered_setup()
+{
+    config::document document;
+    document.name = "lab";
+    document.description = "Bench 3";
+    for (const char* name : {"master", "device-9", "device-1", "zeta", "alpha",
+                             "device-2", "mid", "node-3", "tail"})
+        document.ports.push_back(loopback_entry(name));
+
+    config::port_entry fake;
+    fake.name = "fake";
+    fake.kind = "mock";
+    fake.mock_target = "modem";
+    document.ports.insert(document.ports.begin() + 4, fake);
+
+    config::link_entry link;
+    link.mode = "redirect";
+    link.sources = {"master"};
+    link.targets = {"tail"};
+    document.links.push_back(link);
+    return document;
+}
+
+} // namespace
+
+TEST_CASE("studio: a snapshot passes validation for a port that holds a uri")
+{
+    // A port made by the studio and also reached by an address is the shape
+    // of one made on a com0com pair: the record has a uri, and the file gives
+    // none to a virtual port or a mock.
+    studio app;
+    REQUIRE(app.attach_serial("fake", "mock://scripted"));
+    const auto snapshot = app.snapshot();
+    REQUIRE_EQ(snapshot.ports.size(), std::size_t{1});
+    REQUIRE_EQ(snapshot.ports[0].kind, std::string("mock"));
+    REQUIRE(snapshot.ports[0].uri.empty());
+    REQUIRE(!config::validate(snapshot));
+
+    const auto text = config::to_json(snapshot);
+    REQUIRE(text);
+    studio again;
+    const auto reread = config::from_json(*text);
+    REQUIRE(reread);
+    REQUIRE(again.apply(*reread));
+    REQUIRE_EQ(again.endpoint_infos().size(), std::size_t{1});
+
+    // A port that is opened from an address keeps it.
+    studio network;
+    const auto listener =
+        network.attach_serial("net", "tcp-listen://127.0.0.1:0");
+    if (listener)
+    {
+        const auto saved = network.snapshot();
+        REQUIRE(!saved.ports[0].uri.empty());
+        REQUIRE(!config::validate(saved));
+    }
+}
+
+TEST_CASE("studio: a setup opened and saved again keeps its order, its fixture "
+          "target, its name and its description")
+{
+    const config::document original = ordered_setup();
+    const auto first = config::to_json(original);
+    REQUIRE(first);
+
+    studio app;
+    REQUIRE(app.apply(original));
+    const auto snapshot = app.snapshot();
+    REQUIRE_EQ(snapshot.name, std::string("lab"));
+    REQUIRE_EQ(snapshot.description, std::string("Bench 3"));
+    REQUIRE_EQ(snapshot.ports.size(), original.ports.size());
+    for (std::size_t index = 0; index < original.ports.size(); ++index)
+        REQUIRE_EQ(snapshot.ports[index].name, original.ports[index].name);
+    REQUIRE_EQ(snapshot.ports[4].mock_target, std::string("modem"));
+
+    // The text settles: it is the same when the setup is opened and saved
+    // again, and again after that.
+    const auto saved = config::to_json(snapshot);
+    REQUIRE(saved);
+    REQUIRE_EQ(*saved, *first);
+
+    studio second;
+    const auto reread = config::from_json(*saved);
+    REQUIRE(reread);
+    REQUIRE(second.apply(*reread));
+    const auto again = config::to_json(second.snapshot());
+    REQUIRE(again);
+    REQUIRE_EQ(*again, *first);
+}
+
+TEST_CASE("studio: a new setup is untitled, and a document added to ports "
+          "that are there leaves the name alone")
+{
+    studio app;
+    const auto empty = app.snapshot();
+    REQUIRE_EQ(empty.name, std::string("untitled"));
+    REQUIRE(empty.description.empty());
+    REQUIRE(!config::validate(empty));
+
+    // A port made by hand does not name the setup.
+    REQUIRE(app.create_virtual_port("hand", virtual_port_kind::loopback));
+    REQUIRE_EQ(app.snapshot().name, std::string("untitled"));
+
+    config::document added;
+    added.name = "template";
+    added.description = "From a template";
+    added.ports.push_back(loopback_entry("extra"));
+    REQUIRE(app.apply(added));
+    REQUIRE_EQ(app.snapshot().name, std::string("untitled"));
+    REQUIRE(app.snapshot().description.empty());
+
+    // A document that is refused changes nothing.
+    studio fresh;
+    config::document refused = ordered_setup();
+    refused.links[0].targets = {"nobody"};
+    REQUIRE(!fresh.apply(refused));
+    REQUIRE_EQ(fresh.snapshot().name, std::string("untitled"));
+
+    REQUIRE(fresh.apply(ordered_setup()));
+    REQUIRE_EQ(fresh.snapshot().name, std::string("lab"));
+}
+
+TEST_CASE("studio: removing the last port forgets the name and the description")
+{
+    studio app;
+    REQUIRE(app.apply(ordered_setup()));
+    REQUIRE_EQ(app.snapshot().name, std::string("lab"));
+
+    // One port gone: the setup is still the one that was opened.
+    REQUIRE(app.remove_port("tail"));
+    REQUIRE_EQ(app.snapshot().name, std::string("lab"));
+
+    for (const config::port_entry& port : ordered_setup().ports)
+        static_cast<void>(app.remove_port(port.name));
+    REQUIRE(app.snapshot().ports.empty());
+    REQUIRE_EQ(app.snapshot().name, std::string("untitled"));
+    REQUIRE(app.snapshot().description.empty());
+
+    // A port made by hand afterwards is saved in an unrelated setup.
+    REQUIRE(app.create_virtual_port("hand", virtual_port_kind::loopback));
+    const auto snapshot = app.snapshot();
+    REQUIRE_EQ(snapshot.name, std::string("untitled"));
+    REQUIRE(snapshot.description.empty());
+}
+
+TEST_CASE("studio: a fixture made from an address is saved with its target")
+{
+    studio app;
+    REQUIRE(app.attach_serial("fake", "mock://modem"));
+    const auto snapshot = app.snapshot();
+    REQUIRE_EQ(snapshot.ports.size(), std::size_t{1});
+    REQUIRE_EQ(snapshot.ports[0].kind, std::string("mock"));
+    REQUIRE_EQ(snapshot.ports[0].mock_target, std::string("modem"));
+    REQUIRE(!config::validate(snapshot));
+}

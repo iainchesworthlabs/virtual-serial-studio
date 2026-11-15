@@ -1,1 +1,1 @@
-{"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"}],"links":[{"mode":"bus","members":["a","b"],"delay_ms":"slow"}]}
+{"version":1,"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"}],"links":[{"mode":"bus","members":["a","b"],"delay_ms":"slow"}]}
