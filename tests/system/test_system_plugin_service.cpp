@@ -1382,7 +1382,7 @@ TEST_CASE("plugin service: an approved key is kept by the service and shown")
                                [](const service_snapshot& now)
                                { return now.scans > 0; }));
 
-    approved_key key;
+    vss::plugin::approved_key key;
     key.key_id = "acme-2026";
     key.name = "Acme";
     key.public_key.fill(0x11);
