@@ -69,7 +69,8 @@ on.
 - **The page** (right) is one of three things: the job grid, a job form, or the
   page of the setup you selected (see [Jobs](#jobs-simple)).
 - The status bar shows the port and link counts, the receive and transmit rates,
-  the hub state and a readiness chip that opens the setup check.
+  whether the engine is running ("Engine running" or "Engine stopped") and a
+  readiness chip that opens the setup check.
 
 ### Advanced
 
@@ -109,9 +110,10 @@ on.
   **View** menu. When the JSON has an error, the editor names the line, marks
   it, and **Go to line** jumps to it. That covers syntax mistakes, bad names,
   kinds, modes and links, and invalid serial settings.
-- **Status bar**: port and link counts, receive and transmit rates, hub state,
-  a chip that counts bytes dropped when there are any, a readiness chip that
-  opens the setup check, and, while profiling is on, its address.
+- **Status bar**: port and link counts, receive and transmit rates, whether the
+  engine is running ("Engine running" or "Engine stopped"), a chip that counts
+  bytes dropped when there are any, a readiness chip that opens the setup
+  check, and, while profiling is on, its address.
 
 To rename a port, select it and press `F2`, or use **Ports → Rename port** or
 the node's context menu. Links and the saved setup use the new name. A
@@ -254,12 +256,14 @@ On Linux the **Port ready** dialog looks like this:
 - **Name**: a unique suffix is added if the name is taken. With **How many**
   above one, names run `port-1`, `port-2` and so on. The number must be 1 to
   32.
-- **COM number** (Windows, with the Studio driver and its helper service,
-  and only for *Best available*): *Automatic* takes a free number above the
-  ports this PC already has (never COM1 or COM2), or type the number a program
-  expects, 1 to 255. It names one port, so it is off
-  when **How many** is above one. A number that is refused is explained under
-  the field and nothing is made; see [Choosing a COM number
+- **COM number** (Windows, with the Studio driver and its helper service, and
+  only for *Best available*): *Automatic* takes a number Windows has kept for a
+  port that is gone and nothing uses, lowest first (never COM1 or COM2), so
+  deleting COM17 and making a port again gives COM17. When there is none, it
+  takes a number above the ports this PC already has. Or type the number a
+  program expects, 1 to 255. It names one port, so it is off when **How many**
+  is above one. A number that is refused is explained under the field and
+  nothing is made; see [Choosing a COM number
   (Windows)](#choosing-a-com-number-windows).
 - **Kind**: *Best available (recommended)* uses the Virtual Serial Studio
   driver on Windows when it is installed, then com0com, and a pseudo terminal
@@ -354,12 +358,18 @@ menu) **Echo received bytes** sends every byte written to it straight back. The
 **Random bytes** at a chosen rate, until you press **Stop generator**.
 
 Select the fixture and choose **Open line matrix and faults** in the Inspector
-(or **Topology → Link wiring**) to inject a fault: a parity error, a framing error, an overrun, a break, a
-hang-up or a disconnect. Each one is reported as an error event on the port, and
-the fixture then stops and shows *Failed*, as a real device would after the
-fault. Add another fixture to inject again. Every fault you inject is listed in
-**Injected so far**. Faults work only on fixtures; the buttons are off for any
-other port.
+(or **Topology → Link wiring**) to inject a fault: a parity error, a framing
+error, an overrun, a break, a hang-up or a disconnect. Each one is reported as
+an error event on the port, and the fixture then stops and shows *Failed*, as a
+real device would after the fault. Add another fixture to inject again. Every
+fault you inject is listed in **Injected so far**. Faults work on fixtures and,
+on Windows, on a port of the Studio driver. On a driver port all six are raised
+at the program that has the port open: the program is told of a parity error, a
+framing error, an overrun or a break as it would be on a wire, **Hang-up** drops
+DCD and DSR, and **Disconnect** takes the port back from the program. The port
+itself keeps running, does not show *Failed*, and Studio shows no error event.
+The buttons are off, with the reason, until a program has the driver port open.
+For any other port they are off.
 
 The same dialog holds the **line matrix** for the link between the fixture
 and the port it is linked to. The rows are the outputs DTR and RTS and the
@@ -696,8 +706,9 @@ plain bus, as before, and Studio writes nothing for it.
   reported ("device-1 sent 5 bytes inside the turn-around time after master")
   and counted as a collision, and with `garble` the hasty answer alone is
   spoilt. The turn-around holds nothing back. To make a device answer *later*,
-  use a delay in a [scripted device](#delay-and-jitter-on-a-link); a delay on the
-  bus itself (`delay_ms`) is added after the line, to every station alike.
+  use a delay in a [scripted device](#scripted-devices-with-vss_cli-respond); a
+  delay on the bus itself (`delay_ms`) is added after the line, to every station
+  alike.
 - **RTS** (`rts_gating`; **Send only while RTS is high**). A station sends only
   while its RTS is high, and holds the line for as long as it is: what it sends
   with RTS low is not carried (reported, and counted as **dropped**), and anyone
@@ -922,9 +933,12 @@ or in a saved topology, as an optional field on a virtual port (1 to 255):
 ```
 
 Studio also remembers the number it was asked for and saves it with the topology.
-A port with no `com_number` takes the lowest free number, and the same slot keeps
-its number from one run to the next, but a different order of creation can give a
-different one.
+A port made from the command line or a setup file with no `com_number` gets the
+number Windows gives it: the lowest one free in its COM name database. The same
+slot keeps its number from one run to the next, but a different order of
+creation can give a different one. The window's *Automatic* in **Add port**
+chooses differently (see [Virtual port](#virtual-port)): it prefers a number
+Windows has kept that nothing uses.
 
 In the window, choose the number in **Add port** (the **COM number** field,
 *Automatic* by default), or select a driver port and press **Change...** beside
@@ -1586,9 +1600,6 @@ available in this build". It never pretends. At the moment:
   `rfc2217://` clients, but the window has no button for it yet. The one thing
   the window does is the **Recreate ports** banner for Windows driver ports
   that a restart took away (see *When the ports are taken away*).
-- **Editing a link in place**: the engine cannot change a link that exists.
-  **Settings...** on a link (Advanced) makes it again with the new delay,
-  jitter, merge policy and modem-line emulation, and bytes in flight can be lost.
 - **"In use" for a device**: shown only if the engine can prove it, and it
   cannot, so a busy device fails when you attach it.
 - **Real-device templates**: they need the attach dialog to open from a
