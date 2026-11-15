@@ -54,6 +54,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_lifecycle.cpp
   unit/test_plugin_locations.cpp
   unit/test_plugin_manifest.cpp
+  unit/test_plugin_parameters.cpp
   unit/test_plugin_measure.cpp
   unit/test_plugin_protocol.cpp
   unit/test_plugin_session.cpp

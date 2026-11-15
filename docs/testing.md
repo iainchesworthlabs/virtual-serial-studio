@@ -55,7 +55,7 @@ of every selected case.
   [below](#the-ui-suite). They exist only when Qt was found and run on
   `QT_QPA_PLATFORM=offscreen`.
 * **Fuzz replays** — `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame` and
-  `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_rule_set`, `fuzz_control_message` and
+  `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_plugin_parameters`, `fuzz_rule_set`, `fuzz_control_message` and
   `fuzz_licence` replay the corpora once per build; see [Fuzzing](fuzzing.md).
 * **Tools** — `headers` (every public header compiles on its own),
   `matrix_tools` (the Python under `tools/matrix`), the `vm_*` tests (the

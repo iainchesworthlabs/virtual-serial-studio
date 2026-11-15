@@ -18,6 +18,7 @@ add_library(vss_plugin
   src/manifest.cpp
   src/measure.cpp
   src/official_roots.cpp
+  src/parameters.cpp
   src/policy.cpp
   src/protocol.cpp
   src/revocations.cpp
