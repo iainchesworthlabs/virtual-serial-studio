@@ -162,6 +162,25 @@ TEST_CASE("service backend: the real service runs an unsigned plugin after a "
     request.granted = {QStringLiteral("ports.read")};
     request.switch_on = true;
     backend.decide(request);
+    // A computer that cannot isolate a plugin does not run an unsigned one
+    // on the decision alone: it waits until the person lets this plugin run
+    // without isolation.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            return state_is(plugin_state::available) ||
+                   state_is(plugin_state::needs_isolation);
+        },
+        60000));
+    if (state_is(plugin_state::needs_isolation))
+    {
+        const plugin_view waiting = *find_view(backend.snapshot(), id);
+        REQUIRE(waiting.isolation == plugin_isolation::none);
+        REQUIRE(waiting.note == plugin_note::isolation_override);
+        REQUIRE(waiting.override_allowed);
+        REQUIRE(!waiting.override_active);
+        backend.set_no_isolation(view.id, view.hash, true);
+    }
     const bool running = vss_test::wait_until(
         [&] { return state_is(plugin_state::available); }, 60000);
     if (!running)
