@@ -1030,6 +1030,7 @@ TEST_CASE("endpoint: writes racing reopen are never sent twice")
     std::atomic<bool> stop{false};
     std::atomic<int> counter{0};
     std::vector<std::thread> writers;
+    writers.reserve(3);
     for (int index = 0; index < 3; ++index)
     {
         writers.emplace_back(
@@ -1120,7 +1121,7 @@ TEST_CASE("endpoint: a read that fails as the endpoint is reopened never closes 
         const auto added = hub->add_endpoint("race" + std::to_string(round),
                                              endpoint_kind::tcp, first);
         REQUIRE(added);
-        const auto endpoint = *added;
+        const auto& endpoint = *added;
         REQUIRE(wait_until([&] { return first->reads_armed() == 1; }, 5000ms));
 
         const auto fresh = make_scripted(*hub);

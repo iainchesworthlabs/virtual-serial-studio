@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
-#ifndef VSS_TESTS_SCRIPTED_TRANSPORT_HPP
-#define VSS_TESTS_SCRIPTED_TRANSPORT_HPP
+#pragma once
 
 #include <vss/core/transport.hpp>
 
@@ -56,21 +55,19 @@ public:
     void async_write_some(boost::asio::const_buffer buffer,
                           io_handler handler) override
     {
-        bool complete = false;
+        const std::size_t size = buffer.size();
         {
             std::lock_guard lock(mutex_);
             const auto* first = static_cast<const char*>(buffer.data());
-            written_.emplace_back(first, buffer.size());
-            complete = auto_complete_writes_;
-            if (!complete)
-                pending_writes_.push_back({buffer.size(), std::move(handler)});
+            written_.emplace_back(first, size);
+            if (!auto_complete_writes_)
+            {
+                pending_writes_.push_back({size, std::move(handler)});
+                return;
+            }
         }
-        if (complete)
-        {
-            const std::size_t size = buffer.size();
-            boost::asio::post(executor_, [handler = std::move(handler), size]
-                              { handler({}, size); });
-        }
+        boost::asio::post(executor_, [handler = std::move(handler), size]
+                          { handler({}, size); });
     }
 
     void close() override { open_ = false; }
@@ -217,5 +214,3 @@ private:
 };
 
 } // namespace vss_test_support
-
-#endif // VSS_TESTS_SCRIPTED_TRANSPORT_HPP
