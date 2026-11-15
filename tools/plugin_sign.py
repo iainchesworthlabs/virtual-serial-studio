@@ -1043,20 +1043,28 @@ def restrict_to_current_user(path: str) -> None:
     and gives the current user full control."""
     sid = current_user_sid()
     icacls = windows_program("icacls")
-    try:
-        done = subprocess.run(
-            # An absolute path, so that icacls never reads it as an option.
-            [icacls, os.path.abspath(path), "/inheritance:r", "/grant:r", "*%s:F" % sid],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            timeout=OPENSSL_TIMEOUT,
-            check=False,
-        )
-    except (OSError, subprocess.TimeoutExpired):
-        raise Refusal("could not run icacls to restrict the key file") from None
-    if done.returncode != 0:
-        raise Refusal("icacls could not restrict the key file to the current user")
+    # An absolute path, so that icacls never reads it as an option.
+    target = os.path.abspath(path)
+    # Two steps. /grant:r replaces only the entries of the user it names, and
+    # /inheritance:r removes only inherited ones, so an entry that was given
+    # to the file itself for someone else would stay (Python gives a new file
+    # such entries for SYSTEM and Administrators on some versions). /reset
+    # first leaves nothing but inherited entries, and the second step removes
+    # those and adds the one for the current user.
+    for step in (["/reset"], ["/inheritance:r", "/grant:r", "*%s:F" % sid]):
+        try:
+            done = subprocess.run(
+                [icacls, target] + step,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                timeout=OPENSSL_TIMEOUT,
+                check=False,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            raise Refusal("could not run icacls to restrict the key file") from None
+        if done.returncode != 0:
+            raise Refusal("icacls could not restrict the key file to the current user")
 
 
 def protect_key_file(path: str) -> None:

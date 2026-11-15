@@ -92,6 +92,7 @@ The payload is UTF-8 JSON:
 | `edition` | `pro` or `enterprise`. Community has no file |
 | `licensee.name` | The person or organisation the licence is issued to. Shown on the Licence page |
 | `licensee.contact` | Optional. A team or role, not a personal e-mail address |
+| `licensee.email` | Optional. The email address the licensee gave when they asked for the licence. It must have the form of an address (ASCII, one `@`, a domain with a dot). It is personal data: Studio shows it on the Licence page of the computer that holds the licence, and a support bundle leaves it out unless the user turns on the row that adds the licensee's name and email |
 | `issued_at` | When the owner signed it. Used for key rotation and the clock check |
 | `starts_at`, `expires_at` | The term, in UTC. A renewal bought early starts when the old one ends, so no days are lost |
 | `grace_days` | Days after `expires_at` during which Pro features still work. 28 for annual, 0 for trial, and whatever was agreed for enterprise (28 unless the agreement says otherwise) |

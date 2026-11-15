@@ -207,7 +207,18 @@ class Client:
     # -- the connection ------------------------------------------------------
 
     def close(self):
-        """Closes the connection.  Safe to call again."""
+        """Ends the session and closes the connection.  Safe to call again.
+
+        While the connection is still sound the gateway is asked to end the
+        session (`session.close`), so that it is gone from the list of
+        sessions at once and the audit log says the client ended it.  Any
+        error from that is ignored, and the time one call may take still
+        limits it: this never raises and never waits longer than that."""
+        if not self._closed:
+            try:
+                self._call("session.close")
+            except Exception:
+                pass
         self._abort()
 
     def __enter__(self):
@@ -342,6 +353,29 @@ class Client:
     def list_ports(self):
         """`revision`, `ports` and `links`, as the gateway lists them."""
         return self._call("ports.list", expect="ports")
+
+    def get_port(self, port):
+        """One port, as `list_ports` has it in `ports`: `id`, `name`, `path`,
+        `kind`, `state`, `open`, `bytes_rx` and `bytes_tx`.  Raises
+        `invalid_argument` for an id that is not of the form `p_3` and
+        `not_found` for one that no port has.  Needs `monitor`."""
+        return self._call("ports.get", {"port": clean_text(port)}, expect="port")["port"]
+
+    def list_links(self):
+        """The links, as `list_ports` has them in `links`: `id`, `mode`,
+        `sources`, `targets` and `bytes`.  Needs `monitor`."""
+        return self._call("links.list", expect="links")["links"]
+
+    def get_link(self, link):
+        """One link, as `list_links` has it.  Raises `invalid_argument` for an
+        id that is not of the form `l_2` and `not_found` for one that no link
+        has.  Needs `monitor`."""
+        return self._call("links.get", {"link": clean_text(link)}, expect="link")["link"]
+
+    def ping(self):
+        """Asks whether the gateway answers.  It needs no scope and does not
+        ask the agent, so it works while no agent runs."""
+        self._call("ping")
 
     def create_port(self, name, kind=None):
         """Makes a port in the agent and returns its id (`p_3`).  Needs

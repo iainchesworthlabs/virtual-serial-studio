@@ -54,8 +54,17 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_permissions_linux.cpp
   unit/test_permissions_macos.cpp
   unit/test_plugin_access.cpp
+  unit/test_plugin_api_adapter.cpp
+  unit/test_plugin_api_capture.cpp
+  unit/test_plugin_api_decoder.cpp
+  unit/test_plugin_api_fixture.cpp
+  unit/test_plugin_api_generator.cpp
+  unit/test_plugin_api_instance.cpp
+  unit/test_plugin_api_modifier.cpp
+  unit/test_plugin_api_trigger.cpp
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
+  unit/test_plugin_install.cpp
   unit/test_plugin_licence.cpp
   unit/test_plugin_lifecycle.cpp
   unit/test_plugin_locations.cpp
@@ -87,6 +96,9 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
+  unit/test_update_feed.cpp
+  unit/test_update_select.cpp
+  unit/test_update_version.cpp
   unit/test_virtual_ports.cpp
   unit/test_vsscom_core.cpp)
 
@@ -176,7 +188,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_plugin vss_machine vss_rules vss_control_proto
-  vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
+  vss_control_core vss_license_test_keys vss_update Vss::BoostJson
+  Vss::Monocypher)
 if(TARGET vss_cli_control)
   target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
 endif()
@@ -230,6 +243,27 @@ if(TARGET vss_agent AND TARGET vss_cli AND TARGET vss_gate)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp)
 endif()
 
+# The plugin process tests start vss_test_plugin, a program that does what
+# its arguments say: what a plugin does that behaves, and what one does that
+# does not. CMake chooses the files that know each system.
+add_executable(vss_test_plugin plugin/vss_test_plugin/main.cpp)
+target_include_directories(vss_test_plugin PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/plugin/vss_test_plugin)
+target_compile_features(vss_test_plugin PRIVATE cxx_std_23)
+vss_set_warnings(vss_test_plugin)
+list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_process.cpp)
+if(WIN32)
+  target_sources(vss_test_plugin PRIVATE
+    plugin/vss_test_plugin/platform/windows/platform_windows.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES
+    support/platform/windows/native_io_windows.cpp)
+else()
+  target_sources(vss_test_plugin PRIVATE
+    plugin/vss_test_plugin/platform/posix/platform_posix.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES
+    support/platform/posix/native_io_posix.cpp)
+endif()
+
 add_executable(vss_system_tests ${VSS_SYSTEM_TEST_SOURCES})
 target_include_directories(vss_system_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
@@ -237,8 +271,18 @@ target_include_directories(vss_system_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/support)
 target_link_libraries(vss_system_tests PRIVATE vss_studio vss_testkit
   Vss::BoostJson)
+if(TARGET vss_cli)
+  # The plugin tests make signed plugins with a test key.
+  target_link_libraries(vss_system_tests PRIVATE Vss::plugin Vss::license
+    vss_license_test_keys)
+endif()
 vss_set_warnings(vss_system_tests)
 vss_enable_coverage(vss_system_tests)
+
+add_dependencies(vss_system_tests vss_test_plugin)
+target_link_libraries(vss_system_tests PRIVATE vss_plugin_host)
+target_compile_definitions(vss_system_tests PRIVATE
+  VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>")
 
 add_test(NAME system COMMAND vss_system_tests
   --verbose --junit=${CMAKE_BINARY_DIR}/system-tests.xml)
@@ -311,8 +355,8 @@ endif()
 # A packaging smoke test: the public headers compile on their own.
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
-  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto vss_control_core
-  vss_license_test_keys)
+  vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_rules vss_control_proto vss_control_core
+  vss_license_test_keys vss_update)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 

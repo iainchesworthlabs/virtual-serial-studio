@@ -225,6 +225,8 @@ void print_licence(std::ostream& out, const licence& value)
         << "Licensee: " << value.licensee_name << '\n';
     if (!value.licensee_contact.empty())
         out << "Contact: " << value.licensee_contact << '\n';
+    if (!value.licensee_email.empty())
+        out << "Email: " << value.licensee_email << '\n';
     out << "Issued: " << format_time(value.issued_at) << '\n'
         << "Starts: " << format_time(value.starts_at) << '\n'
         << "Expires: " << format_time(value.expires_at) << '\n'

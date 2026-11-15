@@ -112,6 +112,7 @@ vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a tok
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
 vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
+vss_cli control port show p_1       # one port; `control links` lists the links, `link show <id>` shows one (scope monitor), `control ping` asks whether the gateway answers (no scope)
 vss_cli control send p_1 --hex=00ff0a   # send bytes to a port, two hex digits for each byte (scope control.data)
 vss_cli control expect p_2 --pattern=4f4b0d0a --send-to=p_1 --send=6f6b0d0a   # wait for bytes on a port, and send some once listening (scope monitor.data; control.data to send)
 vss_cli control run begin smoke     # open a named run; every `expect` of this user is noted (`--label=<text>` names it); `run record <name> --outcome=passed`, `run end`, `run report --out=smoke.xml` for the JUnit XML (scope monitor)
@@ -269,11 +270,13 @@ libs/vss_core        hub, endpoints, links, control lines, events
 libs/vss_ports       serial transport, PTY, loopback, com0com, enumeration
 libs/vss_config      JSON topology documents
 libs/vss_license     licence files and the signed envelope (verify, judge, sign), and the store that finds them
+libs/vss_update      semantic versions, the signed update feed and the choice of what to offer
 libs/vss_rules       response timing rules: the rule set, its checks and the machine that says what fires when
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent
 libs/vss_plugin      plugin manifests and the checks made before a plugin runs
+libs/vss_plugin_host starting a plugin as a process of its own
 libs/vss_agent       the agent's local transport, server and client
 libs/vss_control_proto the control API: messages, errors and the policy table
 libs/vss_control     the control gateway, its audit log and its client
