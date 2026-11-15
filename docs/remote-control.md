@@ -633,7 +633,7 @@ design's, except where the Notes say the code asks for another.
 | Operation | Scope | Built | Notes |
 |---|---|---|---|
 | `hello` | none (after auth) | Yes | Version, features, the principal's effective scopes |
-| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version, and the edition (`community`, `pro` or `enterprise`) with the state of the licence. Whose the licence is, its number and its dates are not given. `vss_gate` does not read a licence yet, so it reports `community` and `none`. Not built: the endpoint state and counters |
+| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version, and the edition (`community`, `pro` or `enterprise`) with the state of the licence. Whose the licence is, its number and its dates are not given. `vss_gate` reads the licence folders of this computer as it starts and once a minute after that, and chooses the licence as Studio does; it writes nothing there. Not built: the endpoint state and counters |
 | `ports.list` | `monitor` | Yes | |
 | `ports.get`, `links.list`, `links.get` | `monitor` | Yes | One port, and the links alone, as `ports.list` has them. An id of the right form that nothing has is `not_found`; one that is not of the right form is `invalid_argument`, as for `ports.remove` |
 | `lines.get` | `monitor` | Not built | |
@@ -1086,8 +1086,9 @@ the Python client, make the requests; the Python client's `close()` now sends `s
 Everything in the table of section 9 that is marked "Not built", gathered here in one place:
 
 - Reading: `lines.get`, `traffic.history`, and the endpoint state and the
-  counters in `status`. `status` has the edition and the state of the licence, but `vss_gate` does not read a licence
-  yet, so it always reports `community` and `none`.
+  counters in `status`. `status` has the edition and the state of the licence as `vss_gate` last read them, which
+  is once a minute. The gateway keeps no clock file, so a clock that was set back while it was not running is
+  something Studio and `vss_cli licence` notice and the gateway does not.
 - Changing ports: `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set`, `scripts.set`, `scripts.clear`,
   `topology.apply`, `topology.snapshot`, and "own ports only" for a scoped token.
 - Faults and timing: `faults.inject` and `timing.set`. The response timing rules engine is built as a library only,

@@ -736,7 +736,27 @@ TEST_CASE("system control: the gateway shows the ports of the agent")
     REQUIRE(!contains(status.output, "local only"));
     REQUIRE(contains(status.output, "You may: monitor"));
     REQUIRE(contains(status.output, "Agent: running"));
-    REQUIRE(contains(status.output, "Edition: community (licence: none)"));
+    // The gateway reads the licence folders of this computer, as
+    // `vss_cli licence` does, so the two say the same.  On a computer
+    // with no licence that is the Community edition.
+    child_process asked(VSS_AGENT_CLI_PROGRAM, {"licence"});
+    const std::string said = asked.read_all(long_limit);
+    REQUIRE(asked.wait(long_limit) == std::optional<int>(0));
+    const auto value_after = [&said](const std::string& label)
+    {
+        const auto start = said.find(label);
+        if (start == std::string::npos)
+            return std::string();
+        const auto from = start + label.size();
+        return said.substr(from,
+                           said.find_first_of("\r\n", from) - from);
+    };
+    const std::string edition = value_after("Edition: ");
+    const std::string state = value_after("State: ");
+    REQUIRE(!edition.empty());
+    REQUIRE(!state.empty());
+    REQUIRE(contains(status.output, "Edition: " + edition +
+                                        " (licence: " + state + ")"));
 
     auto script = connect_client(instance);
     const auto listed = script->list_ports();

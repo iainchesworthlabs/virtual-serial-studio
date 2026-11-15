@@ -21,6 +21,7 @@
 #include <vss/control/audit_log.hpp>
 #include <vss/control/client.hpp>
 #include <vss/control/gateway.hpp>
+#include <vss/control/licence_watch.hpp>
 #include <vss/control/loopback.hpp>
 #include <vss/control/proto/message.hpp>
 #include <vss/control/proto/secret.hpp>
@@ -29,6 +30,7 @@
 #include <vss/core/bytes.hpp>
 #include <vss/studio/studio.hpp>
 
+#include "licence_test_files.hpp"
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
 #include "token_file.hpp"
@@ -655,6 +657,49 @@ TEST_CASE("control gateway: status gives the edition and the state of the "
     const std::string wire = control::encode(control::reply{1, reply}).header;
     REQUIRE(wire.find(R"("licence":{"edition":"pro","state":"valid"})") !=
             std::string::npos);
+}
+
+TEST_CASE("control gateway: status follows the licence files in the folders")
+{
+    namespace files = vss_test_support::licence_files;
+    files::fixture folders;
+    const auto written = files::write_file(
+        folders.user(), "VSS-2026-000123.vsslic",
+        files::licence_file(files::annual()));
+
+    const auto watch = control::watch_licence_folders(
+        folders.options(), std::chrono::milliseconds(20));
+    control::gateway_options options;
+    options.licence = [&watch] { return watch->latest(); };
+    fixture env(std::move(options), false);
+    auto client = env.connect();
+
+    const auto with_licence = client->status();
+    REQUIRE(with_licence);
+    REQUIRE_EQ(with_licence->edition, std::string("pro"));
+    REQUIRE_EQ(with_licence->licence_state, std::string("valid"));
+
+    // The file is taken away, and the next reading finds none.
+    std::filesystem::remove(written);
+    std::string edition = "pro";
+    std::string state = "valid";
+    const auto give_up =
+        std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (edition != "community" &&
+           std::chrono::steady_clock::now() < give_up)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        const auto now = client->status();
+        REQUIRE(now);
+        edition = now->edition;
+        state = now->licence_state;
+    }
+    REQUIRE_EQ(edition, std::string("community"));
+    REQUIRE_EQ(state, std::string("none"));
+
+    // The gateway only reads: it keeps no clock file and makes no folder.
+    REQUIRE(!std::filesystem::exists(folders.clock_file()));
+    REQUIRE(!std::filesystem::exists(folders.machine()));
 }
 
 TEST_CASE("control gateway: the control role is a setting, and admin is "
