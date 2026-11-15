@@ -45,6 +45,7 @@
 #include "test_plugin_files.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -1699,4 +1700,125 @@ TEST_CASE("plugin service: instances wanted of a plugin that is not "
         wait_for(service, "the instance to run",
                  instance_is(official_id, 1, instance_state::running));
     REQUIRE_EQ(running->plugins.size(), std::size_t{1});
+}
+
+namespace
+{
+
+/// What a test's extension point saw, shared with the test.
+struct seen_by_extension
+{
+    std::atomic<int> ready{0};
+    std::atomic<int> gone{0};
+    std::atomic<int> taken{0};
+    std::atomic<int> offered{0};
+};
+
+/// An extension point that answers one "op" with `ok` and leaves the rest.
+class answering_extension final : public vss::plugin::host::extension_handler
+{
+public:
+    answering_extension(vss::plugin::host::extension_context context,
+                        std::string op, std::shared_ptr<seen_by_extension> seen)
+        : context_(std::move(context)), op_(std::move(op)),
+          seen_(std::move(seen))
+    {
+    }
+
+    bool take(const vss::plugin::api_message& message) override
+    {
+        ++seen_->offered;
+        if (message.op != op_)
+            return false;
+        ++seen_->taken;
+        context_.link.answer(message.id, vss::plugin::host::ok_answer());
+        return true;
+    }
+
+    void plugin_ready() override { ++seen_->ready; }
+
+    void plugin_gone() override { ++seen_->gone; }
+
+private:
+    vss::plugin::host::extension_context context_;
+    std::string op_;
+    std::shared_ptr<seen_by_extension> seen_;
+};
+
+vss::plugin::host::extension_factory
+answering(std::string op, std::shared_ptr<seen_by_extension> seen)
+{
+    return [op = std::move(op), seen = std::move(seen)](
+               const vss::plugin::host::extension_context& context)
+    {
+        std::vector<std::unique_ptr<vss::plugin::host::extension_handler>>
+            handlers;
+        handlers.push_back(
+            std::make_unique<answering_extension>(context, op, seen));
+        return handlers;
+    };
+}
+
+} // namespace
+
+TEST_CASE("plugin service: an extension point answers a plugin's request")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {"--send-op=test.hello"};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+
+    const auto seen = std::make_shared<seen_by_extension>();
+    service_options options = fixture.options();
+    options.extensions = answering("test.hello", seen);
+    plugin_service& service = fixture.start(std::move(options));
+    service.rescan();
+
+    // The plugin prints the answer it got: `ok`, from the extension point,
+    // and not the error of a message nobody knows.
+    static_cast<void>(wait_for(service, "the plugin to print its answer",
+                               [](const service_snapshot& now)
+                               {
+                                   const service_plugin* const plugin =
+                                       find(now, official_id);
+                                   return plugin != nullptr &&
+                                          plugin->run != nullptr &&
+                                          log_has(*plugin, "answer ok");
+                               }));
+    REQUIRE_EQ(seen->taken.load(), 1);
+    REQUIRE_EQ(seen->ready.load(), 1);
+    REQUIRE_EQ(seen->gone.load(), 0);
+
+    // When the plugin is switched off its extension point is told.
+    service.set_enabled(std::string(official_id), false);
+    static_cast<void>(wait_for(service, "the extension point to be told",
+                               [&](const service_snapshot&)
+                               { return seen->gone.load() == 1; }));
+}
+
+TEST_CASE("plugin service: a request no extension point takes is not known")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {"--send-op=test.hello"};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+
+    const auto seen = std::make_shared<seen_by_extension>();
+    service_options options = fixture.options();
+    options.extensions = answering("test.other", seen);
+    plugin_service& service = fixture.start(std::move(options));
+    service.rescan();
+
+    static_cast<void>(wait_for(service, "the plugin to print its answer",
+                               [](const service_snapshot& now)
+                               {
+                                   const service_plugin* const plugin =
+                                       find(now, official_id);
+                                   return plugin != nullptr &&
+                                          plugin->run != nullptr &&
+                                          log_has(*plugin, "answer error");
+                               }));
+    // It was offered to the extension point, which left it.
+    REQUIRE(seen->offered.load() >= 1);
+    REQUIRE_EQ(seen->taken.load(), 0);
 }
