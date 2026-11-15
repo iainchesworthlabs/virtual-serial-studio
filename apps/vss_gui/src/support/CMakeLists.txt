@@ -62,6 +62,8 @@ add_library(vss_gui_support STATIC
   troubleshoot.hpp
   troubleshoot_dialog.cpp
   troubleshoot_dialog.hpp
+  update_dialog.cpp
+  update_dialog.hpp
   update_text.cpp
   update_text.hpp
   third_party.cpp

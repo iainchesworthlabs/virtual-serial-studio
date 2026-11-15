@@ -72,12 +72,12 @@ The status sentence:
 
 Under the card: a check box "Check for updates automatically", the same setting as in Settings, and a muted line "Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent."
 
-Buttons in the tab, right aligned: "Check now" (disabled while checking, and in `disabled_by_policy` and `no_keys`), and "Update..." (primary of the tab, only in `available` with a file). The dialog footer is unchanged.
+Buttons in the tab, right aligned: "Check now" (disabled while checking, and in `disabled_by_policy` and `no_keys`), and "Update..." (primary of the tab, only in `available`; when there is no file for this kind of install the update dialog offers the downloads page). The dialog footer is unchanged.
 
 Acceptance: every state can be shown from a test; the status sentence is announced when it changes; "Check now" works with the keyboard only and returns focus to itself when the check ends; the tab works at 200 percent text.
 
 ## Settings, the Updates group
-Context `SettingsDialog`. A group "Updates" at the end of the General page, after its last group.
+Context `Settings`, as the rest of that dialog. A group "Updates" at the end of the General page, after its last group.
 
 | Control | Label | Help line |
 |---|---|---|
@@ -137,6 +137,8 @@ Then, with the bar full and no button enabled, "Checking the download...".
 | `linux-rpm` | The same, with `sudo dnf install <file>` | The same |
 | `windows-zip`, `macos-archive`, `linux-archive` | "The download is in <folder>. This copy of Studio was unpacked from an archive, so unpack the new one in its place." | "Show in folder" (primary), Close |
 
+For a package, "Install" disables the buttons while the system's package tool runs. When it has finished the page shows the ok note "Restart Studio to use the new version." and "Install" is gone. When the person dismissed the administrator prompt nothing is shown. When the tool failed the page shows the danger note "The package could not be installed. Use the command above."
+
 "Not now" keeps the checked file for this run of Studio; "Update..." in About then goes straight to this page.
 
 ### Failures
@@ -146,7 +148,7 @@ The error pattern, inside the dialog, with "Try again" (primary) and Close. Noth
 |---|---|---|
 | The connection failed or timed out | "Could not download the update" | "Studio could not reach the update server. Check the connection and try again." |
 | The download is not the published file | "Could not download the update" | "The download was not the file that was published, so it was deleted." |
-| The disk is full or the folder cannot be written | "Could not download the update" | "Studio could not save the download in <folder>." |
+| The disk is full or the folder cannot be written | "Could not download the update" | "Studio could not save the download." |
 | The installer could not be started | "Could not start the installer" | "Studio could not start <file name>. It is in <folder>." with "Show in folder" in place of "Try again" |
 
 Acceptance: every page and every failure can be shown from a test with the fake transport; the progress is announced at most once every ten percent; Escape is "Not now" before a download and "Cancel" during one; the dialog works at 200 percent text with the summary scrolling inside it; no string is built by joining translated fragments; the summary is shown as plain text whatever it holds.

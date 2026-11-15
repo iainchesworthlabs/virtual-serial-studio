@@ -20,22 +20,26 @@
 
 #include <cstdint>
 
+namespace vss::gui::updates
+{
+class UpdateService;
+} // namespace vss::gui::updates
+
 namespace vss::gui
 {
 
-/// The edition chip: a status chip that is also a button, which opens the
-/// Licence page. The chip is the only thing drawn; the button adds the
-/// keyboard focus ring and a 24 px target.
-class EditionChip final : public QAbstractButton
+/// A status chip that is also a button. The chip is the only thing drawn; the
+/// button adds the keyboard focus ring and a 24 px target.
+class ChipButton : public QAbstractButton
 {
     Q_OBJECT
 
 public:
-    explicit EditionChip(QWidget* parent = nullptr);
+    explicit ChipButton(QWidget* parent = nullptr);
 
-    /// Shows `look`, and names the button "Edition: <text>. Open the licence
-    /// page."
-    void set_look(const support::licence_chip& look);
+    /// Shows `text` as a chip of `kind`, and names the button `name`.
+    void set_content(StatusChip::kind kind, const QString& text,
+                     const QString& name);
     StatusChip* chip() const noexcept { return chip_; }
 
     QSize sizeHint() const override;
@@ -47,6 +51,19 @@ protected:
 
 private:
     StatusChip* chip_ = nullptr;
+};
+
+/// The edition chip, which opens the Licence page.
+class EditionChip final : public ChipButton
+{
+    Q_OBJECT
+
+public:
+    explicit EditionChip(QWidget* parent = nullptr);
+
+    /// Shows `look`, and names the button "Edition: <text>. Open the licence
+    /// page."
+    void set_look(const support::licence_chip& look);
 };
 
 /// Ports, links, rates, hub state, readiness and the level switch.
@@ -69,15 +86,26 @@ public:
 
     EditionChip* edition_chip() const noexcept { return edition_; }
 
+    /// Gives the bar the update service, once, or null for none. With a
+    /// service the bar shows the "Update available" chip to the left of the
+    /// edition chip while the service says it is due.
+    void set_update_service(updates::UpdateService* service);
+    /// The update chip. It is hidden while no service is given or no update
+    /// is due.
+    ChipButton* update_chip() const noexcept { return update_; }
+
 Q_SIGNALS:
     void level_requested(bool advanced);
     /// The edition chip was pressed.
     void licence_requested();
+    /// The update chip was pressed.
+    void update_requested();
 
 private:
     void update_readiness();
     void update_profiling();
     void update_edition();
+    void update_update_chip();
 
     StudioBackend& backend_;
     support::setup_report_cache setup_cache_;
@@ -89,6 +117,8 @@ private:
     StatusChip* dropped_ = nullptr;
     StatusChip* profiling_ = nullptr;
     EditionChip* edition_ = nullptr;
+    updates::UpdateService* updates_ = nullptr;
+    ChipButton* update_ = nullptr;
     SegmentedControl* level_ = nullptr;
 
     QElapsedTimer rate_timer_;

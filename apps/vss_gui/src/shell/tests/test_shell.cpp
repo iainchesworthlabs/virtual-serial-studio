@@ -2029,9 +2029,10 @@ TEST_CASE("licence: Help lists Licence after the environment entry, and Search "
     const qsizetype licence = ids.indexOf(QStringLiteral("help.licence"));
     REQUIRE(environment >= 0);
     REQUIRE_EQ(licence, environment + 1);
-    // Support follows Licence, and About comes last.
+    // Support follows Licence, then Check for updates, and About comes last.
     REQUIRE_EQ(ids.at(licence + 1), QStringLiteral("help.support"));
-    REQUIRE_EQ(ids.at(licence + 2), QStringLiteral("help.about"));
+    REQUIRE_EQ(ids.at(licence + 2), QStringLiteral("help.updates"));
+    REQUIRE_EQ(ids.at(licence + 3), QStringLiteral("help.about"));
 
     auto* action = window.findChild<QAction*>(QStringLiteral("help.licence"));
     REQUIRE(action != nullptr);
@@ -2110,7 +2111,9 @@ TEST_CASE("support: Help lists Support after Licence, and Search finds it")
     const qsizetype support = ids.indexOf(QStringLiteral("help.support"));
     REQUIRE(licence >= 0);
     REQUIRE_EQ(support, licence + 1);
-    REQUIRE_EQ(ids.at(support + 1), QStringLiteral("help.about"));
+    // Check for updates sits between Support and About.
+    REQUIRE_EQ(ids.at(support + 1), QStringLiteral("help.updates"));
+    REQUIRE_EQ(ids.at(support + 2), QStringLiteral("help.about"));
 
     auto* action = window.findChild<QAction*>(QStringLiteral("help.support"));
     REQUIRE(action != nullptr);

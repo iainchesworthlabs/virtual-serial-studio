@@ -1560,7 +1560,7 @@ system starts.
 If a download fails, the dialog names what failed and offers **Try again**. It
 says "Studio could not reach the update server. Check the connection and try
 again.", "The download was not the file that was published, so it was deleted."
-or "Studio could not save the download in `<folder>`." Nothing is installed and
+or "Studio could not save the download." Nothing is installed and
 Studio is as it was.
 
 ### Turning the check on or off

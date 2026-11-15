@@ -582,3 +582,22 @@ TEST_CASE("update transport: a download follows a redirect and a missing "
     REQUIRE(missing.error == transport_error::network);
     REQUIRE_EQ(missing.pieces, 0);
 }
+
+TEST_CASE("update transport: the update server can be reached over TLS "
+          "(runs only when asked)")
+{
+    // Every other test stays on this computer. This one makes the request
+    // the program makes, to the address the program asks, so it runs only
+    // for a person who sets VSS_UPDATE_LIVE_TEST=1. It tells a computer
+    // that cannot make the TLS connection from one that can: the answer may
+    // be a feed, or "no such file" while the site has none.
+    if (qEnvironmentVariable("VSS_UPDATE_LIVE_TEST") != QStringLiteral("1"))
+        VSS_SKIP("set VSS_UPDATE_LIVE_TEST=1 to ask the update server");
+
+    NetworkTransport transport;
+    feed_result result;
+    transport.fetch_feed(into(result));
+    REQUIRE(wait_until([&] { return result.done; }, 30000));
+    REQUIRE(result.error == transport_error::none ||
+            result.error == transport_error::network);
+}

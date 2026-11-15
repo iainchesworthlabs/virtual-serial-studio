@@ -36,6 +36,8 @@ add_library(vss_gui_shell STATIC
   undo_service.hpp
   undo_steps.cpp
   undo_steps.hpp
+  update_notice.cpp
+  update_notice.hpp
   ../simple/job_form.cpp
   ../simple/job_form.hpp
   ../simple/job_grid.cpp

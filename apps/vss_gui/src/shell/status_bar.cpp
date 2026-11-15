@@ -10,7 +10,9 @@
 #include "shell/format.hpp"
 #include "support/licence_dialog.hpp"
 #include "support/setup_facts.hpp"
+#include "support/update_text.hpp"
 #include "theme/focus_ring_style.hpp"
+#include "updates/update_service.hpp"
 
 #include <vss/core/profile.hpp>
 
@@ -26,7 +28,7 @@ namespace vss::gui
 {
 using namespace support;
 
-EditionChip::EditionChip(QWidget* parent) : QAbstractButton(parent)
+ChipButton::ChipButton(QWidget* parent) : QAbstractButton(parent)
 {
     setCursor(Qt::PointingHandCursor);
     setFocusPolicy(Qt::StrongFocus);
@@ -40,29 +42,29 @@ EditionChip::EditionChip(QWidget* parent) : QAbstractButton(parent)
     repaint_on_theme_change(this);
 }
 
-void EditionChip::set_look(const support::licence_chip& look)
+void ChipButton::set_content(StatusChip::kind kind, const QString& text,
+                             const QString& name)
 {
-    chip_->set_kind(support::chip_kind(look.tone));
-    chip_->set_text(look.text);
-    const QString name = support::edition_chip_name(look);
+    chip_->set_kind(kind);
+    chip_->set_text(text);
     setAccessibleName(name);
     setToolTip(name);
     updateGeometry();
     update();
 }
 
-QSize EditionChip::sizeHint() const
+QSize ChipButton::sizeHint() const
 {
     const QSize chip = chip_->sizeHint();
     return QSize(chip.width() + 6, std::max(24, chip.height() + 2));
 }
 
-QSize EditionChip::minimumSizeHint() const
+QSize ChipButton::minimumSizeHint() const
 {
     return sizeHint();
 }
 
-void EditionChip::paintEvent(QPaintEvent* event)
+void ChipButton::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);
     const Theme& theme = Theme::instance();
@@ -84,7 +86,7 @@ void EditionChip::paintEvent(QPaintEvent* event)
     }
 }
 
-void EditionChip::keyPressEvent(QKeyEvent* event)
+void ChipButton::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)
     {
@@ -93,6 +95,14 @@ void EditionChip::keyPressEvent(QKeyEvent* event)
         return;
     }
     QAbstractButton::keyPressEvent(event);
+}
+
+EditionChip::EditionChip(QWidget* parent) : ChipButton(parent) {}
+
+void EditionChip::set_look(const support::licence_chip& look)
+{
+    set_content(support::chip_kind(look.tone), look.text,
+                support::edition_chip_name(look));
 }
 
 StatusBar::StatusBar(StudioBackend& backend, QWidget* parent)
@@ -137,6 +147,15 @@ StatusBar::StatusBar(StudioBackend& backend, QWidget* parent)
     readiness_ =
         new StatusChip(tr("Setup ready"), StatusChip::kind::healthy, this);
     addPermanentWidget(readiness_, 0);
+
+    // "Update available", left of the edition. It stays hidden until a
+    // service is given and says an update is due.
+    update_ = new ChipButton(this);
+    update_->setObjectName(QStringLiteral("updateChip"));
+    update_->hide();
+    connect(update_, &QAbstractButton::clicked, this,
+            &StatusBar::update_requested);
+    addPermanentWidget(update_, 0);
 
     // The edition: Community, Pro and so on. It opens the Licence page.
     edition_ = new EditionChip(this);
@@ -287,6 +306,41 @@ void StatusBar::update_profiling()
 void StatusBar::update_edition()
 {
     edition_->set_look(support::edition_chip(backend_.licence().status));
+}
+
+void StatusBar::set_update_service(updates::UpdateService* service)
+{
+    if (updates_ != nullptr)
+        disconnect(updates_, nullptr, this, nullptr);
+    updates_ = service;
+    if (updates_ != nullptr)
+        connect(updates_, &updates::UpdateService::changed, this,
+                [this] { update_update_chip(); });
+    update_update_chip();
+}
+
+void StatusBar::update_update_chip()
+{
+    // Shown while an update is on offer, and through its download.
+    if (updates_ == nullptr || !updates_->state().offer.has_value())
+    {
+        update_->hide();
+        return;
+    }
+    const updates::snapshot& state = updates_->state();
+    const bool downloading =
+        state.download == updates::download_state::downloading ||
+        state.download == updates::download_state::verifying ||
+        state.download == updates::download_state::ready;
+    if (!updates_->chip_due() && !downloading)
+    {
+        update_->hide();
+        return;
+    }
+    const QString name = update_chip_name(state.offer->version_text);
+    if (update_->accessibleName() != name)
+        update_->set_content(StatusChip::kind::info, update_chip_text(), name);
+    update_->show();
 }
 
 void StatusBar::update_readiness()
