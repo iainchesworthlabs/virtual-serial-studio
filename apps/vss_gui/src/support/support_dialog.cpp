@@ -6,6 +6,7 @@
 
 #include "support/support_dialog.hpp"
 
+#include "support/app_identity.hpp"
 #include "support/licence_dialog.hpp"
 #include "support/licence_text.hpp"
 #include "theme/theme.hpp"

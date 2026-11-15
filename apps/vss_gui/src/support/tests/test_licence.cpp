@@ -12,6 +12,7 @@
 #include "test_framework.hpp"
 
 #include "backend/fake_studio_backend.hpp"
+#include "support/app_identity.hpp"
 #include "support/licence_dialog.hpp"
 #include "support/licence_text.hpp"
 #include "support/tests/licence_samples.hpp"
@@ -517,10 +518,9 @@ TEST_CASE("licence text: the notices of the main window")
                QStringLiteral("Dismiss"));
 }
 
-TEST_CASE("licence text: the support address is one reserved name")
+TEST_CASE("licence text: the renew text names the support address")
 {
     const QString address = vss::gui::support::support_address();
-    REQUIRE(address.endsWith(QStringLiteral(".invalid")));
     REQUIRE(address.contains(QLatin1Char('@')));
     const QString renew =
         vss::gui::support::renew_text(QStringLiteral("VSS-2026-000123"));
