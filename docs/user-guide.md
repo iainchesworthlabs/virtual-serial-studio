@@ -1857,7 +1857,7 @@ prints one block for each plugin:
 
 ```text
 com.example.modbus-fixture  1.2.0  Modbus fixture
-  Folder:       C:/Users/me/AppData/Local/VirtualSerialStudio/plugins/modbus-fixture
+  Folder:       C:/Users/me/AppData/Local/Virtual Serial Studio/plugins/modbus-fixture
   Installed for: you only
   Fingerprint:  3f9a1c0d2b7e4a61
   Signature:    not signed
@@ -1904,9 +1904,9 @@ the same id, the first counts.
 | | Windows | Linux | macOS |
 |---|---|---|---|
 | Studio's own | `<program_directory>/../studio-plugins` | the same | the same |
-| Machine | `%ProgramData%\VirtualSerialStudio\plugins` | `/usr/local/share/virtual-serial-studio/plugins` | `/Library/Application Support/VirtualSerialStudio/plugins` |
-| User | `%LOCALAPPDATA%\VirtualSerialStudio\plugins` | `$XDG_DATA_HOME/virtual-serial-studio/plugins`, or `$HOME/.local/share/virtual-serial-studio/plugins` when `XDG_DATA_HOME` is unset, empty or not an absolute path | `$HOME/Library/Application Support/VirtualSerialStudio/plugins` |
-| Policy file | `%ProgramData%\VirtualSerialStudio\policy.json` | `/etc/virtual-serial-studio/policy.json` | `/Library/Application Support/VirtualSerialStudio/policy.json` |
+| Machine | `%ProgramData%\Virtual Serial Studio\plugins` | `/usr/local/share/virtual-serial-studio/plugins` | `/Library/Application Support/Virtual Serial Studio/plugins` |
+| User | `%LOCALAPPDATA%\Virtual Serial Studio\plugins` | `$XDG_DATA_HOME/virtual-serial-studio/plugins`, or `$HOME/.local/share/virtual-serial-studio/plugins` when `XDG_DATA_HOME` is unset, empty or not an absolute path | `$HOME/Library/Application Support/Virtual Serial Studio/plugins` |
+| Policy file | `%ProgramData%\Virtual Serial Studio\policy.json` | `/etc/virtual-serial-studio/policy.json` | `/Library/Application Support/Virtual Serial Studio/policy.json` |
 
 `<program_directory>` is the folder that holds Studio's programs, such as
 `<install>/bin`. Studio's own folder is next to it. It is called
