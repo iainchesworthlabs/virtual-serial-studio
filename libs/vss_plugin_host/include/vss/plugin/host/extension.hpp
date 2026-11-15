@@ -120,7 +120,7 @@ using extension_factory =
 
 /// An `error` answer for a request, with one of the codes of the plugin
 /// API and a plain line for the plugin's log.
-api_message error_answer(api_errc code, std::string text);
+api_message error_answer(api_errc code, const std::string& text);
 
 /// The `ok` answer with nothing in it.
 api_message ok_answer();

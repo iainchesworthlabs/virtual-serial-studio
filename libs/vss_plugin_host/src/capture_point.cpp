@@ -73,7 +73,15 @@ public:
     ~capture_point() override
     {
         *alive_ = false;
-        end_recording();
+        try
+        {
+            end_recording();
+        }
+        catch (...)
+        {
+            // A recording that cannot be finished is left without its
+            // index, which is how a reader knows it is not whole.
+        }
     }
 
     bool take(const api_message& message) override
@@ -106,7 +114,7 @@ private:
     /// One recording, while it runs and after.
     struct recording_run
     {
-        std::optional<recording_writer> writer;
+        std::unique_ptr<recording_writer> writer;
         std::unique_ptr<traffic_tap> tap;
         std::vector<std::string> names;
         std::vector<control_lines> lines;
@@ -234,7 +242,7 @@ private:
         }
 
         recording_run run;
-        run.writer.emplace(std::move(*writer));
+        run.writer = std::make_unique<recording_writer>(std::move(*writer));
         run.names = asked->places;
         run.lines = std::move(lines);
         run.last_ns.resize(run.names.size(), 0);
@@ -386,7 +394,7 @@ private:
     void end_recording()
     {
         if (!current_.has_value() || current_->summary.has_value() ||
-            !current_->writer.has_value())
+            current_->writer == nullptr)
             return;
         recording_run& run = *current_;
         if (run.tap)
@@ -465,7 +473,7 @@ private:
             answer_body.dropped = run.summary->dropped;
             answer_body.size = run.summary->size_on_disk;
         }
-        else if (run.writer.has_value())
+        else if (run.writer != nullptr)
         {
             answer_body.bytes = run.writer->bytes();
             answer_body.seconds = run.writer->seconds();

@@ -29,7 +29,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <deque>
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
@@ -656,7 +655,7 @@ struct place_state
     std::uint64_t last_t_ns = 0;
     std::uint64_t bytes = 0;
     std::uint64_t dropped = 0;
-    std::deque<ring_segment> segments;
+    std::vector<ring_segment> segments;
     std::uint64_t next_segment = 1;
     std::string sha256;
 };
@@ -751,7 +750,7 @@ struct recording_writer::state
             place.dropped -= oldest.dropped;
             bytes -= oldest.bytes;
             dropped -= oldest.dropped;
-            place.segments.pop_front();
+            place.segments.erase(place.segments.begin());
         }
         return {};
     }
@@ -1682,7 +1681,7 @@ struct place_reader::state
     error_code failure;
     std::string detail;
 
-    error_code fail(recording_errc code, std::string text)
+    error_code fail(recording_errc code, const std::string& text)
     {
         detail = file;
         detail.append(": ");

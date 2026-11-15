@@ -1905,7 +1905,7 @@ showing_secrets(std::shared_ptr<shown_secrets> shown, bool seen)
         handlers.push_back(vss::plugin::host::make_secret_point(
             context,
             [shown, seen](vss::plugin::host::secret_to_show secret,
-                          std::function<void(bool)> done)
+                          const std::function<void(bool)>& done)
             {
                 {
                     const std::lock_guard lock(shown->mutex);
