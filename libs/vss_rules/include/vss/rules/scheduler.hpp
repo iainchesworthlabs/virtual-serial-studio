@@ -170,6 +170,27 @@ public:
     result<void> signal(std::size_t index, bytes_view carried,
                         time_point cause, time_point when);
 
+    /// Starts the set in the place of `old`, whose set it replaces, at
+    /// `when`.  Call it instead of #start, once, on a scheduler that was
+    /// not started.
+    ///
+    /// From the call, `old` matches nothing more and hands every chunk it
+    /// is shown to this scheduler, so the place may go on showing chunks to
+    /// `old` until its stage is changed: no chunk is missed and none is
+    /// matched twice.  This set starts where the old one was (see
+    /// `machine::take_over`, which `carry` is for), with a full budget, and
+    /// its timeline is counted from `when`.
+    ///
+    /// With `keep_actions`, what a rule of the old set had scheduled is
+    /// still done when it is due, by `old`: a reply that was promised is
+    /// sent.  What was left of the old timeline is discarded and counted
+    /// (`cancelled`) either way, and without `keep_actions` so is
+    /// everything else.  `old` is still to be closed by its owner; closing
+    /// it drops what it kept.  An `old` that was closed or had itself been
+    /// replaced has nothing to hand over, and this set starts afresh.
+    void start_in_place_of(scheduler& old, time_point when, bool keep_actions,
+                           bool carry);
+
     /// Suspends the set: it matches nothing, what it had scheduled is
     /// discarded and counted (`cancelled`), its timeline included, and the
     /// traffic flows as if the set were not there.  The scheduler does this
@@ -232,6 +253,10 @@ private:
     machine machine_;
     bool started_ = false;
     bool closed_ = false;
+    /// Another set took this one's place.  It is shown the chunks from then
+    /// on.
+    bool retired_ = false;
+    std::shared_ptr<scheduler> successor_;
     suspend_reason suspended_ = suspend_reason::none;
     /// The firings the set may still make, and the time they were counted
     /// up to.
