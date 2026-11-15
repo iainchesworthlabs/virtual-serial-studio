@@ -13,14 +13,19 @@ run needs, from the event and the files changed, and the same answer goes to the
 
 | Tier | When | Runs |
 |---|---|---|
-| Draft pull request | A draft is open or updated | The static jobs only: the shared policy checks (branch name, commit and pull request text, file text, action pinning, REUSE, vcpkg baseline), changelog fragments, design tokens and the workflow analysis |
+| Draft pull request | A draft is open or updated | The static jobs only: the shared policy checks (branch name, commit and pull request text, file text, action pinning, REUSE, vcpkg baseline), changelog fragments, the tests of `tools/` on Linux and on Windows, design tokens and the workflow analysis |
 | Ready pull request | A pull request is ready for review | Linux GCC build and tests, AddressSanitizer with UBSan, the fuzz corpus replay; ThreadSanitizer when threading code changed |
 | Merge queue | An entry is queued | The same on the merged tree, plus Windows MSVC, ThreadSanitizer, the Qt GUI build with its self-test and journey tests, the performance floors when library code changed, macOS when a change can affect it, and the Windows driver when the driver changed |
 | Push to `develop` | After the merge | The legs the queue does not run: Linux Clang, macOS, the coverage gates, the Tracy profile of the end-to-end path and the Windows driver; one run at a time with at most one waiting |
 | `workflow_dispatch` | On request | Every job (`gh workflow run ci.yml --ref <branch>`) |
 
 A change to documentation, the changelog or licence text skips the builds. The
-sanitizer jobs run the GUI suites too; see [Testing](testing.md#sanitizers).
+list is in `.github/ci/plan.json`: `docs/`, the top-level `README.md`, `CHANGELOG.md`,
+`CONTRIBUTING.md`, `SECURITY.md` and `AGENTS.md`, and the other `README.md` files. It
+does not hold `THIRD_PARTY_NOTICES.md`, which a GUI test compares with
+`third_party.json`, so a change to it builds.
+
+The sanitizer jobs run the GUI suites too; see [Testing](testing.md#sanitizers).
 Boost is fetched by `tools/fetch_boost.py`, so no job depends on a system Boost.
 
 The branch protection ruleset requires two checks, `CI Status` and
@@ -31,7 +36,7 @@ was cancelled or was skipped.
 
 | Workflow | Runs | Does |
 |---|---|---|
-| `fuzz.yml` | Push to `develop`, every night | Fuzzes each target for 60 seconds, or 10 minutes at night; see [Fuzzing](fuzzing.md) |
+| `fuzz.yml` | Push to `develop`, every night | Fuzzes each target for 60 seconds, or 10 minutes at night, within a budget for the whole run; see [Fuzzing](fuzzing.md) |
 | `release.yml` | A `v*` tag, every Monday, on request | Builds the packages and publishes them for a tag; see [Releasing](releasing.md) |
 | `docs.yml` | A pull request that changes the docs, a push to `develop` or `main` | Checks the presets and badges against the repository and builds this site with `mkdocs build --strict`. A change under `website/` also builds the product website with `tools/site_build.py` and checks its links, that it loads nothing from another host, and its accessibility rules with `tools/site_check.py`. From `main` it publishes both to GitHub Pages: the website at the root and this site under `docs/`. The push to `develop` gives the branch a status of its own |
 | `cache-hygiene.yml` | After a CI run on `develop`, a closed pull request, on request | Deletes Actions caches that nothing can restore any more, to keep the repository within its cache quota |
@@ -80,6 +85,29 @@ fixed. Each analyser has a local command; see [Testing](testing.md#static-analys
 | Newest GCC and Clang, GCC ASan/UBSan, TSan, MSVC ASan | `nightly.yml` | The job and an issue |
 | Fuzzing, 10 minutes per target | `fuzz.yml` | The job and an issue |
 | Hosted platform matrix | `platform-matrix.yml` | The job and an issue |
+
+**A job that runs out of time.** GitHub cancels it; it does not fail it, and
+`failure()` is false for a cancelled job. Every step that opens the issue (the
+report of `nightly.yml`, `static-analysis.yml`, `codeql.yml`, `fuzz.yml` and the
+platform matrix, and the PREfast job of `msvc-analysis.yml`) therefore runs when
+the job failed or was cancelled, and `tools/ci/test_workflows.py` fails when one is
+written with `failure()` alone. What each does:
+
+| The job | Issue | Crash input kept (fuzz) |
+|---|---|---|
+| Succeeds | None | None |
+| Fails | Opened, or a comment added to the open one | Uploaded |
+| Runs out of time (cancelled by GitHub) | Opened or commented, with the same text as a failure | Uploaded |
+| Is cancelled by hand | Opened or commented, like a timeout: a step cannot tell the two apart, and a run that did not finish is a gap in the night's results either way | Uploaded |
+
+A pull request run reports nothing; only a run on `develop` does (a scheduled or a
+manual run), and for `fuzz.yml` and the platform matrix only a scheduled run.
+
+The platform matrix also looks at the result of its cell jobs: a cell that ran out of
+time uploads no result, and the table would look complete without it, so the report
+job fails when any cell job did not succeed. `release_preflight.py`
+lists a run that did not succeed, or is older than two days, as unmet
+([Releasing](releasing.md#before-you-tag)).
 
 The sanitizers and fuzzing do not upload to code scanning. Their findings are
 failed tests and reproducers, not alerts that can be dismissed.

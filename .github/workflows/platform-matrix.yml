@@ -154,8 +154,20 @@ jobs:
           cat table.md
           exit "$status"
 
+      # A cell that runs out of time is cancelled and a cell that cannot set up fails; neither uploads
+      # a result, so the cells that did would make the table look complete. The cell job's result says.
+      - name: Check that every cell job succeeded
+        if: ${{ !cancelled() && needs.cell.result != 'success' }}
+        shell: bash
+        env:
+          CELL_RESULT: ${{ needs.cell.result }}
+        run: |
+          echo "::error::the cell jobs ended as $CELL_RESULT, so the result of a cell may be missing from the table"
+          exit 1
+
+      # failure() is false for a job that runs out of time, which GitHub cancels; cancelled() covers it.
       - name: Open the nightly issue
-        if: ${{ failure() && github.event_name == 'schedule' }}
+        if: ${{ (failure() || cancelled()) && github.event_name == 'schedule' }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: Platform matrix

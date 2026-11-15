@@ -20,9 +20,36 @@ shared publish workflow adds the checks.
 | `virtual-serial-studio-<tag>-windows-x86_64.exe` | Windows 2025 | The same files as the zip, as an NSIS installer that also sets up the driver and the helper service ([below](#the-windows-installer)) |
 
 The release also has `SHA512SUMS`, a detached GPG signature (`.asc`) for every
-file, an SPDX software bill of materials and a build provenance attestation for
-every package. The libraries and headers (the `development` install component)
+file, an SPDX software bill of materials (`sbom.spdx.json`) and a build provenance
+attestation for every package. `SHA512SUMS` lists every file but the signatures,
+the SBOM included. The libraries and headers (the `development` install component)
 are not in the packages.
+
+**The SBOM.** `tools/ci/release_sbom.py` writes it from `third_party.json` and the
+files that pin each version (Qt in `.github/toolchain-versions.json`, Boost in
+`tools/fetch_boost.py`, Boost.VirtualSerial in `cmake/VssVirtualSerial.cmake`,
+Monocypher in `third_party/monocypher/README.md`). It lists the program and what the
+packages hold: Qt, Boost, Boost.VirtualSerial, Monocypher and the bundled fonts. A
+component that only a profiling build has (Tracy) is not in it, because the packages
+do not contain it. A scan of the source tree, which the shared workflow does when it is
+not told otherwise, would list the GitHub Actions the workflows use and miss Qt and
+Boost, so `release.yml` turns that scan off (`generate-sbom: false`) and gives the
+shared workflow this file (`pre-release-script`, `spdx-sbom`). The workflow writes it
+before the sums, so the sums, the signatures and the attestations cover it. A
+component added to `third_party.json` stops the script until `COMPONENT_SOURCES` in
+it says where the version is pinned. It does not list the system libraries that the
+Linux packages depend on, the Windows runtime, or the GUI's platform plug-ins as
+separate components: they come with Qt or with the system.
+
+**Checks before the release is created.** The workflow runs
+`tools/ci/release_verify.sh` (`verify-script`) on the signed files. It fails when a
+file name has a character outside letters, digits, `.`, `_` and `-`, because GitHub
+changes such a character in the name of a release asset (a `~` becomes a `.`) and
+`sha512sum -c SHA512SUMS` would then not find the file; when `SHA512SUMS` lacks a
+file, names one that is not there or has a wrong sum; when a file has no `.asc`; or
+when there is no SBOM. For the same reason the deb of a pre-release is named
+`virtual-serial-studio_0.1.0.rc.1-1_amd64.deb`, with a `.` where the package version
+`0.1.0~rc.1-1` has the tilde.
 
 ## Signing
 
@@ -38,7 +65,8 @@ certificate authority installed. The release notes say so.
 ## Before you tag
 
 `python3 tools/release_preflight.py --tag v0.1.0-rc.1` reads these conditions from
-GitHub and the working tree and lists the ones that are not met. It changes nothing
+GitHub and the working tree and lists the ones that are not met. It judges the commit at
+the tip of `develop`; `--commit <sha>` names another. It changes nothing
 and exits with 1 until all are met, so run it again after each fix.
 
 | Condition | How it is checked |
@@ -46,8 +74,8 @@ and exits with 1 until all are met, so run it again after each fix.
 | The tag matches `CMakeLists.txt` and `vcpkg.json` | `tools/check_release_version.py` |
 | No open code-scanning alert in first-party paths | `gh api "repos/{owner}/{repo}/code-scanning/alerts?state=open&ref=refs/heads/develop"`; paths under `.cache/`, `build/`, `_deps/` and `vcpkg_installed/` are third-party code and do not count |
 | No open issue labelled `nightly-analysis` | `gh issue list --label nightly-analysis` |
-| CI, Nightly, Platform matrix and Docs are green | The latest completed run of each on `develop` (Docs runs for pull requests and `main`, so its latest run on any branch) |
-| The Release dry run is green | The latest completed `release.yml` run on `develop`. The Monday schedule runs on `develop`, the default branch, so this is its status; `gh workflow run release.yml --ref develop` makes one now |
+| CI, Docs and the Release dry run are green on the commit to release | The newest completed run of each on `develop` that ran on that very commit, which is the tip of `develop` unless `--commit` names another. A green run of an older commit does not count: `gh workflow run ci.yml --ref develop` and `gh workflow run release.yml --ref develop` make one now. The push to `develop` that follows a merge makes the CI and Docs runs; a burst of merges is checked as one batch, so wait for the last |
+| The scheduled analyses are green and recent | The newest completed run on `develop` of Nightly, Platform matrix, Static analysis, CodeQL, MSVC analysis and the nightly Fuzz (only its scheduled runs; a push run is a 60-second run) is a success, is no more than two days old, and ran on the commit to release or an ancestor of it. A run that timed out or was cancelled is not a success |
 | `docs/signing-key.asc` and `SECURITY.md` are in the repository | The publish job fails after signing when the key is missing |
 | The signing secrets exist | `REPO_GPG_PRIVATE_KEY`, `REPO_GPG_PASSPHRASE`, `RELEASE_BOT_APP_ID` and `RELEASE_BOT_PRIVATE_KEY`, plus the two `WIN_TESTSIGN_*` secrets while `SIGN_WINDOWS` is `test` |
 | The `release` environment has a required reviewer | The owner approves the publish job there |
@@ -157,7 +185,10 @@ version from `project(VERSION)`. The tag decides the rest:
 
 A tilde sorts before everything, so `0.1.0~rc.1` upgrades to `0.1.0`; an rpm release
 that starts with 0 sorts before the 1 of the final release. The workflow passes the
-label as `-DVSS_PACKAGE_PRERELEASE=rc.1`.
+label as `-DVSS_PACKAGE_PRERELEASE=rc.1`. The deb's file name has a `.` where the
+version has the `~` (`virtual-serial-studio_0.1.0.rc.1-1_amd64.deb`), because GitHub
+would make that change to the name of a release asset and `SHA512SUMS` would name
+a file that is not there.
 
 **Where the files go.** The programs, the Qt libraries and the Qt plug-ins are the
 `runtime` install component, in `/opt/virtual-serial-studio` exactly as in the
@@ -196,7 +227,7 @@ in the code:
 | AppArmor and SELinux | The Setup check prints the lines to add when a profile blocks Studio. The packages ship no profile or policy. A Fedora system with SELinux enforcing was not tried: the container checks run without it, so the labels files under `/opt` get by default are unchecked |
 
 **What the workflow checks.** `tools/ci/check_linux_packages.sh` prints the metadata,
-checks the version against the tag, then installs the deb in an Ubuntu 26.04 container
+checks that no file name has a character GitHub would change, checks the version against the tag, then installs the deb in an Ubuntu 26.04 container
 and the rpm in a Fedora 44 container (both with glibc 2.42 or newer and GCC 16, the
 oldest systems the packages claim), runs `vss_cli selftest`, runs `ldd` on the programs,
 the Qt libraries and the plug-ins Studio uses to find a missing dependency, validates the launcher
@@ -346,7 +377,9 @@ NSIS comes from Chocolatey through the `setup-toolchain` action, at the version 
   value itself instead, so any length works, every other entry stays as written, a folder
   already there is not added twice, and a PATH that would pass Windows' 32767-character limit
   is left alone and reported. The uninstaller takes the folder out again (an upgrade leaves
-  it). `tools/test_edit_path.py` tests the script against a scratch registry key.
+  it). `tools/test_edit_path.py` tests the script against a scratch registry key; it needs
+  Windows PowerShell and skips without it, so the `Tool tests (Windows)` job of `ci.yml`
+  runs it on a Windows runner and fails when it was skipped.
 - Has a page with a ticked box, **Install the virtual COM port driver and its helper
   service**. A silent install does the same unless it is given `/DRIVER=0`.
 
@@ -422,7 +455,8 @@ users own, so it never deletes there, skips a folder or file that is a link, and
 file only when it holds the exact text `"stopped": false`. Settings in
 `HKCU\Software\iainchesworthlabs\Virtual Serial Studio` and saved setups are left, as before.
 `tools/test_stop_studio.py` tests the script against scratch folders and a scratch
-registry key.
+registry key; the `Tool tests (Windows)` job of `ci.yml` runs it, and fails when it was
+skipped (`tools/ci/run_tool_tests.py`).
 
 **What was tried.** The Windows 11 guest (`VSS - Windows 11`, from its `clean` snapshot),
 with a package signed by a throwaway certificate, built by

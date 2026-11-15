@@ -175,6 +175,56 @@ class ConfigTests(unittest.TestCase):
         for path in (".github/workflows/ci.yml", "tools/ci/plan_legs.py", ".github/ci/plan.json"):
             self.assertTrue(plan_legs.matches(path, CFG["machinery"]), path)
 
+    def test_a_markdown_file_a_test_reads_is_not_documentation(self) -> None:
+        # The GUI test "support: licences match the bundled components" reads THIRD_PARTY_NOTICES.md. A change
+        # to it alone must build, or the test fails in the next pull request instead.
+        for path in ("THIRD_PARTY_NOTICES.md", "third_party.json"):
+            self.assertFalse(plan_legs.matches(path, CFG["docs"]), path)
+        self.assertTrue(plan_legs.matches("THIRD_PARTY_NOTICES.md", CFG["build"]))
+        self.assertTrue(plan_legs.matches("THIRD_PARTY_NOTICES.md", CFG["gui"]))
+
+    def test_every_markdown_file_the_gui_tests_read_is_built_for(self) -> None:
+        import re
+
+        read = re.compile(r'read_repository_file\(\s*QStringLiteral\("([^"]+\.md)"\)')
+        found: set[str] = set()
+        for source in (ROOT / "apps").rglob("test_*.cpp"):
+            found |= set(read.findall(source.read_text(encoding="utf-8")))
+        self.assertIn("THIRD_PARTY_NOTICES.md", found)
+        for path in found:
+            self.assertFalse(plan_legs.matches(path, CFG["docs"]), path)
+            self.assertTrue(plan_legs.matches(path, CFG["gui"]), path)
+
+    def test_documentation_still_skips_the_build(self) -> None:
+        for path in (
+            "README.md",
+            "CHANGELOG.md",
+            "SECURITY.md",
+            "docs/ci.md",
+            "changelog.d/a.fixed.md",
+            "apps/vss_gui/assets/fonts/README.md",
+            "adapters/python/README.md",
+            "LICENSE",
+        ):
+            self.assertTrue(plan_legs.matches(path, CFG["docs"]), path)
+
+    def test_the_shared_gate_plans_a_build_for_the_notices_and_none_for_the_readme(self) -> None:
+        import importlib.util
+        import os
+
+        candidates = [os.environ.get("ICL_COMMON_INFRA", ""), str(ROOT.parent / "icl-common-infra"), str(ROOT / ".icl-infra")]
+        gate = next((Path(c) / "scripts" / "plan_gate.py" for c in candidates if c and (Path(c) / "scripts" / "plan_gate.py").is_file()), None)
+        if gate is None:
+            self.skipTest("no icl-common-infra checkout (set ICL_COMMON_INFRA)")
+        spec = importlib.util.spec_from_file_location("plan_gate", gate)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        cfg = {**module.DEFAULT, **CFG}
+        notices = module.plan(["THIRD_PARTY_NOTICES.md"], cfg)
+        self.assertEqual((notices["docs_only"], notices["build"], notices["gui"]), ("false", "true", "true"))
+        readme = module.plan(["README.md", "docs/ci.md"], cfg)
+        self.assertEqual((readme["docs_only"], readme["build"]), ("true", "false"))
+
     def test_threads_token_expression_compiles_and_finds_the_real_code(self) -> None:
         import re
 
