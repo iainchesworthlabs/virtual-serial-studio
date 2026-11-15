@@ -12,6 +12,7 @@ add_library(vss_plugin
   src/discover.cpp
   src/error.cpp
   src/hash.cpp
+  src/install.cpp
   src/licence.cpp
   src/lifecycle.cpp
   src/locations.cpp
@@ -26,6 +27,18 @@ add_library(vss_plugin
   src/trust_store.cpp
   src/verify.cpp)
 add_library(Vss::plugin ALIAS vss_plugin)
+
+# The signed official key list is built into the library, so that a command
+# line that checks a plugin has the list without a file to look for.  It is
+# public keys only.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  ${CMAKE_CURRENT_SOURCE_DIR}/keys/official-keys.json)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/keys/official-keys.json
+  VSS_OFFICIAL_KEY_LIST)
+configure_file(src/official_key_list.cpp.in
+  ${CMAKE_CURRENT_BINARY_DIR}/official_key_list.cpp @ONLY)
+target_sources(vss_plugin PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}/official_key_list.cpp)
 
 target_include_directories(vss_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
