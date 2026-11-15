@@ -12,6 +12,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <signal.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
@@ -172,14 +173,29 @@ bool connect_loopback(unsigned short port)
     const int descriptor = ::socket(AF_INET, SOCK_STREAM, 0);
     if (descriptor < 0)
         return false;
+    // Not blocking, and three seconds at most.
+    ::fcntl(descriptor, F_SETFL, ::fcntl(descriptor, F_GETFL) | O_NONBLOCK);
     sockaddr_in address{};
     address.sin_family = AF_INET;
     address.sin_port = htons(port);
     address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     sockaddr generic{};
     std::memcpy(&generic, &address, sizeof(generic));
-    const bool connected =
-        ::connect(descriptor, &generic, sizeof(generic)) == 0;
+    bool connected = ::connect(descriptor, &generic, sizeof(generic)) == 0;
+    if (!connected && errno == EINPROGRESS)
+    {
+        pollfd waiting{};
+        waiting.fd = descriptor;
+        waiting.events = POLLOUT;
+        if (::poll(&waiting, 1, 3000) == 1)
+        {
+            int failure = 0;
+            socklen_t size = sizeof(failure);
+            connected = ::getsockopt(descriptor, SOL_SOCKET, SO_ERROR, &failure,
+                                     &size) == 0 &&
+                        failure == 0;
+        }
+    }
     ::close(descriptor);
     return connected;
 }

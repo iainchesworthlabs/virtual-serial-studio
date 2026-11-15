@@ -239,13 +239,39 @@ bool connect_loopback(unsigned short port)
     const SOCKET socket = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket != INVALID_SOCKET)
     {
+        // Not blocking, and three seconds at most: a connection that is
+        // quietly dropped would otherwise take the system's own long time.
+        u_long on = 1;
+        ::ioctlsocket(socket, FIONBIO, &on);
         sockaddr_in address{};
         address.sin_family = AF_INET;
         address.sin_port = ::htons(port);
         address.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
         sockaddr generic{};
         std::memcpy(&generic, &address, sizeof(generic));
-        connected = ::connect(socket, &generic, sizeof(generic)) == 0;
+        if (::connect(socket, &generic, sizeof(generic)) == 0)
+        {
+            connected = true;
+        }
+        else if (::WSAGetLastError() == WSAEWOULDBLOCK)
+        {
+            fd_set writable;
+            FD_ZERO(&writable);
+            FD_SET(socket, &writable);
+            const timeval limit{3, 0};
+            if (::select(0, nullptr, &writable, nullptr, &limit) == 1)
+            {
+                int failure = 0;
+                int size = sizeof(failure);
+                std::array<char, sizeof(int)> raw{};
+                if (::getsockopt(socket, SOL_SOCKET, SO_ERROR, raw.data(),
+                                 &size) == 0)
+                {
+                    std::memcpy(&failure, raw.data(), sizeof(failure));
+                    connected = failure == 0;
+                }
+            }
+        }
         ::closesocket(socket);
     }
     ::WSACleanup();
