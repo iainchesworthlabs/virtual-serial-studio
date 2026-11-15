@@ -1,6 +1,6 @@
 # Online updates (design)
 
-Status: **proposal**, written on 15 November 2026. The owner decided the four main points the same day; section 13
+Status: **proposal**, written on 15 November 2026. The owner decided the main points the same day; section 13
 records them and lists what is still open. Part of it is built, with no window and no request: see
 [What is built](#what-is-built). Section 12 is the order of work.
 
@@ -549,6 +549,7 @@ Decided by the owner on 15 November 2026:
 | 2 | Where does Studio read the feed? | **The owner's domain** (section 4.1), copied there from the release asset by the website build |
 | 3 | Is the feed signed with its own Ed25519 keys, which the owner makes and keeps? | **Yes** (section 5): `upd-<year>-a` in the release environment's secrets and `upd-<year>-b` offline as the standby |
 | 4 | Does the Windows installer show its pages on an update, or run silently and restart Studio? | **It shows its pages.** A silent upgrade that starts Studio again is a later piece of work (section 7.3) |
+| 8 | Is "the first start" of decision 1 the first start ever for that user, or the first start of each newly installed version? | **The first start ever.** Studio asks once for each user and keeps the answer across updates (section 3.5) |
 
 Proposed, and open until the owner says otherwise:
 
@@ -557,4 +558,3 @@ Proposed, and open until the owner says otherwise:
 | 5 | Who is offered pre-releases? | A user who turned on "Include pre-release versions", and anyone who is running a pre-release already |
 | 6 | Are updates for third-party plugins wanted? | Not in the first version |
 | 7 | Should a Linux package from a future apt or dnf repository leave updating to the system? | Yes, when such a repository exists. Until then the deb and rpm are updated as section 7.3 says |
-| 8 | Is "the first start" of decision 1 the first start ever for that user, or the first start of each newly installed version? | The first start ever: one answer is kept across updates (section 3.5). Asking again after every update would be a prompt for each release |
