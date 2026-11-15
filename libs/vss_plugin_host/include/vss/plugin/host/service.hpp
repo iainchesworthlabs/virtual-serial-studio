@@ -30,6 +30,7 @@
 #include <vss/license/license.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/hash.hpp>
+#include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/start_plan.hpp>
@@ -65,6 +66,11 @@ struct service_options
     /// Asked at every scan for the licence on this computer.  When it is
     /// not set, no plugin that needs a licence runs.
     std::function<license::status()> licence;
+    /// Makes the handlers of the extension points this program offers,
+    /// for each plugin that starts: see extension.hpp.  When it is not
+    /// set, a plugin's requests beyond the common messages are answered
+    /// as messages this host does not know.
+    extension_factory extensions;
     /// For tests only: changes what was read from this computer before
     /// any plugin is checked, so that a test can name a key list of its
     /// own as the official one.  A program that ships leaves it unset;

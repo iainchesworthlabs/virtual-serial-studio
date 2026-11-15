@@ -36,6 +36,7 @@
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
+#include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
 #include <vss/plugin/lifecycle.hpp>
 #include <vss/plugin/locations.hpp>
@@ -1358,6 +1359,46 @@ int run_plugin(const options& given, const places& where)
     setup.plan.data_root = where.data_root;
     // No capabilities, no licence and no hook for tests: what runs is what
     // this computer would run.
+    //
+    // The one extension point a command line can offer: a plugin that has
+    // a secret to show the user (a pairing code) gets it printed here.  It
+    // is printed once and kept nowhere.
+    const bool as_json = given.json;
+    setup.extensions = [as_json](const host::extension_context& context)
+    {
+        std::vector<std::unique_ptr<host::extension_handler>> handlers;
+        handlers.push_back(host::make_secret_point(
+            context,
+            [as_json](host::secret_to_show secret,
+                      const std::function<void(bool)>& done)
+            {
+                if (as_json)
+                {
+                    json::object out;
+                    out["type"] = "secret";
+                    out["plugin"] = sup::text_value(secret.plugin_id);
+                    out["label"] = sup::text_value(secret.label);
+                    out["text"] = sup::text_value(secret.text);
+                    out["expires_s"] = secret.expires.count();
+                    std::string line = json::serialize(out);
+                    line += '\n';
+                    print(line);
+                }
+                else
+                {
+                    std::string line = "secret from the plugin; ";
+                    line += sup::plain(secret.label);
+                    line += ": ";
+                    line += sup::plain(secret.text);
+                    line += " (good for ";
+                    line += std::to_string(secret.expires.count());
+                    line += " s)\n";
+                    print(line);
+                }
+                done(true);
+            }));
+        return handlers;
+    };
 
     const auto state = std::make_shared<shared_state>();
     const auto service = host::plugin_service::create(

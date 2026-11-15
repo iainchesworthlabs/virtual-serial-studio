@@ -46,6 +46,11 @@ struct serve_options
     /// After "hello_ack": a request with this "op" and an empty body, whose
     /// answer is printed as "answer <op of the answer>".
     std::optional<std::string> send_op;
+    /// After "hello_ack" and the request of `send_op`: a request for each of
+    /// these, each the text of a JSON object that holds an "op".  The plugin
+    /// puts the "id" in; the answer to each is printed as "answer <op of the
+    /// answer>".
+    std::vector<std::string> send_headers;
     /// A request with one of these "op"s is answered with "ok" and printed
     /// as "got <op>".
     std::vector<std::string> echo_ops;

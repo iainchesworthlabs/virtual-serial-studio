@@ -11,11 +11,13 @@ add_library(vss_plugin_host
   src/bundle_sections.cpp
   src/control_relay.cpp
   src/decode_store.cpp
+  src/extension.cpp
   src/generator_feed.cpp
   src/instances.cpp
   src/process.cpp
   src/runner.cpp
   src/sandbox.cpp
+  src/secret_point.cpp
   src/service.cpp
   src/start_plan.cpp
   src/traffic_tap.cpp)
