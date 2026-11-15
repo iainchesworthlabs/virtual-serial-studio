@@ -25,6 +25,7 @@
 #include <mutex>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace vss {
 
@@ -124,8 +125,9 @@ public:
     /// failed or the other side hung up, with its name, its id and every link
     /// it is on kept: the hub never sees it go.  The old transport is cancelled
     /// and closed on the endpoint's strand (so a moment after the call
-    /// returns), bytes still queued for it are dropped, and a read or write it
-    /// still owes is ignored when it completes.  Works from any state, open
+    /// returns), bytes still queued for it are dropped (their handlers are called
+    /// with `operation_aborted`), and a read or write it still owes is ignored
+    /// when it completes.  Works from any state, open
     /// included (a deliberate restart).  The caller builds `fresh`, usually
     /// from the record it kept of how the endpoint was made; it must be open.
     /// `errc::invalid_argument` for a null transport and `errc::not_open` for
@@ -137,7 +139,10 @@ public:
     /// `done`.  Used by #hub::stop so teardown cannot race a completion.
     void shutdown(std::function<void()> done);
 
-    /// Queues `data` for the transport, preserving call order.
+    /// Queues `data` for the transport, preserving call order.  `handler`, when
+    /// given, is called once: with the result of the write, or with an error
+    /// when the write is discarded (`operation_aborted` after a reopen, a stop
+    /// or a failed write ahead of it).
     void write(bytes_view data, write_handler handler = {});
     void write(byte_buffer data, write_handler handler = {});
 
@@ -187,7 +192,17 @@ private:
 
     std::shared_ptr<transport> active_transport() const;
     void do_read();
-    void on_read(boost::system::error_code ec, std::size_t count);
+    /// \p generation is the generation the read was armed for.
+    void on_read(std::uint64_t generation, boost::system::error_code ec,
+                 std::size_t count);
+    /// Empties the write queue and resets the byte count and `writing_`.  It
+    /// returns the handlers the queue held, so each can be called once after
+    /// the lock is released.  `write_mutex_` must be held.
+    std::vector<write_handler> take_write_queue_locked();
+    /// Posts each of `handlers` to the strand with `ec` and no bytes.  Never
+    /// called under a lock, and never runs a handler in the caller.
+    void post_write_handlers(std::vector<write_handler> handlers,
+                             boost::system::error_code ec);
     void request_write();
     /// \p generation is the generation that scheduled this write; a reopen()
     /// that overtakes it makes everything read here stale.
@@ -195,7 +210,8 @@ private:
     void on_write(const std::shared_ptr<pending_write>& write,
                   std::uint64_t generation, boost::system::error_code ec,
                   std::size_t count);
-    void handle_read_failure(const boost::system::error_code& ec,
+    void handle_read_failure(std::uint64_t generation,
+                             const boost::system::error_code& ec,
                              std::string_view what);
     void transition(endpoint_state next);
     void emit(error_code ec, std::string message,
@@ -220,6 +236,10 @@ private:
     const boost::asio::strand<boost::asio::any_io_executor> strand_;
 
     byte_buffer read_buffer_;
+    /// The generation for which a read is armed, if one is.  Touched on the
+    /// strand only.  At most one read is armed per generation, so two never
+    /// share `read_buffer_`.
+    std::optional<std::uint64_t> read_armed_;
     /// Read and written on the strand only, so a read costs one test of it.
     std::shared_ptr<read_stage> read_stage_;
     mutable std::mutex write_mutex_;

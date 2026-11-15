@@ -13,6 +13,8 @@
 
 #include <algorithm>
 #include <future>
+#include <mutex>
+#include <vector>
 
 namespace vss {
 
@@ -126,16 +128,24 @@ result<void> endpoint::reopen(std::shared_ptr<transport> fresh)
     if (!owner_.running())
         return make_error_code(errc::not_open);
 
-    // Everything the old transport still owes (a read, a write) is stale from
-    // here on: the completions check the generation and are dropped.
-    generation_.fetch_add(1);
     running_ = false;
 
     std::shared_ptr<transport> old;
+    std::vector<write_handler> discarded;
     {
-        std::lock_guard lock(transport_mutex_);
+        // Everything the old transport still owes (a read, a write) is stale
+        // from here on: the completions check the generation and are dropped.
+        // The generation changes together with the transport and with the
+        // write queue, under both locks, so whoever reads one of them sees the
+        // generation that goes with it.  A write that is scheduled either
+        // carries the old generation and is dropped, or finds the queue
+        // already emptied and starts the one chain of the new transport.
+        std::scoped_lock lock(write_mutex_, transport_mutex_);
+        generation_.fetch_add(1);
         old = std::move(transport_);
         transport_ = std::move(fresh);
+        // Bytes queued for the old connection are not sent down the new one.
+        discarded = take_write_queue_locked();
     }
     // A transport is a single-threaded object: the read that is parked on it
     // runs on this endpoint's strand, so it is cancelled and closed there too,
@@ -148,13 +158,8 @@ result<void> endpoint::reopen(std::shared_ptr<transport> fresh)
             old->close();
         });
     }
-    {
-        // Bytes queued for the old connection are not sent down the new one.
-        std::lock_guard lock(write_mutex_);
-        writing_ = false;
-        write_queue_.clear();
-        write_queue_bytes_ = 0;
-    }
+    post_write_handlers(std::move(discarded),
+                        boost::asio::error::operation_aborted);
 
     start();
     return state() == endpoint_state::open ? result<void>()
@@ -186,13 +191,17 @@ void endpoint::shutdown(std::function<void()> done)
             current->cancel();
             current->close();
         }
+        std::vector<write_handler> discarded;
         {
             std::lock_guard lock(self->write_mutex_);
-            self->writing_ = false;
-            self->write_queue_.clear();
-            self->write_queue_bytes_ = 0;
+            discarded = self->take_write_queue_locked();
         }
         self->transition(endpoint_state::closed);
+        // Already on the strand, so the handlers are called here and not
+        // posted: `done` can let the hub stop its io_context, and a handler
+        // posted after that would never run.
+        for (auto& handler : discarded)
+            handler(boost::asio::error::operation_aborted, 0);
         if (done)
             done();
     });
@@ -222,8 +231,22 @@ void endpoint::do_read()
     // enters the strand here instead, and everything that touches the
     // transport stays serialised, as the serial library's contract asks.
     auto self = shared_from_this();
-    const std::uint64_t generation = generation_.load();
-    const auto current = active_transport();
+    std::shared_ptr<transport> current;
+    std::uint64_t generation = 0;
+    {
+        // Together, as reopen() changes them together.
+        std::lock_guard lock(transport_mutex_);
+        current = transport_;
+        generation = generation_.load();
+    }
+
+    // One read per generation.  An on_read of the transport before a reopen()
+    // can still be running when start() posts the first read of the new one,
+    // and both end in a do_read; two reads would share read_buffer_.
+    if (read_armed_ == generation)
+        return;
+    read_armed_ = generation;
+
     current->async_read_some(
         boost::asio::buffer(read_buffer_),
         [self, generation](boost::system::error_code ec, std::size_t count) {
@@ -231,12 +254,16 @@ void endpoint::do_read()
                 // A read that belongs to a transport since replaced by
                 // reopen() is no news: drop it.
                 if (generation == self->generation_.load())
-                    self->on_read(ec, count);
+                {
+                    self->read_armed_.reset();
+                    self->on_read(generation, ec, count);
+                }
             });
         });
 }
 
-void endpoint::on_read(boost::system::error_code ec, std::size_t count)
+void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
+                       std::size_t count)
 {
     VSS_PROFILE_ZONE_NAMED(zone, "endpoint.read");
     VSS_PROFILE_ZONE_VALUE(zone, count);
@@ -246,7 +273,7 @@ void endpoint::on_read(boost::system::error_code ec, std::size_t count)
 
     if (ec)
     {
-        handle_read_failure(ec, "read");
+        handle_read_failure(generation, ec, "read");
         return;
     }
 
@@ -287,7 +314,8 @@ void endpoint::on_read(boost::system::error_code ec, std::size_t count)
     do_read();
 }
 
-void endpoint::handle_read_failure(const boost::system::error_code& ec,
+void endpoint::handle_read_failure(std::uint64_t generation,
+                                   const boost::system::error_code& ec,
                                    std::string_view what)
 {
     if (ec == boost::asio::error::operation_aborted)
@@ -297,7 +325,19 @@ void endpoint::handle_read_failure(const boost::system::error_code& ec,
     }
 
     VSS_PROFILE_ZONE("endpoint.read_failure");
-    running_ = false;
+
+    // The generation is checked, and `running_` written, under the lock that
+    // reopen() swaps the transport under.  A read of a transport since
+    // replaced fails nothing: the endpoint is open on the new one, and
+    // closing or marking it failed here would undo a reopen that succeeded.
+    std::shared_ptr<transport> failed;
+    {
+        std::lock_guard lock(transport_mutex_);
+        if (generation != generation_.load())
+            return;
+        running_ = false;
+        failed = transport_;
+    }
     {
         std::lock_guard lock(stats_mutex_);
         stats_.errors += 1;
@@ -308,9 +348,13 @@ void endpoint::handle_read_failure(const boost::system::error_code& ec,
         || ec == boost::asio::error::connection_reset
         || ec == boost::asio::error::broken_pipe;
 
-    if (const auto current = active_transport())
-        current->close();
+    // The transport this read belongs to, not whatever is active by now.
+    if (failed)
+        failed->close();
 
+    // A reopen() that runs in full between the check above and the transitions
+    // below leaves the state label wrong (failed or closed) while the endpoint
+    // works; it takes the swap and the transitions on one strand to close that.
     if (graceful)
     {
         transition(endpoint_state::closed);
@@ -324,15 +368,45 @@ void endpoint::handle_read_failure(const boost::system::error_code& ec,
     }
 }
 
+std::vector<write_handler> endpoint::take_write_queue_locked()
+{
+    std::vector<write_handler> handlers;
+    handlers.reserve(write_queue_.size());
+    for (const auto& pending : write_queue_)
+    {
+        if (pending->handler)
+            handlers.push_back(std::move(pending->handler));
+    }
+    write_queue_.clear();
+    write_queue_bytes_ = 0;
+    writing_ = false;
+    return handlers;
+}
+
+void endpoint::post_write_handlers(std::vector<write_handler> handlers,
+                                   boost::system::error_code ec)
+{
+    for (auto& handler : handlers)
+    {
+        boost::asio::post(strand_, [handler = std::move(handler), ec]
+                          { handler(ec, 0); });
+    }
+}
+
 void endpoint::request_write()
 {
     bool start = false;
+    std::uint64_t generation = 0;
     {
         std::lock_guard lock(write_mutex_);
         if (!writing_)
         {
             writing_ = true;
             start = true;
+            // Read in the lock that sets `writing_`, as reopen() changes both
+            // in it: a start that carries the old generation is dropped, and
+            // one that carries the new generation is the only one for it.
+            generation = generation_.load();
         }
     }
     if (!start)
@@ -341,7 +415,6 @@ void endpoint::request_write()
     // A start posted for a transport since replaced would run beside the one
     // reopen() has made room for, and send the same bytes twice.
     auto self = shared_from_this();
-    const std::uint64_t generation = generation_.load();
     boost::asio::post(strand_, [self, generation] {
         if (generation == self->generation_.load())
             self->start_next_write(generation);
@@ -354,6 +427,9 @@ void endpoint::start_next_write(std::uint64_t generation)
     std::shared_ptr<pending_write> next;
     {
         std::lock_guard lock(write_mutex_);
+        // `writing_` and the queue are those of the generation now, not ours.
+        if (generation != generation_.load())
+            return;
         if (write_queue_.empty())
         {
             writing_ = false;
@@ -365,10 +441,16 @@ void endpoint::start_next_write(std::uint64_t generation)
     const auto current = active_transport();
     if (!current || !current->is_open())
     {
-        std::lock_guard lock(write_mutex_);
-        writing_ = false;
-        write_queue_.clear();
-        write_queue_bytes_ = 0;
+        std::vector<write_handler> discarded;
+        {
+            std::lock_guard lock(write_mutex_);
+            // The queue of a later generation is not ours to empty.
+            if (generation != generation_.load())
+                return;
+            discarded = take_write_queue_locked();
+        }
+        post_write_handlers(std::move(discarded),
+                            boost::asio::error::operation_aborted);
         return;
     }
 
@@ -405,15 +487,22 @@ void endpoint::on_write(const std::shared_ptr<pending_write>& write,
 
     if (ec)
     {
-        std::lock_guard lock(write_mutex_);
-        writing_ = false;
-        write_queue_bytes_ = 0;
-        write_queue_.clear();
-        if (write->handler)
+        // The write that failed gets the error; those behind it are abandoned.
+        write_handler failed;
+        std::vector<write_handler> abandoned;
         {
-            auto handler = std::move(write->handler);
-            boost::asio::post(strand_, [handler, ec] { handler(ec, 0); });
+            std::lock_guard lock(write_mutex_);
+            // A reopen() since the check that brought us here has taken this
+            // write, and its handler, with the queue.
+            if (generation != generation_.load())
+                return;
+            failed = std::move(write->handler);
+            abandoned = take_write_queue_locked();
         }
+        if (failed)
+            boost::asio::post(strand_, [failed, ec] { failed(ec, 0); });
+        post_write_handlers(std::move(abandoned),
+                            boost::asio::error::operation_aborted);
         {
             std::lock_guard stats_lock(stats_mutex_);
             stats_.errors += 1;
@@ -435,8 +524,12 @@ void endpoint::on_write(const std::shared_ptr<pending_write>& write,
 
     if (complete)
     {
+        write_handler finished;
         {
             std::lock_guard lock(write_mutex_);
+            if (generation != generation_.load())
+                return;
+            finished = std::move(write->handler);
             if (!write_queue_.empty() && write_queue_.front() == write)
                 write_queue_.pop_front();
             write_queue_bytes_ -= std::min(write_queue_bytes_, write->data->size());
@@ -447,11 +540,11 @@ void endpoint::on_write(const std::shared_ptr<pending_write>& write,
             auto done = std::shared_ptr<const byte_buffer>(write->data);
             emit_data(data_direction::tx, std::move(done), owner_.now());
         }
-        if (write->handler)
+        if (finished)
         {
-            auto handler = std::move(write->handler);
             const std::size_t total = write->data->size();
-            boost::asio::post(strand_, [handler, total] { handler({}, total); });
+            boost::asio::post(strand_,
+                              [finished, total] { finished({}, total); });
         }
     }
 
@@ -657,10 +750,10 @@ endpoint_info endpoint::info() const
     const auto current = active_transport();
     out.supports_control_lines = current && current->supports_control_lines();
     out.open = is_open();
-    if (transport_)
+    if (current)
     {
-        out.peer_format = transport_->peer_format();
-        out.clients = transport_->client_count();
+        out.peer_format = current->peer_format();
+        out.clients = current->client_count();
     }
     return out;
 }
