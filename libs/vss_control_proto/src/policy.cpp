@@ -88,7 +88,11 @@ constexpr std::array operation_rows{
     // own session; the end is audited as every session's end is.
     operation_info{operation::ping, "ping", std::nullopt, false},
     operation_info{operation::session_close, "session.close", std::nullopt,
-                   false}};
+                   false},
+    operation_info{operation::links_disconnect, "links.disconnect",
+                   scope::control_ports, true},
+    operation_info{operation::ports_rename, "ports.rename",
+                   scope::control_ports, true}};
 
 } // namespace
 

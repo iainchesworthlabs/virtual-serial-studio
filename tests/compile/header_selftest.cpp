@@ -68,6 +68,7 @@
 #include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
 #include <vss/plugin/host/start_plan.hpp>
+#include <vss/plugin/host/traffic_tap.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/licence.hpp>
 #include <vss/plugin/lifecycle.hpp>
