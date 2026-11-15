@@ -1829,17 +1829,17 @@ TEST_CASE("simple: a network device address is read as host, port and "
     address = parse(QStringLiteral("  box.local:4002 "));
     REQUIRE(address.has_value());
     REQUIRE_EQ(address->host, QStringLiteral("box.local"));
-    REQUIRE_EQ(*address->port, 4002);
+    REQUIRE(address->port == 4002);
 
     address = parse(QStringLiteral("tcp://192.168.1.50:4001"));
     REQUIRE(address.has_value());
     REQUIRE_EQ(address->host, QStringLiteral("192.168.1.50"));
-    REQUIRE_EQ(*address->port, 4001);
-    REQUIRE(*address->transport == network_transport::tcp);
+    REQUIRE(address->port == 4001);
+    REQUIRE(address->transport == network_transport::tcp);
 
     address = parse(QStringLiteral("rfc2217://box.local"));
     REQUIRE(address.has_value());
-    REQUIRE(*address->transport == network_transport::rfc2217);
+    REQUIRE(address->transport == network_transport::rfc2217);
     REQUIRE(!address->port.has_value());
 
     for (const QString& text :
@@ -1854,7 +1854,7 @@ TEST_CASE("simple: a network device address is read as host, port and "
     address = parse(QStringLiteral("[fd00::5]:4002"));
     REQUIRE(address.has_value());
     REQUIRE_EQ(address->host, QStringLiteral("fd00::5"));
-    REQUIRE_EQ(*address->port, 4002);
+    REQUIRE(address->port == 4002);
 
     for (const QString& text :
          {QString(), QStringLiteral("my host"), QStringLiteral("a/b"),
