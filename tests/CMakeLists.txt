@@ -256,7 +256,8 @@ target_link_libraries(vss_test_plugin PRIVATE vss_plugin)
 vss_set_warnings(vss_test_plugin)
 list(APPEND VSS_SYSTEM_TEST_SOURCES
   system/test_system_plugin_process.cpp
-  system/test_system_plugin_runner.cpp)
+  system/test_system_plugin_runner.cpp
+  system/test_system_plugin_start_plan.cpp)
 if(WIN32)
   target_sources(vss_test_plugin PRIVATE
     plugin/vss_test_plugin/platform/windows/platform_windows.cpp)
