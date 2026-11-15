@@ -910,6 +910,15 @@ TEST_CASE("endpoint: a stop completes every queued write with an error")
     REQUIRE_EQ(third.calls(), std::size_t{1});
     REQUIRE(second.error(0) == boost::asio::error::operation_aborted);
     REQUIRE(third.error(0) == boost::asio::error::operation_aborted);
+
+    // The scripted transport still holds the write that was with it, and that
+    // handler keeps the endpoint alive.  A real transport completes it when
+    // it is cancelled; do the same here.  Nothing is completed a second time.
+    REQUIRE(fixture.transport->complete_write(
+        boost::asio::error::operation_aborted));
+    drain_strand(*fixture.endpoint);
+    REQUIRE_EQ(second.calls(), std::size_t{1});
+    REQUIRE_EQ(third.calls(), std::size_t{1});
 }
 
 TEST_CASE("endpoint: a failed write completes the writes queued behind it")
