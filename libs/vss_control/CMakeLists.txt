@@ -25,7 +25,7 @@ target_include_directories(vss_control_core PUBLIC
 target_include_directories(vss_control_core PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_features(vss_control_core PUBLIC cxx_std_23)
 target_link_libraries(vss_control_core
-  PUBLIC vss_control_proto vss_agent_core
+  PUBLIC vss_control_proto vss_agent_core Vss::license
   PRIVATE Vss::BoostJson)
 target_compile_definitions(vss_control_core PRIVATE
   VSS_CONTROL_VERSION="${PROJECT_VERSION}")

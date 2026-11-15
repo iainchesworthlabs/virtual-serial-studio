@@ -435,6 +435,16 @@ Plugins released later need a current licence. When the field is absent, expiry
 means what the States table says. The release date comes from the plugin's
 signed manifest, never from a file time.
 
+The comparison is in the library: `check(status, feature, released)` grants a
+feature the licence names when the licence has ended, sets `updates_until` and
+the release date is on or before it, and says so in `by_version_window`. It
+applies to a licence that has ended and to nothing else: one that is withdrawn,
+for other computers, not started, or judged while the clock looks wrong grants
+nothing through it. The plugin check (`vss::plugin::check_licence`) passes the
+`released` date of the plugin's manifest; a plugin with no release date gets
+the plain answer. The Licence page does not yet show a second "ended" variant
+for a licence with a window.
+
 | | Subscription only (`updates_until` absent) | Version window (`updates_until` = `expires_at`) |
 |---|---|---|
 | After expiry | Community, after the grace period | The versions already released keep working. No updates, no support |

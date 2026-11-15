@@ -117,7 +117,7 @@ _REPLIES = {
         "scopes": _L,
         "features": _L,
     },
-    "status": {"uptime_ms": _U, "sessions": _U, "agent": _D},
+    "status": {"uptime_ms": _U, "sessions": _U, "agent": _D, "licence": _D},
     "ports": {"revision": _U, "ports": _L, "links": _L},
     "created": {"created": _S},
     "matched": {"offset": _U, "mono_ns": _U, "events_lost": _U},
