@@ -463,7 +463,11 @@ A real uninstall runs `bin\driver\remove-driver.ps1`: it stops and deletes the h
 (the ports it made go with it), removes the port devices `SWD\VSSCOMUM\*`, absent ones
 included, and then deletes the `vsscom_um` package from the driver store, checks that none
 is left and removes the helper's folder. It touches no certificate and no setting, and no
-other driver. If it fails, the uninstaller says so and keeps `driver-remove.log`. If it
+other driver. A step that fails does not stop the ones after it, so the package is deleted
+even when the helper service or a device stays; the script then ends with exit code 7 (a
+port device or the package stays) or 8 (the helper service stays), and 7 when both. If it
+fails, the uninstaller says so (whatever the code, except 0 and 10) and keeps
+`driver-remove.log`, and the rest of the uninstall goes on. If it
 cannot take the folder out of the PATH, it says so and keeps `path-setup.log` in the install
 folder, which stays with it; a silent uninstall shows no message, so the log is where to
 look. Where the install folder is under Program Files (the default) only administrators can

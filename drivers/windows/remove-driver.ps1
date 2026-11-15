@@ -17,16 +17,20 @@
 #
 # The devices are removed with SetupAPI (DIF_REMOVE), the way the guest script
 # test\uninstall-driver.ps1 does, which works on absent devices and on every Windows the
-# driver supports. A device that cannot be removed does not stop the script: the helper
-# and the package are taken away first, so that nothing is left with no way to remove it,
-# and the devices that are left are reported at the end with exit code 7.
+# driver supports. A step that fails does not stop the script, because the uninstaller
+# deletes this script afterwards and whatever is left would have nothing to remove it. The
+# helper service is tried first, then the port devices, then the package is deleted, and
+# what could not be removed is reported at the end: a device or the package with exit code
+# 7, the helper service with exit code 8.
 #
 # Exit codes:
 #   0   done: no helper service, no port device and no vsscom_um package remain
 #   10  done, and Windows asks for a restart to finish removing the driver
 #   2   not run as an administrator
 #   7   a port device or the driver package could not be removed
-#   8   the helper service could not be removed
+#   8   the helper service could not be removed (the port devices and the package were
+#       still tried). When 7 applies too, the code is 7 and the message names both; a
+#       restart request (10) does not hide an 8
 #   1   anything else
 
 [CmdletBinding()]
@@ -168,30 +172,43 @@ if (-not (Test-IsAdministrator)) {
 
 $serviceName = 'vsscom_helper'
 
+# What went wrong with the helper service, or $null. It is named in the message of every
+# way this script can end after the helper step, and decides the exit code when nothing
+# else did.
+$helperFailure = $null
+function Get-HelperNote {
+    if ($script:helperFailure) { " (also, the helper service: $script:helperFailure)" } else { '' }
+}
+
 try {
     # The helper first: the ports it made go when it stops, and the driver package
-    # cannot be removed while they exist.
+    # cannot be removed while they exist. A helper that cannot be removed does not stop
+    # the script: the port devices and the package are taken away all the same (the
+    # installer deletes this script afterwards, so they would have nothing to remove
+    # them), and the helper is reported at the end with exit code 8.
     $installHelper = Join-Path $PackageRoot 'helper\install-helper.ps1'
     if (Test-Path -LiteralPath $installHelper -PathType Leaf) {
         # install-helper.ps1 ends with an exit code, but a throw out of it must give the same answer.
         $global:LASTEXITCODE = 0
-        $helperFailure = $null
         try { & $installHelper -Uninstall }
-        catch { $helperFailure = $_.Exception.Message }
-        if ($helperFailure) { Stop-With 8 "install-helper.ps1 -Uninstall failed: $helperFailure" }
-        if ($LASTEXITCODE -ne 0) { Stop-With 8 "install-helper.ps1 -Uninstall failed with $LASTEXITCODE" }
+        catch { $helperFailure = "install-helper.ps1 -Uninstall failed: $($_.Exception.Message)" }
+        if (-not $helperFailure -and $LASTEXITCODE -ne 0) { $helperFailure = "install-helper.ps1 -Uninstall failed with $LASTEXITCODE" }
     }
     elseif (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) {
-        & sc.exe stop $serviceName | Out-Null
-        for ($i = 0; $i -lt 80 -and (Get-Service -Name $serviceName).Status -ne 'Stopped'; $i++) { Start-Sleep -Milliseconds 500 }
-        & sc.exe delete $serviceName | Out-Null
-        for ($i = 0; $i -lt 40 -and (Get-Service -Name $serviceName -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
-        if (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) { Stop-With 8 "the $serviceName service did not go" }
-        Write-Host "$serviceName removed"
+        try {
+            & sc.exe stop $serviceName | Out-Null
+            for ($i = 0; $i -lt 80 -and (Get-Service -Name $serviceName).Status -ne 'Stopped'; $i++) { Start-Sleep -Milliseconds 500 }
+            & sc.exe delete $serviceName | Out-Null
+            for ($i = 0; $i -lt 40 -and (Get-Service -Name $serviceName -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
+            if (Get-Service -Name $serviceName -ErrorAction SilentlyContinue) { $helperFailure = "the $serviceName service did not go" }
+        }
+        catch { $helperFailure = "the $serviceName service could not be removed: $($_.Exception.Message)" }
+        if (-not $helperFailure) { Write-Host "$serviceName removed" }
     }
     else {
         Write-Host "no $serviceName service"
     }
+    if ($helperFailure) { Write-Host $helperFailure }
 
     # The port devices, absent ones included, before the package goes, because a device that is left
     # behind keeps its COM number reserved. A device that cannot be removed does not stop the script:
@@ -217,24 +234,29 @@ try {
         Write-Host "deleting the driver package $name"
         $code = Invoke-Bounded 'pnputil.exe' @('/delete-driver', $name, '/uninstall', '/force') 300
         if ($code -eq 3010) { $restart = $true }
-        elseif ($code -eq 124) { Stop-With 7 "pnputil /delete-driver $name did not finish in 300 seconds and was stopped" }
-        elseif ($code -ne 0) { Stop-With 7 "pnputil /delete-driver $name failed with $code" }
+        elseif ($code -eq 124) { Stop-With 7 ("pnputil /delete-driver $name did not finish in 300 seconds and was stopped" + (Get-HelperNote)) }
+        elseif ($code -ne 0) { Stop-With 7 ("pnputil /delete-driver $name failed with $code" + (Get-HelperNote)) }
     }
 
     # Check, so a package that is still there is reported and not assumed gone.
     $left = @(Get-WindowsDriver -Online -All |
         Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' })
-    if ($left.Count -gt 0 -and -not $restart) { Stop-With 7 'the vsscom_um driver package is still in the driver store' }
+    if ($left.Count -gt 0 -and -not $restart) { Stop-With 7 ('the vsscom_um driver package is still in the driver store' + (Get-HelperNote)) }
     # Last, so that nothing above depends on it.
     $leftDevices = @(Get-PortDevices)
     if ($leftDevices.Count -gt 0 -and -not $restart) {
         $names = ($leftDevices | ForEach-Object { $_.InstanceId }) -join ', '
-        Stop-With 7 ("a port device is still there, so its COM number stays in use: $names" + $(if ($deviceFailure) { " ($deviceFailure)" } else { '' }))
+        Stop-With 7 ("a port device is still there, so its COM number stays in use: $names" + $(if ($deviceFailure) { " ($deviceFailure)" } else { '' }) + (Get-HelperNote))
     }
 
+    # Nothing but the helper is left: 8, also when Windows asks for a restart, because a
+    # service that is still there is not finished by one.
+    if ($helperFailure) {
+        Stop-With 8 ("$helperFailure; the port devices and the driver package were still dealt with" + $(if ($restart) { ', and Windows asks for a restart to finish removing the driver' } else { '' }))
+    }
     if ($restart) { Stop-With 10 'removed; restart Windows to finish removing the driver' }
     Stop-With 0 'removed'
 }
 catch {
-    Stop-With 1 $_.Exception.Message
+    Stop-With 1 ($_.Exception.Message + (Get-HelperNote))
 }

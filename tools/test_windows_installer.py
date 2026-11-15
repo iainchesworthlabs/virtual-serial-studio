@@ -194,6 +194,23 @@ class UninstallerScript(unittest.TestCase):
         self.assertIn('Delete "$R0\\Uninstall.exe"', success)
         self.assertLess(success.index("Uninstall.exe"), success.index('RMDir "$R0"'))
 
+    def test_every_exit_code_of_remove_driver_but_0_and_10_is_shown_and_does_not_stop_the_uninstall(self) -> None:
+        # remove-driver.ps1 ends with 7 (a port device or the package stays) or 8 (the helper service stays)
+        # after it has done the rest, so the uninstaller must report any other code and carry on deleting files.
+        text = DRIVER_NSH.read_text(encoding="utf-8")
+        body = text.split("Function un.VssRemoveDriver\n", 1)[1].split("FunctionEnd", 1)[0]
+        success, failure = body.split("${Else}", 1)
+        self.assertIn("${If} $0 == 0\n  ${OrIf} $0 == 10", success)
+        self.assertNotIn("$0 == 7", body)
+        self.assertNotIn("$0 == 8", body)
+        self.assertIn("MessageBox MB_OK|MB_ICONEXCLAMATION", failure)
+        self.assertIn("(code $0)", failure)
+        self.assertIn("helper service", failure)
+        self.assertIn("$VssDriverLog", failure)
+        self.assertNotIn('Delete "$VssDriverLog"', failure)
+        self.assertNotIn("Abort", body)
+        self.assertNotIn("Quit", body)
+
     def test_an_unfinished_upgrade_is_picked_up_at_the_start_of_an_install(self) -> None:
         text = DRIVER_NSH.read_text(encoding="utf-8")
         body = text.split("Function VssAdoptUnfinishedUpgrade\n", 1)[1].split("FunctionEnd", 1)[0]
