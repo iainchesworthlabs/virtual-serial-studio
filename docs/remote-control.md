@@ -971,8 +971,9 @@ Differences from sections 9, 10 and 12 as first written, and why:
   closed as a slow client.
 - **Not built: `traffic.history`.** It needs pages of the hub's ring from the agent (agent.md, PR 5).
 - **Not built: the status chip and the sessions list in Studio.** Studio does not talk to the gateway yet, and
-  nothing starts `vss_gate` for it (agent.md, PR 6, for the agent). The chip, the dialog and their strings need a
-  spec under `docs/gui-design` first; that is a pull request of its own. Until then `vss_cli control sessions` and
+  nothing starts `vss_gate` for it (agent.md, PR 6, for the agent). The chip, the dialog and their strings are
+  specified in `docs/gui-design/docs/screens/13-remote-control.md`, which also lists what the gateway has to give
+  before the rest of "Seeing that it is on" can be drawn. Until it is built `vss_cli control sessions` and
   `vss_cli control kick` are how a person sees who is connected and ends it.
 - **Engine errors by name**, which slice 1 left on paper, are in: an error event carries `engine.<name>`, and what
   the operating system said becomes `engine.io_error`, without its number or its text.
