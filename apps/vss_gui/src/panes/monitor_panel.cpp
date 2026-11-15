@@ -19,6 +19,7 @@
 
 #include <vss/core/profile.hpp>
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFile>
@@ -27,6 +28,7 @@
 #include <QFontMetricsF>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QItemSelectionModel>
 #include <QKeyEvent>
 #include <QKeySequence>
 #include <QLabel>
@@ -35,6 +37,7 @@
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QSettings>
 #include <QShortcut>
 #include <QSignalBlocker>
@@ -304,8 +307,8 @@ void MonitorPanel::build()
     auto* advanced_clear = new QPushButton(tr("Clear"), advanced_bar_);
     advanced_clear->setProperty("size", QStringLiteral("small"));
     polish(advanced_clear);
-    auto* advanced_follow = new QCheckBox(tr("Follow"), advanced_bar_);
-    advanced_follow->setChecked(true);
+    advanced_follow_ = new QCheckBox(tr("Follow"), advanced_bar_);
+    advanced_follow_->setChecked(true);
     export_ = new QPushButton(tr("Export"), advanced_bar_);
     export_->setProperty("size", QStringLiteral("small"));
     polish(export_);
@@ -328,7 +331,7 @@ void MonitorPanel::build()
     advanced_layout->addStretch(1);
     advanced_layout->addWidget(pause_);
     advanced_layout->addWidget(advanced_clear);
-    advanced_layout->addWidget(advanced_follow);
+    advanced_layout->addWidget(advanced_follow_);
     advanced_layout->addWidget(export_);
     advanced_layout->addWidget(export_capture_);
     advanced_bar_->setVisible(false);
@@ -339,9 +342,19 @@ void MonitorPanel::build()
     // remaining space. Every row has one height, so the view finds a row by
     // division and never measures one.
     model_ = new MonitorModel(this);
+    // Rows leave the front of a full history in every batch. These two are
+    // connected before the view and its selection model (which `setModel`
+    // makes) so the first is told first, and the second runs after them
+    // because it is connected after.
+    connect(model_, &QAbstractItemModel::rowsAboutToBeRemoved, this,
+            [this](const QModelIndex&, int first, int last)
+            { rows_leaving(first, last); });
     table_ = new QTableView(monitor_page_);
     table_->setObjectName(QStringLiteral("monitorTable"));
     table_->setModel(model_);
+    connect(model_, &QAbstractItemModel::rowsRemoved, this,
+            [this](const QModelIndex&, int first, int last)
+            { keep_view_after_rows_left(first, last); });
     table_->setAccessibleName(tr("Traffic"));
     keep_left_to_right(table_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -461,8 +474,8 @@ void MonitorPanel::build()
                 update_actions();
                 update_empty();
             });
-    connect(advanced_follow, &QCheckBox::toggled, this,
-            [this](bool on) { follow_enabled_ = on; });
+    connect(advanced_follow_, &QCheckBox::toggled, this,
+            [this](bool on) { set_follow(on); });
     connect(clear_, &QPushButton::clicked, this,
             [this]
             {
@@ -483,7 +496,7 @@ void MonitorPanel::build()
                 mode_->set_current(on ? 1 : 0);
             });
     connect(follow_, &QCheckBox::toggled, this,
-            [this](bool on) { follow_enabled_ = on; });
+            [this](bool on) { set_follow(on); });
     connect(mode_, &SegmentedControl::current_changed, this,
             [this](int id)
             {
@@ -503,9 +516,35 @@ void MonitorPanel::build()
     connect(table_, &QTableView::clicked, this,
             [this](const QModelIndex& index)
             {
+                // Choosing a row that is not the newest is leaving the end,
+                // also when it was the current row already.
+                if (index.row() != model_->rowCount() - 1)
+                    set_follow(false);
                 const auto id = model_->port_at(index.row());
                 if (id != 0)
                     Q_EMIT port_selected(id);
+            });
+    // Follow is the user's: selecting a row that is not the newest, from the
+    // mouse or the keyboard, or scrolling away from the end, turns it off, and
+    // scrolling back to the end turns it on. The scroll bar's action signal
+    // comes only from the user (the wheel, the arrows, a click in the groove,
+    // a drag of the handle) and never from code that sets the value, so what
+    // Follow itself does to the view is never taken for the user.
+    connect(table_->selectionModel(), &QItemSelectionModel::currentChanged,
+            this,
+            [this](const QModelIndex& current, const QModelIndex&)
+            {
+                if (rows_leaving_ || !current.isValid())
+                    return;
+                if (current.row() != model_->rowCount() - 1)
+                    set_follow(false);
+            });
+    connect(table_->verticalScrollBar(), &QAbstractSlider::actionTriggered,
+            this,
+            [this](int)
+            {
+                const QScrollBar* bar = table_->verticalScrollBar();
+                set_follow(bar->sliderPosition() >= bar->maximum());
             });
     // A model reset (such as Clear) refreshes the toolbar state and the
     // placeholder, and scrolls to the end if following.
@@ -575,6 +614,39 @@ bool MonitorPanel::eventFilter(QObject* watched, QEvent* event)
         // contents. Preview takes the rest, so it has no width to change.
         auto* key = static_cast<QKeyEvent*>(event);
         const int column = std::max(table_->currentIndex().column(), 0);
+        // Follow: Up, Page Up and Home leave the end; End and Ctrl+End go to
+        // the newest row and follow again; Down and Page Down are the
+        // table's own, and Follow is on again when they reach the end.
+        switch (key->key())
+        {
+        case Qt::Key_Up:
+        case Qt::Key_PageUp:
+        case Qt::Key_Home:
+            set_follow(false);
+            break;
+        case Qt::Key_End:
+            if (model_->rowCount() > 0)
+            {
+                set_follow(true);
+                table_->setCurrentIndex(
+                    model_->index(model_->rowCount() - 1, column));
+            }
+            return true;
+        case Qt::Key_Down:
+        case Qt::Key_PageDown:
+            if (!passing_key_)
+            {
+                passing_key_ = true;
+                QApplication::sendEvent(table_, event);
+                passing_key_ = false;
+                if (view_is_at_end())
+                    set_follow(true);
+                return true;
+            }
+            break;
+        default:
+            break;
+        }
         if (key->modifiers() == (Qt::ControlModifier | Qt::AltModifier) &&
             column < 4)
         {
@@ -1130,9 +1202,75 @@ void MonitorPanel::follow_if_enabled()
     QTimer::singleShot(0, table_,
                        [this]
                        {
-                           if (model_->rowCount() > 0)
+                           // The user may have moved away since the rows came.
+                           if (follow_enabled_ && model_->rowCount() > 0)
                                table_->scrollToBottom();
                        });
+}
+
+void MonitorPanel::set_follow(bool on)
+{
+    follow_enabled_ = on;
+    for (QCheckBox* box : {follow_, advanced_follow_})
+    {
+        if (box == nullptr || box->isChecked() == on)
+            continue;
+        const QSignalBlocker blocker(box);
+        box->setChecked(on);
+    }
+    if (on && model_->rowCount() > 0)
+        table_->scrollToBottom();
+}
+
+bool MonitorPanel::view_is_at_end() const
+{
+    const QScrollBar* bar = table_->verticalScrollBar();
+    return bar->value() >= bar->maximum();
+}
+
+void MonitorPanel::rows_leaving(int first, int last)
+{
+    rows_leaving_ = true;
+    value_before_leaving_ = table_->verticalScrollBar()->value();
+    const int current = table_->currentIndex().row();
+    selected_row_leaving_ =
+        table_->currentIndex().isValid() && current >= first && current <= last;
+}
+
+void MonitorPanel::keep_view_after_rows_left(int first, int last)
+{
+    rows_leaving_ = false;
+    // The row the user chose is gone. The selection model would move the
+    // selection to the row that is now first, which the user did not choose;
+    // nothing is selected instead.
+    if (selected_row_leaving_)
+    {
+        selected_row_leaving_ = false;
+        table_->selectionModel()->clear();
+    }
+    // Following shows the newest rows, wherever the oldest are.
+    if (follow_enabled_)
+        return;
+    // The scroll position is a row (or a number of pixels), so with rows gone
+    // from the front the same position shows rows that are newer. Move it by
+    // what left above the first row shown, so the same rows stay where they
+    // were. If the first row shown is itself among those that left, the view
+    // stays at the top of what is left.
+    const int count = last - first + 1;
+    const bool per_pixel =
+        table_->verticalScrollMode() == QAbstractItemView::ScrollPerPixel;
+    const int unit =
+        per_pixel ? std::max(table_->verticalHeader()->defaultSectionSize(), 1)
+                  : 1;
+    const int top = value_before_leaving_ / unit;
+    int value = value_before_leaving_;
+    if (top > last)
+        value -= count * unit;
+    else if (top >= first)
+        value = first * unit;
+    QScrollBar* bar = table_->verticalScrollBar();
+    if (value != bar->value())
+        bar->setValue(value);
 }
 
 } // namespace vss::gui

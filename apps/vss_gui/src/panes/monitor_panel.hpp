@@ -117,6 +117,16 @@ private:
     void export_visible();
     void export_capture();
     void follow_if_enabled();
+    /// The one place the Follow state changes. Both check boxes show it.
+    /// Turning it on also scrolls to the newest row at once.
+    void set_follow(bool on);
+    /// A scroll bar action, key or click of the user left the end (false) or
+    /// came back to it (true), and the table is where it is.
+    bool view_is_at_end() const;
+    /// Remembers where the view is, as rows are about to leave the table.
+    void rows_leaving(int first, int last);
+    /// Puts the view back on the rows it showed, now that they have left.
+    void keep_view_after_rows_left(int first, int last);
     /// Puts the rows the model has queued in the table now.
     void commit_rows();
     /// Puts them there now if the last time is long enough ago, and when it
@@ -143,7 +153,9 @@ private:
     QCheckBox* tx_ = nullptr;
     QCheckBox* drop_ = nullptr;
     QCheckBox* hex_ = nullptr;
+    /// Follow in the Simple bar, and in the Advanced bar.
     QCheckBox* follow_ = nullptr;
+    QCheckBox* advanced_follow_ = nullptr;
     SegmentedControl* mode_ = nullptr;
     QPushButton* pause_ = nullptr;
     QPushButton* simple_pause_ = nullptr;
@@ -155,7 +167,18 @@ private:
     QLabel* all_ports_ = nullptr;
     QHash<vss::link_id, std::uint64_t> previous_drops_;
     bool advanced_ = false;
+    /// Whether the view follows the newest rows. Set only by `set_follow`.
     bool follow_enabled_ = true;
+    /// True from the moment rows are about to leave the model until the view
+    /// has been put back, so the selection model moving the current row is not
+    /// taken for the user selecting.
+    bool rows_leaving_ = false;
+    /// The scroll bar's value when rows began to leave.
+    int value_before_leaving_ = 0;
+    /// True when the current row is one of those leaving.
+    bool selected_row_leaving_ = false;
+    /// Set while a key is passed on to the table by the panel itself.
+    bool passing_key_ = false;
     bool refreshing_ports_ = false;
     bool show_advanced_tabs_ = true;
     QStringList port_signature_;

@@ -7,6 +7,7 @@ if(VSS_BUILD_TESTS)
   add_executable(vss_gui_panes_tests
     main.cpp
     test_monitor.cpp
+    test_monitor_follow.cpp
     test_panes.cpp)
 
   # The Monitor's column tests compile each catalogue with lrelease and
