@@ -31,6 +31,7 @@
 
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
+#include "token_file.hpp"
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_context.hpp>
@@ -185,9 +186,12 @@ struct agent_side
 /// behind it unless the test wants none.
 struct fixture
 {
+    /// `audit` is a directory to keep the audit log in, for a test that
+    /// has put a log there; by default a new one of the fixture's own.
     explicit fixture(control::gateway_options options = {},
-                     bool with_agent = true)
-        : audit_directory(scratch.path() / "audit"),
+                     bool with_agent = true, std::filesystem::path audit = {})
+        : audit_directory(audit.empty() ? scratch.path() / "audit"
+                                        : std::move(audit)),
           gate(prepared(std::move(options)))
     {
         if (with_agent)
@@ -596,8 +600,8 @@ TEST_CASE("control gateway: status gives the edition and the state of the "
     {
         license::state state;
         license::edition edition;
-        const char* edition_given;
-        const char* state_given;
+        const char* edition_given = nullptr;
+        const char* state_given = nullptr;
     };
     using license::edition;
     using license::state;
@@ -654,6 +658,87 @@ TEST_CASE("control gateway: status gives the edition and the state of the "
     const std::string wire = control::encode(control::reply{1, reply}).header;
     REQUIRE(wire.find(R"("licence":{"edition":"pro","state":"valid"})") !=
             std::string::npos);
+}
+
+TEST_CASE("control gateway: audit.verify checks the gateway's own log, for "
+          "this user alone")
+{
+    fixture env({}, false);
+    // Something to check: a session that came and went.
+    {
+        auto visitor = env.connect();
+        REQUIRE(visitor->ping());
+    }
+    auto admin = env.connect(true);
+    const auto found = admin->verify_audit();
+    REQUIRE(found);
+    REQUIRE(found->intact);
+    // The start of the gateway and the sessions so far, at the least.
+    REQUIRE(found->records >= 3);
+    REQUIRE(found->file.empty());
+    REQUIRE_EQ(found->line, std::uint64_t{0});
+    REQUIRE(found->problem.empty());
+
+    // More records are in the log by now, and the chain still holds.
+    const auto again = admin->verify_audit();
+    REQUIRE(again);
+    REQUIRE(again->intact);
+    REQUIRE(again->records >= found->records);
+
+    // Not for a caller of the public endpoint, whatever it may do there.
+    auto local = env.connect();
+    const auto refused = local->verify_audit();
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(),
+               make_error_code(control::api_errc::forbidden));
+    // The refusal is a record too, and the log is still whole.
+    const auto after = admin->verify_audit();
+    REQUIRE(after);
+    REQUIRE(after->intact);
+    REQUIRE(after->records > again->records);
+}
+
+TEST_CASE("control gateway: audit.verify says where a log that was cut "
+          "breaks, by the file's name alone")
+{
+    const vss_test_support::scratch_directory scratch;
+    const auto directory = scratch.path() / "audit";
+    // A log of an earlier run, with one line taken out afterwards.
+    {
+        control::audit_options options;
+        options.directory = directory;
+        auto log = control::audit_log::open(std::move(options));
+        REQUIRE(log);
+        for (int number = 0; number < 6; ++number)
+            (*log)->record("test.record", {{"number", std::uint64_t(number)}});
+    }
+    const auto file = directory / "audit.jsonl";
+    std::vector<std::string> lines;
+    {
+        std::ifstream in(file, std::ios::binary);
+        for (std::string line; std::getline(in, line);)
+            lines.push_back(line);
+    }
+    REQUIRE_EQ(lines.size(), std::size_t{6});
+    lines.erase(lines.begin() + 2);
+    {
+        std::ofstream out(file, std::ios::binary | std::ios::trunc);
+        for (const std::string& line : lines)
+            out << line << '\n';
+    }
+
+    // The gateway goes on from the last line, which is whole.
+    fixture env({}, false, directory);
+    auto admin = env.connect(true);
+    const auto found = admin->verify_audit();
+    REQUIRE(found);
+    REQUIRE(!found->intact);
+    REQUIRE_EQ(found->file, std::string("audit.jsonl"));
+    REQUIRE(found->line >= 3 && found->line <= 4);
+    REQUIRE(!found->problem.empty());
+    // Where the log is kept is not said.
+    REQUIRE(found->problem.find(scratch.path().string()) == std::string::npos);
+    REQUIRE(found->file.find_first_of("/\\") == std::string::npos);
 }
 
 TEST_CASE("control gateway: the control role is a setting, and admin is "
@@ -882,7 +967,7 @@ TEST_CASE("control gateway: an operation this gateway does not have costs an "
     fixture env;
     raw_client raw(env.instance.name());
     say_hello(raw);
-    REQUIRE(raw.send(wire_of_header(R"({"id":5,"op":"ports.rename"})")));
+    REQUIRE(raw.send(wire_of_header(R"({"id":5,"op":"ports.settings"})")));
     const control::reply answer = read_reply(raw);
     REQUIRE_EQ(answer.id, std::uint64_t{5});
     REQUIRE_EQ(error_of(answer).code, std::string("unsupported"));
@@ -1672,7 +1757,7 @@ TEST_CASE("control gateway: every wrong token gets the same answer, and the "
     struct attempt
     {
         control::secret_string token;
-        bool admin;
+        bool admin = false;
         std::string reason;
     };
     const std::vector<attempt> attempts{
@@ -3012,6 +3097,293 @@ TEST_CASE("control gateway: a token is held to its scopes when it changes "
     REQUIRE_EQ(refused.error(), code(control::api_errc::forbidden));
 }
 
+// -- reading one port, the links, ping and the end of a session --------------
+
+TEST_CASE("control gateway: one port and the links are what the list has")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "driver");
+    const auto left = driver->create_port("left");
+    const auto right = driver->create_port("right");
+    REQUIRE(left);
+    REQUIRE(right);
+    const auto link = driver->connect_ports(*left, *right, true);
+    REQUIRE(link);
+
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{2});
+    for (const control::port_entry& entry : listed->ports)
+    {
+        const auto one = driver->get_port(entry.id);
+        REQUIRE(one);
+        REQUIRE(*one == entry);
+    }
+    const auto links = driver->list_links();
+    REQUIRE(links);
+    REQUIRE_EQ(links->size(), std::size_t{1});
+    REQUIRE(*links == listed->links);
+    const auto one_link = driver->get_link(*link);
+    REQUIRE(one_link);
+    REQUIRE(*one_link == links->front());
+    REQUIRE_EQ(one_link->id, *link);
+    REQUIRE_EQ(one_link->sources, std::vector<std::string>{*left});
+    REQUIRE_EQ(one_link->targets, std::vector<std::string>{*right});
+
+    // An id of the right form that nothing has is not found.
+    const auto no_port = driver->get_port("p_999999");
+    REQUIRE(!no_port);
+    REQUIRE_EQ(no_port.error(), code(control::api_errc::not_found));
+    const auto no_link = driver->get_link("l_999999");
+    REQUIRE(!no_link);
+    REQUIRE_EQ(no_link.error(), code(control::api_errc::not_found));
+    // One that is not of the right form is the caller's mistake, as for
+    // `ports.remove`, and is not sent on.  A port's id is not a link's.
+    for (const char* const bad : {"COM3", "p_", "left", "", "p_-1", "l_1"})
+    {
+        const auto port = driver->get_port(bad);
+        REQUIRE(!port);
+        REQUIRE_EQ(port.error(), code(control::api_errc::invalid_argument));
+    }
+    for (const char* const bad : {"l_", "left", "", "l_-1", "l_01", "p_1"})
+    {
+        const auto other = driver->get_link(bad);
+        REQUIRE(!other);
+        REQUIRE_EQ(other.error(), code(control::api_errc::invalid_argument));
+    }
+
+    // A port that was removed, and the link that went with it, are gone.
+    REQUIRE(driver->remove_port(*left));
+    const auto removed = driver->get_port(*left);
+    REQUIRE(!removed);
+    REQUIRE_EQ(removed.error(), code(control::api_errc::not_found));
+    const auto still = driver->get_port(*right);
+    REQUIRE(still);
+    REQUIRE_EQ(still->id, *right);
+    const auto none = driver->list_links();
+    REQUIRE(none);
+    REQUIRE(none->empty());
+    const auto unlinked = driver->get_link(*link);
+    REQUIRE(!unlinked);
+    REQUIRE_EQ(unlinked.error(), code(control::api_errc::not_found));
+
+    // Nothing was written to the audit log as a change, and the session is
+    // as good as it was.
+    REQUIRE(operations_named(env, "ports.get").empty());
+    REQUIRE(operations_named(env, "links.list").empty());
+    REQUIRE(operations_named(env, "links.get").empty());
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+}
+
+TEST_CASE("control gateway: a monitor reads one port and the links, and the "
+          "agent is asked only to look")
+{
+    fixture env;
+    const auto made = env.backend->app.create_virtual_port(
+        "alpha", vss::virtual_port_kind::loopback);
+    REQUIRE(made);
+    auto watcher = env.connect();
+    REQUIRE(watcher->list_links());
+    REQUIRE(watcher->list_links()->empty());
+    const auto one = watcher->get_port(control::port_id_text((*made)->id()));
+    REQUIRE(one);
+    const auto listed = watcher->list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{1});
+    REQUIRE(*one == listed->ports.front());
+    REQUIRE_EQ(one->name, std::string("alpha"));
+    // The gateway's connection to the agent was read-only all the same.
+    REQUIRE_EQ(env.backend->server.counters().read_only_refused,
+               std::uint64_t{0});
+}
+
+TEST_CASE("control gateway: an id longer than a text may be ends the session "
+          "as it does for ports.remove")
+{
+    fixture env;
+    const std::string too_long(control::max_text_size + 1, 'p');
+    for (const std::string& header :
+         {R"({"id":2,"op":"ports.get","port":")" + too_long + "\"}",
+          R"({"id":2,"op":"links.get","link":")" + too_long + "\"}"})
+    {
+        raw_client raw(env.instance.name());
+        say_hello(raw);
+        REQUIRE(raw.send(wire_of_header(header)));
+        expect_refused_and_closed(raw, control::api_errc::invalid_argument);
+    }
+    // And a field that is missing or is not text ends it too.
+    for (const char* const header :
+         {R"({"id":2,"op":"ports.get"})",
+          R"({"id":2,"op":"ports.get","port":7})",
+          R"({"id":2,"op":"links.get"})",
+          R"({"id":2,"op":"links.get","link":null})"})
+    {
+        raw_client raw(env.instance.name());
+        say_hello(raw);
+        REQUIRE(raw.send(wire_of_header(header)));
+        expect_refused_and_closed(raw, control::api_errc::invalid_argument);
+    }
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+}
+
+TEST_CASE("control gateway: the reading operations need monitor, and ping and "
+          "the end of a session need nothing")
+{
+    fixture env;
+    // A token that may send bytes and nothing else: it cannot look.
+    const control::token_created_reply made =
+        make_token(env, control::scope_set{control::scope::control_data});
+    auto connected = connect_with(env, made.token);
+    REQUIRE(connected);
+    auto& blind = **connected;
+    REQUIRE(blind.gateway().scopes == std::vector<std::string>{"control.data"});
+
+    const auto listed = blind.list_ports();
+    REQUIRE(!listed);
+    REQUIRE_EQ(listed.error(), code(control::api_errc::forbidden));
+    const auto port = blind.get_port("p_1");
+    REQUIRE(!port);
+    REQUIRE_EQ(port.error(), code(control::api_errc::forbidden));
+    const auto links = blind.list_links();
+    REQUIRE(!links);
+    REQUIRE_EQ(links.error(), code(control::api_errc::forbidden));
+    const auto link = blind.get_link("l_1");
+    REQUIRE(!link);
+    REQUIRE_EQ(link.error(), code(control::api_errc::forbidden));
+    // The refusal does not depend on whether the id is one.
+    const auto odd = blind.get_port("nonsense");
+    REQUIRE(!odd);
+    REQUIRE_EQ(odd.error(), code(control::api_errc::forbidden));
+    REQUIRE_EQ(env.gate.counters().forbidden, std::uint64_t{5});
+
+    // The session is still good for the two that need no scope.
+    REQUIRE(blind.ping());
+    REQUIRE(blind.ping());
+    REQUIRE_EQ(env.gate.counters().forbidden, std::uint64_t{5});
+    REQUIRE(blind.close_session());
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+
+    // A monitor-only token reads, and has no way to change anything.
+    const control::token_created_reply watching =
+        make_token(env, control::role_monitor());
+    auto seen = connect_with(env, watching.token);
+    REQUIRE(seen);
+    REQUIRE((*seen)->list_links());
+    REQUIRE((*seen)->ping());
+    const auto none = (*seen)->get_port("p_1");
+    REQUIRE(!none);
+    REQUIRE_EQ(none.error(), code(control::api_errc::not_found));
+}
+
+TEST_CASE("control gateway: ping answers without asking the agent, and the "
+          "reading operations say what ports.list says without one")
+{
+    fixture env(control::gateway_options{}, false);
+    auto client = env.connect();
+    REQUIRE(client->ping());
+    const auto status = client->status();
+    REQUIRE(status);
+    REQUIRE(!status->agent_running);
+
+    const auto listed = client->list_ports();
+    REQUIRE(!listed);
+    REQUIRE_EQ(listed.error(), code(control::api_errc::unavailable));
+    const auto port = client->get_port("p_1");
+    REQUIRE(!port);
+    REQUIRE(port.error() == listed.error());
+    const auto links = client->list_links();
+    REQUIRE(!links);
+    REQUIRE(links.error() == listed.error());
+    const auto link = client->get_link("l_1");
+    REQUIRE(!link);
+    REQUIRE(link.error() == listed.error());
+    // A bad id is the caller's mistake whether or not an agent runs.
+    const auto bad = client->get_port("nonsense");
+    REQUIRE(!bad);
+    REQUIRE_EQ(bad.error(), code(control::api_errc::invalid_argument));
+    REQUIRE(client->ping());
+
+    // And once an agent runs the same session reads from it.  The port is
+    // let go before the agent is stopped: it belongs to the agent's studio.
+    env.start_agent();
+    std::string late_id;
+    {
+        const auto made = env.backend->app.create_virtual_port(
+            "late", vss::virtual_port_kind::loopback);
+        REQUIRE(made);
+        late_id = control::port_id_text((*made)->id());
+    }
+    const auto later = client->get_port(late_id);
+    REQUIRE(later);
+    REQUIRE_EQ(later->name, std::string("late"));
+
+    // Ending the session needs no agent either.
+    env.stop_agent();
+    REQUIRE(client->close_session());
+}
+
+TEST_CASE("control gateway: a session that asks to be closed is closed after "
+          "its answer, and no other is")
+{
+    fixture env;
+    auto admin = env.connect(true, "admin tool");
+    auto keeper = env.connect(false, "keeper");
+    auto leaver = env.connect(false, "leaver");
+    const auto before = admin->list_sessions();
+    REQUIRE(before);
+    REQUIRE_EQ(before->sessions.size(), std::size_t{3});
+
+    // The answer came: it was written before the connection was closed.
+    REQUIRE(leaver->close_session());
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 2; }));
+    // The gateway closed it: the next request cannot be answered.
+    const auto again = leaver->ping();
+    REQUIRE(!again);
+    REQUIRE(again.error() == code(agent::protocol_errc::connection_closed));
+    const auto more = leaver->list_ports();
+    REQUIRE(!more);
+
+    // The others are as they were, and the list no longer has it.
+    REQUIRE(keeper->ping());
+    const auto after = admin->list_sessions();
+    REQUIRE(after);
+    REQUIRE_EQ(after->sessions.size(), std::size_t{2});
+    for (const control::session_entry& entry : after->sessions)
+        REQUIRE(entry.client != "leaver");
+
+    // The audit log says that the client ended it, and does not count the
+    // request as a change.
+    const auto closed =
+        records_of(audit_records(env.audit_directory), "session.closed");
+    REQUIRE_EQ(closed.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(closed.front(), "reason"),
+               std::string("closed_by_client"));
+    REQUIRE(operations_named(env, "session.close").empty());
+    REQUIRE(operations_named(env, "ping").empty());
+    require_intact(env.audit_directory);
+}
+
+TEST_CASE("control gateway: what follows a session.close in the same write is "
+          "not answered")
+{
+    fixture env;
+    raw_client raw(env.instance.name());
+    say_hello(raw);
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+
+    vss::byte_buffer both =
+        wire_of(control::request{2, control::session_close_request{}});
+    append(both, wire_of(control::request{3, control::ping_request{}}));
+    REQUIRE(raw.send(std::move(both)));
+    const control::reply answer = read_reply(raw);
+    REQUIRE_EQ(answer.id, std::uint64_t{2});
+    REQUIRE(std::holds_alternative<control::done_reply>(answer.body));
+    REQUIRE(raw.wait_closed());
+    // Nothing more came: the ping was not read.
+    REQUIRE(!raw.read_frame(100ms).has_value());
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+}
+
 // -- waiting for bytes -------------------------------------------------------
 
 namespace
@@ -3048,6 +3420,350 @@ struct made_pair
 };
 
 } // namespace
+
+// -- taking a link away and renaming a port -----------------------------------
+
+TEST_CASE("control gateway: a link that is disconnected stops carrying bytes, "
+          "and the ports stay")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "driver");
+    auto watcher = env.connect(false, "watcher");
+    const made_pair pair(*driver);
+
+    const auto before = driver->list_ports();
+    REQUIRE(before);
+    REQUIRE_EQ(before->links.size(), std::size_t{1});
+    const std::string link = before->links.front().id;
+
+    // The link carries bytes from left to right.
+    control::expect_bytes_request first = expecting(pair.right, "one");
+    first.send_port = pair.left;
+    first.send = vss::to_bytes("one");
+    REQUIRE(driver->expect_bytes(first));
+
+    // A session that watches the ports is told that they changed.
+    const auto started = watcher->subscribe_events(every(10));
+    REQUIRE(started);
+
+    REQUIRE(driver->disconnect_link(link));
+    const auto after = driver->list_ports();
+    REQUIRE(after);
+    REQUIRE(after->links.empty());
+    REQUIRE_EQ(after->ports.size(), std::size_t{2});
+    REQUIRE(after->revision > before->revision);
+    const auto none = driver->list_links();
+    REQUIRE(none);
+    REQUIRE(none->empty());
+    const auto gone = driver->get_link(link);
+    REQUIRE(!gone);
+    REQUIRE_EQ(gone.error(), code(control::api_errc::not_found));
+    // The engine publishes no event of its own for a link taken away; the
+    // stream says that the list changed by its revision.
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         { return batch.revision >= after->revision; }));
+
+    // What is sent to left now stays at left.
+    control::expect_bytes_request second = expecting(pair.right, "two", 300);
+    second.send_port = pair.left;
+    second.send = vss::to_bytes("two");
+    const auto missed = driver->expect_bytes(second);
+    REQUIRE(!missed);
+    REQUIRE_EQ(missed.error(), code(control::api_errc::timeout));
+    control::expect_bytes_request kept = expecting(pair.left, "two");
+    kept.send_port = pair.left;
+    kept.send = vss::to_bytes("two");
+    REQUIRE(driver->expect_bytes(kept));
+
+    // The same id again is not found, as one that nothing ever had; both are
+    // the engine's answer, as for `ports.remove`.
+    const auto again = driver->disconnect_link(link);
+    REQUIRE(!again);
+    REQUIRE_EQ(again.error(), engine(vss::errc::not_found));
+    const auto nowhere = driver->disconnect_link("l_999999");
+    REQUIRE(!nowhere);
+    REQUIRE_EQ(nowhere.error(), engine(vss::errc::not_found));
+    // The message is the gateway's: nothing of the engine's wording crosses.
+    REQUIRE_EQ(driver->last_error_message(),
+               std::string("the engine refused the request"));
+
+    // The ports can be linked again, and the link carries bytes again.
+    const auto relinked = driver->connect_ports(pair.left, pair.right, true);
+    REQUIRE(relinked);
+    REQUIRE(*relinked != link);
+    control::expect_bytes_request third = expecting(pair.right, "three");
+    third.send_port = pair.left;
+    third.send = vss::to_bytes("three");
+    REQUIRE(driver->expect_bytes(third));
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{2});
+}
+
+TEST_CASE("control gateway: a port that is renamed has its new name in the "
+          "list")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect(false, "driver");
+    auto watcher = env.connect(false, "watcher");
+    const auto left = driver->create_port("left");
+    const auto right = driver->create_port("right");
+    REQUIRE(left);
+    REQUIRE(right);
+
+    const auto before = driver->list_ports();
+    REQUIRE(before);
+    const auto started = watcher->subscribe_events(every(10));
+    REQUIRE(started);
+
+    REQUIRE(driver->rename_port(*left, "bench"));
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE(listed->revision > before->revision);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{2});
+    for (const control::port_entry& entry : listed->ports)
+    {
+        REQUIRE_EQ(entry.name, entry.id == *left ? std::string("bench")
+                                                 : std::string("right"));
+    }
+    const auto one = driver->get_port(*left);
+    REQUIRE(one);
+    REQUIRE_EQ(one->name, std::string("bench"));
+    // Another session reads the same name.
+    const auto other = watcher->get_port(*left);
+    REQUIRE(other);
+    REQUIRE_EQ(other->name, std::string("bench"));
+    // The engine publishes no event of its own for a rename; the stream says
+    // that the list changed by its revision.
+    std::uint64_t next_seq = started->next_seq;
+    REQUIRE(read_batches(*watcher, next_seq,
+                         [&](const control::event_batch& batch)
+                         { return batch.revision >= listed->revision; }));
+
+    // The name the port left is free, and one that is taken is refused.
+    REQUIRE(driver->rename_port(*right, "left"));
+    const auto taken = driver->rename_port(*left, "left");
+    REQUIRE(!taken);
+    REQUIRE_EQ(taken.error(), engine(vss::errc::already_exists));
+    const auto empty = driver->rename_port(*left, "");
+    REQUIRE(!empty);
+    REQUIRE_EQ(empty.error(), engine(vss::errc::invalid_argument));
+    const auto missing = driver->rename_port("p_999999", "x");
+    REQUIRE(!missing);
+    REQUIRE_EQ(missing.error(), engine(vss::errc::not_found));
+    REQUIRE_EQ(driver->last_error_message(),
+               std::string("the engine refused the request"));
+    // Its own name again is not an error.
+    REQUIRE(driver->rename_port(*left, "bench"));
+
+    // A name as long as a name may be.
+    const std::string longest(control::max_text_size, 'n');
+    REQUIRE(driver->rename_port(*left, longest));
+    const auto long_one = driver->get_port(*left);
+    REQUIRE(long_one);
+    REQUIRE_EQ(long_one->name, longest);
+
+    // Bytes still go where they went: the id did not change.
+    REQUIRE(driver->connect_ports(*left, *right, true));
+    control::expect_bytes_request wanted = expecting(*right, "ok");
+    wanted.send_port = *left;
+    wanted.send = vss::to_bytes("ok");
+    REQUIRE(driver->expect_bytes(wanted));
+    const auto last = driver->list_ports();
+    REQUIRE(last);
+    REQUIRE_EQ(last->ports.size(), std::size_t{2});
+}
+
+TEST_CASE("control gateway: a monitor can neither disconnect nor rename")
+{
+    {
+        fixture env;
+        const traffic_rig rig(env);
+        const std::string a = control::port_id_text(rig.a);
+        auto watcher = env.connect();
+        const auto before = watcher->list_ports();
+        REQUIRE(before);
+        REQUIRE_EQ(before->links.size(), std::size_t{2});
+
+        const auto unlinked = watcher->disconnect_link(before->links[0].id);
+        REQUIRE(!unlinked);
+        REQUIRE_EQ(unlinked.error(), code(control::api_errc::forbidden));
+        const auto renamed = watcher->rename_port(a, "mine");
+        REQUIRE(!renamed);
+        REQUIRE_EQ(renamed.error(), code(control::api_errc::forbidden));
+        // The refusal does not depend on whether the id is one.
+        const auto odd_link = watcher->disconnect_link("nonsense");
+        REQUIRE(!odd_link);
+        REQUIRE_EQ(odd_link.error(), code(control::api_errc::forbidden));
+        const auto odd_port = watcher->rename_port("nonsense", "mine");
+        REQUIRE(!odd_port);
+        REQUIRE_EQ(odd_port.error(), code(control::api_errc::forbidden));
+
+        const auto after = watcher->list_ports();
+        REQUIRE(after);
+        REQUIRE(*after == *before);
+        REQUIRE_EQ(env.gate.counters().forbidden, std::uint64_t{4});
+        // Refused by the gateway: the agent was never asked.
+        REQUIRE_EQ(env.backend->server.counters().read_only_refused,
+                   std::uint64_t{0});
+    }
+    {
+        // Sending bytes and looking are not the right to arrange ports.
+        fixture env(with_local_scopes({control::scope::monitor,
+                                       control::scope::monitor_data,
+                                       control::scope::control_data}));
+        const traffic_rig rig(env);
+        auto speaker = env.connect();
+        const auto listed = speaker->list_ports();
+        REQUIRE(listed);
+        REQUIRE_EQ(listed->links.size(), std::size_t{2});
+        const auto unlinked = speaker->disconnect_link(listed->links[0].id);
+        REQUIRE(!unlinked);
+        REQUIRE_EQ(unlinked.error(), code(control::api_errc::forbidden));
+        const auto renamed =
+            speaker->rename_port(control::port_id_text(rig.a), "x");
+        REQUIRE(!renamed);
+        REQUIRE_EQ(renamed.error(), code(control::api_errc::forbidden));
+    }
+    {
+        // Arranging ports is the right to do both.
+        fixture env(with_local_scopes(
+            {control::scope::monitor, control::scope::control_ports}));
+        const traffic_rig rig(env);
+        auto arranger = env.connect();
+        const auto listed = arranger->list_ports();
+        REQUIRE(listed);
+        REQUIRE_EQ(listed->links.size(), std::size_t{2});
+        REQUIRE(arranger->rename_port(control::port_id_text(rig.a), "x"));
+        REQUIRE(arranger->disconnect_link(listed->links[0].id));
+    }
+}
+
+TEST_CASE("control gateway: an id that is not one is not passed on, and one "
+          "that nothing has is not found")
+{
+    fixture env(with_local_scopes(control::role_control()));
+    auto driver = env.connect();
+    const made_pair pair(*driver);
+
+    for (const char* const bad :
+         {"COM3", "l_", "left", "", "l_-1", "l_01", "p_1", "l_1 "})
+    {
+        const auto unlinked = driver->disconnect_link(bad);
+        REQUIRE(!unlinked);
+        REQUIRE_EQ(unlinked.error(), code(control::api_errc::invalid_argument));
+    }
+    for (const char* const bad :
+         {"COM3", "p_", "left", "", "p_-1", "p_01", "l_1", "p_1 "})
+    {
+        const auto renamed = driver->rename_port(bad, "name");
+        REQUIRE(!renamed);
+        REQUIRE_EQ(renamed.error(), code(control::api_errc::invalid_argument));
+    }
+    const auto no_link = driver->disconnect_link("l_999999");
+    REQUIRE(!no_link);
+    REQUIRE_EQ(no_link.error(), engine(vss::errc::not_found));
+    const auto no_port = driver->rename_port("p_999999", "name");
+    REQUIRE(!no_port);
+    REQUIRE_EQ(no_port.error(), engine(vss::errc::not_found));
+
+    // After all of it the session is as good as it was, and nothing changed.
+    const auto listed = driver->list_ports();
+    REQUIRE(listed);
+    REQUIRE_EQ(listed->ports.size(), std::size_t{2});
+    REQUIRE_EQ(listed->links.size(), std::size_t{1});
+    REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{1});
+}
+
+TEST_CASE("control gateway: without an agent a disconnect and a rename say so")
+{
+    fixture env(with_local_scopes(control::role_control()), false);
+    auto driver = env.connect();
+    const auto unlinked = driver->disconnect_link("l_1");
+    REQUIRE(!unlinked);
+    REQUIRE_EQ(unlinked.error(), code(control::api_errc::unavailable));
+    const auto renamed = driver->rename_port("p_1", "x");
+    REQUIRE(!renamed);
+    REQUIRE_EQ(renamed.error(), code(control::api_errc::unavailable));
+
+    // The refusals are in the audit log, and the session goes on.
+    const auto unlinks = operations_named(env, "links.disconnect");
+    REQUIRE_EQ(unlinks.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(unlinks[0], "outcome"), std::string("unavailable"));
+    const auto renames = operations_named(env, "ports.rename");
+    REQUIRE_EQ(renames.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(renames[0], "outcome"), std::string("unavailable"));
+
+    env.start_agent();
+    const auto later = driver->create_port("later");
+    REQUIRE(later);
+    REQUIRE(driver->rename_port(*later, "latest"));
+}
+
+TEST_CASE("control gateway: a disconnect and a rename are in the audit log, "
+          "without bytes and without a token")
+{
+    fixture env;
+    const control::token_created_reply made =
+        make_token(env, {control::scope::monitor, control::scope::control_ports,
+                         control::scope::control_data});
+    const std::string canary = "CANARY-5e1d77-do-not-log";
+    std::string left;
+    std::string link;
+    {
+        auto connected = connect_with(env, made.token);
+        REQUIRE(connected);
+        auto& driver = **connected;
+        const made_pair pair(driver);
+        left = pair.left;
+        const auto listed = driver.list_ports();
+        REQUIRE(listed);
+        link = listed->links.front().id;
+        REQUIRE(driver.send(pair.left, vss::to_bytes(canary)));
+        REQUIRE(driver.rename_port(pair.left, "bench"));
+        REQUIRE(!driver.rename_port(pair.left, ""));
+        REQUIRE(!driver.rename_port("p_999999", "x"));
+        REQUIRE(!driver.rename_port("not a port\n{\"event\":\"forged\"}", "x"));
+        REQUIRE(driver.disconnect_link(link));
+        REQUIRE(!driver.disconnect_link(link));
+        REQUIRE(!driver.disconnect_link("not a link\n{\"event\":\"forged\"}"));
+    }
+    REQUIRE(wait_until([&] { return env.gate.counters().sessions == 0; }));
+
+    const auto unlinks = operations_named(env, "links.disconnect");
+    REQUIRE_EQ(unlinks.size(), std::size_t{3});
+    REQUIRE_EQ(text_of(unlinks[0], "link"), link);
+    REQUIRE_EQ(text_of(unlinks[0], "outcome"), std::string("ok"));
+    REQUIRE_EQ(text_of(unlinks[0], "principal"), "token:" + made.entry.id);
+    REQUIRE_EQ(text_of(unlinks[1], "link"), link);
+    REQUIRE_EQ(text_of(unlinks[1], "outcome"), std::string("engine.not_found"));
+    // An id that was not one is not written down as it came.
+    REQUIRE(text_of(unlinks[2], "link").empty());
+    REQUIRE_EQ(text_of(unlinks[2], "outcome"), std::string("invalid_argument"));
+
+    // The new name is in the record, as the name of a new port is.
+    const auto renames = operations_named(env, "ports.rename");
+    REQUIRE_EQ(renames.size(), std::size_t{4});
+    REQUIRE_EQ(text_of(renames[0], "port"), left);
+    REQUIRE_EQ(text_of(renames[0], "name"), std::string("bench"));
+    REQUIRE_EQ(text_of(renames[0], "outcome"), std::string("ok"));
+    REQUIRE_EQ(text_of(renames[0], "principal"), "token:" + made.entry.id);
+    REQUIRE_EQ(text_of(renames[1], "port"), left);
+    REQUIRE_EQ(text_of(renames[1], "outcome"),
+               std::string("engine.invalid_argument"));
+    REQUIRE_EQ(text_of(renames[2], "outcome"), std::string("engine.not_found"));
+    REQUIRE(text_of(renames[3], "port").empty());
+    REQUIRE_EQ(text_of(renames[3], "outcome"), std::string("invalid_argument"));
+
+    // Neither the bytes that were sent, nor the token, nor what a caller
+    // made up in place of an id, is anywhere the gateway keeps things.
+    const std::string kept = everything_kept(env.audit_directory);
+    REQUIRE(!holds(kept, canary));
+    REQUIRE(!holds(kept, "forged"));
+    REQUIRE(!holds(kept, made.token.expose()));
+    REQUIRE(!holds(kept, "vsst1_"));
+    require_intact(env.audit_directory);
+}
 
 TEST_CASE("control gateway: bytes that are sent are waited for in the same "
           "request, and found")
@@ -4116,4 +4832,61 @@ TEST_CASE("control gateway: wrong tokens over TCP slow down TCP, and a "
     REQUIRE_EQ(text_of(failures.back(), "reason"), std::string("backoff"));
     // The session that was already open is not touched.
     REQUIRE(tap.status());
+}
+
+TEST_CASE("control gateway: a token that names a transport twice is refused, "
+          "and the gateway starts again")
+{
+    fixture env;
+    auto admin = env.connect(true);
+    for (const std::vector<std::string>& names :
+         {std::vector<std::string>{"local", "local"},
+          std::vector<std::string>{"loopback", "loopback"},
+          std::vector<std::string>{"local", "loopback", "local"}})
+    {
+        const auto refused =
+            admin->create_token("twice", {"monitor"}, 0, names);
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(control::api_errc::invalid_argument));
+    }
+    const auto listed = admin->list_tokens();
+    REQUIRE(listed);
+    REQUIRE(listed->tokens.empty());
+
+    // A token that is made after the refusals is saved as usual, and the file
+    // is one the gateway takes back at its next start.
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+    admin.reset();
+    env.gate.stop();
+
+    control::gateway next(env.prepared({}));
+    REQUIRE(next.start());
+    REQUIRE(connect_with(env, made.token));
+}
+
+TEST_CASE("control gateway: a token file with a transport twice stops the "
+          "gateway with a message that names the file and the token")
+{
+    fixture env;
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+    env.gate.stop();
+
+    // What an earlier version, or a person, might have left behind.
+    const std::filesystem::path file = env.audit_directory / "tokens.json";
+    auto content = control::load_token_file(file);
+    REQUIRE(content);
+    REQUIRE_EQ(content->tokens.size(), std::size_t{1});
+    content->tokens[0].transports = {control::transport::local,
+                                     control::transport::local};
+    REQUIRE(!control::save_token_file(file, *content));
+
+    control::gateway next(env.prepared({}));
+    const auto refused = next.start();
+    REQUIRE(!refused);
+    const std::string message = refused.error().message();
+    REQUIRE(message.find(file.string()) != std::string::npos);
+    REQUIRE(message.find(made.entry.id) != std::string::npos);
+    REQUIRE(message.find("more than once") != std::string::npos);
 }

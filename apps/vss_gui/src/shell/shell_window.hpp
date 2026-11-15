@@ -223,12 +223,29 @@ private:
     void new_document();
     void open_document();
     void open_path(const QString& path);
-    /// Applies `document` to the engine on a worker thread, with the window
+    /// Puts `document` into the engine on a worker thread, with the window
     /// locked and a progress bar showing, then runs `finished` on the GUI
-    /// thread.  Nothing happens while an earlier apply is still running.
+    /// thread.  `replace` makes the running setup equal the document (File,
+    /// Open and templates); otherwise the document is added to what runs,
+    /// which is for the restore at start-up.  Nothing happens while an
+    /// earlier apply, or the JSON view's, is still running.  `finished` is
+    /// told what a replace that failed left behind; when that is not the
+    /// setup that was running, the setup is already marked as changed.
+    enum class failed_apply
+    {
+        /// The same ports and links, with the same ids: nothing was touched.
+        untouched,
+        /// The same setup, but ports or links were removed and made again.
+        remade,
+        /// Not the setup that was running.
+        different
+    };
     void apply_in_background(
-        vss::config::document document,
-        std::function<void(const vss::result<void>&)> finished);
+        vss::config::document document, bool replace,
+        std::function<void(const vss::result<void>&, failed_apply)> finished);
+    /// True while the engine is being given a setup, by the window or by the
+    /// JSON view.  Opening, a new setup and quitting wait for it.
+    bool setup_busy() const;
     void save_document();
     void save_document_as();
     bool confirm_discard();

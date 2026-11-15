@@ -65,6 +65,50 @@ std::int64_t ms_between(time_point from, time_point to)
     return std::chrono::duration_cast<std::chrono::milliseconds>(to - from).count();
 }
 
+/// How many times a timing test may run its whole scenario.
+constexpr int timing_attempts = 5;
+
+/// Adds a note to `late` when `value` is over `limit`.  The attempt returns
+/// `late`, and an empty string means every upper bound held.
+void note_if_over(std::string& late, const char* what, std::int64_t value,
+                  std::int64_t limit)
+{
+    if (value <= limit)
+        return;
+    if (!late.empty())
+        late += "; ";
+    late += std::string(what) + " was " + std::to_string(value) +
+            " ms, over the limit of " + std::to_string(limit) + " ms";
+}
+
+/// Runs a timing scenario until one run is on time, up to `timing_attempts`
+/// runs.  `attempt` builds everything it needs afresh (hub, device, rules),
+/// checks every lower bound with REQUIRE, and returns a description of each
+/// upper bound it broke, or an empty string when it broke none.
+///
+/// The two kinds of bound are treated differently on purpose.  A responder
+/// that replies EARLY is wrong, however busy the machine is, so a lower
+/// bound is checked on every sample of every run and a REQUIRE that fails
+/// ends the test at once, with no retry.  A reply seen LATE is not
+/// necessarily wrong: on a loaded runner a thread can go unscheduled for
+/// tens of milliseconds and the gap we measure grows with it.  A responder
+/// that is really too slow is slow on every run, so an upper bound is only
+/// a failure when all the runs break it, and then the test reports what the
+/// last run measured.
+template <class Attempt>
+void within_upper_bounds(Attempt&& attempt)
+{
+    std::string late;
+    for (int run = 0; run < timing_attempts; ++run)
+    {
+        late = attempt();
+        if (late.empty())
+            return;
+    }
+    throw vss_test::failure("late in all " + std::to_string(timing_attempts) +
+                            " attempts; the last one: " + late);
+}
+
 const char* const status_script = R"({
   "version": 1,
   "seed": 5,
@@ -143,14 +187,10 @@ TEST_CASE("responder: a bad script says what is wrong and where")
 
 TEST_CASE("responder: the reply comes inside the window, with margin")
 {
-    // A reply 120 ms after the request, against a 200 ms window.  One run
-    // measures the gap on the wall clock, and a busy runner can stretch any
-    // single run well past 195 ms.  A wrong delay is wrong on every run and
-    // a busy runner is not, so the fastest of a few runs has to be inside
-    // the window with margin, and no run may be early.
-    std::int64_t fastest = 0;
-    for (int attempt = 0; attempt < 5; ++attempt)
-    {
+    // A reply 120 ms after the request, against a 200 ms window.  Never
+    // early, and 80 ms of margin on an unloaded run; a busy runner can
+    // stretch one run well past that, so see within_upper_bounds().
+    within_upper_bounds([] {
         auto hub = start_hub();
         auto device = add_mock(*hub, "device");
         event_recorder events;
@@ -178,36 +218,44 @@ TEST_CASE("responder: the reply comes inside the window, with margin")
         REQUIRE_EQ(device.written(),
                    std::string("\x10\x02\x00\x16\x10\x03", 6));
         REQUIRE_EQ((*running)->matches(), std::uint64_t{1});
-        fastest = attempt == 0 ? gap : std::min(fastest, gap);
-        if (fastest <= 195)
-            break;
-    }
-    // Well inside 200 ms: 80 ms of margin on an unloaded run.
-    REQUIRE(fastest <= 195);
+
+        std::string late;
+        note_if_over(late, "the reply gap", gap, 195);
+        return late;
+    });
 }
 
 TEST_CASE("responder: a delay of 200 ms is 200 ms")
 {
-    auto hub = start_hub();
-    auto device = add_mock(*hub, "device");
-    event_recorder events;
-    hub->subscribe({}, [events](const endpoint_event& e) { events.record(e); });
+    within_upper_bounds([] {
+        auto hub = start_hub();
+        auto device = add_mock(*hub, "device");
+        event_recorder events;
+        hub->subscribe({}, [events](const endpoint_event& e)
+                       { events.record(e); });
 
-    auto running = responder::start(
-        *hub, device.endpoint,
-        parse_ok(R"({"rules":[{"match":"aa","reply":"bb","delay_ms":200}]})"));
-    REQUIRE(running);
+        auto running = responder::start(
+            *hub, device.endpoint,
+            parse_ok(
+                R"({"rules":[{"match":"aa","reply":"bb","delay_ms":200}]})"));
+        REQUIRE(running);
 
-    device.inject_read("\xaa");
-    REQUIRE(wait_until(
-        [&] { return !times_of(events, "device", data_direction::tx).empty(); },
-        2000ms));
-    const auto gap = ms_between(times_of(events, "device", data_direction::rx).at(0),
-                                times_of(events, "device", data_direction::tx).at(0));
-    REQUIRE(gap >= 198);
-    // The upper bound only rules out a wrong unit; a loaded runner can add
-    // a few hundred milliseconds.
-    REQUIRE(gap <= 1000);
+        device.inject_read("\xaa");
+        REQUIRE(wait_until(
+            [&]
+            { return !times_of(events, "device", data_direction::tx).empty(); },
+            2000ms));
+        const auto gap =
+            ms_between(times_of(events, "device", data_direction::rx).at(0),
+                       times_of(events, "device", data_direction::tx).at(0));
+        // Never early.
+        REQUIRE(gap >= 198);
+
+        // The upper bound only rules out a wrong unit.
+        std::string late;
+        note_if_over(late, "the reply gap", gap, 1000);
+        return late;
+    });
 }
 
 TEST_CASE("responder: a mask matches the bits it names and no others")
@@ -278,11 +326,12 @@ TEST_CASE("responder: the earliest match wins, then the first rule")
 
 TEST_CASE("responder: jitter stays inside its bounds and repeats with a seed")
 {
-    const auto run = [] {
+    within_upper_bounds([] {
         auto hub = start_hub();
         auto device = add_mock(*hub, "device");
         event_recorder events;
-        hub->subscribe({}, [events](const endpoint_event& e) { events.record(e); });
+        hub->subscribe({}, [events](const endpoint_event& e)
+                       { events.record(e); });
         auto running = responder::start(
             *hub, device.endpoint,
             parse_ok(R"({"seed": 42, "rules":[
@@ -295,28 +344,31 @@ TEST_CASE("responder: jitter stays inside its bounds and repeats with a seed")
         {
             device.inject_read("\xaa");
             REQUIRE(wait_until(
-                [&] {
-                    return times_of(events, "device", data_direction::tx).size() ==
-                           index + 1;
+                [&]
+                {
+                    return times_of(events, "device", data_direction::tx)
+                               .size() == index + 1;
                 },
                 2000ms));
             gaps.push_back(ms_between(
                 times_of(events, "device", data_direction::rx).at(index),
                 times_of(events, "device", data_direction::tx).at(index)));
         }
-        return gaps;
-    };
 
-    const auto gaps = run();
-    for (const auto gap : gaps)
-    {
-        REQUIRE(gap >= 58);   // 100 - 40, never early
-        REQUIRE(gap <= 190);  // 100 + 40 and a margin, inside 200 ms
-    }
-    // The delays are not all the same.
-    REQUIRE(*std::max_element(gaps.begin(), gaps.end()) -
-                *std::min_element(gaps.begin(), gaps.end()) >=
-            10);
+        std::string late;
+        for (const auto gap : gaps)
+        {
+            REQUIRE(gap >= 58);  // 100 - 40, never early
+            // 100 + 40 and a margin, inside 200 ms.
+            note_if_over(late, "a reply gap", gap, 190);
+        }
+        // The delays are not all the same.  A stall only widens the spread,
+        // so this holds on a busy runner too.
+        REQUIRE(*std::max_element(gaps.begin(), gaps.end()) -
+                    *std::min_element(gaps.begin(), gaps.end()) >=
+                10);
+        return late;
+    });
 }
 
 TEST_CASE("responder: a stopped responder says nothing more")
@@ -343,40 +395,52 @@ TEST_CASE("responder: a stopped responder says nothing more")
 
 TEST_CASE("responder: a poll list sends its steps in every cycle")
 {
-    auto hub = start_hub();
-    auto master = add_mock(*hub, "master");
-    event_recorder events;
-    hub->subscribe({}, [events](const endpoint_event& e) { events.record(e); });
+    within_upper_bounds([] {
+        auto hub = start_hub();
+        auto master = add_mock(*hub, "master");
+        event_recorder events;
+        hub->subscribe({}, [events](const endpoint_event& e)
+                       { events.record(e); });
 
-    const auto origin = clock_type::now();
-    auto running = responder::start(
-        *hub, master.endpoint,
-        parse_ok(R"({"poll": { "start_ms": 50, "interval_ms": 200, "cycles": 3,
-          "steps": [ { "send": "01" }, { "send": "02", "at_ms": 80 } ] }})"));
-    REQUIRE(running);
+        const auto origin = clock_type::now();
+        auto running = responder::start(
+            *hub, master.endpoint,
+            parse_ok(R"({"poll": { "start_ms": 50, "interval_ms": 200,
+              "cycles": 3,
+              "steps": [ { "send": "01" },
+                         { "send": "02", "at_ms": 80 } ] }})"));
+        REQUIRE(running);
 
-    REQUIRE(wait_until([&] { return (*running)->poll_finished(); }, 3000ms));
-    REQUIRE(wait_until([&] { return (*running)->polls_sent() == 6; }, 2000ms));
-    REQUIRE_EQ(master.written(), std::string("\x01\x02\x01\x02\x01\x02", 6));
+        REQUIRE(wait_until([&] { return (*running)->poll_finished(); },
+                           3000ms));
+        REQUIRE(wait_until([&] { return (*running)->polls_sent() == 6; },
+                           2000ms));
+        REQUIRE_EQ(master.written(),
+                   std::string("\x01\x02\x01\x02\x01\x02", 6));
 
-    // The recorder sees events on the hub's dispatcher strand, after the
-    // responder has written, so wait for all six before reading them.
-    REQUIRE(wait_until(
-        [&] {
-            return times_of(events, "master", data_direction::tx).size() == 6;
-        },
-        2000ms));
+        // The recorder sees events on the hub's dispatcher strand, after the
+        // responder has written, so wait for all six before reading them.
+        REQUIRE(wait_until(
+            [&]
+            {
+                return times_of(events, "master", data_direction::tx).size() ==
+                       6;
+            },
+            2000ms));
 
-    // Steps at 50, 130, 250, 330, 450, 530 ms.
-    const auto times = times_of(events, "master", data_direction::tx);
-    REQUIRE_EQ(times.size(), std::size_t{6});
-    const std::int64_t expected[] = {50, 130, 250, 330, 450, 530};
-    for (std::size_t i = 0; i < 6; ++i)
-    {
-        const auto at = ms_between(origin, times[i]);
-        REQUIRE(at >= expected[i] - 3);
-        REQUIRE(at <= expected[i] + 100);
-    }
+        // Steps at 50, 130, 250, 330, 450, 530 ms.
+        const auto times = times_of(events, "master", data_direction::tx);
+        REQUIRE_EQ(times.size(), std::size_t{6});
+        const std::int64_t expected[] = {50, 130, 250, 330, 450, 530};
+        std::string late;
+        for (std::size_t i = 0; i < 6; ++i)
+        {
+            const auto at = ms_between(origin, times[i]);
+            REQUIRE(at >= expected[i] - 3);  // never early
+            note_if_over(late, "a poll step time", at, expected[i] + 100);
+        }
+        return late;
+    });
 }
 
 TEST_CASE("responder: a poll with no interval is sent once")
@@ -396,94 +460,104 @@ TEST_CASE("responder: a poll with no interval is sent once")
 
 TEST_CASE("responder: a replayed master polls devices that answer inside 200 ms")
 {
-    auto hub = start_hub();
+    within_upper_bounds([] {
+        auto hub = start_hub();
 
-    // Each device is a port in the hub with a program on the other end of a
-    // cable; here the program is a responder.
-    auto first_cable = cable_end::make_pair(hub->executor(), "one");
-    auto second_cable = cable_end::make_pair(hub->executor(), "two");
-    auto master_cable = cable_end::make_pair(hub->executor(), "m");
+        // Each device is a port in the hub with a program on the other end of
+        // a cable; here the program is a responder.
+        auto first_cable = cable_end::make_pair(hub->executor(), "one");
+        auto second_cable = cable_end::make_pair(hub->executor(), "two");
+        auto master_cable = cable_end::make_pair(hub->executor(), "m");
 
-    const auto make = [&](const std::string& name,
-                          const std::shared_ptr<cable_end>& transport) {
-        auto added = hub->add_endpoint(name, endpoint_kind::virtual_port, transport);
-        REQUIRE(added);
-        return *added;
-    };
-    auto master_port = make("master", master_cable.first);
-    auto device_one = make("device-1", first_cable.first);
-    auto device_two = make("device-2", second_cable.first);
-    auto master_program = make("master-program", master_cable.second);
-    auto program_one = make("program-1", first_cable.second);
-    auto program_two = make("program-2", second_cable.second);
-    REQUIRE(hub->split(master_port->id(), {device_one->id(), device_two->id()}));
+        const auto make = [&](const std::string& name,
+                              const std::shared_ptr<cable_end>& transport)
+        {
+            auto added =
+                hub->add_endpoint(name, endpoint_kind::virtual_port, transport);
+            REQUIRE(added);
+            return *added;
+        };
+        auto master_port = make("master", master_cable.first);
+        auto device_one = make("device-1", first_cable.first);
+        auto device_two = make("device-2", second_cable.first);
+        auto master_program = make("master-program", master_cable.second);
+        auto program_one = make("program-1", first_cable.second);
+        auto program_two = make("program-2", second_cable.second);
+        REQUIRE(hub->split(master_port->id(),
+                           {device_one->id(), device_two->id()}));
 
-    // The two device programs answer different polls.
-    auto one = responder::start(
-        *hub, program_one,
-        parse_ok(R"({"rules":[{"match":"02 31","reply":"02 31 41 03",
-                   "delay_ms":150}]})"));
-    auto two = responder::start(
-        *hub, program_two,
-        parse_ok(R"({"rules":[{"match":"02 32","reply":"02 32 42 03",
-                   "delay_ms":90, "jitter_ms":30}]})"));
-    REQUIRE(one);
-    REQUIRE(two);
+        // The two device programs answer different polls.
+        auto one = responder::start(
+            *hub, program_one,
+            parse_ok(R"({"rules":[{"match":"02 31","reply":"02 31 41 03",
+                       "delay_ms":150}]})"));
+        auto two = responder::start(
+            *hub, program_two,
+            parse_ok(R"({"rules":[{"match":"02 32","reply":"02 32 42 03",
+                       "delay_ms":90, "jitter_ms":30}]})"));
+        REQUIRE(one);
+        REQUIRE(two);
 
-    auto out = std::make_shared<std::ostringstream>();
-    capture_options options;
-    options.format = capture_format::jsonl;
-    options.ports = {"master"};
-    auto session = capture_session::start(*hub, out, options);
+        auto out = std::make_shared<std::ostringstream>();
+        capture_options options;
+        options.format = capture_format::jsonl;
+        options.ports = {"master"};
+        auto session = capture_session::start(*hub, out, options);
 
-    // The master is a recording: two polls, 400 ms apart.
-    const std::vector<capture_record> recording{
-        [] {
-            capture_record r;
-            r.offset_ms = 0;
-            r.data = {0x02, 0x31, 0x03};
-            return r;
-        }(),
-        [] {
-            capture_record r;
-            r.offset_ms = 400;
-            r.data = {0x02, 0x32, 0x03};
-            return r;
-        }(),
-    };
-    auto player = replay_player::start(*hub, master_program, recording);
-    REQUIRE(player);
+        // The master is a recording: two polls, 400 ms apart.
+        const std::vector<capture_record> recording{
+            [] {
+                capture_record r;
+                r.offset_ms = 0;
+                r.data = {0x02, 0x31, 0x03};
+                return r;
+            }(),
+            [] {
+                capture_record r;
+                r.offset_ms = 400;
+                r.data = {0x02, 0x32, 0x03};
+                return r;
+            }(),
+        };
+        auto player = replay_player::start(*hub, master_program, recording);
+        REQUIRE(player);
 
-    // The master's port received two polls and was written two answers.
-    REQUIRE(wait_until([&] { return session->records() >= 4; }, 3000ms));
-    session->stop();
+        // The master's port received two polls and was written two answers.
+        REQUIRE(wait_until([&] { return session->records() >= 4; }, 3000ms));
+        session->stop();
 
-    std::istringstream in(out->str());
-    const auto read = read_capture(in);
-    REQUIRE(read);
-    REQUIRE_EQ(read->records.size(), std::size_t{4});
+        std::istringstream in(out->str());
+        const auto read = read_capture(in);
+        REQUIRE(read);
+        REQUIRE_EQ(read->records.size(), std::size_t{4});
 
-    // Answers follow their poll by the delay, inside 200 ms.
-    const auto gap_after = [&](std::int64_t poll_offset) {
+        // Answers follow their poll by the delay, inside 200 ms.
+        const auto gap_after = [&](std::int64_t poll_offset)
+        {
+            for (const auto& item : read->records)
+            {
+                if (item.direction == data_direction::tx &&
+                    item.offset_ms >= poll_offset)
+                    return item.offset_ms - poll_offset;
+            }
+            return std::int64_t{-1};
+        };
+        std::string late;
+        const auto first_poll = read->records.front().offset_ms;
+        const auto first_gap = gap_after(first_poll);
+        REQUIRE(first_gap >= 148);  // never early
+        note_if_over(late, "the first answer gap", first_gap, 199);
+        std::int64_t second_poll = 0;
         for (const auto& item : read->records)
         {
-            if (item.direction == data_direction::tx && item.offset_ms >= poll_offset)
-                return item.offset_ms - poll_offset;
+            if (item.direction == data_direction::rx)
+                second_poll = item.offset_ms;
         }
-        return std::int64_t{-1};
-    };
-    const auto first_poll = read->records.front().offset_ms;
-    const auto first_gap = gap_after(first_poll);
-    REQUIRE(first_gap >= 148);
-    REQUIRE(first_gap <= 199);
-    std::int64_t second_poll = 0;
-    for (const auto& item : read->records)
-    {
-        if (item.direction == data_direction::rx)
-            second_poll = item.offset_ms;
-    }
-    REQUIRE(second_poll - first_poll >= 395);
-    const auto second_gap = gap_after(second_poll);
-    REQUIRE(second_gap >= 58);
-    REQUIRE(second_gap <= 199);
+        // The polls are 400 ms apart at the least: the replay is never early.
+        REQUIRE(second_poll - first_poll >= 395);
+        const auto second_gap = gap_after(second_poll);
+        REQUIRE(second_gap >= 58);  // never early
+        note_if_over(late, "the second answer gap", second_gap, 199);
+        return late;
+    });
 }

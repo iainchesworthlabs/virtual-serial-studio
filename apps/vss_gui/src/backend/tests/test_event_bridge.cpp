@@ -526,3 +526,131 @@ TEST_CASE("engine backend: traffic raises stats_changed and leaves "
     REQUIRE_EQ(ports_changed, 0);
     REQUIRE_EQ(links_changed, 0);
 }
+
+namespace
+{
+
+vss::config::document two_loopbacks(const char* first, const char* second)
+{
+    vss::config::document document;
+    for (const char* name : {first, second})
+    {
+        vss::config::port_entry port;
+        port.name = name;
+        port.kind = "virtual";
+        port.virtual_kind = "loopback";
+        document.ports.push_back(port);
+    }
+    vss::config::link_entry link;
+    link.mode = "duplex";
+    link.sources = {first};
+    link.targets = {second};
+    document.links.push_back(link);
+    return document;
+}
+
+std::vector<std::string> port_names(vss::gui::EngineStudioBackend& backend)
+{
+    std::vector<std::string> names;
+    for (const auto& port : backend.ports())
+        names.push_back(port.name.toStdString());
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+} // namespace
+
+TEST_CASE("engine backend: replace leaves only the ports of the document")
+{
+    vss::studio studio;
+    vss::gui::EngineStudioBackend backend(studio);
+
+    // A setup is running.  Opening another file must leave that file's ports
+    // and no others, and the running ports that it has too stay as they are.
+    REQUIRE(backend.apply(two_loopbacks("a", "b"), true).has_value());
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+    const auto kept = backend.ports().front();
+
+    vss::config::document other = two_loopbacks("c", "d");
+    REQUIRE(backend.replace(other).has_value());
+    REQUIRE((port_names(backend) == std::vector<std::string>{"c", "d"}));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE(!backend.port(kept.id).has_value());
+
+    // The setup that runs, opened again: nothing is made twice, and the ports
+    // are the same ports.
+    const auto before = backend.ports();
+    REQUIRE(backend.replace(backend.snapshot()).has_value());
+    REQUIRE_EQ(backend.ports().size(), before.size());
+    for (const auto& port : before)
+        REQUIRE(backend.port(port.id).has_value());
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+
+    // A setup the engine refuses leaves what runs as it was.
+    vss::config::document broken = two_loopbacks("x", "y");
+    vss::config::port_entry bad;
+    bad.name = "bad";
+    bad.kind = "physical";
+    bad.uri = "serial://no-such-device-for-tests";
+    broken.ports.push_back(bad);
+    REQUIRE(!backend.replace(broken).has_value());
+    REQUIRE((port_names(backend) == std::vector<std::string>{"c", "d"}));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+
+    // apply still only adds.
+    REQUIRE(backend.apply(two_loopbacks("c", "d"), true).has_value());
+    REQUIRE_EQ(backend.ports().size(), std::size_t{4});
+}
+
+TEST_CASE("engine backend: new serial settings of a port raise ports_changed")
+{
+    vss::studio studio;
+    vss::gui::EngineStudioBackend backend(studio);
+    const auto port = backend.create_virtual_port(
+        QStringLiteral("a"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(port.has_value());
+    spin(100);
+    backend.refresh();
+
+    int ports_changed = 0;
+    QObject::connect(&backend, &vss::gui::StudioBackend::ports_changed,
+                     [&ports_changed] { ++ports_changed; });
+
+    // The window marks the setup changed when this signal arrives, and a
+    // loopback keeps nothing but the values: no other part of its view changes
+    // with them.
+    const auto view = backend.port(*port);
+    REQUIRE(view.has_value());
+    vss::serial_settings settings = view->serial;
+    settings.baud_rate = 9600;
+    settings.parity = vss::parity_mode::even;
+    REQUIRE(backend.set_port_settings(*port, settings).has_value());
+    backend.refresh();
+    REQUIRE(ports_changed > 0);
+    const auto changed = backend.port(*port);
+    REQUIRE(changed.has_value());
+    REQUIRE_EQ(changed->serial.baud_rate, 9600u);
+}
+
+TEST_CASE("engine backend: two replaces at once leave one document")
+{
+    vss::studio studio;
+    vss::gui::EngineStudioBackend backend(studio);
+    const auto first = two_loopbacks("a", "b");
+    const auto second = two_loopbacks("c", "d");
+    for (int round = 0; round < 10; ++round)
+    {
+        vss::result<void> left = vss::make_error_code(vss::errc::internal);
+        vss::result<void> right = vss::make_error_code(vss::errc::internal);
+        std::thread one([&] { left = backend.replace(first); });
+        std::thread other([&] { right = backend.replace(second); });
+        one.join();
+        other.join();
+        REQUIRE(left.has_value());
+        REQUIRE(right.has_value());
+        const auto names = port_names(backend);
+        REQUIRE((names == std::vector<std::string>{"a", "b"} ||
+                 names == std::vector<std::string>{"c", "d"}));
+        REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    }
+}

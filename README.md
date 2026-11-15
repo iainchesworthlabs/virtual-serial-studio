@@ -42,6 +42,7 @@ abstraction that lets the transport be replaced.
 - [docs/ux.md](docs/ux.md) — who the interface is for, the simple/advanced design, and the human-factors decisions.
 - [docs/architecture.md](docs/architecture.md) — how the libraries, hub and transports fit together.
 - [docs/scenarios.md](docs/scenarios.md) — worked recipes for share, join, bridge and loopback.
+- [docs/control-how-to.md](docs/control-how-to.md) — drive ports from the command line or a Python test script: make ports, send and wait for bytes, keep a JUnit report.
 - [docs/agent.md](docs/agent.md) and [docs/remote-control.md](docs/remote-control.md) — the per-user agent and the control gateway, both first slices that are built from source and not installed.
 - [docs/plugins.md](docs/plugins.md), [docs/licensing.md](docs/licensing.md), [docs/editions.md](docs/editions.md) and [docs/response-timing.md](docs/response-timing.md) — the designs for plugins, licence files, the editions and response timing rules. Studio does not run plugins yet, and nothing in the window or the command line uses the response timing rules.
 - [docs/profiling.md](docs/profiling.md) — Tracy zones and how to capture a trace.
@@ -101,16 +102,18 @@ vss_cli run lab.json --seconds=60
 vss_cli capture lab.json --out=run.cap --port=master --seconds=60
 vss_cli bench --from=serial://COM3 --to=serial://COM5 --bytes=10MB
 vss_cli selftest
+vss_cli licence                      # the edition and the licence files Studio finds on this computer; `licence import <file>` installs one
 vss_agent &                         # keep ports after the command that made them (a first slice)
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
 vss_gate &                          # let this user's programs watch and control the agent's ports (Community)
 vss_gate --loopback-port=5800 &     # also serve the control API on TCP at 127.0.0.1 and ::1 (off unless given); every TCP connection needs a token made for it
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
-vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a token over TCP; make it with `token create --transport=loopback --out=rig.token`
+vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a token over TCP; make it with `token create --transport=loopback --out=rig.token` (a new file name; `--out` never replaces a file)
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
-vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
+vss_cli control port create a      # make a port and print its id; `port remove <id>`, `port rename <id> <name>`, `link <id> <id> [--one-way]`, `unlink <id>` (scope control.ports)
+vss_cli control port show p_1       # one port; `control links` lists the links, `link show <id>` shows one (scope monitor), `control ping` asks whether the gateway answers (no scope)
 vss_cli control send p_1 --hex=00ff0a   # send bytes to a port, two hex digits for each byte (scope control.data)
 vss_cli control expect p_2 --pattern=4f4b0d0a --send-to=p_1 --send=6f6b0d0a   # wait for bytes on a port, and send some once listening (scope monitor.data; control.data to send)
 vss_cli control run begin smoke     # open a named run; every `expect` of this user is noted (`--label=<text>` names it); `run record <name> --outcome=passed`, `run end`, `run report --out=smoke.xml` for the JUnit XML (scope monitor)
@@ -267,12 +270,14 @@ python tools/changelog.py --release 0.2.0
 libs/vss_core        hub, endpoints, links, control lines, events
 libs/vss_ports       serial transport, PTY, loopback, com0com, enumeration
 libs/vss_config      JSON topology documents
-libs/vss_license     licence files and the signed envelope (verify, judge, sign)
+libs/vss_license     licence files and the signed envelope (verify, judge, sign), and the store that finds them
+libs/vss_update      semantic versions, the signed update feed and the choice of what to offer
 libs/vss_rules       response timing rules: the rule set, its checks and the machine that says what fires when
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent
 libs/vss_plugin      plugin manifests and the checks made before a plugin runs
+libs/vss_plugin_host starting a plugin as a process of its own
 libs/vss_agent       the agent's local transport, server and client
 libs/vss_control_proto the control API: messages, errors and the policy table
 libs/vss_control     the control gateway, its audit log and its client
@@ -342,7 +347,9 @@ The dependencies keep their own terms, all compatible with the GPL:
 
 * [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) and Boost itself are
   **BSL-1.0**; BSL-1.0 is a permissive licence that can be combined with GPLv3.
-* Qt 6 is **LGPL-3.0 / GPL-3.0 / commercial**; the GUI links it dynamically.
+* Qt 6 is **LGPL-3.0 / GPL-3.0 / commercial**; the GUI links it dynamically. The
+  Qt Canvas Painter module is **GPL-3.0 / commercial** only, so the GUI is
+  conveyed under version 3 of the GPL.
 * `com0com` is an optional, separately installed Windows driver, invoked rather
   than linked.
 * Three tools in `tools/` are derived from the Boost.VirtualSerial repository

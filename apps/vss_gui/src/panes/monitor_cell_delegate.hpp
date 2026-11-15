@@ -7,12 +7,42 @@
 #pragma once
 
 #include <QFont>
+#include <QSize>
+#include <QString>
 #include <QStyledItemDelegate>
 
 #include <string_view>
 
 namespace vss::gui
 {
+
+/// What the cells of the Monitor table share: the fonts they are drawn in and
+/// the space at the sides of a cell. The panel owns one and gives every
+/// delegate a pointer to it, and `update` runs whenever the theme, the density
+/// or the text size changes.
+///
+/// Every cell is a 12 px style at the 13 px base: Time, Bytes and Preview in
+/// the data font, port names in the caption font. Both are multiplied by the
+/// view's scale, the table's font over the body font, so text made larger
+/// through `Theme` and text made larger on the widget both reach the cells.
+struct monitor_cell_style
+{
+    /// Time, Bytes and Preview.
+    QFont data;
+    /// Port names.
+    QFont caption;
+    /// The words in the direction tags: the caption font, semi-bold.
+    QFont tag;
+    /// Space at the left and at the right of a cell.
+    int padding = 0;
+
+    /// Takes the fonts from `Theme`, multiplied by `scale`.
+    void update(double scale, int padding_pixels);
+
+    /// A direction tag is as wide as its text plus 12 and as high as its text
+    /// plus 2.
+    QSize tag_size(const QString& text) const;
+};
 
 /// The Monitor table's cells as Qt draws them, each inside a profiling zone
 /// (`gui.monitor.paint_cell`, with the column as its text).
@@ -31,6 +61,12 @@ public:
     /// `long_text_column` is the column whose text is cut; -1 for none.
     explicit MonitorCellDelegate(int long_text_column,
                                  QObject* parent = nullptr);
+
+    /// Takes the fonts from `style`, which must outlive the delegate: the
+    /// port names (column 1) in its caption font and every other cell in its
+    /// data font, whatever the model answers for the font role. With none,
+    /// which is the start, a cell has the font its model gives it.
+    void set_style(const monitor_cell_style* style) noexcept { style_ = style; }
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const override;
@@ -54,6 +90,7 @@ protected:
 
 private:
     int long_text_column_;
+    const monitor_cell_style* style_ = nullptr;
     // The width of a character of the font last seen, 0 when its characters
     // differ in width. Looking a font up for every cell would cost more than
     // it saves.

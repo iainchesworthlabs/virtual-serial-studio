@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Licence files and the signed envelope they share with plugin manifests
-# (docs/licensing.md). No Qt and no network code.
+# (docs/licensing.md), and the store that finds and imports them on this
+# computer. No Qt and no network code.
 #
 #   vss_license            verify and judge; what Studio and plugins link
 #   vss_license_sign       signing; the issuing tool and the tests only
@@ -13,8 +14,10 @@ add_library(vss_license
   src/license.cpp
   src/revocations_release.cpp
   src/signed_file.cpp
+  src/store.cpp
   src/strict_json.cpp
-  src/trusted_keys_release.cpp)
+  src/trusted_keys_release.cpp
+  src/words.cpp)
 add_library(Vss::license ALIAS vss_license)
 
 target_include_directories(vss_license PUBLIC
@@ -24,6 +27,18 @@ target_compile_features(vss_license PUBLIC cxx_std_23)
 target_link_libraries(vss_license
   PUBLIC Vss::Boost
   PRIVATE Vss::BoostJson Vss::Monocypher)
+
+# Where the licence folders are and what the computer is called are asked of
+# the operating system. CMake picks the files in
+# src/platform/<windows|linux|macos>; Linux and macOS share the host name.
+icl_platform_sources(vss_license)
+if(UNIX)
+  target_sources(vss_license PRIVATE src/platform/posix/computer_name_posix.cpp)
+endif()
+if(WIN32)
+  # shell32 and ole32 for the folders Windows names (ProgramData, LocalAppData).
+  target_link_libraries(vss_license PRIVATE shell32 ole32)
+endif()
 
 vss_set_warnings(vss_license)
 # boost::system::error_category deliberately has a non-virtual destructor and

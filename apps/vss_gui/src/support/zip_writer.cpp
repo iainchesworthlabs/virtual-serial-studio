@@ -75,8 +75,8 @@ std::uint32_t StoredZipWriter::crc32(const QByteArray& data)
 bool StoredZipWriter::add_file(const QString& name, const QByteArray& data,
                                const QDateTime& modified)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.support.zip.add_file");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, name.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.support.zip.add_file");
+    VSS_PROFILE_ZONE_TEXT(zone, name.toStdString());
     if (entries_.size() >= kMaxEntries)
         return false;
 

@@ -1,0 +1,19 @@
+//
+// Copyright (c) 2026 Virtual Serial Studio contributors
+//
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Made by CMake from libs/vss_plugin/keys/official-keys.json.  Do not edit.
+//
+
+#include "official_key_list.hpp"
+
+namespace vss::plugin::detail
+{
+
+std::string_view official_key_list_text() noexcept
+{
+    return R"vss_keys(@VSS_OFFICIAL_KEY_LIST@)vss_keys";
+}
+
+} // namespace vss::plugin::detail

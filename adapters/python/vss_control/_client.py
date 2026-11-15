@@ -26,6 +26,8 @@ from ._errors import ControlError, TransportError, error_from_reply
 from ._frame import FrameError, FrameReader
 from ._wire import (
     API_VERSION,
+    MAX_CASE_MESSAGE_SIZE,
+    MAX_RUN_NAME_SIZE,
     Batch,
     WireError,
     clean_text,
@@ -205,7 +207,18 @@ class Client:
     # -- the connection ------------------------------------------------------
 
     def close(self):
-        """Closes the connection.  Safe to call again."""
+        """Ends the session and closes the connection.  Safe to call again.
+
+        While the connection is still sound the gateway is asked to end the
+        session (`session.close`), so that it is gone from the list of
+        sessions at once and the audit log says the client ended it.  Any
+        error from that is ignored, and the time one call may take still
+        limits it: this never raises and never waits longer than that."""
+        if not self._closed:
+            try:
+                self._call("session.close")
+            except Exception:
+                pass
         self._abort()
 
     def __enter__(self):
@@ -341,6 +354,29 @@ class Client:
         """`revision`, `ports` and `links`, as the gateway lists them."""
         return self._call("ports.list", expect="ports")
 
+    def get_port(self, port):
+        """One port, as `list_ports` has it in `ports`: `id`, `name`, `path`,
+        `kind`, `state`, `open`, `bytes_rx` and `bytes_tx`.  Raises
+        `invalid_argument` for an id that is not of the form `p_3` and
+        `not_found` for one that no port has.  Needs `monitor`."""
+        return self._call("ports.get", {"port": clean_text(port)}, expect="port")["port"]
+
+    def list_links(self):
+        """The links, as `list_ports` has them in `links`: `id`, `mode`,
+        `sources`, `targets` and `bytes`.  Needs `monitor`."""
+        return self._call("links.list", expect="links")["links"]
+
+    def get_link(self, link):
+        """One link, as `list_links` has it.  Raises `invalid_argument` for an
+        id that is not of the form `l_2` and `not_found` for one that no link
+        has.  Needs `monitor`."""
+        return self._call("links.get", {"link": clean_text(link)}, expect="link")["link"]
+
+    def ping(self):
+        """Asks whether the gateway answers.  It needs no scope and does not
+        ask the agent, so it works while no agent runs."""
+        self._call("ping")
+
     def create_port(self, name, kind=None):
         """Makes a port in the agent and returns its id (`p_3`).  Needs
         `control.ports`.  `kind` is a kind the agent makes; None for a
@@ -352,6 +388,14 @@ class Client:
         """Removes the port with this id.  Needs `control.ports`."""
         self._call("ports.remove", {"port": clean_text(port)})
 
+    def rename_port(self, port, name):
+        """Gives the port with this id a new name.  Needs `control.ports`.
+        Raises `invalid_argument` for an id that is not of the form `p_3`,
+        `not_found` for one that no port has, and `engine.invalid_argument`
+        for an empty name or `engine.already_exists` for a name another port
+        has."""
+        self._call("ports.rename", {"port": clean_text(port), "name": clean_text(name)})
+
     def connect_ports(self, first, second, one_way=False):
         """Links two ports, both ways or from `first` to `second` only, and
         returns the id of the link (`l_1`).  Needs `control.ports`."""
@@ -361,6 +405,12 @@ class Client:
             "one_way": bool(one_way),
         }
         return self._call("links.connect", fields, expect="created")["created"]
+
+    def disconnect_link(self, link):
+        """Takes away the link with this id; the ports stay.  Needs
+        `control.ports`.  Raises `invalid_argument` for an id that is not of
+        the form `l_2` and `not_found` for one that no link has."""
+        self._call("links.disconnect", {"link": clean_text(link)})
 
     def send(self, port, data):
         """Writes bytes to a port.  Needs `control.data`; the gateway takes
@@ -480,18 +530,23 @@ class Client:
 
     def begin_run(self, name):
         """Begins a named run: while it is open the gateway notes how each
-        `expect_bytes` ended and what `record_in_run` tells it.  Returns the
+        `expect_bytes` ended and what `record_in_run` tells it.  A name of more
+        than 128 bytes is cut to 128 and ends in `...`.  Returns the
         run (`run` id, `name`, `open`, `tests`, `failures`, ...).  Raises
         `conflict` while a run of this principal is open."""
-        return self._call("runs.begin", {"name": clean_text(name)}, expect="run")
+        return self._call(
+            "runs.begin", {"name": clean_text(name, MAX_RUN_NAME_SIZE)}, expect="run"
+        )
 
     def record_in_run(self, name, outcome, message="", duration_ms=0):
         """Adds a check of your own to the open run.  `outcome` is `passed`,
-        `failed`, `error` or `skipped`."""
+        `failed`, `error` or `skipped`.  A name of more than 128 bytes and a
+        message of more than 512 are cut to that and end in `...`, so the
+        check is recorded whatever the text is."""
         fields = {
-            "name": clean_text(name),
+            "name": clean_text(name, MAX_RUN_NAME_SIZE),
             "outcome": clean_text(outcome),
-            "message": clean_text(message),
+            "message": clean_text(message, MAX_CASE_MESSAGE_SIZE),
             "duration_ms": _number(duration_ms, "duration_ms", _U64_MAX),
         }
         self._call("runs.record", fields)

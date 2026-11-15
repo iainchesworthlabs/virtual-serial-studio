@@ -1,0 +1,28 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "rules": [
+  {
+   "name": "r",
+   "when": {
+    "bytes": "01"
+   },
+   "do": [
+    {
+     "mark": "m",
+     "after": "run_start",
+     "delay": {
+      "normal": {
+       "mean_us": 3600000000,
+       "sd_us": 600000000,
+       "min_us": 0,
+       "max_us": 7200000000
+      }
+     }
+    }
+   ]
+  }
+ ]
+}
