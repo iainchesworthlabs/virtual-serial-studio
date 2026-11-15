@@ -147,8 +147,9 @@ microseconds draw_delay(const delay_spec& spec, generator& source,
         for (int i = 0; i < 12; ++i)
             sum += static_cast<std::int64_t>(source.next());
         const std::int64_t centred = sum - (std::int64_t{6} << 32U);
-        // |centred| is under 2^35 and the deviation under 2^26, so the
-        // product fits.  Dividing rounds towards zero on both sides.
+        // |centred| is under 2^35 and the deviation, which the compiler holds
+        // to #max_delay (under 2^26) for every edge, so the product fits.
+        // Dividing rounds towards zero on both sides.
         const std::int64_t offset =
             centred * spec.sd.count() / (std::int64_t{1} << 32U);
         return microseconds(clamp_us(spec.mean.count() + offset, spec));

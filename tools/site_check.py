@@ -13,7 +13,12 @@ The checker is run in CI on the output of the site build.  It reads every
   (language, title, headings, landmarks, names, tables, ids, forms and the
   accessibility-related CSS rules);
 * contrast: the colour pairs named in the configuration, for the light and
-  the dark token sets.
+  the dark token sets;
+* the update feed: when the site has ``updates/v1/feed.json``, its signature
+  and payload are checked with the keys that ``libs/vss_update/src/
+  trusted_keys_release.cpp`` lists, by the code of ``tools/update_feed.py``.
+  A copy that does not verify, or a copy when the build trusts no feed key,
+  is a problem.  No copy is not.
 
 Every problem is one line, ``FILE: RULE-ID: message``, with FILE relative to
 the site directory.  The tool uses only the Python standard library and makes
@@ -22,7 +27,7 @@ no network request unless ``--external`` is given.
 Usage
 -----
     python3 tools/site_check.py [DIR] [--config website/site.json]
-                                [--tokens PATH] [--external]
+                                [--tokens PATH] [--feed-keys PATH] [--external]
 
 Exit status: 0 when every check passes, 1 when there are problems, 2 when the
 directory is missing or holds no page.
@@ -48,10 +53,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
+import update_feed
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_SITE_DIR = REPO_ROOT / "build" / "website"
 DEFAULT_CONFIG = REPO_ROOT / "website" / "site.json"
 DEFAULT_TOKENS = "apps/vss_gui/src/theme/resources/tokens.json"
+DEFAULT_FEED_KEYS = REPO_ROOT / "libs" / "vss_update" / "src" / "trusted_keys_release.cpp"
+FEED_FILE = "updates/v1/feed.json"
 FETCH_TIMEOUT = 15.0
 SITE_CSS = "css/site.css"
 
@@ -1064,6 +1073,28 @@ class Report:
     external: int
 
 
+def check_feed(root: Path, files: set[str], keys_path: Path) -> list[Problem]:
+    """The copy of the update feed, when the site has one, must be a feed that
+    Studio would accept, signed by a key that this build trusts."""
+    if FEED_FILE not in files:
+        return []
+    try:
+        update_feed.verify_with_keys_file(
+            (root / FEED_FILE).read_bytes(), FEED_FILE, str(keys_path)
+        )
+    except update_feed.NoKeys:
+        return [(
+            FEED_FILE, "feed",
+            "the site has an update feed, but the build trusts no update feed key, "
+            "so no Studio would accept it",
+        )]
+    except update_feed.Refusal as refusal:
+        return [(FEED_FILE, "feed", refusal.message)]
+    except OSError as error:
+        return [(FEED_FILE, "feed", f"cannot read the file: {error}")]
+    return []
+
+
 def check_titles(pages: dict[str, Page]) -> list[Problem]:
     """Page titles must be unique."""
     by_title: dict[str, list[str]] = {}
@@ -1116,8 +1147,11 @@ def check_site(
     tokens_path: Path | None = None,
     external: bool = False,
     fetch: Fetch | None = None,
+    feed_keys: Path | None = None,
 ) -> Report:
-    """Run every check on the built site in ``root``."""
+    """Run every check on the built site in ``root``.  ``feed_keys`` is the C++
+    file of the keys Studio trusts for the update feed (the default is the one
+    in this repository)."""
     files = {
         path.relative_to(root).as_posix() for path in root.rglob("*") if path.is_file()
     }
@@ -1153,6 +1187,7 @@ def check_site(
     problems.extend(check_orphans(pages, targets))
     problems.extend(check_css(css_files, files))
     problems.extend(check_drafts(pages, [str(n) for n in config.get("draft_pages", [])]))
+    problems.extend(check_feed(root, files, feed_keys or DEFAULT_FEED_KEYS))
     pairs = config.get("contrast_pairs", [])
     if pairs:
         tokens, error = load_tokens(tokens_path) if tokens_path else (None, "no tokens file")
@@ -1178,6 +1213,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="site configuration (default: website/site.json)")
     parser.add_argument("--tokens", type=Path, default=None,
                         help="design tokens JSON for the contrast checks")
+    parser.add_argument("--feed-keys", type=Path, default=None,
+                        help="the C++ file of the update feed keys "
+                        "(default: libs/vss_update/src/trusted_keys_release.cpp)")
     parser.add_argument("--external", action="store_true",
                         help="also fetch every https link (needs the network)")
     return parser
@@ -1210,7 +1248,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"site_check: {config_path} is not a JSON object", file=sys.stderr)
         return 2
     tokens = args.tokens or (REPO_ROOT / str(config.get("tokens", DEFAULT_TOKENS)))
-    report = check_site(root, config, tokens, args.external)
+    report = check_site(root, config, tokens, args.external, feed_keys=args.feed_keys)
     for problem in report.problems:
         print(format_problem(problem))
     if report.problems:

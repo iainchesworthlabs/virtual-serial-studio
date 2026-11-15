@@ -24,6 +24,7 @@
 #include <vss/core/error.hpp>
 
 #include <filesystem>
+#include <string>
 #include <vector>
 
 namespace vss::control
@@ -46,7 +47,14 @@ struct token_file_content
 /// hash of the wrong form, two records with one id, more than `max_tokens`
 /// records.  `errc::permission_denied` when the file is not private to this
 /// user.  Nothing is guessed and nothing is repaired: the caller fails closed.
-result<token_file_content> load_token_file(const std::filesystem::path& file);
+///
+/// An error code says only that a document is refused.  When `reason` is not
+/// null and the refusal is `errc::config_error`, it is set to a sentence for a
+/// person that names the file and, when it can be told, the token and what is
+/// wrong with it ("token file C:/x/tokens.json: token abc names the transport
+/// local more than once").  It holds no secret: the file holds none.
+result<token_file_content> load_token_file(const std::filesystem::path& file,
+                                           std::string* reason = nullptr);
 
 /// Writes the file so that a reader sees the old document or the new one and
 /// never a part of either, and nobody but this user can read it.  Its

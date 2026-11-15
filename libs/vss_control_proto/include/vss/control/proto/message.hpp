@@ -110,6 +110,45 @@ struct ports_list_request
                            const ports_list_request&) = default;
 };
 
+/// Asks for one port, by its id (`p_3`).
+struct ports_get_request
+{
+    std::string port;
+
+    friend bool operator==(const ports_get_request&,
+                           const ports_get_request&) = default;
+};
+
+/// Asks for the links alone.
+struct links_list_request
+{
+    friend bool operator==(const links_list_request&,
+                           const links_list_request&) = default;
+};
+
+/// Asks for one link, by its id (`l_2`).
+struct links_get_request
+{
+    std::string link;
+
+    friend bool operator==(const links_get_request&,
+                           const links_get_request&) = default;
+};
+
+/// Asks the gateway whether it answers.  It asks the agent nothing.
+struct ping_request
+{
+    friend bool operator==(const ping_request&, const ping_request&) = default;
+};
+
+/// Asks the gateway to end this session once it has answered.  Other
+/// sessions and the ports are not touched.
+struct session_close_request
+{
+    friend bool operator==(const session_close_request&,
+                           const session_close_request&) = default;
+};
+
 /// Asks the gateway to close every session and exit.  The ports are the
 /// agent's and stay.
 struct endpoint_stop_request
@@ -244,6 +283,25 @@ struct links_connect_request
                            const links_connect_request&) = default;
 };
 
+/// Takes away the link with this id (`l_2`).  The ports stay.
+struct links_disconnect_request
+{
+    std::string link;
+
+    friend bool operator==(const links_disconnect_request&,
+                           const links_disconnect_request&) = default;
+};
+
+/// Gives the port with this id (`p_3`) a new name.
+struct ports_rename_request
+{
+    std::string port;
+    std::string name;
+
+    friend bool operator==(const ports_rename_request&,
+                           const ports_rename_request&) = default;
+};
+
 /// Writes bytes to a port.  The bytes are the frame's blob; it is the one
 /// request that has one.
 struct ports_send_request
@@ -334,7 +392,9 @@ using request_body = std::variant<
     sessions_list_request, sessions_kick_request, ports_create_request,
     ports_remove_request, links_connect_request, ports_send_request,
     expect_bytes_request, runs_begin_request, runs_end_request,
-    runs_record_request, report_junit_request>;
+    runs_record_request, report_junit_request, ports_get_request,
+    links_list_request, links_get_request, ping_request, session_close_request,
+    links_disconnect_request, ports_rename_request>;
 
 struct request
 {
@@ -440,6 +500,34 @@ struct ports_reply
     std::vector<link_entry> links;
 
     friend bool operator==(const ports_reply&, const ports_reply&) = default;
+};
+
+/// One port, as `ports.get` tells it: the entry `ports.list` has for it.
+struct port_reply
+{
+    /// As `ports_reply::revision`.
+    std::uint64_t revision = 0;
+    port_entry port;
+
+    friend bool operator==(const port_reply&, const port_reply&) = default;
+};
+
+/// The links, as `links.list` tells them: the entries `ports.list` has.
+struct links_reply
+{
+    std::uint64_t revision = 0;
+    std::vector<link_entry> links;
+
+    friend bool operator==(const links_reply&, const links_reply&) = default;
+};
+
+/// One link, as `links.get` tells it.
+struct link_reply
+{
+    std::uint64_t revision = 0;
+    link_entry link;
+
+    friend bool operator==(const link_reply&, const link_reply&) = default;
 };
 
 /// What the gateway keeps about a token.  Times are milliseconds since
@@ -586,7 +674,8 @@ using reply_body =
     std::variant<done_reply, hello_reply, status_reply, ports_reply,
                  token_created_reply, tokens_reply, subscribed_reply,
                  sessions_reply, created_reply, matched_reply, run_reply,
-                 report_reply, error_reply>;
+                 report_reply, port_reply, links_reply, link_reply,
+                 error_reply>;
 
 struct reply
 {
@@ -683,5 +772,8 @@ std::string link_id_text(std::uint64_t link);
 /// the form `port_id_text` writes is taken: no sign, no space, no leading
 /// zero, and a number that fits.
 std::optional<std::uint64_t> parse_port_id(std::string_view text) noexcept;
+
+/// The same for the public id of a link (`l_2`).
+std::optional<std::uint64_t> parse_link_id(std::string_view text) noexcept;
 
 } // namespace vss::control

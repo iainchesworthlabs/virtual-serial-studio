@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <optional>
@@ -28,6 +29,13 @@ bool random_bytes(std::span<std::uint8_t> out);
 /// file is never touched.
 bool write_private_file(const std::filesystem::path& path,
                         std::string_view text);
+
+/// Reads a file straight into `out`, with no stream and so no buffer of the
+/// library's own that keeps a copy. It is for a file that holds a private key.
+/// Returns the number of bytes read, which is `out.size()` when the file is
+/// at least that long, or nothing when the file cannot be opened or read.
+std::optional<std::size_t> read_file_into(const std::filesystem::path& path,
+                                          std::span<char> out);
 
 std::optional<std::string> read_variable(const std::string& name);
 

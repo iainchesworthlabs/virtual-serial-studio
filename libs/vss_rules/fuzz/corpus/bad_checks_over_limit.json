@@ -1,0 +1,36 @@
+{
+ "attach": {
+  "port": "meter-17",
+  "role": "peer"
+ },
+ "rules": [
+  {
+   "name": "r",
+   "when": {
+    "bytes": "01"
+   },
+   "do": [
+    {
+     "reply": [
+      "01",
+      {
+       "crc16_modbus": "reply"
+      },
+      {
+       "crc16_modbus": "reply"
+      },
+      {
+       "crc16_modbus": "reply"
+      },
+      {
+       "crc16_modbus": "reply"
+      },
+      {
+       "crc16_modbus": "reply"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

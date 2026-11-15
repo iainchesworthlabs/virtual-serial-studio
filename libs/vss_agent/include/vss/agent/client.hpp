@@ -62,6 +62,13 @@ public:
     result<void> remove_port(endpoint_id endpoint);
     result<link_id> connect_ports(endpoint_id first, endpoint_id second,
                                   bool one_way);
+    /// Takes away a link; the ports stay.  `errc::not_found` for an id no
+    /// link has.
+    result<void> disconnect(link_id link);
+    /// Gives a port a new name.  The engine's errors: `errc::invalid_argument`
+    /// for an empty name, `errc::already_exists` for a name another port has
+    /// and `errc::not_found` for an unknown port.
+    result<void> rename_port(endpoint_id endpoint, const std::string& name);
     result<void> write(endpoint_id endpoint, bytes_view data);
     /// Starts the event stream.  With `data` the batches carry the bytes of
     /// the traffic, which makes this connection a read-only tap.

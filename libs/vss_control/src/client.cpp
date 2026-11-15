@@ -359,6 +359,39 @@ result<ports_reply> client::list_ports()
     return std::move(*listed);
 }
 
+result<port_entry> client::get_port(const std::string& port)
+{
+    auto answer = impl_->call(ports_get_request{port});
+    if (!answer)
+        return answer.error();
+    auto* found = std::get_if<port_reply>(&*answer);
+    if (found == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(found->port);
+}
+
+result<std::vector<link_entry>> client::list_links()
+{
+    auto answer = impl_->call(links_list_request{});
+    if (!answer)
+        return answer.error();
+    auto* listed = std::get_if<links_reply>(&*answer);
+    if (listed == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(listed->links);
+}
+
+result<link_entry> client::get_link(const std::string& link)
+{
+    auto answer = impl_->call(links_get_request{link});
+    if (!answer)
+        return answer.error();
+    auto* found = std::get_if<link_reply>(&*answer);
+    if (found == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(found->link);
+}
+
 namespace
 {
 
@@ -389,9 +422,30 @@ result<std::string> client::create_port(const std::string& name,
     return made(impl_->call(ports_create_request{name, kind}));
 }
 
+result<void> client::ping()
+{
+    return carried_out(impl_->call(ping_request{}));
+}
+
+result<void> client::close_session()
+{
+    return carried_out(impl_->call(session_close_request{}));
+}
+
 result<void> client::remove_port(const std::string& port)
 {
     return carried_out(impl_->call(ports_remove_request{port}));
+}
+
+result<void> client::rename_port(const std::string& port,
+                                 const std::string& name)
+{
+    return carried_out(impl_->call(ports_rename_request{port, name}));
+}
+
+result<void> client::disconnect_link(const std::string& link)
+{
+    return carried_out(impl_->call(links_disconnect_request{link}));
 }
 
 result<std::string> client::connect_ports(const std::string& first,

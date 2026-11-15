@@ -11,10 +11,12 @@
 namespace vss::control::platform
 {
 
-void make_listener_exclusive(std::uintptr_t native_socket) noexcept
+void claim_listening_port(std::uintptr_t native_socket) noexcept
 {
     // Without this another program of any user could bind the same port
-    // with SO_REUSEADDR and take connections meant for the gateway.
+    // with SO_REUSEADDR and take connections meant for the gateway.  The
+    // gateway sets SO_REUSEADDR itself on no system here, because on Windows
+    // it is what lets that happen.
     const BOOL exclusive = TRUE;
     static_cast<void>(::setsockopt(static_cast<SOCKET>(native_socket),
                                    SOL_SOCKET, SO_EXCLUSIVEADDRUSE,

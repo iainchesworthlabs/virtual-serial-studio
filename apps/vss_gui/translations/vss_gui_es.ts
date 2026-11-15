@@ -3303,6 +3303,11 @@ Redes: %5</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>No se pudo cambiar la configuración. Studio informó: %1. No se pudo restaurar la configuración anterior.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio no pudo leer qué números COM reserva Windows, así que elige uno libre al crear el puerto y lo muestra cuando el puerto está listo.</translation>
         </message>
@@ -4225,6 +4230,16 @@ Redes: %5</translation>
             <location filename="../src/panes/monitor_panel.cpp" line="622" />
             <source>JSON Lines (*.jsonl)</source>
             <translation>Líneas JSON (*.jsonl)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>Columnas de la tabla de tráfico</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>La columna %1 mide %2 px de ancho.</translation>
         </message>
     </context>
     <context>
@@ -9419,6 +9434,17 @@ Redes: %5</translation>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Support bundle</source>
             <translation>Paquete de soporte</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>No se pudo restaurar todo lo que estaba en ejecución, por lo que la configuración se ha marcado como modificada.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>La configuración necesita un dispositivo o punto final de red que no está disponible en este PC. Compruebe el dispositivo e inténtelo de nuevo.</translation>
         </message>
     </context>
     <context>
@@ -18084,6 +18110,11 @@ Redes: %5</translation>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>No se pudo cambiar la configuración. Studio informó: %1. Lo que había antes se restauró donde Studio pudo.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>No se pudo cambiar la configuración. Studio informó: %1. No se pudo restaurar la configuración anterior.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

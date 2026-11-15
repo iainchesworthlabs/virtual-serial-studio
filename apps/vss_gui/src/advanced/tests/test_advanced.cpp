@@ -908,6 +908,34 @@ TEST_CASE("json editor: apply only when valid and dirty")
     REQUIRE(editor.validation().valid());
 }
 
+TEST_CASE("json editor: apply replaces the running setup")
+{
+    using namespace vss::gui;
+    FakeStudioBackend backend;
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("old-a"),
+                                     vss::virtual_port_kind::loopback, true)
+                .has_value());
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("old-b"),
+                                     vss::virtual_port_kind::loopback, true)
+                .has_value());
+    TopologyJsonEditor editor(backend);
+    editor.show();
+    QApplication::processEvents();
+
+    editor.set_text(valid_document());
+    editor.revalidate();
+    REQUIRE(editor.apply());
+    REQUIRE(vss_test::wait_until([&editor] { return !editor.busy(); }));
+
+    // The ports that ran are not kept beside the ones of the document.
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    for (const auto& port : backend.ports())
+        REQUIRE(port.name != QStringLiteral("old-a"));
+}
+
 TEST_CASE("event log: state changes and local events, not traffic")
 {
     using namespace vss::gui;

@@ -294,6 +294,17 @@ struct request_writer
     }
     void operator()(const status_request&) const {}
     void operator()(const ports_list_request&) const {}
+    void operator()(const ports_get_request& body) const
+    {
+        header["port"] = clean_text(body.port);
+    }
+    void operator()(const links_list_request&) const {}
+    void operator()(const links_get_request& body) const
+    {
+        header["link"] = clean_text(body.link);
+    }
+    void operator()(const ping_request&) const {}
+    void operator()(const session_close_request&) const {}
     void operator()(const endpoint_stop_request&) const {}
     void write_stream(const stream_options& options) const
     {
@@ -329,6 +340,15 @@ struct request_writer
         header["first"] = clean_text(body.first);
         header["second"] = clean_text(body.second);
         header["one_way"] = body.one_way;
+    }
+    void operator()(const links_disconnect_request& body) const
+    {
+        header["link"] = clean_text(body.link);
+    }
+    void operator()(const ports_rename_request& body) const
+    {
+        header["port"] = clean_text(body.port);
+        header["name"] = clean_text(body.name);
     }
     void operator()(const ports_send_request& body) const
     {
@@ -424,6 +444,26 @@ result<request_body> read_request_body(operation wanted,
         return request_body{status_request{}};
     case operation::ports_list:
         return request_body{ports_list_request{}};
+    case operation::ports_get:
+    {
+        ports_get_request body;
+        if (!read_text(header, "port", body.port))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::links_list:
+        return request_body{links_list_request{}};
+    case operation::links_get:
+    {
+        links_get_request body;
+        if (!read_text(header, "link", body.link))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::ping:
+        return request_body{ping_request{}};
+    case operation::session_close:
+        return request_body{session_close_request{}};
     case operation::endpoint_stop:
         return request_body{endpoint_stop_request{}};
     case operation::events_subscribe:
@@ -476,6 +516,21 @@ result<request_body> read_request_body(operation wanted,
             return malformed();
         if (header.contains("one_way") &&
             !read_bool(header, "one_way", body.one_way))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::links_disconnect:
+    {
+        links_disconnect_request body;
+        if (!read_text(header, "link", body.link))
+            return malformed();
+        return request_body{std::move(body)};
+    }
+    case operation::ports_rename:
+    {
+        ports_rename_request body;
+        if (!read_text(header, "port", body.port) ||
+            !read_text(header, "name", body.name))
             return malformed();
         return request_body{std::move(body)};
     }
@@ -788,6 +843,34 @@ struct reply_writer
         header["links"] = std::move(links);
     }
 
+    void operator()(const port_reply& body) const
+    {
+        header["reply"] = "port";
+        header["revision"] = body.revision;
+        header["port"] = write_port(body.port);
+    }
+
+    void operator()(const links_reply& body) const
+    {
+        header["reply"] = "links";
+        header["revision"] = body.revision;
+        json::array links;
+        for (const link_entry& link : body.links)
+        {
+            if (links.size() == max_list_size)
+                break;
+            links.emplace_back(write_link(link));
+        }
+        header["links"] = std::move(links);
+    }
+
+    void operator()(const link_reply& body) const
+    {
+        header["reply"] = "link";
+        header["revision"] = body.revision;
+        header["link"] = write_link(body.link);
+    }
+
     void operator()(const error_reply& body) const
     {
         header["reply"] = "error";
@@ -858,6 +941,43 @@ result<reply_body> read_ports_reply(const json::object& header)
             return malformed();
         body.links.push_back(std::move(link));
     }
+    return reply_body{std::move(body)};
+}
+
+result<reply_body> read_port_reply(const json::object& header)
+{
+    port_reply body;
+    const json::value* const port = header.if_contains("port");
+    if (port == nullptr || !read_port(*port, body.port) ||
+        !read_u64(header, "revision", body.revision))
+        return malformed();
+    return reply_body{std::move(body)};
+}
+
+result<reply_body> read_links_reply(const json::object& header)
+{
+    links_reply body;
+    const json::array* const links = read_array(header, "links");
+    if (links == nullptr || !read_u64(header, "revision", body.revision))
+        return malformed();
+    body.links.reserve(links->size());
+    for (const json::value& item : *links)
+    {
+        link_entry link;
+        if (!read_link(item, link))
+            return malformed();
+        body.links.push_back(std::move(link));
+    }
+    return reply_body{std::move(body)};
+}
+
+result<reply_body> read_link_reply(const json::object& header)
+{
+    link_reply body;
+    const json::value* const link = header.if_contains("link");
+    if (link == nullptr || !read_link(*link, body.link) ||
+        !read_u64(header, "revision", body.revision))
+        return malformed();
     return reply_body{std::move(body)};
 }
 
@@ -1030,6 +1150,12 @@ result<reply_body> read_reply_body(const json::object& header,
         return read_status_reply(header);
     if (kind == "ports")
         return read_ports_reply(header);
+    if (kind == "port")
+        return read_port_reply(header);
+    if (kind == "links")
+        return read_links_reply(header);
+    if (kind == "link")
+        return read_link_reply(header);
     if (kind == "token")
         return read_token_created_reply(header);
     if (kind == "tokens")
@@ -1101,6 +1227,26 @@ operation operation_of(const request_body& body)
         {
             return operation::ports_list;
         }
+        operation operator()(const ports_get_request&) const noexcept
+        {
+            return operation::ports_get;
+        }
+        operation operator()(const links_list_request&) const noexcept
+        {
+            return operation::links_list;
+        }
+        operation operator()(const links_get_request&) const noexcept
+        {
+            return operation::links_get;
+        }
+        operation operator()(const ping_request&) const noexcept
+        {
+            return operation::ping;
+        }
+        operation operator()(const session_close_request&) const noexcept
+        {
+            return operation::session_close;
+        }
         operation operator()(const endpoint_stop_request&) const noexcept
         {
             return operation::endpoint_stop;
@@ -1152,6 +1298,14 @@ operation operation_of(const request_body& body)
         operation operator()(const links_connect_request&) const noexcept
         {
             return operation::links_connect;
+        }
+        operation operator()(const links_disconnect_request&) const noexcept
+        {
+            return operation::links_disconnect;
+        }
+        operation operator()(const ports_rename_request&) const noexcept
+        {
+            return operation::ports_rename;
         }
         operation operator()(const ports_send_request&) const noexcept
         {
@@ -1326,10 +1480,17 @@ std::string link_id_text(std::uint64_t link)
     return "l_" + std::to_string(link);
 }
 
-std::optional<std::uint64_t> parse_port_id(std::string_view text) noexcept
+namespace
 {
-    // "p_" and one to twenty digits: the longest 64 bit number has twenty.
-    if (text.size() < 3 || text.size() > 22 || text.substr(0, 2) != "p_")
+
+/// The number in an id of the form `<letter>_<digits>`.
+std::optional<std::uint64_t> parse_public_id(std::string_view text,
+                                             char letter) noexcept
+{
+    // The letter, "_" and one to twenty digits: the longest 64 bit number has
+    // twenty.
+    if (text.size() < 3 || text.size() > 22 || text[0] != letter ||
+        text[1] != '_')
         return std::nullopt;
     const std::string_view digits = text.substr(2);
     if (digits.size() > 1 && digits.front() == '0')
@@ -1345,6 +1506,18 @@ std::optional<std::uint64_t> parse_port_id(std::string_view text) noexcept
         value = value * 10 + next;
     }
     return value;
+}
+
+} // namespace
+
+std::optional<std::uint64_t> parse_port_id(std::string_view text) noexcept
+{
+    return parse_public_id(text, 'p');
+}
+
+std::optional<std::uint64_t> parse_link_id(std::string_view text) noexcept
+{
+    return parse_public_id(text, 'l');
 }
 
 bool is_edition_name(std::string_view text) noexcept

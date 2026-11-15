@@ -4,7 +4,8 @@ name: Release
 # A tag v* pushed from develop builds the packages for each platform, signs the
 # Windows ones as the SIGN_WINDOWS repository variable says, and hands them to the
 # shared publish workflow, which checks the tag, signs, attests and publishes
-# (docs/releasing.md). Without a tag the same packages are built and kept as workflow
+# (docs/releasing.md); a last job signs the update feed when the owner has set up the
+# feed keys. Without a tag the same packages are built and kept as workflow
 # artifacts and nothing is published: by hand (`gh workflow run release.yml`), every
 # Monday so the install rules cannot rot unseen, and on a pull request that changes
 # this workflow.
@@ -300,7 +301,9 @@ jobs:
           fi
 
       # The Linux installers come from the same build tree: CPack packs the runtime install component (docs/releasing.md).
-      # The label after the hyphen in the tag becomes ~rc.1 in the deb version and 0.rc.1 in the rpm release.
+      # The label after the hyphen in the tag becomes ~rc.1 in the deb version and 0.rc.1 in the rpm release. The
+      # deb file name has a "." where the version has the "~", because GitHub would change it
+      # (cmake/packaging/VssPackage-linux.cmake).
       - name: Build the deb and rpm
         if: runner.os == 'Linux'
         env:
@@ -386,8 +389,119 @@ jobs:
       id-token: write
       attestations: write
     uses: iainchesworthlabs/icl-common-infra/.github/workflows/release-publish.yml@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
+    with:
+      # The SBOM is made here, from third_party.json and the pinned versions, so it lists what the packages hold
+      # (the shared workflow would scan the source tree). The pre-release script writes it before SHA512SUMS, so the
+      # sums, the signatures and the attestations cover it. The verify script checks the names and the sums of the
+      # files before the release is created (tools/ci/release_verify.py).
+      generate-sbom: false
+      pre-release-script: tools/ci/release_prepare.sh
+      spdx-sbom: sbom.spdx.json
+      verify-script: tools/ci/release_verify.sh
     secrets:
       REPO_GPG_PRIVATE_KEY: ${{ secrets.REPO_GPG_PRIVATE_KEY }}
       REPO_GPG_PASSPHRASE: ${{ secrets.REPO_GPG_PASSPHRASE }}
       RELEASE_BOT_APP_ID: ${{ secrets.RELEASE_BOT_APP_ID }}
       RELEASE_BOT_PRIVATE_KEY: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+
+  # The update feed (docs/updates.md, section 10): a small file that says which release is the newest, signed with the
+  # owner's feed key and attached to the release as update-feed.json. The website build copies it to updates/v1/feed.json.
+  # It signs only when this build trusts a feed key and the release environment holds the secret; otherwise it says so in
+  # the summary and succeeds. Like publish it runs on a tag only, and only once publish has succeeded, so a pull request
+  # (a branch ref) never starts it and never reaches the secret, which belongs to the release environment.
+  feed:
+    name: Publish the update feed
+    needs: publish
+    if: ${{ !cancelled() && github.ref_type == 'tag' && needs.publish.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      # The secret is only tested for being empty, in this step's environment, and never printed.
+      - name: Check that a feed can be signed
+        id: keys
+        env:
+          UPDATE_FEED_PRIVATE_KEY: ${{ secrets.UPDATE_FEED_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          ids="$(python3 tools/update_feed.py keys --keys-from libs/vss_update/src/trusted_keys_release.cpp)"
+          reason=""
+          if [ -z "$ids" ]; then
+            reason="this build of Studio trusts no update feed key"
+          elif [ -z "$UPDATE_FEED_PRIVATE_KEY" ]; then
+            reason="the secret UPDATE_FEED_PRIVATE_KEY is empty or missing in the release environment"
+          fi
+          if [ -n "$reason" ]; then
+            echo "No update feed was signed: $reason." >> "$GITHUB_STEP_SUMMARY"
+            echo "sign=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # The first key in the file is the one that signs; the id comes from the repository, not from a secret.
+          read -r key_id <<< "$ids"
+          echo "sign=true" >> "$GITHUB_OUTPUT"
+          echo "key_id=$key_id" >> "$GITHUB_OUTPUT"
+
+      - name: Write the payload from the releases
+        if: steps.keys.outputs.sign == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          feed="$RUNNER_TEMP/feed"
+          serial="$(python3 tools/update_feed.py collect --repo "$REPO" --out "$feed")"
+          args=()
+          if [ -d "$feed/stable" ]; then args+=(--stable "$feed/stable"); fi
+          if [ -d "$feed/preview" ]; then args+=(--preview "$feed/preview"); fi
+          python3 tools/update_feed.py payload --serial "$serial" --issued-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            "${args[@]}" --out "$feed/feed.payload.json"
+
+      # The key file is made with no access for anyone else and is removed by the last step, whatever happens.
+      - name: Sign the feed
+        if: steps.keys.outputs.sign == 'true'
+        env:
+          UPDATE_FEED_PRIVATE_KEY: ${{ secrets.UPDATE_FEED_PRIVATE_KEY }}
+          KEY_ID: ${{ steps.keys.outputs.key_id }}
+        run: |
+          set -euo pipefail
+          feed="$RUNNER_TEMP/feed"
+          umask 077
+          printf '%s\n' "$UPDATE_FEED_PRIVATE_KEY" > "$RUNNER_TEMP/update-feed.key"
+          python3 tools/update_feed.py sign --key "$RUNNER_TEMP/update-feed.key" --key-id "$KEY_ID" \
+            --payload "$feed/feed.payload.json" --out "$feed/update-feed.json"
+
+      # With the public keys that Studio is built with, as the program will read the feed. A secret that is not the
+      # private half of a trusted key stops the run here, before anything is attached to the release.
+      - name: Verify the feed with the keys Studio trusts
+        if: steps.keys.outputs.sign == 'true'
+        run: |
+          set -euo pipefail
+          python3 tools/update_feed.py verify --keys-from libs/vss_update/src/trusted_keys_release.cpp \
+            "$RUNNER_TEMP/feed/update-feed.json"
+
+      - name: Attach the feed to the release
+        if: steps.keys.outputs.sign == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" "$RUNNER_TEMP/feed/update-feed.json" --clobber
+          echo "The update feed was signed and attached to $TAG as update-feed.json. Run the Docs workflow on main so that the website serves it." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/update-feed.key"

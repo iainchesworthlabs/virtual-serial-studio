@@ -8,8 +8,14 @@
 
 #include "test_framework.hpp"
 
+#include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
+#include <iterator>
+#include <string>
+#include <vector>
 
 using namespace vss;
 using namespace vss::config;
@@ -182,31 +188,31 @@ TEST_CASE("document: every malformed field is reported")
     };
 
     const broken cases[] = {
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":42}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":42}]})",
          "serial is not an object"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"baud_rate":"fast"}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"baud_rate":"fast"}}]})",
          "baud rate is not a number"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"baud_rate":-1}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"baud_rate":-1}}]})",
          "baud rate is negative"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"data_bits":"8"}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"data_bits":"8"}}]})",
          "data bits is not a number"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"parity":1}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"parity":1}}]})",
          "parity is not a string"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"stop_bits":1}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"stop_bits":1}}]})",
          "stop bits is not a string"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"flow_control":1}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"flow_control":1}}]})",
          "flow control is not a string"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"read_timeout_ms":-5}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"read_timeout_ms":-5}}]})",
          "read timeout is negative"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"write_timeout_ms":"x"}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"write_timeout_ms":"x"}}]})",
          "write timeout is not a number"},
-        {R"({"ports":[{"name":"a","kind":"virtual","serial":{"exclusive":1}}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"exclusive":1}}]})",
          "exclusive is not a bool"},
-        {R"({"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":"a","targets":["a"]}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":"a","targets":["a"]}]})",
          "sources is not an array"},
-        {R"({"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":"a"}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":"a"}]})",
          "targets is not an array"},
-        {R"({"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":[1],"targets":["a"]}]})",
+        {R"({"version":1,"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":[1],"targets":["a"]}]})",
          "source is not a string"},
     };
 
@@ -229,30 +235,33 @@ TEST_CASE("document: parsing rejects malformed JSON")
     REQUIRE_EQ(from_json("[]"), make_error_code(errc::config_error));
     REQUIRE_EQ(from_json("\"text\""), make_error_code(errc::config_error));
 
-    REQUIRE_EQ(from_json(R"({"name":"x","ports":42})").error(),
+    REQUIRE_EQ(from_json(R"({"version":1,"name":"x","ports":42})").error(),
                make_error_code(errc::config_error));
-    REQUIRE_EQ(from_json(R"({"name":"x","links":42})").error(),
+    REQUIRE_EQ(from_json(R"({"version":1,"name":"x","links":42})").error(),
                make_error_code(errc::config_error));
-    REQUIRE_EQ(from_json(R"({"name":"x","ports":[42]})").error(),
+    REQUIRE_EQ(from_json(R"({"version":1,"name":"x","ports":[42]})").error(),
                make_error_code(errc::config_error));
-    REQUIRE_EQ(from_json(
-                   R"({"ports":[{"name":"a","kind":"physical","uri":"serial://C","serial":{"baud_rate":"fast"}}]})")
-                   .error(),
-               make_error_code(errc::config_error));
-    REQUIRE_EQ(from_json(
-                   R"({"ports":[{"name":"a","kind":"virtual","serial":{"parity":"triple"}}]})")
-                   .error(),
-               make_error_code(errc::config_error));
-    REQUIRE_EQ(from_json(
-                   R"({"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":["a"],"policy":"anarchy"}]})")
-                   .error(),
-               make_error_code(errc::config_error));
+    REQUIRE_EQ(
+        from_json(
+            R"({"version":1,"ports":[{"name":"a","kind":"physical","uri":"serial://C","serial":{"baud_rate":"fast"}}]})")
+            .error(),
+        make_error_code(errc::config_error));
+    REQUIRE_EQ(
+        from_json(
+            R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":{"parity":"triple"}}]})")
+            .error(),
+        make_error_code(errc::config_error));
+    REQUIRE_EQ(
+        from_json(
+            R"({"version":1,"ports":[{"name":"a","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":["a"],"policy":"anarchy"}]})")
+            .error(),
+        make_error_code(errc::config_error));
 }
 
 TEST_CASE("document: defaults are applied when fields are missing")
 {
-    const auto parsed = from_json(
-        R"({"ports":[{"name":"v","kind":"virtual"}]})");
+    const auto parsed =
+        from_json(R"({"version":1,"ports":[{"name":"v","kind":"virtual"}]})");
     REQUIRE(parsed);
     REQUIRE_EQ(parsed->name, std::string("untitled"));
     REQUIRE_EQ(parsed->ports.size(), std::size_t{1});
@@ -262,18 +271,185 @@ TEST_CASE("document: defaults are applied when fields are missing")
     REQUIRE(parsed->links.empty());
 }
 
-TEST_CASE("document: optional fields tolerate null and foreign types")
+TEST_CASE("document: a null serial reads as the defaults")
 {
     const auto null_serial = from_json(
-        R"({"ports":[{"name":"a","kind":"virtual","serial":null}]})");
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":null}]})");
     REQUIRE(null_serial);
     REQUIRE_EQ(null_serial->ports[0].serial.baud_rate, 115200u);
+}
 
-    const auto loose = from_json(
-        R"({"name":42,"ports":[{"name":"a","kind":"virtual","capture":"yes"}]})");
-    REQUIRE(loose);
-    REQUIRE_EQ(loose->name, std::string("untitled"));
-    REQUIRE(loose->ports[0].capture);
+namespace
+{
+
+/// Reads `text` and requires that it is refused as `config_error` with a
+/// problem that holds `named`.
+void expect_refused_naming(const std::string& text, const std::string& named)
+{
+    std::string problem;
+    const auto parsed = from_json(text, problem);
+    REQUIRE(!parsed);
+    REQUIRE_EQ(parsed.error(), make_error_code(errc::config_error));
+    if (problem.find(named) == std::string::npos)
+        std::cerr << "problem \"" << problem << "\" does not name \"" << named
+                  << "\" for " << text << '\n';
+    REQUIRE(problem.find(named) != std::string::npos);
+}
+
+} // namespace
+
+TEST_CASE("document: a member of the wrong type is refused and named")
+{
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"gps","kind":["tcp"],"uri":5}]})",
+        "ports[0].kind");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"gps","kind":"tcp","uri":5}]})",
+        "ports[0].uri");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual","capture":"false"}]})",
+        "ports[0].capture");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+        R"({"name":"b","kind":"virtual","virtual_kind":3}]})",
+        "ports[1].virtual_kind");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"m","kind":"mock","mock_target":[]}]})",
+        "ports[0].mock_target");
+    expect_refused_naming(R"({"version":1,"name":42})", "name");
+    expect_refused_naming(R"({"version":1,"description":false})",
+                          "description");
+    expect_refused_naming(R"({"version":1,"ports":{}})", "ports");
+    expect_refused_naming(R"({"version":1,"links":"none"})", "links");
+    expect_refused_naming(R"({"version":1,"ports":[7]})", "ports[0]");
+
+    const std::string two_ports =
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+        R"({"name":"b","kind":"virtual"}],"links":[)";
+    expect_refused_naming(
+        two_ports + R"({"mode":"duplex","sources":["a"],"targets":["b"],)" +
+            R"("emulate_modem_lines":0}]})",
+        "links[0].emulate_modem_lines");
+    expect_refused_naming(two_ports +
+                              R"({"mode":7,"sources":["a"],"targets":["b"]}]})",
+                          "links[0].mode");
+    expect_refused_naming(
+        two_ports +
+            R"({"mode":"duplex","sources":["a"],"targets":["b"],"policy":1}]})",
+        "links[0].policy");
+    expect_refused_naming(
+        two_ports + R"({"mode":"duplex","sources":["a"],"targets":"b"}]})",
+        "links[0].targets");
+    expect_refused_naming(
+        two_ports +
+            R"({"mode":"duplex","sources":["a"],"targets":["b"],"delay_ms":"5"}]})",
+        "links[0].delay_ms");
+    expect_refused_naming(
+        two_ports +
+            R"({"mode":"duplex","sources":["a"],"targets":["b"],"half_duplex":3}]})",
+        "links[0].half_duplex");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":)"
+        R"({"parity":1}}]})",
+        "ports[0].serial.parity");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":)"
+        R"({"data_bits":4294967304}}]})",
+        "ports[0].serial.data_bits");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":)"
+        R"({"exclusive":"yes"}}]})",
+        "ports[0].serial.exclusive");
+}
+
+TEST_CASE("document: a problem is given for a value the checks refuse")
+{
+    // The settings read, but the line is not one that exists.
+    for (const char* serial : {R"({"baud_rate":0})", R"({"data_bits":255})"})
+    {
+        std::string problem;
+        const auto parsed = from_json(
+            std::string(R"({"version":1,"ports":[{"name":"a","kind":"virtual",)"
+                        R"("serial":)") +
+                serial + "}]}",
+            problem);
+        REQUIRE(!parsed);
+        REQUIRE(problem.find("ports[0].serial") != std::string::npos);
+    }
+
+    // The range in the sentence is the one the checks use.
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+        R"({"name":"b","kind":"virtual"}],"links":[{"mode":"bus",)"
+        R"("members":["a","b"],"half_duplex":{"turnaround_ms":-1}}]})",
+        "from 0 to 60000");
+}
+
+TEST_CASE("document: a member a setup does not have is refused and named")
+{
+    expect_refused_naming(
+        R"({"version":1,"port":[{"name":"a","kind":"virtual"}]})", "port");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual","capure":true}]})",
+        "ports[0].capure");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual","serial":)"
+        R"({"baud":9600}}]})",
+        "ports[0].serial.baud");
+
+    const std::string two_ports =
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+        R"({"name":"b","kind":"virtual"}],"links":[)";
+    expect_refused_naming(
+        two_ports + R"({"mode":"duplex","sources":["a"],"targets":["b"],)" +
+            R"("delay":50}]})",
+        "links[0].delay");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+        R"({"name":"b","kind":"virtual"},{"name":"c","kind":"virtual"}],)"
+        R"("links":[{"mode":"bus","members":["a","b","c"],)"
+        R"("half_duplex":{"bitrate":9600}}]})",
+        "links[0].half_duplex.bitrate");
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"mock","plugins":)"
+        R"([{"id":"com.example.x","kind":"fixture","type":"t","colour":"red"}]}]})",
+        "ports[0].plugins[0].colour");
+}
+
+TEST_CASE("document: version is required and must be 1")
+{
+    expect_refused_naming(R"({"name":"x"})", "version");
+    expect_refused_naming(R"({"version":2,"name":"x"})", "version");
+    expect_refused_naming(R"({"version":0,"name":"x"})", "version");
+    expect_refused_naming(R"({"version":"1","name":"x"})", "version");
+    expect_refused_naming(R"({"version":1.5,"name":"x"})", "version");
+    expect_refused_naming(R"({"version":null,"name":"x"})", "version");
+    expect_refused_naming(R"({"version":[1]})", "version");
+
+    REQUIRE(from_json(R"({"version":1})"));
+    REQUIRE(from_json(R"({"version":1,"name":"x"})"));
+}
+
+TEST_CASE("document: the plain overloads give the same answer as the ones "
+          "with a problem")
+{
+    std::string problem = "left over";
+    const auto good = from_json(R"({"version":1,"name":"x"})", problem);
+    REQUIRE(good);
+    REQUIRE(problem.empty());
+
+    const auto plain = from_json(R"({"version":1,"nme":"x"})");
+    REQUIRE(!plain);
+    REQUIRE_EQ(plain.error(), make_error_code(errc::config_error));
+
+    // A setup that reads but does not make sense says why too.
+    std::string invalid_problem;
+    const auto invalid =
+        from_json(R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+                  R"({"name":"a","kind":"virtual"}]})",
+                  invalid_problem);
+    REQUIRE(!invalid);
+    REQUIRE(!invalid_problem.empty());
 }
 
 TEST_CASE("document: every virtual port kind is accepted")
@@ -333,6 +509,241 @@ TEST_CASE("document: save and load a file")
             .string();
     REQUIRE_EQ(save_file(missing_directory, sample_document()).error(),
                make_error_code(errc::permission_denied));
+}
+
+namespace
+{
+
+/// A fresh folder for one test, removed at the end of it.
+struct scratch_folder
+{
+    scratch_folder() : path(fresh_path())
+    {
+        std::filesystem::create_directories(path);
+    }
+    ~scratch_folder()
+    {
+        std::error_code ignored;
+        std::filesystem::remove_all(path, ignored);
+    }
+    scratch_folder(const scratch_folder&) = delete;
+    scratch_folder& operator=(const scratch_folder&) = delete;
+
+    /// A name no other test, and no earlier run, has used.
+    static std::filesystem::path fresh_path()
+    {
+        static int counter = 0;
+        return std::filesystem::temp_directory_path() /
+               ("vss-document-save-" + std::to_string(++counter) + "-" +
+                std::to_string(std::chrono::steady_clock::now()
+                                   .time_since_epoch()
+                                   .count()));
+    }
+
+    std::filesystem::path path;
+};
+
+std::string read_all(const std::filesystem::path& path)
+{
+    std::ifstream stream(path, std::ios::binary);
+    return std::string(std::istreambuf_iterator<char>(stream),
+                       std::istreambuf_iterator<char>());
+}
+
+void write_all(const std::filesystem::path& path, const std::string& text)
+{
+    std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+    stream << text;
+}
+
+std::vector<std::string> names_in(const std::filesystem::path& folder)
+{
+    std::vector<std::string> names;
+    for (const auto& entry : std::filesystem::directory_iterator(folder))
+        names.push_back(entry.path().filename().string());
+    std::ranges::sort(names);
+    return names;
+}
+
+} // namespace
+
+TEST_CASE("document: a save replaces the file and leaves no temporary file")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "lab.json";
+    write_all(path, "old text");
+
+    REQUIRE(save_file(path.string(), sample_document()));
+    const auto loaded = load_file(path.string());
+    REQUIRE(loaded);
+    REQUIRE(*loaded == sample_document());
+    REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
+}
+
+TEST_CASE("document: a document that is not valid is refused before the file "
+          "is touched")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "lab.json";
+    const std::string before = "{\"version\": 1, \"name\": \"mine\"}\n";
+    write_all(path, before);
+
+    document invalid = sample_document();
+    invalid.ports[0].name.clear();
+    REQUIRE(!save_file(path.string(), invalid));
+    REQUIRE_EQ(read_all(path), before);
+    REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
+}
+
+TEST_CASE("document: a file the user made read-only is not replaced")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "lab.json";
+    const std::string before = "{\"version\": 1, \"name\": \"mine\"}\n";
+    write_all(path, before);
+    std::filesystem::permissions(path,
+                                 std::filesystem::perms::owner_write |
+                                     std::filesystem::perms::group_write |
+                                     std::filesystem::perms::others_write,
+                                 std::filesystem::perm_options::remove);
+
+    // A user who may write to it anyway (the superuser) cannot show this.
+    if (std::ofstream(path, std::ios::binary | std::ios::app))
+        VSS_SKIP("this user can write to a read-only file");
+
+    const auto saved = save_file(path.string(), sample_document());
+    REQUIRE(!saved);
+    REQUIRE_EQ(saved.error(), make_error_code(errc::permission_denied));
+    REQUIRE_EQ(read_all(path), before);
+    REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
+
+    std::filesystem::permissions(path, std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
+}
+
+TEST_CASE("document: a save never touches a file that has the temporary "
+          "file's kind of name")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "lab.json";
+    const auto neighbour = folder.path / "lab.json.saving";
+    write_all(path, "old text");
+    write_all(neighbour, "belongs to someone");
+
+    REQUIRE(save_file(path.string(), sample_document()));
+    REQUIRE(save_file(path.string(), sample_document()));
+    REQUIRE_EQ(read_all(neighbour), std::string("belongs to someone"));
+    REQUIRE_EQ(names_in(folder.path),
+               (std::vector<std::string>{"lab.json", "lab.json.saving"}));
+}
+
+TEST_CASE("document: a folder where the file should be is refused and left "
+          "alone")
+{
+    const scratch_folder folder;
+    const auto target = folder.path / "lab.json";
+    std::filesystem::create_directory(target);
+    write_all(target / "inside.txt", "keep");
+
+    const auto saved = save_file(target.string(), sample_document());
+    REQUIRE(!saved);
+    REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
+    REQUIRE_EQ(names_in(target), std::vector<std::string>{"inside.txt"});
+    REQUIRE_EQ(read_all(target / "inside.txt"), std::string("keep"));
+}
+
+TEST_CASE("document: a save into a folder that is not there fails and makes "
+          "nothing")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "missing" / "lab.json";
+    REQUIRE(!save_file(path.string(), sample_document()));
+    REQUIRE(names_in(folder.path).empty());
+}
+
+TEST_CASE("document: a file over the size limit is refused")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "big.json";
+
+    // One byte over the limit: refused whatever it holds, and the error says
+    // so.
+    {
+        std::ofstream stream(path, std::ios::binary | std::ios::trunc);
+        const std::string block(std::size_t{1024} * 1024, ' ');
+        for (std::uintmax_t written = 0; written < max_setup_file_size;
+             written += block.size())
+            stream << block;
+        stream << ' ';
+    }
+    REQUIRE_EQ(std::filesystem::file_size(path), max_setup_file_size + 1);
+    std::string problem;
+    const auto refused = load_file(path.string(), problem);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), make_error_code(errc::config_error));
+    REQUIRE(problem.find("MiB") != std::string::npos);
+    REQUIRE_EQ(load_file(path.string()).error(),
+               make_error_code(errc::config_error));
+
+    // The largest size that is let in is read, and here it is not a setup.
+    std::filesystem::resize_file(path, max_setup_file_size);
+    const auto parsed = load_file(path.string(), problem);
+    REQUIRE(!parsed);
+    REQUIRE_EQ(parsed.error(), make_error_code(errc::config_error));
+    REQUIRE(problem.find("MiB") == std::string::npos);
+}
+
+TEST_CASE("document: a file is read as it is, with a problem when it is not")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "typo.json";
+    write_all(path, R"({"version":1,"port":[]})");
+    std::string problem;
+    const auto parsed = load_file(path.string(), problem);
+    REQUIRE(!parsed);
+    REQUIRE_EQ(parsed.error(), make_error_code(errc::config_error));
+    REQUIRE(problem.find("port") != std::string::npos);
+}
+
+TEST_CASE("document: a file that is saved and read again is the same")
+{
+    const scratch_folder folder;
+    const auto first = folder.path / "first.json";
+    const auto second = folder.path / "second.json";
+    REQUIRE(save_file(first.string(), sample_document()));
+    const auto loaded = load_file(first.string());
+    REQUIRE(loaded);
+    REQUIRE(save_file(second.string(), *loaded));
+    REQUIRE_EQ(read_all(first), read_all(second));
+}
+
+TEST_CASE("document: every fuzz seed that is not named bad_ is accepted")
+{
+    // The seeds are what the fuzzer starts from.  One that is refused for a
+    // reason that has nothing to do with what it is for, such as a member the
+    // reader does not know, no longer reaches the code it was kept to guard.
+    const std::filesystem::path fuzz =
+        std::filesystem::path(VSS_TEST_DATA_DIR) / ".." / ".." / "libs" /
+        "vss_config" / "fuzz";
+    std::size_t checked = 0;
+    for (const char* folder : {"corpus", "regressions"})
+    {
+        const auto directory = fuzz / folder;
+        REQUIRE(std::filesystem::is_directory(directory));
+        for (const auto& entry : std::filesystem::directory_iterator(directory))
+        {
+            const std::string name = entry.path().filename().string();
+            if (entry.path().extension() != ".json" || name.starts_with("bad_"))
+                continue;
+            std::string problem;
+            const auto parsed = load_file(entry.path().string(), problem);
+            if (!parsed)
+                std::cerr << name << " is refused: " << problem << '\n';
+            REQUIRE(parsed);
+            ++checked;
+        }
+    }
+    REQUIRE(checked > 10);
 }
 
 TEST_CASE("document: owner policy roundtrips")
@@ -531,8 +942,9 @@ TEST_CASE("document: a COM number must be a number a COM port can have, on a por
 {
     const auto parse = [](const char* port_fields)
     {
-        return from_json(std::string(R"({"name":"n","ports":[{"name":"p",)")
-                         + port_fields + "}]}");
+        return from_json(
+            std::string(R"({"version":1,"name":"n","ports":[{"name":"p",)") +
+            port_fields + "}]}");
     };
 
     REQUIRE(parse(R"("kind":"virtual","com_number":1)").has_value());
@@ -986,9 +1398,8 @@ TEST_CASE("document: the members of a binding are type checked")
         expect_port_plugins_refused(binding_with(member));
     }
 
-    // A member the format does not have is passed over, as elsewhere in the
-    // file.
-    REQUIRE(parse_port_plugins(binding_with(R"("colour":"red")")));
+    // A member the format does not have is refused, as elsewhere in the file.
+    REQUIRE(!parse_port_plugins(binding_with(R"("colour":"red")")));
 }
 
 TEST_CASE("document: the id, kind and type of a binding are checked")

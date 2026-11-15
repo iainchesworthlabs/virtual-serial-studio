@@ -7,6 +7,7 @@
 #include "qt_wait.hpp"
 #include "test_framework.hpp"
 
+#include "advanced/json_editor.hpp"
 #include "backend/fake_studio_backend.hpp"
 #include "dialogs/connect_ports.hpp"
 #include "dialogs/network_endpoint.hpp"
@@ -2481,5 +2482,121 @@ TEST_CASE("licence notice: Dismiss on a wrong date hides it for the day")
     today = today.addDays(1);
     notice.refresh();
     REQUIRE(!hidden(notice));
+    clear_settings();
+}
+
+// -- what marks a setup changed ------------------------------------------
+
+namespace
+{
+
+/// A saved setup that is running and unchanged: two ports and a link.
+void write_clean_running(const QString& path)
+{
+    vss::gui::FakeStudioBackend before;
+    const auto first = before.create_virtual_port(
+        QStringLiteral("console"), vss::virtual_port_kind::loopback, true);
+    const auto second = before.create_virtual_port(
+        QStringLiteral("logger"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    REQUIRE(before.connect_ports(*first, *second, {}).has_value());
+    REQUIRE(vss::gui::support::save_running_setup(
+        path, before.snapshot(),
+        {QStringLiteral("C:/setups/lab.json"), false, false}));
+}
+
+} // namespace
+
+TEST_CASE("shell: changing a link's settings marks the setup changed")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_clean_running(running_file(directory));
+
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    window.enable_background(running_file(directory), false);
+    wait_applied(window);
+    QApplication::processEvents();
+    REQUIRE(window.windowTitle().startsWith(QStringLiteral("lab.json")));
+    REQUIRE(!window.windowTitle().contains(QLatin1Char('*')));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+
+    // The link keeps its id, its ports and its shape; only what the saved
+    // file holds about it changes.
+    vss::link_options options = backend.links()[0].options;
+    options.delay_ms = 200;
+    REQUIRE(
+        backend.set_link_options(backend.links()[0].id, options).has_value());
+    QApplication::processEvents();
+    REQUIRE(window.windowTitle().contains(QLatin1Char('*')));
+    clear_settings();
+}
+
+TEST_CASE("shell: changing a port's serial settings marks the setup changed")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_clean_running(running_file(directory));
+
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    window.enable_background(running_file(directory), false);
+    wait_applied(window);
+    QApplication::processEvents();
+    REQUIRE(!window.windowTitle().contains(QLatin1Char('*')));
+
+    vss::serial_settings settings = backend.ports()[0].serial;
+    settings.baud_rate = 9600;
+    settings.parity = vss::parity_mode::even;
+    REQUIRE(
+        backend.set_port_settings(backend.ports()[0].id, settings).has_value());
+    // The settings dialog calls it on a worker thread and refreshes after.
+    backend.refresh();
+    QApplication::processEvents();
+    REQUIRE(window.windowTitle().contains(QLatin1Char('*')));
+    clear_settings();
+}
+
+TEST_CASE("shell: a new setup and closing wait while the JSON view applies")
+{
+    clear_settings();
+    QSettings().setValue(QStringLiteral("ui/askOnDiscard"), false);
+    vss::gui::FakeStudioBackend backend;
+    REQUIRE(backend
+                .create_virtual_port(QStringLiteral("old"),
+                                     vss::virtual_port_kind::loopback, true)
+                .has_value());
+    backend.set_create_delay(std::chrono::milliseconds(400));
+    vss::gui::ShellWindow window(backend);
+    window.show();
+    QApplication::processEvents();
+
+    auto* editor = window.findChild<vss::gui::TopologyJsonEditor*>();
+    REQUIRE(editor != nullptr);
+    editor->set_text(QStringLiteral(
+        "{\"version\": 1, \"name\": \"fresh\", \"ports\": [{\"name\": "
+        "\"fresh\", \"kind\": \"virtual\", \"virtual_kind\": \"loopback\"}], "
+        "\"links\": []}"));
+    editor->revalidate();
+    REQUIRE(editor->apply());
+    REQUIRE(editor->busy());
+
+    // The engine is being given another setup: New would remove ports under
+    // it, and closing would stop it half way.  Both are refused.
+    window.findChild<QAction*>(QStringLiteral("file.new"))->trigger();
+    QApplication::processEvents();
+    REQUIRE(editor->busy());
+    // New would have removed the port that is running; it is still there.
+    REQUIRE_EQ(backend.ports().size(), std::size_t{1});
+    REQUIRE_EQ(backend.ports()[0].name, QStringLiteral("old"));
+    REQUIRE(!window.close());
+    REQUIRE(window.isVisible());
+
+    REQUIRE(vss_test::wait_until([editor] { return !editor->busy(); }, 10000));
+    QApplication::processEvents();
+    REQUIRE_EQ(backend.ports().size(), std::size_t{1});
+    REQUIRE_EQ(backend.ports()[0].name, QStringLiteral("fresh"));
     clear_settings();
 }

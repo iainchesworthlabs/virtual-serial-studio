@@ -119,6 +119,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <functional>
 #include <optional>
@@ -131,6 +132,46 @@ namespace
 {
 
 constexpr const char* kRecentFiles = "ui/recentFiles";
+
+/// Whether two setups are the same: the same name, description and ports in
+/// the same order, and the same links in any order.  The engine writes links
+/// in the order of their ids, and a link that was put back has a new one.
+bool same_setup(const vss::config::document& left,
+                const vss::config::document& right)
+{
+    if (left.name != right.name || left.description != right.description ||
+        left.ports != right.ports || left.links.size() != right.links.size())
+        return false;
+    std::vector<bool> used(right.links.size(), false);
+    for (const auto& link : left.links)
+    {
+        bool found = false;
+        for (std::size_t index = 0; index < right.links.size() && !found;
+             ++index)
+        {
+            if (!used[index] && right.links[index] == link)
+            {
+                used[index] = true;
+                found = true;
+            }
+        }
+        if (!found)
+            return false;
+    }
+    return true;
+}
+
+/// The ids of ports or links, in order.
+template <typename Views>
+std::vector<std::uint64_t> sorted_ids(const Views& views)
+{
+    std::vector<std::uint64_t> ids;
+    ids.reserve(views.size());
+    for (const auto& view : views)
+        ids.push_back(static_cast<std::uint64_t>(view.id));
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
 
 QString document_name(const QString& path)
 {
@@ -1690,13 +1731,28 @@ void ShellWindow::update_dock_titles()
 
 QString ShellWindow::document_signature() const
 {
+    // What the saved setup holds, so that a change to any of it marks the
+    // setup changed: a link's settings and a port's serial settings change a
+    // link or port in place, and its id, name and ports stay.
     QStringList parts;
     for (const auto& port : backend_.ports())
     {
-        parts << QStringLiteral("P%1:%2:%3:%4")
+        const vss::serial_settings& serial = port.serial;
+        parts << QStringLiteral("P%1:%2:%3:%4:%5")
                      .arg(static_cast<qulonglong>(port.id))
                      .arg(port.name, port.path)
-                     .arg(static_cast<int>(port.kind));
+                     .arg(static_cast<int>(port.kind))
+                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8")
+                              .arg(serial.baud_rate)
+                              .arg(serial.data_bits)
+                              .arg(static_cast<int>(serial.parity))
+                              .arg(static_cast<int>(serial.stop_bits))
+                              .arg(static_cast<int>(serial.flow_control))
+                              .arg(static_cast<qlonglong>(
+                                  serial.read_timeout.count()))
+                              .arg(static_cast<qlonglong>(
+                                  serial.write_timeout.count()))
+                              .arg(serial.exclusive ? 1 : 0));
     }
     for (const auto& link : backend_.links())
     {
@@ -1706,13 +1762,25 @@ QString ShellWindow::document_signature() const
             sources << QString::number(static_cast<qulonglong>(id));
         for (const auto id : link.targets)
             targets << QString::number(static_cast<qulonglong>(id));
-        parts << QStringLiteral("L%1:%2:%3:%4:%5:%6")
+        const vss::link_options& options = link.options;
+        const vss::half_duplex_options& line = options.half_duplex;
+        parts << QStringLiteral("L%1:%2:%3:%4:%5:%6:%7")
                      .arg(static_cast<qulonglong>(link.id))
                      .arg(static_cast<int>(link.shape))
                      .arg(static_cast<int>(link.mode))
                      .arg(static_cast<qulonglong>(link.owner))
                      .arg(sources.join(QLatin1Char(',')),
-                          targets.join(QLatin1Char(',')));
+                          targets.join(QLatin1Char(',')))
+                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9")
+                              .arg(options.delay_ms)
+                              .arg(options.jitter_ms)
+                              .arg(static_cast<int>(options.policy))
+                              .arg(options.emulate_modem_lines ? 1 : 0)
+                              .arg(line.enabled ? 1 : 0)
+                              .arg(line.bit_rate)
+                              .arg(line.turnaround_ms)
+                              .arg(static_cast<int>(line.on_collision))
+                              .arg(line.rts_gating ? 1 : 0));
     }
     parts.sort();
     return parts.join(QLatin1Char('|'));
@@ -1767,8 +1835,6 @@ void ShellWindow::apply_compact()
     }
     if (ports_panel_ != nullptr)
         ports_panel_->set_compact(compact_);
-    if (monitor_panel_ != nullptr)
-        monitor_panel_->set_compact(compact_);
     apply_dock_sizes();
 }
 
@@ -1879,19 +1945,35 @@ void ShellWindow::open_network_endpoint()
         tr("Open monitor"), [this] { show_monitor(); });
 }
 
-void ShellWindow::apply_in_background(
-    vss::config::document document,
-    std::function<void(const vss::result<void>&)> finished)
+bool ShellWindow::setup_busy() const
 {
-    if (apply_work_.busy())
+    return apply_work_.busy() ||
+           (json_editor_ != nullptr && json_editor_->busy());
+}
+
+void ShellWindow::apply_in_background(
+    vss::config::document document, bool replace,
+    std::function<void(const vss::result<void>&, failed_apply)> finished)
+{
+    if (setup_busy())
         return;
     struct outcome
     {
         vss::config::document document;
+        vss::config::document before;
+        std::vector<std::uint64_t> port_ids;
+        std::vector<std::uint64_t> link_ids;
         vss::error_code error;
     };
     auto state = std::make_shared<outcome>();
     state->document = std::move(document);
+    // What runs now, to see after a failure whether it was put back whole.
+    if (replace)
+    {
+        state->before = backend_.snapshot();
+        state->port_ids = sorted_ids(backend_.ports());
+        state->link_ids = sorted_ids(backend_.links());
+    }
 
     // Nothing in the window may change the setup while the engine works on
     // it, and the changes it makes meanwhile are not the user's edits.
@@ -1925,14 +2007,16 @@ void ShellWindow::apply_in_background(
            "a minute."));
 
     apply_work_.start(
-        [this, state]
+        [this, state, replace]
         {
-            const auto applied = backend_.apply(state->document, true);
+            const auto applied = replace
+                                     ? backend_.replace(state->document)
+                                     : backend_.apply(state->document, true);
             if (!applied)
                 state->error = applied.error();
         },
-        [this, state, locked = QList<QPointer<QWidget>>(locked.begin(),
-                                                        locked.end()),
+        [this, state, replace,
+         locked = QList<QPointer<QWidget>>(locked.begin(), locked.end()),
          finished = std::move(finished)]
         {
             for (const auto& widget : locked)
@@ -1944,16 +2028,36 @@ void ShellWindow::apply_in_background(
             status_->clearMessage();
             loading_ = false;
             backend_.refresh();
-            if (state->error)
-                finished(state->error);
-            else
-                finished(vss::result<void>{});
+            if (!state->error || !replace)
+            {
+                finished(state->error ? vss::result<void>(state->error)
+                                      : vss::result<void>{},
+                         failed_apply::untouched);
+                return;
+            }
+            // A replace that failed puts back what it removed as far as it
+            // can.  When what runs is no longer the setup that was open, the
+            // title must not say it is; when it is the same setup but some of
+            // it was stopped and started again, it was not left unchanged.
+            failed_apply left = failed_apply::untouched;
+            if (!same_setup(backend_.snapshot(), state->before))
+                left = failed_apply::different;
+            else if (sorted_ids(backend_.ports()) != state->port_ids ||
+                     sorted_ids(backend_.links()) != state->link_ids)
+                left = failed_apply::remade;
+            if (left == failed_apply::different)
+            {
+                last_signature_ = document_signature();
+                set_dirty(true);
+                update_title();
+            }
+            finished(state->error, left);
         });
 }
 
 void ShellWindow::open_templates()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
 
     TemplatesDialog dialog(backend_, this);
@@ -1964,19 +2068,29 @@ void ShellWindow::open_templates()
         return;
 
     apply_in_background(
-        *document,
+        *document, true,
         [this, title = dialog.result_title(),
          is_template = dialog.result_is_template(),
-         path = dialog.result_path()](const vss::result<void>& applied)
+         path = dialog.result_path()](const vss::result<void>& applied,
+                                      failed_apply left)
         {
             if (!applied)
             {
-                ErrorDialog error(
-                    tr("Could not open %1").arg(title),
-                    tr("The setup needs a device or network endpoint that "
-                       "is not available on this PC. Nothing was changed. "
-                       "Check the device, then try again."),
-                    error_text(applied.error()), this);
+                // Say only what is true: nothing was changed only when
+                // nothing was touched.
+                const QString text =
+                    left == failed_apply::different
+                        ? tr("Not everything that was running could be put "
+                             "back, so the setup is marked as changed.")
+                    : left == failed_apply::remade
+                        ? tr("The setup needs a device or network endpoint "
+                             "that is not available on this PC. Check the "
+                             "device, then try again.")
+                        : tr("The setup needs a device or network endpoint "
+                             "that is not available on this PC. Nothing was "
+                             "changed. Check the device, then try again.");
+                ErrorDialog error(tr("Could not open %1").arg(title), text,
+                                  error_text(applied.error()), this);
                 error.exec();
                 status_->refresh();
                 return;
@@ -3026,7 +3140,7 @@ void ShellWindow::copy_environment()
 
 void ShellWindow::new_document()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     if (const QString warning =
             new_setup_warning(ports_in_use(backend_.ports()));
@@ -3055,7 +3169,7 @@ void ShellWindow::new_document()
 
 void ShellWindow::open_document()
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     const QString path = QFileDialog::getOpenFileName(
         this, tr("Open setup"), QString(),
@@ -3067,7 +3181,7 @@ void ShellWindow::open_document()
 
 void ShellWindow::open_path(const QString& path)
 {
-    if (!confirm_discard())
+    if (setup_busy() || !confirm_discard())
         return;
     const auto document = vss::config::load_file(path.toStdString());
     if (!document)
@@ -3080,14 +3194,21 @@ void ShellWindow::open_path(const QString& path)
     }
 
     apply_in_background(
-        *document,
-        [this, path](const vss::result<void>& applied)
+        *document, true,
+        [this, path](const vss::result<void>& applied, failed_apply left)
         {
             if (!applied)
             {
+                // As the template dialog does: the sentence is the message
+                // and the engine text is behind Copy details.
+                const bool different = left == failed_apply::different;
                 ErrorDialog dialog(
                     tr("Could not open %1").arg(QFileInfo(path).fileName()),
-                    error_text(applied.error()), {}, this);
+                    different
+                        ? tr("Not everything that was running could be put "
+                             "back, so the setup is marked as changed.")
+                        : error_text(applied.error()),
+                    different ? error_text(applied.error()) : QString(), this);
                 dialog.exec();
                 return;
             }
@@ -3409,7 +3530,7 @@ void ShellWindow::closeEvent(QCloseEvent* event)
 {
     // The engine is part way through setting up ports; closing now would
     // leave half a setup.
-    if (apply_work_.busy())
+    if (setup_busy())
     {
         event->ignore();
         return;
@@ -3475,6 +3596,8 @@ void ShellWindow::closeEvent(QCloseEvent* event)
 
 void ShellWindow::quit_studio()
 {
+    if (setup_busy())
+        return;
     quitting_ = true;
     if (!confirm_discard() || !confirm_exit())
     {
@@ -3627,8 +3750,9 @@ void ShellWindow::start_running_setup(bool automatic)
         return;
 
     apply_in_background(
-        setup->document,
-        [this, setup = *setup, automatic](const vss::result<void>& applied)
+        setup->document, false,
+        [this, setup = *setup, automatic](const vss::result<void>& applied,
+                                          failed_apply)
         {
             if (!applied)
             {

@@ -307,6 +307,52 @@ TEST_CASE("rules: exponential delays stay within bounds and have the mean")
     REQUIRE_EQ(cut.highest, std::int64_t{2500});
 }
 
+TEST_CASE("rules: a normal delay with the widest spread the compiler lets "
+          "through stays within its bounds")
+{
+    // As on the edge of the run start: a mean of an hour, a spread of a
+    // minute (the most `compile` accepts), bounds up to two hours.  The
+    // product of the draw and the spread must fit in 64 bits.
+    const delay_spec spec =
+        normal_spec(3'600'000'000, 60'000'000, 0, 7'200'000'000);
+    generator source(41);
+    double sum = 0;
+    constexpr int count = 5000;
+    for (int i = 0; i < count; ++i)
+    {
+        const std::int64_t value =
+            draw_delay(spec, source, static_cast<std::uint64_t>(i)).count();
+        REQUIRE(value >= 0);
+        REQUIRE(value <= 7'200'000'000);
+        sum += static_cast<double>(value);
+    }
+    // The spread of a mean of 5000 draws is a minute over about 70.
+    REQUIRE_NEAR(sum / count, 3'600'000'000.0, 6'000'000.0);
+
+    // The same draws as the widest spread that is not far from the bounds:
+    // a draw cannot be outside them, whatever the sign of the offset.
+    const sample cut =
+        draw_many(normal_spec(60'000'000, 60'000'000, 0, 120'000'000), 42);
+    REQUIRE(cut.lowest >= 0);
+    REQUIRE(cut.highest <= 120'000'000);
+    REQUIRE_NEAR(cut.mean, 60'000'000.0, 1'500'000.0);
+}
+
+TEST_CASE("rules: an exponential delay with the largest mean the compiler "
+          "lets through stays within its bounds")
+{
+    const delay_spec spec =
+        exponential_spec(60'000'000, 1'000'000, 7'200'000'000);
+    generator source(43);
+    for (int i = 0; i < 5000; ++i)
+    {
+        const std::int64_t value =
+            draw_delay(spec, source, static_cast<std::uint64_t>(i)).count();
+        REQUIRE(value >= 1'000'000);
+        REQUIRE(value <= 7'200'000'000);
+    }
+}
+
 TEST_CASE("rules: a table taken in order cycles through its values")
 {
     delay_spec spec;

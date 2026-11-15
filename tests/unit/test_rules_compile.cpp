@@ -1064,6 +1064,42 @@ TEST_CASE("rules: compile refuses a reply that must be over 4096 bytes")
     require_only(with_action(checks), action_path(".reply"));
 }
 
+TEST_CASE("rules: compile refuses a reply with more check values than its "
+          "limit, however short")
+{
+    action reply = reply_of(buf({1, 2, 3}));
+    reply_part check;
+    check.kind = part_kind::check;
+    reply.parts.insert(reply.parts.end(), max_reply_checks, check);
+    compile_ok(with_action(reply));
+
+    // One more is refused, with a message that says the limit.
+    reply.parts.push_back(check);
+    const auto problems = refuse(with_action(reply));
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].path, action_path(".reply"));
+    REQUIRE_EQ(problems[0].message,
+               std::string("a reply has at most 4 check values"));
+
+    // The checks of a reply with parts between them count together, and
+    // those of another reply do not count against it.
+    action spread = reply_of(buf({1}));
+    for (std::size_t i = 0; i < max_reply_checks + 1; ++i)
+    {
+        spread.parts.push_back(check);
+        reply_part literal;
+        literal.bytes = buf({2});
+        spread.parts.push_back(literal);
+    }
+    require_only(with_action(spread), action_path(".reply"));
+
+    reply.parts.pop_back();
+    std::vector<action> two;
+    two.push_back(reply);
+    two.push_back(reply);
+    compile_ok(with_actions(std::move(two)));
+}
+
 TEST_CASE("rules: compile refuses a corrupt fault with no bytes or too many")
 {
     action reply = reply_of(buf({1, 2}));
@@ -1105,6 +1141,53 @@ TEST_CASE("rules: compile allows 24 hours on the edge of the run start only")
     other.when.after = edge::match_start;
     other.when.delay.fixed = microseconds(61'000'000);
     require_only(with_action(other), action_path(".delay.fixed_us"));
+}
+
+TEST_CASE("rules: compile holds the spread of a delay to a minute on the "
+          "edge of the run start too")
+{
+    // The draw multiplies the spread by a number of up to 2^35, so it is
+    // bounded whatever the edge is.  The bounds and the mean of a normal
+    // delay still reach 24 hours there.
+    action normal = mark();
+    normal.when.after = edge::run_start;
+    normal.when.delay.kind = delay_kind::normal;
+    normal.when.delay.mean = microseconds(3'600'000'000);
+    normal.when.delay.sd = microseconds(60'000'000);
+    normal.when.delay.min = microseconds(0);
+    normal.when.delay.max = microseconds(7'200'000'000);
+    compile_ok(with_action(normal));
+
+    normal.when.delay.sd = microseconds(60'000'001);
+    require_only(with_action(normal), action_path(".delay.normal.sd_us"));
+    normal.when.delay.sd = microseconds(600'000'000);
+    require_only(with_action(normal), action_path(".delay.normal.sd_us"));
+    normal.when.delay.sd = microseconds(86'400'000'000);
+    require_only(with_action(normal), action_path(".delay.normal.sd_us"));
+
+    action exponential = mark();
+    exponential.when.after = edge::run_start;
+    exponential.when.delay.kind = delay_kind::exponential;
+    exponential.when.delay.mean = microseconds(60'000'000);
+    exponential.when.delay.max = microseconds(7'200'000'000);
+    compile_ok(with_action(exponential));
+
+    exponential.when.delay.mean = microseconds(60'000'001);
+    require_only(with_action(exponential),
+                 action_path(".delay.exponential.mean_us"));
+    exponential.when.delay.mean = microseconds(40'000'000'000);
+    require_only(with_action(exponential),
+                 action_path(".delay.exponential.mean_us"));
+
+    // The other edges were held to a minute already, and still are.
+    normal.when.after = edge::match_end;
+    normal.when.delay.mean = microseconds(500);
+    normal.when.delay.min = microseconds(0);
+    normal.when.delay.max = microseconds(1000);
+    normal.when.delay.sd = microseconds(60'000'000);
+    compile_ok(with_action(normal));
+    normal.when.delay.sd = microseconds(60'000'001);
+    require_only(with_action(normal), action_path(".delay.normal.sd_us"));
 }
 
 TEST_CASE("rules: compile refuses a bad uniform delay")

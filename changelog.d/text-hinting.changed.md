@@ -1,0 +1,1 @@
+**Text is sharper on Windows.** Text in the main window and dialogs was drawn without hinting, which left Segoe UI looking grainy and unevenly smoothed on a display at 100 percent scale. Studio now asks for vertical hinting, so strokes line up with the pixel rows and read as solid. Letters keep the same widths as before.
