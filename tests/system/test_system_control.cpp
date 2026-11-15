@@ -1132,6 +1132,28 @@ TEST_CASE("system control: a monitor watches without the bytes")
     REQUIRE(saw_b);
 }
 
+TEST_CASE("system control: audit verify says the log is whole, and is not "
+          "for a token")
+{
+    agent_process agent(unique_instance());
+    const std::string& instance = agent.instance();
+    gate_process gate(instance);
+
+    const auto checked = run_cli("control", instance, {"audit", "verify"});
+    require_exit(checked, 0, "vss_cli control audit verify");
+    REQUIRE(checked.output.rfind("intact ", 0) == 0);
+
+    // It is a command of this user on the administration endpoint: it takes
+    // no token and no TCP port.
+    const auto with_token = run_cli(
+        "control", instance,
+        {"audit", "verify",
+         "--token-file=" + (gate.scratch_dir() / "none.token").string()});
+    require_exit(with_token, 2, "vss_cli control audit verify --token-file");
+    const auto more = run_cli("control", instance, {"audit", "check"});
+    require_exit(more, 2, "vss_cli control audit check");
+}
+
 TEST_CASE("system control: sessions lists a watch and kick ends it")
 {
     agent_process agent(unique_instance());

@@ -629,6 +629,17 @@ result<sessions_reply> client::list_sessions()
     return std::move(*listed);
 }
 
+result<audit_reply> client::verify_audit()
+{
+    auto answer = impl_->call(audit_verify_request{});
+    if (!answer)
+        return answer.error();
+    auto* found = std::get_if<audit_reply>(&*answer);
+    if (found == nullptr)
+        return make_error_code(api_errc::invalid_argument);
+    return std::move(*found);
+}
+
 result<void> client::kick_session(std::uint64_t number)
 {
     return done(impl_->call(sessions_kick_request{number}));

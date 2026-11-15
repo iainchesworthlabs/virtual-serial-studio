@@ -70,6 +70,7 @@ enum class action_kind
     watch,
     sessions,
     kick,
+    audit_verify,
     port_create,
     port_remove,
     port_show,
@@ -634,6 +635,14 @@ control_arguments parse_command(const raw_arguments& raw)
         parsed.valid = true;
         return parsed;
     }
+    if (words.size() == 2 && words[0] == "audit" && words[1] == "verify")
+    {
+        if (!no_foreign_options(raw) || !no_port_options(raw) || raw.token_file)
+            return parsed;
+        parsed.action = action_kind::audit_verify;
+        parsed.valid = true;
+        return parsed;
+    }
     if (words.size() == 2 && words[0] == "kick")
     {
         const auto number = whole_number<std::uint64_t>(words[1]);
@@ -791,7 +800,8 @@ bool is_administration(action_kind action) noexcept
     return action == action_kind::stop || action == action_kind::token_create ||
            action == action_kind::token_list ||
            action == action_kind::token_revoke ||
-           action == action_kind::sessions || action == action_kind::kick;
+           action == action_kind::sessions || action == action_kind::kick ||
+           action == action_kind::audit_verify;
 }
 
 /// What the command line says, as `parse_command` understood it and with
@@ -831,6 +841,8 @@ const char* action_name(action_kind action) noexcept
         return "sessions";
     case action_kind::kick:
         return "kick";
+    case action_kind::audit_verify:
+        return "audit verify";
     case action_kind::port_create:
         return "port create";
     case action_kind::port_remove:
@@ -1259,6 +1271,24 @@ int sessions(client& gateway)
     return exit_ok;
 }
 
+/// `audit verify`: `intact <records>`, or `broken <records> <file> <line>
+/// <what is wrong>` and the exit code of a refusal.
+int audit_verify(client& gateway)
+{
+    const auto found = gateway.verify_audit();
+    if (!found)
+        return report_with_code("audit verify", found.error(), gateway);
+    if (found->intact)
+    {
+        std::printf("intact %llu\n", number_of(found->records));
+        return exit_ok;
+    }
+    std::printf("broken %llu %s %llu %s\n", number_of(found->records),
+                plain_word(found->file).c_str(), number_of(found->line),
+                printable(found->problem).c_str());
+    return exit_refused;
+}
+
 int kick(client& gateway, std::uint64_t number)
 {
     const auto kicked = gateway.kick_session(number);
@@ -1632,6 +1662,16 @@ const char* control_usage() noexcept
            "      the program gave itself.  kick closes one session by its\n"
            "      number.\n"
            "\n"
+           "  vss_cli control audit verify [--instance=<name>]\n"
+           "      Have the gateway check its audit log: that every line is a\n"
+           "      record, that the numbers follow each other and that each\n"
+           "      line carries the hash of the line before.  It prints intact\n"
+           "      and the number of records, or broken, the number of records\n"
+           "      read, the file, the line and what is wrong there, with exit\n"
+           "      code 1.  A broken chain says that a line was removed,\n"
+           "      changed or moved; an intact one does not prove that nobody\n"
+           "      rewrote the whole log.  It cannot be used over TCP.\n"
+           "\n"
            "  vss_cli control port create <name> [--kind=<kind>]\n"
            "           [--instance=<name>] [--token-file=<file>]\n"
            "  vss_cli control port remove <id> [--instance=<name>]\n"
@@ -1727,7 +1767,7 @@ const char* control_usage() noexcept
            "made\n"
            "      with token create --transport=loopback: a token made for\n"
            "      one transport is refused on the other.  token, sessions,\n"
-           "      kick and stop cannot be used over TCP.\n"
+           "      kick, audit and stop cannot be used over TCP.\n"
            "\n";
 }
 
@@ -1787,6 +1827,8 @@ int command_control(const std::vector<std::string>& arguments)
         return sessions(gateway);
     case action_kind::kick:
         return kick(gateway, args.session);
+    case action_kind::audit_verify:
+        return audit_verify(gateway);
     case action_kind::port_create:
         return port_create(gateway, args);
     case action_kind::port_remove:

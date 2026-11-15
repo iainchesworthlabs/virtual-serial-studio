@@ -150,7 +150,9 @@ constexpr std::array expected_operations{
     expected_row{control::operation::links_disconnect, "links.disconnect",
                  control::scope::control_ports},
     expected_row{control::operation::ports_rename, "ports.rename",
-                 control::scope::control_ports}};
+                 control::scope::control_ports},
+    expected_row{control::operation::audit_verify, "audit.verify",
+                 control::scope::admin}};
 
 } // namespace
 
@@ -637,9 +639,52 @@ TEST_CASE("control policy: every operation has a row, a name and a scope")
     REQUIRE(control::find_operation("") == nullptr);
 }
 
+TEST_CASE("control proto: the answer of audit.verify, intact and broken")
+{
+    control::audit_reply intact;
+    intact.intact = true;
+    intact.records = 42;
+    const control::reply fine{7, intact};
+    REQUIRE(round_trip(fine) == fine);
+    REQUIRE_EQ(control::encode(fine).header,
+               std::string(R"({"id":7,"reply":"audit","intact":true,)"
+                           R"("records":42,"file":"","line":0,"problem":""})"));
+
+    control::audit_reply broken;
+    broken.records = 3;
+    broken.file = "audit.1.jsonl";
+    broken.line = 4;
+    broken.problem = "the hash of the line before does not match";
+    const control::reply bad{8, broken};
+    REQUIRE(round_trip(bad) == bad);
+
+    // A field missing or of the wrong kind, an intact log with a place where
+    // it breaks, and a broken one without a place or a reason.
+    for (const std::string& header : {
+             std::string(R"({"id":1,"reply":"audit"})"),
+             std::string(R"({"id":1,"reply":"audit","intact":true,)"
+                         R"("records":1,"file":"","line":0})"),
+             std::string(R"({"id":1,"reply":"audit","intact":"yes",)"
+                         R"("records":1,"file":"","line":0,"problem":""})"),
+             std::string(R"({"id":1,"reply":"audit","intact":true,)"
+                         R"("records":-1,"file":"","line":0,"problem":""})"),
+             std::string(R"({"id":1,"reply":"audit","intact":true,)"
+                         R"("records":1,"file":"a","line":2,"problem":"x"})"),
+             std::string(R"({"id":1,"reply":"audit","intact":false,)"
+                         R"("records":1,"file":"","line":0,"problem":""})"),
+             std::string(R"({"id":1,"reply":"audit","intact":false,)"
+                         R"("records":1,"file":"a","line":0,"problem":"x"})"),
+             std::string(R"({"id":1,"reply":"audit","intact":false,)"
+                         R"("records":1,"file":"a","line":2,"problem":""})"),
+         })
+    {
+        REQUIRE(!control::decode_reply(header_frame(header)));
+    }
+}
+
 TEST_CASE("control policy: the whole matrix of caller and operation")
 {
-    // Every operation, every set of scopes, every transport: 29 * 256 * 4
+    // Every operation, every set of scopes, every transport: 30 * 256 * 4
     // decisions, each compared with the rule written here by hand.
     std::size_t allowed_count = 0;
     for (const expected_row& expected : expected_operations)
@@ -1536,6 +1581,13 @@ TEST_CASE("control proto: the reading requests survive the wire")
     REQUIRE(round_trip(ping) == ping);
     const control::request close{64, control::session_close_request{}};
     REQUIRE(round_trip(close) == close);
+    const control::request verify{65, control::audit_verify_request{}};
+    REQUIRE(round_trip(verify) == verify);
+    REQUIRE_EQ(control::encode(verify).header,
+               std::string(R"({"id":65,"op":"audit.verify"})"));
+    REQUIRE(control::operation_of(verify.body) ==
+            control::operation::audit_verify);
+    REQUIRE(!control::info_of(control::operation::audit_verify).mutating);
 
     // The wire form: the operation's name and the id in its own field.
     REQUIRE_EQ(control::encode(port).header,
