@@ -11,6 +11,7 @@ if(VSS_BUILD_TESTS)
     test_network_transport.cpp
     test_update_check.cpp
     test_update_download.cpp
+    test_update_platform.cpp
     test_update_timer.cpp)
 
   target_include_directories(vss_gui_updates_tests PRIVATE
