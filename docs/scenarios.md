@@ -1,8 +1,8 @@
 # Scenario recipes
 
 Each recipe can be built in the GUI, scripted with `vss_cli`, or written as a
-JSON topology that both accept. The URIs are examples. `vss_cli` keeps most of
-these setups alive only for the `--seconds` you give, as the examples do; see
+JSON topology that both accept. The URIs are examples. The `vss_cli` commands run
+until `Ctrl-C`, or for the `--seconds` you give, as the examples do; see
 [Command line equivalents](user-guide.md#command-line-equivalents).
 
 ## Share one serial port with several applications
@@ -30,6 +30,7 @@ In JSON:
 
 ```json
 {
+  "version": 1,
   "name": "share",
   "ports": [
     { "name": "device", "kind": "physical", "uri": "serial://COM3?baud=115200" },
@@ -105,6 +106,7 @@ carries no modem lines:
 
 ```json
 {
+  "version": 1,
   "name": "bus",
   "ports": [
     { "name": "master",   "kind": "virtual" },
@@ -219,6 +221,7 @@ them; nothing needs to be added to any of the programs.
 
 ```json
 {
+  "version": 1,
   "name": "poll-lab",
   "ports": [
     { "name": "master",   "kind": "virtual", "virtual_kind": "auto" },

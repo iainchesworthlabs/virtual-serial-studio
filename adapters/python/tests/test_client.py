@@ -258,6 +258,81 @@ class ControlRoleTests(RigCase):
         self.assertEqual(len(link), 1)
         self.assertEqual(link[0]["targets"], [second])
 
+    def test_get_port_and_the_links_are_what_list_ports_has(self):
+        client = self.connect()
+        first, second = self.linked_pair(client)
+        listed = client.list_ports()
+        ports = {port["id"]: port for port in listed["ports"]}
+        self.assertEqual(client.get_port(first), ports[first])
+        self.assertEqual(client.get_port(second), ports[second])
+        self.assertEqual(set(ports[first]), {"id", "name", "path", "kind", "state", "open", "bytes_rx", "bytes_tx"})
+        links = client.list_links()
+        self.assertEqual(links, listed["links"])
+        mine = [one for one in links if one["sources"] == [first]]
+        self.assertEqual(len(mine), 1)
+        self.assertEqual(client.get_link(mine[0]["id"]), mine[0])
+        self.assertEqual(set(mine[0]), {"id", "mode", "sources", "targets", "bytes"})
+
+    def test_an_id_that_nothing_has_is_not_found_and_a_bad_one_is_invalid(self):
+        client = self.connect()
+        for call, code in (
+            (lambda: client.get_port("p_4000000"), "not_found"),
+            (lambda: client.get_link("l_4000000"), "not_found"),
+            (lambda: client.get_port("no such port"), "invalid_argument"),
+            (lambda: client.get_port(""), "invalid_argument"),
+            (lambda: client.get_link("p_1"), "invalid_argument"),
+            (lambda: client.get_link(""), "invalid_argument"),
+        ):
+            with self.assertRaises(ControlError) as caught:
+                call()
+            self.assertEqual(caught.exception.code, code)
+            self.assertNotIsInstance(caught.exception, EngineError)
+        # A removed port is not found any more.
+        gone = client.create_port(unique_name("gone"))
+        self.assertEqual(client.get_port(gone)["id"], gone)
+        client.remove_port(gone)
+        with self.assertRaises(ControlError) as caught:
+            client.get_port(gone)
+        self.assertEqual(caught.exception.code, "not_found")
+        # The connection goes on after every refusal.
+        self.assertIsNone(client.ping())
+
+    def test_ping(self):
+        client = self.connect()
+        self.assertIsNone(client.ping())
+        self.assertIsNone(client.ping())
+
+    def wait_for_sessions(self, client, count):
+        deadline = time.monotonic() + LONG
+        while True:
+            sessions = client.status()["sessions"]
+            if sessions == count or time.monotonic() > deadline:
+                return sessions
+            time.sleep(0.01)
+
+    def test_the_gateway_ends_a_session_that_asked_for_it(self):
+        client = self.connect()
+        other = self.rig.connect()
+        self.addCleanup(other.close)
+        # Sessions of earlier tests may still be going away.
+        self.assertEqual(self.wait_for_sessions(client, 2), 2)
+        # The request itself, without the client closing its end: it is the
+        # gateway that ends the connection.
+        other._call("session.close")
+        with self.assertRaises(TransportError) as caught:
+            other.status()
+        self.assertEqual(caught.exception.code, "connection_closed")
+        self.assertEqual(self.wait_for_sessions(client, 1), 1)
+        # The first session is not touched.
+        self.assertTrue(client.status()["agent"]["running"])
+
+    def test_close_leaves_no_session_behind(self):
+        client = self.connect()
+        other = self.rig.connect()
+        self.assertEqual(self.wait_for_sessions(client, 2), 2)
+        other.close()
+        self.assertEqual(self.wait_for_sessions(client, 1), 1)
+
     def test_send_and_expect_with_a_send(self):
         client = self.connect()
         first, second = self.linked_pair(client)
@@ -442,6 +517,39 @@ class ControlRoleTests(RigCase):
         self.assertEqual(set(cases), {"from the second"})
         self.assertEqual(cases["from the second"].find("failure").get("message"), "late")
 
+    def test_a_run_name_and_a_check_that_are_too_long_are_cut_and_not_refused(self):
+        self.addCleanup(self.end_run_quietly)
+        client = self.connect()
+        # More than the gateway takes: 128 bytes of a name, 512 of a message.
+        # The message is an assertion text, as a test framework gives it, with
+        # characters of more than one byte, so a cut inside one is possible.
+        run = client.begin_run("long run " + "r" * 400)
+        self.assertLessEqual(len(run["name"].encode("utf-8")), 128)
+        self.assertTrue(run["name"].endswith("..."))
+
+        long_name = "test_modbus_" + "né" * 300
+        long_message = "assert 1 == 2 " + "€" * 700
+        client.record_in_run(long_name, "failed", message=long_message, duration_ms=5)
+        client.record_in_run("fits", "failed", message="m" * 512)
+        ended = client.end_run()
+        self.assertEqual((ended["tests"], ended["failures"]), (2, 2))
+
+        root = ElementTree.fromstring(client.report_junit(run["run"]))
+        cases = list(root.iter("testcase"))
+        self.assertEqual(len(cases), 2)
+        by_name = {case.get("name"): case for case in cases}
+        self.assertIn("fits", by_name)
+        cut_name = next(name for name in by_name if name != "fits")
+        self.assertTrue(cut_name.startswith("test_modbus_"))
+        self.assertTrue(cut_name.endswith("..."))
+        self.assertLessEqual(len(cut_name.encode("utf-8")), 128)
+        message = by_name[cut_name].find("failure").get("message")
+        self.assertTrue(message.startswith("assert 1 == 2 "))
+        self.assertTrue(message.endswith("..."))
+        self.assertLessEqual(len(message.encode("utf-8")), 512)
+        # A message of exactly 512 bytes is not cut.
+        self.assertEqual(by_name["fits"].find("failure").get("message"), "m" * 512)
+
     def end_run_quietly(self):
         try:
             with self.rig.connect() as client:
@@ -517,6 +625,17 @@ class DefaultRoleTests(RigCase):
         self.assertNotIsInstance(caught.exception, EngineError)
         self.assertFalse(caught.exception.retryable)
         self.assertEqual(client.list_ports()["ports"], [])
+
+    def test_the_default_role_may_read_one_port_and_the_links_and_ping(self):
+        client = self.connect()
+        self.assertEqual(client.list_links(), [])
+        with self.assertRaises(ControlError) as caught:
+            client.get_port("p_4000000")
+        self.assertEqual(caught.exception.code, "not_found")
+        with self.assertRaises(ControlError) as caught:
+            client.get_link("l_4000000")
+        self.assertEqual(caught.exception.code, "not_found")
+        self.assertIsNone(client.ping())
 
     def test_the_other_changes_are_forbidden_too(self):
         client = self.connect()

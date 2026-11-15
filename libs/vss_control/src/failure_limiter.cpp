@@ -125,7 +125,7 @@ public:
 private:
     struct key_state
     {
-        unsigned count;
+        unsigned count = 0;
         clock::time_point last_failure;
         clock::time_point refused_until;
     };
@@ -133,7 +133,7 @@ private:
     /// The failures that still count against the global rule.
     struct window_view
     {
-        std::size_t count;
+        std::size_t count = 0;
         /// The earliest of them; the time asked about when there is none.
         clock::time_point oldest;
     };

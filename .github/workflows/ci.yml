@@ -109,11 +109,33 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # tools/ci/test_plan_legs.py runs the shared planner over .github/ci/plan.json, and fails here when it is missing.
+      - name: Check out the shared scripts
+        uses: iainchesworthlabs/icl-common-infra/actions/checkout-infra@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
       - name: Validate the changelog
         run: |
           python3 tools/changelog.py --check
           python3 -m unittest discover -s tools -p "test_*.py" -v
           python3 -m unittest discover -s tools/ci -p "test_*.py" -v
+
+  # The tests of the installer's PATH and stop scripts (tools/test_edit_path.py and tools/test_stop_studio.py)
+  # skip themselves without Windows PowerShell, so the job above never runs them. This runs the same tests on a
+  # Windows runner and fails when one of those two files has a skipped test.
+  tools-windows:
+    name: Tool tests (Windows)
+    runs-on: windows-2025
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.x"
+      - name: Run the tests of tools/, none of the installer script tests skipped
+        run: python tools/ci/run_tool_tests.py
 
   design:
     name: Design tokens
@@ -851,7 +873,7 @@ jobs:
   ci-status:
     name: CI Status
     if: always()
-    needs: [policy, plan, changelog, design, build, macos, gui, coverage, coverage-gui, performance, profiling, asan-ubsan, fuzz-regress, tsan, driver, zizmor, dependency-scan]
+    needs: [policy, plan, changelog, tools-windows, design, build, macos, gui, coverage, coverage-gui, performance, profiling, asan-ubsan, fuzz-regress, tsan, driver, zizmor, dependency-scan]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:

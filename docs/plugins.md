@@ -23,17 +23,21 @@ what discovery finds.
 | The administrator's policy file | `policy.cpp` | `vss_cli plugin list` reads it and says where it is and whether it can be used. Nothing applies it |
 | The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | The tests and a fuzz target |
 | The trust store (`trust.json`) | `trust_store.cpp` | The tests and a fuzz target |
-| `verify`: whether a plugin may run | `verify.cpp` | Tests only |
+| `verify`: whether a plugin may run | `verify.cpp` | `inspect_plugin`, and so `vss_cli plugin list` and `verify` |
+| Looking at a plugin folder, installing and removing a plugin | `install.cpp` | `vss_cli plugin verify`, `install` and `remove` |
 | The licence question for an official plugin | `licence.cpp` | Tests only |
 | The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
+| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
 | The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
 | The restart and quarantine rules | `lifecycle.cpp` | Tests only |
 
-`params.changed`, `instance.create` and `instance.stop` of section 7.3 are not built: the codec passes them through as
-an unknown op.
+The messages of the extension points (sections 7.3 to 7.8, 19 and 20) are typed in `api_*.hpp`, and each can be read
+from and written to an `api_message`. Nothing sends or receives them yet: the host that does is not built.
 
-`vss_cli plugin list` never checks a signature. It does not run `verify` or the licence question and it does not apply
-the policy. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
+`vss_cli plugin list` and `vss_cli plugin verify` check the signature, run `verify` and, for an official plugin that names
+an edition, the licence question, as far as a command line can: it reads the policy file, the official key list built
+into the library and the date of the computer, and it has no licence, no revocation list and no engine capabilities.
+`vss_cli plugin install` and `remove` put a plugin on the computer and take it off. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
 modifiers, the decoders, the Plugins page and the trust dialog) is not built.
 
 ## 1. Scope and what is already decided
@@ -165,8 +169,8 @@ Search roots, in this order, the first to hold an id wins and a second is report
 | Root | Holds | Writable by |
 |---|---|---|
 | `<install>/studio-plugins/` | Official plugins that come with Studio or with a Pro install. It is not `<install>/plugins/`: the Linux package keeps Qt's own plug-ins there | Administrator |
-| Machine plugin directory (`%ProgramData%\VirtualSerialStudio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins an administrator installs for everyone | Administrator |
-| Per-user plugin directory (`%LOCALAPPDATA%\VirtualSerialStudio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins the user installs | The user |
+| Machine plugin directory (`%ProgramData%\Virtual Serial Studio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins an administrator installs for everyone | Administrator |
+| Per-user plugin directory (`%LOCALAPPDATA%\Virtual Serial Studio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins the user installs | The user |
 
 Rules:
 
@@ -190,7 +194,7 @@ Plugins page shows it (`screens/10-plugins.md`).
 
 - **Studio never raises its own rights.** From the window a user adds a plugin for themselves: Studio copies the
   folder into the per-user root. A plugin for everyone is put in the machine root by an administrator, by hand,
-  with an installer or with `vss_cli plugin install --machine` from an administrator's prompt. The window shows
+  with an installer or with `vss_cli plugin install --for-everyone` from an administrator's prompt. The window shows
   the path to use.
 - **An administrator can turn the per-user root off** (`user_plugins: false` in the policy, section 8.6). It is
   then not searched, and the page says so.
@@ -263,6 +267,21 @@ its own rights" above is about plugins; the driver set-up keeps the prompt it ha
 **Left for the installers' own work, not this design:** adding `vss_agent` and `vss_plugin_launcher` to the
 four packages and their signing lists (`docs/agent.md`, step 9), and creating the machine plugin directory with
 the right owner in the installer for everyone, so that it never has to be made by a program a user runs.
+
+**Installing from a command line.** `vss_cli plugin install <folder>` copies a plugin folder into a plugin root, and
+`vss_cli plugin remove <id>` removes one (`libs/vss_plugin/include/vss/plugin/install.hpp`). Installing never runs
+anything from the plugin. It looks at the source with the checks of 5.3 and refuses a source whose manifest or layout is
+wrong, whose files are not the ones the manifest lists, whose signature does not hold, whose id only official plugins may
+use, or that was revoked; a plugin without a signature needs `--allow-unsigned`. An expired plugin, one that this computer
+cannot isolate and one the licence does not cover are installed, with what is wrong reported, because those depend on
+the computer and change. Each file is read once from one open handle and its digest is taken as it is copied; the copy is
+made in a new folder inside the root and measured again, and must have the hash of the first look, before it is renamed
+to `<root>/<plugin id>` in one step. The plugin id becomes a folder name only when the manifest reader accepted it and it
+does not begin with the name of a Windows device (`con`, `nul`, `com1`, and so on), on every system. A copy is not
+flushed to disk before the rename, because the standard library has no portable way to do it, so a power loss can leave
+a folder whose files are shorter than they were; the next look at it finds the files wrong. The machine root is written only when only an
+administrator can change it. The package is taken as a folder: Studio has no zip reader, and the user unzips a plugin
+with the system's own tool.
 
 ### 5.3 Verify
 
@@ -490,6 +509,10 @@ in this build". Nothing pretends to carry out a rule it cannot.
   (`libs/vss_agent_proto`) is an internal matter that changes without notice, and a plugin never speaks it. The
   plugin API borrows its framing (below) and nothing else.
 
+Every message of the extension points is listed, with its direction, its fields and their limits, in
+[the plugin API reference](plugin-api-reference.md). The headers `libs/vss_plugin/include/vss/plugin/api_*.hpp` are the
+definition in code, and where the reference and this section differ the reference follows the code.
+
 ### 7.1 Transport and framing
 
 - **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: a
@@ -563,7 +586,7 @@ A generator produces bytes onto a port.
 
 | Message | From | Content |
 |---|---|---|
-| `generator.start` | host | `instance`, `port` (an endpoint id), `params` |
+| `generator.start` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `generator.write` | plugin | `instance`, blob. Needs credit |
 | `generator.credit` | host | `instance`, `bytes`: how many more bytes the plugin may send |
 | `generator.pattern` | plugin | `instance`, a *declared pattern*: `{"bytes": hex, "repeat": n or 0, "period_us": n, "burst": n, "jitter": ...}`. The engine generates it (T0) |
@@ -571,8 +594,8 @@ A generator produces bytes onto a port.
 | `generator.done` | plugin | `instance`, a reason |
 
 **Flow control by credit.** The host grants at most 64 KiB of credit to start and tops up as the engine takes bytes,
-so a plugin can never get ahead of the port by more than that, and a plugin that writes without credit is refused with
-`busy` (the first time) and killed as `misbehaving` (when it keeps going). A generator is a source of async traffic. When it must be periodic and exact, it uses
+so a plugin can never get ahead of the port by more than that. A write without credit is dropped and counted, because a
+`generator.write` is a notification and has no id to answer, and a plugin that keeps going is killed as `misbehaving`. A generator is a source of async traffic. When it must be periodic and exact, it uses
 `generator.pattern`, which the engine runs.
 
 ### 7.5 Fixture types (T0 plus T2)
@@ -582,14 +605,14 @@ to an instance. The plugin sees what the other side writes and decides how to an
 
 | Message | From | Content |
 |---|---|---|
-| `fixture.create` | host | `instance`, `endpoint`, `params` |
+| `fixture.create` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `fixture.data` | host | `instance`, `ts_ns`, blob: bytes that arrived at the fixture. Coalesced: up to 8 KiB or 1 ms of arrivals in one frame |
 | `fixture.line` | host | `instance`, `ts_ns`, the new state of DTR, RTS (for a fixture these are the lines the program set) |
 | `fixture.reply` | plugin | `instance`, blob, `after_us` (optional): bytes to write to the fixture. With `after_us`, the **engine** holds the bytes and writes them at the time (a one-off rule), so the delay is exact, not a delay of the plugin's |
 | `fixture.line.set` | plugin | `instance`, DTR, RTS, `after_us` |
-| `fixture.fault` | plugin | `instance`, a `fault_kind` |
+| `fixture.fault` | plugin | `instance`, a `fault` (`parity`, `framing`, `overrun`, `break`, `hang_up` or `disconnect`) |
 | `rules.set` | plugin | `instance`, a rule set (section 6.3). It replaces the instance's set atomically. The reply says whether it was accepted, with the position of the first error otherwise |
-| `rules.event` | host | `instance`, `ts_ns`, `rule`, `action`: a rule fired |
+| `rules.event` | host | `instance`, `ts_ns`, `rule` (its name), `action` (the kind of the action, as `docs/response-timing.md` names it): a rule fired |
 
 Most fixtures send one `rules.set` when created and again when a parameter changes. The device behaviour (what a
 "Model 2000 multimeter" answers to `*IDN?`) is a rule set the plugin builds from its parameters. The plugin process
@@ -647,7 +670,7 @@ So the modifier slice comes after the slice of `docs/response-timing.md` that ad
 
 | Message | From | Content |
 |---|---|---|
-| `modifier.create` | host | `instance`, `link`, `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
+| `modifier.create` | host | `instance`, `place` (the hub's name for the link), `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
 | `modifier.batch` | host | `instance`, `seq`, `ts_ns` of the first chunk, `chunks`: list of `{offset, length, ts_ns}`; the bytes as one blob |
 | `modifier.result` | plugin | `seq`, `actions`: one for each chunk, in order, and a blob for what replaced them |
 | `modifier.stop` | host | |
@@ -701,6 +724,7 @@ harness, a language binding's server, a monitoring source) and translates betwee
 |---|---|---|
 | `agent.call` | plugin | `op` and its arguments, as in the agent protocol (section 5 of `agent.md`). Only the operations in the plugin's granted set are allowed |
 | `agent.subscribe` | plugin | The agent's event stream, filtered by the grant (counters only, or taps) |
+| `agent.event` | host | One event of a subscription: `subscription` (the `id` of the `agent.subscribe`), `kind`, `place`, `t_ns`, and in the blob the bytes of the event when the subscription asked for data |
 | `adapter.state` | plugin | `listening` and the **exact address** it listens on, if any, and the protocol name. Shown on the page |
 
 Rules for the proxy:
@@ -791,8 +815,8 @@ may carry a list:
 - A reader that does not know the plugin keeps every entry and writes it back as it was read.
 
 This is a change to the schema and to `vss_config`'s reader and writer. `vss_core` is not touched. The key is
-optional and the file's `version` stays 1: the reader has always passed over keys it does not know, so an older
-Studio opens a setup that has the list, and leaves the list out when it saves. The alternative that was not
+optional and the file's `version` stays 1. The reader refuses a key it does not know, so a Studio built before
+this list does not open a setup that has it. The alternative that was not
 taken is a file beside the setup (`<name>.plugins.json`), which needs no schema change but is lost when a
 person sends only the setup. The running setup that the agent keeps (`running-setup.json`) holds the same list.
 
@@ -946,8 +970,8 @@ There is no network, so:
 
 ### 8.6 Administrator policy
 
-A policy file `policy.json` in the machine configuration directory (`%ProgramData%\VirtualSerialStudio\`,
-`/etc/virtual-serial-studio/`, `/Library/Application Support/VirtualSerialStudio/`):
+A policy file `policy.json` in the machine configuration directory (`%ProgramData%\Virtual Serial Studio\`,
+`/etc/virtual-serial-studio/`, `/Library/Application Support/Virtual Serial Studio/`):
 
 ```json
 {
@@ -1728,7 +1752,7 @@ The plugin decides **what** to record and replay. The engine and the agent do th
 | Know the ports, links and their state | `agent.call` (`list`, `snapshot`) | Proxy call | `ports.read` | Section 7.7, written for adapters only. **Change:** the read operations of the proxy are open to every plugin kind that holds the permission |
 | Follow events with times: opens, closes, line changes, faults, rule firings, counters | `agent.subscribe` without `data` | Proxy call | `ports.read` | The same change. Read-only: this plugin never holds `topology.modify` while recording |
 | A live view of the bytes while recording, so the user sees that it works | `agent.subscribe` with `data` (a tap; it may drop, and says how much) | Proxy call | `traffic.tap` | Section 7.7 |
-| **A complete recording** of chosen ports and links | `capture.start {places, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
+| **A complete recording** of chosen ports and links | `capture.start {places, name, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`, answered with the recording's path and size; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
 | The setup, the driver and engine state, the real serial ports | None: they are the support bundle's own sections | | | The plugin does not need `serial.devices` |
 | Add its sections to the bundle, with a preview | `contributes.bundle_sections` in the manifest; `bundle.prepare {section, settings}` from the host, answered with a list of files in the data directory | **New** contribution | `bundle.section` | **New.** Decision 15. Section 19.5 |
 | Redaction choices | The section's declared parameters, drawn by Studio's form in the bundle dialog | Parameters | none | Section 7.8, reused |
@@ -1962,7 +1986,7 @@ order the engine saw them:
 | `data` | `place`, `direction`, `offset` (the count of bytes at that place and direction before this chunk), `t_ns`, `end_ns` (on a half-duplex bus: when the last byte left the wire), the bytes. One engine chunk is one item; chunks are never joined |
 | `line` | `place`, `t_ns`, the lines and which changed |
 | `line_error` | `place`, `t_ns`, the kind |
-| `bus_fault` | `link`, the sender, `t_ns`, the `bus_fault` value, the `offset` and length of the sender's chunk |
+| `bus_fault` | `place` (the link), the sender, `t_ns`, the `bus_fault` value, `event` (its id, which a trigger's `cause` names), the `offset` and length of the sender's chunk |
 | `rule` | A rule fired at the place: its event as `docs/response-timing.md` defines it |
 | `time` | `t_ns`: the engine's time now |
 | `lost` | `place`, `direction`, `from_offset`, `bytes`, `from_ns`, `to_ns`: the decoder was too slow and this much was not sent |
@@ -2074,8 +2098,8 @@ binary protocols. For them a plugin contributes a **decoder**, a fifth kind of e
 | Message | From | Content |
 |---|---|---|
 | `decoder.create` | host | `instance`, the places and their settings (rate, format, whether a bus), `params` |
-| `decoder.data` | host | `seq` and a list of the items of section 20.4, with the bytes as one blob |
-| `decoder.ack` | plugin | `seq` |
+| `decoder.data` | host | `instance`, `seq` and a list of the items of section 20.4, with the bytes as one blob |
+| `decoder.ack` | plugin | `instance`, `seq` |
 | `decoder.frame` | plugin | `place`, `direction`, `offset`, `length`, `t_start_ns`, `t_end_ns`, a message name, a summary of at most 200 characters, and up to 64 fields as `{name, offset, length, value}`. Optional, rate limited, and dropped first when the plugin is over its limits |
 | `trigger.publish` | plugin | Section 20.7 |
 | `decoder.stop` | host | |
@@ -2110,7 +2134,7 @@ A trigger is one record. The format is public and versioned with the plugin API.
   "field": { "name": "check", "offset": 7, "length": 2 },
   "expected": "3A91", "actual": "3A90",
   "covers": [1, 6],
-  "cause": { "bus_fault": "overlap", "event": 9912 },
+  "cause": { "fault": "overlap", "event": 9912 },
   "request": { "offset": 48205, "length": 8, "t_end_ns": 18201000000 },
   "text": "Check value is 3A90, expected 3A91.",
   "from": { "plugin": "com.virtualserialstudio.protocol", "instance": 3 }

@@ -3,7 +3,7 @@
 # The application service shared by the CLI and the Qt GUI.
 #
 
-add_library(vss_studio src/studio.cpp src/reconnect.cpp src/format_check.cpp src/benchmark.cpp src/capture.cpp src/replay.cpp src/responder.cpp src/studio_rules.cpp)
+add_library(vss_studio src/studio.cpp src/reconnect.cpp src/format_check.cpp src/benchmark.cpp src/capture.cpp src/replay.cpp src/responder.cpp src/studio_rules.cpp src/rules_build.cpp)
 add_library(Vss::studio ALIAS vss_studio)
 
 target_include_directories(vss_studio PUBLIC

@@ -1169,8 +1169,8 @@ void reader::delay_of(const json::value& value, const std::string& path,
     struct member
     {
         std::string_view key;
-        microseconds delay_spec::* field;
-        bool required;
+        microseconds delay_spec::* field = nullptr;
+        bool required = false;
     };
     std::vector<member> members;
     const char* name = "uniform";

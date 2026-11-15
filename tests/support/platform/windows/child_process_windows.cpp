@@ -317,7 +317,8 @@ private:
 };
 
 child_process::child_process(const std::string& program,
-                             const std::vector<std::string>& arguments)
+                             const std::vector<std::string>& arguments,
+                             const std::string& stderr_file)
     : impl_(std::make_unique<impl>())
 {
     std::wstring command_line;
@@ -348,7 +349,20 @@ child_process::child_process(const std::string& program,
     if (!null_input.is_open())
         fail("cannot open NUL");
 
+    handle error_file;
+    if (!stderr_file.empty())
+    {
+        error_file = handle(
+            ::CreateFileW(widen(stderr_file).c_str(), GENERIC_WRITE,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE, &inheritable,
+                          CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr));
+        if (!error_file.is_open())
+            fail("cannot open '" + stderr_file + "'");
+    }
+
     std::vector<HANDLE> inherited{null_input.get(), write_end.get()};
+    if (error_file.is_open())
+        inherited.push_back(error_file.get());
     attribute_list attributes;
     attributes.restrict_to(inherited);
 
@@ -357,7 +371,8 @@ child_process::child_process(const std::string& program,
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
     startup.StartupInfo.hStdInput = null_input.get();
     startup.StartupInfo.hStdOutput = write_end.get();
-    startup.StartupInfo.hStdError = write_end.get();
+    startup.StartupInfo.hStdError =
+        error_file.is_open() ? error_file.get() : write_end.get();
     startup.lpAttributeList = attributes.get();
 
     // A new process group lets GenerateConsoleCtrlEvent address the child.
@@ -449,6 +464,11 @@ std::string child_process::read_all(std::chrono::milliseconds limit)
             break;
     }
     return std::exchange(impl_->buffer_, std::string{});
+}
+
+void child_process::close_output()
+{
+    impl_->output_.reset();
 }
 
 std::uint64_t child_process::id() const noexcept

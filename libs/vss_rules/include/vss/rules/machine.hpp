@@ -89,12 +89,36 @@ struct firing
     std::vector<planned_action> actions;
 };
 
+/// What a machine asks before it does the work of a firing.  The engine
+/// implements it to bound that work: a machine given no gate admits
+/// everything.
+class firing_gate
+{
+public:
+    /// One more firing of a rule, decided at `when` (the time of the call
+    /// that is deciding it).  False: the set may not fire.
+    virtual bool admit_firing(time_point when) = 0;
+    /// Room for one more action to wait.  False: it is not rendered.
+    virtual bool admit_action() = 0;
+
+protected:
+    ~firing_gate() = default;
+};
+
 struct machine_stats
 {
     std::uint64_t bytes_seen = 0;
-    /// Bytes that were part of a match.
+    /// Bytes that were part of a match that was carried out.
     std::uint64_t bytes_matched = 0;
+    /// Every match that was decided, including the ones a gate refused.
     std::uint64_t firings = 0;
+    /// The firings a gate refused (see #firing_gate).  A refused firing
+    /// changes nothing of the set: no count of the rule, no step, no draw,
+    /// no state or slot, no action.  The matcher goes on as it would after a
+    /// firing: the matched bytes and every partial match are used up, a
+    /// `quiet_us` rule is marked spent for that silence, and a match that
+    /// was waiting for its gap is dropped.
+    std::uint64_t refused = 0;
     std::uint64_t skipped = 0;
     std::uint64_t replies = 0;
     std::uint64_t reply_bytes = 0;
@@ -116,7 +140,20 @@ public:
     /// Fixes the start of the run and returns the timeline, one firing for
     /// each entry in time order.  Nothing of it has happened yet: a
     /// `set_state` among its actions is the engine's to apply when due.
-    std::vector<firing> start(time_point origin);
+    ///
+    /// Every call that decides firings takes a trailing `gate`, which may be
+    /// null.  A gate is asked #firing_gate::admit_firing before a rule fires
+    /// (a refused firing is counted in `refused` and does nothing else;
+    /// matching goes on, so the count is exact) and
+    /// #firing_gate::admit_action for each action that has to wait, after its
+    /// delay is drawn and before its bytes are rendered (a refused action is
+    /// not rendered and not appended; the draw is still taken, so the seeded
+    /// stream does not depend on how full the queue was).  A rule's
+    /// `set_state` and `set_slot` do not wait and are not asked: they are
+    /// done at the match, and with a gate they are not kept in the firing's
+    /// `actions`, which nothing would read.  The timeline is not asked
+    /// `admit_firing`.  The gate is used during the call only.
+    std::vector<firing> start(time_point origin, firing_gate* gate = nullptr);
 
     /// Bytes that arrived at `when`.  Times must not go backwards.  Firings
     /// are appended to `out` in the order they were decided.
@@ -128,16 +165,18 @@ public:
     /// bytes were split into chunks.  A rule that needs silence after its
     /// pattern is decided when the silence has passed (see #tick), and loses
     /// to any rule that completes on the same byte without that need.
-    void feed(bytes_view data, time_point when, std::vector<firing>& out);
+    void feed(bytes_view data, time_point when, std::vector<firing>& out,
+              firing_gate* gate = nullptr);
 
     /// The lines of the place changed.  The first rule listed that matches
     /// the change fires; it uses up no bytes.
     void lines_changed(control_lines before, control_lines after,
-                       time_point when, std::vector<firing>& out);
+                       time_point when, std::vector<firing>& out,
+                       firing_gate* gate = nullptr);
 
     /// A program opened or closed the port.
     void port_changed(port_event what, time_point when,
-                      std::vector<firing>& out);
+                      std::vector<firing>& out, firing_gate* gate = nullptr);
 
     /// The owner of the set raised signal `index` of the set's `signals`,
     /// which arrived at `when`.  `cause` is the time of the event the plugin
@@ -148,7 +187,8 @@ public:
     /// raised at all (its owner, the age of `cause`) is the engine's to
     /// decide before it calls this.
     void signal(std::size_t index, bytes_view carried, time_point cause,
-                time_point when, std::vector<firing>& out);
+                time_point when, std::vector<firing>& out,
+                firing_gate* gate = nullptr);
 
     /// Time has passed with no bytes.  Fires, in the order of their times,
     /// the rule that was waiting for silence after its pattern and every
@@ -159,7 +199,8 @@ public:
     /// rule's state at that instant; one that was not is not tried again
     /// until bytes have arrived.  Silence is counted from the last byte, so
     /// nothing fires before the first byte has arrived.
-    void tick(time_point now, std::vector<firing>& out);
+    void tick(time_point now, std::vector<firing>& out,
+              firing_gate* gate = nullptr);
 
     /// When #tick has to be called next, if a rule is waiting for silence.
     std::optional<time_point> next_deadline() const;
@@ -207,6 +248,8 @@ public:
     const machine_stats& stats() const noexcept { return stats_; }
 
 private:
+    class gate_scope;
+
     struct rule_state
     {
         /// Where the rule's words are in `shift_`.
@@ -278,6 +321,9 @@ private:
     std::optional<waiting> waiting_;
     /// The latest due time planned, for `fifo`.
     time_point last_due_{};
+    /// The gate and the time of the call that is deciding firings now.
+    firing_gate* gate_ = nullptr;
+    time_point call_time_{};
     machine_stats stats_;
 };
 

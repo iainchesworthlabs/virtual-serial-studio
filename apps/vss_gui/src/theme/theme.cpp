@@ -147,7 +147,7 @@ const BundledFonts& bundled_fonts()
 /// Variable would be the Windows 11 face, but Qt 6 draws its variable
 /// instances at the wrong weight through DirectWrite (every regular label
 /// comes out semi-bold), so Windows keeps Segoe UI.  The look comes from the
-/// whole-pixel sizes and the unhinted outline instead.  A Hebrew or Arabic
+/// whole-pixel sizes and vertical hinting instead.  A Hebrew or Arabic
 /// glyph the system face lacks is drawn with the bundled Noto face.
 QFont resolve_base_font()
 {
@@ -155,10 +155,14 @@ QFont resolve_base_font()
     QStringList families{font.family()};
     families.append(bundled_fonts().script_fallbacks);
     font.setFamilies(families);
-    // Hinting snaps stems to whole pixels, which is what makes Windows text
-    // look crunchy next to a modern UI.  Positions and sizes are already whole
-    // pixels (see Theme::font), so ask for the unhinted outline.
-    font.setHintingPreference(QFont::PreferNoHinting);
+    // No hinting at all left Segoe UI 13 px on the Windows platform at 96 DPI
+    // grainy: glyphs sit at sub-pixel positions and almost no stem lands on a
+    // whole pixel (64 fully inked pixels in a sentence, against 263 with
+    // vertical hinting).  Vertical hinting fits strokes to pixel rows and keeps
+    // the natural letter widths.  The offscreen platform does not use the
+    // platform's font engine and draws every setting alike, so this can only
+    // be judged on a real window.
+    font.setHintingPreference(kTextHinting);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;
 }
@@ -177,7 +181,9 @@ QFont resolve_mono_font()
     families.append(bundled_fonts().script_fallbacks);
     font.setFamilies(families);
     font.setFamily(families.front());
-    font.setHintingPreference(QFont::PreferNoHinting);
+    // The same hinting as the UI font, for the same reason (see
+    // resolve_base_font).
+    font.setHintingPreference(kTextHinting);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;
 }

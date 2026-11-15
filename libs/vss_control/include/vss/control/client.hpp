@@ -65,6 +65,21 @@ public:
 
     result<status_reply> status();
     result<ports_reply> list_ports();
+    /// One port, as `list_ports` has it.  `api_errc::invalid_argument` for
+    /// an id that is not the form of a port's (`p_3`) and
+    /// `api_errc::not_found` for one that no port has.  It needs `monitor`.
+    result<port_entry> get_port(const std::string& port);
+    /// The links, as `list_ports` has them.
+    result<std::vector<link_entry>> list_links();
+    /// One link, as `list_links` has it.  Errors as `get_port` has them,
+    /// with the form `l_2`.
+    result<link_entry> get_link(const std::string& link);
+    /// Asks whether the gateway answers.  It needs no scope and does not
+    /// ask the agent, so it works while no agent runs.
+    result<void> ping();
+    /// Ends this session.  The gateway answers first and then closes the
+    /// connection, so every call after this one fails.
+    result<void> close_session();
 
     /// Makes a port in the agent and gives its id (`p_3`).  It needs
     /// `control.ports`.  An error of the engine arrives as the engine's own

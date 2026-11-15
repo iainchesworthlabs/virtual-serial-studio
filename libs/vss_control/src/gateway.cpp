@@ -954,6 +954,19 @@ private:
             kick_session(client, asked.id, *kicking);
             return;
         }
+        if (wanted.id == operation::ping)
+        {
+            send_reply(client, reply{asked.id, done_reply{}});
+            return;
+        }
+        if (wanted.id == operation::session_close)
+        {
+            // The answer first, then the connection: the caller is told that
+            // it is closed.  The end is audited as `session.closed`.
+            client->close_reason = "closed_by_client";
+            answer_and_close(client, reply{asked.id, done_reply{}});
+            return;
+        }
         if (wanted.id == operation::endpoint_stop)
         {
             audit_->record("operation", {{"session", client->number},
@@ -2287,8 +2300,16 @@ private:
     /// Sends an error and closes the connection once it is written.
     void fail(const session_ptr& client, std::uint64_t id, api_errc error)
     {
+        answer_and_close(client, error_reply_for(id, error));
+    }
+
+    /// Sends a reply and closes the connection once it is written, for the
+    /// reason in `close_reason`.  Nothing more is read from the connection
+    /// meanwhile.
+    void answer_and_close(const session_ptr& client, const reply& answer)
+    {
         client->leaving = true;
-        // A client that does not read the error is not waited for for ever.
+        // A client that does not read the answer is not waited for for ever.
         client->handshake_timer.expires_after(options_.handshake_timeout);
         client->handshake_timer.async_wait(
             [this, client](boost::system::error_code cancelled)
@@ -2296,7 +2317,7 @@ private:
                 if (!cancelled)
                     close(client, client->close_reason);
             });
-        send_reply(client, error_reply_for(id, error),
+        send_reply(client, answer,
                    [this, client] { close(client, client->close_reason); });
     }
 
@@ -2531,6 +2552,14 @@ private:
                 return reply{asked.id, status(client, sessions_now)};
             if (std::holds_alternative<ports_list_request>(asked.body))
                 return list_ports(client, asked.id);
+            if (const auto* getting =
+                    std::get_if<ports_get_request>(&asked.body))
+                return get_port(client, asked.id, *getting);
+            if (std::holds_alternative<links_list_request>(asked.body))
+                return list_links(client, asked.id);
+            if (const auto* getting =
+                    std::get_if<links_get_request>(&asked.body))
+                return get_link(client, asked.id, *getting);
             if (const auto* making =
                     std::get_if<ports_create_request>(&asked.body))
                 return create_port(client, asked.id, *making);
@@ -2730,18 +2759,20 @@ private:
         return answer;
     }
 
-    reply list_ports(session& client, std::uint64_t id)
+    /// The ports and the links the agent has now, or nothing when it could
+    /// not be asked.
+    std::optional<ports_reply> ask_for_list(session& client)
     {
         agent::client* const source = agent_of(client);
         if (source == nullptr)
-            return error_reply_for(id, api_errc::unavailable);
+            return std::nullopt;
         const auto listed = source->list();
         if (!listed)
         {
             // Whatever went wrong, the next request starts with a new
             // connection.  Nothing about the agent's error crosses.
             drop_agent(client);
-            return error_reply_for(id, api_errc::unavailable);
+            return std::nullopt;
         }
         ports_reply out;
         out.revision = listed->revision;
@@ -2751,7 +2782,59 @@ private:
         out.links.reserve(listed->links.size());
         for (const agent::link_summary& link : listed->links)
             out.links.push_back(summarise(link));
-        return reply{id, std::move(out)};
+        return out;
+    }
+
+    reply list_ports(session& client, std::uint64_t id)
+    {
+        auto listed = ask_for_list(client);
+        if (!listed)
+            return error_reply_for(id, api_errc::unavailable);
+        return reply{id, std::move(*listed)};
+    }
+
+    /// `ports.get`: an id that is not of the form of a port's is refused as
+    /// `ports.remove` refuses it; one that is, and that no port has, is not
+    /// found.
+    reply get_port(session& client, std::uint64_t id,
+                   const ports_get_request& wanted)
+    {
+        if (!parse_port_id(wanted.port))
+            return error_reply_for(id, api_errc::invalid_argument);
+        auto listed = ask_for_list(client);
+        if (!listed)
+            return error_reply_for(id, api_errc::unavailable);
+        for (port_entry& port : listed->ports)
+        {
+            if (port.id == wanted.port)
+                return reply{id, port_reply{listed->revision, std::move(port)}};
+        }
+        return error_reply_for(id, api_errc::not_found);
+    }
+
+    reply list_links(session& client, std::uint64_t id)
+    {
+        auto listed = ask_for_list(client);
+        if (!listed)
+            return error_reply_for(id, api_errc::unavailable);
+        return reply{id,
+                     links_reply{listed->revision, std::move(listed->links)}};
+    }
+
+    reply get_link(session& client, std::uint64_t id,
+                   const links_get_request& wanted)
+    {
+        if (!parse_link_id(wanted.link))
+            return error_reply_for(id, api_errc::invalid_argument);
+        auto listed = ask_for_list(client);
+        if (!listed)
+            return error_reply_for(id, api_errc::unavailable);
+        for (link_entry& link : listed->links)
+        {
+            if (link.id == wanted.link)
+                return reply{id, link_reply{listed->revision, std::move(link)}};
+        }
+        return error_reply_for(id, api_errc::not_found);
     }
 
     const gateway_options options_;

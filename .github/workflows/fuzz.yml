@@ -7,6 +7,14 @@ name: Fuzz
 # the regression inputs in ci.yml. A crash fails the run, uploads the input as
 # an artifact and, at night, opens a nightly-analysis issue. Add the input to
 # libs/<lib>/fuzz/regressions/ with the fix.
+#
+# The targets run one after another in one job, so the job needs time for every
+# target. FUZZ_BUDGET_MINUTES is the time the job may spend fuzzing. tools/fuzz.py
+# cuts the time of each target to fit it, down to a floor, and then refuses to
+# run, so a new target can shorten the others but cannot push the job past its
+# limit. timeout-minutes holds the budget and the build; tools/test_fuzz.py checks
+# that. A job that does run out of time is cancelled, not failed, and the steps
+# that keep the crash and open the issue run for a cancelled job as well.
 
 on:
   push:
@@ -31,12 +39,13 @@ jobs:
   fuzz:
     name: Fuzz
     runs-on: ubuntu-26.04
-    timeout-minutes: 60
+    timeout-minutes: 120
     permissions:
       contents: read
       issues: write
     env:
       BOOST_ROOT: ${{ github.workspace }}/.cache/boost-root
+      FUZZ_BUDGET_MINUTES: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -81,7 +90,7 @@ jobs:
       - name: Fuzz
         env:
           MODE: ${{ steps.mode.outputs.mode }}
-        run: python3 tools/fuzz.py --mode "$MODE"
+        run: python3 tools/fuzz.py --mode "$MODE" --budget-minutes "$FUZZ_BUDGET_MINUTES"
 
       # Saved after the nightly and after a manual run, not after every push.
       - name: Save the working corpus
@@ -91,8 +100,10 @@ jobs:
           path: .cache/fuzz/fuzz_*
           key: fuzz-corpus-${{ github.run_id }}
 
+      # failure() alone is false for a job that ran out of time, which is cancelled, so a
+      # crash found by an earlier target would be lost with the job.
       - name: Keep the crashing input
-        if: failure()
+        if: ${{ failure() || cancelled() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: fuzz-crashes
@@ -100,8 +111,8 @@ jobs:
           if-no-files-found: ignore
 
       - name: Report the failure
-        if: failure() && github.event_name == 'schedule'
+        if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.event_name == 'schedule' }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: libFuzzer
-          detail: A fuzz target crashed, timed out or ran out of memory, or the fuzz build failed. The run keeps the crashing input as the fuzz-crashes artifact. Fix the bug and add the input to libs/<lib>/fuzz/regressions/.
+          detail: A fuzz target crashed, timed out or ran out of memory, the fuzz build failed, or the run was cancelled or ran out of time before every target had its turn. The run keeps the crashing input as the fuzz-crashes artifact. Fix the bug and add the input to libs/<lib>/fuzz/regressions/.

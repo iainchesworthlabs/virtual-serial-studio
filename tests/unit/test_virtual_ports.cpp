@@ -81,6 +81,12 @@ TEST_CASE("virtual ports: named pipes report unsupported")
 
 TEST_CASE("virtual ports: best kind is always available")
 {
+    // Where the driver is installed the best kind is a real COM port, and a
+    // unit test does not make one on the machine it runs on.  The guest run
+    // makes driver ports (tests/unit/platform/windows, VSS_TEST_DRIVER=1).
+    if (driver_available())
+        VSS_SKIP("the Windows driver is installed; it would make a real port");
+
     boost::asio::io_context io;
     const auto created = create_best_virtual_port(io.get_executor(), "best");
     REQUIRE(created);
