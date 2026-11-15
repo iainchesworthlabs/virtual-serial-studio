@@ -548,7 +548,7 @@ studio::attach_serial(const std::string& name, const std::string& uri,
     const std::string final_name = unique_name(name);
 
     boost::system::error_code ec;
-    auto transport = open_transport(hub_->executor(), uri, nullptr, ec);
+    auto transport = open_address(uri, nullptr, ec);
     if (ec)
         return ec;
 
@@ -581,7 +581,7 @@ studio::attach_serial(const std::string& name, const std::string& uri,
     const std::string final_name = unique_name(name);
 
     boost::system::error_code ec;
-    auto transport = open_transport(hub_->executor(), uri, &settings, ec);
+    auto transport = open_address(uri, &settings, ec);
     if (ec)
         return ec;
 
@@ -865,7 +865,8 @@ result<void> studio::reconfigure_port(endpoint_id id,
         if (echo)
             static_cast<void>(set_fixture_echo(id, false));
         const std::weak_ptr<serial_transport> fixture = fresh;
-        if (const auto reopened = found->reopen(std::move(fresh)); !reopened)
+        if (const auto reopened = hand_over(id, found, std::move(fresh));
+            !reopened)
         {
             if (echo)
                 static_cast<void>(set_fixture_echo(id, true));
@@ -896,12 +897,13 @@ result<void> studio::reconfigure_port(endpoint_id id,
         return make_error_code(errc::unsupported);
 
     boost::system::error_code ec;
-    auto fresh = open_transport(hub_->executor(), record.uri, &settings, ec);
+    auto fresh = open_address(record.uri, &settings, ec);
     if (ec)
         return ec;
     if (!fresh)
         return make_error_code(errc::internal);
-    if (const auto reopened = found->reopen(std::move(fresh)); !reopened)
+    if (const auto reopened = hand_over(id, found, std::move(fresh));
+        !reopened)
         return reopened.error();
     store(true);
     return {};
@@ -910,33 +912,36 @@ result<void> studio::reconfigure_port(endpoint_id id,
 result<void> studio::remove_port(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.remove_port");
-    std::string target;
-    std::string advertised;
     subscriber_id echo = 0;
     {
         std::lock_guard lock(record_mutex_);
         auto it = records_.find(id);
         if (it != records_.end())
-        {
-            target = it->second.target;
-            advertised = it->second.advertised;
             echo = it->second.echo;
-        }
     }
 
     if (echo != 0)
         hub_->unsubscribe(echo);
     // A port's rule set goes with it; a port with none is not an error.
     static_cast<void>(remove_rules(id));
+    // The reconnector is told first, so that a loss that is reported while the
+    // port goes does not start a sequence for it.  A try that is already
+    // running is stopped by `hand_over`.
+    if (reconnector_)
+        reconnector_->disallow(id);
     const auto removed = hub_->remove_endpoint(id);
     if (!removed)
         return removed.error();
-    if (reconnector_)
-        reconnector_->disallow(id);
 
     std::lock_guard lock(record_mutex_);
+    // The paths are read here and not before the port leaves the hub: a
+    // `reopen` that was under way can still have changed them.
+    std::string target;
+    std::string advertised;
     if (const auto it = records_.find(id); it != records_.end())
     {
+        target = it->second.target;
+        advertised = it->second.advertised;
         if (const auto& link = it->second.link; link.has_value())
             remove_stable_link(*link);
     }
@@ -1147,6 +1152,48 @@ bool studio::reconnects(const port_record& record)
            !record.uri.empty() && !is_listen_uri(record.uri);
 }
 
+std::shared_ptr<transport> studio::open_address(const std::string& uri,
+                                                const serial_settings* settings,
+                                                error_code& ec) const
+{
+    if (options_.make_transport)
+        return options_.make_transport(hub_->executor(), uri, settings, ec);
+    return open_transport(hub_->executor(), uri, settings, ec);
+}
+
+result<void> studio::hand_over(endpoint_id id,
+                               const std::shared_ptr<endpoint>& found,
+                               std::shared_ptr<transport> fresh)
+{
+    VSS_PROFILE_ZONE("studio.hand_over");
+    // The new transport was made with no lock held, and that can take tens of
+    // seconds, so the port can have been removed (by `remove_port`, or by
+    // `replace` making room for a setup) in the meantime.  A port leaves the
+    // hub before its record, so the hub is what is asked.  An endpoint that is
+    // started again after its removal would hold the transport, a COM port or a
+    // connection, with nothing that can reach it.
+    if (hub_->find_endpoint(id) != found)
+    {
+        // Nothing has used it yet, so it is closed here.
+        if (fresh)
+            fresh->close();
+        return make_error_code(errc::not_found);
+    }
+    if (const auto reopened = found->reopen(std::move(fresh)); !reopened)
+        return reopened;
+    // The port can still go between the look above and the start.  Removal
+    // takes it out of the hub and then stops it.  Either that stop comes after
+    // the start, and it closes the new transport, or it came before it and did
+    // nothing, and then the port is already out of the hub here.  So when the
+    // port is still in the hub now, a later removal is the one that stops it.
+    if (hub_->find_endpoint(id) != found)
+    {
+        found->stop();
+        return make_error_code(errc::not_found);
+    }
+    return {};
+}
+
 result<void> studio::reopen(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.reopen");
@@ -1179,7 +1226,8 @@ result<void> studio::reopen(endpoint_id id)
             return created.error();
         const std::string path = created->path;
         const std::weak_ptr<transport> driver = created->port;
-        if (const auto reopened = found->reopen(std::move(created->port));
+        if (const auto reopened =
+                hand_over(id, found, std::move(created->port));
             !reopened)
             return reopened.error();
 
@@ -1212,12 +1260,11 @@ result<void> studio::reopen(endpoint_id id)
     }
 
     boost::system::error_code ec;
-    auto fresh =
-        open_transport(hub_->executor(), record.uri,
-                       record.settings_given ? &record.serial : nullptr, ec);
+    auto fresh = open_address(
+        record.uri, record.settings_given ? &record.serial : nullptr, ec);
     if (ec)
         return ec;
-    return found->reopen(std::move(fresh));
+    return hand_over(id, found, std::move(fresh));
 }
 
 result<void> studio::reconnect_attempt(endpoint_id id)
