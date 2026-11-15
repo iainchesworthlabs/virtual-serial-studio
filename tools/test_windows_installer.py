@@ -8,8 +8,11 @@
 Nothing here runs an installer. The installer runs the uninstaller of the version it
 replaces, and that uninstaller keeps the driver, the helper service and the PATH entry
 only when it is told it is part of an upgrade. These tests check the text that carries
-that message (cmake/packaging/windows/nsis-template.cmake and driver.nsh); the installer
-check in CI (tools/ci/check-windows-installer.ps1) runs the result.
+that message (cmake/packaging/windows/nsis-template.cmake and driver.nsh). The installer
+check in CI (tools/ci/check-windows-installer.ps1) runs the result: a finished upgrade, an
+uninstall with the switch and the clean-up scripts it leaves, an uninstall with _?= and
+without the switch, and a normal uninstall. A cancelled upgrade, with the wizard on screen,
+is only run by hand on a guest machine (docs/releasing.md).
 """
 
 from __future__ import annotations
@@ -50,15 +53,24 @@ def write_template(cmake_root: str, out_dir: Path) -> subprocess.CompletedProces
 @unittest.skipUnless(CMAKE, "needs cmake")
 class NsisTemplate(unittest.TestCase):
     def cmake_root(self) -> str:
-        result = subprocess.run([CMAKE, "--system-information"], capture_output=True, text=True, timeout=120, check=False)
-        match = re.search(r'^CMAKE_ROOT "(.*)"$', result.stdout, re.MULTILINE)
-        self.assertIsNotNone(match, result.stdout[:500])
-        return match.group(1)
+        # cmake -P reads the variable without configuring a compiler project.
+        with tempfile.TemporaryDirectory() as tmp:
+            script = Path(tmp) / "root.cmake"
+            script.write_text('message("${CMAKE_ROOT}")\n', encoding="utf-8")
+            result = subprocess.run([CMAKE, "-P", str(script)], capture_output=True, text=True, timeout=60, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        root = result.stderr.strip() or result.stdout.strip()
+        self.assertTrue(root, "cmake -P printed no CMAKE_ROOT")
+        return root
 
-    def test_the_old_uninstaller_is_started_with_the_upgrade_switch_before_the_folder(self) -> None:
+    def stock_template(self) -> Path:
         stock = Path(self.cmake_root()) / "Modules" / "Internal" / "CPack" / "NSIS.template.in"
         if not stock.exists():
             self.skipTest("this CMake has no NSIS template")
+        return stock
+
+    def test_the_old_uninstaller_is_started_with_the_upgrade_switch_before_the_folder(self) -> None:
+        stock = self.stock_template()
         with tempfile.TemporaryDirectory() as tmp:
             result = write_template(self.cmake_root(), Path(tmp))
             self.assertEqual(result.returncode, 0, result.stderr)
@@ -70,28 +82,54 @@ class NsisTemplate(unittest.TestCase):
         self.assertNotIn("/S _?=$3", made)
         # The folder is remembered before the uninstaller runs, for the clean-up.
         self.assertLess(made.index("StrCpy $VssUpgradeFolder $3"), made.index("/VSSUPGRADE=1"))
-        # Nothing else changed: undo the one replacement and get CMake's own file back.
-        undone = made.replace(
-            "  StrCpy $VssUpgradeFolder $3\n  ExecWait '\"$0\" /S /VSSUPGRADE=1 _?=$3' ;Do not copy the uninstaller to a temp file",
-            OLD_LINE,
+        # An unfinished upgrade is picked up at the label every path of .onInit reaches.
+        self.assertEqual(made.count("Call VssAdoptUnfinishedUpgrade"), 1)
+        # The marker that driver.nsh requires comes before the line that carries the defines.
+        self.assertLess(made.index("!define VSS_TEMPLATE_PASSES_UPGRADE_SWITCH"), made.index("@CPACK_NSIS_DEFINES@"))
+        # Nothing else changed: undo the three replacements and get CMake's own file back.
+        undone = (
+            made.replace(
+                "  StrCpy $VssUpgradeFolder $3\n  ExecWait '\"$0\" /S /VSSUPGRADE=1 _?=$3' ;Do not copy the uninstaller to a temp file",
+                OLD_LINE,
+            )
+            .replace("\ninst:\n  Call VssAdoptUnfinishedUpgrade\n", "\ninst:\n")
+            .replace("\n!define VSS_TEMPLATE_PASSES_UPGRADE_SWITCH\n@CPACK_NSIS_DEFINES@\n", "\n@CPACK_NSIS_DEFINES@\n")
         )
         self.assertEqual(undone, original)
 
-    def test_a_template_without_the_line_stops_the_configure_step(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            fake = Path(tmp) / "root"
-            target = fake / "Modules" / "Internal" / "CPack"
-            target.mkdir(parents=True)
-            (target / "NSIS.template.in").write_text("Function .onInit\nFunctionEnd\n", encoding="utf-8")
-            result = write_template(fake.as_posix(), Path(tmp))
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn("runs the earlier version's uninstaller", result.stderr)
-            self.assertFalse((Path(tmp) / "out" / "NSIS.template.in").exists())
+    def fake_root(self, tmp: Path, text: str) -> Path:
+        fake = tmp / "root"
+        target = fake / "Modules" / "Internal" / "CPack"
+        target.mkdir(parents=True)
+        (target / "NSIS.template.in").write_text(text, encoding="utf-8")
+        return fake
+
+    def test_a_template_without_one_of_the_lines_stops_the_configure_step(self) -> None:
+        lines = {
+            "runs the earlier version's uninstaller": OLD_LINE,
+            "label that ends the uninstall": "\ninst:\n  ; Reads components status for registry\n",
+            "holds CPACK_NSIS_DEFINES": "\n@CPACK_NSIS_DEFINES@\n",
+        }
+        whole = "".join(lines.values())
+        for message, line in lines.items():
+            with self.subTest(missing=message), tempfile.TemporaryDirectory() as tmp:
+                result = write_template(self.fake_root(Path(tmp), whole.replace(line, "\n")).as_posix(), Path(tmp))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, " ".join(result.stderr.split()))
+                self.assertFalse((Path(tmp) / "out" / "NSIS.template.in").exists())
+
+    def test_a_template_with_one_of_the_lines_twice_stops_the_configure_step(self) -> None:
+        whole = OLD_LINE + "\ninst:\n  ; Reads components status for registry\n\n@CPACK_NSIS_DEFINES@\n"
+        for line in (OLD_LINE, "\n@CPACK_NSIS_DEFINES@\n"):
+            with self.subTest(line=line.strip()), tempfile.TemporaryDirectory() as tmp:
+                result = write_template(self.fake_root(Path(tmp), whole + line).as_posix(), Path(tmp))
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("more than once", " ".join(result.stderr.split()))
 
     def test_the_package_settings_use_the_copy(self) -> None:
         text = PACKAGE_CMAKE.read_text(encoding="utf-8")
         self.assertIn("vss_write_nsis_template(", text)
-        self.assertIn("set(CPACK_MODULE_PATH \"${VSS_NSIS_TEMPLATE_DIR}\")", text)
+        self.assertIn('set(CPACK_MODULE_PATH "${VSS_NSIS_TEMPLATE_DIR}")', text)
 
 
 class UninstallerScript(unittest.TestCase):
@@ -130,6 +168,38 @@ class UninstallerScript(unittest.TestCase):
         # Every other way out of the function deletes it.
         self.assertIn('clean:\n  Delete "$INSTDIR\\path-setup.log"', body)
         self.assertLess(body.index("clean:"), body.index("done:"))
+
+    def test_an_installer_not_built_from_the_copy_is_an_error(self) -> None:
+        text = DRIVER_NSH.read_text(encoding="utf-8")
+        match = re.search(r"^!ifndef VSS_TEMPLATE_PASSES_UPGRADE_SWITCH\n  !error .*\n!endif$", text, re.MULTILINE)
+        self.assertIsNotNone(match)
+        # Before anything that could be built without the switch.
+        self.assertLess(match.start(), text.index("!include"))
+
+    def undo_body(self) -> str:
+        text = DRIVER_NSH.read_text(encoding="utf-8")
+        return text.split("Function VssUndoUpgrade\n", 1)[1].split("FunctionEnd", 1)[0]
+
+    def test_the_undo_runs_each_script_that_is_there_and_leaves_only_without_a_stash(self) -> None:
+        body = self.undo_body()
+        # The stash folder decides whether to leave; a missing remove-driver.ps1 does not.
+        self.assertIn('${IfNot} ${FileExists} "$R1\\*.*"\n    Goto done', body)
+        for script in ("remove-driver.ps1", "edit-path.ps1", "stop-studio.ps1"):
+            self.assertIn('${If} ${FileExists} "$R1\\' + script + '"\n    ExecWait', body, script)
+        self.assertNotIn('${IfNot} ${FileExists} "$R1\\remove-driver.ps1"', body)
+
+    def test_the_undo_deletes_the_uninstaller_that_could_not_delete_itself(self) -> None:
+        body = self.undo_body()
+        success = body.split("${If} $1 == 0", 1)[1].split("${Else}", 1)[0]
+        self.assertIn('Delete "$R0\\Uninstall.exe"', success)
+        self.assertLess(success.index("Uninstall.exe"), success.index('RMDir "$R0"'))
+
+    def test_an_unfinished_upgrade_is_picked_up_at_the_start_of_an_install(self) -> None:
+        text = DRIVER_NSH.read_text(encoding="utf-8")
+        body = text.split("Function VssAdoptUnfinishedUpgrade\n", 1)[1].split("FunctionEnd", 1)[0]
+        self.assertIn('${If} $VssUpgradeFolder == ""', body)
+        self.assertIn('${FileExists} "$INSTDIR\\${VSS_UNDO_DIR}\\*.*"', body)
+        self.assertIn("StrCpy $VssUpgradeFolder $INSTDIR", body)
 
     def test_a_cancelled_upgrade_is_taken_back(self) -> None:
         text = DRIVER_NSH.read_text(encoding="utf-8")

@@ -22,6 +22,14 @@
 ; refuses a longer PATH, so the CMake file turns it off and bin\edit-path.ps1 does
 ; the work on the registry value itself.
 
+; The installer must be built from the copy of CPack's template that
+; cmake/packaging/windows/nsis-template.cmake writes, which defines this. From CPack's
+; own template the old uninstaller would be started without the upgrade switch, and
+; every upgrade would remove the driver, the helper service and the PATH entry.
+!ifndef VSS_TEMPLATE_PASSES_UPGRADE_SWITCH
+  !error "This installer was not built from the template copy that passes /VSSUPGRADE=1 (cmake/packaging/windows/nsis-template.cmake). Check CPACK_MODULE_PATH."
+!endif
+
 !include "nsDialogs.nsh"
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
@@ -42,7 +50,11 @@ Var VssDriverLog
 ; started with that switch keeps the driver, the helper service, the PATH entry and the
 ; per-user entries; any other uninstall removes them, whatever folder it runs from
 ; (Uninstall.exe /S _?=<folder> is how an unattended uninstall is made to wait, and it
-; runs from the install folder too).
+; runs from the install folder too; it removes them, and leaves Uninstall.exe and the
+; folder, which an uninstaller started that way cannot delete). The switch is for the
+; installer's own use. Passed by hand to an uninstall it keeps the driver, the helper
+; service and the PATH entry, removes Studio, and leaves the scripts that remove them
+; in undo-upgrade.
 ;
 ; VssIsUpgrade is 1 in an uninstaller started with the switch, and empty otherwise.
 ; VssUpgradeFolder is, in the installer, the folder of the version whose uninstaller it
@@ -52,8 +64,10 @@ Var VssUpgradeFolder
 
 ; The folder of the upgrade stash: what the old uninstaller leaves for the new
 ; installer to take the driver, the helper service and the PATH entry away again if
-; the upgrade does not finish. Inside the install folder, which only administrators
-; can write.
+; the upgrade does not finish. It is inside the install folder, which only
+; administrators can write when it is under Program Files (the default). A folder
+; chosen outside it has the access list of its parent, as the other scripts in the
+; install folder do.
 !define VSS_UNDO_DIR "undo-upgrade"
 
 ; The command line decides when there is no page: /DRIVER=0 skips the driver.
@@ -456,8 +470,20 @@ FunctionEnd
 ; cancels, or the install fails, nothing would set them up and nothing could remove
 ; them. So the old uninstaller leaves the scripts that remove them in a folder
 ; (undo-upgrade) in the install folder, and the new installer runs them if it does not
-; get to the end. A finished install deletes the folder. If the installer is killed
-; (a power cut, Task Manager) the folder stays, and the next install replaces it.
+; get to the end. A finished install deletes the folder. (The uninstaller cannot delete
+; itself when it runs with _?=, so Uninstall.exe stays until the new installer finishes,
+; which replaces it, or takes the upgrade back, which deletes it.)
+;
+; If the installer is killed (a power cut, Task Manager) after that, the folder stays
+; and the old version's entry in Apps & features is already gone, so the next install
+; runs no uninstaller. VssAdoptUnfinishedUpgrade, called at the start of every install
+; (nsis-template.cmake), takes a folder left like that as an unfinished upgrade, so
+; that this install, if it is cancelled or fails, runs the clean-up from it, and if it
+; finishes, deletes it.
+;
+; This works from the version that has these functions on. An upgrade from an older
+; version, cancelled or failed, leaves the driver, the helper service and the PATH
+; entry, because that version's uninstaller makes no stash.
 
 ; First in the uninstall: is this an upgrade? Only the switch says so. A switch that is
 ; not there, or has any other value, is a real uninstall, which removes everything.
@@ -488,9 +514,19 @@ Function un.VssStashUndo
   CopyFiles /SILENT "$INSTDIR\bin\stop-studio.ps1" "$INSTDIR\${VSS_UNDO_DIR}\stop-studio.ps1"
 FunctionEnd
 
+; At the start of every install (a call the template copy makes at `inst:`): a stash in
+; the install folder that this install did not make is an upgrade that did not finish,
+; so it is treated as one. $INSTDIR is the default folder, or the one of /D=, here.
+Function VssAdoptUnfinishedUpgrade
+  ${If} $VssUpgradeFolder == ""
+  ${AndIf} ${FileExists} "$INSTDIR\${VSS_UNDO_DIR}\*.*"
+    StrCpy $VssUpgradeFolder $INSTDIR
+  ${EndIf}
+FunctionEnd
+
 ; At the end of a finished install: the upgrade went through, so there is nothing to
-; take back. The install folder is cleared too, for a folder left by an installer that
-; was killed before.
+; take back. The install folder is cleared too, in case the stash was not the one this
+; install knew about.
 Function VssUpgradeDone
   ${If} $VssUpgradeFolder != ""
     RMDir /r "$VssUpgradeFolder\${VSS_UNDO_DIR}"
@@ -501,10 +537,13 @@ FunctionEnd
 
 ; The person cancelled, or the install failed, after the old version was uninstalled:
 ; Studio is gone, so what the old uninstaller kept for this installer goes too, by the
-; scripts it left. It does nothing when this installer ran no uninstaller, or the old
-; one did not leave the scripts (it was an older build). It runs once. Each script
-; writes its own log in the old install folder, and a log is kept only when its script
-; failed, with the scripts, so that the person can run them by hand.
+; scripts it left. It does nothing when there is no stash: this installer ran no
+; uninstaller, or the old one was a build that makes none. A stash with some of the
+; scripts missing (a build with no staged driver has no remove-driver.ps1) runs the
+; ones that are there. It runs once. Each script writes its own log in the old install
+; folder, and a log is kept only when its script failed, with the scripts, so that the
+; person can run them by hand. When all three worked it also deletes Uninstall.exe: the
+; uninstaller that ran with _?= could not delete itself, and has exited by now.
 Function VssUndoUpgrade
   Push $0
   Push $1
@@ -516,41 +555,52 @@ Function VssUndoUpgrade
     Goto done
   ${EndIf}
   StrCpy $R1 "$R0\${VSS_UNDO_DIR}"
-  ${IfNot} ${FileExists} "$R1\remove-driver.ps1"
+  ${IfNot} ${FileExists} "$R1\*.*"
     Goto done
   ${EndIf}
 
   DetailPrint "The upgrade did not finish. Taking the driver, the helper service and the PATH entry of the earlier version away."
   StrCpy $1 0
 
-  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\remove-driver.ps1" > "$R0\driver-remove.log" 2>&1' $0
-  ${If} $0 == 0
-  ${OrIf} $0 == 10
-    Delete "$R0\driver-remove.log"
-    ${If} $0 == 10
-      SetRebootFlag true
+  ${If} ${FileExists} "$R1\remove-driver.ps1"
+    ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\remove-driver.ps1" > "$R0\driver-remove.log" 2>&1' $0
+    ${If} $0 == 0
+    ${OrIf} $0 == 10
+      Delete "$R0\driver-remove.log"
+      ${If} $0 == 10
+        SetRebootFlag true
+      ${EndIf}
+    ${Else}
+      StrCpy $1 1
     ${EndIf}
-  ${Else}
-    StrCpy $1 1
   ${EndIf}
 
-  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\edit-path.ps1" -Action Remove -Directory "$R0\bin" > "$R0\path-setup.log" 2>&1' $0
-  ${If} $0 == 0
-    Delete "$R0\path-setup.log"
-    SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
-  ${Else}
-    StrCpy $1 1
+  ${If} ${FileExists} "$R1\edit-path.ps1"
+    ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\edit-path.ps1" -Action Remove -Directory "$R0\bin" > "$R0\path-setup.log" 2>&1' $0
+    ${If} $0 == 0
+      Delete "$R0\path-setup.log"
+      SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+    ${Else}
+      StrCpy $1 1
+    ${EndIf}
   ${EndIf}
 
-  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\stop-studio.ps1" -Action Forget -Directory "$R0\bin" > "$R0\forget-users.log" 2>&1' $0
-  ${If} $0 == 0
-    Delete "$R0\forget-users.log"
-  ${Else}
-    StrCpy $1 1
+  ${If} ${FileExists} "$R1\stop-studio.ps1"
+    ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\stop-studio.ps1" -Action Forget -Directory "$R0\bin" > "$R0\forget-users.log" 2>&1' $0
+    ${If} $0 == 0
+      Delete "$R0\forget-users.log"
+    ${Else}
+      StrCpy $1 1
+    ${EndIf}
   ${EndIf}
 
   ${If} $1 == 0
     RMDir /r "$R1"
+    ; Only when no Apps & features entry points at it (the old uninstaller removed it).
+    ReadRegStr $0 SHCTX "Software\Microsoft\Windows\CurrentVersion\Uninstall\${VSS_REGISTRY_KEY}" "UninstallString"
+    ${If} $0 == ""
+      Delete "$R0\Uninstall.exe"
+    ${EndIf}
     RMDir "$R0"
   ${Else}
     MessageBox MB_OK|MB_ICONEXCLAMATION "The upgrade did not finish, and the earlier version of Virtual Serial Studio was already removed. Taking its driver, helper service or PATH entry away did not finish.$\r$\n$\r$\nThe logs are in $R0 (driver-remove.log, path-setup.log, forget-users.log; the ones that are not there worked). The scripts that remove them are in $R1; run them as administrator." /SD IDOK

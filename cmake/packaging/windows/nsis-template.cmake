@@ -14,9 +14,36 @@
 # and the PATH entry (driver.nsh reads the switch), and it remembers the folder of the
 # earlier version in $VssUpgradeFolder for the clean-up when the upgrade is cancelled.
 #
-# Nothing else in the template is changed. When a CMake release moves that line the
-# replacement finds nothing and this stops the configure step; it does not build an
+# Three things change, each in a place that must match exactly once:
+#
+#   1. the ExecWait line above (the switch, and the folder remembered before it);
+#   2. a call at the label `inst:` that picks up an unfinished upgrade (a stash left
+#      by an installer that was killed), see VssAdoptUnfinishedUpgrade in driver.nsh;
+#   3. a !define before the line that carries CPACK_NSIS_DEFINES. driver.nsh stops the
+#      build with !error when it is not defined, so an installer made from CPack's own
+#      template (a CPACK_MODULE_PATH that points elsewhere, a build folder without the
+#      copy) is an error, not an installer that passes no switch.
+#
+# Nothing else in the template is changed. When a CMake release moves one of the lines
+# the replacement finds nothing and this stops the configure step; it does not build an
 # installer that keeps nothing, or everything, by guess.
+
+# Replaces `old` with `new` in the variable named by `variable` (in the caller's scope),
+# and stops with an error unless `old` is there exactly once.
+function(_vss_replace_once variable old new what)
+  string(FIND "${${variable}}" "${old}" _vss_first)
+  string(FIND "${${variable}}" "${old}" _vss_last REVERSE)
+  if(_vss_first EQUAL -1)
+    message(FATAL_ERROR
+      "${what} is not in CPack's NSIS template:\n${old}\n"
+      "cmake/packaging/windows/nsis-template.cmake has to be updated for this CMake.")
+  endif()
+  if(NOT _vss_first EQUAL _vss_last)
+    message(FATAL_ERROR "${what} is in CPack's NSIS template more than once:\n${old}")
+  endif()
+  string(REPLACE "${old}" "${new}" _vss_changed "${${variable}}")
+  set(${variable} "${_vss_changed}" PARENT_SCOPE)
+endfunction()
 
 # vss_write_nsis_template(<output folder>)
 #
@@ -31,24 +58,24 @@ function(vss_write_nsis_template output_dir)
   endif()
   file(READ "${_vss_stock}" _vss_text)
 
-  set(_vss_old "  ExecWait '\"$0\" /S _?=$3' ;Do not copy the uninstaller to a temp file")
-  string(FIND "${_vss_text}" "${_vss_old}" _vss_at)
-  if(_vss_at EQUAL -1)
-    message(FATAL_ERROR
-      "The line that runs the earlier version's uninstaller is not in ${_vss_stock}:\n"
-      "${_vss_old}\n"
-      "cmake/packaging/windows/nsis-template.cmake has to be updated for this CMake.")
-  endif()
-  string(FIND "${_vss_text}" "${_vss_old}" _vss_last REVERSE)
-  if(NOT _vss_at EQUAL _vss_last)
-    message(FATAL_ERROR
-      "The line that runs the earlier version's uninstaller is in ${_vss_stock} more than once.")
-  endif()
+  # 1. The line that runs the earlier version's uninstaller. NSIS wants _?= last on
+  #    the command line, so the switch goes before it.
+  _vss_replace_once(_vss_text
+    "  ExecWait '\"$0\" /S _?=$3' ;Do not copy the uninstaller to a temp file"
+    "  StrCpy $VssUpgradeFolder $3\n  ExecWait '\"$0\" /S /VSSUPGRADE=1 _?=$3' ;Do not copy the uninstaller to a temp file"
+    "The line that runs the earlier version's uninstaller")
 
-  # NSIS wants _?= last on the command line, so the switch goes before it.
-  set(_vss_new
-    "  StrCpy $VssUpgradeFolder $3\n  ExecWait '\"$0\" /S /VSSUPGRADE=1 _?=$3' ;Do not copy the uninstaller to a temp file")
-  string(REPLACE "${_vss_old}" "${_vss_new}" _vss_text "${_vss_text}")
+  # 2. Where every path of .onInit ends up, before the install folder is chosen.
+  _vss_replace_once(_vss_text
+    "\ninst:\n  ; Reads components status for registry\n"
+    "\ninst:\n  Call VssAdoptUnfinishedUpgrade\n  ; Reads components status for registry\n"
+    "The label that ends the uninstall of the earlier version in .onInit")
+
+  # 3. The marker that driver.nsh requires.
+  _vss_replace_once(_vss_text
+    "\n@CPACK_NSIS_DEFINES@\n"
+    "\n!define VSS_TEMPLATE_PASSES_UPGRADE_SWITCH\n@CPACK_NSIS_DEFINES@\n"
+    "The line that holds CPACK_NSIS_DEFINES")
 
   file(MAKE_DIRECTORY "${output_dir}")
   file(WRITE "${output_dir}/NSIS.template.in" "${_vss_text}")
