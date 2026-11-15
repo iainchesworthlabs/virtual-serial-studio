@@ -134,8 +134,8 @@ Search roots, in this order, the first to hold an id wins and a second is report
 | Root | Holds | Writable by |
 |---|---|---|
 | `<install>/studio-plugins/` | Official plugins that come with Studio or with a Pro install. It is not `<install>/plugins/`: the Linux package keeps Qt's own plug-ins there | Administrator |
-| Machine plugin directory (`%ProgramData%\VirtualSerialStudio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins an administrator installs for everyone | Administrator |
-| Per-user plugin directory (`%LOCALAPPDATA%\VirtualSerialStudio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins the user installs | The user |
+| Machine plugin directory (`%ProgramData%\Virtual Serial Studio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins an administrator installs for everyone | Administrator |
+| Per-user plugin directory (`%LOCALAPPDATA%\Virtual Serial Studio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins the user installs | The user |
 
 Rules:
 
@@ -908,8 +908,8 @@ There is no network, so:
 
 ### 8.6 Administrator policy
 
-A policy file `policy.json` in the machine configuration directory (`%ProgramData%\VirtualSerialStudio\`,
-`/etc/virtual-serial-studio/`, `/Library/Application Support/VirtualSerialStudio/`):
+A policy file `policy.json` in the machine configuration directory (`%ProgramData%\Virtual Serial Studio\`,
+`/etc/virtual-serial-studio/`, `/Library/Application Support/Virtual Serial Studio/`):
 
 ```json
 {
