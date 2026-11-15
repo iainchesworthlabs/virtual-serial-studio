@@ -331,6 +331,122 @@
             <source>Create support bundle</source>
             <translation>إنشاء حزمة دعم</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="268" />
+            <source>Updates</source>
+            <translation>التحديثات</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="409" />
+            <source>This version</source>
+            <translation>هذا الإصدار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="413" />
+            <source>Newest version</source>
+            <translation>أحدث إصدار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="417" />
+            <source>Last checked</source>
+            <translation>آخر فحص</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="431" />
+            <source>Check for updates automatically</source>
+            <translation>التحقق من التحديثات تلقائيًا</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="436" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>مرة في اليوم يسأل Studio الموقع virtual-serial-studio.com عن أحدث إصدار. لا يُرسَل أي شيء عنك أو عن هذا الحاسوب.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="455" />
+            <source>Check now</source>
+            <translation>تحقق الآن</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="460" />
+            <source>Update...</source>
+            <translation>تحديث...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="32" />
+            <source>copied from the disk image</source>
+            <translation>نُسخ من صورة القرص</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="36" />
+            <source>installed for everyone on this computer</source>
+            <translation>مثبّت لجميع المستخدمين على هذا الحاسوب</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="38" />
+            <source>unpacked from an archive</source>
+            <translation>مستخرج من أرشيف</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="51" />
+            <source>Not checked yet.</source>
+            <translation>لم يُفحص بعد.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="53" />
+            <source>Checking...</source>
+            <translation>جارٍ التحقق...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="56" />
+            <source>This is a developer build. The newest release is %1.</source>
+            <translation>هذا بناء للمطورين. أحدث إصدار منشور هو %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="60" />
+            <location filename="../src/support/update_text.cpp" line="64" />
+            <source>%1 is the newest version.</source>
+            <translation>%1 هو أحدث إصدار.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="68" />
+            <source>%1 is available. Download it from virtual-serial-studio.com.</source>
+            <translation>%1 متاح. نزّله من virtual-serial-studio.com.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="72" />
+            <source>%1 is available.</source>
+            <translation>%1 متاح.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="76" />
+            <source>The update information could not be trusted, so nothing was changed.</source>
+            <translation>تعذّر الوثوق بمعلومات التحديث، لذلك لم يتغير شيء.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="79" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>تعذّر على Studio الوصول إلى خادم التحديثات. تحقق من الاتصال وأعد المحاولة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="83" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>تم إيقاف التحقق من التحديثات بواسطة المسؤول لديك.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="86" />
+            <source>This build cannot check for updates.</source>
+            <translation>لا يمكن لهذا البناء التحقق من التحديثات.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="100" />
+            <source>%1, %2</source>
+            <translation>%1، %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="107" />
+            <source>Never</source>
+            <translation>أبدًا</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -6615,6 +6731,41 @@ Networks: %5</source>
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>تعذر على Studio كتابة إدخال تسجيل الدخول. لم يتغير شيء.</translation>
         </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="256" />
+            <source>Updates</source>
+            <translation>التحديثات</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="263" />
+            <source>Check for updates automatically</source>
+            <translation>التحقق من التحديثات تلقائيًا</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="269" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>مرة في اليوم يسأل Studio الموقع virtual-serial-studio.com عن أحدث إصدار. لا يُرسَل أي شيء عنك أو عن هذا الحاسوب.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="277" />
+            <source>Include pre-release versions</source>
+            <translation>تضمين الإصدارات الأولية</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="283" />
+            <source>Offers release candidates as well as finished releases.</source>
+            <translation>يعرض الإصدارات المرشحة بالإضافة إلى الإصدارات المكتملة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="883" />
+            <source>Set by your administrator.</source>
+            <translation>معيَّن بواسطة المسؤول لديك.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="885" />
+            <source>This build cannot check for updates.</source>
+            <translation>لا يمكن لهذا البناء التحقق من التحديثات.</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -9469,6 +9620,26 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2090" />
             <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
             <translation>يحتاج الإعداد إلى جهاز أو نقطة نهاية شبكية غير متاحة على هذا الحاسوب. تحقق من الجهاز ثم أعد المحاولة.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="605" />
+            <source>Check for updates...</source>
+            <translation>التحقق من التحديثات...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="606" />
+            <source>update version new release download</source>
+            <translation>تحديث الإصدار جديد نسخة تنزيل</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3096" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>تم إيقاف التحقق من التحديثات بواسطة المسؤول لديك.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3097" />
+            <source>This build cannot check for updates.</source>
+            <translation>لا يمكن لهذا البناء التحقق من التحديثات.</translation>
         </message>
     </context>
     <context>
@@ -21105,6 +21276,280 @@ Networks: %5</source>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Support ended with your licence on %1.</source>
             <translation>انتهى الدعم مع ترخيصك في %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateNotice</name>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="26" />
+            <location filename="../src/shell/update_notice.cpp" line="76" />
+            <source>Turn on</source>
+            <translation>تشغيل</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="77" />
+            <source>Details</source>
+            <translation>التفاصيل</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="79" />
+            <source>No thanks</source>
+            <translation>لا، شكرًا</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="80" />
+            <source>Later</source>
+            <translation>لاحقًا</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="113" />
+            <source>Check for updates automatically? Once a day Studio would ask virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>هل تريد التحقق من التحديثات تلقائيًا؟ مرة في اليوم يسأل Studio الموقع virtual-serial-studio.com عن أحدث إصدار. لا يُرسَل أي شيء عنك أو عن هذا الحاسوب.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="122" />
+            <source>Virtual Serial Studio %1 is available.</source>
+            <translation>Virtual Serial Studio %1 متاح.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="130" />
+            <source>Studio will check for updates once a day.</source>
+            <translation>سيتحقق Studio من التحديثات مرة في اليوم.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="132" />
+            <source>Studio will not check for updates. You can change this in Settings.</source>
+            <translation>لن يتحقق Studio من التحديثات. يمكنك تغيير ذلك في التفضيلات.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateChip</name>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="139" />
+            <source>Update available</source>
+            <translation>تحديث متاح</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="144" />
+            <source>Update available: version %1. Open the update.</source>
+            <translation>تحديث متاح: الإصدار %1. افتح التحديث.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateDialog</name>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="164" />
+            <source>Update Virtual Serial Studio</source>
+            <translation>تحديث Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="209" />
+            <source>What is new</source>
+            <translation>ما الجديد</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="238" />
+            <source>Release notes</source>
+            <translation>ملاحظات الإصدار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="273" />
+            <source>Download progress</source>
+            <translation>تقدم التنزيل</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="292" />
+            <source>Restart Studio to use the new version.</source>
+            <translation>أعد تشغيل Studio لاستخدام الإصدار الجديد.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="299" />
+            <source>The package could not be installed. Use the command above.</source>
+            <translation>تعذّر تثبيت الحزمة. استخدم الأمر أعلاه.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="336" />
+            <source>Skip this version</source>
+            <translation>تخطي هذا الإصدار</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="342" />
+            <source>Not now</source>
+            <translation>ليس الآن</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="343" />
+            <source>Cancel</source>
+            <translation>إلغاء</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="346" />
+            <source>Show in folder</source>
+            <translation>إظهار في المجلد</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="349" />
+            <source>Download and install</source>
+            <translation>تنزيل وتثبيت</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="352" />
+            <source>Open the downloads page</source>
+            <translation>فتح صفحة التنزيلات</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="355" />
+            <source>Install now</source>
+            <translation>تثبيت الآن</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="358" />
+            <source>Open the disk image</source>
+            <translation>فتح صورة القرص</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="361" />
+            <source>Install</source>
+            <translation>تثبيت</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="364" />
+            <source>Try again</source>
+            <translation>أعد المحاولة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="366" />
+            <source>Close</source>
+            <translation>إغلاق</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="443" />
+            <source>Could not start the installer</source>
+            <translation>تعذّر بدء المثبّت</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="445" />
+            <source>Studio could not start %1. It is in %2.</source>
+            <translation>تعذّر على Studio بدء %1. وهو موجود في %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="461" />
+            <source>The download was not the file that was published, so it was deleted.</source>
+            <translation>لم يكن الملف الذي تم تنزيله هو الملف المنشور، لذلك حُذف.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="469" />
+            <source>Studio could not save the download.</source>
+            <translation>تعذّر على Studio حفظ الملف الذي تم تنزيله.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="474" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>تعذّر على Studio الوصول إلى خادم التحديثات. تحقق من الاتصال وأعد المحاولة.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="480" />
+            <source>Could not download the update</source>
+            <translation>تعذّر تنزيل التحديث</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="531" />
+            <source>Version %1 is available. You have %2.</source>
+            <translation>الإصدار %1 متاح. لديك %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="545" />
+            <source>Release notes for version %1, opens in your browser</source>
+            <translation>ملاحظات الإصدار %1، تُفتح في المتصفح</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="553" />
+            <source>%1, %2</source>
+            <translation>%1، %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="558" />
+            <source>There is no package for this kind of install. Download one from virtual-serial-studio.com.</source>
+            <translation>لا توجد حزمة لهذا النوع من التثبيت. نزّل واحدة من virtual-serial-studio.com.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="571" />
+            <source>%n port is running. Installing stops it.</source>
+            <translation>
+                <numerusform>%n منفذ قيد التشغيل. التثبيت يوقفه.</numerusform>
+                <numerusform>منفذ واحد قيد التشغيل. التثبيت يوقفه.</numerusform>
+                <numerusform>منفذان قيد التشغيل. التثبيت يوقفهما.</numerusform>
+                <numerusform>%n منافذ قيد التشغيل. التثبيت يوقفها.</numerusform>
+                <numerusform>%n منفذًا قيد التشغيل. التثبيت يوقفها.</numerusform>
+                <numerusform>%n منفذ قيد التشغيل. التثبيت يوقفه.</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="575" />
+            <source>%n ports are running. Installing stops them.</source>
+            <translation>
+                <numerusform>%n منفذ قيد التشغيل. التثبيت يوقفه.</numerusform>
+                <numerusform>منفذ واحد قيد التشغيل. التثبيت يوقفه.</numerusform>
+                <numerusform>منفذان قيد التشغيل. التثبيت يوقفهما.</numerusform>
+                <numerusform>%n منافذ قيد التشغيل. التثبيت يوقفها.</numerusform>
+                <numerusform>%n منفذًا قيد التشغيل. التثبيت يوقفها.</numerusform>
+                <numerusform>%n منفذ قيد التشغيل. التثبيت يوقفه.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="600" />
+            <source>Checking the download...</source>
+            <translation>جارٍ التحقق من الملف الذي تم تنزيله...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="609" />
+            <source>Downloading %1...</source>
+            <translation>جارٍ تنزيل %1...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="627" />
+            <source>%1 of %2</source>
+            <translation>%1 من %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="640" />
+            <source>%1 percent</source>
+            <translation>%1 في المئة</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="659" />
+            <source>The update is ready. Studio will close and the installer will start. Windows asks for an administrator.</source>
+            <translation>التحديث جاهز. سيُغلق Studio ثم يبدأ المثبّت. يطلب Windows مسؤولًا.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="667" />
+            <source>The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens.</source>
+            <translation>التحديث جاهز. أنهِ Studio، ثم اسحب Virtual Serial Studio إلى التطبيقات في النافذة التي تُفتح.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="675" />
+            <source>The update is ready. Install it with this command, then start Studio again.</source>
+            <translation>التحديث جاهز. ثبّته بهذا الأمر، ثم شغّل Studio مرة أخرى.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="680" />
+            <source>Install command</source>
+            <translation>أمر التثبيت</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="696" />
+            <source>The download is in %1. This copy of Studio was unpacked from an archive, so unpack the new one in its place.</source>
+            <translation>الملف الذي تم تنزيله موجود في %1. تم استخراج نسخة Studio هذه من أرشيف، لذا استخرج النسخة الجديدة مكانها.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="821" />
+            <source>Studio will not mention %1 again.</source>
+            <translation>لن يذكر Studio الإصدار %1 مرة أخرى.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="25" />
+            <source>%1 MB</source>
+            <translation>%1 ميغابايت</translation>
         </message>
     </context>
 </TS>
