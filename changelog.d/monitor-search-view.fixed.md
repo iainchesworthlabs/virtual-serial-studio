@@ -1,0 +1,1 @@
+**Switching the Monitor between text and hex with a search typed keeps the table and the export the same.** The search is matched against the text now shown, the table is rebuilt when the view changes, and the export writes the rows in the table.
