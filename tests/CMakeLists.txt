@@ -51,6 +51,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_discover.cpp
   unit/test_plugin_hash.cpp
   unit/test_plugin_licence.cpp
+  unit/test_plugin_traffic_tap.cpp
   unit/test_plugin_lifecycle.cpp
   unit/test_plugin_locations.cpp
   unit/test_plugin_manifest.cpp
@@ -137,8 +138,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
-  vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto
-  vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
+  vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_rules
+  vss_control_proto vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE

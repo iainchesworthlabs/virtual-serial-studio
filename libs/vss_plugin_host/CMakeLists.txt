@@ -8,7 +8,8 @@
 #
 
 add_library(vss_plugin_host
-  src/process.cpp)
+  src/process.cpp
+  src/traffic_tap.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
 target_include_directories(vss_plugin_host PUBLIC

@@ -1356,6 +1356,8 @@ These follow `AGENTS.md` and `architecture.md`, and apply to every line of the h
 9. **Clocks are injected.** The supervisor and the trust code take a clock object, so tests step time and nothing
    sleeps.
 
+Rules 2 and 3 are implemented in `libs/vss_plugin_host/include/vss/plugin/host/traffic_tap.hpp`: one tap for each plugin, with a sink that holds a `shared_ptr` to the queue, a `closed` flag, drops that are counted, and a notification posted to an executor the host gives, never run on a hub strand.
+
 ## 12. Reason codes
 
 A plugin's state always carries one of these, as `vss::plugin_errc` (an `error_category` named `vss.plugin`),
