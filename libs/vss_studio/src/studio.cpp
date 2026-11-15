@@ -1872,14 +1872,19 @@ result<void> studio::replace(const config::document& value)
     const auto make_after_removal = [&](const config::port_entry& entry)
     {
         const bool numbered = entry.kind == "virtual" && entry.com_number != 0;
-        const auto since =
-            numbered ? freed.find(entry.com_number) : freed.end();
+        std::optional<std::chrono::steady_clock::time_point> removed_at;
+        if (numbered)
+        {
+            if (const auto since = freed.find(entry.com_number);
+                since != freed.end())
+                removed_at = since->second;
+        }
         auto made =
-            since == freed.end()
-                ? make_port(entry)
-                : retry_while_number_busy(
-                      [&] { return make_port(entry); }, since->second,
-                      options_.com_number_step, options_.com_number_wait);
+            removed_at.has_value()
+                ? retry_while_number_busy(
+                      [&] { return make_port(entry); }, *removed_at,
+                      options_.com_number_step, options_.com_number_wait)
+                : make_port(entry);
         if (made && numbered)
             freed.erase(entry.com_number);
         return made;
