@@ -20,11 +20,20 @@ target_compile_features(vss_cli_control PUBLIC cxx_std_23)
 target_link_libraries(vss_cli_control PUBLIC Vss::control_core Vss::agent_core)
 vss_set_warnings(vss_cli_control)
 
+# The licence command is a library of its own so that the unit tests run it in
+# their own process, with licence folders they made.
+add_library(vss_cli_licence STATIC licence_command.cpp)
+target_include_directories(vss_cli_licence PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(vss_cli_licence PUBLIC cxx_std_23)
+target_link_libraries(vss_cli_licence PUBLIC Vss::license)
+vss_set_warnings(vss_cli_licence)
+
 add_executable(vss_cli main.cpp agent_command.cpp permissions_command.cpp
   plugin_command.cpp plugin_install_command.cpp plugin_support.cpp)
 target_compile_features(vss_cli PRIVATE cxx_std_23)
 target_include_directories(vss_cli PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(vss_cli PRIVATE vss_cli_core vss_cli_control Vss::studio
+target_link_libraries(vss_cli PRIVATE vss_cli_core vss_cli_control
+  vss_cli_licence Vss::studio
   Vss::agent_core Vss::control_core Vss::plugin Vss::BoostJson vss_testkit)
 vss_set_warnings(vss_cli)
 

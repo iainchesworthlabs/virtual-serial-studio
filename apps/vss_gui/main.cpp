@@ -28,6 +28,7 @@
 #include <vss/core/profile.hpp>
 #include <vss/core/profiling.hpp>
 #include <vss/license/license.hpp>
+#include <vss/license/store.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <QAction>
@@ -313,8 +314,8 @@ try
         {
             // The licence files on this computer. They are read from disk
             // and checked here; nothing is fetched or sent.
-            vss::gui::licence_store_options licences =
-                vss::gui::default_licence_store_options();
+            vss::license::store_options licences =
+                vss::license::default_store_options();
             const auto built =
                 vss::license::parse_time(vss::gui::support::current_build_info()
                                              .build_time.toStdString());

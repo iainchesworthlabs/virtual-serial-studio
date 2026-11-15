@@ -41,7 +41,10 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_hub_timers.cpp
   unit/test_hub_topology.cpp
   unit/test_license.cpp
+  unit/test_license_locations.cpp
   unit/test_license_signature.cpp
+  unit/test_license_store.cpp
+  unit/test_license_words.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
   unit/test_machine.cpp
@@ -108,6 +111,7 @@ if(WIN32)
     unit/platform/windows/test_driver_client_windows.cpp
     unit/platform/windows/test_helper_windows.cpp
     unit/platform/windows/test_machine_windows.cpp
+    unit/platform/windows/test_license_locations_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
     unit/platform/windows/test_plugin_access_windows.cpp
     unit/platform/windows/test_plugin_locations_windows.cpp
@@ -118,16 +122,19 @@ elseif(UNIX)
     unit/platform/posix/test_agent_transport_posix.cpp
     unit/platform/posix/test_control_storage_posix.cpp
     unit/platform/posix/test_machine_posix.cpp
+    unit/platform/posix/test_license_locations_posix.cpp
     unit/platform/posix/test_permissions_posix.cpp
     unit/platform/posix/test_plugin_access_posix.cpp
     unit/platform/posix/test_plugin_locations_posix.cpp)
   # The folders differ between Linux and macOS, so each has its own file.
   if(APPLE)
     list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/macos/test_license_locations_macos.cpp
       unit/platform/macos/test_machine_macos.cpp
       unit/platform/macos/test_plugin_locations_macos.cpp)
   else()
     list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/linux/test_license_locations_linux.cpp
       unit/platform/linux/test_machine_linux.cpp
       unit/platform/linux/test_plugin_locations_linux.cpp)
   endif()
@@ -143,6 +150,11 @@ if(TARGET vss_license_tool)
     list(APPEND VSS_UNIT_TEST_SOURCES
       unit/platform/posix/test_license_tool_posix.cpp)
   endif()
+endif()
+
+# `vss_cli licence`, run in the test process with folders the test made.
+if(TARGET vss_cli_licence)
+  list(APPEND VSS_UNIT_TEST_SOURCES unit/test_cli_licence.cpp)
 endif()
 
 # `vss_cli control ...` run in the test's own process, against a gateway of the
@@ -161,6 +173,9 @@ endif()
 add_executable(vss_unit_tests ${VSS_UNIT_TEST_SOURCES})
 if(TARGET vss_license_tool)
   target_link_libraries(vss_unit_tests PRIVATE vss_license_tool)
+endif()
+if(TARGET vss_cli_licence)
+  target_link_libraries(vss_unit_tests PRIVATE vss_cli_licence)
 endif()
 target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}
