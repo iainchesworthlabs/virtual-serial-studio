@@ -753,8 +753,8 @@ may carry a list:
 - A reader that does not know the plugin keeps every entry and writes it back as it was read.
 
 This is a change to the schema and to `vss_config`'s reader and writer. `vss_core` is not touched. The key is
-optional and the file's `version` stays 1: the reader has always passed over keys it does not know, so an older
-Studio opens a setup that has the list, and leaves the list out when it saves. The alternative that was not
+optional and the file's `version` stays 1. The reader refuses a key it does not know, so a Studio built before
+this list does not open a setup that has it. The alternative that was not
 taken is a file beside the setup (`<name>.plugins.json`), which needs no schema change but is lost when a
 person sends only the setup. The running setup that the agent keeps (`running-setup.json`) holds the same list.
 

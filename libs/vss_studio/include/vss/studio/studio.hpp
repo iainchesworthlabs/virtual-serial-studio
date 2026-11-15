@@ -496,6 +496,17 @@ public:
     /// what runs, and a name that is taken gets a number (`a-2`).  It is for a
     /// studio that has nothing yet, such as the start of `vss_cli run` or the
     /// restore of the running setup at start-up.
+    ///
+    /// A mock port keeps its `mock_target`; for a fixture made from an
+    /// address such as `mock://modem` it is the part after `mock://`.  A
+    /// document applied to a studio with no ports gives the setup its `name`
+    /// and `description`, which `snapshot` writes back; one applied to ports
+    /// that are already there leaves them as they were.  Removing the last
+    /// port makes the setup `untitled` with no description again, so a new
+    /// setup does not take the name of the one before it.  A function that
+    /// replaces the running setup may keep ports, and then the rule for
+    /// `apply` (no ports before the call) does not hold: it must set the
+    /// name and description itself, and put the old ones back if it fails.
     result<void> apply(const config::document& value,
                        bool rollback_on_error = true);
 
@@ -516,6 +527,9 @@ public:
     /// at once), and the first error is returned.  It can block while ports
     /// open, so do not call it from the GUI thread.
     result<void> replace(const config::document& value);
+    /// The setup as it is now.  Ports are written in the order they were
+    /// made, so a setup that is opened and saved again keeps its order.  The
+    /// result always passes `config::validate`.
     config::document snapshot() const;
 
     // -- environment -------------------------------------------------------
@@ -642,6 +656,10 @@ private:
     subscriber_id reconnect_subscription_ = 0;
     mutable std::mutex record_mutex_;
     std::unordered_map<endpoint_id, port_record> records_;
+    /// The name and description of the setup, from the document that
+    /// `apply` made it from.  Guarded by `record_mutex_`.
+    std::string setup_name_ = "untitled";
+    std::string setup_description_;
     /// The plugin bindings of links, by link, kept for `snapshot` as a
     /// port's are.  Guarded by `record_mutex_`.
     std::unordered_map<link_id, std::vector<config::plugin_binding>>
