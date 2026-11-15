@@ -23,7 +23,8 @@
 # a path without quotes makes Windows try C:\Program.exe first, as SYSTEM. The path is
 # not passed to sc.exe: Windows PowerShell 5.1 hands sc.exe the argument with its quotes
 # stripped. New-Service passes the string to the service manager as it is, and the
-# script reads the stored path back and stops if it does not begin with a quote.
+# script reads the stored path back from the registry and stops, taking the service out
+# again, if it does not begin with a quote or cannot be read.
 
 [CmdletBinding()]
 param(
@@ -44,13 +45,9 @@ if (-not $InstallDir) {
 }
 $name = 'vsscom_helper'
 
-# A test defines this function before it runs the script, so the script can be tried on a
-# machine where nobody is an administrator and nothing real is touched.
-if (-not (Test-Path -LiteralPath 'Function:\Test-IsAdministrator')) {
-    function Test-IsAdministrator {
-        $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-        $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 # Write-Error would throw here, because $ErrorActionPreference is Stop, and the exit that
@@ -108,11 +105,15 @@ try {
     # which is what New-Service gives it when no credential is named.
     New-Service -Name $name -BinaryPathName "`"$target`"" -DisplayName 'Virtual Serial Studio port helper' -StartupType Automatic `
         -Description 'Makes virtual serial ports for the user-mode driver, for ordinary users.' | Out-Null
-    $stored = (Get-CimInstance -ClassName Win32_Service -Filter "Name='$name'").PathName
+    # What the service manager stored, read from the registry (WMI can fail on its own).
+    $stored = $null
+    try { $stored = (Get-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Services\$name" -Name ImagePath).ImagePath }
+    catch { $stored = $null }
     if (-not $stored -or -not $stored.StartsWith('"')) {
-        # Do not leave a service that runs as SYSTEM with a path Windows would search.
+        # Do not leave a service that runs as SYSTEM with a path Windows would search, or one that was
+        # not checked.
         Remove-HelperService
-        throw "the $name service was registered with a path that is not in quotes ($stored)"
+        throw "the $name service was registered with a path that is not in quotes, or the path could not be read back ($stored)"
     }
     # Restart after a stop that was not asked for; the ports of the stopped helper are gone.
     & sc.exe failure $name reset= 86400 actions= restart/5000/restart/5000/none/0 | Out-Null

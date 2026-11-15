@@ -377,8 +377,10 @@ a message saying that the driver was not installed, why, what to do (run
 `bin\driver\trust\install-trust.ps1` with the public certificates of the authority that
 signed the build, or turn on test signing on a test machine, then choose **Set up Virtual
 Serial Studio**) and where the log is. A silent install shows nothing, exits 0 and leaves
-the log and the `VssDriver` value; automation reads the value. A signed and trusted
-package installs with no step by hand.
+the log and the `VssDriver` value; automation reads the value. A package signed by
+Microsoft's hardware publisher installs with no step by hand, and so does one whose
+signer is in Trusted Publishers (`trust/install-trust.ps1 -Package` puts it there); a
+valid signature alone is not enough.
 
 **Upgrade and uninstall.** An upgrade runs the old uninstaller in place, and the installer
 tells that apart from a real uninstall (the old uninstaller runs from the install folder
@@ -462,8 +464,10 @@ Publishers `pnputil` asks "Would you like to install this device software?" on t
 where nobody can answer, and waits for ever. A guest reached through `vmrun` has no such
 desktop and `pnputil` refused at once, which is why it was not seen there. Now:
 
-- `setup-driver.ps1` accepts a package that is not trusted outright only when its signer is
-  in Trusted Publishers (`trust/install-trust.ps1` puts it there), and otherwise ends in
+- `setup-driver.ps1` accepts a package only when its catalog is signed by Microsoft's
+  hardware publisher (the name, and a chain that ends in a Microsoft root) or its signer is
+  in Trusted Publishers (`trust/install-trust.ps1` puts it there), whatever the status of
+  the signature and whether test signing is on, and otherwise ends in
   exit 6, `not-trusted`, before it calls `pnputil`. A refusal from `pnputil` for a trust
   error (`0x800B0109` and its neighbours) is exit 6 as well.
 - Every `pnputil` call has a limit (180 seconds to add, 300 to delete), and the whole of

@@ -10,10 +10,16 @@
 #   remove-driver.ps1 [-PackageRoot <folder>]
 #
 # The package folder is the one setup-driver.ps1 took its files from. Only the
-# helper service, the devices whose instance id begins SWD\VSSCOMUM\ and the package
-# whose original name is vsscom_um.inf are touched; the kernel-mode driver, certificates
-# and the test-signing setting are not. Removing a device needs Windows 10 version 2004
-# or later (pnputil /remove-device).
+# helper service, the port devices of the user-mode driver (hardware ids VSSCOMUM\PORT
+# and VSSCOMUM\VSSCOM0, class Ports; the helper's have instance ids SWD\VSSCOMUM\...) and
+# the package whose original name is vsscom_um.inf are touched; the kernel-mode driver,
+# certificates and the test-signing setting are not.
+#
+# The devices are removed with SetupAPI (DIF_REMOVE), the way the guest script
+# test\uninstall-driver.ps1 does, which works on absent devices and on every Windows the
+# driver supports. A device that cannot be removed does not stop the script: the helper
+# and the package are taken away first, so that nothing is left with no way to remove it,
+# and the devices that are left are reported at the end with exit code 7.
 #
 # Exit codes:
 #   0   done: no helper service, no port device and no vsscom_um package remain
@@ -33,13 +39,9 @@ $ErrorActionPreference = 'Stop'
 # script is started with -File, so the default is set in the body.
 if (-not $PackageRoot) { $PackageRoot = $PSScriptRoot }
 
-# A test defines these two functions before it runs the script, so the script can be tried on
-# a machine where nobody is an administrator and no program is started. Nothing else reads them.
-if (-not (Test-Path -LiteralPath 'Function:\Test-IsAdministrator')) {
-    function Test-IsAdministrator {
-        $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-        $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 function Stop-With([int] $Code, [string] $Message) {
@@ -50,7 +52,6 @@ function Stop-With([int] $Code, [string] $Message) {
 # Runs a program with a time limit and returns its exit code, or 124 when it ran out
 # of time (it is then stopped, with anything it started). Its output goes to the host,
 # so it reaches the installer's log. The same function is in setup-driver.ps1.
-if (-not (Test-Path -LiteralPath 'Function:\Invoke-Bounded')) {
 function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $File
@@ -71,14 +72,90 @@ function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
     foreach ($text in $out.Result, $err.Result) { if ($text.Trim()) { Write-Host $text.Trim() } }
     return $process.ExitCode
 }
+
+# The port devices of the helper: every instance of its software device, present or absent. A port
+# that is closed leaves its device behind (that is how its slot keeps its COM number), so after the
+# helper has gone these are what is left, and a device that stays keeps the COM number "in use". No
+# error is hidden: if the query itself fails the script ends with 1 and does not read it as "none".
+function Get-PortDevices {
+    @(Get-PnpDevice -InstanceId 'SWD\VSSCOMUM\*')
 }
 
-# The port devices: every instance of the helper's software device, present or absent. A port that is
-# closed leaves its device behind (that is how its slot keeps its COM number), so after the helper has
-# gone these are what is left, and a device that stays keeps the COM number "in use".
-function Get-PortDevices {
-    @(Get-PnpDevice -Class Ports -ErrorAction SilentlyContinue | Where-Object { $_.InstanceId -like 'SWD\VSSCOMUM\*' })
+# Removes the devices of the user-mode driver's ports, the absent ones too, by hardware id and class
+# (the code of drivers\windows\test\common.ps1, [VssSetup]::RemoveDevices). Returns how many. A device
+# that cannot be removed throws, with the Windows error.
+function Remove-PortDevices {
+    $ports = [guid] '4D36E978-E325-11CE-BFC1-08002BE10318'
+    $removed = 0
+    foreach ($hardwareId in 'VSSCOMUM\PORT', 'VSSCOMUM\VSSCOM0') {
+        $removed += [VssDeviceRemoval]::Remove($ports, $hardwareId)
+    }
+    $removed
 }
+
+Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Text;
+
+public static class VssDeviceRemoval
+{
+    const uint SPDRP_HARDWAREID = 1;
+    const uint DIF_REMOVE = 5;
+    static readonly IntPtr InvalidHandle = new IntPtr(-1);
+
+    [StructLayout(LayoutKind.Sequential)]
+    struct SP_DEVINFO_DATA
+    {
+        public uint cbSize;
+        public Guid ClassGuid;
+        public uint DevInst;
+        public IntPtr Reserved;
+    }
+
+    [DllImport("setupapi.dll", SetLastError = true)]
+    static extern IntPtr SetupDiGetClassDevs(ref Guid classGuid, IntPtr enumerator, IntPtr parent, uint flags);
+    [DllImport("setupapi.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool SetupDiGetDeviceRegistryProperty(IntPtr set, ref SP_DEVINFO_DATA data, uint property,
+                                                        out uint type, byte[] buffer, uint size, out uint required);
+    [DllImport("setupapi.dll", SetLastError = true)]
+    static extern bool SetupDiCallClassInstaller(uint function, IntPtr set, ref SP_DEVINFO_DATA data);
+    [DllImport("setupapi.dll", SetLastError = true)]
+    static extern bool SetupDiEnumDeviceInfo(IntPtr set, uint index, ref SP_DEVINFO_DATA data);
+    [DllImport("setupapi.dll", SetLastError = true)]
+    static extern bool SetupDiDestroyDeviceInfoList(IntPtr set);
+
+    // Removes every device of the class whose hardware ids include hardwareId, present or absent.
+    public static int Remove(Guid classGuid, string hardwareId)
+    {
+        // Flags 0: every device of the class, the ones that have gone included.
+        IntPtr set = SetupDiGetClassDevs(ref classGuid, IntPtr.Zero, IntPtr.Zero, 0);
+        if (set == InvalidHandle) throw new Win32Exception(Marshal.GetLastWin32Error(), "SetupDiGetClassDevs");
+        int removed = 0;
+        try
+        {
+            for (uint index = 0; ; index++)
+            {
+                var data = new SP_DEVINFO_DATA { cbSize = (uint)Marshal.SizeOf(typeof(SP_DEVINFO_DATA)) };
+                if (!SetupDiEnumDeviceInfo(set, index, ref data)) break;
+                var buffer = new byte[1024];
+                uint type, required;
+                if (!SetupDiGetDeviceRegistryProperty(set, ref data, SPDRP_HARDWAREID, out type, buffer,
+                                                      (uint)buffer.Length, out required))
+                    continue;
+                string ids = Encoding.Unicode.GetString(buffer, 0, (int)required);
+                if (ids.IndexOf(hardwareId, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                if (!SetupDiCallClassInstaller(DIF_REMOVE, set, ref data))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(), "DIF_REMOVE");
+                removed++;
+            }
+        }
+        finally { SetupDiDestroyDeviceInfoList(set); }
+        return removed;
+    }
+}
+'@
 
 # The whole script ends with exit code 124 after ten minutes, whatever it waits for. A
 # timer thread does it, because the script may be blocked inside a call that never returns.
@@ -116,19 +193,19 @@ try {
         Write-Host "no $serviceName service"
     }
 
-    # The port devices, absent ones included, before the package goes: a device that is left behind
-    # keeps its COM number reserved. pnputil /remove-device does what the guest test script's
-    # DIF_REMOVE does.
+    # The port devices, absent ones included, before the package goes, because a device that is left
+    # behind keeps its COM number reserved. A device that cannot be removed does not stop the script:
+    # the package is deleted all the same (the installer deletes this script afterwards, so a package
+    # left in the store would have nothing to remove it), and the devices are reported at the end.
     $restart = $false
-    $devices = @(Get-PortDevices)
-    if ($devices.Count -eq 0) { Write-Host 'no port device left by the driver' }
-    foreach ($device in $devices) {
-        Write-Host "removing the port device $($device.InstanceId)"
-        $code = Invoke-Bounded 'pnputil.exe' @('/remove-device', $device.InstanceId) 120
-        if ($code -eq 3010) { $restart = $true }
-        elseif ($code -eq 124) { Stop-With 7 "pnputil /remove-device $($device.InstanceId) did not finish in 120 seconds and was stopped" }
-        elseif ($code -ne 0) { Stop-With 7 "pnputil /remove-device $($device.InstanceId) failed with $code" }
+    $deviceFailure = $null
+    try {
+        $devices = @(Get-PortDevices)
+        Write-Host ('port devices: ' + $(if ($devices.Count -eq 0) { 'none left by the driver' } else { ($devices | ForEach-Object { $_.InstanceId }) -join ', ' }))
     }
+    catch { $deviceFailure = "the port devices could not be listed: $($_.Exception.Message)"; Write-Host $deviceFailure }
+    try { Write-Host ("removed {0} port device(s)" -f (Remove-PortDevices)) }
+    catch { $deviceFailure = "a port device could not be removed: $($_.Exception.Message)"; Write-Host $deviceFailure }
 
     # The driver packages, found in the store by their original file name.
     $published = @(Get-WindowsDriver -Online -All |
@@ -148,8 +225,12 @@ try {
     $left = @(Get-WindowsDriver -Online -All |
         Where-Object { (Split-Path -Leaf $_.OriginalFileName) -eq 'vsscom_um.inf' })
     if ($left.Count -gt 0 -and -not $restart) { Stop-With 7 'the vsscom_um driver package is still in the driver store' }
+    # Last, so that nothing above depends on it.
     $leftDevices = @(Get-PortDevices)
-    if ($leftDevices.Count -gt 0 -and -not $restart) { Stop-With 7 ('a port device is still there: ' + (($leftDevices | ForEach-Object { $_.InstanceId }) -join ', ')) }
+    if ($leftDevices.Count -gt 0 -and -not $restart) {
+        $names = ($leftDevices | ForEach-Object { $_.InstanceId }) -join ', '
+        Stop-With 7 ("a port device is still there, so its COM number stays in use: $names" + $(if ($deviceFailure) { " ($deviceFailure)" } else { '' }))
+    }
 
     if ($restart) { Stop-With 10 'removed; restart Windows to finish removing the driver' }
     Stop-With 0 'removed'

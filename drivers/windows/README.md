@@ -120,12 +120,16 @@ pnputil /add-driver vsscom_um.inf /install
 
 It reads the signer from the signature of the package and checks everything before it
 adds the first certificate: the root and the intermediate, that the signer chains to
-the root you named, and that the package has not been changed since it was signed. A
-package signed by anyone else, or altered after signing, adds nothing. After the
-certificates are added it checks the signature again, and if that or a later step
-fails it takes out what that run added. The root is trusted for code signing only, not
-for web sites or mail. It refuses to run while test signing is on, because an install
-then proves nothing about the trust. `-WhatIf` shows what it would change. Each
+the root you named, and that the file the signature is read from (the catalog, for a
+folder) has not been changed since it was signed. A file signed by anyone else, or
+changed after signing, adds nothing. The other files of the package are not read here;
+`pnputil` checks them later. After the certificates are added it checks the signature
+again, and if that or a later step fails it takes out what that run added. A root that
+this version adds is trusted for code signing only, not for web sites or mail. A root
+that is already in the store is left as it is, and the script says whether it is limited
+to code signing or trusted for every purpose; to limit one that an earlier version
+added, run `-Uninstall -IncludeUnmarked` and then the script again. It refuses to run
+while test signing is on, because an install then proves nothing about the trust. `-WhatIf` shows what it would change. Each
 certificate it adds carries the friendly name "Virtual Serial Studio
 (install-trust.ps1)"; `-Uninstall` takes out the certificates with that name, so a root
 the machine trusted for another reason stays (`-IncludeUnmarked` removes a certificate
@@ -164,9 +168,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\setup-driver.ps1 -PackageR
 
 Before it changes anything the script checks the signature of the driver DLL, its
 catalog and the helper, and that the catalog is signed by Microsoft's hardware
-publisher or by a publisher in Trusted Publishers. It never adds a certificate to the
-machine. The helper service is registered with its path in quotes, and running the
-script again replaces a service that has the path without them. When `pnputil`
+publisher (the name, and a chain that ends in one of Microsoft's three roots) or by a
+publisher in Trusted Publishers. It never adds a certificate to the machine. The helper
+service is registered with its path in quotes, and running the script again replaces a
+service that has the path without them. When `pnputil`
 answers that no device was updated (code 259: the devices already use this driver or a
 newer one), the script goes on if the driver store holds this version of the package,
 and then installs the helper.
@@ -208,7 +213,7 @@ changed by you, which is as it should be.
 | `vsscom_helper/protocol.h` | what the studio, the helper and the user-mode driver share: the pipe, the messages, the owner property |
 | `vsscom_helper/install-helper.ps1` | installs or removes the service |
 | `setup-driver.ps1` | one elevated step that checks the signatures and installs or repairs the user-mode driver and the helper service; what Studio runs for "Set up Virtual Serial Studio" |
-| `remove-driver.ps1` | the reverse: stops and deletes the helper service (its ports go with it), removes the port devices that stay behind (`SWD\VSSCOMUM\*`, absent ones too, so their COM numbers are free again; needs Windows 10 version 2004 or later) and deletes the `vsscom_um` package from the driver store; what the Studio installer's uninstaller runs |
+| `remove-driver.ps1` | the reverse: stops and deletes the helper service (its ports go with it), removes the port devices that stay behind (`SWD\VSSCOMUM\*`, absent ones too, so their COM numbers are free again; SetupAPI `DIF_REMOVE`, as `test/uninstall-driver.ps1` does) and deletes the `vsscom_um` package from the driver store; a device that cannot be removed is reported last, with exit code 7, after the package has been deleted; what the Studio installer's uninstaller runs |
 | `stage-package.ps1` | puts the signed user-mode package, the helper and these scripts in the `driver` folder beside Studio, the layout `setup-driver.ps1` reads; the release workflow runs it before the zip and the installer are made |
 | `trust/install-trust.ps1` | makes a machine trust the owner's CA and the signer of a package, so a test-signed package installs with test signing off |
 | `build.ps1` | restore, build, `InfVerif`, `Inf2Cat`, for either driver, the helper or all |
@@ -330,7 +335,8 @@ device first, then the helper, then takes a free port that already exists.
 The script ends with 0 when the service is installed and running (or removed), 2 when
 it is not run as an administrator and 1 for anything else, with the reason on the
 error stream. The service is registered with its path in quotes (the folder name has
-spaces) and the script reads the stored path back and stops if it has no quotes.
+spaces). The script reads the stored path back from the registry and, if it has no
+quotes or cannot be read, removes the service again and ends with 1.
 
 | Rule | How it is kept |
 |---|---|

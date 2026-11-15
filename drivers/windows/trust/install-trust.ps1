@@ -118,13 +118,9 @@ public static class VssCertPurpose
 }
 '@
 
-# A test defines this function before it runs the script, so the script can be tried on a
-# machine where nobody is an administrator. Nothing else reads it.
-if (-not (Test-Path -LiteralPath 'Function:\Test-IsAdministrator')) {
-    function Test-IsAdministrator {
-        $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-        $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 function Read-Certificate([string] $Path) {
@@ -162,15 +158,22 @@ function Find-InStore([string] $StoreName, [string] $Thumbprint) {
     try { $store.Certificates | Where-Object { $_.Thumbprint -eq $Thumbprint } | Select-Object -First 1 } finally { $store.Close() }
 }
 
-function Test-InStore([string] $StoreName, [string] $Thumbprint) {
-    [bool](Find-InStore $StoreName $Thumbprint)
-}
-
 # What this run has added, so that a later failure takes exactly that out again.
 $script:Added = New-Object Collections.Generic.List[object]
 
 function Add-ToStore([string] $StoreName, [Security.Cryptography.X509Certificates.X509Certificate2] $Certificate, [string] $What, [switch] $CodeSigningOnly) {
-    if (Test-InStore $StoreName $Certificate.Thumbprint) { Write-Host "already in $StoreName : $What"; return }
+    $present = Find-InStore $StoreName $Certificate.Thumbprint
+    if ($present) {
+        # Left exactly as it is. For the root, say what it is trusted for, so the state can be seen.
+        $note = ''
+        if ($CodeSigningOnly) {
+            $property = [VssCertPurpose]::Get($present.Handle)
+            $limited = $property -and [Convert]::ToBase64String($property) -eq [Convert]::ToBase64String([VssCertPurpose]::CodeSigningOnly)
+            $note = if ($limited) { ' (trusted for code signing only)' } else { ' (trusted for every purpose; not changed. -Uninstall -IncludeUnmarked, then this script again, limits it)' }
+        }
+        Write-Host "already in $StoreName : $What$note"
+        return
+    }
     if (-not $PSCmdlet.ShouldProcess("$StoreLocation\$StoreName", "add $What")) { return }
     $Certificate.FriendlyName = $Marker
     if ($CodeSigningOnly) { [VssCertPurpose]::SetCodeSigningOnly($Certificate.Handle) }

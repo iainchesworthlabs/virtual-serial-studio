@@ -42,13 +42,9 @@ $ErrorActionPreference = 'Stop'
 # script is started with -File, so the default is set in the body.
 if (-not $PackageRoot) { $PackageRoot = $PSScriptRoot }
 
-# A test defines these two functions before it runs the script, so the script can be tried on
-# a machine where nobody is an administrator and no program is started. Nothing else reads them.
-if (-not (Test-Path -LiteralPath 'Function:\Test-IsAdministrator')) {
-    function Test-IsAdministrator {
-        $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-        $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    }
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
 function Stop-With([int] $Code, [string] $Message) {
@@ -61,7 +57,6 @@ function Stop-With([int] $Code, [string] $Message) {
 # so it reaches the installer's log. A program that waits for something nobody can
 # answer, such as a prompt on a desktop that is not there, then ends the script with
 # a reason and not an hour of silence.
-if (-not (Test-Path -LiteralPath 'Function:\Invoke-Bounded')) {
 function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $File
@@ -82,19 +77,36 @@ function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
     foreach ($text in $out.Result, $err.Result) { if ($text.Trim()) { Write-Host $text.Trim() } }
     return $process.ExitCode
 }
-}
 
 # True when the driver store holds a package whose original name is vsscom_um.inf and whose version is the
 # one the .inf file in the package folder declares (DriverVer=<date>,<version>).
 function Test-PackageStored([string] $InfPath) {
     $declared = Select-String -LiteralPath $InfPath -Pattern '^\s*DriverVer\s*=\s*[^,]+,\s*([0-9.]+)' | Select-Object -First 1
     $wanted = if ($declared) { $declared.Matches[0].Groups[1].Value } else { $null }
-    foreach ($package in @(Get-WindowsDriver -Online -All)) {
+    foreach ($package in @(Get-WindowsDriver -Online)) {
         if ((Split-Path -Leaf $package.OriginalFileName) -ne 'vsscom_um.inf') { continue }
         if (-not $wanted -or $package.Version.ToString() -eq $wanted) { return $true }
     }
     $false
 }
+
+# The thumbprint of the root at the top of the chain of a certificate, or $null. The chain is built from
+# the machine's stores, with no revocation check (a revocation server is not needed to see where it ends).
+function Get-ChainTop([Security.Cryptography.X509Certificates.X509Certificate2] $Certificate) {
+    $chain = New-Object Security.Cryptography.X509Certificates.X509Chain
+    $chain.ChainPolicy.RevocationMode = 'NoCheck'
+    [void] $chain.Build($Certificate)
+    if ($chain.ChainElements.Count -eq 0) { return $null }
+    $chain.ChainElements[$chain.ChainElements.Count - 1].Certificate.Thumbprint
+}
+
+# The roots that Microsoft's own hardware signatures (WHQL, attestation) end in, read from the driver store
+# of a Windows 11 machine. A package signed by one of these installs without Windows asking a question.
+$microsoftRoots = @(
+    '3B1EFD3A66EA28B16697394703A72CA340A05BD5'  # Microsoft Root Certificate Authority 2010
+    'CDD4EEAE6000AC7F40C3802C171E30148030C072'  # Microsoft Root Certificate Authority
+    'A43489159A520F0D93D032CCAF37E7FE20A8B419'  # Microsoft Root Authority
+)
 
 # The whole script has a limit too: whatever else it waits for, it ends with exit code
 # 124 after fifteen minutes. A timer thread does it, because the script itself may be
@@ -143,8 +155,11 @@ try {
     # in Trusted Publishers (trust\install-trust.ps1 puts it there), or nothing is changed.
     $catalogSignature = Get-AuthenticodeSignature -LiteralPath $cat
     $signer = $catalogSignature.SignerCertificate
+    # Microsoft's hardware publisher: the name alone is not enough (any certificate can carry it), so the
+    # chain must also end in one of the Microsoft roots above.
     $microsoftSigned = $catalogSignature.Status.ToString() -eq 'Valid' -and $signer -and
-        ($signer.Subject -match '(^|,\s*)CN=Microsoft Windows Hardware Compatibility Publisher(,|$)')
+        ($signer.Subject -match '(^|,\s*)CN=Microsoft Windows Hardware Compatibility Publisher(,|$)') -and
+        ((Get-ChainTop $signer) -in $microsoftRoots)
     if (-not $microsoftSigned) {
         if (-not $signer -or -not (Test-Path -LiteralPath "Cert:\LocalMachine\TrustedPublisher\$($signer.Thumbprint)")) {
             Stop-With 6 "$cat is not signed by a publisher this machine trusts (its signer is not in Trusted Publishers, so Windows would ask whether to install it)"
@@ -165,7 +180,9 @@ try {
         # supplied driver or the target device is already using a better or newer driver". It is the normal
         # answer when set-up is run again while ports exist. The package is in the driver store, or this
         # is not an answer to accept, so the store decides.
-        if (-not (Test-PackageStored $inf)) { Stop-With 7 'pnputil answered 259 (no device was updated) and this version of the vsscom_um driver package is not in the driver store' }
+        try { $stored = Test-PackageStored $inf }
+        catch { Stop-With 7 "pnputil answered 259 (no device was updated) and the driver store could not be read: $($_.Exception.Message)" }
+        if (-not $stored) { Stop-With 7 'pnputil answered 259 (no device was updated) and this version of the vsscom_um driver package is not in the driver store' }
         Write-Host 'the devices already use this driver or a newer one; the driver package is in the driver store'
     }
     elseif ($code -eq 124) { Stop-With 7 'pnputil did not finish in 180 seconds and was stopped' }

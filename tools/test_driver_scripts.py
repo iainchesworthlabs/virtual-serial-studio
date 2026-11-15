@@ -43,6 +43,9 @@ PRELUDE = r"""
 $ErrorActionPreference = 'Stop'
 function Log([string] $Text) { Add-Content -LiteralPath $env:VSS_TEST_LOG -Value $Text -Encoding UTF8 }
 $Scenario = Get-Content -LiteralPath $env:VSS_TEST_SCENARIO -Raw | ConvertFrom-Json
+# The scripts define Test-IsAdministrator, Invoke-Bounded and the like as ordinary functions. A test replaces one
+# with a global alias, which wins over a function of the same name, so the shipped scripts have no test branch.
+function Use-Stub([string] $Name, [string] $Stub) { Set-Alias -Scope Global -Name $Name -Value $Stub -Force }
 foreach ($name in 'sc.exe', 'pnputil.exe', 'certutil.exe', 'bcdedit.exe', 'icacls.exe', 'taskkill.exe', 'devcon.exe',
                   'New-Service', 'Set-Service', 'Remove-Service', 'Stop-Service', 'Start-Service', 'Restart-Service',
                   'Remove-PnpDevice', 'Add-WindowsDriver', 'Remove-WindowsDriver', 'Import-Certificate', 'Set-ItemProperty',
@@ -83,7 +86,13 @@ function New-Service {
     $global:HelperState = 'Stopped'
     $global:HelperPath = if ($Scenario.strip_quotes) { ([string] $BinaryPathName).Trim('"') } else { $BinaryPathName }
 }
-function Get-CimInstance { [CmdletBinding()] param($ClassName, $Filter) [pscustomobject]@{ PathName = $global:HelperPath } }
+# The image path the service manager stored, as install-helper.ps1 reads it back from the registry.
+function Get-ItemProperty {
+    [CmdletBinding()] param($LiteralPath, $Name)
+    Log "Get-ItemProperty $LiteralPath $Name"
+    if ($Scenario.read_fails) { throw 'the registry could not be read' }
+    [pscustomobject]@{ ImagePath = $global:HelperPath }
+}
 """
 
 DRIVER_STORE = "C:\\Windows\\System32\\DriverStore\\FileRepository\\"
@@ -150,7 +159,7 @@ class Harness(unittest.TestCase):
 
 @unittest.skipUnless(POWERSHELL, "needs Windows PowerShell")
 class InstallHelper(Harness):
-    STUBS = HELPER_STUBS + "function Test-IsAdministrator { [bool] $Scenario.admin }\n"
+    STUBS = HELPER_STUBS + "function Stub-IsAdministrator { [bool] $Scenario.admin }\nUse-Stub Test-IsAdministrator Stub-IsAdministrator\n"
 
     def setUp(self) -> None:
         super().setUp()
@@ -179,6 +188,20 @@ class InstallHelper(Harness):
             run.calls("New-Service"), [f'New-Service vsscom_helper BinaryPathName=["{target}"] StartupType=Automatic']
         )
         self.assertEqual(run.calls("sc.exe create"), [], "the path must not go through sc.exe")
+        # The other calls are asserted too, so a wrong command line shows.
+        self.assertEqual(
+            run.calls("sc.exe failure"),
+            ["sc.exe failure vsscom_helper reset= 86400 actions= restart/5000/restart/5000/none/0"],
+        )
+        self.assertEqual(run.calls("sc.exe start"), ["sc.exe start vsscom_helper"])
+        self.assertEqual(
+            run.calls("icacls.exe"),
+            [f"icacls.exe {self.install_dir} /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F *S-1-5-32-545:(OI)(CI)RX"],
+        )
+        self.assertEqual(
+            run.calls("Get-ItemProperty"),
+            ["Get-ItemProperty HKLM:\\SYSTEM\\CurrentControlSet\\Services\\vsscom_helper ImagePath"],
+        )
 
     def test_a_service_that_has_the_path_without_quotes_is_replaced(self) -> None:
         old_path = str(self.install_dir / "vsscom_helper.exe")
@@ -196,6 +219,13 @@ class InstallHelper(Harness):
         run = self.install(strip_quotes=True)
         self.assertEqual(run.returncode, 1)
         self.assertIn("not in quotes", run.stderr)
+        self.assertEqual(run.calls("sc.exe start"), [])
+        self.assertEqual(run.calls("sc.exe delete")[-1], "sc.exe delete vsscom_helper")
+
+    def test_a_path_that_cannot_be_read_back_is_an_error_and_the_service_is_taken_out(self) -> None:
+        run = self.install(read_fails=True)
+        self.assertEqual(run.returncode, 1)
+        self.assertIn("could not be read back", run.stderr)
         self.assertEqual(run.calls("sc.exe start"), [])
         self.assertEqual(run.calls("sc.exe delete")[-1], "sc.exe delete vsscom_helper")
 
@@ -240,12 +270,16 @@ def write_package(root: Path, helper: str) -> Path:
 SETUP_STUBS = (
     HELPER_STUBS
     + r"""
-function Test-IsAdministrator { [bool] $Scenario.admin }
-function Invoke-Bounded {
+function Stub-IsAdministrator { [bool] $Scenario.admin }
+function Stub-Bounded {
     param([string] $File, [string[]] $Arguments, [int] $Seconds)
     Log ('run ' + $File + ' ' + ($Arguments -join ' '))
     [int] $Scenario.add_code
 }
+function Stub-ChainTop { param($Certificate) $Scenario.chain_top }
+Use-Stub Test-IsAdministrator Stub-IsAdministrator
+Use-Stub Invoke-Bounded Stub-Bounded
+Use-Stub Get-ChainTop Stub-ChainTop
 function bcdedit.exe {
     $global:LASTEXITCODE = 0
     if ($Scenario.testsigning) { '    testsigning             Yes' }
@@ -266,6 +300,8 @@ function Test-Path {
 }
 function Get-WindowsDriver {
     param([switch] $Online, [switch] $All)
+    Log ('Get-WindowsDriver' + $(if ($All) { ' -All' } else { '' }))
+    if ($Scenario.store_fails) { throw 'the servicing stack is busy' }
     foreach ($p in @($Scenario.store)) {
         [pscustomobject]@{ OriginalFileName = $p.original; Version = [version] $p.version; Driver = 'oem1.inf' }
     }
@@ -275,6 +311,11 @@ function Get-WindowsDriver {
 
 PUBLISHER = {"status": "Valid", "thumbprint": "AAAA", "subject": "CN=Some Publisher"}
 HARDWARE = {"status": "Valid", "thumbprint": "BBBB", "subject": "CN=Microsoft Windows Hardware Compatibility Publisher, O=Microsoft Corporation"}
+MICROSOFT_ROOTS = [
+    "3B1EFD3A66EA28B16697394703A72CA340A05BD5",  # Microsoft Root Certificate Authority 2010
+    "CDD4EEAE6000AC7F40C3802C171E30148030C072",  # Microsoft Root Certificate Authority
+    "A43489159A520F0D93D032CCAF37E7FE20A8B419",  # Microsoft Root Authority
+]
 
 
 @unittest.skipUnless(POWERSHELL, "needs Windows PowerShell")
@@ -289,6 +330,7 @@ class SetupDriver(Harness):
             "trusted_publishers": ["AAAA"],
             "store": [],
             "icacls_code": 0,
+            "chain_top": MICROSOFT_ROOTS[0],
         }
         base.update(scenario)
         return self.run_harness(SETUP_STUBS, SETUP, f"-PackageRoot {ps_quote(str(package))}", base)
@@ -313,6 +355,18 @@ class SetupDriver(Harness):
         run = self.with_signature(HARDWARE, trusted_publishers=[])
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
         self.assertEqual(len(run.calls("run pnputil.exe /add-driver")), 1)
+
+    def test_the_microsoft_name_under_any_of_the_three_microsoft_roots_counts(self) -> None:
+        for root in MICROSOFT_ROOTS:
+            with self.subTest(root=root):
+                run = self.with_signature(HARDWARE, trusted_publishers=[], chain_top=root)
+                self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
+    def test_the_microsoft_name_under_another_root_does_not_count(self) -> None:
+        # A certificate can carry the name; only the chain says who issued it.
+        run = self.with_signature(HARDWARE, trusted_publishers=[], chain_top="D" * 40)
+        self.assertEqual(run.returncode, 6, run.stdout + run.stderr)
+        self.assertEqual(run.calls("run pnputil"), [])
 
     def test_the_microsoft_name_on_a_signature_that_is_not_valid_does_not_count(self) -> None:
         forged = {**HARDWARE, "status": "NotTrusted"}
@@ -345,6 +399,13 @@ class SetupDriver(Harness):
         run = self.setup(add_code=259, store=[])
         self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
         self.assertNotIn("installing the helper service", run.stdout)
+
+    def test_pnputil_259_with_a_driver_store_that_cannot_be_read_ends_with_7(self) -> None:
+        run = self.setup(add_code=259, store_fails=True)
+        self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
+        self.assertIn("driver store could not be read", run.stderr)
+        self.assertNotIn("installing the helper service", run.stdout)
+        self.assertEqual(run.calls("Get-WindowsDriver"), ["Get-WindowsDriver"], "no -All")
 
     def test_pnputil_259_is_a_failure_when_the_store_holds_another_version(self) -> None:
         store = [{"original": "vsscom_um.inf", "version": "1.0.0.0"}, {"original": "other.inf", "version": "1.1.0.0"}]
@@ -400,28 +461,89 @@ class SetupDriver(Harness):
         self.assertIn("installing the helper service", run.stdout)
 
 
+@unittest.skipUnless(POWERSHELL, "needs Windows PowerShell")
+class InvokeBounded(Harness):
+    """The real Invoke-Bounded of setup-driver.ps1 and remove-driver.ps1, with a harmless program."""
+
+    ARGS_SCRIPT = "$i = 0\nforeach ($a in $args) { 'ARG[' + $i + ']=' + $a; $i++ }\nexit 7\n"
+
+    def run_function(self, script: Path, program: str, arguments: list[str]) -> Run:
+        folder = self.tmp / "a folder with spaces"
+        folder.mkdir(exist_ok=True)
+        echo = folder / "echo args.ps1"
+        echo.write_text(self.ARGS_SCRIPT, encoding="ascii")
+        arguments = [str(echo) if a == "@echo" else a for a in arguments]
+        harness = self.tmp / "bounded.ps1"
+        harness.write_text(
+            "$ast = [Management.Automation.Language.Parser]::ParseFile(" + ps_quote(str(script)) + ", [ref] $null, [ref] $null)\n"
+            "$function = $ast.Find({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq 'Invoke-Bounded' }, $true)\n"
+            ". ([scriptblock]::Create($function.Extent.Text))\n"
+            "$code = Invoke-Bounded " + ps_quote(program) + " @(" + ",".join(ps_quote(a) for a in arguments) + ") 60\n"
+            "'CODE=' + $code\n",
+            encoding="utf-8",
+        )
+        result = subprocess.run(
+            [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
+            capture_output=True, text=True, timeout=120, check=False,
+        )
+        return Run(result.returncode, result.stdout, result.stderr, [])
+
+    def test_arguments_with_spaces_and_quotes_arrive_whole_in_both_scripts(self) -> None:
+        for script in (SETUP, REMOVE):
+            with self.subTest(script=script.name):
+                run = self.run_function(script, POWERSHELL or "", ["-NoProfile", "-File", "@echo", "C:\\a path\\x.inf", 'say "hi"', "plain"])
+                self.assertEqual(run.returncode, 0, run.stderr)
+                self.assertEqual(
+                    run.stdout.splitlines(),
+                    ["ARG[0]=C:\\a path\\x.inf", 'ARG[1]=say "hi"', "ARG[2]=plain", "CODE=7"],
+                )
+
+    def test_a_program_whose_path_has_a_space_is_started_and_its_exit_code_returned(self) -> None:
+        folder = self.tmp / "a program folder"
+        folder.mkdir()
+        standin = folder / "stand in.exe"
+        shutil.copy(Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "whoami.exe", standin)
+        run = self.run_function(SETUP, str(standin), [])
+        self.assertEqual(run.returncode, 0, run.stderr)
+        self.assertEqual(run.stdout.splitlines()[-1], "CODE=0")
+
+
 REMOVE_STUBS = r"""
-function Test-IsAdministrator { [bool] $Scenario.admin }
+function Stub-IsAdministrator { [bool] $Scenario.admin }
 $global:Devices = @($Scenario.devices | ForEach-Object { [pscustomobject]@{ InstanceId = $_.id; Status = $_.status } })
 $global:Packages = @($Scenario.packages)
-function Get-PnpDevice { [CmdletBinding()] param($Class) $global:Devices }
+$global:Listed = $false
+function Get-PnpDevice {
+    [CmdletBinding()] param($InstanceId, $Class)
+    Log "Get-PnpDevice InstanceId=$InstanceId"
+    $fails = $Scenario.list_fails -eq 'always' -or ($Scenario.list_fails -eq 'first' -and -not $global:Listed)
+    $global:Listed = $true
+    if ($fails) { Write-Error 'the device query failed'; return }
+    $global:Devices | Where-Object { $_.InstanceId -like $InstanceId }
+}
 function Get-Service { [CmdletBinding()] param($Name) }
 function Get-WindowsDriver {
     param([switch] $Online, [switch] $All)
     foreach ($p in $global:Packages) { [pscustomobject]@{ OriginalFileName = 'C:\x\' + $p.original; Driver = $p.published } }
 }
-function Invoke-Bounded {
+function Stub-Bounded {
     param([string] $File, [string[]] $Arguments, [int] $Seconds)
     Log ('run ' + $File + ' ' + ($Arguments -join ' '))
-    if ($Arguments[0] -eq '/remove-device') {
-        if (-not $Scenario.remove_keeps -and [int] $Scenario.remove_code -eq 0) {
-            $global:Devices = @($global:Devices | Where-Object { $_.InstanceId -ne $Arguments[1] })
-        }
-        return [int] $Scenario.remove_code
-    }
     if ($Arguments[0] -eq '/delete-driver') { $global:Packages = @(); return [int] $Scenario.delete_code }
     0
 }
+# The SetupAPI removal: 'ok' removes the SWD\VSSCOMUM devices, 'keeps' says nothing and removes none, 'throws' fails.
+function Stub-RemoveDevices {
+    Log 'Remove-PortDevices'
+    if ($Scenario.remove_mode -eq 'throws') { throw 'Access is denied' }
+    if ($Scenario.remove_mode -eq 'keeps') { return 0 }
+    $gone = @($global:Devices | Where-Object { $_.InstanceId -like 'SWD\VSSCOMUM\*' })
+    $global:Devices = @($global:Devices | Where-Object { $_.InstanceId -notlike 'SWD\VSSCOMUM\*' })
+    $gone.Count
+}
+Use-Stub Test-IsAdministrator Stub-IsAdministrator
+Use-Stub Invoke-Bounded Stub-Bounded
+Use-Stub Remove-PortDevices Stub-RemoveDevices
 """
 
 PORT_DEVICES = [
@@ -444,61 +566,70 @@ class RemoveDriver(Harness):
             "admin": True,
             "devices": PORT_DEVICES,
             "packages": [{"original": "vsscom_um.inf", "published": "oem7.inf"}, {"original": "other.inf", "published": "oem8.inf"}],
-            "remove_code": 0,
+            "remove_mode": "ok",
             "delete_code": 0,
         }
         base.update(scenario)
         return self.run_harness(REMOVE_STUBS, REMOVE, f"-PackageRoot {ps_quote(str(package))}", base)
 
-    # DRV-04
-    def test_the_port_devices_are_removed_absent_ones_included_and_nothing_else(self) -> None:
-        run = self.remove()
-        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-        self.assertEqual(
-            run.calls("run pnputil.exe /remove-device"),
-            [
-                "run pnputil.exe /remove-device SWD\\VSSCOMUM\\0000",
-                "run pnputil.exe /remove-device SWD\\VSSCOMUM\\0001",
-                "run pnputil.exe /remove-device SWD\\VSSCOMUM\\0002",
-            ],
-        )
+    DELETE = "run pnputil.exe /delete-driver oem7.inf /uninstall /force"
 
-    def test_the_order_is_helper_then_devices_then_package(self) -> None:
+    # DRV-04
+    def test_the_port_devices_are_found_by_instance_id_and_removed_before_the_package(self) -> None:
         run = self.remove()
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn("Get-PnpDevice InstanceId=SWD\\VSSCOMUM\\*", run.log)
+        # Only the helper's devices are named; the other devices of the class are not.
+        self.assertIn("SWD\\VSSCOMUM\\0000, SWD\\VSSCOMUM\\0001, SWD\\VSSCOMUM\\0002", run.stdout)
+        self.assertNotIn("ROOT\\PORTS", run.stdout)
+        self.assertEqual(run.calls("Remove-PortDevices"), ["Remove-PortDevices"])
         helper = run.log.index("helper uninstall")
-        first_device = next(i for i, line in enumerate(run.log) if "/remove-device" in line)
-        package = next(i for i, line in enumerate(run.log) if "/delete-driver" in line)
-        self.assertLess(helper, first_device)
-        self.assertLess(first_device, package)
-        self.assertIn("run pnputil.exe /delete-driver oem7.inf /uninstall /force", run.log)
+        devices = run.log.index("Remove-PortDevices")
+        package = run.log.index(self.DELETE)
+        self.assertLess(helper, devices)
+        self.assertLess(devices, package)
         self.assertNotIn("run pnputil.exe /delete-driver oem8.inf /uninstall /force", run.log)
 
-    def test_a_device_that_cannot_be_removed_ends_with_7(self) -> None:
-        run = self.remove(remove_code=5)
+    def test_a_device_that_cannot_be_removed_is_reported_last_and_the_package_is_still_deleted(self) -> None:
+        run = self.remove(remove_mode="throws")
         self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
+        self.assertIn(self.DELETE, run.log)
         self.assertIn("SWD\\VSSCOMUM\\0000", run.stderr)
-        self.assertEqual(run.calls("run pnputil.exe /delete-driver"), [])
+        self.assertIn("Access is denied", run.stderr)
 
-    def test_a_device_that_pnputil_says_it_removed_but_is_still_there_ends_with_7(self) -> None:
-        run = self.remove(remove_keeps=True)
+    def test_a_device_that_stays_without_an_error_is_reported_and_the_package_is_still_deleted(self) -> None:
+        run = self.remove(remove_mode="keeps")
         self.assertEqual(run.returncode, 7, run.stdout + run.stderr)
+        self.assertIn(self.DELETE, run.log)
         self.assertIn("port device is still there", run.stderr)
 
     def test_a_machine_with_no_port_device_is_not_an_error(self) -> None:
         run = self.remove(devices=[{"id": "ROOT\\PORTS\\0000", "status": "OK"}])
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
-        self.assertEqual(run.calls("run pnputil.exe /remove-device"), [])
+        self.assertIn("none left by the driver", run.stdout)
 
-    def test_a_restart_asked_for_while_removing_a_device_ends_with_10(self) -> None:
-        run = self.remove(remove_code=3010, remove_keeps=True)
+    def test_a_query_that_fails_at_first_does_not_stop_the_removal(self) -> None:
+        run = self.remove(list_fails="first")
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+        self.assertIn("could not be listed", run.stdout)
+        self.assertEqual(run.calls("Remove-PortDevices"), ["Remove-PortDevices"])
+        self.assertIn(self.DELETE, run.log)
+
+    def test_a_query_that_always_fails_is_not_read_as_no_device_left(self) -> None:
+        run = self.remove(list_fails="always")
+        self.assertEqual(run.returncode, 1, run.stdout + run.stderr)
+        self.assertIn("device query failed", run.stderr)
+        self.assertIn(self.DELETE, run.log, "the package goes before the check that cannot be made")
+
+    def test_a_restart_asked_for_by_the_package_deletion_ends_with_10(self) -> None:
+        run = self.remove(delete_code=3010)
         self.assertEqual(run.returncode, 10, run.stdout + run.stderr)
 
     # DRV-07
     def test_a_helper_script_that_exits_with_an_error_ends_with_8(self) -> None:
         run = self.remove(helper="exit 3")
         self.assertEqual(run.returncode, 8, run.stdout + run.stderr)
-        self.assertEqual(run.calls("run pnputil.exe /remove-device"), [])
+        self.assertEqual(run.calls("Remove-PortDevices"), [])
 
     def test_a_helper_script_that_throws_ends_with_8(self) -> None:
         run = self.remove(helper="throw 'the helper broke'")
@@ -582,7 +713,8 @@ CODE_SIGNING_ONLY = "300A06082B06010505070303"
 MARKER = "Virtual Serial Studio (install-trust.ps1)"
 
 TRUST_STUBS = r"""
-function Test-IsAdministrator { [bool] $Scenario.admin }
+function Stub-IsAdministrator { [bool] $Scenario.admin }
+Use-Stub Test-IsAdministrator Stub-IsAdministrator
 function bcdedit.exe { $global:LASTEXITCODE = 0; if ($Scenario.testsigning) { '    testsigning             Yes' } }
 $global:Calls = 0
 $global:SignerCert = New-Object Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList (, [IO.File]::ReadAllBytes($Scenario.signer))
@@ -638,13 +770,13 @@ class InstallTrust(Harness):
             capture_output=True, text=True, timeout=60, check=False,
         )
 
-    def trust(self, *extra: str, package: bool = True, **scenario: object) -> Run:
+    def trust(self, *extra: str, package: bool = True, location: str = "CurrentUser", **scenario: object) -> Run:
         base: dict = {"admin": True, "testsigning": False, "statuses": ["NotTrusted", "Valid"], "signer": str(self.fixture / "signer.cer")}
         base.update(scenario)
         arguments = (
             f"-RootCertificate {ps_quote(str(self.fixture / 'root.pem'))} "
             f"-IntermediateCertificate {ps_quote(str(self.fixture / 'intermediate.pem'))} "
-            f"-StoreLocation CurrentUser -RootStoreName {self.stores['root']} -IntermediateStoreName {self.stores['ca']} "
+            f"-StoreLocation {location} -RootStoreName {self.stores['root']} -IntermediateStoreName {self.stores['ca']} "
             f"-PublisherStoreName {self.stores['pub']} "
             + (f"-Package {ps_quote(str(self.package))} " if package else "")
             + " ".join(extra)
@@ -711,6 +843,7 @@ class InstallTrust(Harness):
         found = self.inspect()
         self.assertEqual([c["thumbprint"] for c in found], [self.thumbs["root"]])
         self.assertEqual(found[0]["friendly"], "")
+        self.assertIn("trusted for every purpose; not changed", run.stdout)  # the state is printed
 
     def test_without_a_package_the_root_and_intermediate_are_added_and_the_signer_is_not(self) -> None:
         run = self.trust(package=False)
@@ -743,12 +876,8 @@ class InstallTrust(Harness):
 
     def test_exit_codes_2_and_3_are_reachable(self) -> None:
         # Write-Error under $ErrorActionPreference = 'Stop' throws, so these used to come out as 1.
-        run = self.run_harness(
-            TRUST_STUBS,
-            TRUST,
-            f"-RootCertificate {ps_quote(str(self.fixture / 'root.pem'))} -IntermediateCertificate {ps_quote(str(self.fixture / 'intermediate.pem'))}",
-            {"admin": False, "testsigning": False, "statuses": ["Valid"], "signer": str(self.fixture / "signer.cer")},
-        )
+        # The scratch store names are passed here too, so that even an elevated run cannot reach a real store.
+        run = self.trust(admin=False, statuses=["Valid"], location="LocalMachine")
         self.assertEqual(run.returncode, 2, run.stdout + run.stderr)
         self.assertIn("administrator", run.stderr)
         run = self.trust(testsigning=True)
