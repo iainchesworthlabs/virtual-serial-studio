@@ -59,7 +59,7 @@ constexpr std::chrono::milliseconds end_interval{20};
 constexpr std::chrono::milliseconds dying_grace{200};
 
 /// How much is read from a plugin at a time.
-constexpr std::size_t read_size = 64 * 1024;
+constexpr std::size_t read_size = std::size_t{64} * 1024;
 
 } // namespace
 
@@ -580,7 +580,7 @@ private:
 
     void end_by_host()
     {
-        if (process_->poll().has_value())
+        if (!process_ || process_->poll().has_value())
             return;
         ended_by_host_ = true;
         process_->kill();
@@ -603,6 +603,8 @@ private:
 
     void look_at_process()
     {
+        if (!process_)
+            return;
         const std::optional<exit_status> status = process_->poll();
         if (!status)
         {

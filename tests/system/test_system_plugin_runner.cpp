@@ -269,7 +269,7 @@ public:
                 context_.stop();
             thread_.join();
         }
-        catch (...)
+        catch (...) // NOLINT(bugprone-empty-catch)
         {
             // Nothing can be done about it here, and a destructor does not
             // throw.
@@ -306,7 +306,7 @@ private:
         {
             context_.run();
         }
-        catch (...)
+        catch (...) // NOLINT(bugprone-empty-catch)
         {
             // A handler that throws ends the run; the test then times out.
         }
@@ -869,7 +869,7 @@ TEST_CASE("plugin runner: the revision goes up and a snapshot never changes")
 
     const snapshot_ptr first = runner->snapshot();
     REQUIRE(first != nullptr);
-    const runner_snapshot first_copy = *first;
+    runner_snapshot first_copy = *first;
 
     std::uint64_t latest_revision = first->revision;
     const auto never_down = [&latest_revision](const runner_snapshot& latest)
@@ -890,7 +890,7 @@ TEST_CASE("plugin runner: the revision goes up and a snapshot never changes")
                             latest.status.has_value() &&
                             find_line(latest, false, "two") != nullptr;
                  });
-    const runner_snapshot middle_copy = *middle;
+    runner_snapshot middle_copy = *middle;
     REQUIRE(middle->revision > first->revision);
 
     runner->stop("test");
