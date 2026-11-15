@@ -4231,6 +4231,16 @@ Networks: %5</source>
             <source>JSON Lines (*.jsonl)</source>
             <translation>שורות JSON (*.jsonl)</translation>
         </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>עמודות טבלת התעבורה</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>רוחב העמודה %1 הוא %2 px.</translation>
+        </message>
     </context>
     <context>
         <name>NetworkEndpoint</name>

@@ -4231,6 +4231,16 @@ Netzwerke: %5</translation>
             <source>JSON Lines (*.jsonl)</source>
             <translation>JSON-Zeilen (*.jsonl)</translation>
         </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>Spalten der Datenverkehr-Tabelle</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>Spalte %1 ist %2 px breit.</translation>
+        </message>
     </context>
     <context>
         <name>NetworkEndpoint</name>
