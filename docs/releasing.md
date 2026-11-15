@@ -559,7 +559,10 @@ desktop and `pnputil` refused at once, which is why it was not seen there. Now:
   (`tools/ci/rehearse-signed-windows-installer.ps1`): the driver files in a copy of the
   stage tree are signed with a throwaway certificate that nothing trusts, a second
   installer is built from the copy, and it is installed, upgraded and uninstalled with the
-  same check. A signed run does not need it, because its own installer takes that path.
+  same check. The set-up refuses the driver as not trusted before it calls `pnputil`, so the
+  rehearsal does not reach `pnputil`; it checks that the refusal still comes first and that
+  the installer and uninstaller cope with it. A signed run does not need it, because its
+  own installer takes that path.
 
 **What is left**
 
