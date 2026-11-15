@@ -19,6 +19,9 @@
 #include <algorithm>
 #include <filesystem>
 #include <future>
+#include <map>
+#include <optional>
+#include <thread>
 #include <utility>
 
 namespace vss
@@ -120,6 +123,67 @@ config::port_entry record_to_entry(const std::string& name,
     entry.virtual_kind = virtual_kind;
     entry.serial = serial;
     entry.capture = capture;
+    return entry;
+}
+
+/// The entry `snapshot` writes for a link, or nothing for a link that cannot
+/// be written: one with a port the studio does not know.  `names` says which
+/// port each id is and `plugins` has the bindings of the links.
+std::optional<config::link_entry> entry_of_link(
+    const link_info& link,
+    const std::unordered_map<endpoint_id, std::string>& names,
+    const std::unordered_map<link_id, std::vector<config::plugin_binding>>&
+        plugins)
+{
+    config::link_entry entry;
+    switch (link.mode)
+    {
+    case link_mode::duplex:
+        entry.mode = link.sources.size() == 1 && link.targets.size() == 1
+                         ? "duplex"
+                         : "split";
+        break;
+    case link_mode::one_way:
+        // Many sources are a join whether or not it carries modem lines; a
+        // tap on a bus is one without.
+        if (link.sources.size() > 1)
+            entry.mode = "join";
+        else if (!link.options.emulate_modem_lines)
+            entry.mode = "monitor";
+        else
+            entry.mode = "redirect";
+        break;
+    case link_mode::bus:
+        entry.mode = "bus";
+        break;
+    }
+
+    const bool bus = link.mode == link_mode::bus;
+    for (const endpoint_id id : link.sources)
+    {
+        const auto it = names.find(id);
+        if (it == names.end())
+            continue;
+        (bus ? entry.members : entry.sources).push_back(it->second);
+    }
+    for (const endpoint_id id : link.targets)
+    {
+        const auto it = names.find(id);
+        if (it != names.end())
+            entry.targets.push_back(it->second);
+    }
+
+    if (bus ? entry.members.size() < 2
+            : entry.sources.empty() || entry.targets.empty())
+        return std::nullopt;
+
+    entry.emulate_modem_lines = link.options.emulate_modem_lines;
+    entry.policy = link.options.policy;
+    entry.delay_ms = link.options.delay_ms;
+    entry.jitter_ms = link.options.jitter_ms;
+    entry.half_duplex = link.options.half_duplex;
+    if (const auto kept = plugins.find(link.id); kept != plugins.end())
+        entry.plugins = kept->second;
     return entry;
 }
 
@@ -342,6 +406,7 @@ studio::register_port(port_record record, std::shared_ptr<transport> transport,
     claim_paths(record.target, record.advertised);
     {
         std::lock_guard lock(record_mutex_);
+        record.order = next_order_++;
         records_.emplace(record.id, record);
     }
     if (reconnects(record) && reconnector_)
@@ -371,6 +436,7 @@ studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
     record.target = created->path;
     record.advertised = created->path;
     record.capture = options.capture_traffic;
+    record.serial = options.serial;
     if (kind == virtual_port_kind::windows_driver)
     {
         record.com_number = com_number;
@@ -404,6 +470,7 @@ studio::create_auto_virtual_port(const std::string& name,
             record.target = created->path;
             record.advertised = created->path;
             record.capture = options.capture_traffic;
+            record.serial = options.serial;
             record.com_number = com_number;
             record.driver = created->port;
 
@@ -463,6 +530,7 @@ studio::create_auto_virtual_port(const std::string& name,
     record.target = created->path;
     record.advertised = created->path;
     record.capture = options.capture_traffic;
+    record.serial = options.serial;
 
     return register_port(std::move(record), std::move(created->port), options);
 }
@@ -1648,28 +1716,59 @@ studio::make_links(const std::vector<config::link_entry>& links,
     return {};
 }
 
+result<std::shared_ptr<endpoint>> retry_while_number_busy(
+    const std::function<result<std::shared_ptr<endpoint>>()>& make,
+    std::chrono::steady_clock::time_point since, std::chrono::milliseconds step,
+    std::chrono::milliseconds limit)
+{
+    for (;;)
+    {
+        auto made = make();
+        if (made || made.error() != errc::already_exists)
+            return made;
+        if (std::chrono::steady_clock::now() - since >= limit)
+            return made;
+        std::this_thread::sleep_for(step);
+    }
+}
+
 result<void> studio::replace(const config::document& value)
 {
     VSS_PROFILE_ZONE("studio.replace");
     if (const error_code invalid = config::validate(value))
         return invalid;
+    std::lock_guard change(change_mutex_);
     forget_plugins_of_removed_links();
 
-    // What runs now, with the id of each port, for the comparison and for
-    // putting it back.
+    // What runs now, as `snapshot` writes it, with the id and the place of
+    // each port, for the comparison and for putting it back.
     struct running_port
     {
         config::port_entry entry;
         endpoint_id id = 0;
+        std::size_t order = 0;
     };
-    const config::document before = snapshot();
     std::vector<running_port> running;
-    running.reserve(before.ports.size());
-    for (const auto& entry : before.ports)
+    std::unordered_map<endpoint_id, std::string> names;
+    std::unordered_map<link_id, std::vector<config::plugin_binding>>
+        link_plugins;
+    std::string old_name;
+    std::string old_description;
     {
-        if (const auto found = find(entry.name))
-            running.push_back({entry, found->id()});
+        std::lock_guard lock(record_mutex_);
+        old_name = setup_name_;
+        old_description = setup_description_;
+        link_plugins = link_plugins_;
+        running.reserve(records_.size());
+        for (const auto& [id, record] : records_)
+        {
+            running.push_back({entry_of(record), id, record.order});
+            names.emplace(id, record.name);
+        }
     }
+    std::ranges::sort(
+        running, [](const running_port& a, const running_port& b)
+        { return a.order != b.order ? a.order < b.order : a.id < b.id; });
 
     // A running port that is the same as a port of the document stays: its
     // endpoint, its id and, on Windows, its COM number (a number is not free
@@ -1694,41 +1793,118 @@ result<void> studio::replace(const config::document& value)
         }
     }
 
+    // A link between kept ports that is the same as a link of the document
+    // stays too, with its id, wiring, owner and counters, and what it carries
+    // is not cut.  A document link is used for one running link only.
+    struct running_link
+    {
+        link_id id = 0;
+        config::link_entry entry;
+    };
+    std::vector<running_link> links;
+    for (const auto& link : hub_->links())
+    {
+        if (auto entry = entry_of_link(link, names, link_plugins))
+            links.push_back({link.id, std::move(*entry)});
+    }
+    const auto on_kept_ports = [&ids](const config::link_entry& entry)
+    {
+        const auto kept_name = [&ids](const std::string& name)
+        { return ids.contains(name); };
+        return std::ranges::all_of(entry.sources, kept_name) &&
+               std::ranges::all_of(entry.targets, kept_name) &&
+               std::ranges::all_of(entry.members, kept_name);
+    };
+    std::vector<bool> used(value.links.size(), false);
+    std::unordered_set<link_id> kept_links;
+    for (const auto& link : links)
+    {
+        if (!on_kept_ports(link.entry))
+            continue;
+        for (std::size_t index = 0; index < value.links.size(); ++index)
+        {
+            if (!used[index] && value.links[index] == link.entry)
+            {
+                used[index] = true;
+                kept_links.insert(link.id);
+                break;
+            }
+        }
+    }
+    std::vector<config::link_entry> to_make;
+    for (std::size_t index = 0; index < value.links.size(); ++index)
+    {
+        if (!used[index])
+            to_make.push_back(value.links[index]);
+    }
+
     std::vector<link_id> made_links;
     std::vector<endpoint_id> made_ports;
     std::vector<const running_port*> taken_away;
+    std::vector<config::link_entry> taken_links;
+    // The COM numbers this call freed, and when.  The driver does not hand
+    // one out again at once, so making a port with such a number is tried
+    // again until Windows lets go.
+    std::map<unsigned, std::chrono::steady_clock::time_point> freed;
+
+    const auto make_after_removal = [&](const config::port_entry& entry)
+    {
+        const auto since = freed.find(entry.com_number);
+        if (entry.kind != "virtual" || entry.com_number == 0 ||
+            since == freed.end())
+            return make_port(entry);
+        return retry_while_number_busy([&] { return make_port(entry); },
+                                       since->second);
+    };
 
     // Undoes this call as far as it can: what it made goes, and what it
-    // removed is made again from the snapshot.  A port that comes back is a
-    // new endpoint, and a driver port may not get its COM number again at
-    // once.
+    // removed is made again.  A port that comes back is a new endpoint with
+    // the place it had, and a driver port waits for its COM number as above.
+    // Rule sets, echo and the wiring and owner of links are not restored.
     const auto put_back = [&]()
     {
-        for (const auto& link : hub_->links())
-            static_cast<void>(disconnect(link.id));
+        for (const link_id id : made_links)
+            static_cast<void>(disconnect(id));
         for (const endpoint_id id : made_ports)
             static_cast<void>(remove_port(id));
         for (const auto* port : taken_away)
-            static_cast<void>(make_port(port->entry));
-        std::unordered_map<std::string, endpoint_id> now;
-        for (const auto& port : before.ports)
         {
-            if (const auto found = find(port.name))
-                now.emplace(port.name, found->id());
+            const auto again = make_after_removal(port->entry);
+            if (!again)
+                continue;
+            std::lock_guard lock(record_mutex_);
+            if (const auto it = records_.find((*again)->id());
+                it != records_.end())
+                it->second.order = port->order;
+        }
+        std::unordered_map<std::string, endpoint_id> now;
+        for (const auto& port : running)
+        {
+            if (const auto found = find(port.entry.name))
+                now.emplace(port.entry.name, found->id());
         }
         std::vector<link_id> restored;
-        for (const auto& link : before.links)
+        for (const auto& link : taken_links)
             static_cast<void>(make_links({link}, now, restored));
+        std::lock_guard lock(record_mutex_);
+        setup_name_ = old_name;
+        setup_description_ = old_description;
     };
 
-    // Every link goes, then the ports that are not kept.
+    // The links that are not kept go, then the ports that are not kept.
     for (const auto& link : hub_->links())
     {
+        if (kept_links.contains(link.id))
+            continue;
         if (const auto removed = disconnect(link.id); !removed)
         {
             put_back();
             return removed.error();
         }
+        if (const auto known =
+                std::ranges::find(links, link.id, &running_link::id);
+            known != links.end())
+            taken_links.push_back(known->entry);
     }
     for (const auto& port : running)
     {
@@ -1740,13 +1916,15 @@ result<void> studio::replace(const config::document& value)
             return removed.error();
         }
         taken_away.push_back(&port);
+        if (port.entry.kind == "virtual" && port.entry.com_number != 0)
+            freed[port.entry.com_number] = std::chrono::steady_clock::now();
     }
 
-    // The ports that are missing, then every link of the document, by name,
-    // to a kept port or a new one.
+    // The ports that are missing, then the links of the document that are not
+    // running, by name, to a kept port or a new one.
     for (const auto* wanted : missing)
     {
-        const auto added = make_port(*wanted);
+        const auto added = make_after_removal(*wanted);
         if (!added)
         {
             put_back();
@@ -1755,11 +1933,22 @@ result<void> studio::replace(const config::document& value)
         made_ports.push_back((*added)->id());
         ids.emplace(wanted->name, (*added)->id());
     }
-    if (const auto linked = make_links(value.links, ids, made_links); !linked)
+    if (const auto linked = make_links(to_make, ids, made_links); !linked)
     {
         put_back();
         return linked.error();
     }
+
+    // The setup is the document's: its ports in its order, its name and its
+    // description.
+    std::vector<endpoint_id> in_order;
+    in_order.reserve(value.ports.size());
+    for (const auto& port : value.ports)
+        in_order.push_back(ids.at(port.name));
+    set_order(in_order);
+    std::lock_guard lock(record_mutex_);
+    setup_name_ = value.name;
+    setup_description_ = value.description;
     return {};
 }
 
@@ -1770,6 +1959,7 @@ result<void> studio::apply(const config::document& value,
     VSS_PROFILE_MESSAGE("studio.apply_config");
     if (const error_code invalid = config::validate(value))
         return invalid;
+    std::lock_guard change(change_mutex_);
     forget_plugins_of_removed_links();
 
     // Track the ports made so far, and the id each document name got, so
@@ -1807,6 +1997,10 @@ result<void> studio::apply(const config::document& value,
         return linked.error();
     }
 
+    // The ports are in the order of the document, which is the order they
+    // were made in.
+    set_order(created);
+
     // A setup opened into an empty studio keeps its name and description, and
     // snapshot() writes them back.  A document added to ports that are
     // already there leaves them as they are.
@@ -1819,6 +2013,43 @@ result<void> studio::apply(const config::document& value,
         }
     }
     return {};
+}
+
+config::port_entry studio::entry_of(const port_record& record)
+{
+    // A virtual port and a mock are made by the studio, so the file gives no
+    // uri for them.  A port made on a com0com pair has one in its record,
+    // which only a reopen needs.
+    const bool made_here = record.kind == "virtual" || record.kind == "mock";
+    auto entry = record_to_entry(
+        record.name, record.kind, made_here ? std::string{} : record.uri,
+        record.virtual_kind, record.serial, record.capture);
+    entry.com_number = record.com_number;
+    entry.plugins = record.plugins;
+    if (record.kind == "mock")
+    {
+        // A fixture made from an address has no target of its own: the
+        // address says it, as in `mock://modem`.
+        std::string target = record.mock_target;
+        constexpr std::string_view scheme = "mock://";
+        if (target.empty() && record.uri.starts_with(scheme))
+            target = record.uri.substr(scheme.size(),
+                                       record.uri.find('?', scheme.size()) -
+                                           scheme.size());
+        if (!target.empty())
+            entry.mock_target = std::move(target);
+    }
+    return entry;
+}
+
+void studio::set_order(const std::vector<endpoint_id>& ids)
+{
+    std::lock_guard lock(record_mutex_);
+    for (const endpoint_id id : ids)
+    {
+        if (const auto it = records_.find(id); it != records_.end())
+            it->second.order = next_order_++;
+    }
 }
 
 config::document studio::snapshot() const
@@ -1835,102 +2066,32 @@ config::document studio::snapshot() const
         document.description = setup_description_;
         link_plugins = link_plugins_;
 
-        // Ports are written in the order they were made, which is the order
-        // of their ids, so that a setup that is opened and saved again is the
-        // same text.  The table they are kept in has no order.
+        // Ports are written in the order of the setup they came from, and
+        // for ports made one by one in the order they were made, so that a
+        // setup that is opened and saved again is the same text.  The table
+        // they are kept in has no order.
         std::vector<const port_record*> ordered;
         ordered.reserve(records_.size());
         for (const auto& entry : records_)
             ordered.push_back(&entry.second);
         std::ranges::sort(ordered,
                           [](const port_record* a, const port_record* b)
-                          { return a->id < b->id; });
+                          {
+                              return a->order != b->order ? a->order < b->order
+                                                          : a->id < b->id;
+                          });
 
         for (const port_record* kept : ordered)
         {
-            const auto& record = *kept;
-            // A virtual port and a mock are made by the studio, so the file
-            // gives no uri for them.  A port made on a com0com pair has one
-            // in its record, which only a reopen needs.
-            const bool made_here =
-                record.kind == "virtual" || record.kind == "mock";
-            auto entry_of_port = record_to_entry(
-                record.name, record.kind,
-                made_here ? std::string{} : record.uri, record.virtual_kind,
-                record.serial, record.capture);
-            entry_of_port.com_number = record.com_number;
-            entry_of_port.plugins = record.plugins;
-            if (record.kind == "mock")
-            {
-                // A fixture made from an address has no target of its own:
-                // the address says it, as in `mock://modem`.
-                std::string target = record.mock_target;
-                constexpr std::string_view scheme = "mock://";
-                if (target.empty() && record.uri.starts_with(scheme))
-                    target = record.uri.substr(
-                        scheme.size(),
-                        record.uri.find('?', scheme.size()) - scheme.size());
-                if (!target.empty())
-                    entry_of_port.mock_target = std::move(target);
-            }
-            document.ports.push_back(std::move(entry_of_port));
-            names.emplace(record.id, record.name);
+            document.ports.push_back(entry_of(*kept));
+            names.emplace(kept->id, kept->name);
         }
     }
 
     for (const auto& link : hub_->links())
     {
-        config::link_entry entry;
-        switch (link.mode)
-        {
-        case link_mode::duplex:
-            entry.mode = link.sources.size() == 1 && link.targets.size() == 1
-                             ? "duplex"
-                             : "split";
-            break;
-        case link_mode::one_way:
-            // Many sources are a join whether or not it carries modem lines;
-            // a tap on a bus is one without.
-            if (link.sources.size() > 1)
-                entry.mode = "join";
-            else if (!link.options.emulate_modem_lines)
-                entry.mode = "monitor";
-            else
-                entry.mode = "redirect";
-            break;
-        case link_mode::bus:
-            entry.mode = "bus";
-            break;
-        }
-
-        const bool bus = link.mode == link_mode::bus;
-        for (const endpoint_id id : link.sources)
-        {
-            auto it = names.find(id);
-            if (it == names.end())
-                continue;
-            (bus ? entry.members : entry.sources).push_back(it->second);
-        }
-        for (const endpoint_id id : link.targets)
-        {
-            auto it = names.find(id);
-            if (it != names.end())
-                entry.targets.push_back(it->second);
-        }
-
-        if (bus ? entry.members.size() < 2
-                : entry.sources.empty() || entry.targets.empty())
-            continue;
-
-        entry.emulate_modem_lines = link.options.emulate_modem_lines;
-        entry.policy = link.options.policy;
-        entry.delay_ms = link.options.delay_ms;
-        entry.jitter_ms = link.options.jitter_ms;
-        entry.half_duplex = link.options.half_duplex;
-        if (const auto kept = link_plugins.find(link.id);
-            kept != link_plugins.end())
-            entry.plugins = kept->second;
-        document.links.push_back(std::move(entry));
+        if (auto entry = entry_of_link(link, names, link_plugins))
+            document.links.push_back(std::move(*entry));
     }
 
     return document;
