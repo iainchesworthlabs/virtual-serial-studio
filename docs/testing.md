@@ -57,7 +57,7 @@ of every selected case.
   transport and tests the real transport against a web server on the loopback address;
   no test asks the update server for anything.
 * **Fuzz replays** — `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame` and
-  `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_rule_set`, `fuzz_control_message`,
+  `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_plugin_parameters`, `fuzz_rule_set`, `fuzz_control_message`,
   `fuzz_licence` and `fuzz_update_feed` replay the corpora once per build; see [Fuzzing](fuzzing.md).
 * **Tools** — `headers` (every public header compiles on its own),
   `matrix_tools` (the Python under `tools/matrix`), the `vm_*` tests (the
