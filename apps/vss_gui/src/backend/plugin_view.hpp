@@ -272,6 +272,8 @@ struct plugin_snapshot
     /// This build can start a plugin. False until a sandbox exists: every
     /// plugin that would be allowed is then shown as Off.
     bool can_run_plugins = false;
+    /// The plugin folders have not been read yet.
+    bool looking = false;
     /// One line of the host for "Copy details" of a policy that could not be
     /// trusted.
     QString policy_detail;

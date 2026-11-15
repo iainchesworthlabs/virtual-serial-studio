@@ -1907,3 +1907,27 @@ TEST_CASE("plugins page: pictures for review, when a folder is named")
     }
     Theme::instance().set_mode(theme_mode::system);
 }
+
+TEST_CASE("plugins page: until the first scan has finished it says it is "
+          "looking, not that there are none")
+{
+    FakePluginBackend backend;
+    plugin_snapshot snapshot;
+    snapshot.looking = true;
+    backend.set_snapshot(snapshot);
+    backend.flush();
+    PluginsDialog dialog(backend);
+    dialog.show();
+    settle();
+    auto* text = dialog.findChild<QLabel*>(QStringLiteral("pluginsEmptyText"));
+    auto* title = dialog.findChild<QLabel*>(QStringLiteral("pluginsEmptyTitle"));
+    REQUIRE(text != nullptr);
+    REQUIRE_EQ(text->text(), QStringLiteral("Looking for plugins..."));
+    REQUIRE(!title->isVisibleTo(&dialog));
+    snapshot.looking = false;
+    backend.set_snapshot(snapshot);
+    backend.flush();
+    settle();
+    REQUIRE(title->isVisibleTo(&dialog));
+    REQUIRE_EQ(title->text(), QStringLiteral("No plugins are installed"));
+}

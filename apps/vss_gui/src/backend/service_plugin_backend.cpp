@@ -8,6 +8,7 @@
 
 #include "backend/plugin_mapping.hpp"
 
+#include <vss/machine/folders.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/locations.hpp>
@@ -16,7 +17,6 @@
 #include <boost/asio/post.hpp>
 
 #include <QCoreApplication>
-#include <QStandardPaths>
 
 #include <chrono>
 #include <fstream>
@@ -116,13 +116,15 @@ service_plugin_options default_service_plugin_options()
             options.user_root = root.directory;
         }
     }
-    const QString data =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    if (!data.isEmpty())
+    // The same places as `vss_cli plugin run`, so that Studio and the command
+    // agree: the trust store in the user's Studio folder, and the plugins'
+    // data beside it, not in the folder the plugins are installed in (a file
+    // there would change a plugin's hash).
+    const fs::path own = vss::machine::user_folder();
+    if (!own.empty())
     {
-        const fs::path folder = to_path(data) / "plugins";
-        options.trust_file = folder / "trust.json";
-        options.data_root = folder / "data";
+        options.trust_file = own / "trust.json";
+        options.data_root = own / "plugin-data";
     }
     options.studio_version =
         QCoreApplication::applicationVersion().toStdString();

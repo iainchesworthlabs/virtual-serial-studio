@@ -705,13 +705,20 @@ void PluginsDialog::apply_filter()
         if (matches)
             ++visible;
     }
-    const bool none_installed = list_->count() == 0;
+    const bool looking = snapshot_ && snapshot_->looking;
+    const bool none_installed = list_->count() == 0 && !looking;
     const bool no_match = !none_installed && visible == 0;
-    list_->setVisible(!none_installed && !no_match);
-    empty_->setVisible(none_installed || no_match);
+    const bool waiting = list_->count() == 0 && looking;
+    list_->setVisible(!none_installed && !no_match && !waiting);
+    empty_->setVisible(none_installed || no_match || waiting);
     empty_title_->setVisible(none_installed);
     empty_button_->setVisible(none_installed);
-    if (no_match)
+    if (waiting)
+    {
+        empty_text_->setText(QCoreApplication::translate(
+            "PluginsDialog", "Looking for plugins..."));
+    }
+    else if (no_match)
     {
         empty_text_->setText(QCoreApplication::translate(
                                  "PluginsDialog", "No plugin matches %1.")

@@ -283,6 +283,8 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
 {
     plugin_snapshot out;
     out.can_run_plugins = true;
+    // Until the first scan has finished, nothing has been found yet.
+    out.looking = snapshot.scans == 0;
     out.machine_folder = inputs.machine_folder;
     out.user_folder = inputs.user_folder;
     out.user_plugins_allowed =

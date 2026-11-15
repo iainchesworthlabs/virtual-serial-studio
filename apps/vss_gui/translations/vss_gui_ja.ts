@@ -22326,6 +22326,11 @@ Networks: %5</source>
             <source>Status</source>
             <translation>状態</translation>
         </message>
+        <message>
+            <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugins_dialog.cpp" line="1" />
+            <source>Looking for plugins...</source>
+            <translation>プラグインを探しています...</translation>
+        </message>
     </context>
     <context>
         <name>PluginToolbox</name>

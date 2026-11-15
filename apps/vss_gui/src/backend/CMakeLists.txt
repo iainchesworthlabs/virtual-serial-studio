@@ -47,7 +47,7 @@ add_library(vss_gui_backend STATIC
 target_include_directories(vss_gui_backend PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
-target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Vss::plugin Vss::plugin_host Qt6::Core)
+target_link_libraries(vss_gui_backend PUBLIC Vss::studio Vss::license Vss::plugin Vss::plugin_host Vss::machine Qt6::Core)
 target_compile_features(vss_gui_backend PUBLIC cxx_std_23)
 target_compile_definitions(vss_gui_backend PRIVATE QT_NO_KEYWORDS)
 icl_platform_sources(vss_gui_backend

@@ -428,6 +428,11 @@ TEST_CASE("service mapping: permissions, manifest, decisions, shadowing and "
     REQUIRE(closed.banner == plugin_banner::user_plugins_off);
     REQUIRE(!closed.user_plugins_allowed);
     REQUIRE(map_service_snapshot({}, {}).can_run_plugins);
+    // Until the first scan has finished the page says it is looking.
+    REQUIRE(map_service_snapshot({}, {}).looking);
+    host::service_snapshot scanned;
+    scanned.scans = 1;
+    REQUIRE(!map_service_snapshot(scanned, {}).looking);
 }
 
 TEST_CASE("service mapping: what a plugin says is carried as it was said, and "
