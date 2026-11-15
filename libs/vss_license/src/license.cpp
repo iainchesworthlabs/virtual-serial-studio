@@ -30,6 +30,7 @@ using std::chrono::days;
 
 constexpr std::size_t max_id_length = 64;
 constexpr std::size_t max_name_length = 200;
+constexpr std::size_t max_email_length = 254;
 constexpr std::size_t max_feature_length = 64;
 constexpr std::size_t max_features = 64;
 constexpr std::size_t max_machine_length = 64;
@@ -357,8 +358,9 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
         return errc::malformed;
     }
 
-    // The licensee is a nested object with a name and an optional contact.
-    // Both are text for a person to read, so control characters are refused.
+    // The licensee is a nested object with a name, an optional contact and
+    // an optional email address. The first two are text for a person to
+    // read, so control characters are refused; the address has its own form.
     const auto licensee = object->find("licensee");
     if (licensee == object->end() || !licensee->value().is_object())
     {
@@ -368,13 +370,17 @@ result<licence> parse_payload(std::span<const std::uint8_t> payload)
                                               "name", max_name_length);
     const auto contact = detail::optional_string(licensee->value().get_object(),
                                                  "contact", max_name_length);
-    if (!name || !contact || !is_display_text(*name) ||
-        !is_display_text(*contact))
+    const auto email = detail::optional_string(licensee->value().get_object(),
+                                               "email", max_email_length);
+    if (!name || !contact || !email || !is_display_text(*name) ||
+        !is_display_text(*contact) ||
+        (!email->empty() && !is_email_address(*email)))
     {
         return errc::malformed;
     }
     value.licensee_name = *name;
     value.licensee_contact = *contact;
+    value.licensee_email = *email;
 
     // The dates.  A licence that ends before it starts is not valid.
     const auto issued = required_time(*object, "issued_at");
@@ -452,6 +458,10 @@ result<std::string> write_payload(const licence& value)
     if (!value.licensee_contact.empty())
     {
         licensee["contact"] = value.licensee_contact;
+    }
+    if (!value.licensee_email.empty())
+    {
+        licensee["email"] = value.licensee_email;
     }
 
     json::object object;
@@ -744,6 +754,48 @@ status best(std::span<const status> candidates)
         }
     }
     return chosen;
+}
+
+bool is_email_address(std::string_view text) noexcept
+{
+    if (text.empty() || text.size() > max_email_length)
+    {
+        return false;
+    }
+    const auto at = text.find('@');
+    if (at == std::string_view::npos || at == 0 ||
+        text.find('@', at + 1) != std::string_view::npos)
+    {
+        return false;
+    }
+    // Before the @: letters, digits and the punctuation RFC 5322 allows
+    // without quoting. After it: letters, digits, dots and hyphens.
+    constexpr std::string_view local_marks = ".!#$%&'*+/=?^_`{|}~-";
+    const auto is_alnum = [](char c)
+    {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+               (c >= '0' && c <= '9');
+    };
+    const std::string_view local = text.substr(0, at);
+    const std::string_view domain = text.substr(at + 1);
+    if (!std::ranges::all_of(local,
+                             [&](char c)
+                             {
+                                 return is_alnum(c) ||
+                                        local_marks.find(c) !=
+                                            std::string_view::npos;
+                             }))
+    {
+        return false;
+    }
+    if (domain.size() < 3 || domain.find('.') == std::string_view::npos ||
+        domain.find("..") != std::string_view::npos ||
+        !is_alnum(domain.front()) || !is_alnum(domain.back()))
+    {
+        return false;
+    }
+    return std::ranges::all_of(domain, [&](char c)
+                               { return is_alnum(c) || c == '.' || c == '-'; });
 }
 
 entitlement check(const status& current, std::string_view feature)

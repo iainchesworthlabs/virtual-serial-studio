@@ -643,6 +643,62 @@ TEST_CASE("licence: the stored time moves forward, and a reset works once")
     REQUIRE_EQ(many.applied_resets.back(), std::string("reset-39"));
 }
 
+TEST_CASE("licence: the licensee's email address is carried and checked")
+{
+    // A licence without one is written exactly as before, so the files
+    // already issued and the golden file do not change.
+    const auto without = write_payload(annual());
+    REQUIRE(without);
+    REQUIRE(without->find("\"email\"") == std::string::npos);
+    REQUIRE(parse_payload(bytes_of(*without))->licensee_email.empty());
+
+    licence named = annual();
+    named.licensee_email = "tests@example-lab.invalid";
+    const auto written = write_payload(named);
+    REQUIRE(written);
+    REQUIRE(written->find("\"email\":\"tests@example-lab.invalid\"") !=
+            std::string::npos);
+    const auto read = parse_payload(bytes_of(*written));
+    REQUIRE(read);
+    REQUIRE(*read == named);
+
+    // It is signed with the rest: a licence judged from a file carries it.
+    const status judged = evaluate(signed_text(named), on(at(2027, 1, 1)));
+    REQUIRE(judged.state == state::valid);
+    REQUIRE_EQ(judged.value->licensee_email,
+               std::string("tests@example-lab.invalid"));
+
+    for (const std::string_view good :
+         {"a@b.co", "first.last+tag@sub.example-lab.invalid",
+          "o'brien_99@example.invalid"})
+    {
+        REQUIRE(is_email_address(good));
+    }
+    for (const std::string_view bad :
+         {"", "no-at.example.invalid", "@example.invalid", "a@", "a@b",
+          "a@@b.co", "a@b@c.co", "a b@example.invalid", "a@exa mple.invalid",
+          "a@.example.invalid", "a@example.invalid.", "a@-example.invalid",
+          "a@example..invalid", "a@example.invalid-", "<a@example.invalid>",
+          "a@example.invalid\n", "\"a\"@example.invalid"})
+    {
+        REQUIRE(!is_email_address(bad));
+    }
+    REQUIRE(!is_email_address(std::string(250, 'a') + "@b.co"));
+
+    // A licence with an address that has not that form is refused, to
+    // write and to read.
+    licence wrong = annual();
+    wrong.licensee_email = "not an address";
+    REQUIRE(!write_payload(wrong));
+    expect_payload_error(payload_with("\"contact\":\"Test team\"",
+                                      "\"contact\":\"Test team\","
+                                      "\"email\":\"not an address\""),
+                         errc::malformed);
+    expect_payload_error(payload_with("\"contact\":\"Test team\"",
+                                      "\"contact\":\"Test team\",\"email\":7"),
+                         errc::malformed);
+}
+
 TEST_CASE("licence: the version window keeps what was released in time")
 {
     // A licence for 13 November 2026 to 13 November 2027 whose window ends
