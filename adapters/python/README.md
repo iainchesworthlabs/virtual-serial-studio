@@ -72,6 +72,12 @@ another `Client` of the same user may add checks to it and end it. One run is
 open at a time (`conflict` for a second), and only its owner can read its
 report.
 
+The gateway takes a run name or a check name of 128 bytes at most and a check
+message of 512, and it refuses more. The client cuts a longer text to that
+length between two characters and ends it in `...`, so `record_in_run` with
+the text of a failed assertion records the check and never raises because of
+the length. The limits are in `vss_control/_wire.py`.
+
 `Client.connect(instance=None, token=None, token_file=None, name="python",
 timeout=10.0, loopback_port=None)` connects. `instance` is the name given to
 `vss_gate --instance=`. `token` is a token as text, `token_file` the path of a file whose first line is

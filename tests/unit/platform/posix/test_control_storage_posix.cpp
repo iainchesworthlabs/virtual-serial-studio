@@ -10,6 +10,7 @@
 //
 
 #include <vss/control/audit_log.hpp>
+#include <vss/control/private_file.hpp>
 #include <vss/core/error.hpp>
 
 #include "platform/private_storage_platform.hpp"
@@ -442,4 +443,75 @@ TEST_CASE("control storage: random bytes of no length succeed")
     REQUIRE(
         !platform::random_bytes(std::span<std::uint8_t>(untouched).first(0)));
     REQUIRE(all_zero(untouched));
+}
+
+TEST_CASE("control private file: a file has mode 0600 from the start, with no "
+          "umask")
+{
+    const vss_test_support::scratch_directory scratch;
+    // The scratch directory is an ordinary one, made with the default mode.
+    // A umask that takes nothing away: the mode that is asked for is the mode
+    // that the file has, and it is not the default one.
+    const mode_t before = ::umask(0);
+    const auto file = scratch.path() / "rig.token";
+    const vss::error_code made =
+        control::create_private_file(file, "vsst1_example\n");
+    static_cast<void>(::umask(before));
+    REQUIRE(!made);
+
+    const auto info = status_of(file);
+    REQUIRE(info.has_value());
+    REQUIRE(S_ISREG(info->st_mode));
+    REQUIRE_EQ(info->st_uid, ::geteuid());
+    REQUIRE_EQ(permission_bits(*info), 0600U);
+}
+
+TEST_CASE("control private file: a file that exists is not used, whoever "
+          "owns it and whatever its mode")
+{
+    const vss_test_support::scratch_directory scratch;
+    const auto file = scratch.path() / "rig.token";
+    {
+        std::ofstream out(file, std::ios::binary);
+        out << "mine\n";
+    }
+    REQUIRE(::chmod(file.c_str(), 0644) == 0);
+
+    REQUIRE(control::create_private_file(file, "vsst1_example\n") ==
+            vss::make_error_code(vss::errc::already_exists));
+    // Not written to, and its mode is not changed to look private.
+    std::ifstream in(file, std::ios::binary);
+    const std::string text{std::istreambuf_iterator<char>(in),
+                           std::istreambuf_iterator<char>()};
+    REQUIRE_EQ(text, std::string("mine\n"));
+    REQUIRE_EQ(permission_bits(*status_of(file)), 0644U);
+}
+
+TEST_CASE("control private file: a link is not followed, to a file or to "
+          "nothing")
+{
+    const vss_test_support::scratch_directory scratch;
+    const auto target = scratch.path() / "target.txt";
+    {
+        std::ofstream out(target, std::ios::binary);
+        out << "kept";
+    }
+    const auto to_file = scratch.path() / "to-file.token";
+    std::filesystem::create_symlink(target, to_file);
+    REQUIRE(control::create_private_file(to_file, "vsst1_example\n") ==
+            vss::make_error_code(vss::errc::already_exists));
+
+    // A link to a name that is not there would be made by an open that
+    // follows it, and the token would go where someone else chose.
+    const auto elsewhere = scratch.path() / "not-yet.txt";
+    const auto to_nothing = scratch.path() / "to-nothing.token";
+    std::filesystem::create_symlink(elsewhere, to_nothing);
+    REQUIRE(control::create_private_file(to_nothing, "vsst1_example\n") ==
+            vss::make_error_code(vss::errc::already_exists));
+    REQUIRE(!std::filesystem::exists(elsewhere));
+
+    std::ifstream in(target, std::ios::binary);
+    const std::string text{std::istreambuf_iterator<char>(in),
+                           std::istreambuf_iterator<char>()};
+    REQUIRE_EQ(text, std::string("kept"));
 }

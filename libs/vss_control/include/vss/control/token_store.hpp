@@ -124,7 +124,9 @@ public:
     /// Reads `file`, which need not exist yet; its directory is made private
     /// when it is missing.  A file that cannot be understood, or is not
     /// private to this user, is an error: the gateway does not start with a
-    /// token file it cannot trust, and never replaces one it cannot read.
+    /// token file it cannot trust, and never replaces one it cannot read.  The
+    /// message of the error for a file that cannot be understood names the
+    /// file and, when it can be told, the token and what is wrong with it.
     static result<std::unique_ptr<token_store>> open(std::filesystem::path file,
                                                      time_source now = {});
 
@@ -134,8 +136,10 @@ public:
 
     /// Makes a token and saves its record.  `errc::invalid_argument` for a
     /// request no token may have: no scopes, the `admin` scope, no
-    /// transport, a life of nothing or of more than `longest_token_life`, a
-    /// label that is too long or not text.  `errc::queue_full` when
+    /// transport or one named twice, a life of nothing or of more than
+    /// `longest_token_life`, a label that is too long or not text: a request
+    /// that makes a record the file could not be loaded with again is refused
+    /// before anything is saved.  `errc::queue_full` when
     /// `max_tokens` are kept already.
     result<new_token> create(const token_request& request);
 

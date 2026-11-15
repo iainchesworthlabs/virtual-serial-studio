@@ -20,9 +20,13 @@
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cstddef>
 #include <mutex>
 #include <span>
+#include <string>
+#include <system_error>
 #include <utility>
+#include <vector>
 
 namespace vss::control
 {
@@ -34,6 +38,80 @@ namespace
 constexpr std::chrono::minutes last_used_resolution{1};
 /// A record is dropped this long after its token ended.
 constexpr std::chrono::hours kept_after_expiry{24 * 7};
+
+/// The sentences of the errors of a token file that is refused.  An error code
+/// holds a number and not a text, so the number stands for the sentence that
+/// `token_store::open` was given, and the category gives it back.  This is how
+/// `vss_gate` can say which file and which token stopped it from starting,
+/// with nothing but the error that `gateway::start` returns.  A program is
+/// refused once, or a few times in a test; a few sentences are kept, and past
+/// that the newest takes the place of the last.
+class refused_texts
+{
+public:
+    /// The number of `text`, which is 1 or more.
+    int remember(std::string text)
+    {
+        const std::lock_guard lock(mutex_);
+        std::size_t index = 0;
+        while (index < texts_.size() && texts_[index] != text)
+            ++index;
+        if (index == texts_.size())
+        {
+            if (texts_.size() < most_texts)
+                texts_.push_back(std::move(text));
+            else
+                texts_.back() = std::move(text);
+            index = texts_.size() - 1;
+        }
+        return static_cast<int>(index) + 1;
+    }
+
+    std::string recall(int number)
+    {
+        const std::lock_guard lock(mutex_);
+        if (number >= 1 && static_cast<std::size_t>(number) <= texts_.size())
+            return texts_[static_cast<std::size_t>(number) - 1];
+        return "the token file cannot be used";
+    }
+
+private:
+    static constexpr std::size_t most_texts = 8;
+
+    std::mutex mutex_;
+    std::vector<std::string> texts_;
+};
+
+refused_texts& refused_sentences()
+{
+    static refused_texts sentences;
+    return sentences;
+}
+
+/// The category derives from the standard one, and `boost::system::error_code`
+/// takes an error of it as it is.  Boost's own `error_category` has a
+/// destructor that is not virtual on purpose, and GCC and Clang warn about
+/// every class derived from it.
+class refused_file_category final : public std::error_category
+{
+public:
+    const char* name() const noexcept override
+    {
+        return "vss control token file";
+    }
+
+    std::string message(int value) const override
+    {
+        return refused_sentences().recall(value);
+    }
+};
+
+error_code refused_file(std::string text)
+{
+    static const refused_file_category category;
+    return error_code(std::error_code(
+        refused_sentences().remember(std::move(text)), category));
+}
 
 /// What a presented secret is compared with when there is no record: a
 /// digest no secret hashes to in practice.  It only has to cost a compare.
@@ -128,6 +206,14 @@ public:
         if (std::ranges::find(request.transports, transport::local_admin) !=
             request.transports.end())
             return make_error_code(errc::invalid_argument);
+        // A transport named twice is a list that the file refuses to load, and
+        // a gateway that cannot load its file does not start.  So nothing
+        // that cannot be loaded again is ever saved.
+        for (const transport named : request.transports)
+        {
+            if (std::ranges::count(request.transports, named) > 1)
+                return make_error_code(errc::invalid_argument);
+        }
 
         const std::lock_guard lock(mutex_);
         const auto now = current_time();
@@ -350,9 +436,17 @@ token_store::open(std::filesystem::path file, time_source now)
     if (const error_code failed =
             platform::ensure_private_directory(file.parent_path()))
         return failed;
-    auto read = load_token_file(file);
+    std::string reason;
+    auto read = load_token_file(file, &reason);
     if (!read)
+    {
+        // The file is not repaired and not replaced.  Its refusal says which
+        // file and which token, so that a person can mend it by hand.
+        if (read.error() == make_error_code(errc::config_error) &&
+            !reason.empty())
+            return refused_file(std::move(reason));
         return read.error();
+    }
     return std::unique_ptr<token_store>(new token_store(std::make_unique<impl>(
         std::move(file), std::move(now), std::move(*read))));
 }
