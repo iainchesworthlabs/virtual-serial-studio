@@ -46,6 +46,7 @@
 #include <vss/control/proto/token.hpp>
 #include <vss/core/event.hpp>
 #include <vss/core/types.hpp>
+#include <vss/license/words.hpp>
 
 #include <boost/asio/executor_work_guard.hpp>
 #include <boost/asio/io_context.hpp>
@@ -77,31 +78,6 @@ namespace
 {
 
 using steady = std::chrono::steady_clock;
-
-/// The word a `status` reply has for the state of the licence.
-const char* licence_state_name(license::state value) noexcept
-{
-    switch (value)
-    {
-    case license::state::none:
-        return "none";
-    case license::state::valid:
-        return "valid";
-    case license::state::expiring:
-        return "expiring";
-    case license::state::grace:
-        return "grace";
-    case license::state::expired:
-        return "expired";
-    case license::state::not_yet_valid:
-        return "not_yet_valid";
-    case license::state::clock_suspect:
-        return "clock_suspect";
-    case license::state::invalid:
-        return "invalid";
-    }
-    return "invalid";
-}
 
 constexpr std::size_t read_buffer_size = std::size_t{64} * 1024;
 /// Frames of one session handled before the others get a turn.
@@ -2599,12 +2575,8 @@ private:
         if (options_.licence)
         {
             const license::status told = options_.licence();
-            out.licence_state = licence_state_name(told.state);
-            if (told.active() && told.value)
-                out.edition = told.value->edition ==
-                                      license::edition::enterprise
-                                  ? "enterprise"
-                                  : "pro";
+            out.licence_state = std::string(license::state_name(told.state));
+            out.edition = std::string(license::edition_name(told));
         }
         // Asking the agent for its list is how a connection that has gone
         // quiet is told from one that still answers.
