@@ -161,6 +161,15 @@ void MonitorModel::set_hex(bool hex)
     if (hex_ == hex)
         return;
     hex_ = hex;
+    // A search matches the text the table shows, which depends on the view.
+    // With one active the rows that match can change, so decide them again.
+    if (!search_.isEmpty())
+    {
+        beginResetModel();
+        rebuild_visible();
+        endResetModel();
+        return;
+    }
     if (!visible_.isEmpty())
     {
         Q_EMIT dataChanged(index(0, 4), index(rowCount() - 1, 4),
@@ -431,10 +440,10 @@ QString MonitorModel::export_text() const
 {
     QStringList lines;
     lines << QStringLiteral("Time\tPort\tDirection\tBytes\tPreview");
-    for (const traffic_row& row : rows_)
+    // The rows the table shows, so a file and the table never disagree.
+    for (const int index : visible_)
     {
-        if (!matches(row))
-            continue;
+        const traffic_row& row = rows_[static_cast<std::size_t>(index)];
         const QString direction =
             row.direction == traffic_direction::rx   ? QStringLiteral("RX")
             : row.direction == traffic_direction::tx ? QStringLiteral("TX")
@@ -454,10 +463,10 @@ capture_export MonitorModel::export_capture() const
     capture_export out;
     vss::time_point origin{};
     bool have_origin = false;
-    for (const traffic_row& row : rows_)
+    for (const int index : visible_)
     {
-        if (!matches(row) || row.dropped || row.data.empty() ||
-            row.when == vss::time_point{})
+        const traffic_row& row = rows_[static_cast<std::size_t>(index)];
+        if (row.dropped || row.data.empty() || row.when == vss::time_point{})
             continue;
         if (!have_origin || row.when < origin)
         {
@@ -478,10 +487,10 @@ capture_export MonitorModel::export_capture() const
         std::chrono::duration_cast<std::chrono::system_clock::duration>(
             vss::clock_type::now() - origin);
 
-    for (const traffic_row& row : rows_)
+    for (const int index : visible_)
     {
-        if (!matches(row) || row.dropped || row.data.empty() ||
-            row.when == vss::time_point{})
+        const traffic_row& row = rows_[static_cast<std::size_t>(index)];
+        if (row.dropped || row.data.empty() || row.when == vss::time_point{})
             continue;
         vss::capture_record record;
         record.offset_ms =

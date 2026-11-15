@@ -107,6 +107,8 @@ private:
     bool advanced_ = false;
     bool compact_ = false;
     bool syncing_ = false;
+    /// A setup with ports has shown, and had its first selection.
+    bool setup_shown_ = false;
 };
 
 } // namespace vss::gui
