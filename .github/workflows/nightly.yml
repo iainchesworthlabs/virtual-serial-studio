@@ -79,8 +79,11 @@ jobs:
         with:
           preset: linux-release
 
+      # failure() is false for a job that runs out of time: GitHub cancels it. cancelled() makes the report
+      # run then too, so a timeout of a scheduled run opens the issue instead of passing unseen. A run started
+      # by hand and cancelled by hand reports nothing: the person who cancelled it knows.
       - name: Report the failure
-        if: failure() && github.ref == 'refs/heads/develop'
+        if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: newest-${{ matrix.name }}
@@ -118,7 +121,7 @@ jobs:
           preset: linux-asan-ubsan-gui
 
       - name: Report the failure
-        if: failure() && github.ref == 'refs/heads/develop'
+        if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: asan-ubsan-gcc
@@ -154,7 +157,7 @@ jobs:
           preset: linux-tsan-gui
 
       - name: Report the failure
-        if: failure() && github.ref == 'refs/heads/develop'
+        if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: tsan
@@ -186,7 +189,7 @@ jobs:
           preset: windows-msvc-asan-gui
 
       - name: Report the failure
-        if: failure() && github.ref == 'refs/heads/develop'
+        if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: asan-msvc
@@ -261,7 +264,7 @@ jobs:
         uses: ./.github/actions/save-ccache
 
       - name: Report the failure
-        if: failure() && github.ref == 'refs/heads/develop'
+        if: ${{ (failure() || (cancelled() && github.event_name == 'schedule')) && github.ref == 'refs/heads/develop' }}
         uses: iainchesworthlabs/icl-common-infra/actions/report-nightly-failure@c412e6a542644c2316d21db351ef4218fa3e185d # v0.1.19
         with:
           engine: ccache-seed-${{ matrix.lineage }}
