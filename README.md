@@ -42,6 +42,7 @@ abstraction that lets the transport be replaced.
 - [docs/ux.md](docs/ux.md) — who the interface is for, the simple/advanced design, and the human-factors decisions.
 - [docs/architecture.md](docs/architecture.md) — how the libraries, hub and transports fit together.
 - [docs/scenarios.md](docs/scenarios.md) — worked recipes for share, join, bridge and loopback.
+- [docs/control-how-to.md](docs/control-how-to.md) — drive ports from the command line or a Python test script: make ports, send and wait for bytes, keep a JUnit report.
 - [docs/agent.md](docs/agent.md) and [docs/remote-control.md](docs/remote-control.md) — the per-user agent and the control gateway, both first slices that are built from source and not installed.
 - [docs/plugins.md](docs/plugins.md), [docs/licensing.md](docs/licensing.md), [docs/editions.md](docs/editions.md) and [docs/response-timing.md](docs/response-timing.md) — the designs for plugins, licence files, the editions and response timing rules. Studio does not run plugins yet, and nothing in the window or the command line uses the response timing rules.
 - [docs/profiling.md](docs/profiling.md) — Tracy zones and how to capture a trace.
