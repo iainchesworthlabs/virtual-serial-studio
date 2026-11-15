@@ -14,10 +14,13 @@
 #   helper\vsscom_helper.exe, install-helper.ps1         the helper service
 #
 # Nothing is downloaded. Every file is checked first: each must carry a
-# signature, and the machine must trust it (the signer is a trusted publisher
-# and chains to a trusted root; see trust\install-trust.ps1) or be in test
-# signing mode. If any check fails nothing is changed. The script never adds a
-# certificate to the machine.
+# signature, and the machine must trust it (the signer chains to a trusted root;
+# see trust\install-trust.ps1) or be in test signing mode. On top of that the
+# catalog must be signed by Microsoft or by a publisher in Trusted Publishers,
+# whatever its signature status and whether test signing is on, because Windows
+# asks "Would you like to install this device software?" for any other signer and
+# a silent run cannot answer. That is decided before pnputil is started. If any
+# check fails nothing is changed. The script never adds a certificate to the machine.
 #
 # Exit codes (the studio reads them):
 #   0   done: the driver is installed and the helper service is running
@@ -39,6 +42,15 @@ $ErrorActionPreference = 'Stop'
 # script is started with -File, so the default is set in the body.
 if (-not $PackageRoot) { $PackageRoot = $PSScriptRoot }
 
+# A test defines these two functions before it runs the script, so the script can be tried on
+# a machine where nobody is an administrator and no program is started. Nothing else reads them.
+if (-not (Test-Path -LiteralPath 'Function:\Test-IsAdministrator')) {
+    function Test-IsAdministrator {
+        $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+        $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+}
+
 function Stop-With([int] $Code, [string] $Message) {
     if ($Code -eq 0 -or $Code -eq 10) { Write-Host $Message } else { [Console]::Error.WriteLine($Message) }
     exit $Code
@@ -49,6 +61,7 @@ function Stop-With([int] $Code, [string] $Message) {
 # so it reaches the installer's log. A program that waits for something nobody can
 # answer, such as a prompt on a desktop that is not there, then ends the script with
 # a reason and not an hour of silence.
+if (-not (Test-Path -LiteralPath 'Function:\Invoke-Bounded')) {
 function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $File
@@ -69,6 +82,19 @@ function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
     foreach ($text in $out.Result, $err.Result) { if ($text.Trim()) { Write-Host $text.Trim() } }
     return $process.ExitCode
 }
+}
+
+# True when the driver store holds a package whose original name is vsscom_um.inf and whose version is the
+# one the .inf file in the package folder declares (DriverVer=<date>,<version>).
+function Test-PackageStored([string] $InfPath) {
+    $declared = Select-String -LiteralPath $InfPath -Pattern '^\s*DriverVer\s*=\s*[^,]+,\s*([0-9.]+)' | Select-Object -First 1
+    $wanted = if ($declared) { $declared.Matches[0].Groups[1].Value } else { $null }
+    foreach ($package in @(Get-WindowsDriver -Online -All)) {
+        if ((Split-Path -Leaf $package.OriginalFileName) -ne 'vsscom_um.inf') { continue }
+        if (-not $wanted -or $package.Version.ToString() -eq $wanted) { return $true }
+    }
+    $false
+}
 
 # The whole script has a limit too: whatever else it waits for, it ends with exit code
 # 124 after fifteen minutes. A timer thread does it, because the script itself may be
@@ -76,8 +102,7 @@ function Invoke-Bounded([string] $File, [string[]] $Arguments, [int] $Seconds) {
 Add-Type -TypeDefinition 'public static class VssWatchdog { static System.Threading.Timer timer_; public static void Start(int milliseconds) { timer_ = new System.Threading.Timer(delegate { System.Console.Error.WriteLine("setup-driver.ps1 did not finish in time and was stopped"); System.Environment.Exit(124); }, null, milliseconds, -1); } }'
 [VssWatchdog]::Start(900000)
 
-$identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+if (-not (Test-IsAdministrator)) {
     Stop-With 2 'run this as an administrator'
 }
 
@@ -108,15 +133,19 @@ try {
         }
     }
 
-    # Test signing is not enough for a user-mode driver. Windows installs a package only from a publisher
-    # it has been told to trust (the signer in Trusted Publishers); for any other signer pnputil asks
-    # "Would you like to install this device software?" on the desktop, and in a session with nobody to
-    # answer, such as a silent install on a build agent, it waits for ever. So a package that is accepted
-    # only because test signing is on must have its signer in Trusted Publishers, as
-    # trust\install-trust.ps1 puts it there, or nothing is changed.
+    # A signature that Windows accepts is not enough for a user-mode driver. Windows installs a package
+    # without a question only from Microsoft or from a publisher it has been told to trust (the signer in
+    # Trusted Publishers); for any other signer pnputil asks "Would you like to install this device
+    # software?" on the desktop, and in a session with nobody to answer, such as a silent install on a
+    # build agent, it waits for ever. That holds when test signing is on, and also when the signature is
+    # Valid and the chain is trusted. So the answer is decided here, before pnputil is started, and does
+    # not depend on the status: the catalog is signed by Microsoft's hardware publisher, or its signer is
+    # in Trusted Publishers (trust\install-trust.ps1 puts it there), or nothing is changed.
     $catalogSignature = Get-AuthenticodeSignature -LiteralPath $cat
-    if ($catalogSignature.Status.ToString() -ne 'Valid') {
-        $signer = $catalogSignature.SignerCertificate
+    $signer = $catalogSignature.SignerCertificate
+    $microsoftSigned = $catalogSignature.Status.ToString() -eq 'Valid' -and $signer -and
+        ($signer.Subject -match '(^|,\s*)CN=Microsoft Windows Hardware Compatibility Publisher(,|$)')
+    if (-not $microsoftSigned) {
         if (-not $signer -or -not (Test-Path -LiteralPath "Cert:\LocalMachine\TrustedPublisher\$($signer.Thumbprint)")) {
             Stop-With 6 "$cat is not signed by a publisher this machine trusts (its signer is not in Trusted Publishers, so Windows would ask whether to install it)"
         }
@@ -131,6 +160,14 @@ try {
     Write-Host "adding the driver package $inf"
     $code = Invoke-Bounded 'pnputil.exe' @('/add-driver', $inf, '/install') 180
     if ($code -eq 3010) { $restart = $true }
+    elseif ($code -eq 259) {
+        # ERROR_NO_MORE_ITEMS, which pnputil documents (PnPUtil Return Values) as "no devices match the
+        # supplied driver or the target device is already using a better or newer driver". It is the normal
+        # answer when set-up is run again while ports exist. The package is in the driver store, or this
+        # is not an answer to accept, so the store decides.
+        if (-not (Test-PackageStored $inf)) { Stop-With 7 'pnputil answered 259 (no device was updated) and this version of the vsscom_um driver package is not in the driver store' }
+        Write-Host 'the devices already use this driver or a newer one; the driver package is in the driver store'
+    }
     elseif ($code -eq 124) { Stop-With 7 'pnputil did not finish in 180 seconds and was stopped' }
     elseif (('0x{0:X8}' -f ($code -band 0xFFFFFFFFL)) -in $untrusted) {
         # With test signing on, a signature that is present but not trusted passes the check above, and then
@@ -140,7 +177,13 @@ try {
     elseif ($code -ne 0) { Stop-With 7 "pnputil failed with $code" }
 
     Write-Host 'installing the helper service'
-    & $installHelper -ExePath $exe
+    # install-helper.ps1 ends with an exit code, but a throw out of it (a missing command, a parameter
+    # that does not bind) must give the same answer, so both end in 8.
+    $global:LASTEXITCODE = 0
+    $helperFailure = $null
+    try { & $installHelper -ExePath $exe }
+    catch { $helperFailure = $_.Exception.Message }
+    if ($helperFailure) { Stop-With 8 "install-helper.ps1 failed: $helperFailure" }
     if ($LASTEXITCODE -ne 0) { Stop-With 8 "install-helper.ps1 failed with $LASTEXITCODE" }
 
     if ($restart) { Stop-With 10 'installed; restart Windows before using the driver' }
