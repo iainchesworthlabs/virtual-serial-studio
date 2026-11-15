@@ -12,6 +12,7 @@
 
 #include <vss/ports/native_lines.hpp>
 #include <vss/ports/serial_transport.hpp>
+#include <vss/ports/vcom_driver.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <algorithm>
@@ -174,6 +175,12 @@ TEST_CASE("system: control lines can be driven on a real port")
 
 TEST_CASE("system: sharing a real port with several listeners")
 {
+    // The listener is an automatic virtual port, which is a real COM port
+    // where the driver is installed; a test does not make one on the machine
+    // it runs on.
+    if (vss::driver_available())
+        VSS_SKIP("the Windows driver is installed; it would make a real port");
+
     const auto pair = require_pair();
     studio app;
 
