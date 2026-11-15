@@ -1,1 +1,1 @@
-{"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"},{"name":"c","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":["b"]},{"mode":"join","sources":["a","b"],"targets":["c"],"policy":"interleave","emulate_modem_lines":false}]}
+{"version":1,"ports":[{"name":"a","kind":"virtual"},{"name":"b","kind":"virtual"},{"name":"c","kind":"virtual"}],"links":[{"mode":"duplex","sources":["a"],"targets":["b"]},{"mode":"join","sources":["a","b"],"targets":["c"],"policy":"interleave","emulate_modem_lines":false}]}

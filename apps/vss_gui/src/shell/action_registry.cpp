@@ -91,8 +91,8 @@ QVector<QAction*> ActionRegistry::visible(action_level level) const
 
 QVector<QAction*> ActionRegistry::search(const QString& query) const
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.shell.actions.search");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, query.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.shell.actions.search");
+    VSS_PROFILE_ZONE_TEXT(zone, query.toStdString());
     const QString needle = query.trimmed();
     QVector<QAction*> out;
     for (QAction* action : order_)

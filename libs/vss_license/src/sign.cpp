@@ -77,7 +77,10 @@ result<seed> parse_seed(std::string_view text)
     crypto_wipe(bytes->data(), bytes->size());
     if (!right_size)
         return errc::malformed;
-    return value;
+    // The result is a copy of `value`, so the local is wiped before it goes.
+    result<seed> parsed = value;
+    wipe(value);
+    return parsed;
 }
 
 std::string format_seed(const seed& private_key)

@@ -9,6 +9,7 @@
 
 #include "panes/monitor_cell_delegate.hpp"
 #include "panes/monitor_model.hpp"
+#include "panes/ports_panel.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "widgets/chips.hpp"
@@ -18,21 +19,30 @@
 
 #include <vss/core/profile.hpp>
 
+#include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFile>
 #include <QFileDialog>
+#include <QFontMetrics>
+#include <QFontMetricsF>
 #include <QHBoxLayout>
 #include <QHeaderView>
+#include <QItemSelectionModel>
+#include <QKeyEvent>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
+#include <QLocale>
 #include <QPainter>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QScrollBar>
+#include <QSettings>
 #include <QShortcut>
 #include <QSignalBlocker>
 #include <QStackedWidget>
+#include <QStandardItemModel>
 #include <QStyle>
 #include <QStyleOptionViewItem>
 #include <QStyledItemDelegate>
@@ -43,11 +53,94 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cmath>
 
 namespace vss::gui
 {
 namespace
 {
+
+static_assert(MonitorPanel::kMinimumColumnWidth ==
+              PortsPanel::kMinimumColumnWidth);
+
+/// A port name longer than this is not measured further when the Port column
+/// is sized; the cell shows the rest cut with an ellipsis.
+constexpr int kLongestPortName = 24;
+
+/// The least height of a Monitor row. A row is a pointer target (a click on it
+/// selects the row and its port), so it is the target size of the
+/// accessibility spec.
+///
+/// Open question 1 of the Monitor design asks the owner whether the Compact
+/// density may use 20 px rows, which needs a written exception to the 24 px
+/// target rule (`06-accessibility.md`, rule 6). It is not answered, so both
+/// densities have the 24 px floor. If the answer is yes, this takes the
+/// density again and returns 0 for Compact, and a Compact row is its text plus
+/// 2 px above and below.
+int row_floor()
+{
+    return Theme::instance().metric(QStringLiteral("minTarget"));
+}
+
+/// Sets a flag for as long as it lives and puts it back as it was, so the
+/// scopes may nest.
+class flag_scope
+{
+public:
+    explicit flag_scope(bool& flag) : flag_(flag), before_(flag)
+    {
+        flag_ = true;
+    }
+    flag_scope(const flag_scope&) = delete;
+    flag_scope& operator=(const flag_scope&) = delete;
+    ~flag_scope() { flag_ = before_; }
+
+private:
+    bool& flag_;
+    bool before_;
+};
+
+/// The traffic table. It raises the panel's flag while it handles a key press
+/// or a mouse press, move or release, because those are the moments a change
+/// of the current row is the user's. Qt also changes the current row by itself
+/// (it makes the first row current when focus comes into a table that has no
+/// current row), and that is not the user choosing a row.
+class TrafficTable final : public QTableView
+{
+public:
+    TrafficTable(bool& user_input, QWidget* parent)
+        : QTableView(parent), user_input_(user_input)
+    {
+    }
+
+protected:
+    void keyPressEvent(QKeyEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::keyPressEvent(event);
+    }
+
+    void mousePressEvent(QMouseEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::mousePressEvent(event);
+    }
+
+    void mouseMoveEvent(QMouseEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::mouseMoveEvent(event);
+    }
+
+    void mouseReleaseEvent(QMouseEvent* event) override
+    {
+        const flag_scope scope(user_input_);
+        QTableView::mouseReleaseEvent(event);
+    }
+
+private:
+    bool& user_input_;
+};
 
 QString kind_name(vss::event_kind kind)
 {
@@ -78,7 +171,19 @@ QString kind_name(vss::event_kind kind)
 class DirectionDelegate final : public QStyledItemDelegate
 {
 public:
-    using QStyledItemDelegate::QStyledItemDelegate;
+    DirectionDelegate(const monitor_cell_style* style, QObject* parent)
+        : QStyledItemDelegate(parent), style_(style)
+    {
+    }
+
+    /// The tag and the space at each side of it.
+    QSize sizeHint(const QStyleOptionViewItem&,
+                   const QModelIndex& index) const override
+    {
+        const QSize tag =
+            style_->tag_size(index.data(Qt::DisplayRole).toString());
+        return {tag.width() + 2 * style_->padding, tag.height()};
+    }
 
     void paint(QPainter* painter, const QStyleOptionViewItem& option,
                const QModelIndex& index) const override
@@ -109,19 +214,24 @@ public:
             fill = theme.colour(colour_role::badSoft);
             ink = theme.colour(colour_role::bad);
         }
-        const QRect badge(option.rect.left() + 6, option.rect.center().y() - 9,
-                          40, 18);
+        // The tag is as wide as its word needs, so a longer word in another
+        // language is not cut off.
+        const QSize size = style_->tag_size(text);
+        const QRect badge(QPoint(option.rect.left() + style_->padding,
+                                 option.rect.center().y() - size.height() / 2),
+                          size);
         painter->setRenderHint(QPainter::Antialiasing);
         painter->setPen(Qt::NoPen);
         painter->setBrush(fill);
         painter->drawRoundedRect(QRectF(badge), 5, 5);
-        QFont font = theme.font(text_style::caption);
-        font.setWeight(QFont::DemiBold);
-        painter->setFont(font);
+        painter->setFont(style_->tag);
         painter->setPen(ink);
         painter->drawText(badge, Qt::AlignCenter, text);
         painter->restore();
     }
+
+private:
+    const monitor_cell_style* style_;
 };
 
 } // namespace
@@ -151,6 +261,10 @@ MonitorPanel::MonitorPanel(StudioBackend& backend, QWidget* parent)
     // Drops are counted per link, and they are what the counters change for.
     connect(&backend_, &StudioBackend::stats_changed, this,
             [this] { update_drop_rows(); });
+    // The density is the user's choice in View, Density and Settings, and
+    // reaches the table through the theme.
+    connect(&Theme::instance(), &Theme::theme_changed, this,
+            [this] { apply_metrics(); });
     refresh_ports();
     update_actions();
     update_empty();
@@ -179,7 +293,8 @@ void MonitorPanel::build()
     // Simple toolbar: pause, clear and the Hex and Follow options. Its Hex
     // box is kept in step with the advanced preview selector below.
     simple_bar_ = new QWidget(monitor_page_);
-    simple_bar_->setFixedHeight(36);
+    // A minimum, not a fixed height, so larger text makes the bar taller.
+    simple_bar_->setMinimumHeight(Theme::instance().row_height());
     auto* simple_layout = new QHBoxLayout(simple_bar_);
     simple_layout->setContentsMargins(12, 0, 12, 0);
     simple_layout->setSpacing(12);
@@ -245,8 +360,8 @@ void MonitorPanel::build()
     auto* advanced_clear = new QPushButton(tr("Clear"), advanced_bar_);
     advanced_clear->setProperty("size", QStringLiteral("small"));
     polish(advanced_clear);
-    auto* advanced_follow = new QCheckBox(tr("Follow"), advanced_bar_);
-    advanced_follow->setChecked(true);
+    advanced_follow_ = new QCheckBox(tr("Follow"), advanced_bar_);
+    advanced_follow_->setChecked(true);
     export_ = new QPushButton(tr("Export"), advanced_bar_);
     export_->setProperty("size", QStringLiteral("small"));
     polish(export_);
@@ -269,17 +384,30 @@ void MonitorPanel::build()
     advanced_layout->addStretch(1);
     advanced_layout->addWidget(pause_);
     advanced_layout->addWidget(advanced_clear);
-    advanced_layout->addWidget(advanced_follow);
+    advanced_layout->addWidget(advanced_follow_);
     advanced_layout->addWidget(export_);
     advanced_layout->addWidget(export_capture_);
     advanced_bar_->setVisible(false);
     page_layout->addWidget(advanced_bar_);
 
-    // The traffic table. The first four columns have fixed widths and the
-    // last one takes the remaining space.
+    // The traffic table. The first four columns are as wide as their headings
+    // and contents ask (or as the user made them) and the last one takes the
+    // remaining space. Every row has one height, so the view finds a row by
+    // division and never measures one.
     model_ = new MonitorModel(this);
-    table_ = new QTableView(monitor_page_);
+    // Rows leave the front of a full history in every batch. These two are
+    // connected before the view and its selection model (which `setModel`
+    // makes) so the first is told first, and the second runs after them
+    // because it is connected after.
+    connect(model_, &QAbstractItemModel::rowsAboutToBeRemoved, this,
+            [this](const QModelIndex&, int first, int last)
+            { rows_leaving(first, last); });
+    table_ = new TrafficTable(user_input_, monitor_page_);
+    table_->setObjectName(QStringLiteral("monitorTable"));
     table_->setModel(model_);
+    connect(model_, &QAbstractItemModel::rowsRemoved, this,
+            [this](const QModelIndex&, int first, int last)
+            { keep_view_after_rows_left(first, last); });
     table_->setAccessibleName(tr("Traffic"));
     keep_left_to_right(table_);
     table_->setSelectionBehavior(QAbstractItemView::SelectRows);
@@ -288,21 +416,44 @@ void MonitorPanel::build()
     table_->setShowGrid(false);
     table_->setWordWrap(false);
     table_->verticalHeader()->hide();
-    table_->verticalHeader()->setDefaultSectionSize(28);
-    table_->horizontalHeader()->setHighlightSections(false);
-    table_->horizontalHeader()->setFixedHeight(28);
-    table_->horizontalHeader()->setStretchLastSection(true);
-    table_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
-    table_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
-    table_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Fixed);
-    table_->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Fixed);
-    table_->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
-    table_->setColumnWidth(0, 130);
-    table_->setColumnWidth(1, 140);
-    table_->setColumnWidth(2, 70);
-    table_->setColumnWidth(3, 70);
-    table_->setItemDelegate(new MonitorCellDelegate(4, table_));
-    table_->setItemDelegateForColumn(2, new DirectionDelegate(table_));
+    table_->verticalHeader()->setSectionResizeMode(QHeaderView::Fixed);
+    QHeaderView* header = table_->horizontalHeader();
+    header->setObjectName(QStringLiteral("monitorColumns"));
+    header->setAccessibleName(tr("Traffic table columns"));
+    header->setHighlightSections(false);
+    header->setSectionsMovable(false);
+    header->setMinimumSectionSize(kMinimumColumnWidth);
+    header->setStretchLastSection(true);
+    for (int column = 0; column < 4; ++column)
+        header->setSectionResizeMode(column, QHeaderView::Interactive);
+    header->setSectionResizeMode(4, QHeaderView::Stretch);
+    measure_model_ = new QStandardItemModel(1, 5, this);
+    cell_delegate_ = new MonitorCellDelegate(4, table_);
+    cell_delegate_->set_style(&cell_style_);
+    table_->setItemDelegate(cell_delegate_);
+    table_->setItemDelegateForColumn(
+        2, new DirectionDelegate(&cell_style_, table_));
+    table_->installEventFilter(this);
+    header->installEventFilter(this);
+    restore_column_widths();
+    apply_metrics();
+    column_save_timer_ = new QTimer(this);
+    column_save_timer_->setSingleShot(true);
+    column_save_timer_->setInterval(400);
+    connect(column_save_timer_, &QTimer::timeout, this,
+            [this] { save_column_widths(); });
+    connect(header, &QHeaderView::sectionResized, this,
+            [this](int column, int, int width)
+            {
+                if (applying_widths_ || column < 0 || column >= 4)
+                    return;
+                user_widths_[static_cast<std::size_t>(column)] =
+                    static_cast<double>(width) / zero_width();
+                column_save_timer_->start();
+            });
+    // A double click on a divider fits the column to its heading and contents.
+    connect(header, &QHeaderView::sectionHandleDoubleClicked, this,
+            [this](int column) { fit_column_by_key(column); });
     table_->setFocusPolicy(Qt::StrongFocus);
     table_->setMinimumHeight(60);
     table_->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
@@ -376,8 +527,8 @@ void MonitorPanel::build()
                 update_actions();
                 update_empty();
             });
-    connect(advanced_follow, &QCheckBox::toggled, this,
-            [this](bool on) { follow_enabled_ = on; });
+    connect(advanced_follow_, &QCheckBox::toggled, this,
+            [this](bool on) { set_follow(on); });
     connect(clear_, &QPushButton::clicked, this,
             [this]
             {
@@ -398,7 +549,7 @@ void MonitorPanel::build()
                 mode_->set_current(on ? 1 : 0);
             });
     connect(follow_, &QCheckBox::toggled, this,
-            [this](bool on) { follow_enabled_ = on; });
+            [this](bool on) { set_follow(on); });
     connect(mode_, &SegmentedControl::current_changed, this,
             [this](int id)
             {
@@ -418,9 +569,38 @@ void MonitorPanel::build()
     connect(table_, &QTableView::clicked, this,
             [this](const QModelIndex& index)
             {
+                // Choosing a row that is not the newest is leaving the end,
+                // also when it was the current row already.
+                if (index.row() != model_->rowCount() - 1)
+                    set_follow(false);
                 const auto id = model_->port_at(index.row());
                 if (id != 0)
                     Q_EMIT port_selected(id);
+            });
+    // Follow is the user's: selecting a row that is not the newest, from the
+    // mouse or the keyboard, or scrolling away from the end, turns it off, and
+    // scrolling back to the end turns it on. The scroll bar's action signal
+    // comes only from the user (the wheel, the arrows, a click in the groove,
+    // a drag of the handle) and never from code that sets the value, so what
+    // Follow itself does to the view is never taken for the user. A change of
+    // the current row is the user's only while the table handles a key or the
+    // mouse; Qt's own (the first row becomes current when focus comes into the
+    // table) is not.
+    connect(table_->selectionModel(), &QItemSelectionModel::currentChanged,
+            this,
+            [this](const QModelIndex& current, const QModelIndex&)
+            {
+                if (!user_input_ || rows_leaving_ || !current.isValid())
+                    return;
+                if (current.row() != model_->rowCount() - 1)
+                    set_follow(false);
+            });
+    connect(table_->verticalScrollBar(), &QAbstractSlider::actionTriggered,
+            this,
+            [this](int)
+            {
+                const QScrollBar* bar = table_->verticalScrollBar();
+                set_follow(bar->sliderPosition() >= bar->maximum());
             });
     // A model reset (such as Clear) refreshes the toolbar state and the
     // placeholder, and scrolls to the end if following.
@@ -475,6 +655,80 @@ bool MonitorPanel::eventFilter(QObject* watched, QEvent* event)
         // The controls got wider or narrower: the same test decides again.
         QTimer::singleShot(0, this, [this] { place_controls(); });
     }
+    else if ((watched == table_ ||
+              (table_ != nullptr && watched == table_->horizontalHeader())) &&
+             type == QEvent::FontChange)
+    {
+        // Text made larger on the table or its header, as the system's text
+        // size does through the theme.
+        apply_metrics();
+    }
+    else if (watched == table_ && type == QEvent::KeyPress)
+    {
+        // Ctrl+Alt+Left and Right narrow and widen the column the cursor is in
+        // (Left and Right move it); Ctrl+Alt+0 fits it to its heading and
+        // contents. Preview takes the rest, so it has no width to change.
+        auto* key = static_cast<QKeyEvent*>(event);
+        const int column = std::max(table_->currentIndex().column(), 0);
+        // Follow: Up and Page Up leave the end; Home and Ctrl+Home go to the
+        // first row and leave it too; End and Ctrl+End go to the newest row
+        // and follow again; Down and Page Down are the table's own, and
+        // Follow is on again when they reach the end. The table's own Home
+        // is "first column", so Home is taken here, as End is.
+        switch (key->key())
+        {
+        case Qt::Key_Up:
+        case Qt::Key_PageUp:
+            set_follow(false);
+            break;
+        case Qt::Key_Home:
+            set_follow(false);
+            if (model_->rowCount() > 0)
+                table_->setCurrentIndex(model_->index(0, column));
+            return true;
+        case Qt::Key_End:
+            if (model_->rowCount() > 0)
+            {
+                set_follow(true);
+                table_->setCurrentIndex(
+                    model_->index(model_->rowCount() - 1, column));
+            }
+            return true;
+        case Qt::Key_Down:
+        case Qt::Key_PageDown:
+            if (!passing_key_)
+            {
+                passing_key_ = true;
+                QApplication::sendEvent(table_, event);
+                passing_key_ = false;
+                if (view_is_at_end())
+                    set_follow(true);
+                return true;
+            }
+            break;
+        default:
+            break;
+        }
+        if (key->modifiers() == (Qt::ControlModifier | Qt::AltModifier) &&
+            column < 4)
+        {
+            if (key->key() == Qt::Key_Left)
+            {
+                resize_column_by_key(column, -16);
+                return true;
+            }
+            if (key->key() == Qt::Key_Right)
+            {
+                resize_column_by_key(column, 16);
+                return true;
+            }
+            if (key->key() == Qt::Key_0)
+            {
+                fit_column_by_key(column);
+                return true;
+            }
+        }
+    }
     return QWidget::eventFilter(watched, event);
 }
 
@@ -509,9 +763,190 @@ void MonitorPanel::place_controls()
     advanced_bar_->setVisible(advanced_);
 }
 
-void MonitorPanel::set_compact(bool compact)
+void MonitorPanel::changeEvent(QEvent* event)
 {
-    table_->verticalHeader()->setDefaultSectionSize(compact ? 24 : 28);
+    QWidget::changeEvent(event);
+    if (event->type() == QEvent::FontChange ||
+        event->type() == QEvent::LanguageChange)
+    {
+        if (event->type() == QEvent::LanguageChange && model_ != nullptr)
+            Q_EMIT model_->headerDataChanged(Qt::Horizontal, 0, 4);
+        apply_metrics();
+    }
+}
+
+void MonitorPanel::apply_metrics()
+{
+    if (table_ == nullptr || applying_metrics_)
+        return;
+    applying_metrics_ = true;
+    const Theme& theme = Theme::instance();
+    const bool compact = theme.density() == density_mode::compact;
+
+    // D1: the cells' fonts are the theme's, multiplied by how much larger the
+    // table's text is than the body text.
+    const double body = theme.font(text_style::body).pointSizeF();
+    const double own = table_->font().pointSizeF();
+    const double scale = body > 0.0 && own > 0.0 ? own / body : 1.0;
+    // D5: space at the sides of a cell.
+    cell_style_.update(scale, compact ? theme.space(0) : theme.space(1));
+    // The cell padding comes from the style sheet, which picks it by this
+    // property.
+    if (!table_->property("compact").isValid() ||
+        table_->property("compact").toBool() != compact)
+    {
+        table_->setProperty("compact", compact);
+        polish(table_);
+    }
+
+    // D2: the taller of the two cell fonts, and a little above and below.
+    const int vertical = compact ? theme.space(0) / 2 : theme.space(0);
+    const int text = std::max(QFontMetrics(cell_style_.data).height(),
+                              QFontMetrics(cell_style_.caption).height());
+    const int row = std::max(row_floor(), text + 2 * vertical);
+    // The header's own least size depends on its font and would keep a row
+    // taller than the rule gives.
+    table_->verticalHeader()->setMinimumSectionSize(row);
+    table_->verticalHeader()->setDefaultSectionSize(row);
+
+    // D3: the header is its text and a little above and below, and at least a
+    // target.
+    QHeaderView* header = table_->horizontalHeader();
+    header->setFixedHeight(
+        std::max(theme.metric(QStringLiteral("minTarget")),
+                 QFontMetrics(header->font()).height() + 2 * theme.space(0)));
+
+    apply_column_widths();
+    table_->viewport()->update();
+    applying_metrics_ = false;
+    // Polishing the table can change its font (the style sheet puts back the
+    // font a widget had before it was styled), and a change that came while
+    // this ran was not acted on: look again with the font the table has now.
+    if (table_->font().pointSizeF() != own)
+        apply_metrics();
+}
+
+double MonitorPanel::zero_width() const
+{
+    const double width =
+        QFontMetricsF(cell_style_.data).horizontalAdvance(QLatin1Char('0'));
+    return width > 0.0 ? width : 1.0;
+}
+
+void MonitorPanel::apply_column_widths()
+{
+    if (table_ == nullptr)
+        return;
+    table_->ensurePolished();
+    QHeaderView* header = table_->horizontalHeader();
+    header->ensurePolished();
+    const QFontMetrics caption_metrics(cell_style_.caption);
+
+    // D7: what each column has to show. Each is asked of the column's own
+    // delegate, which knows the font, the padding and the room the style keeps
+    // beside the text, so the cell never has to cut the text.
+    QString longest_port;
+    for (const auto& port : backend_.ports())
+    {
+        const QString name = port.name.left(kLongestPortName);
+        if (caption_metrics.horizontalAdvance(name) >
+            caption_metrics.horizontalAdvance(longest_port))
+            longest_port = name;
+    }
+    QString widest_tag = MonitorModel::tr("RX");
+    for (const QString& word :
+         {MonitorModel::tr("TX"), MonitorModel::tr("DROP")})
+    {
+        if (cell_style_.tag_size(word).width() >
+            cell_style_.tag_size(widest_tag).width())
+            widest_tag = word;
+    }
+    const std::array<int, 4> content = {
+        cell_width(0, QStringLiteral("00:00:00.000")),
+        cell_width(1, longest_port), cell_width(2, widest_tag),
+        cell_width(3, QLocale().toString(9999999))};
+
+    applying_widths_ = true;
+    for (int column = 0; column < 4; ++column)
+    {
+        const auto index = static_cast<std::size_t>(column);
+        // The heading always fits, in the font and language in use.
+        const int heading = header->sectionSizeHint(column);
+        int width = std::max({heading, kMinimumColumnWidth, content[index]});
+        if (user_widths_[index] > 0.0)
+        {
+            width = std::max({static_cast<int>(std::lround(user_widths_[index] *
+                                                           zero_width())),
+                              heading, kMinimumColumnWidth});
+        }
+        header->resizeSection(column, width);
+    }
+    applying_widths_ = false;
+}
+
+int MonitorPanel::cell_width(int column, const QString& sample)
+{
+    measure_model_->setItem(0, column, new QStandardItem(sample));
+    QStyleOptionViewItem option;
+    option.initFrom(table_);
+    option.widget = table_;
+    QAbstractItemDelegate* delegate = table_->itemDelegateForColumn(column);
+    if (delegate == nullptr)
+        delegate = table_->itemDelegate();
+    return delegate->sizeHint(option, measure_model_->index(0, column)).width();
+}
+
+void MonitorPanel::restore_column_widths()
+{
+    const QStringList saved =
+        QSettings()
+            .value(QStringLiteral("ui/monitorColumnWidths"))
+            .toStringList();
+    if (saved.size() != static_cast<qsizetype>(user_widths_.size()))
+        return;
+    for (std::size_t column = 0; column < user_widths_.size(); ++column)
+    {
+        bool ok = false;
+        const double width =
+            saved.at(static_cast<qsizetype>(column)).toDouble(&ok);
+        if (ok && std::isfinite(width) && width > 0.0 && width <= 400.0)
+            user_widths_[column] = width;
+    }
+}
+
+void MonitorPanel::save_column_widths() const
+{
+    QStringList widths;
+    for (const double width : user_widths_)
+        widths.push_back(QString::number(width, 'f', 2));
+    QSettings().setValue(QStringLiteral("ui/monitorColumnWidths"), widths);
+}
+
+void MonitorPanel::report_column_width(int column)
+{
+    Q_EMIT status_message(
+        tr("%1 column is %2 px wide.")
+            .arg(model_->headerData(column, Qt::Horizontal).toString())
+            .arg(table_->horizontalHeader()->sectionSize(column)));
+}
+
+void MonitorPanel::resize_column_by_key(int column, int delta)
+{
+    QHeaderView* header = table_->horizontalHeader();
+    header->resizeSection(
+        column,
+        std::max(kMinimumColumnWidth, header->sectionSize(column) + delta));
+    report_column_width(column);
+}
+
+void MonitorPanel::fit_column_by_key(int column)
+{
+    if (column < 0 || column >= 4)
+        return;
+    user_widths_[static_cast<std::size_t>(column)] = 0.0;
+    apply_column_widths();
+    column_save_timer_->start();
+    report_column_width(column);
 }
 
 void MonitorPanel::set_show_advanced_tabs(bool show)
@@ -566,6 +1001,8 @@ void MonitorPanel::refresh_ports()
     refreshing_ports_ = false;
     if (all_ports_ != nullptr)
         all_ports_->setText(tr("All ports"));
+    // The Port column is as wide as the longest name.
+    apply_column_widths();
     update_filters();
 }
 
@@ -821,9 +1258,75 @@ void MonitorPanel::follow_if_enabled()
     QTimer::singleShot(0, table_,
                        [this]
                        {
-                           if (model_->rowCount() > 0)
+                           // The user may have moved away since the rows came.
+                           if (follow_enabled_ && model_->rowCount() > 0)
                                table_->scrollToBottom();
                        });
+}
+
+void MonitorPanel::set_follow(bool on)
+{
+    follow_enabled_ = on;
+    for (QCheckBox* box : {follow_, advanced_follow_})
+    {
+        if (box == nullptr || box->isChecked() == on)
+            continue;
+        const QSignalBlocker blocker(box);
+        box->setChecked(on);
+    }
+    if (on && model_->rowCount() > 0)
+        table_->scrollToBottom();
+}
+
+bool MonitorPanel::view_is_at_end() const
+{
+    const QScrollBar* bar = table_->verticalScrollBar();
+    return bar->value() >= bar->maximum();
+}
+
+void MonitorPanel::rows_leaving(int first, int last)
+{
+    rows_leaving_ = true;
+    value_before_leaving_ = table_->verticalScrollBar()->value();
+    const int current = table_->currentIndex().row();
+    selected_row_leaving_ =
+        table_->currentIndex().isValid() && current >= first && current <= last;
+}
+
+void MonitorPanel::keep_view_after_rows_left(int first, int last)
+{
+    rows_leaving_ = false;
+    // The row the user chose is gone. The selection model would move the
+    // selection to the row that is now first, which the user did not choose;
+    // nothing is selected instead.
+    if (selected_row_leaving_)
+    {
+        selected_row_leaving_ = false;
+        table_->selectionModel()->clear();
+    }
+    // Following shows the newest rows, wherever the oldest are.
+    if (follow_enabled_)
+        return;
+    // The scroll position is a row (or a number of pixels), so with rows gone
+    // from the front the same position shows rows that are newer. Move it by
+    // what left above the first row shown, so the same rows stay where they
+    // were. If the first row shown is itself among those that left, the view
+    // stays at the top of what is left.
+    const int count = last - first + 1;
+    const bool per_pixel =
+        table_->verticalScrollMode() == QAbstractItemView::ScrollPerPixel;
+    const int unit =
+        per_pixel ? std::max(table_->verticalHeader()->defaultSectionSize(), 1)
+                  : 1;
+    const int top = value_before_leaving_ / unit;
+    int value = value_before_leaving_;
+    if (top > last)
+        value -= count * unit;
+    else if (top >= first)
+        value = first * unit;
+    QScrollBar* bar = table_->verticalScrollBar();
+    if (value != bar->value())
+        bar->setValue(value);
 }
 
 } // namespace vss::gui

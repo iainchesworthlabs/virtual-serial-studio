@@ -14,6 +14,7 @@
 #include <vss/license/signed_file.hpp>
 
 #include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -36,6 +37,13 @@ inline constexpr std::chrono::hours clock_tolerance{48};
 /// A licence with this many days left, or fewer, is `expiring`.
 inline constexpr int expiring_days = 30;
 inline constexpr int expiring_days_trial = 3;
+
+/// The longest feature name a licence may list, not counting a trailing `.*`.
+/// A plugin's feature is `plugins.` and its id, and a plugin id may be 128
+/// characters (`vss::plugin::max_id_length`), so this is 8 + 128. The plugin
+/// library depends on this one, so the number cannot be taken from there;
+/// tests/unit/test_plugin_licence.cpp fails if the two drift apart.
+inline constexpr std::size_t max_feature_length = 136;
 
 inline constexpr int max_grace_days = 366;
 inline constexpr int max_seats = 1'000'000;

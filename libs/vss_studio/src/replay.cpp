@@ -15,7 +15,8 @@
 #include <chrono>
 #include <cmath>
 
-namespace vss {
+namespace vss
+{
 
 struct replay_player::state : std::enable_shared_from_this<state>
 {
@@ -34,13 +35,17 @@ struct replay_player::state : std::enable_shared_from_this<state>
     std::atomic<std::uint64_t> sent_bytes{0};
     std::atomic<std::uint64_t> pass_count{0};
     std::atomic<std::uint64_t> errors{0};
+    /// Bytes the endpoint has written, and bytes of records it refused; both
+    /// are counted when the write's handler runs.
+    std::atomic<std::uint64_t> written_bytes{0};
+    std::atomic<std::uint64_t> failed_bytes{0};
 
     /// The time a capture offset has in this run.
     time_point when(std::uint64_t pass, std::int64_t offset_ms) const
     {
-        const double total_ms = static_cast<double>(pass) *
-                                    static_cast<double>(period_ms) +
-                                static_cast<double>(offset_ms);
+        const double total_ms =
+            static_cast<double>(pass) * static_cast<double>(period_ms) +
+            static_cast<double>(offset_ms);
         return origin + std::chrono::microseconds(
                             std::llround(total_ms * 1000.0 / speed));
     }
@@ -53,31 +58,44 @@ struct replay_player::state : std::enable_shared_from_this<state>
         auto self = shared_from_this();
         for (std::size_t index = 0; index < records.size(); ++index)
         {
-            queue->at(when(pass, records[index].offset_ms), [self, index] {
-                if (self->stopped.load())
-                    return;
-                const auto& record = self->records[index];
-                const std::size_t size = record.data.size();
-                self->target->write(
-                    record.data,
-                    [self](boost::system::error_code error, std::size_t) {
-                        if (error)
-                            self->errors.fetch_add(1);
-                    });
-                self->sent.fetch_add(1);
-                self->sent_bytes.fetch_add(size);
-            });
+            queue->at(when(pass, records[index].offset_ms),
+                      [self, index]
+                      {
+                          if (self->stopped.load())
+                              return;
+                          const auto& record = self->records[index];
+                          const std::size_t size = record.data.size();
+                          self->target->write(
+                              record.data,
+                              [self, size](boost::system::error_code error,
+                                           std::size_t)
+                              {
+                                  if (error)
+                                  {
+                                      self->errors.fetch_add(1);
+                                      self->failed_bytes.fetch_add(size);
+                                  }
+                                  else
+                                  {
+                                      self->written_bytes.fetch_add(size);
+                                  }
+                              });
+                          self->sent.fetch_add(1);
+                          self->sent_bytes.fetch_add(size);
+                      });
         }
 
-        queue->at(when(pass, records.back().offset_ms), [self, pass] {
-            if (self->stopped.load())
-                return;
-            self->pass_count.fetch_add(1);
-            if (self->loop)
-                self->schedule_pass(pass + 1);
-            else
-                self->done.store(true);
-        });
+        queue->at(when(pass, records.back().offset_ms),
+                  [self, pass]
+                  {
+                      if (self->stopped.load())
+                          return;
+                      self->pass_count.fetch_add(1);
+                      if (self->loop)
+                          self->schedule_pass(pass + 1);
+                      else
+                          self->done.store(true);
+                  });
     }
 };
 
@@ -94,13 +112,15 @@ replay_player::~replay_player()
     }
     catch (...)
     {
-        // best effort: a destructor must not throw, and nothing can act on a failed stop
+        // best effort: a destructor must not throw, and nothing can act on a
+        // failed stop
     }
 }
 
-result<std::shared_ptr<replay_player>> replay_player::start(
-    hub& engine, std::shared_ptr<endpoint> target,
-    const std::vector<capture_record>& records, const replay_options& options)
+result<std::shared_ptr<replay_player>>
+replay_player::start(hub& engine, std::shared_ptr<endpoint> target,
+                     const std::vector<capture_record>& records,
+                     const replay_options& options)
 {
     VSS_PROFILE_ZONE("studio.replay.start");
     VSS_PROFILE_MESSAGE("studio.replay.started");
@@ -129,9 +149,8 @@ result<std::shared_ptr<replay_player>> replay_player::start(
         return make_error_code(errc::invalid_argument);
 
     std::stable_sort(shared->records.begin(), shared->records.end(),
-                     [](const capture_record& a, const capture_record& b) {
-                         return a.offset_ms < b.offset_ms;
-                     });
+                     [](const capture_record& a, const capture_record& b)
+                     { return a.offset_ms < b.offset_ms; });
     shared->period_ms = std::max<std::int64_t>(last_offset, 1);
     shared->target = std::move(target);
     shared->queue = std::make_shared<detail::timed_queue>(engine.executor());
@@ -171,6 +190,16 @@ std::uint64_t replay_player::passes() const
 std::uint64_t replay_player::write_errors() const
 {
     return state_->errors.load();
+}
+
+std::uint64_t replay_player::bytes_written() const
+{
+    return state_->written_bytes.load();
+}
+
+std::uint64_t replay_player::bytes_failed() const
+{
+    return state_->failed_bytes.load();
 }
 
 std::size_t replay_player::records_per_pass() const

@@ -476,6 +476,38 @@ class RequestTests(Setup):
         header, _ = self.read_request()
         self.assertEqual(len(header["name"]), 1024)
 
+    def test_a_run_name_and_a_check_are_cut_to_what_the_gateway_takes(self):
+        # The gateway refuses a run or a check name of more than 128 bytes and
+        # a message of more than 512, so the client cuts them (and says so),
+        # and a failed check is recorded whatever its text is.
+        client = self.greet()
+        self.gateway.sendall(
+            reply(2, "run", run="r_1", name="x", open=True, tests=0, failures=0, errors=0, skipped=0, duration_ms=0)
+        )
+        client.begin_run("r" * 500)
+        header, _ = self.read_request()
+        self.assertEqual(header["op"], "runs.begin")
+        self.assertEqual(header["name"], "r" * 125 + "...")
+
+        self.gateway.sendall(reply(3, "done"))
+        client.record_in_run("é" * 300, "failed", message="€" * 900, duration_ms=4)
+        header, _ = self.read_request()
+        self.assertEqual(header["op"], "runs.record")
+        for field, limit in (("name", 128), ("message", 512)):
+            self.assertLessEqual(len(header[field].encode("utf-8")), limit)
+            self.assertTrue(header[field].endswith("..."))
+        # Two bytes to a character: 125 bytes for text are 62 characters.
+        self.assertEqual(header["name"], "é" * 62 + "...")
+        # Three bytes to a character: 509 bytes for text are 169 characters.
+        self.assertEqual(header["message"], "€" * 169 + "...")
+
+        # A text that fits is sent as it is, at the limit too.
+        self.gateway.sendall(reply(4, "done"))
+        client.record_in_run("n" * 128, "passed", message="m" * 512)
+        header, _ = self.read_request()
+        self.assertEqual(header["name"], "n" * 128)
+        self.assertEqual(header["message"], "m" * 512)
+
 
 class ConnectArgumentTests(unittest.TestCase):
     def test_bad_arguments_are_refused_before_anything_is_opened(self):

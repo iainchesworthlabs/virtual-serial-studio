@@ -24,8 +24,17 @@ from ._frame import encode_frame
 
 # The version of the API this module speaks.
 API_VERSION = 1
-# The longest text the gateway takes in a field, in bytes.
+# The longest texts the gateway takes, in bytes.  These are the numbers of
+# `max_text_size`, `max_run_name_size` and `max_case_message_size` in
+# libs/vss_control_proto/include/vss/control/proto/message.hpp.  A name or a
+# message that is longer is answered with `invalid_argument` and not cut, so
+# the client cuts it first (`clean_text`).  Change them here and there
+# together.
 MAX_TEXT_SIZE = 1024
+MAX_RUN_NAME_SIZE = 128
+MAX_CASE_MESSAGE_SIZE = 512
+# What `clean_text` puts at the end of a text that it cut.
+CUT_MARK = "..."
 _U64_MAX = (1 << 64) - 1
 
 
@@ -43,16 +52,23 @@ class Batch(typing.NamedTuple):
     value: dict
 
 
-def clean_text(text):
-    """Text that is safe to send: a character that is not valid becomes `?`
-    and the UTF-8 is cut to MAX_TEXT_SIZE bytes between characters."""
+def clean_text(text, limit=MAX_TEXT_SIZE):
+    """Text that is safe to send: a character that is not valid becomes `?`.
+    A text of more than `limit` bytes of UTF-8 is cut between characters and
+    ends in CUT_MARK, so that it is `limit` bytes or fewer and a person who
+    reads it can tell it is not whole.  A text is never refused for its
+    length."""
     if not isinstance(text, str):
         raise TypeError("expected text, not %s" % type(text).__name__)
     raw = text.encode("utf-8", "replace")
-    if len(raw) > MAX_TEXT_SIZE:
-        raw = raw[:MAX_TEXT_SIZE]
-        return raw.decode("utf-8", "ignore")
-    return raw.decode("utf-8")
+    if len(raw) <= limit:
+        return raw.decode("utf-8")
+    # A limit shorter than the mark has no room for it: the text is cut and
+    # not marked.  `ignore` drops a character that the cut left in two.
+    if limit < len(CUT_MARK):
+        return raw[: max(limit, 0)].decode("utf-8", "ignore")
+    kept = raw[: limit - len(CUT_MARK)].decode("utf-8", "ignore")
+    return kept + CUT_MARK
 
 
 def encode_request(request_id, op, fields=None, blob=b""):

@@ -57,8 +57,8 @@ QVector<recent_entry> recent_entries()
 
 void record_recent(const QString& path, const QString& summary)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.dialogs.recent_files.record");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, path.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.dialogs.recent_files.record");
+    VSS_PROFILE_ZONE_TEXT(zone, path.toStdString());
     if (path.isEmpty())
         return;
 

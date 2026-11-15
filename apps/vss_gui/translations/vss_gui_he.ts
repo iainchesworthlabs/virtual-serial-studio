@@ -3303,6 +3303,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. לא ניתן היה להחזיר את התצורה הקודמת.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio לא הצליח לקרוא אילו מספרי COM Windows שומר, ולכן הוא בוחר מספר פנוי בעת יצירת היציאה ומציג אותו כשהיציאה מוכנה.</translation>
         </message>
@@ -4225,6 +4230,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="622" />
             <source>JSON Lines (*.jsonl)</source>
             <translation>שורות JSON (*.jsonl)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>עמודות טבלת התעבורה</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>רוחב העמודה %1 הוא %2 px.</translation>
         </message>
     </context>
     <context>
@@ -9419,6 +9434,17 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Support bundle</source>
             <translation>חבילת תמיכה</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>לא ניתן היה להחזיר את כל מה שרץ, ולכן התצורה סומנה כמשתנה.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>התצורה זקוקה להתקן או לנקודת קצה ברשת שאינם זמינים במחשב זה. בדקו את ההתקן ונסו שוב.</translation>
         </message>
     </context>
     <context>
@@ -18084,6 +18110,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. לא ניתן היה להחזיר את התצורה הקודמת.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

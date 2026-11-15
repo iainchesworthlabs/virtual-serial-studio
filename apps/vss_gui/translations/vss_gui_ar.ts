@@ -3307,6 +3307,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. تعذرت إعادة الإعداد السابق.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>تعذر على Studio قراءة أرقام COM التي يحتفظ بها Windows، لذلك يختار رقمًا متاحًا عند إنشاء المنفذ ويعرضه عندما يكون المنفذ جاهزًا.</translation>
         </message>
@@ -4229,6 +4234,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="622" />
             <source>JSON Lines (*.jsonl)</source>
             <translation>أسطر JSON (*.jsonl)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>أعمدة جدول حركة البيانات</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>عرض العمود %1 هو %2 بكسل.</translation>
         </message>
     </context>
     <context>
@@ -9443,6 +9458,17 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Support bundle</source>
             <translation>حزمة الدعم</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>تعذّرت إعادة كل ما كان يعمل، لذلك تم وضع علامة على الإعداد بأنه تغيّر.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>يحتاج الإعداد إلى جهاز أو نقطة نهاية شبكية غير متاحة على هذا الحاسوب. تحقق من الجهاز ثم أعد المحاولة.</translation>
         </message>
     </context>
     <context>
@@ -18132,6 +18158,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. أعاد Studio ما كان موجودًا من قبل قدر ما استطاع.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>تعذر تغيير الإعداد. أبلغ Studio: %1. تعذرت إعادة الإعداد السابق.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

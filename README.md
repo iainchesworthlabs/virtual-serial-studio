@@ -107,7 +107,7 @@ vss_gate &                          # let this user's programs watch the agent's
 vss_gate --loopback-port=5800 &     # also serve the control API on TCP at 127.0.0.1 and ::1 (off unless given); every TCP connection needs a token made for it
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
-vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a token over TCP; make it with `token create --transport=loopback --out=rig.token`
+vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a token over TCP; make it with `token create --transport=loopback --out=rig.token` (a new file name; `--out` never replaces a file)
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
 vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
@@ -342,7 +342,9 @@ The dependencies keep their own terms, all compatible with the GPL:
 
 * [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) and Boost itself are
   **BSL-1.0**; BSL-1.0 is a permissive licence that can be combined with GPLv3.
-* Qt 6 is **LGPL-3.0 / GPL-3.0 / commercial**; the GUI links it dynamically.
+* Qt 6 is **LGPL-3.0 / GPL-3.0 / commercial**; the GUI links it dynamically. The
+  Qt Canvas Painter module is **GPL-3.0 / commercial** only, so the GUI is
+  conveyed under version 3 of the GPL.
 * `com0com` is an optional, separately installed Windows driver, invoked rather
   than linked.
 * Three tools in `tools/` are derived from the Boost.VirtualSerial repository
