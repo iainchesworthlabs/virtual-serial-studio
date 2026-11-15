@@ -35,9 +35,15 @@ namespace
 /// The longest reason of a plugin that is kept.
 constexpr std::size_t longest_reason = 400;
 
+/// The number a request is written with.  The session gives every request
+/// its real number when it is sent; a message cannot be written with none.
+constexpr std::uint64_t placeholder_id = 1;
+
 /// One instance, wanted or on its way out.
 struct entry
 {
+    /// What the owner wants.  `kind` and `type` are those the instance
+    /// was first given with.
     instance_spec spec;
     instance_state state = instance_state::waiting;
     error_code problem;
@@ -52,11 +58,14 @@ struct entry
     bool in_flight = false;
     /// The owner no longer wants it; it goes once the plugin has let go.
     bool unwanted = false;
-    /// Refused here, against the manifest; nothing is ever sent for it.
+    /// The owner gave the number again as another kind or type.
+    bool mismatched = false;
+    /// Refused here, against the manifest; nothing is sent to make it.
     bool never = false;
 };
 
-/// The reason a plugin gave, cut to a length that is kept.
+/// The reason a plugin gave, cut to a length that is kept, at the end of
+/// a character.
 std::string reason_of(const api_message& answer)
 {
     const auto* const failed = std::get_if<error_message>(&answer.body);
@@ -64,7 +73,14 @@ std::string reason_of(const api_message& answer)
         return {};
     std::string text = failed->message;
     if (text.size() > longest_reason)
-        text.resize(longest_reason);
+    {
+        std::size_t end = longest_reason;
+        // Not in the middle of a UTF-8 character.
+        while (end > 0 &&
+               (static_cast<unsigned char>(text[end]) & 0xC0U) == 0x80U)
+            --end;
+        text.resize(end);
+    }
     return text;
 }
 
@@ -102,7 +118,8 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
     /// Goes up when the plugin goes, so that an answer that comes late is
     /// known to belong to a plugin that is no longer there.
     std::uint64_t epoch = 0;
-    /// The wanted instances by number, and their order.
+    /// The instances by number, and their order: the wanted ones in the
+    /// order of the owner's list, then those on their way out.
     std::map<std::uint64_t, entry> entries;
     std::vector<std::uint64_t> order;
 
@@ -120,8 +137,13 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
         return found == declared.end() ? nullptr : &*found;
     }
 
-    /// How many wanted instances of a type there are before `number` in
-    /// the list.
+    bool same_type(const entry& left, const instance_spec& right) const
+    {
+        return left.spec.kind == right.kind && left.spec.type == right.type;
+    }
+
+    /// How many wanted instances of a type come before `number` in the
+    /// list.
     std::size_t earlier_of_type(const instance_spec& spec,
                                 std::uint64_t number) const
     {
@@ -131,33 +153,60 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
             if (other == number)
                 break;
             const entry& there = entries.at(other);
-            if (!there.unwanted && there.spec.kind == spec.kind &&
-                there.spec.type == spec.type)
+            if (!there.unwanted && !there.mismatched && same_type(there, spec))
                 ++count;
         }
         return count;
     }
 
-    /// Checks an instance against the manifest.
+    /// How many instances of a type the plugin holds now, or is being
+    /// asked to make, other than `number`.
+    std::size_t held_of_type(const instance_spec& spec,
+                             std::uint64_t number) const
+    {
+        std::size_t count = 0;
+        for (const auto& [other, there] : entries)
+        {
+            if (other == number || !same_type(there, spec))
+                continue;
+            const bool making =
+                there.in_flight && there.state == instance_state::creating;
+            if (there.created || making)
+                ++count;
+        }
+        return count;
+    }
+
+    void refuse_here(entry& item, plugin_errc why)
+    {
+        item.never = true;
+        item.state = instance_state::refused;
+        item.problem = make_error_code(why);
+        item.reason.clear();
+    }
+
+    /// Checks a wanted instance against the manifest.
     void judge(entry& item)
     {
         item.never = false;
         const extension_point* const point = point_of(item.spec);
-        if (item.spec.instance == 0 || point == nullptr)
+        if (item.mismatched || item.spec.instance == 0 || point == nullptr)
         {
-            item.never = true;
-            item.state = instance_state::refused;
-            item.problem = make_error_code(plugin_errc::capability_missing);
-            item.reason.clear();
+            refuse_here(item, plugin_errc::capability_missing);
             return;
         }
         if (earlier_of_type(item.spec, item.spec.instance) >=
             point->max_instances)
         {
-            item.never = true;
-            item.state = instance_state::refused;
-            item.problem = make_error_code(plugin_errc::too_many);
-            item.reason.clear();
+            refuse_here(item, plugin_errc::too_many);
+            return;
+        }
+        if (item.state == instance_state::refused && !item.created &&
+            !item.refused_params.has_value())
+        {
+            // It was refused here before and no longer is.
+            item.state = instance_state::waiting;
+            item.problem = error_code{};
         }
     }
 
@@ -179,18 +228,26 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
                 return;
             }
             if (!item.never)
+            {
                 item.state = instance_state::waiting;
+                item.problem = error_code{};
+                item.reason.clear();
+            }
+            return;
+        }
+        // The plugin lets go of what is no longer wanted, and of what the
+        // owner gave again as another kind of thing.
+        if ((item.unwanted || item.mismatched) && item.created)
+        {
+            if (item.unwanted)
+                item.state = instance_state::stopping;
+            ask(number, instance_stop_message::op(),
+                encode_as(instance_stop_message{number}, placeholder_id));
             return;
         }
         if (item.unwanted)
         {
-            if (!item.created)
-            {
-                forget(number);
-                return;
-            }
-            item.state = instance_state::stopping;
-            ask(number, encode_as(instance_stop_message{number}));
+            forget(number);
             return;
         }
         if (item.never)
@@ -199,6 +256,16 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
         {
             if (item.refused_params == item.spec.params)
                 return;
+            // The plugin never holds more of a type than its manifest
+            // allows: an instance that takes the place of one on its way
+            // out waits until that one has gone.
+            const extension_point* const point = point_of(item.spec);
+            if (point == nullptr ||
+                held_of_type(item.spec, number) >= point->max_instances)
+            {
+                item.state = instance_state::waiting;
+                return;
+            }
             item.state = instance_state::creating;
             item.problem = error_code{};
             item.reason.clear();
@@ -207,7 +274,8 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
             create.kind = item.spec.kind;
             create.type = item.spec.type;
             create.params = item.spec.params;
-            ask(number, encode_as(create));
+            ask(number, instance_create_message::op(),
+                encode_as(create, placeholder_id));
             return;
         }
         if (item.sent_params != item.spec.params &&
@@ -216,40 +284,51 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
             params_changed_message change;
             change.instance = number;
             change.params = item.spec.params;
-            ask(number, encode_as(change));
+            ask(number, params_changed_message::op(),
+                encode_as(change, placeholder_id));
         }
     }
 
+    /// Every instance again: one that went may have made room for
+    /// another.
+    void drive_all()
+    {
+        const std::vector<std::uint64_t> numbers = order;
+        for (const std::uint64_t number : numbers)
+            drive(number);
+    }
+
     /// Sends a request for an instance and takes its answer.
-    void ask(std::uint64_t number, result<api_message> message)
+    void ask(std::uint64_t number, std::string_view op,
+             result<api_message> message)
     {
         entry& item = entries.at(number);
+        const std::string params = item.spec.params;
         if (!message)
         {
-            // The message cannot be written: parameters that are not a
-            // JSON object, or too long.
-            item.state = instance_state::refused;
-            item.problem = message.error();
-            item.refused_params = item.spec.params;
+            // The message cannot be written.  Nothing was sent, so this is
+            // the answer.
+            took_answer(number, std::string(op), params, message.error(),
+                        api_message{});
             return;
         }
         item.in_flight = true;
-        const std::string op = message->op;
-        const std::string params = item.spec.params;
         send(std::move(*message),
-             [weak = weak_from_this(), number, op, params,
+             [weak = weak_from_this(), number, op = std::string(op), params,
               sent_in = epoch](error_code failed, const api_message& answer)
              {
                  const auto self = weak.lock();
                  if (!self || sent_in != self->epoch)
                      return;
-                 self->answered(number, op, params, failed, answer);
+                 self->took_answer(number, op, params, failed, answer);
+                 self->drive_all();
+                 self->tell();
              });
     }
 
-    void answered(std::uint64_t number, const std::string& op,
-                  const std::string& params, error_code failed,
-                  const api_message& answer)
+    void took_answer(std::uint64_t number, const std::string& op,
+                     const std::string& params, error_code failed,
+                     const api_message& answer)
     {
         const auto found = entries.find(number);
         if (found == entries.end())
@@ -257,14 +336,17 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
         entry& item = found->second;
         item.in_flight = false;
         const bool refused = failed || is_error(answer);
+        const error_code why = make_error_code(
+            failed ? plugin_errc::unresponsive : plugin_errc::misbehaving);
 
         if (op == instance_stop_message::op())
         {
             // Stopped, or the plugin would not say so: either way the
             // host no longer counts on it.
             item.created = false;
-            forget(number);
-            tell();
+            item.sent_params.clear();
+            if (item.unwanted)
+                forget(number);
             return;
         }
         if (op == instance_create_message::op())
@@ -272,44 +354,32 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
             if (refused)
             {
                 item.state = instance_state::refused;
-                item.problem =
-                    make_error_code(failed ? plugin_errc::unresponsive
-                                           : plugin_errc::misbehaving);
+                item.problem = why;
                 item.reason = reason_of(answer);
                 item.refused_params = params;
+                return;
             }
-            else
-            {
-                item.created = true;
-                item.sent_params = params;
-                item.refused_params.reset();
-                item.state = instance_state::running;
-                item.problem = error_code{};
-                item.reason.clear();
-            }
+            item.created = true;
+            item.sent_params = params;
+            item.refused_params.reset();
+            item.state = instance_state::running;
+            item.problem = error_code{};
+            item.reason.clear();
+            return;
         }
-        else
+        // "params.changed": refused parameters leave the instance running
+        // with the ones it had.
+        if (refused)
         {
-            // "params.changed": refused parameters leave the instance
-            // running with the ones it had.
-            if (refused)
-            {
-                item.problem =
-                    make_error_code(failed ? plugin_errc::unresponsive
-                                           : plugin_errc::misbehaving);
-                item.reason = reason_of(answer);
-                item.refused_params = params;
-            }
-            else
-            {
-                item.sent_params = params;
-                item.refused_params.reset();
-                item.problem = error_code{};
-                item.reason.clear();
-            }
+            item.problem = why;
+            item.reason = reason_of(answer);
+            item.refused_params = params;
+            return;
         }
-        drive(number);
-        tell();
+        item.sent_params = params;
+        item.refused_params.reset();
+        item.problem = error_code{};
+        item.reason.clear();
     }
 
     void forget(std::uint64_t number)
@@ -354,18 +424,12 @@ void plugin_instances::want(std::vector<instance_spec> wanted)
         }
         entry& item = found->second;
         item.unwanted = false;
-        if (item.spec.kind != spec.kind || item.spec.type != spec.type)
-        {
-            // The same number as another kind of thing is not the same
-            // instance; the owner must use a new number.
+        // The same number as another kind of thing is not the same
+        // instance: the owner must use a new number.  The instance is
+        // refused, and the plugin lets go of the one it has.
+        item.mismatched = !self.same_type(item, spec);
+        if (!item.mismatched)
             item.spec.params = std::move(spec.params);
-            item.never = true;
-            item.state = instance_state::refused;
-            item.problem = make_error_code(plugin_errc::capability_missing);
-            item.reason.clear();
-            continue;
-        }
-        item.spec.params = std::move(spec.params);
     }
     // What is no longer in the list goes, after the plugin has let go.
     for (auto& [number, item] : self.entries)
@@ -380,12 +444,10 @@ void plugin_instances::want(std::vector<instance_spec> wanted)
     for (const std::uint64_t number : self.order)
     {
         entry& item = self.entries.at(number);
-        if (!item.unwanted && !item.created && !item.in_flight)
+        if (!item.unwanted)
             self.judge(item);
     }
-    const std::vector<std::uint64_t> numbers = self.order;
-    for (const std::uint64_t number : numbers)
-        self.drive(number);
+    self.drive_all();
     self.tell();
 }
 
@@ -393,9 +455,7 @@ void plugin_instances::plugin_ready()
 {
     state& self = *state_;
     self.ready = true;
-    const std::vector<std::uint64_t> numbers = self.order;
-    for (const std::uint64_t number : numbers)
-        self.drive(number);
+    self.drive_all();
     self.tell();
 }
 
@@ -413,11 +473,6 @@ void plugin_instances::plugin_gone()
         item.sent_params.clear();
         // A plugin that starts again is asked again.
         item.refused_params.reset();
-        if (!item.never)
-        {
-            item.problem = error_code{};
-            item.reason.clear();
-        }
         self.drive(number);
     }
     self.tell();
@@ -436,7 +491,7 @@ std::vector<instance_view> plugin_instances::views() const
         view.state = item.state;
         view.problem = item.problem;
         view.reason = item.reason;
-        view.params_pending = item.created &&
+        view.params_pending = item.created && !item.mismatched &&
                               item.sent_params != item.spec.params &&
                               item.refused_params != item.spec.params;
         out.push_back(std::move(view));
@@ -459,7 +514,7 @@ bool plugin_instances::running(std::uint64_t instance) const noexcept
 {
     const auto found = state_->entries.find(instance);
     return found != state_->entries.end() && found->second.created &&
-           !found->second.unwanted;
+           !found->second.unwanted && !found->second.mismatched;
 }
 
 } // namespace vss::plugin::host
