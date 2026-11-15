@@ -304,3 +304,59 @@ TEST_CASE("replay: capture, replay, capture again and compare")
         REQUIRE(got <= expected + 80);
     }
 }
+
+TEST_CASE("replay: bytes written and bytes failed are counted when the write ends")
+{
+    auto hub = start_hub();
+    boost::system::error_code ec;
+    auto transport = serial_transport::make_mock(hub->executor(),
+                                                 serial_settings{}, "small", ec);
+    REQUIRE(!ec);
+    // A queue of four bytes takes the first record and refuses the second.
+    endpoint_options options = test_options();
+    options.max_write_queue_bytes = 4;
+    auto added = hub->add_endpoint("small", endpoint_kind::mock, transport, options);
+    REQUIRE(added);
+
+    const std::vector<capture_record> capture{
+        record(0, data_direction::rx, "", "abc"),
+        record(0, data_direction::rx, "", "defgh"),
+    };
+    auto player = replay_player::start(*hub, *added, capture);
+    REQUIRE(player);
+
+    REQUIRE(wait_until(
+        [&] { return (*player)->bytes_written() + (*player)->bytes_failed() ==
+                     (*player)->bytes_sent() && (*player)->finished(); },
+        3000ms));
+    REQUIRE_EQ((*player)->bytes_sent(), std::uint64_t{8});
+    REQUIRE_EQ((*player)->bytes_written(), std::uint64_t{3});
+    REQUIRE_EQ((*player)->bytes_failed(), std::uint64_t{5});
+    REQUIRE_EQ((*player)->write_errors(), std::uint64_t{1});
+}
+
+TEST_CASE("replay: what another writer puts on the endpoint is not counted")
+{
+    auto hub = start_hub();
+    auto device = add_mock(*hub, "device");
+
+    const std::vector<capture_record> capture{
+        record(0, data_direction::rx, "", "aa"),
+        record(150, data_direction::rx, "", "bb"),
+    };
+    auto player = replay_player::start(*hub, device.endpoint, capture);
+    REQUIRE(player);
+
+    // A link or a program writing to the same port: ten bytes that are not
+    // the player's.
+    device.endpoint->write(to_bytes("0123456789"));
+
+    REQUIRE(wait_until([&] { return (*player)->finished(); }, 3000ms));
+    REQUIRE(wait_until(
+        [&] { return (*player)->bytes_written() == (*player)->bytes_sent(); },
+        3000ms));
+    REQUIRE_EQ((*player)->bytes_sent(), std::uint64_t{4});
+    REQUIRE_EQ((*player)->bytes_written(), std::uint64_t{4});
+    REQUIRE_EQ((*player)->bytes_failed(), std::uint64_t{0});
+    REQUIRE(wait_until([&] { return device.written().size() == 14; }, 2000ms));
+}

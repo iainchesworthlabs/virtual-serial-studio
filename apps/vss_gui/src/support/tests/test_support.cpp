@@ -1183,7 +1183,7 @@ TEST_CASE("support: About reports the build and environment and copies them")
     REQUIRE(!dialog.environment_text().contains(QStringLiteral("Git revision:")));
     const struct
     {
-        const char* button;
+        const char* button = nullptr;
         QString text;
     } copies[] = {
         {"Copy build information", dialog.build_information_text()},

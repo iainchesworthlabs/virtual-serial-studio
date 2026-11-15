@@ -83,6 +83,33 @@ void apply_fault(const fault_spec& fault, byte_buffer& bytes,
 
 } // namespace
 
+/// Names the gate and the time of the call that decides firings, for as long
+/// as the call lasts.  A call may be made inside another (`feed` ticks).
+class machine::gate_scope
+{
+public:
+    gate_scope(machine& owner, firing_gate* gate, time_point when)
+        : owner_(owner), gate_(owner.gate_), time_(owner.call_time_)
+    {
+        owner_.gate_ = gate;
+        owner_.call_time_ = when;
+    }
+
+    gate_scope(const gate_scope&) = delete;
+    gate_scope& operator=(const gate_scope&) = delete;
+
+    ~gate_scope()
+    {
+        owner_.gate_ = gate_;
+        owner_.call_time_ = time_;
+    }
+
+private:
+    machine& owner_;
+    firing_gate* const gate_;
+    const time_point time_;
+};
+
 void append_check(check_kind kind, bytes_view over, byte_buffer& to)
 {
     switch (kind)
@@ -154,8 +181,9 @@ machine::machine(std::shared_ptr<const compiled_rule_set> set,
                      });
 }
 
-std::vector<firing> machine::start(time_point origin)
+std::vector<firing> machine::start(time_point origin, firing_gate* gate)
 {
+    const gate_scope scope(*this, gate, origin);
     origin_ = origin;
     std::vector<std::size_t> order(set_->timeline.size());
     std::iota(order.begin(), order.end(), std::size_t{0});
@@ -181,9 +209,11 @@ std::vector<firing> machine::start(time_point origin)
     return out;
 }
 
-void machine::feed(bytes_view data, time_point when, std::vector<firing>& out)
+void machine::feed(bytes_view data, time_point when, std::vector<firing>& out,
+                   firing_gate* gate)
 {
-    tick(when, out);
+    const gate_scope scope(*this, gate, when);
+    tick(when, out, gate);
     if (data.empty())
         return;
 
@@ -272,8 +302,10 @@ void machine::feed(bytes_view data, time_point when, std::vector<firing>& out)
 }
 
 void machine::lines_changed(control_lines before, control_lines after_change,
-                            time_point when, std::vector<firing>& out)
+                            time_point when, std::vector<firing>& out,
+                            firing_gate* gate)
 {
+    const gate_scope scope(*this, gate, when);
     for (std::size_t index = 0; index < rules_.size(); ++index)
     {
         const compiled_rule& rule = set_->rules[index];
@@ -298,8 +330,9 @@ void machine::lines_changed(control_lines before, control_lines after_change,
 }
 
 void machine::port_changed(port_event what, time_point when,
-                           std::vector<firing>& out)
+                           std::vector<firing>& out, firing_gate* gate)
 {
+    const gate_scope scope(*this, gate, when);
     for (std::size_t index = 0; index < rules_.size(); ++index)
     {
         const compiled_rule& rule = set_->rules[index];
@@ -313,8 +346,10 @@ void machine::port_changed(port_event what, time_point when,
 }
 
 void machine::signal(std::size_t index, bytes_view carried, time_point cause,
-                     time_point when, std::vector<firing>& out)
+                     time_point when, std::vector<firing>& out,
+                     firing_gate* gate)
 {
+    const gate_scope scope(*this, gate, when);
     if (carried.size() > max_signal_bytes)
         carried = carried.first(max_signal_bytes);
     for (std::size_t each = 0; each < rules_.size(); ++each)
@@ -329,8 +364,9 @@ void machine::signal(std::size_t index, bytes_view carried, time_point cause,
     }
 }
 
-void machine::tick(time_point now, std::vector<firing>& out)
+void machine::tick(time_point now, std::vector<firing>& out, firing_gate* gate)
 {
+    const gate_scope scope(*this, gate, now);
     // What became due is taken in the order of its time, because a firing
     // may change the state the next one is judged in.  The order of
     // `quiet_order_` is the order of the deadlines: they are all counted
@@ -577,6 +613,17 @@ void machine::fire(std::size_t rule, std::uint64_t offset, bytes_view matched,
                    time_point start, time_point end, std::vector<firing>& out,
                    const time_point* cause)
 {
+    // Asked before anything changes: a refused firing is only counted, so
+    // the set is as it was, and no reply of it is built.  The caller goes on
+    // as after a firing: it consumes the match, marks a quiet rule spent and
+    // drops a match that was waiting for its gap.
+    if (gate_ != nullptr && !gate_->admit_firing(call_time_))
+    {
+        ++stats_.firings;
+        ++stats_.refused;
+        return;
+    }
+
     const compiled_rule& compiled = set_->rules[rule];
     rule_state& runtime = rules_[rule];
 
@@ -684,6 +731,18 @@ void machine::plan(const std::vector<compiled_action>& actions,
             previous = planned.due;
         }
 
+        // What waits is asked for: a rule's `set_state` and `set_slot` have
+        // been done and wait for nothing.  The draw above was taken, so the
+        // seeded stream is the same whatever was refused.
+        const bool waits =
+            runtime == nullptr || (action.kind != action_kind::set_state &&
+                                   action.kind != action_kind::set_slot);
+        // Under a gate the ones that do not wait are not kept either: nothing
+        // reads them, and a chunk may carry out thousands of firings of
+        // sixteen of them.
+        if (gate_ != nullptr && (!waits || !gate_->admit_action()))
+            continue;
+
         if (action.kind == action_kind::reply)
         {
             planned.bytes = render(action, matched, planned.cut);
@@ -709,53 +768,72 @@ void machine::plan(const std::vector<compiled_action>& actions,
 byte_buffer machine::render(const compiled_action& action, bytes_view matched,
                             bool& cut) const
 {
-    byte_buffer out;
-    for (const compiled_part& each : action.parts)
+    // The bytes a part adds, for all but a check.
+    const auto contents = [&](const compiled_part& each) -> bytes_view
     {
         const reply_part& part = each.part;
-        switch (part.kind)
-        {
-        case part_kind::literal:
-            out.insert(out.end(), part.bytes.begin(), part.bytes.end());
-            break;
-        case part_kind::slot:
-            if (each.slot < slots_.size())
-                out.insert(out.end(), slots_[each.slot].begin(),
-                           slots_[each.slot].end());
-            break;
-        case part_kind::match:
-            if (part.last < matched.size() && part.first <= part.last)
-                out.insert(out.end(),
-                           matched.begin() +
-                               static_cast<std::ptrdiff_t>(part.first),
-                           matched.begin() +
-                               static_cast<std::ptrdiff_t>(part.last + 1));
-            break;
-        case part_kind::check:
-        {
-            std::size_t first = 0;
-            std::size_t count = out.size();
-            if (!part.whole)
-            {
-                // `last` may be past the end, and as large as a size can be.
-                first = std::min(part.first, out.size());
-                const std::size_t end =
-                    part.last < out.size() ? part.last + 1 : out.size();
-                count = end > first ? end - first : 0;
-            }
-            // The check is worked out before it is appended: `out` may move.
-            byte_buffer value;
-            append_check(part.check, bytes_view(out.data() + first, count),
-                         value);
-            out.insert(out.end(), value.begin(), value.end());
-            break;
-        }
-        }
-    }
-    if (out.size() > max_reply_bytes)
+        if (part.kind == part_kind::literal)
+            return part.bytes;
+        if (part.kind == part_kind::slot && each.slot < slots_.size())
+            return slots_[each.slot];
+        if (part.kind == part_kind::match && part.last < matched.size() &&
+            part.first <= part.last)
+            return matched.subspan(part.first, part.last - part.first + 1);
+        return {};
+    };
+
+    // The buffer is made once, at the size the reply will have and no larger
+    // than a reply may be, and it is never grown past it: what does not fit
+    // is not built, so the buffer that is kept is as small as the reply.
+    std::size_t wanted = 0;
+    for (const compiled_part& each : action.parts)
+        wanted += each.part.kind == part_kind::check ? std::size_t{2}
+                                                     : contents(each).size();
+    byte_buffer out;
+    out.reserve(std::min(wanted, max_reply_bytes));
+
+    const auto append = [&](bytes_view what)
     {
-        out.resize(max_reply_bytes);
-        cut = true;
+        const std::size_t room = max_reply_bytes - out.size();
+        if (what.size() > room)
+        {
+            what = what.first(room);
+            cut = true;
+        }
+        out.insert(out.end(), what.begin(), what.end());
+    };
+
+    for (const compiled_part& each : action.parts)
+    {
+        // Full, and something was left out: the rest is left out too.
+        if (cut)
+            break;
+        const reply_part& part = each.part;
+        if (part.kind != part_kind::check)
+        {
+            append(contents(each));
+            continue;
+        }
+        // A check past the end is cut, so its value is not worked out.
+        if (out.size() >= max_reply_bytes)
+        {
+            cut = true;
+            break;
+        }
+        std::size_t first = 0;
+        std::size_t count = out.size();
+        if (!part.whole)
+        {
+            // `last` may be past the end, and as large as a size can be.
+            first = std::min(part.first, out.size());
+            const std::size_t end =
+                part.last < out.size() ? part.last + 1 : out.size();
+            count = end > first ? end - first : 0;
+        }
+        // The check is worked out before it is appended: `out` may move.
+        byte_buffer value;
+        append_check(part.check, bytes_view(out.data() + first, count), value);
+        append(value);
     }
     return out;
 }

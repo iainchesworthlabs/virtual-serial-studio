@@ -542,6 +542,9 @@ The same setup as a topology file, for `vss_cli run` or **File → Open**:
 }
 ```
 
+A topology file must have `"version": 1`, and a member Studio does not know
+is an error, so a misspelt name is found when the file is opened.
+
 From the command line, `vss_cli bus --virtual=3 --tap=virtual` makes the three
 bus ports and the listener and prints the port each program should open.
 
@@ -1115,7 +1118,7 @@ accepts these forms, and you can type them in Advanced and in `vss_cli`:
 | `serial://COM3?baud=115200` | A real serial device with framing options. |
 | `tcp://host:port` | A TCP client: Studio connects to a server. |
 | `udp://host:port` | UDP datagrams sent to and received from one address. |
-| `tcp-listen://host:port` | A TCP server: Studio waits for other computers. Any number can connect; what you send goes to all of them. |
+| `tcp-listen://host:port` | A TCP server: Studio waits for other computers. Up to 32 can connect; what you send goes to all of them. |
 | `udp-listen://host:port` | UDP datagrams from any sender; replies go to the senders heard from lately. |
 | `rfc2217://host:port` | RFC 2217 serial-over-network: Studio connects to an access server. |
 | `rfc2217-listen://host:port` | An RFC 2217 access server: Studio waits for serial-over-network clients such as pySerial's `rfc2217://`. |
@@ -1160,6 +1163,25 @@ bridge` warn when such a server can be reached from another computer and has no
 Every connection Studio accepts is set to send what it writes at once, so a
 short reply (a reply to a poll on a serial bus, for example) is not held back
 waiting for more data.
+
+### Clients that do not keep up
+
+A `tcp-listen` or `rfc2217-listen` port keeps what it has to send to each
+client separately. While every client is more than 1 MiB behind, the port
+slows the device or program that sends to it, as it would for one slow reader.
+When one client has caught up to within 1 MiB, any client still further behind
+is disconnected, and so is a client that takes no data for 30 seconds. In
+Studio, the port's log says which address and why. A client that sends RFC 2217
+requests and does not read the replies is disconnected when the replies waiting
+for it pass 1 MiB. The other clients and the device are not held back. A write
+counts as done when the port has accepted it for the clients, so what is still
+waiting is lost when the port closes.
+
+A port takes up to 32 clients at once. The next is closed as soon as it
+connects, and the log says so (once every 10 seconds at most). If the computer
+cannot accept a connection, for example because the program has used up the
+open connections and files the system allows it, the port waits 100 ms and then
+longer, up to 5 seconds, before it tries again, and says so in the log.
 
 ### A device on another computer
 
@@ -1697,12 +1719,17 @@ again.
 | Check what the system may block | `vss_cli permissions check` |
 | List the installed plugins | `vss_cli plugin list` (add `--json` for a script) |
 
-`virtual`, `vport`, `bus` and `capture` keep running until `Ctrl-C` or `SIGTERM`,
-or for `--seconds=N`. `run`, `share`, `join`, `bridge` and `loopback` keep their
-ports only for the `--seconds=N` you give; without it they print what they made
-and exit. `--verbose` prints the port table every half second while `run`,
-`share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
---help` lists every option.
+`virtual`, `vport`, `bus`, `capture`, `run`, `share`, `join`, `bridge` and
+`loopback` keep running until `Ctrl-C`, `SIGTERM` or, on Linux and macOS, `SIGHUP`
+(a closing terminal), or for `--seconds=N`, where N is 1 or more. On Windows
+`Ctrl-Break` and closing the console window stop them too. They take their ports
+down before they end. `--verbose` prints the port table every half second while
+`run`, `share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
+--help` lists every option. An option takes its value as `--name=value` or as
+`--name value`; an option a command does not have, a missing value and a value that
+is not a number where one is needed end the command with exit code 2 and one line
+on standard error. `vss_cli --version` prints the version of the build, as
+`vss_gui --version` does.
 
 ### Recording with `vss_cli capture`
 
@@ -1755,7 +1782,10 @@ other programs on a bus without the program that made the recording.
   its last record whichever direction that is, so a recording repeats at the pace
   it was taken.
 - It stops when the last record has been sent, or at `Ctrl-C`, or after
-  `--seconds`, and prints how many records and bytes it sent. Lines of the file
+  `--seconds`, and prints how many records and bytes it sent. After the last record
+  it waits until the port has written everything that was queued, for as long as
+  the port keeps taking bytes. It exits with 1, and says how much was written, when
+  the port refused a write or stopped taking bytes before that. Lines of the file
   that cannot be read are skipped and counted.
 
 ### Scripted devices with `vss_cli respond`

@@ -100,7 +100,7 @@ TEST_CASE("plugin locations on Windows: the machine folder and the policy")
     const plugin_locations found =
         plugin_locations_for(scratch.path() / "install" / "bin");
     const fs::path product =
-        known_folder(FOLDERID_ProgramData) / L"VirtualSerialStudio";
+        known_folder(FOLDERID_ProgramData) / L"Virtual Serial Studio";
 
     const plugin_root* const machine =
         find_root(found, plugin_scope::for_everyone);
@@ -118,7 +118,7 @@ TEST_CASE("plugin locations on Windows: the user's folder")
     const plugin_root* const user = find_root(found, plugin_scope::for_user);
     REQUIRE(user != nullptr);
     REQUIRE(user->directory == known_folder(FOLDERID_LocalAppData) /
-                                   L"VirtualSerialStudio" / L"plugins");
+                                   L"Virtual Serial Studio" / L"plugins");
     // The user's folder is the last.
     REQUIRE(&found.roots.back() == user);
 }

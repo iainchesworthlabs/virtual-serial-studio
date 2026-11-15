@@ -31,6 +31,7 @@
 
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
+#include "token_file.hpp"
 
 #include <boost/asio/buffer.hpp>
 #include <boost/asio/io_context.hpp>
@@ -1601,7 +1602,7 @@ TEST_CASE("control gateway: every wrong token gets the same answer, and the "
     struct attempt
     {
         control::secret_string token;
-        bool admin;
+        bool admin = false;
         std::string reason;
     };
     const std::vector<attempt> attempts{
@@ -4045,4 +4046,61 @@ TEST_CASE("control gateway: wrong tokens over TCP slow down TCP, and a "
     REQUIRE_EQ(text_of(failures.back(), "reason"), std::string("backoff"));
     // The session that was already open is not touched.
     REQUIRE(tap.status());
+}
+
+TEST_CASE("control gateway: a token that names a transport twice is refused, "
+          "and the gateway starts again")
+{
+    fixture env;
+    auto admin = env.connect(true);
+    for (const std::vector<std::string>& names :
+         {std::vector<std::string>{"local", "local"},
+          std::vector<std::string>{"loopback", "loopback"},
+          std::vector<std::string>{"local", "loopback", "local"}})
+    {
+        const auto refused =
+            admin->create_token("twice", {"monitor"}, 0, names);
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(control::api_errc::invalid_argument));
+    }
+    const auto listed = admin->list_tokens();
+    REQUIRE(listed);
+    REQUIRE(listed->tokens.empty());
+
+    // A token that is made after the refusals is saved as usual, and the file
+    // is one the gateway takes back at its next start.
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+    admin.reset();
+    env.gate.stop();
+
+    control::gateway next(env.prepared({}));
+    REQUIRE(next.start());
+    REQUIRE(connect_with(env, made.token));
+}
+
+TEST_CASE("control gateway: a token file with a transport twice stops the "
+          "gateway with a message that names the file and the token")
+{
+    fixture env;
+    const control::token_created_reply made =
+        make_token(env, control::role_monitor());
+    env.gate.stop();
+
+    // What an earlier version, or a person, might have left behind.
+    const std::filesystem::path file = env.audit_directory / "tokens.json";
+    auto content = control::load_token_file(file);
+    REQUIRE(content);
+    REQUIRE_EQ(content->tokens.size(), std::size_t{1});
+    content->tokens[0].transports = {control::transport::local,
+                                     control::transport::local};
+    REQUIRE(!control::save_token_file(file, *content));
+
+    control::gateway next(env.prepared({}));
+    const auto refused = next.start();
+    REQUIRE(!refused);
+    const std::string message = refused.error().message();
+    REQUIRE(message.find(file.string()) != std::string::npos);
+    REQUIRE(message.find(made.entry.id) != std::string::npos);
+    REQUIRE(message.find("more than once") != std::string::npos);
 }

@@ -30,7 +30,6 @@ using std::chrono::days;
 
 constexpr std::size_t max_id_length = 64;
 constexpr std::size_t max_name_length = 200;
-constexpr std::size_t max_feature_length = 64;
 constexpr std::size_t max_features = 64;
 constexpr std::size_t max_machine_length = 64;
 constexpr std::size_t max_machines = 1024;

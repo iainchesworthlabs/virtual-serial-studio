@@ -18,6 +18,7 @@
 #include <vss/core/error.hpp>
 #include <vss/core/event.hpp>
 #include <vss/rules/parse.hpp>
+#include <vss/studio/rules_build.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <atomic>
@@ -472,8 +473,9 @@ TEST_CASE("studio rules: an ask and a line a device does not drive are "
                                           {"ask": {"timeout_us": 5000}}]}])j"),
                     {"rules[0].do[1]"});
 
-    // A device drives CTS, DSR, DCD and RI.  DTR, RTS and BREAK are the
-    // program's.
+    // A device drives CTS, DSR and DCD.  DTR, RTS and BREAK are the
+    // program's, and RI does not reach the program in this build (see the
+    // case of its own).
     for (const char* line : {"dtr", "rts", "break"})
     {
         const std::string action =
@@ -489,6 +491,182 @@ TEST_CASE("studio rules: an ask and a line a device does not drive are "
             R"j({"lines": {"dcd": true, "dtr": true, "rts": false}})j")),
         {"rules[0].sequence[0].do[0].lines",
          "rules[0].sequence[0].do[0].lines"});
+}
+
+TEST_CASE("studio rules: a tight action is refused, wherever it is, and the "
+          "same set with normal precision installs")
+{
+    studio app;
+    REQUIRE(app.create_mock_port("device"));
+    const std::string tight = R"j({"mark": "x", "precision": "tight"})j";
+
+    std::vector<rules::problem> problems;
+    const auto refused =
+        app.install_rules(make_set(peer_set(one_step(on_bytes, tight))),
+                          rules_install_options{}, &problems);
+    REQUIRE(!refused);
+    REQUIRE_EQ(refused.error(), unsupported);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].path,
+               std::string("rules[0].sequence[0].do[0].precision"));
+    REQUIRE_EQ(problems[0].message,
+               std::string("\"tight\" precision cannot be installed in this "
+                           "build"));
+
+    // The second action of a rule written with a plain list, and the
+    // timeline, are named as their writer wrote them.
+    require_refused(app, "device",
+                    peer_set(R"j([{"name": "r", "when": {"bytes": "01"},
+                                   "do": [{"mark": "x"}, {"reply": ["aa"],
+                                          "precision": "tight"}]}])j"),
+                    {"rules[0].do[1].precision"});
+    require_refused(app, "device", peer_set("[]", R"j("timeline": [
+                      {"at_us": 1000, "do": [{"mark": "x",
+                                              "precision": "tight"}]}
+                    ], )j"),
+                    {"timeline[0].do[0].precision"});
+    // Every one is named, with what else this build refuses in its rule.
+    require_refused(
+        app, "device",
+        peer_set(R"j([{"name": "edge", "when": {"lines": {"rts": true}},
+                       "do": [{"mark": "a", "precision": "tight"},
+                              {"mark": "b", "precision": "tight"}]}])j"),
+        {"rules[0].when.lines", "rules[0].do[0].precision",
+         "rules[0].do[1].precision"});
+
+    const std::string normal = R"j({"mark": "x", "precision": "normal"})j";
+    const auto installed =
+        app.install_rules(make_set(peer_set(one_step(on_bytes, normal))));
+    REQUIRE(installed);
+}
+
+TEST_CASE("studio rules: a line action that sets RI is refused until RI "
+          "reaches a program")
+{
+    studio app;
+    REQUIRE(app.create_mock_port("device"));
+    REQUIRE(app.create_virtual_port("loop", virtual_port_kind::loopback));
+
+    // Whether it sets RI high or low, alone or with a line that is allowed.
+    for (const char* action :
+         {R"j({"lines": {"ri": true}})j", R"j({"lines": {"ri": false}})j",
+          R"j({"lines": {"cts": true, "ri": true}})j"})
+    {
+        require_refused(app, "device", peer_set(one_step(on_bytes, action)),
+                        {"rules[0].sequence[0].do[0].lines"});
+        require_refused(app, "loop",
+                        peer_set(one_step(on_bytes, action), "", "loop"),
+                        {"rules[0].sequence[0].do[0].lines"});
+    }
+    require_refused(app, "device", peer_set("[]", R"j("timeline": [
+                      {"at_us": 1000, "do": [{"lines": {"ri": true}}]}
+                    ], )j"),
+                    {"timeline[0].do[0].lines"});
+
+    std::vector<rules::problem> problems;
+    REQUIRE(!app.install_rules(
+        make_set(peer_set(one_step(on_bytes, R"j({"lines": {"ri": true}})j"))),
+        rules_install_options{}, &problems));
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].message,
+               std::string("RI cannot be driven in this build"));
+
+    // The lines a device drives, without RI, are accepted.
+    REQUIRE(app.install_rules(make_set(peer_set(one_step(
+        on_bytes,
+        R"j({"lines": {"cts": true, "dsr": false, "dcd": true}})j")))));
+}
+
+TEST_CASE("rules build check: what this build refuses, by itself, and for a "
+          "setup file")
+{
+    const auto problems_of =
+        [](std::string_view text, bool setup, bool line_errors = true)
+    {
+        std::vector<rules::problem> problems;
+        const auto set = make_set(text);
+        if (setup)
+            check_rules_for_setup(*set, problems);
+        else
+            check_rules_for_build(*set, problems, line_errors);
+        return problems;
+    };
+    const std::string fine = peer_set(one_step(on_bytes, R"j({"mark": "x"})j"));
+
+    // A good set, and no problem; the check adds to what is there.
+    REQUIRE(problems_of(fine, false).empty());
+    REQUIRE(problems_of(fine, true).empty());
+    {
+        std::vector<rules::problem> problems;
+        problems.push_back(rules::problem{"before", "there"});
+        check_rules_for_build(*make_set(fine), problems);
+        REQUIRE_EQ(problems.size(), std::size_t{1});
+    }
+
+    // Everything of one set, in the order of the document: the role, the
+    // rules, the timeline.
+    const auto station = problems_of(
+        R"j({"attach": {"role": "station", "port": "device"},
+             "rules": [
+               {"name": "edge", "when": {"lines": {"rts": true}},
+                "do": [{"mark": "x"}]},
+               {"name": "bad", "when": {"bytes": "01"},
+                "do": [{"reply": ["aa"], "precision": "tight"},
+                       {"lines": {"ri": true}}]}],
+             "timeline": [{"at_us": 10, "do": [{"lines": {"dtr": true}}]}]
+            })j",
+        false);
+    REQUIRE_EQ(station.size(), std::size_t{5});
+    REQUIRE_EQ(station[0].path, std::string("attach.role"));
+    REQUIRE_EQ(station[1].path, std::string("rules[0].when.lines"));
+    REQUIRE_EQ(station[2].path, std::string("rules[1].do[0].precision"));
+    REQUIRE_EQ(station[3].path, std::string("rules[1].do[1].lines"));
+    REQUIRE_EQ(station[4].path, std::string("timeline[0].do[0].lines"));
+    for (const auto& each : station)
+        REQUIRE(!each.message.empty());
+
+    // A line error is a problem of the port, so it is one only when the
+    // caller says the port takes none.
+    const std::string error =
+        peer_set(one_step(on_bytes, R"j({"line_error": "parity"})j"));
+    REQUIRE(problems_of(error, false).empty());
+    REQUIRE(problems_of(error, true).empty());
+    const auto refused = problems_of(error, false, false);
+    REQUIRE_EQ(refused.size(), std::size_t{1});
+    REQUIRE_EQ(refused[0].path,
+               std::string("rules[0].sequence[0].do[0].line_error"));
+
+    // Signals: refused for a setup file, and not by the check of the build,
+    // which the library call install_rules uses.
+    const std::string signals = peer_set(
+        R"j([{"name": "r", "when": {"signal": "ping"}, "do": [{"mark": "x"}]}])j",
+        R"j("signals": ["ping"], )j");
+    REQUIRE(problems_of(signals, false).empty());
+    const auto for_setup = problems_of(signals, true);
+    REQUIRE_EQ(for_setup.size(), std::size_t{1});
+    REQUIRE_EQ(for_setup[0].path, std::string("signals"));
+    REQUIRE_EQ(for_setup[0].message,
+               std::string("nothing in this build can raise a signal, so a "
+                           "set that declares one is not installed from a "
+                           "setup file"));
+    // What the build refuses is in the check for a setup too, before it.
+    const auto both =
+        problems_of(peer_set(R"j([{"name": "r", "when": {"signal": "ping"},
+                       "do": [{"mark": "x", "precision": "tight"}]}])j",
+                             R"j("signals": ["ping"], )j"),
+                    true);
+    REQUIRE_EQ(both.size(), std::size_t{2});
+    REQUIRE_EQ(both[0].path, std::string("rules[0].do[0].precision"));
+    REQUIRE_EQ(both[1].path, std::string("signals"));
+}
+
+TEST_CASE("studio rules: install_rules still accepts a set that declares "
+          "signals")
+{
+    studio_bench b;
+    REQUIRE(b.install(peer_set(
+        R"j([{"name": "r", "when": {"signal": "ping"}, "do": [{"mark": "x"}]}])j",
+        R"j("signals": ["ping"], )j")));
 }
 
 TEST_CASE("studio rules: the timeline is checked as the rules are, and every "
@@ -547,12 +725,12 @@ TEST_CASE("studio rules: a line error is refused on a port that takes none")
         one_step(on_bytes, R"j({"line_error": "framing"})j"), "", "device")));
     REQUIRE(accepted);
 
-    // A loopback port takes the rest: bytes, silence, replies, lines the
-    // device drives, marks.
+    // A loopback port takes the rest: bytes, silence, replies, lines a device
+    // drives, marks.
     const auto loop = app.install_rules(make_set(peer_set(
         R"j([
           {"name": "a", "when": {"bytes": "01"},
-           "do": [{"reply": ["aa"]}, {"lines": {"dcd": true, "ri": false}},
+           "do": [{"reply": ["aa"]}, {"lines": {"dcd": true, "dsr": false}},
                   {"mark": "m"}]},
           {"name": "q", "when": {"quiet_us": 5000}, "do": [{"mark": "q"}]}
         ])j",
@@ -1044,6 +1222,230 @@ TEST_CASE("studio rules: a set that fires faster than its budget is "
     stats = b.app.rule_stats(b.id);
     REQUIRE_EQ(stats->suspensions, std::uint64_t{1});
     REQUIRE_EQ(stats->suspended_firings, std::uint64_t{1});
+}
+
+// -- what the Log says of a set ----------------------------------------------
+
+namespace
+{
+
+/// The texts of the engine's lines about rule sets on `port`: the log
+/// messages that start with "rule set", in the order they came.
+std::vector<std::string> rule_lines(const event_recorder& events,
+                                    const std::string& port)
+{
+    std::vector<std::string> out;
+    for (const auto& event : events.snapshot())
+    {
+        if (event.kind == event_kind::log_message && event.name == port &&
+            event.message.starts_with("rule set"))
+            out.push_back(event.message);
+    }
+    return out;
+}
+
+/// Waits for the lines about rule sets on "device" to be `count`, and
+/// returns them.
+std::vector<std::string> wait_rule_lines(const studio_bench& b,
+                                         std::size_t count)
+{
+    REQUIRE(wait_until(
+        [&] { return rule_lines(b.events, "device").size() >= count; },
+        5000ms));
+    return rule_lines(b.events, "device");
+}
+
+} // namespace
+
+TEST_CASE("studio rules: an installation, a replacement and a removal write a "
+          "line to the Log")
+{
+    studio_bench b;
+    rules_install_options options;
+    options.run_seed = 5;
+    const auto first = b.install(peer_set(reply_after_5ms), options);
+    REQUIRE(first);
+    auto lines = wait_rule_lines(b, 1);
+    REQUIRE_EQ(lines[0], std::string("rule set \"device\" installed: "
+                                     "generation 1, seed 5, 1 rule(s)"));
+    for (const auto& event : b.events.snapshot())
+    {
+        if (event.kind == event_kind::log_message &&
+            event.message.starts_with("rule set"))
+        {
+            REQUIRE_EQ(event.endpoint, b.id);
+            REQUIRE_EQ(event.name, std::string("device"));
+        }
+    }
+
+    // A set of its own seed, with no name, and two rules.
+    rules_replace_options replace;
+    replace.run_seed = 5;
+    const auto second = b.app.replace_rules(
+        make_set(R"j({"attach": {"role": "peer", "port": "device"},
+                      "seed": 9,
+                      "rules": [
+                        {"name": "a", "when": {"bytes": "01"},
+                         "do": [{"mark": "a"}]},
+                        {"name": "b", "when": {"bytes": "02"},
+                         "do": [{"mark": "b"}]}]})j"),
+        replace);
+    REQUIRE(second);
+    REQUIRE_EQ(second->generation, std::uint64_t{2});
+    lines = wait_rule_lines(b, 2);
+    REQUIRE_EQ(lines[1], std::string("rule set installed in place of "
+                                     "generation 1: generation 2, seed 9"));
+
+    REQUIRE(b.app.remove_rules(b.id));
+    lines = wait_rule_lines(b, 3);
+    REQUIRE_EQ(lines[2], std::string("rule set removed: generation 2"));
+
+    // A removal of what is not there is an error and says nothing.
+    REQUIRE_EQ(b.app.remove_rules(b.id).error(), not_found);
+    // A set that is refused says nothing either.
+    REQUIRE(!b.install(
+        peer_set(one_step(on_bytes, R"j({"ask": {"timeout_us": 5000}})j"))));
+    std::this_thread::sleep_for(30ms);
+    REQUIRE_EQ(rule_lines(b.events, "device").size(), std::size_t{3});
+
+    // A named set is named again after a new installation, with a new
+    // generation.
+    REQUIRE(b.install(peer_set(idle_rules)));
+    lines = wait_rule_lines(b, 4);
+    REQUIRE_EQ(lines[3], std::string("rule set \"device\" installed: "
+                                     "generation 3, seed 0, 1 rule(s)"));
+}
+
+TEST_CASE("studio rules: a set's name cannot start a line of its own in the "
+          "Log")
+{
+    // A name is any text of the document's, here with a quote, a line feed, a
+    // carriage return and a bell.  What the Log shows is one line for each
+    // event, with the control characters written out or replaced.
+    studio_bench b;
+    const std::string document =
+        R"j({"version": 1, "name": "a\"\nrule set \"forged\r\u0007",
+             "attach": {"role": "peer", "port": "device"}, "rules": )j" +
+        std::string(idle_rules) + "}";
+    REQUIRE(b.install(document));
+    REQUIRE(b.app.remove_rules(b.id));
+
+    const auto lines = wait_rule_lines(b, 2);
+    REQUIRE_EQ(lines.size(), std::size_t{2});
+    const std::string label = R"j(rule set "a"\nrule set "forged\r.")j";
+    REQUIRE_EQ(lines[0], label + " installed: generation 1, seed 0, 1 rule(s)");
+    REQUIRE_EQ(lines[1], label + " removed: generation 1");
+    for (const auto& event : b.events.snapshot())
+    {
+        if (event.kind != event_kind::log_message)
+            continue;
+        for (const char each : event.message)
+            REQUIRE(static_cast<unsigned char>(each) >= 0x20);
+    }
+}
+
+TEST_CASE("studio rules: removing the port writes the removal of its set to "
+          "the Log")
+{
+    studio_bench b;
+    REQUIRE(b.install(peer_set(idle_rules)));
+    wait_rule_lines(b, 1);
+    REQUIRE(b.app.remove_port(b.id));
+    const auto lines = wait_rule_lines(b, 2);
+    REQUIRE_EQ(lines[1], std::string("rule set \"device\" removed: "
+                                     "generation 1"));
+}
+
+TEST_CASE("studio rules: a suspension, by the budget or by the caller, and "
+          "its end, write a line to the Log")
+{
+    studio_bench b;
+    rules_install_options options;
+    options.limits.firings_per_second = 2;
+    REQUIRE(b.install(peer_set(answer_one_byte), options));
+    wait_rule_lines(b, 1);
+
+    b.speak("01");
+    b.speak("01");
+    // The third at the same instant finds the budget spent.
+    b.speak("01");
+    auto lines = wait_rule_lines(b, 2);
+    REQUIRE_EQ(lines[1],
+               std::string("rule set \"device\" suspended: it fired more "
+                           "than 2 times a second. It stays suspended until "
+                           "it is resumed."));
+    REQUIRE(b.app.rule_stats(b.id)->suspended == rules::suspend_reason::budget);
+
+    // Told once, however many bytes follow.
+    speak_to_suspended(b, "01 01");
+    std::this_thread::sleep_for(30ms);
+    REQUIRE_EQ(rule_lines(b.events, "device").size(), std::size_t{2});
+
+    // Resuming a suspended set says so, and resuming one that runs does not.
+    REQUIRE(b.app.resume_rules(b.id));
+    lines = wait_rule_lines(b, 3);
+    REQUIRE_EQ(lines[2], std::string("rule set \"device\" resumed"));
+    REQUIRE(b.app.resume_rules(b.id));
+    std::this_thread::sleep_for(30ms);
+    REQUIRE_EQ(rule_lines(b.events, "device").size(), std::size_t{3});
+
+    // Asked for by the caller.
+    REQUIRE(b.app.suspend_rules(b.id));
+    lines = wait_rule_lines(b, 4);
+    REQUIRE_EQ(lines[3], std::string("rule set \"device\" suspended."));
+    // Suspending a suspended set is not another suspension.
+    REQUIRE(b.app.suspend_rules(b.id));
+    std::this_thread::sleep_for(30ms);
+    REQUIRE_EQ(rule_lines(b.events, "device").size(), std::size_t{4});
+    REQUIRE(b.app.resume_rules(b.id));
+    lines = wait_rule_lines(b, 5);
+    REQUIRE_EQ(lines[4], std::string("rule set \"device\" resumed"));
+}
+
+TEST_CASE("studio rules: late actions are reported at most once a second")
+{
+    studio_bench b;
+    REQUIRE(b.install(peer_set(R"j([
+      {"name": "answer", "when": {"bytes": "01"},
+       "do": [{"reply": ["aa"], "delay": {"fixed_us": 1000}}]}
+    ])j",
+                               R"j("late_after_us": 2000, )j")));
+    wait_rule_lines(b, 1);
+
+    // An action on time says nothing: it is done at its time.
+    b.speak("01");
+    b.clock.advance(1ms);
+    b.wait_sent("aa");
+    REQUIRE(
+        wait_until([&] { return b.app.rule_stats(b.id)->done == 1; }, 5000ms));
+    std::this_thread::sleep_for(30ms);
+    REQUIRE_EQ(rule_lines(b.events, "device").size(), std::size_t{1});
+    REQUIRE_EQ(b.app.rule_stats(b.id)->late, std::uint64_t{0});
+
+    // The clock jumps past the action's time and its tolerance: late by 9 ms.
+    b.speak("01");
+    b.clock.advance(10ms);
+    auto lines = wait_rule_lines(b, 2);
+    REQUIRE_EQ(lines[1], std::string("rule set \"device\": 1 action(s) late, "
+                                     "the worst by 9000 microseconds"));
+
+    // A second jump inside the same second is late too, and adds no line.
+    b.speak("01");
+    b.clock.advance(20ms);
+    REQUIRE(
+        wait_until([&] { return b.app.rule_stats(b.id)->late == 2; }, 5000ms));
+    std::this_thread::sleep_for(30ms);
+    REQUIRE_EQ(rule_lines(b.events, "device").size(), std::size_t{2});
+
+    // A second later the next late action tells of itself and of the one that
+    // was not told: the count and the worst are of those since the last line.
+    b.clock.advance(1s);
+    b.speak("01");
+    b.clock.advance(5ms);
+    lines = wait_rule_lines(b, 3);
+    REQUIRE_EQ(lines[2], std::string("rule set \"device\": 2 action(s) late, "
+                                     "the worst by 19000 microseconds"));
+    REQUIRE_EQ(b.app.rule_stats(b.id)->late, std::uint64_t{3});
 }
 
 // -- what a studio takes -----------------------------------------------------

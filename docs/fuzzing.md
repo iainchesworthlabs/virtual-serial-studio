@@ -23,11 +23,27 @@ crashes in `regressions/`.
 | Replay in the normal tests | Every build | CTest tests `fuzz_topology`, `fuzz_endpoint_uri`, `fuzz_agent_frame`, `fuzz_plugin_manifest`, `fuzz_plugin_message`, `fuzz_rule_set`, `fuzz_control_message`, `fuzz_licence` and `fuzz_update_feed` (label `fuzz`) run each corpus and regression file once, through the `fuzz_topology_replay`, `fuzz_endpoint_uri_replay`, `fuzz_agent_frame_replay`, `fuzz_plugin_manifest_replay`, `fuzz_plugin_message_replay`, `fuzz_rule_set_replay`, `fuzz_control_message_replay`, `fuzz_licence_replay` and `fuzz_update_feed_replay` programs. They work with any compiler, and run under AddressSanitizer and UBSan in the `AddressSanitizer and UBSan` job |
 | `Fuzz regression replay` (`fuzz-regress` in `ci.yml`) | Every ready pull request and merge-queue entry | Builds the `linux-fuzz` targets and replays the same files under libFuzzer with `tools/fuzz.py --mode regress`, then runs the unit tests of that script |
 | `Fuzz` in `.github/workflows/fuzz.yml` | Push to `develop`: 60 seconds a target | Replays the files, then fuzzes each target |
-| | Every night: 10 minutes a target | The same; the working corpus is kept between runs in the Actions cache |
+| | Every night: 10 minutes a target, in a budget of 90 minutes for all the targets | The same; the working corpus is kept between runs in the Actions cache |
 | | On request (`workflow_dispatch`) | Either length, chosen in the run form |
 
 A crash fails the run, uploads the input as the `fuzz-crashes` artifact and, at
 night, opens or updates a `nightly-analysis` issue.
+
+**The time.** The targets run one after another in one job, so the job needs time
+for all of them. The run passes `--budget-minutes 90` (`FUZZ_BUDGET_MINUTES` in
+`fuzz.yml`) and the job's `timeout-minutes` is 120, which holds the budget and the
+build. `tools/fuzz.py` gives each target the time of the mode or an equal share of
+the budget, whichever is less. The share is 5400 seconds divided by the number of
+targets, so up to nine targets get their 10 minutes, a tenth shortens them all to 9
+minutes, and a nineteenth (284 seconds each) is refused. Under 5 minutes a target at
+night (30 seconds on a push) the script stops with status 2 and says so: raise the
+limit, or split the targets across jobs. `tools/test_fuzz.py` checks that the limit
+holds the budget and that every target still gets its 10 minutes, so the tenth target
+fails the pull request that adds it, until the budget and the limit are raised, and not
+a night some weeks later. A target that does not stop within 3
+minutes of its time is killed and counted as a failure. A run that does run out of time
+is cancelled, not failed; the steps that keep the crash and open the issue run for a
+cancelled run too.
 
 ## Running it yourself
 
@@ -40,7 +56,8 @@ python3 tools/fuzz.py --mode short
 ```
 
 `--mode regress` only replays the files, `--mode short` fuzzes for 60 seconds a
-target, `--mode nightly` for ten minutes, and `--seconds` sets another time.
+target, `--mode nightly` for ten minutes, `--seconds` sets another time and
+`--budget-minutes` shares that many minutes between the targets.
 `--build-dir` (default `build/linux-fuzz`) and `--work-dir` (default
 `.cache/fuzz`) move the two directories. New inputs go to
 `.cache/fuzz/<harness>`, which Git ignores; crash files go to

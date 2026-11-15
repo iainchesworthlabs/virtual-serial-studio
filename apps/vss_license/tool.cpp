@@ -14,14 +14,18 @@
 
 #include <boost/json/object.hpp>
 #include <boost/json/parse.hpp>
+#include <boost/json/value.hpp>
 
 #include <algorithm>
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <ostream>
 #include <set>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -141,6 +145,25 @@ std::optional<std::string> read_file(const std::string& path)
     if (count > sf::max_file_size)
         return std::nullopt;
     text.resize(count);
+    return text;
+}
+
+/// The bytes of a file that holds a private key, or nothing when it cannot be
+/// read or is larger than a signed file may be. The text is read straight into
+/// a buffer that is never reallocated, with no stream in between, so that the
+/// only copy is the one the caller wipes.
+std::optional<std::string> read_secret_file(const std::string& path)
+{
+    std::string text(sf::max_file_size + 1, '\0');
+    const auto count =
+        platform::read_file_into(std::filesystem::path(path), text);
+    if (!count || *count > sf::max_file_size)
+    {
+        signing::wipe(text);
+        return std::nullopt;
+    }
+    // Shrinking keeps the buffer, and the part past `count` is still zero.
+    text.resize(*count);
     return text;
 }
 
@@ -384,7 +407,13 @@ int verify(std::span<const std::string> words, surroundings& where)
     if (const std::string* machine = args->option("--machine"))
         judged.computer_name = *machine;
 
-    revocation_list revoked;
+    // The list in force is the one built into this build, replaced by the
+    // given file only when the file's sequence number is higher: the rule
+    // Studio uses (docs/licensing.md, "Revocation"). So `verify` never says
+    // "valid" for a licence that Studio of the same build shows as withdrawn.
+    revocation_list revoked = where.builtin;
+    std::string consulted = "the list built into this build (sequence " +
+                            std::to_string(where.builtin.sequence) + ")";
     if (const std::string* path = args->option("--revocations"))
     {
         const auto text = read_file(*path);
@@ -400,9 +429,14 @@ int verify(std::span<const std::string> words, surroundings& where)
                       << list.error().message() << ".\n";
             return exit_failed;
         }
-        revoked = std::move(*list);
-        judged.revocations = &revoked;
+        const bool file_wins = list->sequence > where.builtin.sequence;
+        consulted = "the file given (sequence " +
+                    std::to_string(list->sequence) + ") and " + consulted +
+                    "; the " + (file_wins ? "file" : "built-in list") +
+                    " is used";
+        revoked = newer(where.builtin, *list);
     }
+    judged.revocations = &revoked;
 
     const auto text = read_file(args->positional.front());
     if (!text)
@@ -415,7 +449,8 @@ int verify(std::span<const std::string> words, surroundings& where)
     const status result = evaluate(*text, judged);
     where.out << "State: " << name_of(result.state) << '\n'
               << "Reason: " << sentence_for(result.reason) << '\n'
-              << "Judged at: " << format_time(judged.now) << '\n';
+              << "Judged at: " << format_time(judged.now) << '\n'
+              << "Revocations: " << consulted << '\n';
     if (result.value)
     {
         where.out << "Licence: " << result.value->licence_id << '\n'
@@ -528,7 +563,7 @@ std::optional<int> load_key(const arguments& args, surroundings& where,
 
     std::optional<std::string> text;
     if (key_file != nullptr)
-        text = read_file(*key_file);
+        text = read_secret_file(*key_file);
     else if (where.variable)
         text = where.variable(*key_env);
     if (!text)
@@ -656,6 +691,220 @@ std::optional<std::string> read_request(const arguments& args,
     return text;
 }
 
+// The fields a request may hold. They are the payload fields of
+// docs/licensing.md ("Payload"), and the library writes exactly these. A
+// request is the owner's own text, so a name that is not here is a mistake to
+// report: the reader a customer runs ignores unknown fields, and signing a
+// copy without them would issue a different licence from the one asked for.
+constexpr std::array<std::string_view, 15> licence_request_fields{
+    "licence_id", "kind",          "edition",    "licensee",    "issued_at",
+    "starts_at",  "expires_at",    "grace_days", "seats",       "features",
+    "machines",   "updates_until", "replaces",   "clock_reset", "critical"};
+constexpr std::array<std::string_view, 2> licensee_request_fields{"name",
+                                                                  "contact"};
+constexpr std::array<std::string_view, 5> revocation_request_fields{
+    "sequence", "issued_at", "licences", "keys", "critical"};
+constexpr std::array<std::string_view, 2> revoked_key_request_fields{"key_id",
+                                                                     "from"};
+
+/// A field name as a message shows it: control characters and every byte
+/// outside ASCII are replaced, so that a zero-width character or a letter that
+/// looks like another cannot make a wrong name read as a right one. Not long.
+std::string shown(std::string_view name)
+{
+    constexpr std::size_t longest = 64;
+    std::string text;
+    for (const char c : name.substr(0, longest))
+    {
+        const auto byte = static_cast<unsigned char>(c);
+        text += byte < 0x20 || byte >= 0x7f ? '?' : c;
+    }
+    if (name.size() > longest)
+        text += "...";
+    return text;
+}
+
+/// The request as a JSON object, or nothing when it is not one. The library's
+/// reader then says what is wrong with it.
+std::optional<boost::json::object> request_object(std::string_view text)
+{
+    boost::system::error_code failed;
+    boost::json::value document = boost::json::parse(text, failed);
+    if (failed || !document.is_object())
+        return std::nullopt;
+    // Taken out of the document, not copied: a returned local is moved.
+    boost::json::object object = std::move(document.as_object());
+    return object;
+}
+
+/// A message for the first key of `object` that is not in `known`. `owner`
+/// names the object the key is in, and is empty for the request itself.
+std::optional<std::string>
+unknown_field(const boost::json::object& object,
+              std::span<const std::string_view> known, std::string_view owner)
+{
+    for (const auto& entry : object)
+    {
+        const std::string_view name = entry.key();
+        if (std::ranges::find(known, name) == known.end())
+        {
+            std::string qualified(owner);
+            if (!owner.empty())
+                qualified += '.';
+            return "the field \"" + qualified + shown(name) +
+                   "\" is not one this tool knows";
+        }
+    }
+    return std::nullopt;
+}
+
+/// A request that names fields in `critical` cannot be written as asked: the
+/// tool writes an empty list, so the names would be dropped without a word.
+std::optional<std::string> critical_fault(const boost::json::object& request)
+{
+    const boost::json::value* critical = request.if_contains("critical");
+    if (critical != nullptr && critical->is_array() &&
+        !critical->as_array().empty())
+    {
+        return std::string("critical is not empty, and this tool writes no "
+                           "critical fields, so they would be dropped");
+    }
+    return std::nullopt;
+}
+
+/// The first field of a licence request that is not a payload field.
+std::optional<std::string>
+unknown_licence_field(const boost::json::object& request)
+{
+    if (auto fault = unknown_field(request, licence_request_fields, ""))
+        return fault;
+    const boost::json::value* licensee = request.if_contains("licensee");
+    if (licensee != nullptr && licensee->is_object())
+    {
+        return unknown_field(licensee->as_object(), licensee_request_fields,
+                             "licensee");
+    }
+    return std::nullopt;
+}
+
+/// `VSS-<year>-<six digits>`.
+bool is_licence_id(std::string_view text)
+{
+    constexpr std::string_view prefix = "VSS-";
+    constexpr std::size_t year_length = 4;
+    constexpr std::size_t number_length = 6;
+    const auto is_digit = [](char c) { return c >= '0' && c <= '9'; };
+    const std::size_t dash = prefix.size() + year_length;
+    return text.size() == dash + 1 + number_length &&
+           text.starts_with(prefix) &&
+           std::ranges::all_of(text.substr(prefix.size(), year_length),
+                               is_digit) &&
+           text[dash] == '-' &&
+           std::ranges::all_of(text.substr(dash + 1), is_digit);
+}
+
+/// A message for the first rule of docs/licensing.md that a licence request
+/// breaks. Only rules the page states are checked, and each says which
+/// section it is from.
+std::optional<std::string> licence_fault(const boost::json::object& request,
+                                         const licence& value, time_point now)
+{
+    // "Payload": `features` is the one list not marked optional, so a request
+    // without it is a mistake, not a licence that grants nothing.
+    if (!request.contains("features"))
+    {
+        return std::string("features is missing; give [] if the licence is to "
+                           "turn nothing on");
+    }
+    if (const auto fault = critical_fault(request))
+        return fault;
+
+    // "Payload": `licence_id` is VSS-<year>-<six digits>, and `replaces` is
+    // the id of another licence.
+    if (!is_licence_id(value.licence_id))
+        return std::string(
+            "licence_id is not of the form VSS-<year>-<six digits>");
+    if (!value.replaces.empty() && !is_licence_id(value.replaces))
+        return std::string(
+            "replaces is not a licence id of the form VSS-<year>-<six digits>");
+
+    // "Payload", `issued_at`: when the owner signed it. A clock may be out by
+    // `clock_tolerance`; a date further ahead than that is not a time of
+    // signing, and customers would see "the date on this computer looks
+    // wrong".
+    if (value.issued_at > now + clock_tolerance)
+        return std::string("issued_at is more than 48 hours ahead of this "
+                           "computer's clock, so it is not when the licence "
+                           "was signed");
+
+    // "Payload", `issued_at` and `expires_at`: a licence signed after its
+    // term has ended could only ever be in its grace period or expired.
+    if (value.issued_at > value.expires_at)
+        return std::string("issued_at is after expires_at, so the licence "
+                           "would be signed after its term has ended");
+
+    // "Payload", `grace_days`, and "Trials": a trial has no grace period, one
+    // seat and no machine binding.
+    if (value.kind == licence_kind::trial)
+    {
+        if (value.grace_days != 0)
+            return std::string("a trial has no grace period: grace_days must "
+                               "be 0");
+        if (value.seats != 1)
+            return std::string("a trial has one seat: seats must be 1");
+        if (!value.machines.empty())
+            return std::string("a trial has no machine binding: machines must "
+                               "be empty");
+    }
+    return std::nullopt;
+}
+
+/// The first field of a revocation request that is not a payload field.
+std::optional<std::string>
+unknown_revocation_field(const boost::json::object& request)
+{
+    if (auto fault = unknown_field(request, revocation_request_fields, ""))
+        return fault;
+    const boost::json::value* keys = request.if_contains("keys");
+    if (keys == nullptr || !keys->is_array())
+        return std::nullopt;
+    for (const boost::json::value& entry : keys->as_array())
+    {
+        if (!entry.is_object())
+            continue;
+        if (auto fault = unknown_field(entry.as_object(),
+                                       revoked_key_request_fields, "keys"))
+            return fault;
+    }
+    return std::nullopt;
+}
+
+/// The same for a revocation request.
+std::optional<std::string> revocations_fault(const boost::json::object& request,
+                                             const revocation_list& value)
+{
+    if (const auto fault = critical_fault(request))
+        return fault;
+
+    // "Revocation": a signed list replaces the release's list only when its
+    // sequence number is higher, "so signed lists start at 1".
+    if (value.sequence < 1)
+    {
+        return std::string("sequence must be 1 or more, because a signed list "
+                           "replaces the release's list only when its number "
+                           "is higher");
+    }
+    return std::nullopt;
+}
+
+/// Says that a request is refused, and why.
+int refuse(surroundings& where, const std::string& fault)
+{
+    where.err << "The request is refused: " << fault
+              << ". Nothing was signed.\n";
+    return exit_failed;
+}
+
 int issue(std::span<const std::string> words, surroundings& where)
 {
     const auto args =
@@ -667,12 +916,25 @@ int issue(std::span<const std::string> words, surroundings& where)
     if (!request)
         return status;
 
+    // A misspelt field is named before anything else is said about the
+    // request, since it is also the likeliest reason for a field to be missing.
+    const auto object = request_object(*request);
+    if (object)
+    {
+        if (const auto fault = unknown_licence_field(*object))
+            return refuse(where, *fault);
+    }
     const auto value = parse_payload(bytes_of(*request));
     if (!value)
     {
         where.err << "The request is not a licence payload: "
                   << value.error().message() << ".\n";
         return exit_failed;
+    }
+    if (object)
+    {
+        if (const auto fault = licence_fault(*object, *value, where.now))
+            return refuse(where, *fault);
     }
     const auto payload = write_payload(*value);
     if (!payload)
@@ -725,12 +987,23 @@ int revocations(std::span<const std::string> words, surroundings& where)
     if (!request)
         return status;
 
+    const auto object = request_object(*request);
+    if (object)
+    {
+        if (const auto fault = unknown_revocation_field(*object))
+            return refuse(where, *fault);
+    }
     const auto value = parse_revocations(bytes_of(*request));
     if (!value)
     {
         where.err << "The request is not a revocation list: "
                   << value.error().message() << ".\n";
         return exit_failed;
+    }
+    if (object)
+    {
+        if (const auto fault = revocations_fault(*object, *value))
+            return refuse(where, *fault);
     }
     const auto payload = write_revocations(*value);
     if (!payload)
@@ -780,7 +1053,14 @@ int keygen(std::span<const std::string> words, surroundings& where)
     }
     const sf::public_key public_half = signing::public_key_of(key.seed);
 
-    std::string text = signing::format_seed(key.seed);
+    // The text is copied once into a string that has room for the new line,
+    // so that adding the line does not move it to another buffer and leave
+    // the first one behind unwiped.
+    std::string seed_text = signing::format_seed(key.seed);
+    std::string text;
+    text.reserve(seed_text.size() + 1);
+    text = seed_text;
+    signing::wipe(seed_text);
     text += '\n';
     const bool written = platform::write_private_file(*out, text);
     signing::wipe(text);

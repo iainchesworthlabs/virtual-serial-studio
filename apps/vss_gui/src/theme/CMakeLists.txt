@@ -11,6 +11,7 @@ add_library(vss_gui_theme STATIC
   icon_provider.hpp
   focus_ring_style.cpp
   focus_ring_style.hpp
+  scaled_font.hpp
   theme_resources.qrc)
 
 target_include_directories(vss_gui_theme PUBLIC

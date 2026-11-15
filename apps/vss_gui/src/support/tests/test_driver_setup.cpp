@@ -63,7 +63,7 @@ TEST_CASE("driver setup: every way the script can end has its own sentence")
     using support::driver_setup_result;
     struct expectation
     {
-        int exit_code;
+        int exit_code = 0;
         driver_setup_result result;
     };
     const expectation table[] = {
