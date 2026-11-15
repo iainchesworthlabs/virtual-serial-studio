@@ -162,6 +162,8 @@ private:
             context.licence = options.licence();
             context.licence_known = true;
         }
+        if (options.change_context_for_tests)
+            options.change_context_for_tests(context);
         if (change)
         {
             trust_store store =

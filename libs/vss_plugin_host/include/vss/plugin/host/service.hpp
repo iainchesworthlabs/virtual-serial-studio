@@ -64,6 +64,11 @@ struct service_options
     /// Asked at every scan for the licence on this computer.  When it is
     /// not set, no plugin that needs a licence runs.
     std::function<license::status()> licence;
+    /// For tests only: changes what was read from this computer before
+    /// any plugin is checked, so that a test can name a key list of its
+    /// own as the official one.  A program that ships leaves it unset;
+    /// setting it there would let it decide what counts as official.
+    std::function<void(inspect_context&)> change_context_for_tests;
 };
 
 /// One installed plugin, as the service sees it at one moment.
