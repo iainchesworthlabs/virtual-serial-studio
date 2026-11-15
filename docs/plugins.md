@@ -742,6 +742,46 @@ Rules for the proxy:
   must do before it accepts a connection. **This page requires only that the address be declared, granted, shown and
   never wider than the grant.**
 
+**The control relay.** The remote control and monitoring plugin uses the control gateway (`remote-control.md`) through
+the host, and never holds a token or opens a connection. A confined plugin cannot reach this computer's loopback
+addresses on Windows; a TCP port is open to every local user, while the gateway's local endpoint (a named pipe or a Unix
+socket) is the user's alone; and a token the plugin never sees cannot leak from it. The host keeps one `control_relay`
+for the plugin (`libs/vss_plugin_host`, `control_relay.hpp`):
+
+| Message | From | Content |
+|---|---|---|
+| `control.session.request` | plugin | `scopes`, `peer` (untrusted text, at most 64 bytes) and `reason` (at most 256 bytes). The answer is `ok` with `session`, the `scopes` granted and `expires`, or an error: `permission_denied` or `plugin_unavailable` |
+| `control.frame` | both ways | `session`, and in the frame's header one header of the gateway's protocol, unchanged, with its bytes in the blob |
+| `control.session.close` | plugin | `session` |
+| `control.session.closed` | host | `session`, a `code` and a plain `reason`. The code is `revoked` (the gateway said `unauthenticated` before the token's time was up), `expired` (the token's time has passed), `gateway_closed` (the connection ended for any other reason), `refused_frame` (the host closed the session because of a frame it refused) or `host_stopped` (the host closed it, as `control.session.close` or because the plugin stopped) |
+
+- A request names scope names the control API has, never `admin`, and a plugin has at most four sessions and one request
+  open at a time. Nothing is made until the user approves the exact scopes that will be asked of the gateway, shown with
+  the plugin's name and the cleaned `peer` text. The id, name, `peer` and `reason` come from the plugin and its manifest,
+  so they are cleaned (no control, invisible or direction characters, odd spaces made ordinary) and cut to 64 bytes, and
+  the prompt shows the `reason` set apart as the plugin's own words.
+- The gateway keeps 256 token records, and a revoked one stays for the rest of its life and a week more, so a plugin must
+  not be able to use them up. While the host holds a session for the same `peer` and the same scopes a second request is
+  refused (`busy`); at most eight tokens are made for a plugin in 24 hours, and a request over that is refused before
+  anyone is asked. After the user refuses, further requests are refused without asking for a minute, then twice as long
+  after each refusal up to 15 minutes, until the user approves.
+- On approval the host connects to the gateway's administration endpoint as the user and makes a token for these scopes
+  on the local endpoint only, with a life of 24 hours unless set otherwise and a label `plugin:<id> <peer>`. It connects
+  to the gateway's local endpoint, says `hello` with that token and opens the session only when the gateway answers as
+  that token. The token is held in the host's memory only, is wiped once `hello` is written, and appears in no message to
+  the plugin, no error text and no log line.
+- **The one rule that matters:** a plugin's frames only ever travel on a connection whose `hello` carried the plugin's
+  own token. A `hello` without a token is the user's, with the local role, so the relay never sends a plugin's frame on a
+  connection it did not make that way, and a frame of the plugin that asks for `hello` is refused and its session closed.
+- Each session has a token of its own. When the session ends (the plugin closes it, the gateway closes it or the token is
+  revoked or ends, the plugin stops or fails) the host closes the connection and revokes the token on the administration
+  endpoint, within a time limit, so a plugin that has gone leaves no usable token behind.
+- A frame for a session number the host does not know is dropped without a word. When a session ends the plugin is told
+  why, with a `code` and a `reason`; it never holds the token.
+- If no gateway runs the plugin is told `plugin_unavailable` and nothing is tried again. A plugin that reads slowly
+  makes the host stop reading that connection, so the gateway's own back-pressure applies, and a plugin whose frames the
+  gateway does not take as fast as they come loses the session.
+
 ### 7.8 Parameters and state
 
 Parameters are the only way a user's settings reach a plugin. Types, all with limits in the manifest:

@@ -59,6 +59,7 @@
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
+#include <vss/plugin/host/control_relay.hpp>
 #include <vss/plugin/host/process.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/service.hpp>
