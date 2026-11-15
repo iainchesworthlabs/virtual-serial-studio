@@ -170,7 +170,7 @@ ServicePluginBackend::~ServicePluginBackend()
     }
     catch (...)
     {
-        // Nothing more can be done at the end of the program.
+        // best effort: nothing more can be done at the end of the program.
     }
 }
 

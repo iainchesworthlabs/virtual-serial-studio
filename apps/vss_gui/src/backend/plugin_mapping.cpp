@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iterator>
+#include <utility>
 
 namespace vss::gui
 {
@@ -274,7 +275,7 @@ plugin_key_file_view read_key_file_view(const fs::path& path,
 
     view.failure = plugin_key_file_view::problem::none;
     if (key_out != nullptr)
-        *key_out = approved;
+        *key_out = std::move(approved);
     return view;
 }
 

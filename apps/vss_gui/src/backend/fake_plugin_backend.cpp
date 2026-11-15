@@ -67,7 +67,7 @@ bool FakePluginBackend::change(const QString& plugin_id,
 {
     // A new snapshot each time: a screen may still hold the old one.
     auto next = std::make_shared<plugin_snapshot>(*snapshot_);
-    snapshot_ = next;
+    snapshot_ = std::move(next);
     plugin_view* target = find(plugin_id);
     if (target == nullptr)
         return false;

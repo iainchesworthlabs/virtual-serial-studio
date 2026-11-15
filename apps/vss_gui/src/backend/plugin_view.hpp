@@ -161,6 +161,9 @@ struct plugin_use
 
 struct plugin_view
 {
+    // The text, dates and lists come first and the numbers, enumerators and
+    // flags last, each kind together, so that the struct has no gaps.
+
     // -- identity, as the plugin says it. Plain text, never markup.
     QString id;
     QString name;
@@ -170,8 +173,6 @@ struct plugin_view
     QString folder;
 
     // -- what the host found
-    plugin_installed_for installed_for = plugin_installed_for::you_only;
-    plugin_trust trust = plugin_trust::unsigned_plugin;
     /// The id of the signing key, or empty.
     QString key_id;
     /// The name the user saw when they approved the key, or empty.
@@ -182,8 +183,6 @@ struct plugin_view
     /// The whole hash, as the decision is tied to it.
     QString hash;
 
-    plugin_state state = plugin_state::off;
-    plugin_note note = plugin_note::none;
     /// The reason code of docs/plugins.md section 12, or empty.
     QString reason_code;
     /// The host's own line, for "Copy details" only.
@@ -191,49 +190,56 @@ struct plugin_view
     /// What the running plugin last said of itself. Plain text, untrusted.
     QString status_text;
 
-    /// The user switched it on. In a build that cannot run plugins the state
-    /// stays Off and this is only the wish.
-    bool wished_on = false;
-
-    // -- numbers and names the notes use
-    int back_off_seconds = 0;
-    int attempt = 0;
-    int failure_count = 0;
+    // -- names the notes use
     QString limit_name;
     QString capability_name;
     QString studio_version;
     QDate expires;
-    /// For Needs a licence.
-    vss::license::reason licence_reason = vss::license::reason::ok;
     vss::license::status licence_status = vss::license::no_licence();
     /// For Not used: the copy that is used, as a row of this list.
     QString used_copy_folder;
-    plugin_trust used_copy_trust = plugin_trust::unsigned_plugin;
     QString used_copy_author;
     QString used_copy_id;
-    bool newer_than_used_copy = false;
     QString this_version_text;
 
     // -- isolation
-    plugin_isolation isolation = plugin_isolation::none;
     /// What is missing, for "Partial: <what is missing>".
     QString isolation_missing;
-    /// The user may let it run without isolation (docs/plugins.md 9.2).
-    bool override_allowed = false;
-    bool override_active = false;
     QDate override_on;
 
-    plugin_timing timing = plugin_timing::by_studio;
-    int budget_us = 0;
     /// The program of this computer it runs with, or empty.
     QString runtime_name;
 
     std::vector<plugin_addition> adds;
     std::vector<plugin_permission_view> permissions;
-    /// This version is not the one the user approved.
-    bool differs_from_approved = false;
     std::vector<plugin_use> used_in;
     std::vector<plugin_log_line> log;
+
+    // -- enumerators and numbers
+    plugin_installed_for installed_for = plugin_installed_for::you_only;
+    plugin_trust trust = plugin_trust::unsigned_plugin;
+    plugin_state state = plugin_state::off;
+    plugin_note note = plugin_note::none;
+    /// For Needs a licence.
+    vss::license::reason licence_reason = vss::license::reason::ok;
+    plugin_trust used_copy_trust = plugin_trust::unsigned_plugin;
+    plugin_isolation isolation = plugin_isolation::none;
+    plugin_timing timing = plugin_timing::by_studio;
+    int back_off_seconds = 0;
+    int attempt = 0;
+    int failure_count = 0;
+    int budget_us = 0;
+
+    // -- flags
+    /// The user switched it on. In a build that cannot run plugins the state
+    /// stays Off and this is only the wish.
+    bool wished_on = false;
+    bool newer_than_used_copy = false;
+    /// The user may let it run without isolation (docs/plugins.md 9.2).
+    bool override_allowed = false;
+    bool override_active = false;
+    /// This version is not the one the user approved.
+    bool differs_from_approved = false;
 };
 
 /// The note at the top of the dialog, one at a time, in this priority.

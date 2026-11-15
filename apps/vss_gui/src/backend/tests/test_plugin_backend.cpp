@@ -57,12 +57,12 @@ signing::seed test_seed(std::uint8_t fill)
 
 std::string hex_of(const plug::key_bytes& key)
 {
-    constexpr std::string_view digits = "0123456789abcdef";
+    constexpr std::string_view kDigits = "0123456789abcdef";
     std::string out;
     for (const std::uint8_t byte : key)
     {
-        out += digits[byte >> 4];
-        out += digits[byte & 0x0f];
+        out += kDigits[byte >> 4];
+        out += kDigits[byte & 0x0f];
     }
     return out;
 }

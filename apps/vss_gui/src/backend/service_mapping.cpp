@@ -191,8 +191,7 @@ vss::license::reason licence_reason_for(const host::service_plugin& plugin,
         vss::license::check(licence, plug::plugin_feature(plugin.id));
     if (!said.granted)
     {
-        said = vss::license::check(
-            licence, std::string(plug::all_official_plugins_feature));
+        said = vss::license::check(licence, plug::all_official_plugins_feature);
     }
     return said.reason;
 }
