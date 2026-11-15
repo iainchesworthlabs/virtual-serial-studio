@@ -262,7 +262,8 @@ private:
 };
 
 child_process::child_process(const std::string& program,
-                             const std::vector<std::string>& arguments)
+                             const std::vector<std::string>& arguments,
+                             const std::string& stderr_file)
     : impl_(std::make_unique<impl>())
 {
     std::array<int, 2> ends{-1, -1};
@@ -280,8 +281,17 @@ child_process::child_process(const std::string& program,
         actions.get(), STDIN_FILENO, "/dev/null", O_RDONLY, 0));
     actions.check(::posix_spawn_file_actions_adddup2(
         actions.get(), write_end.get(), STDOUT_FILENO));
-    actions.check(::posix_spawn_file_actions_adddup2(
-        actions.get(), write_end.get(), STDERR_FILENO));
+    if (stderr_file.empty())
+    {
+        actions.check(::posix_spawn_file_actions_adddup2(
+            actions.get(), write_end.get(), STDERR_FILENO));
+    }
+    else
+    {
+        actions.check(::posix_spawn_file_actions_addopen(
+            actions.get(), STDERR_FILENO, stderr_file.c_str(),
+            O_WRONLY | O_CREAT | O_TRUNC, 0600));
+    }
     actions.check(
         ::posix_spawn_file_actions_addclose(actions.get(), read_end.get()));
     actions.check(

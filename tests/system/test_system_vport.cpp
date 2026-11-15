@@ -230,6 +230,21 @@ TEST_CASE("vport: SIGINT also stops it and removes the name")
     REQUIRE(!fs::exists(fs::symlink_status(directory / "vss-int")));
 }
 
+TEST_CASE("vport: SIGHUP, which a closing terminal sends, removes the name too")
+{
+    scratch_directory scratch;
+    const auto directory = scratch.path() / "links";
+
+    cli_process cli(
+        {"vport", "--name=vss-hup", stable_dir_argument(directory)});
+    REQUIRE_EQ(link_of(cli.read_line()), (directory / "vss-hup").string());
+    REQUIRE(fs::is_symlink(directory / "vss-hup"));
+
+    cli.signal(SIGHUP);
+    REQUIRE_EQ(cli.wait(), 0);
+    REQUIRE(!fs::exists(fs::symlink_status(directory / "vss-hup")));
+}
+
 TEST_CASE("vport: the same name works again after the process was killed")
 {
     scratch_directory scratch;

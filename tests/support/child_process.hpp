@@ -26,9 +26,12 @@ class child_process
 {
 public:
     /// Starts `program` with `arguments`.  Throws `std::runtime_error` when it
-    /// cannot be started.
+    /// cannot be started.  The child's standard error goes to the same pipe as
+    /// its standard output, or, when `stderr_file` is not empty, to that file
+    /// (made new, or emptied), so that a test can tell the two apart.
     child_process(const std::string& program,
-                  const std::vector<std::string>& arguments);
+                  const std::vector<std::string>& arguments,
+                  const std::string& stderr_file = {});
 
     /// Kills the child if it still runs, and waits for it.
     ~child_process();
