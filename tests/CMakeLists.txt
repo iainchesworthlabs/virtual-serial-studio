@@ -271,6 +271,10 @@ list(APPEND VSS_SYSTEM_TEST_SOURCES
   system/test_system_plugin_runner.cpp
   system/test_system_plugin_service.cpp
   system/test_system_plugin_start_plan.cpp)
+# `vss_cli plugin run` starts the program as a child process.
+if(TARGET vss_cli)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_run_cli.cpp)
+endif()
 if(WIN32)
   target_sources(vss_test_plugin PRIVATE
     plugin/vss_test_plugin/platform/windows/platform_windows.cpp)

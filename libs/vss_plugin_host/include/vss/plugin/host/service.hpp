@@ -107,6 +107,8 @@ struct service_snapshot
     std::vector<std::string> notes;
     /// True while the plugin folders are being read.
     bool scanning = false;
+    /// How many scans have finished.  0 until the first one has.
+    std::uint64_t scans = 0;
     std::uint64_t revision = 0;
 };
 

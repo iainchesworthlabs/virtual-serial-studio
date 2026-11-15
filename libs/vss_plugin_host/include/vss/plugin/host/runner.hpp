@@ -97,6 +97,11 @@ struct runner_snapshot
     /// Success when it never has.
     error_code last_failure;
     std::string detail;
+    /// How the process last ended, when it has.  A plugin that ends
+    /// before it says anything is often one the system could not start:
+    /// on Windows the code 3221225794 (0xC0000142) means a library it
+    /// needs could not be loaded where it is confined.
+    std::optional<exit_status> last_exit;
     /// How many failures count now, and how many quarantine the plugin.
     std::size_t failures = 0;
     std::size_t failure_limit = 0;
@@ -113,6 +118,10 @@ struct runner_snapshot
     /// The latest log lines, oldest first, and how many were dropped
     /// because the plugin wrote faster than it may.
     std::vector<runner_log_line> log;
+    /// How many log lines there have been in all.  The last of `log` is
+    /// line number `log_total`, so a reader that remembers the number it
+    /// last saw knows which lines are new, and how many it missed.
+    std::uint64_t log_total = 0;
     std::uint64_t output_bytes_dropped = 0;
     /// Goes up by one with every snapshot of this runner.
     std::uint64_t revision = 0;

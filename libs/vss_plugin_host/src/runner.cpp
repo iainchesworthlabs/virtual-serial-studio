@@ -382,6 +382,7 @@ private:
         while (log_.size() >= options_.kept_log_lines)
             log_.pop_front();
         log_.push_back(runner_log_line{from_output, level, std::move(text)});
+        ++log_total_;
     }
 
     /// Does what a call to the session asks: sends its frames and takes
@@ -621,6 +622,7 @@ private:
                 finish(make_error_code(plugin_errc::exited),
                        "the process ended");
         }
+        last_exit_ = *status;
         // A process that ended abnormally by itself crashed.
         if (status->abnormal && !ended_by_host_ &&
             end_reason_ == make_error_code(plugin_errc::exited))
@@ -711,6 +713,7 @@ private:
         next->state = run_.state();
         next->last_failure = last_failure_;
         next->detail = detail_;
+        next->last_exit = last_exit_;
         next->failures = run_.failures(now);
         next->failure_limit = run_.failure_limit();
         next->next_start = run_.next_start();
@@ -719,6 +722,7 @@ private:
         next->api = api_;
         next->status = status_;
         next->log.assign(log_.begin(), log_.end());
+        next->log_total = log_total_;
         next->output_bytes_dropped = output_dropped_;
         next->revision = ++revision_;
         const std::lock_guard lock(snapshot_mutex_);
@@ -769,8 +773,10 @@ private:
     std::size_t output_in_window_ = 0;
     std::uint64_t output_dropped_ = 0;
     std::deque<runner_log_line> log_;
+    std::uint64_t log_total_ = 0;
 
     error_code last_failure_;
+    std::optional<exit_status> last_exit_;
     std::string detail_;
     std::uint64_t process_id_ = 0;
     sandbox_report sandbox_;

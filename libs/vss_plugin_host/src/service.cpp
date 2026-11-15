@@ -368,6 +368,7 @@ private:
     void take(scan_result found)
     {
         scanning_ = false;
+        ++scans_;
         notes_ = std::move(found.notes);
         shown_.clear();
         std::map<std::string, running_plugin> keep;
@@ -513,6 +514,7 @@ private:
         }
         next->notes = notes_;
         next->scanning = scanning_;
+        next->scans = scans_;
         next->revision = ++revision_;
         const std::lock_guard lock(snapshot_mutex_);
         snapshot_ = std::move(next);
@@ -524,6 +526,7 @@ private:
     change_handler change_handler_;
 
     bool scanning_ = false;
+    std::uint64_t scans_ = 0;
     bool closed_ = false;
     /// Calls that came while a scan ran.  They need what the scan finds.
     std::vector<std::function<void(impl&)>> after_scan_;

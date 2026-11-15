@@ -19,6 +19,9 @@
 //   --print-directory     prints "cwd <the working directory>"
 //   --stdout=<text>       prints the text and a newline to standard output
 //   --stderr=<text>       prints the text and a newline to standard error
+//   --stdout-hex=<hex>    prints the bytes the hex digits stand for and a
+//                         newline to standard output, so that a line can hold
+//                         control characters or bytes that are not UTF-8
 //   --read-stdin          reads standard input to its end, prints
 //                         "stdin <bytes read>"
 //   --list-descriptors    prints "descriptors <open descriptors>"
@@ -150,6 +153,25 @@ std::optional<std::string_view> value_after(std::string_view argument,
     if (!argument.starts_with(name))
         return std::nullopt;
     return argument.substr(name.size());
+}
+
+/// The bytes that pairs of hex digits stand for.  Nothing when the text has
+/// an odd number of digits or a character that is not a digit.
+std::optional<std::string> bytes_of_hex(std::string_view digits)
+{
+    if (digits.size() % 2 != 0)
+        return std::nullopt;
+    std::string bytes;
+    for (std::size_t index = 0; index < digits.size(); index += 2)
+    {
+        unsigned value = 0;
+        const auto result = std::from_chars(
+            digits.data() + index, digits.data() + index + 2, value, 16);
+        if (result.ec != std::errc{} || result.ptr != digits.data() + index + 2)
+            return std::nullopt;
+        bytes += static_cast<char>(value);
+    }
+    return bytes;
 }
 
 std::string hex_of(std::string_view bytes)
@@ -378,6 +400,14 @@ std::optional<int> act(std::string_view argument, const char* self,
     {
         emit(stderr, std::string(*text) + "\n");
         return std::nullopt;
+    }
+    if (const auto text = value_after(argument, "--stdout-hex="))
+    {
+        if (const auto bytes = bytes_of_hex(*text))
+        {
+            say(*bytes);
+            return std::nullopt;
+        }
     }
     if (argument == "--read-stdin")
     {
