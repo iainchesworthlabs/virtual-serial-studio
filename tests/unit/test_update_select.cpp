@@ -89,11 +89,13 @@ installed_plugin installed_of(std::string_view id, std::string_view text,
     return plugin;
 }
 
-const std::vector<studio_file> windows_and_linux{
-    studio_file_of(file_kind::windows_installer, architecture::x86_64),
-    studio_file_of(file_kind::windows_zip, architecture::x86_64),
-    studio_file_of(file_kind::linux_deb, architecture::x86_64),
-    studio_file_of(file_kind::linux_deb, architecture::arm64)};
+std::vector<studio_file> windows_and_linux()
+{
+    return {studio_file_of(file_kind::windows_installer, architecture::x86_64),
+            studio_file_of(file_kind::windows_zip, architecture::x86_64),
+            studio_file_of(file_kind::linux_deb, architecture::x86_64),
+            studio_file_of(file_kind::linux_deb, architecture::arm64)};
+}
 
 /// A final release 0.2.0 and a pre-release 0.3.0-rc.1.
 feed both_channels()
@@ -101,9 +103,9 @@ feed both_channels()
     feed source;
     source.serial = 5;
     source.studio.push_back(
-        studio_release_of(channel::stable, "0.2.0", windows_and_linux));
+        studio_release_of(channel::stable, "0.2.0", windows_and_linux()));
     source.studio.push_back(
-        studio_release_of(channel::preview, "0.3.0-rc.1", windows_and_linux));
+        studio_release_of(channel::preview, "0.3.0-rc.1", windows_and_linux()));
     return source;
 }
 
@@ -206,9 +208,9 @@ TEST_CASE("update select: a preview older than the stable release is not "
 {
     feed source;
     source.studio.push_back(
-        studio_release_of(channel::stable, "0.4.0", windows_and_linux));
+        studio_release_of(channel::stable, "0.4.0", windows_and_linux()));
     source.studio.push_back(
-        studio_release_of(channel::preview, "0.3.0-rc.1", windows_and_linux));
+        studio_release_of(channel::preview, "0.3.0-rc.1", windows_and_linux()));
     const auto update = choose_studio(source, v("0.1.0"), true, installer, x64);
     REQUIRE(update.has_value());
     REQUIRE(update->release == &source.studio[0]);
@@ -271,7 +273,7 @@ TEST_CASE("update select: only a preview, and preview not wanted")
 {
     feed source;
     source.studio.push_back(
-        studio_release_of(channel::preview, "0.3.0-rc.1", windows_and_linux));
+        studio_release_of(channel::preview, "0.3.0-rc.1", windows_and_linux()));
     REQUIRE(!choose_studio(source, v("0.1.0"), false, installer, x64));
     REQUIRE(choose_studio(source, v("0.1.0"), true, installer, x64));
     REQUIRE(choose_studio(source, v("0.1.0-rc.1"), false, installer, x64));

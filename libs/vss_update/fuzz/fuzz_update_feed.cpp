@@ -51,7 +51,11 @@ void require_version(const upd::version& value)
     const std::string text = upd::to_string(value);
     require(text.size() <= upd::max_version_length);
     const auto again = upd::parse_version(text);
-    require(again.has_value() && *again == value);
+    if (!again.has_value())
+    {
+        std::abort();
+    }
+    require(*again == value);
     require(upd::compare(*again, value) == 0);
 }
 

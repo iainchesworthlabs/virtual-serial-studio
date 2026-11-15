@@ -37,6 +37,15 @@ namespace test_keys = vss::license::test_keys;
 namespace
 {
 
+/// The version `text` names. A test fails when it names none.
+version v(std::string_view text)
+{
+    const auto parsed = parse_version(text);
+    if (!parsed)
+        throw vss_test::failure("not a version: " + std::string(text));
+    return *parsed;
+}
+
 std::string hash_of(char digit)
 {
     return std::string(128, digit);
@@ -390,7 +399,7 @@ TEST_CASE("update feed: a good payload is read in full")
     REQUIRE_EQ(parsed->studio.size(), 2);
     const studio_release& stable = parsed->studio[0];
     REQUIRE(stable.channel == channel::stable);
-    REQUIRE(stable.version == *parse_version("0.2.0"));
+    REQUIRE(stable.version == v("0.2.0"));
     REQUIRE(stable.released == 2026y / 12 / 1);
     REQUIRE_EQ(stable.summary, std::string("What is new."));
     REQUIRE_EQ(stable.notes_url,
@@ -412,7 +421,7 @@ TEST_CASE("update feed: a good payload is read in full")
 
     const studio_release& preview = parsed->studio[1];
     REQUIRE(preview.channel == channel::preview);
-    REQUIRE(preview.version == *parse_version("0.3.0-rc.1"));
+    REQUIRE(preview.version == v("0.3.0-rc.1"));
     REQUIRE_EQ(preview.summary, std::string());
     REQUIRE_EQ(preview.files.size(), 1);
     REQUIRE(preview.files[0].kind == file_kind::macos_dmg);
@@ -420,9 +429,9 @@ TEST_CASE("update feed: a good payload is read in full")
     REQUIRE_EQ(parsed->plugins.size(), 2);
     const plugin_release& decoding = parsed->plugins[0];
     REQUIRE_EQ(decoding.id, std::string("com.virtualserialstudio.decoding"));
-    REQUIRE(decoding.version == *parse_version("1.3.0"));
+    REQUIRE(decoding.version == v("1.3.0"));
     REQUIRE(decoding.released == 2026y / 12 / 2);
-    REQUIRE(decoding.requires_studio == *parse_version("0.2.0"));
+    REQUIRE(decoding.requires_studio == v("0.2.0"));
     REQUIRE_EQ(decoding.summary, std::string("Plugin news."));
     REQUIRE_EQ(decoding.files.size(), 1);
     REQUIRE(decoding.files[0].os == operating_system::windows);
@@ -431,8 +440,8 @@ TEST_CASE("update feed: a good payload is read in full")
     REQUIRE_EQ(decoding.files[0].sha512[5], 0xdd);
 
     const plugin_release& exporter = parsed->plugins[1];
-    REQUIRE(exporter.version == *parse_version("2.0.0-beta.2"));
-    REQUIRE(exporter.requires_studio == *parse_version("0.3.0-rc.1"));
+    REQUIRE(exporter.version == v("2.0.0-beta.2"));
+    REQUIRE(exporter.requires_studio == v("0.3.0-rc.1"));
     REQUIRE_EQ(exporter.summary, std::string());
     REQUIRE(exporter.files.empty());
 }
@@ -1129,10 +1138,9 @@ TEST_CASE("update feed: every rule refuses the whole feed")
          {R"(a\u0000b)", R"(a\u0001b)", R"(a\tb)", R"(a\rb)", R"(a\u000bb)",
           R"(a\u000cb)", R"(a\u001bb)", R"(a\u001fb)", R"(a\u007fb)",
           R"(a\u0080b)", R"(a\u0085b)", R"(a\u009fb)",
-          "a\xc2\x85"
-          "b",
-          "a\xc2\x9f"
-          "b"})
+          // U+0085 and U+009F as UTF-8. Octal, because a hex escape would
+          // take the `b` that follows as one of its digits.
+          "a\302\205b", "a\302\237b"})
     {
         bad("summary " + std::string(text), with_summary(text), "summary");
     }
