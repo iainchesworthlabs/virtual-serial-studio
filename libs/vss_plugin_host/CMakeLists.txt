@@ -15,7 +15,8 @@ add_library(vss_plugin_host
   src/runner.cpp
   src/sandbox.cpp
   src/service.cpp
-  src/start_plan.cpp)
+  src/start_plan.cpp
+  src/traffic_tap.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
 target_include_directories(vss_plugin_host PUBLIC
