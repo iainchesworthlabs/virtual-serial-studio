@@ -300,7 +300,7 @@ TEST_CASE("plugin start plan: a problem or run refusal is passed on")
 
     const std::vector<plugin_errc> runs{plugin_errc::revoked,
                                         plugin_errc::expired,
-                                        plugin_errc::sandbox_insufficient};
+                                        plugin_errc::policy};
     for (const plugin_errc code : runs)
     {
         inspection found = good_third_party();
