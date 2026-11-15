@@ -178,7 +178,8 @@ endif()
 # separate processes run on every system. CMake chooses the file that knows
 # how to start one.
 if(TARGET vss_cli)
-  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_cli.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_cli.cpp
+    system/test_system_cli.cpp)
   if(WIN32)
     list(APPEND VSS_SYSTEM_TEST_SOURCES
       support/platform/windows/child_process_windows.cpp)
@@ -217,6 +218,9 @@ endif()
 
 if(TARGET vss_cli)
   add_dependencies(vss_system_tests vss_cli)
+  # The command line parser and the devices JSON, which test_system_cli.cpp
+  # calls as well as running the program.
+  target_link_libraries(vss_system_tests PRIVATE vss_cli_core)
   target_compile_definitions(vss_system_tests PRIVATE
     VSS_CLI_PROGRAM="$<TARGET_FILE:vss_cli>")
 endif()

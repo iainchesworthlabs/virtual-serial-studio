@@ -1,8 +1,8 @@
 # Scenario recipes
 
 Each recipe can be built in the GUI, scripted with `vss_cli`, or written as a
-JSON topology that both accept. The URIs are examples. `vss_cli` keeps most of
-these setups alive only for the `--seconds` you give, as the examples do; see
+JSON topology that both accept. The URIs are examples. The `vss_cli` commands run
+until `Ctrl-C`, or for the `--seconds` you give, as the examples do; see
 [Command line equivalents](user-guide.md#command-line-equivalents).
 
 ## Share one serial port with several applications

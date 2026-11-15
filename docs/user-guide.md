@@ -1719,12 +1719,17 @@ again.
 | Check what the system may block | `vss_cli permissions check` |
 | List the installed plugins | `vss_cli plugin list` (add `--json` for a script) |
 
-`virtual`, `vport`, `bus` and `capture` keep running until `Ctrl-C` or `SIGTERM`,
-or for `--seconds=N`. `run`, `share`, `join`, `bridge` and `loopback` keep their
-ports only for the `--seconds=N` you give; without it they print what they made
-and exit. `--verbose` prints the port table every half second while `run`,
-`share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
---help` lists every option.
+`virtual`, `vport`, `bus`, `capture`, `run`, `share`, `join`, `bridge` and
+`loopback` keep running until `Ctrl-C`, `SIGTERM` or, on Linux and macOS, `SIGHUP`
+(a closing terminal), or for `--seconds=N`, where N is 1 or more. On Windows
+`Ctrl-Break` and closing the console window stop them too. They take their ports
+down before they end. `--verbose` prints the port table every half second while
+`run`, `share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
+--help` lists every option. An option takes its value as `--name=value` or as
+`--name value`; an option a command does not have, a missing value and a value that
+is not a number where one is needed end the command with exit code 2 and one line
+on standard error. `vss_cli --version` prints the version of the build, as
+`vss_gui --version` does.
 
 ### Recording with `vss_cli capture`
 
@@ -1777,7 +1782,10 @@ other programs on a bus without the program that made the recording.
   its last record whichever direction that is, so a recording repeats at the pace
   it was taken.
 - It stops when the last record has been sent, or at `Ctrl-C`, or after
-  `--seconds`, and prints how many records and bytes it sent. Lines of the file
+  `--seconds`, and prints how many records and bytes it sent. After the last record
+  it waits until the port has written everything that was queued, for as long as
+  the port keeps taking bytes. It exits with 1, and says how much was written, when
+  the port refused a write or stopped taking bytes before that. Lines of the file
   that cannot be read are skipped and counted.
 
 ### Scripted devices with `vss_cli respond`
