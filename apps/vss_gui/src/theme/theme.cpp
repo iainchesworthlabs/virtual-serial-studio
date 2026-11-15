@@ -162,7 +162,7 @@ QFont resolve_base_font()
     // the natural letter widths.  The offscreen platform does not use the
     // platform's font engine and draws every setting alike, so this can only
     // be judged on a real window.
-    font.setHintingPreference(text_hinting);
+    font.setHintingPreference(kTextHinting);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;
 }
@@ -183,7 +183,7 @@ QFont resolve_mono_font()
     font.setFamily(families.front());
     // The same hinting as the UI font, for the same reason (see
     // resolve_base_font).
-    font.setHintingPreference(text_hinting);
+    font.setHintingPreference(kTextHinting);
     font.setStyleStrategy(QFont::PreferAntialias);
     return font;
 }

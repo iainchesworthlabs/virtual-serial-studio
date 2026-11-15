@@ -339,7 +339,7 @@ TEST_CASE("theme: every font asks for the chosen hinting")
     {
         const QFont font = theme.font(style);
         REQUIRE_EQ(static_cast<int>(font.hintingPreference()),
-                   static_cast<int>(vss::gui::text_hinting));
+                   static_cast<int>(vss::gui::kTextHinting));
         REQUIRE(font.styleStrategy() & QFont::PreferAntialias);
     }
 }

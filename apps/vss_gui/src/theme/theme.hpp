@@ -113,7 +113,7 @@ enum class motion_kind
 /// vertical hinting.  The offscreen platform does not use the platform's font
 /// engine and draws all four settings the same, so judge text on a real
 /// window with a screen grab, not on an offscreen picture.
-inline constexpr QFont::HintingPreference text_hinting =
+inline constexpr QFont::HintingPreference kTextHinting =
     QFont::PreferVerticalHinting;
 
 /// The single source of colour, type, size and spacing.
