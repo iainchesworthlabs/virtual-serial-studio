@@ -622,6 +622,7 @@ private:
                 finish(make_error_code(plugin_errc::exited),
                        "the process ended");
         }
+        last_exit_ = *status;
         // A process that ended abnormally by itself crashed.
         if (status->abnormal && !ended_by_host_ &&
             end_reason_ == make_error_code(plugin_errc::exited))
@@ -712,6 +713,7 @@ private:
         next->state = run_.state();
         next->last_failure = last_failure_;
         next->detail = detail_;
+        next->last_exit = last_exit_;
         next->failures = run_.failures(now);
         next->failure_limit = run_.failure_limit();
         next->next_start = run_.next_start();
@@ -774,6 +776,7 @@ private:
     std::uint64_t log_total_ = 0;
 
     error_code last_failure_;
+    std::optional<exit_status> last_exit_;
     std::string detail_;
     std::uint64_t process_id_ = 0;
     sandbox_report sandbox_;

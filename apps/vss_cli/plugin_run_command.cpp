@@ -399,6 +399,10 @@ struct view
     std::string reason;
     std::string detail;
     std::optional<std::uint64_t> process;
+    /// How the process last ended: its exit code, and whether it ended
+    /// abnormally.
+    std::optional<std::int64_t> exit_code;
+    bool exit_abnormal = false;
     std::optional<sandbox_view> sandbox;
     std::optional<status_view> status;
     std::size_t failures = 0;
@@ -439,6 +443,7 @@ bool same_state(const view& left, const view& right)
            left.detail == right.detail && left.process == right.process &&
            same_sandbox(left.sandbox, right.sandbox) &&
            same_status(left.status, right.status) &&
+           left.exit_code == right.exit_code &&
            left.failures == right.failures &&
            left.failure_limit == right.failure_limit;
 }
@@ -520,14 +525,19 @@ view view_of(const host::service_plugin& entry, bool asked_to_stop)
     }
     if (out.state == group::waiting && run->next_start.has_value())
     {
-        const auto left = run->next_start.value() -
-                          std::chrono::steady_clock::now();
+        const auto left =
+            run->next_start.value() - std::chrono::steady_clock::now();
         out.wait = std::max(
             std::chrono::duration_cast<std::chrono::milliseconds>(left),
             std::chrono::milliseconds{0});
     }
     if (run->process_id != 0)
         out.process = run->process_id;
+    if (run->last_exit.has_value() && run->process_id == 0)
+    {
+        out.exit_code = run->last_exit.value().code;
+        out.exit_abnormal = run->last_exit.value().abnormal;
+    }
     if (run->process_id != 0 || !run->sandbox.applied.empty())
         out.sandbox = sandbox_of(run->sandbox);
     if (run->status.has_value())
@@ -578,8 +588,7 @@ std::string sandbox_text(const sandbox_view& sandbox)
     if (!sandbox.not_applied.empty())
     {
         out += " (not applied: ";
-        for (std::size_t index = 0; index < sandbox.not_applied.size();
-             ++index)
+        for (std::size_t index = 0; index < sandbox.not_applied.size(); ++index)
         {
             if (index != 0)
                 out += ", ";
@@ -618,6 +627,12 @@ std::string state_text(const view& now)
     {
         out += "; process ";
         out += std::to_string(now.process.value());
+    }
+    if (now.exit_code.has_value())
+    {
+        out += now.exit_abnormal ? "; ended abnormally with code "
+                                 : "; ended with code ";
+        out += std::to_string(now.exit_code.value());
     }
     if (now.sandbox.has_value())
     {
@@ -669,6 +684,11 @@ std::string state_json(const std::string& id, const view& now)
         out["process_id"] = now.process.value();
     else
         out["process_id"] = nullptr;
+    if (now.exit_code.has_value())
+    {
+        out["exit_code"] = now.exit_code.value();
+        out["exit_abnormal"] = now.exit_abnormal;
+    }
     if (now.sandbox.has_value())
     {
         const sandbox_view& sandbox = now.sandbox.value();
@@ -1077,12 +1097,9 @@ arrivals wait_for_arrivals(shared_state& state)
 {
     arrivals out;
     std::unique_lock lock(state.mutex);
-    state.changed.wait_for(lock, poll_interval,
-                           [&state]
-                           {
-                               return !state.snapshots.empty() ||
-                                      state.shut_down;
-                           });
+    state.changed.wait_for(
+        lock, poll_interval,
+        [&state] { return !state.snapshots.empty() || state.shut_down; });
     out.snapshots.assign(state.snapshots.begin(), state.snapshots.end());
     state.snapshots.clear();
     out.shut_down = state.shut_down;
@@ -1137,8 +1154,7 @@ int run_plugin(const options& given, const places& where)
         if (!deadline.has_value() && given.seconds > 0 &&
             report.reached_running())
             deadline = now + std::chrono::seconds(given.seconds);
-        const bool time_is_up =
-            deadline.has_value() && now >= deadline.value();
+        const bool time_is_up = deadline.has_value() && now >= deadline.value();
         if (shutting_down ||
             !(g_stop_requested.load() || report.finished() || time_is_up))
             continue;
@@ -1172,7 +1188,8 @@ const char* plugin_run_usage() noexcept
            "Each\n"
            "      line also has the process id, how far the plugin is "
            "confined and\n"
-           "      which parts of the sandbox were not applied, and its status.  "
+           "      which parts of the sandbox were not applied, and its status. "
+           " "
            "Each\n"
            "      line of its output and log is printed as it comes.  Text "
            "from the\n"
