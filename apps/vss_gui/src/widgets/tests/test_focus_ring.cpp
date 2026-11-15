@@ -48,6 +48,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
+#include <map>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -154,9 +156,10 @@ struct control_case
                  std::function<made_control(QWidget* parent)> factory,
                  bool is_field = false,
                  std::function<QRect(QWidget*)> expected_rect = {},
-                 bool is_asserted = true)
+                 bool is_asserted = true, bool is_bordered = false)
         : name(case_name), make(std::move(factory)), field(is_field),
-          expected(std::move(expected_rect)), asserted(is_asserted)
+          expected(std::move(expected_rect)), asserted(is_asserted),
+          bordered(is_field || is_bordered)
     {
     }
 
@@ -171,6 +174,9 @@ struct control_case
     /// False for a control that has no focus mark yet.  The case is still
     /// drawn into the review pictures and printed.
     bool asserted;
+    /// The control draws its own edge (a field's border, a tile's outline),
+    /// which the ring replaces, so that edge is not content.
+    bool bordered;
 };
 
 made_control simple(QWidget* widget)
@@ -254,16 +260,22 @@ std::vector<control_case> control_cases()
              return simple(new vss::gui::Switch(QStringLiteral("DTR"), parent));
          }});
     cases.push_back(
-        {"segmented control, segment", [](QWidget* parent)
+        {"segmented control, segment",
+         [](QWidget* parent)
          {
              auto* segments = new vss::gui::SegmentedControl(parent);
              segments->add_item(QStringLiteral("TCP"));
              segments->add_item(QStringLiteral("UDP"));
              return made_control{
                  segments, segments->findChildren<QRadioButton*>().first()};
-         }});
+         },
+         false,
+         {},
+         true,
+         true});
     cases.push_back(
-        {"action tile", [](QWidget* parent)
+        {"action tile",
+         [](QWidget* parent)
          {
              auto* tile = new vss::gui::ActionTile(
                  QStringLiteral("copy"), vss::gui::KindTile::tint::accent,
@@ -271,7 +283,11 @@ std::vector<control_case> control_cases()
                  QStringLiteral("Two ports joined together."), parent);
              tile->setFixedWidth(250);
              return simple(tile);
-         }});
+         },
+         false,
+         {},
+         true,
+         true});
     cases.push_back({"copy button", [](QWidget* parent)
                      { return simple(new vss::gui::CopyButton(parent)); }});
     cases.push_back({"pick card, radio", [](QWidget* parent)
@@ -321,11 +337,7 @@ std::vector<control_case> control_cases()
                          edit->setFixedHeight(60);
                          return simple(edit);
                      },
-                     true,
-                     {},
-                     // The style sheet gives every scroll area border 0, so a
-                     // text area has no frame to mark its focus with.
-                     false});
+                     true});
     cases.push_back({"slider", [](QWidget* parent)
                      {
                          auto* slider = new QSlider(Qt::Horizontal, parent);
@@ -341,11 +353,7 @@ std::vector<control_case> control_cases()
              label->setTextInteractionFlags(Qt::TextBrowserInteraction);
              return simple(label);
          },
-         false,
-         {},
-         // The ring marks the link's text, which is smaller than the label,
-         // so it is printed and not checked.
-         false});
+         true});
     cases.push_back(
         {"tab bar, current tab",
          [](QWidget* parent)
@@ -369,6 +377,34 @@ std::vector<control_case> control_cases()
 
 /// A window with the control, and a plain line edit that takes the focus
 /// away from it for the unfocused picture.
+/// Sets the application's layout direction, as the language setting does,
+/// and puts it back.
+class direction_guard
+{
+public:
+    explicit direction_guard(Qt::LayoutDirection direction)
+        : before_(QGuiApplication::layoutDirection())
+    {
+        QGuiApplication::setLayoutDirection(direction);
+    }
+    ~direction_guard() { QGuiApplication::setLayoutDirection(before_); }
+    direction_guard(const direction_guard&) = delete;
+    direction_guard& operator=(const direction_guard&) = delete;
+
+private:
+    Qt::LayoutDirection before_;
+};
+
+void scale_font(QWidget& widget, int text_scale)
+{
+    QFont font = widget.font();
+    if (font.pointSizeF() > 0)
+        font.setPointSizeF(font.pointSizeF() * text_scale);
+    else
+        font.setPixelSize(font.pixelSize() * text_scale);
+    widget.setFont(font);
+}
+
 struct harness
 {
     QWidget host;
@@ -377,8 +413,9 @@ struct harness
     QImage off;
     QImage on;
 
-    explicit harness(const control_case& item)
+    explicit harness(const control_case& item, int text_scale = 1)
     {
+        scale_font(host, text_scale);
         auto* layout = new QVBoxLayout(&host);
         layout->setContentsMargins(16, 16, 16, 16);
         layout->setSpacing(16);
@@ -471,6 +508,167 @@ void save_sheet(const std::vector<review_cell>& cells, const char* mode)
 }
 
 } // namespace
+
+/// How far the ring keeps from the control's content: the 2 px stroke is
+/// followed by a gap of `focusRing.offset`, also 2 px.
+constexpr int kClearance = 2;
+/// The ring and its gap lie within this many pixels of the control's edge.
+constexpr int kRingBand = 4;
+
+/// Content pixels of the unfocused control that lie under the ring or within
+/// the gap of it.  The ring is what changes when the control takes focus,
+/// near its edge.  Content is whatever is drawn that is not the control's own
+/// background: the label's glyphs, an indicator, an icon.
+bool solid(QRgb pixel)
+{
+    return qAlpha(pixel) >= 128;
+}
+
+int colour_distance(QRgb first, QRgb second)
+{
+    return std::abs(qRed(first) - qRed(second)) +
+           std::abs(qGreen(first) - qGreen(second)) +
+           std::abs(qBlue(first) - qBlue(second));
+}
+
+int blocked_content(const QImage& off, const QImage& on, const QRect& rect,
+                    bool bordered, QRect* where = nullptr)
+{
+    const int width = std::min(off.width(), on.width());
+    const int height = std::min(off.height(), on.height());
+    auto edge_distance = [&rect](int x, int y)
+    {
+        return std::min({x - rect.left(), rect.right() - x, y - rect.top(),
+                         rect.bottom() - y});
+    };
+
+    // The control's background is its most common opaque colour; a control
+    // with none (a check box, a ghost button) has only content.
+    std::map<QRgb, int> opaque;
+    for (int y = 0; y < height; ++y)
+        for (int x = 0; x < width; ++x)
+            if (qAlpha(off.pixel(x, y)) == 255)
+                ++opaque[off.pixel(x, y)];
+    const bool has_background = !opaque.empty();
+    QColor background;
+    if (has_background)
+    {
+        background = QColor::fromRgba(
+            std::max_element(opaque.begin(), opaque.end(),
+                             [](const auto& first, const auto& second)
+                             { return first.second < second.second; })
+                ->first);
+    }
+
+    // A bordered control marks focus on its own edge, which is two pixels;
+    // what changes deeper (a selection, a caret) is not the ring.
+    const int band = bordered ? kClearance : kRingBand;
+    std::vector<QPoint> ring;
+    std::set<std::pair<int, int>> ring_pixels;
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            if (rect.contains(x, y) && edge_distance(x, y) < band &&
+                solid(on.pixel(x, y)) &&
+                (!solid(off.pixel(x, y)) ||
+                 colour_distance(off.pixel(x, y), on.pixel(x, y)) > 60))
+            {
+                ring.emplace_back(x, y);
+                ring_pixels.emplace(x, y);
+            }
+        }
+    }
+
+    const int corner = std::min(rect.height() / 2, 16);
+    int blocked = 0;
+    for (int y = 0; y < height; ++y)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            const QColor pixel = QColor::fromRgba(off.pixel(x, y));
+            // Faint anti-aliasing at the edge of a glyph is not content.
+            if (!solid(off.pixel(x, y)) || !rect.contains(x, y))
+                continue;
+            // A field's border and a tile's outline are the ring's to cover,
+            // and so are the arcs of its rounded corners.
+            if (bordered &&
+                (ring_pixels.count({x, y}) != 0 ||
+                 (std::min(x - rect.left(), rect.right() - x) < corner &&
+                  std::min(y - rect.top(), rect.bottom() - y) < corner)))
+                continue;
+            if (has_background)
+            {
+                const int distance =
+                    std::abs(pixel.red() - background.red()) +
+                    std::abs(pixel.green() - background.green()) +
+                    std::abs(pixel.blue() - background.blue());
+                if (distance <= 90)
+                    continue;
+            }
+            for (const QPoint& point : ring)
+            {
+                const int dx = point.x() - x;
+                const int dy = point.y() - y;
+                if (dx * dx + dy * dy <= kClearance * kClearance)
+                {
+                    ++blocked;
+                    if (where != nullptr)
+                        *where = where->united(QRect(x, y, 1, 1));
+                    break;
+                }
+            }
+        }
+    }
+    return blocked;
+}
+
+TEST_CASE("focus ring: clears the content of every control")
+{
+    auto& theme = Theme::instance();
+    std::vector<std::string> failures;
+    for (const auto mode :
+         {vss::gui::theme_mode::light, vss::gui::theme_mode::dark})
+    {
+        theme.set_mode(mode);
+        for (const auto direction : {Qt::LeftToRight, Qt::RightToLeft})
+        {
+            for (const int text_scale : {1, 2})
+            {
+                const direction_guard guard(direction);
+                for (const control_case& item : control_cases())
+                {
+                    harness h(item, text_scale);
+                    QWidget* focus = h.control.focus;
+                    const QRect rect =
+                        item.expected ? item.expected(focus) : focus->rect();
+                    QRect where(rect.center(), QSize(1, 1));
+                    const int blocked = blocked_content(h.off, h.on, rect,
+                                                        item.bordered, &where);
+                    const bool small =
+                        focus->width() < 24 || focus->height() < 24;
+                    if (blocked > 0 || small)
+                    {
+                        std::printf(
+                            "%s, %s, %s, %d00%%: %d content pixels under or "
+                            "beside the ring (x %d to %d, y %d to %d), "
+                            "widget %dx%d\n",
+                            item.name,
+                            mode == vss::gui::theme_mode::light ? "light"
+                                                                : "dark",
+                            direction == Qt::LeftToRight ? "ltr" : "rtl",
+                            text_scale, blocked, where.left(), where.right(),
+                            where.top(), where.bottom(), focus->width(),
+                            focus->height());
+                        failures.emplace_back(item.name);
+                    }
+                }
+            }
+        }
+    }
+    theme.set_mode(vss::gui::theme_mode::light);
+    REQUIRE(failures.empty());
+}
 
 TEST_CASE("focus ring: follows the control, not its text, in both themes")
 {
@@ -661,24 +859,6 @@ QRect spin_buttons(QSpinBox& spin)
 namespace
 {
 
-/// Sets the application's layout direction, as the language setting does,
-/// and puts it back.
-class direction_guard
-{
-public:
-    explicit direction_guard(Qt::LayoutDirection direction)
-        : before_(QGuiApplication::layoutDirection())
-    {
-        QGuiApplication::setLayoutDirection(direction);
-    }
-    ~direction_guard() { QGuiApplication::setLayoutDirection(before_); }
-    direction_guard(const direction_guard&) = delete;
-    direction_guard& operator=(const direction_guard&) = delete;
-
-private:
-    Qt::LayoutDirection before_;
-};
-
 /// A line edit, a combo box, an editable combo box and a spin box, as the
 /// dialogs lay them out, in one window.
 struct field_column
@@ -691,12 +871,7 @@ struct field_column
 
     explicit field_column(int text_scale)
     {
-        QFont font = host.font();
-        if (font.pointSizeF() > 0)
-            font.setPointSizeF(font.pointSizeF() * text_scale);
-        else
-            font.setPixelSize(font.pixelSize() * text_scale);
-        host.setFont(font);
+        scale_font(host, text_scale);
 
         auto* layout = new QVBoxLayout(&host);
         layout->setContentsMargins(16, 16, 16, 16);

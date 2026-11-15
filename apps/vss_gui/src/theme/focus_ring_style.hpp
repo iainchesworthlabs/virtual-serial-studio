@@ -55,6 +55,8 @@ public:
                        QPainter* painter,
                        const QWidget* widget = nullptr) const override;
 
+    using QProxyStyle::polish;
+    void polish(QWidget* widget) override;
     QSize sizeFromContents(ContentsType type, const QStyleOption* option,
                            const QSize& size,
                            const QWidget* widget = nullptr) const override;

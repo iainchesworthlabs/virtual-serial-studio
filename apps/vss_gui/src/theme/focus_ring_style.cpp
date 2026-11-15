@@ -17,6 +17,7 @@
 #include <QComboBox>
 #include <QFocusEvent>
 #include <QKeyEvent>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPainter>
 #include <QPainterPath>
@@ -77,6 +78,15 @@ bool in_tool_bar(const QWidget* widget)
     return false;
 }
 
+/// A label whose links can be reached with the keyboard.  It takes focus, but
+/// Qt draws no mark for the focused link, so the ring goes round the label.
+bool has_keyboard_links(const QWidget* widget)
+{
+    const auto* label = qobject_cast<const QLabel*>(widget);
+    return label != nullptr &&
+           (label->textInteractionFlags() & Qt::LinksAccessibleByKeyboard) != 0;
+}
+
 /// Where a `PE_FrameFocusRect` ring goes.
 struct ring_geometry
 {
@@ -129,6 +139,20 @@ void FocusRingStyle::install()
         return;
     qApp->installEventFilter(this);
     installed_ = true;
+}
+
+void FocusRingStyle::polish(QWidget* widget)
+{
+    QProxyStyle::polish(widget);
+    // The ring goes round a link label, so its text keeps the room the ring
+    // and its gap need from the label's edge.
+    if (auto* label = qobject_cast<QLabel*>(widget);
+        label != nullptr && has_keyboard_links(label))
+    {
+        const int room = Theme::instance().space(0);
+        if (label->margin() < room)
+            label->setMargin(room);
+    }
 }
 
 bool FocusRingStyle::keyboard_focus()
@@ -233,7 +257,7 @@ bool FocusRingStyle::paint_over(QObject* watched, QEvent* event)
     const bool slider = qobject_cast<QSlider*>(widget) != nullptr;
     const bool tool_button =
         typeid(*widget) == typeid(QToolButton) && !in_tool_bar(widget);
-    if (!slider && !tool_button)
+    if (!slider && !tool_button && !has_keyboard_links(widget))
         return false;
 
     // QObject::event is public where QWidget's is not; this is the virtual

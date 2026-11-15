@@ -101,7 +101,8 @@ QComboBox QAbstractItemView { background: %panel%; color: %ink%; border: 1px sol
 QLineEdit[invalid="true"], QComboBox[invalid="true"], QSpinBox[invalid="true"] { border: 2px solid %bad%; }
 QLineEdit:disabled, QComboBox:disabled, QSpinBox:disabled { background: %sunken%; border-color: %line%; color: %disabledText%; }
 QLineEdit[search="true"] { border-radius: 16px; padding-left: 4px; }
-QCheckBox, QRadioButton { spacing: 8px; min-width: 24px; min-height: 24px; }
+/* The padding is the room the focus ring and its gap need (the smallest spacing step), so the ring clears the indicator and the label. The minimum size is the 24px target less that padding. */
+QCheckBox, QRadioButton { spacing: 8px; padding: %space.0%; min-width: 16px; min-height: 16px; }
 QCheckBox::indicator { width: 16px; height: 16px; border: 1px solid %control%; border-radius: 4px; background: %panel%; }
 QCheckBox::indicator:hover { border-color: %ink2%; }
 QCheckBox::indicator:checked { background: %accent%; border-color: %accent%; image: url(:/indicators/check-%theme%.svg); }
@@ -112,6 +113,8 @@ QRadioButton::indicator:hover { border-color: %ink2%; }
 QRadioButton::indicator:checked { border-color: %accent%; background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 %accent%, stop:0.45 %accent%, stop:0.55 %panel%, stop:1 %panel%); }
 QRadioButton::indicator:disabled { border-color: %line%; background: %sunken%; }
 QRadioButton::indicator:checked:disabled { border-color: %disabledText%; background: qradialgradient(cx:0.5, cy:0.5, radius:0.5, fx:0.5, fy:0.5, stop:0 %disabledText%, stop:0.45 %disabledText%, stop:0.55 %sunken%, stop:1 %sunken%); }
+/* The same room around the groove and handle for the focus ring. The handle is 16px with a 1px border, so the content is 18px high. */
+QSlider:horizontal { padding: %space.0%; min-height: 18px; }
 QSlider::groove:horizontal { height: 4px; background: %fill%; border-radius: 2px; }
 QSlider::sub-page:horizontal { height: 4px; background: %accent%; border-radius: 2px; }
 QSlider::handle:horizontal { width: 16px; height: 16px; margin: -7px 0; border-radius: 9px; background: %panel%; border: 1px solid %control%; }
@@ -135,6 +138,8 @@ QScrollBar::handle:hover { background: %control%; }
 QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QAbstractScrollArea { border: 0; }
+/* A text area keeps a transparent 1px border so the field's accent border on focus (above) shows without moving the text. */
+QPlainTextEdit, QTextEdit { border: 1px solid transparent; }
 
 /* tabs are pills on a track; docks are panes */
 QTabWidget::pane { border: 0; }
