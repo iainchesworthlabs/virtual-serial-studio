@@ -93,6 +93,9 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_studio_sources.cpp
   unit/test_studio_targets.cpp
   unit/test_tool_paths.cpp
+  unit/test_update_feed.cpp
+  unit/test_update_select.cpp
+  unit/test_update_version.cpp
   unit/test_virtual_ports.cpp
   unit/test_vsscom_core.cpp)
 
@@ -170,7 +173,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_plugin vss_machine vss_rules vss_control_proto
-  vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
+  vss_control_core vss_license_test_keys vss_update Vss::BoostJson
+  Vss::Monocypher)
 if(TARGET vss_cli_control)
   target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
 endif()
@@ -337,7 +341,7 @@ endif()
 add_executable(vss_header_selftest compile/header_selftest.cpp)
 target_link_libraries(vss_header_selftest PRIVATE vss_studio vss_testkit
   vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_rules vss_control_proto vss_control_core
-  vss_license_test_keys)
+  vss_license_test_keys vss_update)
 vss_set_warnings(vss_header_selftest)
 add_test(NAME headers COMMAND vss_header_selftest)
 

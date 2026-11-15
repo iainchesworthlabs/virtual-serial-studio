@@ -33,6 +33,11 @@
 #include <vss/license/signed_file.hpp>
 #include <vss/license/test_keys.hpp>
 
+#include <vss/update/error.hpp>
+#include <vss/update/feed.hpp>
+#include <vss/update/select.hpp>
+#include <vss/update/version.hpp>
+
 #include <vss/ports/com0com.hpp>
 #include <vss/ports/loopback_transport.hpp>
 #include <vss/ports/native_lines.hpp>

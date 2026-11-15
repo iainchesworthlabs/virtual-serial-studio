@@ -41,6 +41,7 @@ nav:
       - Remote control and monitoring (proposal): remote-control.md
       - The plugin framework (design): plugins.md
       - The plugin API, message by message: plugin-api-reference.md
+      - Online updates (design): updates.md
       - Response timing rules (design): response-timing.md
       - POSIX virtual ports: posix-virtual-ports.md
       - Windows COM port driver: windows-com-driver.md

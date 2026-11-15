@@ -12,6 +12,7 @@
 #   libs/vss_config      JSON configuration documents
 #   libs/vss_rules       response timing rules: model, checks, matcher
 #   libs/vss_machine     the product folders, the computer name, who can write a path
+#   libs/vss_update      versions, the signed update feed and what to offer
 #   libs/vss_studio      the application service used by the CLI and the GUI
 #   libs/vss_testkit     reusable fakes for downstream tests
 #   libs/vss_agent_proto the wire protocol of the per-user agent
