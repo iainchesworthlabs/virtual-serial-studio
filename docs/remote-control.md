@@ -3,6 +3,25 @@
 Status: **accepted**. The owner accepted the recommendations of section 14 on 13 November 2026. Section 13 lists the
 slices that build it; each slice says in its own pull request what it built and tested.
 
+## What is built today
+
+Part of this design is built, in the gateway `vss_gate`, the library `libs/vss_control`, `vss_cli control` and the
+Python client in `adapters/python`. `vss_gate`, `vss_agent` and the Python client are not in the installers yet: they
+are built from source, so an installed `vss_cli` has the `control` and `agent` commands and nothing to talk to. The
+owner has decided that `vss_agent` and `vss_gate` will be in the installers and packages.
+
+- **Built:** the local endpoint (L1) and loopback TCP (L2); tokens, scopes and ceilings; the audit log; the
+  read-only monitor (`events.subscribe`, `traffic.subscribe`); `ports.create`, `ports.remove`, `links.connect`,
+  `ports.send`, `expect.bytes`, runs and the JUnit report; and the Python client.
+- **Not built:** TLS and the remote case (L3), so one computer cannot yet control another; the OAuth 2.0 and OpenID
+  Connect interface; recording; triggers; the C ABI and the other language bindings; Studio's side (the status chip and
+  the sessions list); `idempotency_key`; and every operation and scope that the table in [section
+  9](#operations-and-scopes) marks as not built. [Section 13](#what-is-not-built) lists them.
+- **Ports made through the gateway are in-process loopback ports and nothing else.** The agent makes no other kind
+  (`ports.create` with another kind is refused as `engine.unsupported`), so no other program can open such a port,
+  the agent cannot attach a device, and the ports Studio's own window makes are not the agent's. A test that needs
+  a port a program under test can open cannot make it through this API yet.
+
 It builds on [the per-user agent](agent.md) (the local protocol and its trust model) and on the access levels decided
 in [Editions, licensing and plugins](editions.md). Where this page says "the agent" it means `vss_agent` as agent.md
 describes it.
@@ -16,8 +35,9 @@ accepts commands, and the commands can create ports, write bytes to real devices
 
 **What a seat covers.** One Pro licence is one seat, and a seat is two computers: the one you work at and one other
 that you control or monitor from it, in either direction. Remote control and monitoring between those two is part
-of the seat; the far computer needs no licence of its own. Enterprise has the same features as Pro and differs in
-its terms only (a site licence, with price and term on application).
+of the seat; the far computer needs no licence of its own. Enterprise has the same plugins as Pro and no feature of
+its own. What an Enterprise licence covers, how long it runs and the price are negotiated with each customer
+([licensing](licensing.md), decisions 11 and 13).
 
 Three access levels were decided, each needing more set-up than the last:
 
@@ -206,6 +226,9 @@ enable dialog says so in plain words (section 12).
   L2 to a host other than loopback, and the sender refuses a non-loopback address for an L2 token.
 - The token crosses loopback in clear. That is acceptable only because capturing loopback needs administrator
   rights (T14). A user who wants better chooses L1, or TLS on loopback (an option, the same certificate as L3).
+  *Being replaced.* The owner has decided that the token will stop crossing the wire: the handshake becomes a challenge
+  and response with Ed25519 keys, and the gateway will store only public keys. Today the token is sent in the first
+  `hello`, as written here.
 
 ### L3: TLS for the remote case
 
@@ -325,6 +348,10 @@ or environment variable** of the gateway or of any log. Senders should read it f
 C ABI takes it as a byte buffer that it zeroises after use. The pairing bundle may carry it for convenience, and then
 the bundle is as sensitive as the token.
 
+*Being replaced.* The owner has decided that the token will stop crossing the wire: the handshake becomes a challenge
+and response with Ed25519 keys, and the gateway will store only public keys. Today the token is sent in the first
+`hello`, as written here.
+
 Tokens are sent in clear on L1 (the kernel authenticates the pipe, and the token is a second factor) and on L2
 (accepted, section 3), and only inside TLS on L3.
 
@@ -370,13 +397,13 @@ A scope names a class of actions. A token carries a set of scopes; a role is a n
 
 | Scope | Allows | Does not allow |
 |---|---|---|
-| `monitor` | Read the list of ports and links, their state, counters, line states and the event stream **without** bytes; the licence edition and the endpoint's own status; the version | The bytes of any traffic |
-| `monitor.data` | Subscribe to traffic bytes and read the history. Optionally limited to named ports (a filter in the token record) | Any change |
+| `monitor` | Read the list of ports and links, their state, counters, line states and the event stream **without** bytes; the endpoint's own status; the version. The licence edition is not built: the gateway reads no licence | The bytes of any traffic |
+| `monitor.data` | Subscribe to traffic bytes and read the history. Optionally limited to named ports (a filter in the token record; **not built**: a `monitor.data` token reads every port, and a subscription may name the ports it wants) | Any change |
 | `control.ports` | Create and remove ports, link and unlink, rename, change settings and lines, start and stop | Writing data, faults |
 | `control.data` | `send` bytes, play a file the **sender uploads** (never one named by path), set up scripted replies | Anything outside the ports the principal made, if `own ports only` is set |
-| `control.faults` | Fault injection, response timing, modem line drops | |
-| `control.apply` | Apply a whole topology document (subject to the limits of section 9) | |
-| `record` | Start, stop and fetch a recording of a port (section 6) | |
+| `control.faults` | Fault injection, response timing, modem line drops. **No operation asks for this scope yet** | |
+| `control.apply` | Apply a whole topology document (subject to the limits of section 9). **No operation asks for this scope yet** | |
+| `record` | Start, stop and fetch a recording of a port (section 6). **No operation asks for this scope yet** | |
 | `admin` | Everything local-only: tokens, listeners and certificates, policy, audit settings, stop the gateway, set the scopes of other principals. **Held only by a connection to the administration endpoint (section 3)**, never by a token, an OIDC mapping or a connection to the public endpoint | |
 
 Roles:
@@ -387,6 +414,9 @@ Roles:
 | **Control** | `monitor`, `monitor.data`, `control.ports`, `control.data`, `control.faults`, `record` | A test harness |
 | **Control plus apply** | Control and `control.apply` | A rig that deploys a topology |
 | **Admin** | all | Only the administration endpoint: Studio's window and `vss_cli control` |
+
+The Control role includes `control.faults` and `record`, and the Control plus apply role includes `control.apply`.
+Because no operation asks for them yet, a token that holds them can do nothing more than one without them.
 
 Rules:
 
@@ -575,8 +605,8 @@ validates the resulting access token. No sign-in page exists in Studio and none 
   `unauthenticated`, `forbidden`, `invalid_argument`, `not_found`, `conflict`, `unsupported`, `busy`, `timeout`,
   `limit_exceeded`, `cancelled`, `unavailable` (the agent is not running), `internal`, and the engine's errors under `engine.<name>`. No stack, no path, no
   engine internals reach the sender.
-- **Idempotency.** Mutating requests accept an `idempotency_key`; a repeat within 10 minutes returns the first
-  result, so a harness can retry after a lost reply.
+- **Idempotency.** *Not built.* Mutating requests are to accept an `idempotency_key`; a repeat within 10 minutes
+  returns the first result, so a harness can retry after a lost reply. No operation takes the key yet.
 - **Capabilities.** `hello` returns `features` (names), so a client can degrade as the GUI does ("Not available in
   this build"); a missing feature is off.
 - **Harness helpers kept in the server**, so a test need not stream bytes to wait: `expect.bytes` (wait for a
@@ -586,22 +616,31 @@ validates the resulting access token. No sign-in page exists in Studio and none 
 
 ### Operations and scopes
 
-| Operation | Scope | Notes |
-|---|---|---|
-| `hello` | none (after auth) | Version, features, the principal's effective scopes |
-| `status` | `monitor` | Edition, uptime, endpoint state, counters |
-| `ports.list`, `ports.get`, `links.list`, `links.get`, `lines.get` | `monitor` | |
-| `events.subscribe`, `events.unsubscribe` | `monitor` | State, counters, line changes, and that bytes moved and how many; no bytes |
-| `traffic.subscribe`, `traffic.unsubscribe`, `traffic.history` | `monitor.data` | The bytes. Port filter applies |
-| `ports.create`, `ports.remove`, `ports.rename`, `ports.settings`, `links.connect`, `links.disconnect`, `lines.set` | `control.ports` | Own ports only, if set |
-| `ports.send`, `scripts.set`, `scripts.clear` | `control.data` | Bytes in the blob; sizes capped |
-| `faults.inject`, `timing.set` | `control.faults` | |
-| `topology.apply`, `topology.snapshot` | `control.apply`, `monitor` | Document only; no file paths from the sender; size capped; a named port or link a client does not own is refused for scoped tokens |
-| `expect.bytes` | `monitor.data` | |
-| `triggers.subscribe`, `triggers.read`, `expect.trigger` | `monitor`; the decoded context of a trigger needs `monitor.data` as well | "Triggers" below. Port filter applies |
-| `runs.begin`, `runs.end`, `report.junit` | `control.ports` | |
-| `record.start`, `record.stop`, `record.fetch` | `record` | Section 10 |
-| `session.close`, `ping` | none | |
+The table is the design. The "Built" column says what the code has: the table in `libs/vss_control_proto/src/policy.cpp`
+has 22 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
+design's, except where the Notes say the code asks for another.
+
+| Operation | Scope | Built | Notes |
+|---|---|---|---|
+| `hello` | none (after auth) | Yes | Version, features, the principal's effective scopes |
+| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version. Not built: the edition, the endpoint state and counters |
+| `ports.list` | `monitor` | Yes | |
+| `ports.get`, `links.list`, `links.get`, `lines.get` | `monitor` | Not built | |
+| `events.subscribe`, `events.unsubscribe` | `monitor` | Yes | State, counters, line changes, and that bytes moved and how many; no bytes |
+| `traffic.subscribe`, `traffic.unsubscribe` | `monitor.data` | Yes | The bytes. A subscription may name the ports it wants. The port filter of a token is not built: a `monitor.data` token reads every port |
+| `traffic.history` | `monitor.data` | Not built | It needs pages of the hub's ring from the agent |
+| `ports.create`, `ports.remove`, `links.connect` | `control.ports` | Yes | "Own ports only, if set" is not built: a caller may change any port of the agent. The only kind of port is the in-process loopback |
+| `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set` | `control.ports` | Not built | The agent has no request for them |
+| `ports.send` | `control.data` | Yes | Bytes in the blob; 64 KiB at most |
+| `scripts.set`, `scripts.clear` | `control.data` | Not built | |
+| `faults.inject`, `timing.set` | `control.faults` | Not built | Nothing of the response timing rules is reachable through the gateway, the CLI or the Python client yet: the engine is a library with no entry point today. The owner has decided that the next release candidate gives rule sets a way in through the setup file; operations on rules through the gateway are not planned for it ([response timing](response-timing.md)) |
+| `topology.apply`, `topology.snapshot` | `control.apply`, `monitor` | Not built | Document only; no file paths from the sender; size capped; a named port or link a client does not own is refused for scoped tokens |
+| `expect.bytes` | `monitor.data` | Yes | The code also asks for `control.data` when the request sends bytes |
+| `triggers.subscribe`, `triggers.read`, `expect.trigger` | `monitor`; the decoded context of a trigger needs `monitor.data` as well | Not built | "Triggers" below. The port filter is the one of a token, which is not built |
+| `runs.begin`, `runs.end`, `report.junit` | `monitor` | Yes | The design had `control.ports`. A run changes no port, so the code asks for `monitor` (section 13) |
+| `runs.record` | `monitor` | Yes | Not in the first design: it adds a check of the harness's own to a run |
+| `record.start`, `record.stop`, `record.fetch` | `record` | Not built | Section 10 |
+| `session.close`, `ping` | none | Not built | |
 
 Deliberately absent from the remote surface: `release_port` (ends another process), `create_com0com_pair` and
 anything that elevates, `devices` and `facts` (they describe the computer, A3), `run_benchmark` (ties up the
@@ -609,7 +648,9 @@ machine), path-taking operations, plugin management, and everything in `admin`. 
 scope when there is a need.
 
 **Local-only administration** (the administration endpoint of section 3): `endpoint.stop`, `listeners.*`,
-`tls.rotate`, `tls.pairing_bundle`, `tokens.create/list/revoke`, `policy.*`, `audit.*`, `sessions.list/kick`.
+`tls.rotate`, `tls.pairing_bundle`, `tokens.create/list/revoke`, `policy.*`, `audit.*`, `sessions.list/kick`. Built:
+`endpoint.stop`, `tokens.create/list/revoke` and `sessions.list/kick`. Not built: `listeners.*`, `tls.rotate`,
+`tls.pairing_bundle`, `policy.*` and `audit.*`.
 
 ### Triggers
 
@@ -712,7 +753,7 @@ neither passes through nor depends on the gateway.
 | Pre-authentication connections | 8 at a time, 5 s each | T6 |
 | Authenticated sessions | 8 total, 4 per principal | T10, T11 |
 | Frame size | 4 KiB before authentication, 1 MiB after | |
-| Request rate | 200 a second sustained, burst 400, per session (token bucket); `limit_exceeded` with a retry hint | |
+| Request rate | 200 a second sustained, burst 400, per session (token bucket); `limit_exceeded`, whose reply says only whether the request may be tried again (`retryable`). There is no retry time | |
 | Outstanding requests | 32 per session; the gateway stops reading from a session beyond that (agent.md's rule) | |
 | Event bandwidth | 4 MiB a second per session, and the agent's queue and back-pressure rules (2048 events, 512 KiB, 4 MiB then close) | A client that never reads is closed |
 | Heavy operations (`topology.apply`) | One at a time across the gateway | |
@@ -771,7 +812,7 @@ a gateway extension and not part of this design.
 
 | Setting | Default |
 |---|---|
-| `vss_gate` | Not installed in Community; in Pro, not running |
+| `vss_gate` | Not in the installers yet; the owner has decided it will be in the installers and packages. Not running until the user turns it on |
 | Control endpoint | **Off** |
 | When turned on | L1 only; scope of `local:<user>` is `monitor` |
 | L2 (loopback TCP) | Off; needs a port and at least one token |
@@ -928,7 +969,10 @@ Differences from sections 9, 10 and 12 as first written, and why:
 
 The first part of slice 4, on the local endpoint: `ports.create`, `ports.remove` and `links.connect` under
 `control.ports`, and `ports.send` under `control.data`. Loopback TCP, `expect.bytes`, runs and the report are
-separate changes.
+separate changes. The ports these operations make are in-process loopback ports, the one kind the agent makes
+(`vss_cli control port create --kind=<kind>` with any other kind is refused as `engine.unsupported`). A loopback
+port has no path that another program can open, so a test cannot make a port for the program under test through this
+API yet. The same holds for the Python client, which makes the same requests.
 
 | Claim | Proven by | Still paper |
 |---|---|---|
@@ -1001,7 +1045,29 @@ L2 of section 3: `vss_gate --loopback-port=<port>` also serves the API on TCP at
 
 Differences from section 3 as first written: the token crosses loopback in clear, as that section says; TLS on
 loopback comes with L3 and is not offered yet. The default ceiling for TCP is the control role without
-`control.apply`.
+`control.apply`. The token is to stop crossing the wire (see "Presentation" in section 4).
+
+### What is not built
+
+Everything in the table of section 9 that is marked "Not built", gathered here in one place:
+
+- Reading: `ports.get`, `links.list`, `links.get`, `lines.get`, `traffic.history`, and the edition, the endpoint state
+  and the counters in `status`.
+- Changing ports: `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set`, `scripts.set`, `scripts.clear`,
+  `topology.apply`, `topology.snapshot`, and "own ports only" for a scoped token.
+- Faults and timing: `faults.inject` and `timing.set`. The response timing rules engine is built as a library only,
+  with no way in yet from the gateway, the CLI or the Python client, so a harness cannot install, replace or remove a
+  rule set through this API. The next release candidate gives rule sets a way in through the setup file, not through
+  this API.
+- Triggers: `triggers.subscribe`, `triggers.read`, `expect.trigger`.
+- Recording: `record.start`, `record.stop`, `record.fetch`.
+- Other: `session.close`, `ping`, `idempotency_key`, and the administration operations `listeners.*`, `tls.rotate`,
+  `tls.pairing_bundle`, `policy.*` and `audit.*`.
+- Scopes: `control.faults`, `control.apply` and `record` exist and can be given to a token, and no operation asks for
+  them, so they allow nothing yet.
+- Level 3 and the remote case: TLS, certificates, the pairing bundle, and the OAuth 2.0 and OpenID Connect interface.
+- Studio's side: the status chip and the sessions list, and anything that starts `vss_gate` for a user.
+- Adapters: the C ABI and every language but Python.
 
 ## 14. Decisions for the owner
 
@@ -1021,6 +1087,10 @@ All twelve were accepted as recommended.
 | 10 | Does `read_only` in agent.md ship before slice 3 | Yes, with agent.md PR 5 | Yes: the design relies on it for defence in depth | Medium: without it, the gateway's check is the only line |
 | 11 | Level 3: where JWTs are validated | (a) in the authenticator plugin; (b) in the gateway, the plugin only fetches keys | (b) for the first version: validation is the security-critical part and belongs with the core and its tests; the plugin (network, discovery, caching, introspection) stays replaceable. Section 8 describes the same checks for either | Medium |
 | 12 | Restore a listener at restart | Only if ticked, L3 asked separately | As section 12 | Low |
+
+Decision 4 has since been changed by the owner: the token will stop crossing the wire, and the handshake becomes a
+challenge and response with Ed25519 keys, with only public keys stored by the gateway. The built gateway still
+sends the token in the first `hello`, and keeps its hash, as option (a) says.
 
 ## 15. Test strategy
 
