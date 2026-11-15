@@ -17,10 +17,15 @@
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
 
-#include <cstdlib>
+#include <windows.h>
+#include <winioctl.h>
+
+#include <cstddef>
+#include <cstring>
 #include <filesystem>
 #include <string>
 #include <system_error>
+#include <vector>
 
 using namespace vss;
 using namespace vss::plugin;
@@ -31,16 +36,58 @@ namespace
 
 namespace fs = std::filesystem;
 
-/// Makes `link` a junction to the folder `target`.  `mklink /J` needs no
-/// privilege.  Nothing when it could not be made.
+/// The part of a mount point reparse buffer that follows its header.
+struct mount_point_header
+{
+    ULONG tag;
+    USHORT data_length;
+    USHORT reserved;
+    USHORT substitute_offset;
+    USHORT substitute_length;
+    USHORT print_offset;
+    USHORT print_length;
+};
+
+/// Makes `link` a junction to the folder `target`.  A junction needs no
+/// privilege.  False when it could not be made.
 bool make_junction(const fs::path& link, const fs::path& target)
 {
-    const std::string command = "mklink /J \"" + link.string() + "\" \"" +
-                                target.string() + "\" > nul 2>&1";
-    if (std::system(command.c_str()) != 0)
-        return false;
     std::error_code ec;
-    return fs::exists(link, ec);
+    if (!fs::create_directory(link, ec) || ec)
+        return false;
+    const std::wstring print = fs::absolute(target).wstring();
+    const std::wstring substitute = L"\\??\\" + print;
+    const std::size_t path_bytes =
+        (substitute.size() + 1 + print.size() + 1) * sizeof(wchar_t);
+    std::vector<char> buffer(sizeof(mount_point_header) + path_bytes);
+    mount_point_header header{};
+    header.tag = IO_REPARSE_TAG_MOUNT_POINT;
+    header.data_length = static_cast<USHORT>(
+        sizeof(mount_point_header) - 8 + path_bytes);
+    header.substitute_offset = 0;
+    header.substitute_length =
+        static_cast<USHORT>(substitute.size() * sizeof(wchar_t));
+    header.print_offset = static_cast<USHORT>(
+        (substitute.size() + 1) * sizeof(wchar_t));
+    header.print_length = static_cast<USHORT>(print.size() * sizeof(wchar_t));
+    std::memcpy(buffer.data(), &header, sizeof(header));
+    std::memcpy(buffer.data() + sizeof(header), substitute.c_str(),
+                (substitute.size() + 1) * sizeof(wchar_t));
+    std::memcpy(buffer.data() + sizeof(header) +
+                    (substitute.size() + 1) * sizeof(wchar_t),
+                print.c_str(), (print.size() + 1) * sizeof(wchar_t));
+
+    HANDLE handle = CreateFileW(
+        link.c_str(), GENERIC_WRITE, 0, nullptr, OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+    if (handle == INVALID_HANDLE_VALUE)
+        return false;
+    DWORD returned = 0;
+    const BOOL done = DeviceIoControl(
+        handle, FSCTL_SET_REPARSE_POINT, buffer.data(),
+        static_cast<DWORD>(buffer.size()), nullptr, 0, &returned, nullptr);
+    CloseHandle(handle);
+    return done != FALSE;
 }
 
 } // namespace
