@@ -492,17 +492,23 @@ in this build". Nothing pretends to carry out a rule it cannot.
 
 ### 7.1 Transport and framing
 
-- **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: an
-  anonymous pair of pipes (Windows, inherited by an explicit handle list, so nothing else is inherited) or a
-  `socketpair` (elsewhere, with close-on-exec set on every other descriptor). There is **no name** to guess, no
-  listening socket and no way for another process to connect. The plugin is told the handle number in its
-  environment variable `VSS_PLUGIN_CHANNEL`.
+- **A private channel for each plugin**, made by the host before the plugin starts and inherited by the plugin: a
+  pipe (Windows, inherited by an explicit handle list, so nothing else is inherited) or a `socketpair` (elsewhere,
+  with every other descriptor closed in the child before the program runs). There is no listening socket and no
+  way for another process to connect. The plugin is told the handle number in its environment variable
+  `VSS_PLUGIN_CHANNEL`.
+- **The Windows pipe has a name for a moment, and the name is no way in.** Only a named pipe can be read without a
+  thread for each plugin (overlapped I/O), so the host makes one with a name of 128 random bits, as the first and
+  only instance, for this user only and no remote client, and opens the one client end itself at once, before
+  the plugin exists. If anything else had opened it first, the host's own open fails and the plugin is not
+  started. Once both ends are open nothing else can connect.
 - **Framing is the agent's** (`libs/vss_agent_proto`): `u32 size`, `u32 header size`, a JSON header, a blob, with
   a frame of at most 1 MiB. The same frame reader is reused. Bytes of traffic travel in the blob, never in JSON.
   The plugin API has limits of its own on the header: at most 64 KiB, JSON depth 8, a text of at most 1024
   bytes and a list of at most 256 entries in the messages of section 7.3. A header is small because the bytes
   are in the blob, and the limit bounds the work one message can ask of the host.
-- A plugin's standard input is closed. Its standard output and error are read by the host and kept as log lines
+- A plugin's standard input is at its end from the start (the null device). Its standard output and error are one
+  pipe, read by the host and kept as log lines
   (section 7.3), at most 64 KiB per second, truncated, never trusted as markup.
 - No shell, no environment other than the minimum (`VSS_PLUGIN_CHANNEL`, `VSS_PLUGIN_DATA`, `VSS_PLUGIN_ID`, a
   sanitised `PATH`, `HOME` set to the data directory, and `LANG`).
