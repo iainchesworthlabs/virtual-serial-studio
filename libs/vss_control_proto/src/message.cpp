@@ -828,7 +828,7 @@ result<reply_body> read_status_reply(const json::object& header)
     // An edition is in force only with a licence that is.
     if (!is_edition_name(body.edition) ||
         !is_licence_state_name(body.licence_state) ||
-        (body.edition != "free" &&
+        (body.edition != "community" &&
          !is_active_licence_state(body.licence_state)))
         return malformed();
     return reply_body{std::move(body)};
@@ -1349,7 +1349,7 @@ std::optional<std::uint64_t> parse_port_id(std::string_view text) noexcept
 
 bool is_edition_name(std::string_view text) noexcept
 {
-    return text == "free" || text == "pro" || text == "enterprise";
+    return text == "community" || text == "pro" || text == "enterprise";
 }
 
 bool is_active_licence_state(std::string_view text) noexcept

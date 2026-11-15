@@ -334,7 +334,7 @@ class Client:
 
     def status(self):
         """`uptime_ms`, `sessions`, `agent` (`running`, `version`) and
-        `licence` (`edition`: free, pro or enterprise; `state`)."""
+        `licence` (`edition`: community, pro or enterprise; `state`)."""
         return self._call("status", expect="status")
 
     def list_ports(self):

@@ -112,7 +112,7 @@ class ConversationTests(Setup):
                 uptime_ms=5,
                 sessions=1,
                 agent={"running": True, "version": "t"},
-                licence={"edition": "free", "state": "none"},
+                licence={"edition": "community", "state": "none"},
             )
         )
         self.gateway.sendall(reply(3, "done"))

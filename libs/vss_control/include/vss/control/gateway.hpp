@@ -95,8 +95,8 @@ struct gateway_options
     /// computer.  Asked for each `status` reply, on the gateway's own
     /// executor, so it must answer at once and must not read a file each
     /// time; the gateway itself reads no licence.  Empty for a gateway
-    /// that knows of none, which reports `free` and `none`.  A reply
-    /// carries the edition, which is `free` unless the licence is in
+    /// that knows of none, which reports `community` and `none`.  A reply
+    /// carries the edition, which is `community` unless the licence is in
     /// force, and the name of the state, and nothing else of it.
     std::function<license::status()> licence;
 };

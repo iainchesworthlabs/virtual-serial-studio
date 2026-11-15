@@ -371,8 +371,8 @@ struct hello_reply
     friend bool operator==(const hello_reply&, const hello_reply&) = default;
 };
 
-/// Whether `text` names an edition a `status` reply may carry: `free`, `pro`
-/// or `enterprise`.
+/// Whether `text` names an edition a `status` reply may carry: `community`,
+/// `pro` or `enterprise`.
 bool is_edition_name(std::string_view text) noexcept;
 
 /// Whether `text` names a state of the licence a `status` reply may carry:
@@ -394,10 +394,10 @@ struct status_reply
     std::string agent_version;
     /// The edition in force on the computer the gateway runs on, and the
     /// state of its licence; see #is_edition_name and
-    /// #is_licence_state_name.  `free` unless a licence is in force.  Whose
-    /// the licence is, its number and its dates are never here: any caller
-    /// that may look can read this reply.
-    std::string edition = "free";
+    /// #is_licence_state_name.  `community` unless a licence is in force.
+    /// Whose the licence is, its number and its dates are never here: any
+    /// caller that may look can read this reply.
+    std::string edition = "community";
     std::string licence_state = "none";
 
     friend bool operator==(const status_reply&, const status_reply&) = default;

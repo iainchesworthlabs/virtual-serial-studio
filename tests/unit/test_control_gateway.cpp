@@ -578,7 +578,7 @@ TEST_CASE("control gateway: a local connection is this user and may monitor")
     REQUIRE_EQ(status->agent_version, agent::agent_version());
     REQUIRE_EQ(status->sessions, std::uint64_t{2});
     // A gateway that is told of no licence says so.
-    REQUIRE_EQ(status->edition, std::string("free"));
+    REQUIRE_EQ(status->edition, std::string("community"));
     REQUIRE_EQ(status->licence_state, std::string("none"));
 
     const auto listed = client->list_ports();
@@ -607,12 +607,12 @@ TEST_CASE("control gateway: status gives the edition and the state of the "
         {state::valid, edition::pro, "pro", "valid"},
         {state::expiring, edition::enterprise, "enterprise", "expiring"},
         {state::grace, edition::pro, "pro", "grace"},
-        {state::expired, edition::pro, "free", "expired"},
-        {state::not_yet_valid, edition::enterprise, "free",
+        {state::expired, edition::pro, "community", "expired"},
+        {state::not_yet_valid, edition::enterprise, "community",
          "not_yet_valid"},
-        {state::clock_suspect, edition::pro, "free", "clock_suspect"},
-        {state::invalid, edition::pro, "free", "invalid"},
-        {state::none, edition::pro, "free", "none"},
+        {state::clock_suspect, edition::pro, "community", "clock_suspect"},
+        {state::invalid, edition::pro, "community", "invalid"},
+        {state::none, edition::pro, "community", "none"},
     };
     for (const told& item : cases)
     {
@@ -643,7 +643,7 @@ TEST_CASE("control gateway: status gives the edition and the state of the "
     auto client = env.connect();
     const auto status = client->status();
     REQUIRE(status);
-    REQUIRE_EQ(status->edition, std::string("free"));
+    REQUIRE_EQ(status->edition, std::string("community"));
     REQUIRE_EQ(status->licence_state, std::string("valid"));
 
     // The reply as it crosses the wire has those two words of the licence

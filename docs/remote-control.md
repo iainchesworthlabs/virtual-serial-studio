@@ -633,7 +633,7 @@ design's, except where the Notes say the code asks for another.
 | Operation | Scope | Built | Notes |
 |---|---|---|---|
 | `hello` | none (after auth) | Yes | Version, features, the principal's effective scopes |
-| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version, and the edition (`free`, `pro` or `enterprise`) with the state of the licence. Whose the licence is, its number and its dates are not given. `vss_gate` does not read a licence yet, so it reports `free` and `none`. Not built: the endpoint state and counters |
+| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version, and the edition (`community`, `pro` or `enterprise`) with the state of the licence. Whose the licence is, its number and its dates are not given. `vss_gate` does not read a licence yet, so it reports `community` and `none`. Not built: the endpoint state and counters |
 | `ports.list` | `monitor` | Yes | |
 | `ports.get`, `links.list`, `links.get`, `lines.get` | `monitor` | Not built | |
 | `events.subscribe`, `events.unsubscribe` | `monitor` | Yes | State, counters, line changes, and that bytes moved and how many; no bytes |
@@ -1062,7 +1062,7 @@ Everything in the table of section 9 that is marked "Not built", gathered here i
 
 - Reading: `ports.get`, `links.list`, `links.get`, `lines.get`, `traffic.history`, and the endpoint state and the
   counters in `status`. `status` has the edition and the state of the licence, but `vss_gate` does not read a licence
-  yet, so it always reports `free` and `none`.
+  yet, so it always reports `community` and `none`.
 - Changing ports: `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set`, `scripts.set`, `scripts.clear`,
   `topology.apply`, `topology.snapshot`, and "own ports only" for a scoped token.
 - Faults and timing: `faults.inject` and `timing.set`. The response timing rules engine is built as a library only,
