@@ -65,6 +65,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_api_ops.cpp
   unit/test_plugin_api_trigger.cpp
   unit/test_plugin_discover.cpp
+  unit/test_plugin_generator_feed.cpp
   unit/test_plugin_hash.cpp
   unit/test_plugin_install.cpp
   unit/test_plugin_licence.cpp
@@ -192,7 +193,7 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
-  vss_agent_proto vss_agent_core vss_plugin vss_machine vss_rules vss_control_proto
+  vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_machine vss_rules vss_control_proto
   vss_control_core vss_license_test_keys vss_update Vss::BoostJson
   Vss::Monocypher)
 if(TARGET vss_cli_control)
