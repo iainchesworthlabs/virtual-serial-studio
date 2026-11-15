@@ -277,7 +277,7 @@ TEST_CASE("plugin api: the reason of generator.done is limited plain text")
                                   "generator.done.reason: must not be empty");
     require_refused<message_type>(head + R"("reason":"a\nb"})",
                                   "generator.done.reason: must be plain text");
-    require_refused<message_type>(head + "\"reason\":\"a\u202eb\"}",
+    require_refused<message_type>(head + "\"reason\":\"a\200fb\"}",
                                   "generator.done.reason: must be plain text");
     require_refused<message_type>(R"({"op":"generator.done","instance":8})",
                                   "generator.done.reason: is required");
