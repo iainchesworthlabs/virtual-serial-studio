@@ -870,6 +870,13 @@ result<void> studio::remove_port(endpoint_id id)
             remove_stable_link(*link);
     }
     records_.erase(id);
+    // With the last port gone the setup is a new one, and the name and
+    // description of the one that was there go too.
+    if (records_.empty())
+    {
+        setup_name_ = "untitled";
+        setup_description_.clear();
+    }
     if (!target.empty())
         claimed_paths_.erase(target);
     if (!advertised.empty() && advertised != target)
@@ -1710,8 +1717,19 @@ config::document studio::snapshot() const
                 record.serial, record.capture);
             entry_of_port.com_number = record.com_number;
             entry_of_port.plugins = record.plugins;
-            if (record.kind == "mock" && !record.mock_target.empty())
-                entry_of_port.mock_target = record.mock_target;
+            if (record.kind == "mock")
+            {
+                // A fixture made from an address has no target of its own:
+                // the address says it, as in `mock://modem`.
+                std::string target = record.mock_target;
+                constexpr std::string_view scheme = "mock://";
+                if (target.empty() && record.uri.starts_with(scheme))
+                    target = record.uri.substr(
+                        scheme.size(),
+                        record.uri.find('?', scheme.size()) - scheme.size());
+                if (!target.empty())
+                    entry_of_port.mock_target = std::move(target);
+            }
             document.ports.push_back(std::move(entry_of_port));
             names.emplace(record.id, record.name);
         }

@@ -492,11 +492,16 @@ public:
     /// `snapshot` writes the list back.  A list goes when its port or link
     /// is removed, and a port or link made in any other way has none.
     ///
-    /// A mock port keeps its `mock_target`.  A document applied to a studio
-    /// with no ports gives the setup its `name` and `description`, which
-    /// `snapshot` writes back; one applied to ports that are already there
-    /// leaves them as they were.  A new studio is `untitled`, with no
-    /// description.
+    /// A mock port keeps its `mock_target`; for a fixture made from an
+    /// address such as `mock://modem` it is the part after `mock://`.  A
+    /// document applied to a studio with no ports gives the setup its `name`
+    /// and `description`, which `snapshot` writes back; one applied to ports
+    /// that are already there leaves them as they were.  Removing the last
+    /// port makes the setup `untitled` with no description again, so a new
+    /// setup does not take the name of the one before it.  A function that
+    /// replaces the running setup may keep ports, and then the rule for
+    /// `apply` (no ports before the call) does not hold: it must set the
+    /// name and description itself, and put the old ones back if it fails.
     result<void> apply(const config::document& value,
                        bool rollback_on_error = true);
     /// The setup as it is now.  Ports are written in the order they were

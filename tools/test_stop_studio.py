@@ -34,7 +34,7 @@ SID_2 = "S-1-5-21-1-2-3-1002"
 SID_3 = "S-1-5-21-1-2-3-1003"
 BOM = b"\xef\xbb\xbf"
 # What Qt writes: compact, keys in order.
-RUNNING = '{"dirty":false,"documentPath":"","setup":{"name":"demo","ports":[]},"stopped":false,"version":1}'
+RUNNING = '{"dirty":false,"documentPath":"","setup":{"name":"demo","ports":[],"version":1},"stopped":false,"version":1}'
 RUNNING_MARKED = RUNNING.replace('"stopped":false', '"stopped": true')
 
 
@@ -333,7 +333,7 @@ class StopStudio(unittest.TestCase):
             {
                 "dirty": False,
                 "documentPath": "",
-                "setup": {"name": "demo", "ports": [{"name": name}]},
+                "setup": {"name": "demo", "ports": [{"name": name}], "version": 1},
                 "stopped": False,
                 "version": 1,
             },
@@ -352,7 +352,7 @@ class StopStudio(unittest.TestCase):
 
     def test_forget_keeps_non_ascii_text_as_it_was(self) -> None:
         text = json.dumps(
-            {"dirty": False, "setup": {"ports": [{"name": "Gerät-温度"}]}, "stopped": False, "version": 1},
+            {"dirty": False, "setup": {"ports": [{"name": "Gerät-温度"}], "version": 1}, "stopped": False, "version": 1},
             separators=(",", ":"),
             ensure_ascii=False,
         )

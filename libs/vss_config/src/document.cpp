@@ -10,13 +10,17 @@
 #include <boost/json.hpp>
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
 #include <filesystem>
 #include <fstream>
-#include <initializer_list>
 #include <limits>
 #include <optional>
+#include <random>
 #include <set>
-#include <sstream>
+#include <thread>
 
 namespace vss::config {
 namespace json = boost::json;
@@ -38,10 +42,15 @@ json::object serial_to_json(const serial_settings& settings)
 }
 
 /// Reads the members of one JSON object of a setup.  A member that is there
-/// must have the right type, and `only` refuses a member that a setup does not
-/// have, so a typo is an error and not a default.  On the first refusal
-/// `problem` says which member and why, with the path of the member in the
-/// file, such as `ports[1].kind`.
+/// must have the right type.  The reader remembers every key it is asked for,
+/// and `done` refuses a member that no call asked for, so a typo is an error
+/// and not a default.  On the first refusal `problem` says which member and
+/// why, with the path of the member in the file, such as `ports[1].kind`.
+///
+/// To add a member to the file, add one read call for it before the `done`
+/// of its object.  Nothing else lists the names, so a member that is read is
+/// allowed and a member that is not read is refused.  Also change the struct
+/// in document.hpp, `to_json`, and `validate` if the member has rules.
 class member_reader
 {
 public:
@@ -74,18 +83,24 @@ public:
         return false;
     }
 
-    bool has(std::string_view key) const
+    bool has(std::string_view key) const { return find(key) != nullptr; }
+
+    /// The member as it is, or null when it is not there.
+    const json::value* find(std::string_view key) const
     {
-        return object_.if_contains(key) != nullptr;
+        if (std::ranges::find(asked_, key) == asked_.end())
+            asked_.emplace_back(key);
+        return object_.if_contains(key);
     }
 
-    /// Refuses every member that is not one of `known`.
-    bool only(std::initializer_list<std::string_view> known) const
+    /// Refuses every member that no call has asked for.  Call it after the
+    /// last read of the object.
+    bool done() const
     {
         for (const auto& entry : object_)
         {
             const std::string_view key = entry.key();
-            if (std::ranges::find(known, key) == known.end())
+            if (std::ranges::find(asked_, key) == asked_.end())
                 return fail(key, "is not a member of a setup");
         }
         return true;
@@ -93,7 +108,7 @@ public:
 
     bool text(std::string_view key, std::string& out) const
     {
-        const auto* item = object_.if_contains(key);
+        const auto* item = find(key);
         if (!item)
             return true;
         if (!item->is_string())
@@ -104,7 +119,7 @@ public:
 
     bool flag(std::string_view key, bool& out) const
     {
-        const auto* item = object_.if_contains(key);
+        const auto* item = find(key);
         if (!item)
             return true;
         if (!item->is_bool())
@@ -118,7 +133,7 @@ public:
     bool whole(std::string_view key, std::int64_t low, std::int64_t high,
                T& out) const
     {
-        const auto* item = object_.if_contains(key);
+        const auto* item = find(key);
         if (!item)
             return true;
         if (!item->is_int64() || item->as_int64() < low ||
@@ -133,7 +148,7 @@ public:
     /// A list of text.
     bool strings(std::string_view key, std::vector<std::string>& out) const
     {
-        const auto* item = object_.if_contains(key);
+        const auto* item = find(key);
         if (!item)
             return true;
         if (!item->is_array())
@@ -153,7 +168,7 @@ public:
     bool list(std::string_view key, const json::array*& out) const
     {
         out = nullptr;
-        const auto* item = object_.if_contains(key);
+        const auto* item = find(key);
         if (!item)
             return true;
         if (!item->is_array())
@@ -166,7 +181,7 @@ public:
     bool object(std::string_view key, const json::object*& out) const
     {
         out = nullptr;
-        const auto* item = object_.if_contains(key);
+        const auto* item = find(key);
         if (!item)
             return true;
         if (!item->is_object())
@@ -179,6 +194,7 @@ private:
     const json::object& object_;
     std::string where_;
     std::string& problem_;
+    mutable std::vector<std::string> asked_;
 };
 
 /// `ports[2]` and the like: where an element of a list is.
@@ -200,9 +216,7 @@ error_code serial_from_json(const json::value& value, const std::string& where,
     }
 
     const member_reader reader(value.as_object(), where, problem);
-    bool good = reader.only({"baud_rate", "data_bits", "parity", "stop_bits",
-                             "flow_control", "read_timeout_ms",
-                             "write_timeout_ms", "exclusive"});
+    bool good = true;
 
     // A number is checked against the range of its type here; validate()
     // decides which values the line may have.
@@ -240,12 +254,18 @@ error_code serial_from_json(const json::value& value, const std::string& where,
     good = good && reader.whole("read_timeout_ms", 0, max_int, read_timeout);
     good = good && reader.whole("write_timeout_ms", 0, max_int, write_timeout);
     good = good && reader.flag("exclusive", out.exclusive);
+    good = good && reader.done();
     if (!good)
         return make_error_code(errc::config_error);
     out.read_timeout = std::chrono::milliseconds(read_timeout);
     out.write_timeout = std::chrono::milliseconds(write_timeout);
 
-    return validate(out);
+    if (const error_code invalid = validate(out))
+    {
+        problem = where + " is not valid: " + invalid.message();
+        return invalid;
+    }
+    return {};
 }
 
 /// Writes `delay_ms` and `jitter_ms` only when they are set, so a file
@@ -292,11 +312,12 @@ bool half_duplex_from_json(const member_reader& reader, link_entry& link)
     const member_reader fields = reader.sub(*line, reader.path("half_duplex"));
     half_duplex_options options;
     options.enabled = true;
-    const auto limit = static_cast<std::int64_t>(max_bus_bit_rate);
-    if (!fields.only(
-            {"bit_rate", "turnaround_ms", "collisions", "rts_gating"}) ||
-        !fields.whole("bit_rate", 0, limit, options.bit_rate) ||
-        !fields.whole("turnaround_ms", 0, limit, options.turnaround_ms))
+    if (!fields.whole("bit_rate", 0,
+                      static_cast<std::int64_t>(max_bus_bit_rate),
+                      options.bit_rate) ||
+        !fields.whole("turnaround_ms", 0,
+                      static_cast<std::int64_t>(max_link_delay_ms),
+                      options.turnaround_ms))
         return false;
 
     std::string collisions;
@@ -306,7 +327,7 @@ bool half_duplex_from_json(const member_reader& reader, link_entry& link)
         options.on_collision = collision_action::garble;
     else if (fields.has("collisions") && collisions != "report")
         return fields.fail("collisions", "must be \"report\" or \"garble\"");
-    if (!fields.flag("rts_gating", options.rts_gating))
+    if (!fields.flag("rts_gating", options.rts_gating) || !fields.done())
         return false;
 
     link.half_duplex = options;
@@ -548,9 +569,7 @@ bool bindings_from_json(const member_reader& reader,
         const member_reader entry = reader.sub(element.as_object(), here);
 
         plugin_binding binding;
-        if (!entry.only({"id", "kind", "type", "name", "publisher", "key_id",
-                         "version", "get_it_from", "on_timeout", "params"}) ||
-            !entry.text("id", binding.id) ||
+        if (!entry.text("id", binding.id) ||
             !entry.text("kind", binding.kind) ||
             !entry.text("type", binding.type) ||
             !entry.text("name", binding.name) ||
@@ -562,7 +581,7 @@ bool bindings_from_json(const member_reader& reader,
             return false;
 
         const json::object* params = nullptr;
-        if (!entry.object("params", params))
+        if (!entry.object("params", params) || !entry.done())
             return false;
         if (params != nullptr)
             binding.params = json::serialize(*params);
@@ -600,6 +619,36 @@ bool contains_link_mode(std::string_view value)
     }
     return false;
 }
+
+/// `std::ios::noreplace` where the standard library has it (C++23): opening
+/// then fails when the file is there.  Nothing where it does not, and the name
+/// being new is what is relied on.
+template <class Mode = std::ios_base>
+constexpr std::ios_base::openmode exclusive_create_flag()
+{
+    if constexpr (requires { Mode::noreplace; })
+        return Mode::noreplace;
+    else
+        return std::ios_base::openmode{};
+}
+
+/// `.saving-` and sixteen hex digits from the system's random source, then a
+/// count: no two saves, in one process or two, make the same name.
+std::string unique_saving_suffix()
+{
+    static std::atomic<unsigned> counter{0};
+    std::random_device source;
+    const std::uint64_t random =
+        (std::uint64_t{source()} << 32) | std::uint64_t{source()};
+    char digits[17];
+    std::snprintf(digits, sizeof digits, "%016llx",
+                  static_cast<unsigned long long>(random));
+    return std::string(saving_file_marker) + digits + "-" +
+           std::to_string(counter.fetch_add(1));
+}
+
+constexpr int rename_attempts = 6;
+constexpr std::chrono::milliseconds rename_pause{50};
 
 void pretty_write(std::string& out, const json::value& value, int depth)
 {
@@ -915,17 +964,14 @@ result<document> from_json(std::string_view text, std::string& problem)
         return refused();
     }
 
-    // A member that a setup does not have is refused: a misspelt name would
-    // otherwise open as a setup without it, and saving that setup would write
-    // the loss back over the file.
-    const json::object& object = root.as_object();
-    const member_reader top(object, {}, problem);
-    if (!top.only({"version", "name", "description", "ports", "links"}))
-        return refused();
+    // A member that a setup does not have is refused (`done` at the end of
+    // each object): a misspelt name would otherwise open as a setup without
+    // it, and saving that setup would write the loss back over the file.
+    const member_reader top(root.as_object(), {}, problem);
 
     // Only version 1 is understood, and the file must say so, as the JSON
     // view of the window requires.
-    const json::value* version = object.if_contains("version");
+    const json::value* version = top.find("version");
     if (version == nullptr)
     {
         problem = "version is missing; it must be 1";
@@ -963,10 +1009,7 @@ result<document> from_json(std::string_view text, std::string& problem)
             const member_reader entry = top.sub(element.as_object(), where);
 
             port_entry port;
-            if (!entry.only({"name", "kind", "uri", "virtual_kind",
-                             "mock_target", "serial", "capture", "com_number",
-                             "plugins"}) ||
-                !entry.text("name", port.name) ||
+            if (!entry.text("name", port.name) ||
                 !entry.text("kind", port.kind) ||
                 !entry.text("uri", port.uri) ||
                 !entry.text("virtual_kind", port.virtual_kind) ||
@@ -980,14 +1023,14 @@ result<document> from_json(std::string_view text, std::string& problem)
                              port.com_number))
                 return refused();
 
-            if (const auto* serial = element.as_object().if_contains("serial"))
+            if (const auto* serial = entry.find("serial"))
             {
                 if (const error_code parse_error = serial_from_json(
                         *serial, entry.path("serial"), port.serial, problem))
                     return parse_error;
             }
 
-            if (!bindings_from_json(entry, port.plugins))
+            if (!bindings_from_json(entry, port.plugins) || !entry.done())
                 return refused();
 
             out.ports.push_back(std::move(port));
@@ -1014,10 +1057,7 @@ result<document> from_json(std::string_view text, std::string& problem)
 
             link_entry link;
             std::string policy = "interleave";
-            if (!entry.only({"mode", "sources", "targets", "members",
-                             "emulate_modem_lines", "policy", "delay_ms",
-                             "jitter_ms", "half_duplex", "plugins"}) ||
-                !entry.text("mode", link.mode))
+            if (!entry.text("mode", link.mode))
                 return refused();
 
             // A bus has no modem lines, so absent means off there.
@@ -1045,12 +1085,15 @@ result<document> from_json(std::string_view text, std::string& problem)
 
             if (!latency_from_json(entry, link) ||
                 !half_duplex_from_json(entry, link) ||
-                !bindings_from_json(entry, link.plugins))
+                !bindings_from_json(entry, link.plugins) || !entry.done())
                 return refused();
 
             out.links.push_back(std::move(link));
         }
     }
+
+    if (!top.done())
+        return refused();
 
     // Parsing only checks types; validate() checks that the document makes
     // sense as a whole, so a caller never receives an invalid document.
@@ -1115,7 +1158,7 @@ result<void> save_file(const std::string& path, const document& value,
 
     // The text goes to a file beside the target and replaces it in one step,
     // so a failure at any point leaves the file that was there as it was.
-    // A target that is a symbolic link is written through, as it always was.
+    // A target that is a symbolic link is replaced where the link points.
     std::error_code fs_error;
     std::filesystem::path target(path);
     if (std::filesystem::is_symlink(target, fs_error))
@@ -1124,8 +1167,28 @@ result<void> save_file(const std::string& path, const document& value,
         if (!fs_error)
             target = std::move(resolved);
     }
-    std::filesystem::path temporary = target;
-    temporary += saving_file_suffix;
+
+    // A file that cannot be written to is refused, as it was when the target
+    // was opened to be written.  Opening to append changes nothing in it.
+    if (std::filesystem::exists(target, fs_error) &&
+        !std::ofstream(target, std::ios::binary | std::ios::app))
+        return make_error_code(errc::permission_denied);
+
+    // The temporary file has a name that is new: a file of that name is never
+    // truncated or reused, and two saves at once do not share one.
+    std::filesystem::path temporary;
+    std::ofstream stream;
+    for (int attempt = 0; attempt < 4 && !stream.is_open(); ++attempt)
+    {
+        temporary = target;
+        temporary += unique_saving_suffix();
+        if (std::filesystem::exists(temporary, fs_error))
+            continue;
+        stream.open(temporary,
+                    std::ios::out | std::ios::binary | exclusive_create_flag());
+    }
+    if (!stream.is_open())
+        return make_error_code(errc::permission_denied);
 
     const auto abandon = [&temporary](errc reason)
     {
@@ -1134,18 +1197,13 @@ result<void> save_file(const std::string& path, const document& value,
         return make_error_code(reason);
     };
 
-    {
-        std::ofstream stream(temporary, std::ios::binary | std::ios::trunc);
-        if (!stream)
-            return make_error_code(errc::permission_denied);
-        stream << *text;
-        stream.flush();
-        if (!stream)
-            return abandon(errc::io_error);
-        stream.close();
-        if (stream.fail())
-            return abandon(errc::io_error);
-    }
+    stream << *text;
+    stream.flush();
+    if (!stream)
+        return abandon(errc::io_error);
+    stream.close();
+    if (stream.fail())
+        return abandon(errc::io_error);
 
     // The file keeps the permissions it had.  A file that is not there yet
     // takes the ones a new file gets.
@@ -1154,7 +1212,16 @@ result<void> save_file(const std::string& path, const document& value,
         std::filesystem::permissions(temporary, existing.permissions(),
                                      fs_error);
 
-    std::filesystem::rename(temporary, target, fs_error);
+    // Another program may hold the target for a moment, as a tool that
+    // copies or scans a file after it changes does, and the rename is then
+    // refused.  It is tried again for about a quarter of a second.
+    for (int attempt = 1;; ++attempt)
+    {
+        std::filesystem::rename(temporary, target, fs_error);
+        if (!fs_error || attempt == rename_attempts)
+            break;
+        std::this_thread::sleep_for(rename_pause);
+    }
     if (fs_error)
         return abandon(fs_error == std::errc::permission_denied
                            ? errc::permission_denied

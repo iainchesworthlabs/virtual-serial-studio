@@ -362,6 +362,29 @@ TEST_CASE("document: a member of the wrong type is refused and named")
         "ports[0].serial.exclusive");
 }
 
+TEST_CASE("document: a problem is given for a value the checks refuse")
+{
+    // The settings read, but the line is not one that exists.
+    for (const char* serial : {R"({"baud_rate":0})", R"({"data_bits":255})"})
+    {
+        std::string problem;
+        const auto parsed = from_json(
+            std::string(R"({"version":1,"ports":[{"name":"a","kind":"virtual",)"
+                        R"("serial":)") +
+                serial + "}]}",
+            problem);
+        REQUIRE(!parsed);
+        REQUIRE(problem.find("ports[0].serial") != std::string::npos);
+    }
+
+    // The range in the sentence is the one the checks use.
+    expect_refused_naming(
+        R"({"version":1,"ports":[{"name":"a","kind":"virtual"},)"
+        R"({"name":"b","kind":"virtual"}],"links":[{"mode":"bus",)"
+        R"("members":["a","b"],"half_duplex":{"turnaround_ms":-1}}]})",
+        "from 0 to 60000");
+}
+
 TEST_CASE("document: a member a setup does not have is refused and named")
 {
     expect_refused_naming(
@@ -552,25 +575,14 @@ TEST_CASE("document: a save replaces the file and leaves no temporary file")
     REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
 }
 
-TEST_CASE("document: a save that cannot start leaves the old file as it was")
+TEST_CASE("document: a document that is not valid is refused before the file "
+          "is touched")
 {
     const scratch_folder folder;
     const auto path = folder.path / "lab.json";
     const std::string before = "{\"version\": 1, \"name\": \"mine\"}\n";
     write_all(path, before);
 
-    // The temporary file cannot be made where a folder has its name.  The
-    // old way of saving opened the target itself and was not stopped.
-    const auto blocker =
-        folder.path / ("lab.json" + std::string(saving_file_suffix));
-    std::filesystem::create_directory(blocker);
-    const auto saved = save_file(path.string(), sample_document());
-    REQUIRE(!saved);
-    REQUIRE_EQ(read_all(path), before);
-    REQUIRE(std::filesystem::is_directory(blocker));
-    std::filesystem::remove(blocker);
-
-    // A document that is not valid is refused before the file is touched.
     document invalid = sample_document();
     invalid.ports[0].name.clear();
     REQUIRE(!save_file(path.string(), invalid));
@@ -578,12 +590,52 @@ TEST_CASE("document: a save that cannot start leaves the old file as it was")
     REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
 }
 
-TEST_CASE("document: a save that cannot finish removes its temporary file")
+TEST_CASE("document: a file the user made read-only is not replaced")
 {
     const scratch_folder folder;
+    const auto path = folder.path / "lab.json";
+    const std::string before = "{\"version\": 1, \"name\": \"mine\"}\n";
+    write_all(path, before);
+    std::filesystem::permissions(path,
+                                 std::filesystem::perms::owner_write |
+                                     std::filesystem::perms::group_write |
+                                     std::filesystem::perms::others_write,
+                                 std::filesystem::perm_options::remove);
 
-    // A folder that is not empty cannot be replaced by a file.  The text has
-    // been written by then, so this is the failure that comes last.
+    // A user who may write to it anyway (the superuser) cannot show this.
+    if (std::ofstream(path, std::ios::binary | std::ios::app))
+        VSS_SKIP("this user can write to a read-only file");
+
+    const auto saved = save_file(path.string(), sample_document());
+    REQUIRE(!saved);
+    REQUIRE_EQ(saved.error(), make_error_code(errc::permission_denied));
+    REQUIRE_EQ(read_all(path), before);
+    REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
+
+    std::filesystem::permissions(path, std::filesystem::perms::owner_write,
+                                 std::filesystem::perm_options::add);
+}
+
+TEST_CASE("document: a save never touches a file that has the temporary "
+          "file's kind of name")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "lab.json";
+    const auto neighbour = folder.path / "lab.json.saving";
+    write_all(path, "old text");
+    write_all(neighbour, "belongs to someone");
+
+    REQUIRE(save_file(path.string(), sample_document()));
+    REQUIRE(save_file(path.string(), sample_document()));
+    REQUIRE_EQ(read_all(neighbour), std::string("belongs to someone"));
+    REQUIRE_EQ(names_in(folder.path),
+               (std::vector<std::string>{"lab.json", "lab.json.saving"}));
+}
+
+TEST_CASE("document: a folder where the file should be is refused and left "
+          "alone")
+{
+    const scratch_folder folder;
     const auto target = folder.path / "lab.json";
     std::filesystem::create_directory(target);
     write_all(target / "inside.txt", "keep");
@@ -593,6 +645,15 @@ TEST_CASE("document: a save that cannot finish removes its temporary file")
     REQUIRE_EQ(names_in(folder.path), std::vector<std::string>{"lab.json"});
     REQUIRE_EQ(names_in(target), std::vector<std::string>{"inside.txt"});
     REQUIRE_EQ(read_all(target / "inside.txt"), std::string("keep"));
+}
+
+TEST_CASE("document: a save into a folder that is not there fails and makes "
+          "nothing")
+{
+    const scratch_folder folder;
+    const auto path = folder.path / "missing" / "lab.json";
+    REQUIRE(!save_file(path.string(), sample_document()));
+    REQUIRE(names_in(folder.path).empty());
 }
 
 TEST_CASE("document: a file over the size limit is refused")
@@ -649,6 +710,35 @@ TEST_CASE("document: a file that is saved and read again is the same")
     REQUIRE(loaded);
     REQUIRE(save_file(second.string(), *loaded));
     REQUIRE_EQ(read_all(first), read_all(second));
+}
+
+TEST_CASE("document: every fuzz seed that is not named bad_ is accepted")
+{
+    // The seeds are what the fuzzer starts from.  One that is refused for a
+    // reason that has nothing to do with what it is for, such as a member the
+    // reader does not know, no longer reaches the code it was kept to guard.
+    const std::filesystem::path fuzz =
+        std::filesystem::path(VSS_TEST_DATA_DIR) / ".." / ".." / "libs" /
+        "vss_config" / "fuzz";
+    std::size_t checked = 0;
+    for (const char* folder : {"corpus", "regressions"})
+    {
+        const auto directory = fuzz / folder;
+        REQUIRE(std::filesystem::is_directory(directory));
+        for (const auto& entry : std::filesystem::directory_iterator(directory))
+        {
+            const std::string name = entry.path().filename().string();
+            if (entry.path().extension() != ".json" || name.starts_with("bad_"))
+                continue;
+            std::string problem;
+            const auto parsed = load_file(entry.path().string(), problem);
+            if (!parsed)
+                std::cerr << name << " is refused: " << problem << '\n';
+            REQUIRE(parsed);
+            ++checked;
+        }
+    }
+    REQUIRE(checked > 10);
 }
 
 TEST_CASE("document: owner policy roundtrips")
