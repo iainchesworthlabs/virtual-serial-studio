@@ -76,14 +76,35 @@ The graphics API is the platform default of `QRhiWidget` (Direct3D 11 on Windows
 
 ### Presenting the window
 
-A window that holds a GPU widget is presented through the graphics API. Two of Qt's defaults made that slower than the
-CPU path, and Studio changes both when the canvas is drawn on the GPU (`rendering::initialise`, before the window is
-made). `12-render-profiling.md` has the measurements.
+A window that holds a GPU widget is presented through the graphics API. One of Qt's defaults made that slower than the
+CPU path, and Studio changes it when the canvas is drawn on the GPU (`rendering::prepare_present`, called by
+`rendering::initialise` before the window is made). `12-render-profiling.md` has the measurements.
 
 | Default in Qt | What Studio asks for | To get Qt's default back |
 |---|---|---|
 | Each present waits for the next refresh of the display, with the GUI thread stopped (swap interval 1) | No wait (swap interval 0), as for a window drawn by the CPU | `VSS_RENDER_VSYNC=1` |
-| Direct3D: the "flip" swap chain, which was slow to resize and now and then held a present for 40 to 190 ms | The copying swap chain (`QT_D3D_NO_FLIP=1`, unless the variable is already set) | `QT_D3D_NO_FLIP=0` |
+
+Studio leaves Qt's Direct3D swap chain (the "flip" model) as it is. 0.1.0-rc.4 asked for the older copying swap chain
+(`QT_D3D_NO_FLIP=1`) as well, and on Windows the whole window then stayed white:
+
+- With swap interval 0 Qt asks Direct3D for a swap chain that allows tearing, wherever the system offers it (Windows
+  10 and 11 with a current driver do).
+- Direct3D allows tearing only for a flip swap chain. It refuses to make a copying one that does
+  (`DXGI_ERROR_INVALID_CALL`, 0x887a0001), so the window has no swap chain and nothing in it is ever presented. Qt
+  prints "Failed to create swapchain for window flushed with an RHI-enabled backingstore" for every repaint, and the
+  canvas does not see it: its own device is fine, so there is no fallback.
+- Everything in the window is drawn through that swap chain, not only the canvas, so the menu bar, the panes and the
+  Simple mode page were white too. Menus and other pop-ups are windows of their own and still drew.
+
+If `QT_D3D_NO_FLIP` is set to a number other than 0 in the environment, Studio keeps the wait for the display, so the
+two are never asked for together (`rendering::choose_present`, tested in `test_rendering.cpp`).
+
+`grab()` does not go through the swap chain, so no test that grabs a widget sees a blank window. `gui_present`
+(`vss_gui_present_check`, Windows only, label `ui`) shows the GPU canvas on the desktop, reads the screen back and
+compares it with the canvas's colour; it fails on a white window and reports itself skipped when the window is covered.
+Run with `--old-present` and `QT_D3D_NO_FLIP=1` it shows the old fault and fails. Before a release, check by hand too:
+start the installed Studio with Automatic rendering and see that the window is drawn, then open **Help, About,
+Environment** and see that it says Hardware (GPU).
 
 ## Profiling
 

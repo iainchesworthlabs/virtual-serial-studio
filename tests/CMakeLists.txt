@@ -350,6 +350,16 @@ if(TARGET vss_gui)
   set_tests_properties(gui_selftest_200 PROPERTIES
     TIMEOUT 300
     ENVIRONMENT "${VSS_QT_FONT_ENV}QT_QPA_PLATFORM=offscreen;QT_SCALE_FACTOR=2;QT_FONT_DPI=192;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
+
+  # --render is read before the command-line parser runs, and the parser must
+  # accept it too: it once stopped Studio with "Unknown option 'render'".
+  # --version leaves before any window is made.
+  add_test(NAME gui_render_option COMMAND vss_gui --render=software --version)
+  add_test(NAME gui_render_option_spaced
+    COMMAND vss_gui --render hardware --version)
+  set_tests_properties(gui_render_option gui_render_option_spaced PROPERTIES
+    TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
 endif()
 
 # The backend tests exist only when Qt and the tests are both enabled.
@@ -485,6 +495,21 @@ if(TARGET vss_gui_support_tests)
   set_tests_properties(gui_support PROPERTIES
     TIMEOUT 180
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
+endif()
+
+# The GPU canvas on the real screen. A window presented through the graphics
+# API is not in grab(), so only this check sees a window that stays blank (the
+# white window of 0.1.0-rc.4). It needs a desktop to draw on, which a Windows
+# session always has, so it runs on Windows only. It reports itself skipped
+# (77) when the window is covered or the screen cannot be read.
+if(TARGET vss_gui_present_check AND WIN32)
+  add_test(NAME gui_present COMMAND vss_gui_present_check)
+  set_tests_properties(gui_present PROPERTIES
+    LABELS ui
+    RUN_SERIAL TRUE
+    SKIP_RETURN_CODE 77
+    TIMEOUT 60
+    ENVIRONMENT "PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
 endif()
 
 # Connect, share, network and template dialogs (WP6).

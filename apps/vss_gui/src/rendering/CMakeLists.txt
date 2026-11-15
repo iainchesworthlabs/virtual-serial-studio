@@ -34,3 +34,15 @@ target_compile_definitions(vss_gui_rendering PRIVATE QT_NO_KEYWORDS)
 set_target_properties(vss_gui_rendering PROPERTIES AUTOMOC ON)
 vss_set_warnings(vss_gui_rendering)
 
+# Shows the GPU canvas on the real platform and reads the screen back, which
+# grab() cannot do for a window presented through the graphics API.
+if(VSS_BUILD_TESTS)
+  add_executable(vss_gui_present_check tests/present_check.cpp)
+  target_compile_definitions(vss_gui_present_check PRIVATE QT_NO_KEYWORDS)
+  target_link_libraries(vss_gui_present_check PRIVATE
+    vss_gui_rendering
+    vss_gui_theme
+    Qt6::Widgets)
+  vss_set_warnings(vss_gui_present_check)
+endif()
+

@@ -40,6 +40,11 @@ void set_state(const render_state& state);
 render_state initialise(render_mode setting, const QString& environment,
                         const QString& command_line);
 
+/// Sets the default surface format for a window presented on the GPU, as
+/// `choose_present` says, from the environment. `initialise` calls it when the
+/// canvas starts on the GPU; it never changes the environment.
+void prepare_present();
+
 /// The canvas set up its graphics device (or could not). Applies `decide`:
 /// if the answer is software, switches `current()` and tells the events.
 /// Returns true when the canvas should keep drawing on the GPU.

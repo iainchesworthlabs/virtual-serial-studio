@@ -7,6 +7,7 @@
 #pragma once
 
 #include <QString>
+#include <QStringList>
 
 namespace vss::gui::rendering
 {
@@ -55,6 +56,30 @@ struct request
 [[nodiscard]] request choose_request(render_mode setting,
                                      const QString& environment,
                                      const QString& command_line);
+
+/// The value of `--render` in a command line, `--render=MODE` or
+/// `--render MODE`, with the program at index 0. The last one wins. Empty
+/// when there is none.
+[[nodiscard]] QString render_argument(const QStringList& arguments);
+
+/// How a window that holds a GPU widget is presented.
+struct present_choice
+{
+    /// Swap interval 0: a present does not wait for the next refresh of the
+    /// display.
+    bool no_wait = false;
+};
+
+/// Chooses how to present from the values of `VSS_RENDER_VSYNC` and
+/// `QT_D3D_NO_FLIP` (empty when unset).
+///
+/// No wait, unless `VSS_RENDER_VSYNC=1` asks for it, or unless
+/// `QT_D3D_NO_FLIP` asks Qt for Direct3D's copying swap chain. With swap
+/// interval 0 Qt asks for a swap chain that allows tearing wherever the system
+/// offers it, and Direct3D refuses to make a copying swap chain that does:
+/// the window then has no swap chain at all and shows nothing but white.
+[[nodiscard]] present_choice choose_present(const QString& vsync,
+                                            const QString& no_flip);
 
 /// What the canvas found when it set up the GPU: the QRhi device behind the
 /// QCanvasPainterWidget. Filled in by `GpuCanvas`, or by a test that wants to
