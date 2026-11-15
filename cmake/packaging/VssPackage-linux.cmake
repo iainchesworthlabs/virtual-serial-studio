@@ -143,7 +143,14 @@ set(CPACK_RPM_PACKAGE_VERSION "${PROJECT_VERSION}")
 # Debian
 # ---------------------------------------------------------------------------
 
-set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+# The file name has no tilde: GitHub turns a "~" in the name of a release asset into a ".", so the
+# SHA512SUMS that the publish job writes before the upload would name a file the release does not
+# hold. The Version field inside the package keeps the tilde, which is what sorts 0.1.0~rc.1 before
+# 0.1.0, so the name is the Version with each "~" written as ".". A final release has no "~" and
+# gets the name DEB-DEFAULT gave it.
+string(REPLACE "~" "." _vss_deb_file_version "${CPACK_DEBIAN_PACKAGE_VERSION}")
+set(CPACK_DEBIAN_FILE_NAME
+  "${CPACK_PACKAGE_NAME}_${_vss_deb_file_version}-${CPACK_DEBIAN_PACKAGE_RELEASE}_${_vss_deb_arch}.deb")
 set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "${_vss_deb_arch}")
 set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_PACKAGE_CONTACT}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "electronics")

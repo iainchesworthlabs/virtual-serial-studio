@@ -542,6 +542,9 @@ The same setup as a topology file, for `vss_cli run` or **File → Open**:
 }
 ```
 
+A topology file must have `"version": 1`, and a member Studio does not know
+is an error, so a misspelt name is found when the file is opened.
+
 From the command line, `vss_cli bus --virtual=3 --tap=virtual` makes the three
 bus ports and the listener and prints the port each program should open.
 
@@ -1115,7 +1118,7 @@ accepts these forms, and you can type them in Advanced and in `vss_cli`:
 | `serial://COM3?baud=115200` | A real serial device with framing options. |
 | `tcp://host:port` | A TCP client: Studio connects to a server. |
 | `udp://host:port` | UDP datagrams sent to and received from one address. |
-| `tcp-listen://host:port` | A TCP server: Studio waits for other computers. Any number can connect; what you send goes to all of them. |
+| `tcp-listen://host:port` | A TCP server: Studio waits for other computers. Up to 32 can connect; what you send goes to all of them. |
 | `udp-listen://host:port` | UDP datagrams from any sender; replies go to the senders heard from lately. |
 | `rfc2217://host:port` | RFC 2217 serial-over-network: Studio connects to an access server. |
 | `rfc2217-listen://host:port` | An RFC 2217 access server: Studio waits for serial-over-network clients such as pySerial's `rfc2217://`. |
@@ -1160,6 +1163,25 @@ bridge` warn when such a server can be reached from another computer and has no
 Every connection Studio accepts is set to send what it writes at once, so a
 short reply (a reply to a poll on a serial bus, for example) is not held back
 waiting for more data.
+
+### Clients that do not keep up
+
+A `tcp-listen` or `rfc2217-listen` port keeps what it has to send to each
+client separately. While every client is more than 1 MiB behind, the port
+slows the device or program that sends to it, as it would for one slow reader.
+When one client has caught up to within 1 MiB, any client still further behind
+is disconnected, and so is a client that takes no data for 30 seconds. In
+Studio, the port's log says which address and why. A client that sends RFC 2217
+requests and does not read the replies is disconnected when the replies waiting
+for it pass 1 MiB. The other clients and the device are not held back. A write
+counts as done when the port has accepted it for the clients, so what is still
+waiting is lost when the port closes.
+
+A port takes up to 32 clients at once. The next is closed as soon as it
+connects, and the log says so (once every 10 seconds at most). If the computer
+cannot accept a connection, for example because the program has used up the
+open connections and files the system allows it, the port waits 100 ms and then
+longer, up to 5 seconds, before it tries again, and says so in the log.
 
 ### A device on another computer
 
@@ -1476,7 +1498,9 @@ effect at once, with no restart. Importing never deletes an older file.
 
 | Folder | Where | Used for |
 |---|---|---|
-| Your licence folder | The `licences` folder in Studio's per-user data folder | Where **Import licence...** copies files |
+| Your licence folder, Windows | `%LOCALAPPDATA%\Virtual Serial Studio\licences` | Where **Import licence...** copies files |
+| Your licence folder, Linux | `$XDG_DATA_HOME/virtual-serial-studio/licences`, or `~/.local/share/virtual-serial-studio/licences` when `XDG_DATA_HOME` is not set | The same |
+| Your licence folder, macOS | `~/Library/Application Support/Virtual Serial Studio/licences` | The same |
 | The per-machine folder, Windows | `%ProgramData%\Virtual Serial Studio\licences` | A licence an administrator puts there for every user of the computer |
 | The per-machine folder, Linux | `/etc/virtual-serial-studio/licences` | The same |
 | The per-machine folder, macOS | `/Library/Application Support/Virtual Serial Studio/licences` | The same |
@@ -1486,6 +1510,22 @@ the most: a valid licence before one in its grace period, that before one that
 has ended, then Enterprise before Pro, then the one that ends last. The others
 are listed on the Licence page. Studio only reads the per-machine folder. It
 never writes to it, and **Remove** does not touch a file there.
+
+### From the command line
+
+`vss_cli licence` prints what Studio sees on this computer, one line for each
+fact: `Edition:` (`community`, `pro` or `enterprise`), `State:` (`none`,
+`valid`, `expiring`, `grace`, `expired`, `not_yet_valid`, `clock_suspect` or
+`invalid`), `Reason:` when the licence is not in force, then the licence
+number, its kind, who it is licensed to, its term, the days left and the
+seats, and the licence files it found in both folders. The edition and state
+words are the ones the control gateway's status uses. It reads files and
+sends nothing, and its exit status is 0 whatever it finds.
+
+`vss_cli licence import <file>` checks a licence file as Studio does and copies
+it to your licence folder. It prints one sentence and exits with 0 when the
+licence is installed and 1 when nothing was copied. The file you give it stays
+where it was.
 
 ### When a licence ends
 
@@ -1696,13 +1736,20 @@ again.
 | Self-test the wiring | `vss_cli selftest` |
 | Check what the system may block | `vss_cli permissions check` |
 | List the installed plugins | `vss_cli plugin list` (add `--json` for a script) |
+| Check a plugin folder | `vss_cli plugin verify <folder>` |
+| Install or remove a plugin | `vss_cli plugin install <folder>`, `vss_cli plugin remove <id>` |
 
-`virtual`, `vport`, `bus` and `capture` keep running until `Ctrl-C` or `SIGTERM`,
-or for `--seconds=N`. `run`, `share`, `join`, `bridge` and `loopback` keep their
-ports only for the `--seconds=N` you give; without it they print what they made
-and exit. `--verbose` prints the port table every half second while `run`,
-`share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
---help` lists every option.
+`virtual`, `vport`, `bus`, `capture`, `run`, `share`, `join`, `bridge` and
+`loopback` keep running until `Ctrl-C`, `SIGTERM` or, on Linux and macOS, `SIGHUP`
+(a closing terminal), or for `--seconds=N`, where N is 1 or more. On Windows
+`Ctrl-Break` and closing the console window stop them too. They take their ports
+down before they end. `--verbose` prints the port table every half second while
+`run`, `share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
+--help` lists every option. An option takes its value as `--name=value` or as
+`--name value`; an option a command does not have, a missing value and a value that
+is not a number where one is needed end the command with exit code 2 and one line
+on standard error. `vss_cli --version` prints the version of the build, as
+`vss_gui --version` does.
 
 ### Recording with `vss_cli capture`
 
@@ -1755,7 +1802,10 @@ other programs on a bus without the program that made the recording.
   its last record whichever direction that is, so a recording repeats at the pace
   it was taken.
 - It stops when the last record has been sent, or at `Ctrl-C`, or after
-  `--seconds`, and prints how many records and bytes it sent. Lines of the file
+  `--seconds`, and prints how many records and bytes it sent. After the last record
+  it waits until the port has written everything that was queued, for as long as
+  the port keeps taking bytes. It exits with 1, and says how much was written, when
+  the port refused a write or stopped taking bytes before that. Lines of the file
   that cannot be read are skipped and counted.
 
 ### Scripted devices with `vss_cli respond`
@@ -1818,8 +1868,9 @@ vss_cli plugin list [--json] [--root <folder>]...
 ```
 
 `plugin list` shows the plugins that are installed on this computer. It only
-reads. It runs no plugin, checks no signature and changes nothing. This build
-does not run plugins.
+reads. It runs no plugin and changes nothing. This build does not run plugins.
+For each plugin it also makes the checks that come before a run, the same ones
+`plugin verify` makes, and shows what they found.
 
 It starts with whether Studio is installed for everyone on this computer or for
 you only, and with the administrator's policy file, if there is one. Then it
@@ -1827,11 +1878,15 @@ prints one block for each plugin:
 
 ```text
 com.example.modbus-fixture  1.2.0  Modbus fixture
-  Folder:       C:/Users/me/AppData/Local/VirtualSerialStudio/plugins/modbus-fixture
+  Folder:       C:/Users/me/AppData/Local/Virtual Serial Studio/plugins/modbus-fixture
   Installed for: you only
   Fingerprint:  3f9a1c0d2b7e4a61
-  Signature:    not signed
   State:        found
+  Signature:    Not signed. Studio cannot tell who made it or whether it was changed.
+  Trust:        Unsigned
+  Key:          none
+  May run:      no, sandbox_insufficient: ...
+  Licence:      none needed
 ```
 
 - **Folder** is the plugin's own folder.
@@ -1839,13 +1894,15 @@ com.example.modbus-fixture  1.2.0  Modbus fixture
   Studio`, from the folder the plugin was found in.
 - **Fingerprint** is the first 16 characters of a hash of all the plugin's
   files. A change to any file gives a different fingerprint.
-- **Signature** is `not signed` when the plugin has no `plugin.sig`. When it has
-  one, it is `present, not checked by this build`.
 - **State** is `found` when the plugin's files are in order, and nothing more.
   Otherwise it is the reason, such as `manifest_invalid`, and a line that says
   what is wrong. When two folders hold a plugin with the same id, the copy found
   first counts. The other is `shadowed`, and a `Not used` line names the folder
   of the copy that counts.
+- **Signature**, **Trust**, **Key**, **May run** and **Licence** are what the
+  checks found. They are explained under `plugin verify` below. A plugin whose
+  manifest could not be read has a `Signature` line that says whether there is
+  a `plugin.sig`, and none of the others.
 
 A plugin whose `plugin.json` cannot be read is shown by the name of its folder.
 A plugin folder that cannot be looked through is named after the plugins. Text
@@ -1855,8 +1912,11 @@ printable ASCII is shown as `?`. The JSON keeps valid UTF-8 as it is.
 `--json` prints one JSON object and nothing else: `install` (`for_everyone`,
 `for_one_user` or `null`), `policy` (`file`, `present`, `used` and `detail`),
 `plugins` (one object for each plugin, with `id`, `version`, `name`, `folder`,
-`scope`, `fingerprint`, `signature`, `state`, `detail` and `shadowed_by`) and
-`roots_not_read`. A value that is not known is `null`.
+`scope`, `fingerprint`, `signature`, `state`, `detail` and `shadowed_by`, and
+for a plugin whose manifest was read the members that `plugin verify --json`
+has: `signature_state`, `trust`, `trust_line`, `key_id`, `may_run`,
+`run_reason`, `run_detail` and `licence`) and `roots_not_read`. A value that is
+not known is `null`.
 
 `--root <folder>` looks in the folders you give instead of the usual ones, and
 may be repeated. Each folder counts as your own, and the policy file is not
@@ -1866,6 +1926,106 @@ The exit code is 0 when the command ran, whatever it found: a plugin with a
 problem is a finding, not a failure of the command. It is 2 for a command line
 the program does not understand.
 
+### Checking a plugin with `vss_cli plugin verify`
+
+```bash
+vss_cli plugin verify <folder> [--allow-unsigned] [--json]
+```
+
+`plugin verify` makes the checks that come before a plugin runs, on a plugin
+folder, and says what it found. It only reads. It runs nothing.
+
+```text
+com.example.modbus-fixture  1.2.0  Modbus fixture
+  Folder:       C:/Downloads/modbus-fixture
+  Fingerprint:  3f9a1c0d2b7e4a61
+  Signature:    Signed by Example Ltd. Not verified by Virtual Serial Studio.
+  Trust:        Signed by Example Ltd
+  Key:          example-2026
+  May run:      yes
+  Licence:      none needed
+  Install:      can be installed
+This build does not run plugins.
+```
+
+- **Signature** says whether the signature holds and who made it. "Official"
+  plugins are signed by Virtual Serial Studio. A signature shows who made a
+  plugin and that its files are unchanged. It does not show that the plugin is
+  safe.
+- **Trust** is `Official`, `Signed by <author>`, `Unsigned` or `Signed by an
+  author you have not approved`. The last is a plugin signed with a key that is
+  not on this computer, so the signature could not be checked.
+- **Key** is the id of the signing key, or `none`.
+- **May run** is `yes`, or `no` and the reason code and a line about it, such as
+  `expired` or `sandbox_insufficient`. It says what Studio would decide. This
+  build runs no plugin, whatever it says.
+- **Licence** is `none needed`, `covered`, or `not covered` and why. The command
+  line does not read licence files yet, so for an official plugin that needs an
+  edition it says `not checked`.
+- **Install** is `can be installed`, `cannot be installed` and the reason, or
+  `cannot be installed unless you give --allow-unsigned`.
+
+The exit code is 0 when the plugin can be installed, 1 when it cannot, and 2 for
+a command line the program does not understand. A plugin cannot be installed
+when its folder is not a plugin folder, when a file is not what its manifest
+lists or the folder holds a file it does not list, when its signature does not
+hold, or when it can never run: its id is one that only official plugins may
+use, or it was withdrawn. A plugin that has expired, or that this computer
+cannot isolate, or that the licence does not cover, can be installed; the line
+`May run` says what is wrong. A plugin with no signature can be installed only
+with `--allow-unsigned`.
+
+`--json` prints one JSON object: `id`, `version`, `name`, `folder`,
+`fingerprint`, `problem` and `detail` (why the folder cannot be used, or
+`null`), `signature_state` (`absent`, `invalid`, `valid` or `unknown_key`),
+`trust` (`official`, `third_party_signed`, `signed_unknown_key`, `unsigned` or
+`null`), `trust_line`, `key_id`, `may_run`, `run_reason`, `run_detail`,
+`licence` (`checked`, `covered` and `detail`), `installable` and `install`.
+
+### Installing a plugin with `vss_cli plugin install`
+
+```bash
+vss_cli plugin install <folder> [--for-everyone] [--replace] [--allow-unsigned] [--root <folder>]
+vss_cli plugin remove <id> [--for-everyone] [--root <folder>]
+```
+
+A plugin arrives as a zip file. Studio does not open zip files. Unzip it with
+your system's own tool into a folder of its own, look at the folder with
+`plugin verify`, and install from that folder. The folder must hold
+`plugin.json` and the files it lists, and usually `plugin.sig`.
+
+`plugin install` makes the same checks as `plugin verify`. If they allow it, it
+copies the plugin into your plugin folder, under its id, and prints what it did
+and what the checks found. It runs nothing from the plugin. If a check fails, it
+says which one and writes nothing.
+
+- The files are copied from the folder you give, each one read once, and the
+  copy is checked against the plugin's manifest again before it is put in place.
+  A file that changed while it was being copied stops the install.
+- The copy is made in a new folder beside the plugin folders and is renamed into
+  place in one step, so a failure leaves the old plugin or the new one and never
+  half of each. No folder is left behind when the install fails.
+- A link, or anything that is not a plain file or folder, in the plugin folder
+  stops the install.
+- A plugin with the same id that is already installed stops the install unless
+  you give `--replace`. With it, the old copy is put aside, the new one is put in
+  place and the old one is removed. If putting the new one in place fails, the
+  old one is put back.
+- `--allow-unsigned` is needed for a plugin that has no signature.
+- `--for-everyone` installs into the folder of everyone on this computer. Run
+  the command from a prompt that may write there. Studio does not ask for more
+  rights. It stops with a message when the folder can be changed by someone who
+  is not an administrator, or when it cannot be written.
+- `--root <folder>` installs into the folder you give. The policy file is read
+  as it is for `plugin verify`.
+
+The exit code is 0 when the plugin was installed and 1 when it was not.
+
+`plugin remove` removes the folder of an installed plugin. It takes the id of
+the plugin, such as `com.example.modbus-fixture`, and refuses anything that is
+not a plugin id or a folder that is not a plugin. It does not touch the plugin's
+data. It runs nothing.
+
 ### Where Studio looks for plugins
 
 Studio looks in three folders, widest first. When two of them hold a plugin with
@@ -1874,9 +2034,9 @@ the same id, the first counts.
 | | Windows | Linux | macOS |
 |---|---|---|---|
 | Studio's own | `<program_directory>/../studio-plugins` | the same | the same |
-| Machine | `%ProgramData%\VirtualSerialStudio\plugins` | `/usr/local/share/virtual-serial-studio/plugins` | `/Library/Application Support/VirtualSerialStudio/plugins` |
-| User | `%LOCALAPPDATA%\VirtualSerialStudio\plugins` | `$XDG_DATA_HOME/virtual-serial-studio/plugins`, or `$HOME/.local/share/virtual-serial-studio/plugins` when `XDG_DATA_HOME` is unset, empty or not an absolute path | `$HOME/Library/Application Support/VirtualSerialStudio/plugins` |
-| Policy file | `%ProgramData%\VirtualSerialStudio\policy.json` | `/etc/virtual-serial-studio/policy.json` | `/Library/Application Support/VirtualSerialStudio/policy.json` |
+| Machine | `%ProgramData%\Virtual Serial Studio\plugins` | `/usr/local/share/virtual-serial-studio/plugins` | `/Library/Application Support/Virtual Serial Studio/plugins` |
+| User | `%LOCALAPPDATA%\Virtual Serial Studio\plugins` | `$XDG_DATA_HOME/virtual-serial-studio/plugins`, or `$HOME/.local/share/virtual-serial-studio/plugins` when `XDG_DATA_HOME` is unset, empty or not an absolute path | `$HOME/Library/Application Support/Virtual Serial Studio/plugins` |
+| Policy file | `%ProgramData%\Virtual Serial Studio\policy.json` | `/etc/virtual-serial-studio/policy.json` | `/Library/Application Support/Virtual Serial Studio/policy.json` |
 
 `<program_directory>` is the folder that holds Studio's programs, such as
 `<install>/bin`. Studio's own folder is next to it. It is called

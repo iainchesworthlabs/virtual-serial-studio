@@ -47,10 +47,10 @@ TEST_CASE("plugin locations on macOS: the machine folder and the policy")
             scratch.path() / "install" / "studio-plugins");
     REQUIRE(found.roots[1].scope == plugin_scope::for_everyone);
     REQUIRE(found.roots[1].directory ==
-            fs::path("/Library/Application Support/VirtualSerialStudio/"
+            fs::path("/Library/Application Support/Virtual Serial Studio/"
                      "plugins"));
     REQUIRE(found.policy_file ==
-            fs::path("/Library/Application Support/VirtualSerialStudio/"
+            fs::path("/Library/Application Support/Virtual Serial Studio/"
                      "policy.json"));
 }
 
@@ -66,5 +66,5 @@ TEST_CASE("plugin locations on macOS: the user's folder is under $HOME")
     REQUIRE(user != nullptr);
     REQUIRE(user->directory ==
             fs::path("/Users/tester/Library/Application Support/"
-                     "VirtualSerialStudio/plugins"));
+                     "Virtual Serial Studio/plugins"));
 }

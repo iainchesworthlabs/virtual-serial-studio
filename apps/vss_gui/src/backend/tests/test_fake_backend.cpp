@@ -727,3 +727,40 @@ TEST_CASE("fake backend: snapshot and apply keep a bus line and its delay")
     REQUIRE_EQ(refused.error(), vss::make_error_code(vss::errc::unsupported));
     REQUIRE(limited.links().empty());
 }
+
+TEST_CASE("fake backend: apply adds to the ports and replace swaps them")
+{
+    vss::config::document document;
+    for (const char* name : {"a", "b"})
+    {
+        vss::config::port_entry port;
+        port.name = name;
+        port.kind = "virtual";
+        port.virtual_kind = "loopback";
+        document.ports.push_back(port);
+    }
+    vss::config::link_entry link;
+    link.mode = "duplex";
+    link.sources = {"a"};
+    link.targets = {"b"};
+    document.links.push_back(link);
+
+    // Like the engine, apply adds: the same setup twice is four ports, and the
+    // names of the second are numbered.
+    vss::gui::FakeStudioBackend backend;
+    REQUIRE(backend.apply(document, true).has_value());
+    REQUIRE(backend.apply(document, true).has_value());
+    REQUIRE_EQ(backend.ports().size(), std::size_t{4});
+    REQUIRE_EQ(backend.links().size(), std::size_t{2});
+    REQUIRE_EQ(backend.ports()[2].name, QStringLiteral("a-2"));
+    const vss::link_id second = backend.links()[1].id;
+    REQUIRE_EQ(backend.links()[1].sources.size(), qsizetype{1});
+    REQUIRE_EQ(backend.links()[1].sources[0], backend.ports()[2].id);
+    REQUIRE(second != backend.links()[0].id);
+
+    // Replace leaves the document's ports and links.
+    REQUIRE(backend.replace(document).has_value());
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.ports()[0].name, QStringLiteral("a"));
+}

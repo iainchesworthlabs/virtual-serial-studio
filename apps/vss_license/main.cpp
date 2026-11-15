@@ -11,6 +11,7 @@
 #include "tool.hpp"
 
 #include <chrono>
+#include <cstdio>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -27,12 +28,15 @@ int main(int argc, char** argv)
         vss::license::tool::surroundings where{
             std::cout, std::cerr, vss::license::tool::platform::read_variable,
             std::chrono::floor<std::chrono::seconds>(
-                std::chrono::system_clock::now())};
+                std::chrono::system_clock::now()),
+            vss::license::builtin_revocations()};
         return vss::license::tool::run(arguments, where);
     }
     catch (const std::exception& failure)
     {
-        std::cerr << "vss_license: " << failure.what() << '\n';
+        // Plain stdio: writing to a stream can throw, and nothing may leave
+        // main.
+        std::fprintf(stderr, "vss_license: %s\n", failure.what());
         return vss::license::tool::exit_failed;
     }
 }

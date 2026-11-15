@@ -147,14 +147,52 @@ struct document
 /// Serialises to a stable, human editable JSON shape.
 result<std::string> to_json(const document& value, bool pretty = true);
 
+/// Reads a setup.  The text must be one JSON object with `"version": 1`; a
+/// file without it is refused.  A member that is there must have the right
+/// type, and a member a setup does not have is refused, so a misspelt name is
+/// an error and not a missing value.  Every refusal is `errc::config_error`, or
+/// the error `validate` gives for a setup that reads but does not make sense.
 result<document> from_json(std::string_view text);
+/// The same, and on a refusal `problem` says in one sentence which member is
+/// wrong and why, such as `ports[1].kind must be text`.  It is empty on
+/// success.
+result<document> from_json(std::string_view text, std::string& problem);
 
 /// Checks names, kinds, URIs and link arity.
 error_code validate(const document& value);
 
+/// The largest setup file `load_file` reads, in bytes.  A real setup is a few
+/// kilobytes; a larger file is not one.
+constexpr std::uintmax_t max_setup_file_size = std::uintmax_t{16} * 1024 * 1024;
+
+/// What `save_file` puts after the name of the file for the temporary file it
+/// writes first, followed by sixteen hex digits, a dash and a count, so a name
+/// is never one that is there.  A temporary file is removed when a save fails.
+constexpr const char* saving_file_marker = ".saving-";
+
 /// Reads a topology file. A missing path gives `not_found`; a path that is not
-/// a regular file (a directory, a device, a pipe) gives `invalid_argument`.
+/// a regular file (a directory, a device, a pipe) gives `invalid_argument`; a
+/// file over `max_setup_file_size` gives `config_error`.
 result<document> load_file(const std::string& path);
+/// The same, with `problem` as for `from_json`.
+result<document> load_file(const std::string& path, std::string& problem);
+
+/// Writes a topology file.  The text goes to a new file beside `path`, which
+/// then replaces `path` in one step.  If the disk is full, the write fails,
+/// another program holds the file or Studio is stopped during the save, the
+/// file that was there is as it was and the temporary file is removed.  Nothing
+/// is flushed to the disk, so a power cut during or just after a save can leave
+/// the file empty or part written.  An existing file that cannot be written to
+/// is refused with `permission_denied`.  On Windows the rename is tried again
+/// for about a quarter of a second when another program has the file open.
+///
+/// What happens to the file that is replaced: a symbolic link is kept and the
+/// file it points to is replaced, as is the last of a chain of links; a link
+/// that points to nothing is replaced by a regular file; a hard link is split,
+/// so the other names keep the old text.  The permission bits are kept and the
+/// owner becomes the user who saves.  On Windows only the read-only mark is
+/// kept: Hidden, the file's own access list and alternate data streams are
+/// lost.
 result<void> save_file(const std::string& path, const document& value,
                        bool pretty = true);
 

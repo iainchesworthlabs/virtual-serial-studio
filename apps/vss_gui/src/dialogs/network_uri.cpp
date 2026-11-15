@@ -12,6 +12,7 @@
 #include <QStringList>
 
 #include <algorithm>
+#include <utility>
 
 namespace vss::gui
 {
@@ -66,6 +67,187 @@ QString build_network_uri(network_transport transport, network_role role,
         .arg(scheme, address, QString::number(port));
 }
 
+namespace
+{
+
+bool all_hex(const QString& text)
+{
+    return std::all_of(text.begin(), text.end(),
+                       [](QChar character)
+                       {
+                           const char16_t code = character.unicode();
+                           return (code >= u'0' && code <= u'9') ||
+                                  (code >= u'a' && code <= u'f') ||
+                                  (code >= u'A' && code <= u'F');
+                       });
+}
+
+bool dotted_ipv4(const QString& text)
+{
+    const QStringList parts = text.split(QLatin1Char('.'));
+    if (parts.size() != 4)
+        return false;
+    return std::all_of(parts.begin(), parts.end(),
+                       [](const QString& part)
+                       {
+                           bool ok = false;
+                           const int value = part.toInt(&ok);
+                           return ok && value >= 0 && value <= 255 &&
+                                  part.size() <= 3 &&
+                                  std::all_of(part.begin(), part.end(),
+                                              [](QChar digit)
+                                              { return digit.isDigit(); });
+                       });
+}
+
+/// An IPv6 address, with an optional `%zone` and an IPv4 tail.
+bool ipv6_address(const QString& text)
+{
+    QString address = text;
+    const qsizetype zone = address.indexOf(QLatin1Char('%'));
+    if (zone >= 0)
+    {
+        if (zone + 1 >= address.size())
+            return false;
+        address.truncate(zone);
+    }
+    if (!address.contains(QLatin1Char(':')) ||
+        address.contains(QStringLiteral(":::")))
+        return false;
+    const qsizetype gaps = address.count(QStringLiteral("::"));
+    if (gaps > 1)
+        return false;
+    // One colon at an end is not a gap.
+    if ((address.startsWith(QLatin1Char(':')) &&
+         !address.startsWith(QStringLiteral("::"))) ||
+        (address.endsWith(QLatin1Char(':')) &&
+         !address.endsWith(QStringLiteral("::"))))
+        return false;
+
+    QStringList groups = address.split(QLatin1Char(':'));
+    groups.removeAll(QString());
+    // `::` alone is the address that means "any", not one a device has.
+    if (groups.isEmpty())
+        return false;
+    int width = 0;
+    for (qsizetype index = 0; index < groups.size(); ++index)
+    {
+        const QString& group = groups[index];
+        if (index + 1 == groups.size() && group.contains(QLatin1Char('.')))
+        {
+            if (!dotted_ipv4(group))
+                return false;
+            width += 2;
+            continue;
+        }
+        if (group.size() > 4 || !all_hex(group))
+            return false;
+        ++width;
+    }
+    return gaps == 1 ? width < 8 : width == 8;
+}
+
+} // namespace
+
+bool valid_remote_host(const QString& host)
+{
+    return !host.isEmpty() && !host.contains(QLatin1Char(' ')) &&
+           !host.contains(QLatin1Char('/'));
+}
+
+std::optional<device_address> parse_device_address(const QString& text,
+                                                   QString* error)
+{
+    VSS_PROFILE_ZONE("gui.dialogs.network_uri.parse_device_address");
+    if (error != nullptr)
+        error->clear();
+    const auto refuse = [error](const QString& why)
+    {
+        if (error != nullptr)
+            *error = why;
+        return std::optional<device_address>{};
+    };
+
+    device_address result;
+    QString rest = text.trimmed();
+    const qsizetype scheme_end = rest.indexOf(QStringLiteral("://"));
+    if (scheme_end >= 0)
+    {
+        const QString scheme = rest.left(scheme_end).toLower();
+        if (scheme == QLatin1String("tcp"))
+            result.transport = network_transport::tcp;
+        else if (scheme == QLatin1String("rfc2217"))
+            result.transport = network_transport::rfc2217;
+        else
+            return refuse(network_address_error());
+        rest = rest.mid(scheme_end + 3);
+    }
+    const auto unfit = [](QChar character)
+    {
+        return character.isSpace() || character == QLatin1Char('?') ||
+               character == QLatin1Char('#') || character == QLatin1Char('\\');
+    };
+    if (rest.isEmpty() || std::any_of(rest.begin(), rest.end(), unfit))
+        return refuse(network_address_error());
+
+    QString host;
+    QString port_text;
+    bool has_port = false;
+    if (rest.startsWith(QLatin1Char('[')))
+    {
+        const qsizetype close = rest.indexOf(QLatin1Char(']'));
+        if (close < 0)
+            return refuse(network_address_error());
+        host = rest.mid(1, close - 1);
+        const QString after = rest.mid(close + 1);
+        if (!after.isEmpty())
+        {
+            if (!after.startsWith(QLatin1Char(':')))
+                return refuse(network_address_error());
+            has_port = true;
+            port_text = after.mid(1);
+        }
+        // Brackets hold an IPv6 address and nothing else.
+        if (!ipv6_address(host))
+            return refuse(network_address_error());
+    }
+    else if (rest.count(QLatin1Char(':')) == 1)
+    {
+        const qsizetype colon = rest.indexOf(QLatin1Char(':'));
+        host = rest.left(colon);
+        port_text = rest.mid(colon + 1);
+        has_port = true;
+    }
+    else
+    {
+        // No colon is a name or an IPv4 address.  Two or more is an IPv6
+        // address with no port, so `192.168.1.50:4001:4001` is not one.
+        host = std::move(rest);
+        if (host.contains(QLatin1Char(':')) && !ipv6_address(host))
+            return refuse(network_address_error());
+    }
+
+    if (has_port)
+    {
+        int port = 0;
+        // `toInt` takes a sign, so `+80` is checked for here.
+        const bool digits =
+            !port_text.isEmpty() &&
+            std::all_of(port_text.begin(), port_text.end(),
+                        [](QChar digit) { return digit.isDigit(); });
+        if (!digits || !parse_port(port_text, port))
+            return refuse(network_port_error());
+        result.port = port;
+    }
+    constexpr qsizetype kLongestHost = 253;
+    if (!valid_remote_host(host) || host.size() > kLongestHost ||
+        host.contains(QLatin1Char('[')) || host.contains(QLatin1Char(']')) ||
+        host.contains(QLatin1Char('@')))
+        return refuse(network_address_error());
+    result.host = std::move(host);
+    return result;
+}
+
 bool valid_port(int port)
 {
     return port >= 1 && port <= 65535;
@@ -84,8 +266,8 @@ bool parse_port(const QString& text, int& port)
 std::optional<network_endpoint> parse_network_uri(const QString& text,
                                                   QString* error)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.dialogs.network_uri.parse");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, text.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.dialogs.network_uri.parse");
+    VSS_PROFILE_ZONE_TEXT(zone, text.toStdString());
     if (error != nullptr)
         error->clear();
     // Every address needs a scheme followed by ://.
@@ -206,9 +388,9 @@ bool is_loopback_host(const QString& host)
 
 bool rfc2217_server_is_open(const QString& uri)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone,
+    VSS_PROFILE_ZONE_NAMED(zone,
                            "gui.dialogs.network_uri.rfc2217_probe");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, uri.toStdString());
+    VSS_PROFILE_ZONE_TEXT(zone, uri.toStdString());
     const auto parsed = parse_network_uri(uri);
     if (!parsed || parsed->role != network_role::server ||
         parsed->transport != network_transport::rfc2217)

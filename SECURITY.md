@@ -8,7 +8,7 @@ it opens a private advisory that only you and the maintainer can see.
 
 What helps most:
 
-- what is affected: the version (the About dialog, or `vss_gui --version`), the platform, and whether it is
+- what is affected: the version (the About dialog, `vss_gui --version` or `vss_cli --version`), the platform, and whether it is
   `vss_gui`, `vss_cli` or a release file;
 - how to reproduce it: the smallest topology file, command line or byte stream that shows it;
 - what someone could do with it.

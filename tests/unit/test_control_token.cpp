@@ -19,6 +19,7 @@
 
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
+#include "token_file.hpp"
 
 #include <chrono>
 #include <cstddef>
@@ -657,4 +658,109 @@ TEST_CASE("control tokens: the names of the checks, for the audit log")
     }
     REQUIRE_EQ(control::token_check_name(token_check::wrong_secret),
                std::string_view("wrong_secret"));
+}
+
+TEST_CASE("control tokens: a transport named twice is refused before anything "
+          "is saved")
+{
+    fixture env;
+    const control::new_token kept = env.make();
+    const std::string before = bytes_of(env.file);
+
+    control::token_request request;
+    request.label = "twice";
+    request.scopes = control::role_monitor();
+    for (const std::vector<control::transport>& names :
+         {std::vector<control::transport>{control::transport::local,
+                                          control::transport::local},
+          std::vector<control::transport>{control::transport::loopback,
+                                          control::transport::loopback},
+          std::vector<control::transport>{control::transport::local,
+                                          control::transport::loopback,
+                                          control::transport::local}})
+    {
+        request.transports = names;
+        const auto refused = env.store->create(request);
+        REQUIRE(!refused);
+        REQUIRE_EQ(refused.error(), code(vss::errc::invalid_argument));
+    }
+
+    // Nothing was made and nothing was saved.
+    REQUIRE_EQ(env.store->list().size(), std::size_t{1});
+    REQUIRE_EQ(bytes_of(env.file), before);
+
+    // Each transport once, in either order, is fine.
+    request.transports = {control::transport::loopback,
+                          control::transport::local};
+    REQUIRE(env.store->create(request));
+}
+
+TEST_CASE("control tokens: whatever is accepted is loaded again")
+{
+    // The store and its file must agree: a request that `create` takes makes
+    // a file that `open` takes back, and the other way round is the gateway
+    // that does not start.
+    fixture env;
+    control::token_request request;
+    request.label = "round trip";
+    request.scopes = control::role_monitor();
+    std::size_t accepted = 0;
+    const std::vector<std::vector<control::transport>> lists{
+        {},
+        {control::transport::local},
+        {control::transport::loopback},
+        {control::transport::local, control::transport::loopback},
+        {control::transport::local, control::transport::local},
+        {control::transport::loopback, control::transport::loopback},
+        {control::transport::tls},
+        {control::transport::tls, control::transport::tls},
+        {control::transport::local_admin},
+        {control::transport::local, control::transport::local_admin}};
+    for (const auto& names : lists)
+    {
+        request.transports = names;
+        if (env.store->create(request))
+            ++accepted;
+        env.reopen();
+        REQUIRE_EQ(env.store->list().size(), accepted);
+    }
+    REQUIRE(accepted > 0);
+}
+
+TEST_CASE("control tokens: a file with a transport twice stops the store with "
+          "a message that names the file and the token")
+{
+    fixture env;
+    const control::new_token made = env.make();
+    env.store.reset();
+
+    // A file that an earlier version, or a person, made.
+    auto content = control::load_token_file(env.file);
+    REQUIRE(content);
+    REQUIRE_EQ(content->tokens.size(), std::size_t{1});
+    content->tokens[0].transports = {control::transport::local,
+                                     control::transport::local};
+    REQUIRE(!control::save_token_file(env.file, *content));
+    const std::string damaged = bytes_of(env.file);
+
+    const auto opened =
+        control::token_store::open(env.file, env.clock.source());
+    REQUIRE(!opened);
+    const std::string message = opened.error().message();
+    REQUIRE(message.find(env.file.string()) != std::string::npos);
+    REQUIRE(message.find(made.record.id) != std::string::npos);
+    REQUIRE(message.find("local") != std::string::npos);
+    REQUIRE(message.find("more than once") != std::string::npos);
+    // It is not accepted, not repaired and not replaced.
+    REQUIRE_EQ(bytes_of(env.file), damaged);
+
+    // The same for two records with one id.
+    content->tokens[0].transports = {control::transport::local};
+    content->tokens.push_back(content->tokens[0]);
+    REQUIRE(!control::save_token_file(env.file, *content));
+    const auto both = control::token_store::open(env.file, env.clock.source());
+    REQUIRE(!both);
+    REQUIRE(both.error().message().find(made.record.id) != std::string::npos);
+    REQUIRE(both.error().message().find(env.file.string()) !=
+            std::string::npos);
 }
