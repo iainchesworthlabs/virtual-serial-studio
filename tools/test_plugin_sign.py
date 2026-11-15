@@ -1042,6 +1042,25 @@ class KeygenTests(ToolTestCase):
         self.assertIn(":(F)", listing)
         self.assertNotIn("(I)", listing)
 
+    @unittest.skipUnless(os.name == "nt", "Windows permissions")
+    def test_a_file_with_entries_of_its_own_ends_with_one(self) -> None:
+        # Some versions of Python make a new file with entries for SYSTEM,
+        # Administrators and the owner on the file itself, not inherited.
+        # They have to go as well.
+        key = self.write("own-entries.key", b"")
+        icacls = ps.windows_program("icacls")
+        subprocess.run(
+            [icacls, str(key), "/grant", "*S-1-5-18:F", "*S-1-5-32-544:F", "*S-1-3-4:F"],
+            capture_output=True, text=True, check=True,
+        )
+        ps.restrict_to_current_user(str(key))
+        listing = subprocess.run(
+            [icacls, str(key)], capture_output=True, text=True, check=True
+        ).stdout
+        self.assertEqual(listing.count(":("), 1, listing)
+        self.assertIn(":(F)", listing)
+        self.assertNotIn("(I)", listing)
+
     def test_keygen_refuses_a_file_that_exists(self) -> None:
         key = self.write("new.key", b"keep this\n")
         done = self.keygen()
