@@ -8,6 +8,7 @@
 
 #include <vss/plugin/error.hpp>
 
+#include <chrono>
 #include <string>
 #include <string_view>
 
@@ -60,10 +61,21 @@ result<void> check_licence(trust_level level, const manifest& declared,
         // official plugin.  Both questions are put to the same status, so
         // the second answer says why neither held: when the licence is fine
         // and names neither, both say `not_in_licence`.
-        license::entitlement said =
-            license::check(current, plugin_feature(declared.id));
+        //
+        // A plugin whose signed manifest gives a release date is asked about
+        // with it, so that a licence with a version window keeps the plugins
+        // released in time working after it has ended.
+        const auto ask = [&](std::string_view feature)
+        {
+            if (declared.released)
+                return license::check(current, feature,
+                                      license::time_point{std::chrono::sys_days{
+                                          *declared.released}});
+            return license::check(current, feature);
+        };
+        license::entitlement said = ask(plugin_feature(declared.id));
         if (!said.granted)
-            said = license::check(current, all_official_plugins_feature);
+            said = ask(all_official_plugins_feature);
         found = asked_about(said);
     }
     if (answer != nullptr)

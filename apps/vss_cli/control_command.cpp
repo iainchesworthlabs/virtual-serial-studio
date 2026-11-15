@@ -941,6 +941,8 @@ int status(client& gateway)
         std::printf("Agent: running, %s\n", state->agent_version.c_str());
     else
         std::puts("Agent: not running");
+    std::printf("Edition: %s (licence: %s)\n", state->edition.c_str(),
+                state->licence_state.c_str());
     std::printf("Uptime: %llu s\n",
                 static_cast<unsigned long long>(state->uptime_ms / 1000));
     return exit_ok;

@@ -384,7 +384,12 @@ start_process(const process_request& request)
     std::vector<std::string> environment_texts;
     environment_texts.reserve(request.environment.size() + 1);
     for (const auto& [name, value] : request.environment)
-        environment_texts.push_back(name + "=" + value);
+    {
+        std::string text;
+        text.reserve(name.size() + value.size() + 1);
+        text.append(name).append("=").append(value);
+        environment_texts.push_back(std::move(text));
+    }
     environment_texts.push_back(std::string(channel_variable) + "=" +
                                 std::to_string(plugin_channel));
     std::vector<char*> arguments = pointers_to(argument_texts);

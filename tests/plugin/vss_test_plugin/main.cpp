@@ -138,7 +138,7 @@ void print_arguments(int argc, char** argv)
         text += std::to_string(index);
         text += ": ";
         text += hex_of(argv[index]);
-        text += "\n";
+        text += '\n';
     }
     emit(stdout, text);
 }
@@ -433,8 +433,8 @@ std::optional<int> act(std::string_view argument, const char* self)
     }
     if (const auto text = value_after(argument, "--exit="))
     {
-        if (const auto code = parse_number<int>(*text))
-            return *code;
+        if (const std::optional<int> code = parse_number<int>(*text))
+            return code;
     }
 
     emit(stderr, "unknown argument\n");

@@ -643,6 +643,88 @@ TEST_CASE("licence: the stored time moves forward, and a reset works once")
     REQUIRE_EQ(many.applied_resets.back(), std::string("reset-39"));
 }
 
+TEST_CASE("licence: the version window keeps what was released in time")
+{
+    // A licence for 13 November 2026 to 13 November 2027 whose window ends
+    // with its term.
+    licence windowed = annual();
+    windowed.updates_until = windowed.expires_at;
+    const std::string text = signed_text(windowed);
+    const time_point in_time = at(2027, 6, 1);
+    const time_point last_day = at(2027, 11, 13);
+    const time_point too_late = at(2027, 11, 13, 1);
+
+    // While the licence runs, and in its grace period, the release date
+    // changes nothing: everything it names is granted in the ordinary way.
+    for (const time_point now : {at(2027, 1, 1), at(2027, 12, 1)})
+    {
+        const status running = evaluate(text, on(now));
+        for (const time_point released : {in_time, too_late})
+        {
+            const entitlement answer =
+                check(running, "plugins.official", released);
+            REQUIRE(answer.granted);
+            REQUIRE(!answer.by_version_window);
+        }
+    }
+
+    // After the end: released within the window still works, for good.
+    const status ended = evaluate(text, on(at(2030, 1, 1)));
+    REQUIRE(ended.state == state::expired);
+    REQUIRE(!check(ended, "plugins.official").granted);
+    entitlement answer = check(ended, "plugins.official", in_time);
+    REQUIRE(answer.granted);
+    REQUIRE(answer.reason == reason::ok);
+    REQUIRE(answer.by_version_window);
+    REQUIRE_EQ(answer.licence_id, std::string("VSS-2026-000123"));
+    REQUIRE_EQ(answer.days_left, 0);
+    REQUIRE(check(ended, "plugins.official", last_day).granted);
+
+    // Released after the window: a current licence is needed.
+    answer = check(ended, "plugins.official", too_late);
+    REQUIRE(!answer.granted);
+    REQUIRE(answer.reason == reason::expired);
+    REQUIRE(!answer.by_version_window);
+
+    // The window covers only what the licence names.
+    answer = check(ended, "plugins.other", in_time);
+    REQUIRE(!answer.granted);
+    REQUIRE(answer.reason == reason::expired);
+
+    // A licence without the field ends as the States table says.
+    const status plain = evaluate(signed_text(annual()), on(at(2030, 1, 1)));
+    REQUIRE(!check(plain, "plugins.official", in_time).granted);
+
+    // The window is for a licence that has ended and nothing else. One that
+    // is withdrawn, for other computers, not started, or judged while the
+    // clock looks wrong grants nothing through it.
+    revocation_list withdrawn;
+    withdrawn.sequence = 1;
+    withdrawn.licence_ids = {"VSS-2026-000123"};
+    context revoked = on(at(2030, 1, 1));
+    revoked.revocations = &withdrawn;
+    REQUIRE(
+        !check(evaluate(text, revoked), "plugins.official", in_time).granted);
+
+    licence elsewhere = windowed;
+    elsewhere.machines = {"OFFICE-*"};
+    REQUIRE(!check(evaluate(signed_text(elsewhere), on(at(2030, 1, 1))),
+                   "plugins.official", in_time)
+                 .granted);
+
+    REQUIRE(!check(evaluate(text, on(at(2026, 11, 12, 12))), "plugins.official",
+                   in_time)
+                 .granted);
+
+    context set_back = on(at(2030, 1, 1));
+    set_back.latest_seen = at(2031, 1, 1);
+    const status suspect = evaluate(text, set_back);
+    REQUIRE(suspect.state == state::clock_suspect);
+    REQUIRE(!check(suspect, "plugins.official", in_time).granted);
+
+    REQUIRE(!check(no_licence(), "plugins.official", in_time).granted);
+}
+
 TEST_CASE("licence: features")
 {
     REQUIRE(feature_matches("plugins.official", "plugins.official"));

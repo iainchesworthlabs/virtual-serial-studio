@@ -240,6 +240,7 @@ class ControlRoleTests(RigCase):
         self.assertTrue(status["agent"]["running"])
         self.assertGreaterEqual(status["sessions"], 1)
         self.assertIsInstance(status["uptime_ms"], int)
+        self.assertEqual(status["licence"], {"edition": "community", "state": "none"})
 
     def test_list_ports_shows_a_new_port_and_a_link(self):
         client = self.connect()
