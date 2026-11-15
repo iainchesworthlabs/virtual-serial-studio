@@ -2483,3 +2483,77 @@ TEST_CASE("licence notice: Dismiss on a wrong date hides it for the day")
     REQUIRE(!hidden(notice));
     clear_settings();
 }
+
+// -- what marks a setup changed ------------------------------------------
+
+namespace
+{
+
+/// A saved setup that is running and unchanged: two ports and a link.
+void write_clean_running(const QString& path)
+{
+    vss::gui::FakeStudioBackend before;
+    const auto first = before.create_virtual_port(
+        QStringLiteral("console"), vss::virtual_port_kind::loopback, true);
+    const auto second = before.create_virtual_port(
+        QStringLiteral("logger"), vss::virtual_port_kind::loopback, true);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    REQUIRE(before.connect_ports(*first, *second, {}).has_value());
+    REQUIRE(vss::gui::support::save_running_setup(
+        path, before.snapshot(),
+        {QStringLiteral("C:/setups/lab.json"), false, false}));
+}
+
+} // namespace
+
+TEST_CASE("shell: changing a link's settings marks the setup changed")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_clean_running(running_file(directory));
+
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    window.enable_background(running_file(directory), false);
+    wait_applied(window);
+    QApplication::processEvents();
+    REQUIRE(window.windowTitle().startsWith(QStringLiteral("lab.json")));
+    REQUIRE(!window.windowTitle().contains(QLatin1Char('*')));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+
+    // The link keeps its id, its ports and its shape; only what the saved
+    // file holds about it changes.
+    vss::link_options options = backend.links()[0].options;
+    options.delay_ms = 200;
+    REQUIRE(
+        backend.set_link_options(backend.links()[0].id, options).has_value());
+    QApplication::processEvents();
+    REQUIRE(window.windowTitle().contains(QLatin1Char('*')));
+    clear_settings();
+}
+
+TEST_CASE("shell: changing a port's serial settings marks the setup changed")
+{
+    clear_settings();
+    QTemporaryDir directory;
+    write_clean_running(running_file(directory));
+
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::ShellWindow window(backend);
+    window.enable_background(running_file(directory), false);
+    wait_applied(window);
+    QApplication::processEvents();
+    REQUIRE(!window.windowTitle().contains(QLatin1Char('*')));
+
+    vss::serial_settings settings = backend.ports()[0].serial;
+    settings.baud_rate = 9600;
+    settings.parity = vss::parity_mode::even;
+    REQUIRE(
+        backend.set_port_settings(backend.ports()[0].id, settings).has_value());
+    // The settings dialog calls it on a worker thread and refreshes after.
+    backend.refresh();
+    QApplication::processEvents();
+    REQUIRE(window.windowTitle().contains(QLatin1Char('*')));
+    clear_settings();
+}

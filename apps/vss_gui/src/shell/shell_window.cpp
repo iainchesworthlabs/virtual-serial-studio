@@ -1690,13 +1690,28 @@ void ShellWindow::update_dock_titles()
 
 QString ShellWindow::document_signature() const
 {
+    // What the saved setup holds, so that a change to any of it marks the
+    // setup changed: a link's settings and a port's serial settings change a
+    // link or port in place, and its id, name and ports stay.
     QStringList parts;
     for (const auto& port : backend_.ports())
     {
-        parts << QStringLiteral("P%1:%2:%3:%4")
+        const vss::serial_settings& serial = port.serial;
+        parts << QStringLiteral("P%1:%2:%3:%4:%5")
                      .arg(static_cast<qulonglong>(port.id))
                      .arg(port.name, port.path)
-                     .arg(static_cast<int>(port.kind));
+                     .arg(static_cast<int>(port.kind))
+                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8")
+                              .arg(serial.baud_rate)
+                              .arg(serial.data_bits)
+                              .arg(static_cast<int>(serial.parity))
+                              .arg(static_cast<int>(serial.stop_bits))
+                              .arg(static_cast<int>(serial.flow_control))
+                              .arg(static_cast<qlonglong>(
+                                  serial.read_timeout.count()))
+                              .arg(static_cast<qlonglong>(
+                                  serial.write_timeout.count()))
+                              .arg(serial.exclusive ? 1 : 0));
     }
     for (const auto& link : backend_.links())
     {
@@ -1706,13 +1721,25 @@ QString ShellWindow::document_signature() const
             sources << QString::number(static_cast<qulonglong>(id));
         for (const auto id : link.targets)
             targets << QString::number(static_cast<qulonglong>(id));
-        parts << QStringLiteral("L%1:%2:%3:%4:%5:%6")
+        const vss::link_options& options = link.options;
+        const vss::half_duplex_options& line = options.half_duplex;
+        parts << QStringLiteral("L%1:%2:%3:%4:%5:%6:%7")
                      .arg(static_cast<qulonglong>(link.id))
                      .arg(static_cast<int>(link.shape))
                      .arg(static_cast<int>(link.mode))
                      .arg(static_cast<qulonglong>(link.owner))
                      .arg(sources.join(QLatin1Char(',')),
-                          targets.join(QLatin1Char(',')));
+                          targets.join(QLatin1Char(',')))
+                     .arg(QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9")
+                              .arg(options.delay_ms)
+                              .arg(options.jitter_ms)
+                              .arg(static_cast<int>(options.policy))
+                              .arg(options.emulate_modem_lines ? 1 : 0)
+                              .arg(line.enabled ? 1 : 0)
+                              .arg(line.bit_rate)
+                              .arg(line.turnaround_ms)
+                              .arg(static_cast<int>(line.on_collision))
+                              .arg(line.rts_gating ? 1 : 0));
     }
     parts.sort();
     return parts.join(QLatin1Char('|'));
@@ -1880,7 +1907,7 @@ void ShellWindow::open_network_endpoint()
 }
 
 void ShellWindow::apply_in_background(
-    vss::config::document document,
+    vss::config::document document, bool replace,
     std::function<void(const vss::result<void>&)> finished)
 {
     if (apply_work_.busy())
@@ -1925,14 +1952,16 @@ void ShellWindow::apply_in_background(
            "a minute."));
 
     apply_work_.start(
-        [this, state]
+        [this, state, replace]
         {
-            const auto applied = backend_.apply(state->document, true);
+            const auto applied = replace
+                                     ? backend_.replace(state->document)
+                                     : backend_.apply(state->document, true);
             if (!applied)
                 state->error = applied.error();
         },
-        [this, state, locked = QList<QPointer<QWidget>>(locked.begin(),
-                                                        locked.end()),
+        [this, state,
+         locked = QList<QPointer<QWidget>>(locked.begin(), locked.end()),
          finished = std::move(finished)]
         {
             for (const auto& widget : locked)
@@ -1964,7 +1993,7 @@ void ShellWindow::open_templates()
         return;
 
     apply_in_background(
-        *document,
+        *document, true,
         [this, title = dialog.result_title(),
          is_template = dialog.result_is_template(),
          path = dialog.result_path()](const vss::result<void>& applied)
@@ -3080,7 +3109,7 @@ void ShellWindow::open_path(const QString& path)
     }
 
     apply_in_background(
-        *document,
+        *document, true,
         [this, path](const vss::result<void>& applied)
         {
             if (!applied)
@@ -3627,7 +3656,7 @@ void ShellWindow::start_running_setup(bool automatic)
         return;
 
     apply_in_background(
-        setup->document,
+        setup->document, false,
         [this, setup = *setup, automatic](const vss::result<void>& applied)
         {
             if (!applied)

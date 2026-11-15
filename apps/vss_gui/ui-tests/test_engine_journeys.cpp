@@ -18,6 +18,7 @@
 #include "backend/engine_studio_backend.hpp"
 #include "qt_wait.hpp"
 
+#include <vss/config/document.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <QAbstractItemModel>
@@ -74,6 +75,45 @@ void send_from_dock(Session& s, const QString& text)
         accessible(dock, QStringLiteral("Bytes to send")));
     type_into(input, text);
     click(button(dock, QStringLiteral("Send")));
+}
+
+/// Answers the next file dialog by choosing `path` and pressing `confirm`.
+void drive_file_dialog(Session& s, const QString& path, const char* confirm)
+{
+    Probe::instance().tolerate(true);
+    s.pilot().expect(
+        "the file dialog",
+        [](QWidget* d)
+        {
+            return d->findChild<QLineEdit*>(QStringLiteral("fileNameEdit")) !=
+                   nullptr;
+        },
+        [path, confirm](QWidget* d)
+        {
+            // Qt's own dialog, driven through its interface: on macOS the
+            // typed name and the click on its button do not confirm it
+            // reliably, and what is under test is the window's use of the
+            // file, not the dialog.
+            auto* chooser = qobject_cast<QFileDialog*>(d);
+            REQUIRE(chooser != nullptr);
+            chooser->selectFile(path);
+            QPushButton* ok = button(d, QString::fromLatin1(confirm));
+            // The dialog lists the folder in the background, and its button
+            // stays disabled until it knows the file.
+            REQUIRE(
+                vss_test::wait_until([ok] { return ok->isEnabled(); }, 5000));
+            static_cast<QDialog*>(chooser)->accept();
+        });
+}
+
+/// The names of the ports that run, in order.
+QStringList port_names(Session& s)
+{
+    QStringList names;
+    for (const auto& port : s.backend().ports())
+        names << port.name;
+    names.sort();
+    return names;
 }
 
 } // namespace
@@ -206,32 +246,7 @@ TEST_CASE("engine: save, tear down and reopen a workspace")
     REQUIRE(directory.isValid());
     const QString path = directory.filePath(QStringLiteral("engine.json"));
     const auto file_dialog = [&](const char* confirm)
-    {
-        Probe::instance().tolerate(true);
-        s.pilot().expect(
-            "the file dialog",
-            [](QWidget* d)
-            {
-                return d->findChild<QLineEdit*>(
-                           QStringLiteral("fileNameEdit")) != nullptr;
-            },
-            [path, confirm](QWidget* d)
-            {
-                // Qt's own dialog, driven through its interface: on macOS
-                // the typed name and the click on its button do not confirm
-                // it reliably, and what is under test is the window's use of
-                // the file, not the dialog.
-                auto* chooser = qobject_cast<QFileDialog*>(d);
-                REQUIRE(chooser != nullptr);
-                chooser->selectFile(path);
-                QPushButton* ok = button(d, QString::fromLatin1(confirm));
-                // The dialog lists the folder in the background, and its
-                // button stays disabled until it knows the file.
-                REQUIRE(vss_test::wait_until([ok] { return ok->isEnabled(); },
-                                             5000));
-                static_cast<QDialog*>(chooser)->accept();
-            });
-    };
+    { drive_file_dialog(s, path, confirm); };
     file_dialog("Save");
     choose_menu(s, QStringLiteral("File"), QStringLiteral("Save as"));
     s.settle();
@@ -246,5 +261,77 @@ TEST_CASE("engine: save, tear down and reopen a workspace")
     REQUIRE_EQ(s.backend().ports().size(), 2);
     REQUIRE_EQ(s.backend().links().size(), 1);
     ad::require_consistent(s);
+    s.finish();
+}
+
+TEST_CASE("engine: opening a setup replaces the one that runs")
+{
+    EngineRig rig;
+    Session s("engine: opening a setup replaces the one that runs",
+              *rig.backend, Session::mode::advanced);
+    const auto a = make(s, "Loopback", "a");
+    const auto b = make(s, "Fixture", "b");
+    ad::wire(s, a, b);
+
+    QTemporaryDir directory;
+    REQUIRE(directory.isValid());
+    const QString first = directory.filePath(QStringLiteral("first.json"));
+    const QString second = directory.filePath(QStringLiteral("second.json"));
+
+    // A second setup written by hand: two other ports and a link.
+    vss::config::document other;
+    other.name = "second";
+    for (const char* name : {"c", "d"})
+    {
+        vss::config::port_entry port;
+        port.name = name;
+        port.kind = "virtual";
+        port.virtual_kind = "loopback";
+        other.ports.push_back(port);
+    }
+    vss::config::link_entry link;
+    link.mode = "duplex";
+    link.sources = {"c"};
+    link.targets = {"d"};
+    other.links.push_back(link);
+    REQUIRE(vss::config::save_file(second.toStdString(), other));
+
+    s.step(QStringLiteral("save the running setup as first.json"));
+    drive_file_dialog(s, first, "Save");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Save as"));
+    s.settle();
+
+    s.step(QStringLiteral("open first.json while it runs"));
+    drive_file_dialog(s, first, "Open");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
+    s.settle();
+    // The ports are the file's, not those and a second set of them, and the
+    // ones that did not change are the same ports.
+    REQUIRE_EQ(port_names(s), (QStringList{"a", "b"}));
+    REQUIRE_EQ(s.backend().links().size(), 1);
+    REQUIRE(s.backend().port(a).has_value());
+    REQUIRE(s.backend().port(b).has_value());
+
+    s.step(QStringLiteral("open second.json while first.json runs"));
+    drive_file_dialog(s, second, "Open");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
+    s.settle();
+    REQUIRE_EQ(port_names(s), (QStringList{"c", "d"}));
+    REQUIRE_EQ(s.backend().links().size(), 1);
+    ad::require_consistent(s);
+
+    s.step(QStringLiteral("open first.json again"));
+    drive_file_dialog(s, first, "Open");
+    choose_menu(s, QStringLiteral("File"), QStringLiteral("Open"));
+    s.settle();
+    Probe::instance().tolerate(false);
+    s.pilot().check();
+    REQUIRE_EQ(port_names(s), (QStringList{"a", "b"}));
+    REQUIRE_EQ(s.backend().links().size(), 1);
+
+    // Nothing was added to the file by opening the other one.
+    const auto saved = vss::config::load_file(first.toStdString());
+    REQUIRE(saved.has_value());
+    REQUIRE_EQ(saved->ports.size(), std::size_t{2});
     s.finish();
 }

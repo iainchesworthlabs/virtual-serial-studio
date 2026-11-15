@@ -1094,6 +1094,19 @@ vss::config::document FakeStudioBackend::snapshot() const
 vss::result<void>
 FakeStudioBackend::apply(const vss::config::document& document, bool)
 {
+    return build_document(document, true);
+}
+
+vss::result<void>
+FakeStudioBackend::replace(const vss::config::document& document)
+{
+    return build_document(document, false);
+}
+
+vss::result<void>
+FakeStudioBackend::build_document(const vss::config::document& document,
+                                  bool additive)
+{
     if (create_delay_.count() > 0)
         std::this_thread::sleep_for(create_delay_);
     const std::lock_guard<std::recursive_mutex> lock(mutex_);
@@ -1105,11 +1118,17 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         return invalid;
 
     // Build the new ports and links on the side.  names maps each port name
-    // in the document to the id it was given, for resolving links.
+    // in the document to the id it was given, for resolving links.  Adding
+    // goes on from what is there, as the engine does; replacing starts again.
     std::vector<port_view> next_ports;
     std::vector<link_view> next_links;
+    if (additive)
+    {
+        next_ports = ports_;
+        next_links = links_;
+    }
     std::vector<std::pair<std::string, vss::endpoint_id>> names;
-    vss::endpoint_id next_port = 1;
+    vss::endpoint_id next_port = additive ? next_port_ : 1;
 
     // Ports: every port starts open, numbered from 1.  A mock port has no
     // control lines.
@@ -1118,6 +1137,19 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         port_view view;
         view.id = next_port++;
         view.name = QString::fromStdString(entry.name);
+        if (additive)
+        {
+            // A name that is taken gets a number, as in the engine.
+            const auto taken = [&next_ports](const QString& candidate)
+            {
+                return std::any_of(next_ports.begin(), next_ports.end(),
+                                   [&candidate](const port_view& other)
+                                   { return other.name == candidate; });
+            };
+            const QString base = view.name;
+            for (int suffix = 2; taken(view.name); ++suffix)
+                view.name = QStringLiteral("%1-%2").arg(base).arg(suffix);
+        }
         view.serial = entry.serial;
         view.state = vss::endpoint_state::open;
         view.open = true;
@@ -1154,7 +1186,7 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
 
     // Links: numbered from 1, with ports looked up by name.  A name that no
     // port has is a config error.
-    vss::link_id next_link = 1;
+    vss::link_id next_link = additive ? next_link_ : 1;
     for (const auto& entry : document.links)
     {
         const auto resolve =
@@ -1231,11 +1263,13 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         next_links.push_back(std::move(view));
     }
 
-    // Success: replace the old state in one step, so a failure above leaves
-    // it untouched.  The old wiring belongs to the old links, so drop it.
+    // Success: change the state in one step, so a failure above leaves it
+    // untouched.  When replacing, the old wiring belongs to the old links, so
+    // drop it.
     ports_ = std::move(next_ports);
     links_ = std::move(next_links);
-    wiring_.clear();
+    if (!additive)
+        wiring_.clear();
     next_port_ = next_port;
     next_link_ = next_link;
     refresh();

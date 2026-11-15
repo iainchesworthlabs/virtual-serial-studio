@@ -251,6 +251,7 @@ public:
     vss::config::document snapshot() const override;
     vss::result<void> apply(const vss::config::document& document,
                             bool rollback_on_error) override;
+    vss::result<void> replace(const vss::config::document& document) override;
 
     vss::result<share_view> share_serial(const QString& uri,
                                          int listeners) override;
@@ -280,6 +281,10 @@ public:
     void set_refresh_interval(int milliseconds) override;
 
 private:
+    /// The work of `apply` (`additive`) and `replace`: the state is changed in
+    /// one step, or not at all.
+    vss::result<void> build_document(const vss::config::document& document,
+                                     bool additive);
     QString unique_name(const QString& base) const;
     std::optional<vss::error_code> take_error();
     port_view* find_port(vss::endpoint_id id);

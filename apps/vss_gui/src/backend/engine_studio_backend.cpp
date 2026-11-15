@@ -1061,6 +1061,17 @@ EngineStudioBackend::apply(const vss::config::document& document,
     return {};
 }
 
+vss::result<void>
+EngineStudioBackend::replace(const vss::config::document& document)
+{
+    const auto replaced = studio_.replace(document);
+    // The ports may have changed even when the call failed and put them back.
+    rebuild();
+    if (!replaced)
+        return replaced.error();
+    return {};
+}
+
 vss::result<share_view> EngineStudioBackend::share_serial(const QString& uri,
                                                           int listeners)
 {

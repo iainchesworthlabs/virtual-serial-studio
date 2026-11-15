@@ -491,8 +491,31 @@ public:
     /// each list with the port or link it made and runs none of it, and
     /// `snapshot` writes the list back.  A list goes when its port or link
     /// is removed, and a port or link made in any other way has none.
+    ///
+    /// `apply` only adds: the ports and links of the setup are made on top of
+    /// what runs, and a name that is taken gets a number (`a-2`).  It is for a
+    /// studio that has nothing yet, such as the start of `vss_cli run` or the
+    /// restore of the running setup at start-up.
     result<void> apply(const config::document& value,
                        bool rollback_on_error = true);
+
+    /// Makes what runs equal to `value`: after it, the ports and links are
+    /// the setup's and no others.  A running port that has the same record
+    /// as a port of the setup (the same name and every field, as `snapshot`
+    /// writes it) is kept as it is, so its endpoint, its id and, on Windows,
+    /// its COM number stay; Windows does not free a COM number for a while
+    /// after its port is removed, so a port that was made again would be
+    /// refused.  Every link is removed and made again from the setup, to
+    /// kept ports and new ones alike, and the other running ports are
+    /// removed.
+    ///
+    /// A setup that `config::validate` refuses changes nothing.  When
+    /// anything else fails, what the call made is removed, what it removed is
+    /// made again from `snapshot` as far as that is possible (a port that
+    /// comes back is a new endpoint, and a driver port may not get its number
+    /// at once), and the first error is returned.  It can block while ports
+    /// open, so do not call it from the GUI thread.
+    result<void> replace(const config::document& value);
     config::document snapshot() const;
 
     // -- environment -------------------------------------------------------
@@ -582,6 +605,19 @@ private:
     /// Makes the stable link for a new pseudo terminal when the options ask
     /// for one, and points the record's advertised path at it.
     result<void> link_pty(port_record& record);
+
+    /// Makes one port of a setup by the call that matches its kind, and keeps
+    /// the plugin bindings of the entry with it.  Used by `apply` and
+    /// `replace`.
+    result<std::shared_ptr<endpoint>> make_port(const config::port_entry& port);
+
+    /// Makes the links of a setup.  `ids` says which port each name is, and
+    /// the id of every link that was made is added to `made`, also when a later
+    /// one fails.  A name that is not in `ids` is `errc::config_error`.
+    result<void>
+    make_links(const std::vector<config::link_entry>& links,
+               const std::unordered_map<std::string, endpoint_id>& ids,
+               std::vector<link_id>& made);
 
     std::string unique_name(std::string_view base) const;
     std::vector<endpoint_id> resolve_all(const std::vector<std::string>& names,

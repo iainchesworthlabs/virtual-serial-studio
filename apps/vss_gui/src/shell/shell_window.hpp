@@ -223,12 +223,15 @@ private:
     void new_document();
     void open_document();
     void open_path(const QString& path);
-    /// Applies `document` to the engine on a worker thread, with the window
+    /// Puts `document` into the engine on a worker thread, with the window
     /// locked and a progress bar showing, then runs `finished` on the GUI
-    /// thread.  Nothing happens while an earlier apply is still running.
-    void apply_in_background(
-        vss::config::document document,
-        std::function<void(const vss::result<void>&)> finished);
+    /// thread.  `replace` makes the running setup equal the document (File,
+    /// Open and templates); otherwise the document is added to what runs,
+    /// which is for the restore at start-up.  Nothing happens while an
+    /// earlier apply is still running.
+    void
+    apply_in_background(vss::config::document document, bool replace,
+                        std::function<void(const vss::result<void>&)> finished);
     void save_document();
     void save_document_as();
     bool confirm_discard();
