@@ -11,6 +11,7 @@ add_library(vss_plugin_host
   src/control_relay.cpp
   src/instances.cpp
   src/process.cpp
+  src/recording.cpp
   src/runner.cpp
   src/sandbox.cpp
   src/service.cpp
@@ -21,6 +22,10 @@ target_include_directories(vss_plugin_host PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
 target_include_directories(vss_plugin_host PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+# The recording reader uses the strict JSON reader of the plugin library
+# (reader.hpp), which that library does not install.
+target_include_directories(vss_plugin_host PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/../vss_plugin/src)
 target_compile_features(vss_plugin_host PUBLIC cxx_std_23)
 target_link_libraries(vss_plugin_host PUBLIC vss_core Vss::plugin)
 # The control relay speaks to the gateway as the gateway's own clients do: the
@@ -44,5 +49,9 @@ else()
 endif()
 
 vss_set_warnings(vss_plugin_host)
+# boost::system::error_category deliberately has a non-virtual destructor and
+# is meant to be derived from; GCC warns about the base anyway.
+set_source_files_properties(src/recording.cpp PROPERTIES
+  COMPILE_OPTIONS "$<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wno-non-virtual-dtor>")
 vss_enable_coverage(vss_plugin_host)
 vss_mark_coverage_subject(vss_plugin_host)

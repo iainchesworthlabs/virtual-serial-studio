@@ -62,6 +62,7 @@
 #include <vss/plugin/host/control_relay.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/process.hpp>
+#include <vss/plugin/host/recording.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/service.hpp>
 #include <vss/plugin/host/start_plan.hpp>
