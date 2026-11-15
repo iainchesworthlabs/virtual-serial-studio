@@ -1,8 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Updates: the service that checks for a newer Studio, the transport that
-# makes the request, and the files that differ by system (the kind of
-# install, the checked file and the hand-over to the system). No widgets.
+# Updates: the service the window reads for everything about updates
+# (docs/updates.md), the transport that makes the request, and the files
+# that differ by system (the kind of install, the checked file and the
+# hand-over to the system). No widgets. The service is given its transport,
+# its clock and its folders, so its tests make no request.
 #
 
 add_library(vss_gui_updates STATIC
@@ -16,6 +18,8 @@ add_library(vss_gui_updates STATIC
   package_install.hpp
   plain_checked_file.cpp
   plain_checked_file.hpp
+  update_service.cpp
+  update_service.hpp
   update_types.hpp)
 
 # The kind of install, the checked file and the package step, one file per

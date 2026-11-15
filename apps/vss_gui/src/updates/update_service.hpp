@@ -30,6 +30,7 @@
 #include <vss/license/signed_file.hpp>
 
 #include <QDateTime>
+#include <QFile>
 #include <QObject>
 #include <QString>
 
@@ -93,9 +94,20 @@ public:
         /// Where an archive is put once it is checked: the person's
         /// Downloads folder.
         QString downloads_folder;
-        /// Opens a downloaded file for checking. The default is
-        /// `open_checked_file`; a test may replace it.
+        /// Opens a downloaded file for checking: `open_checked_file` in the
+        /// program, a fake in a test. Required, never null. The service
+        /// does not name `open_checked_file` itself, so it links without the
+        /// platform sources.
         std::function<std::unique_ptr<checked_file>(const QString&)> open_file;
+        /// Hands a checked file to the system: `start_install` in the
+        /// program, a fake in a test. Required, never null.
+        std::function<install_start(vss::update::file_kind,
+                                    const checked_file&)>
+            start_install;
+        /// Makes the object a download is written to. Optional: empty means
+        /// a `QFile`. The service opens it for writing itself. A test gives
+        /// one whose writes fail.
+        std::function<std::unique_ptr<QFile>(const QString&)> create_file;
     };
 
     /// `transport` outlives the service.

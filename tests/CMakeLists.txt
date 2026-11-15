@@ -480,6 +480,14 @@ if(TARGET vss_gui_language_tests)
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
 endif()
 
+# The update service, driven with fakes. No test makes a request.
+if(TARGET vss_gui_updates_tests)
+  add_test(NAME gui_updates COMMAND vss_gui_updates_tests --verbose)
+  set_tests_properties(gui_updates PROPERTIES
+    TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
+endif()
+
 # Journey tests send key and mouse events to the real window.
 if(TARGET vss_gui_journey_tests)
   add_test(NAME gui_journeys COMMAND vss_gui_journey_tests --verbose)
