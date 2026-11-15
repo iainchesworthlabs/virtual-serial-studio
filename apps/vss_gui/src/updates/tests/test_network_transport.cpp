@@ -531,8 +531,15 @@ TEST_CASE("update transport: cancel ends a download and no piece follows")
 {
     const QByteArray body = patterned(qsizetype{2} * 1024 * 1024);
     test_server server;
+    // The server sends half of the file and keeps the connection open, so
+    // the download cannot end by itself before it is cancelled.
     server.respond = [body](QTcpSocket* socket, const QByteArray&)
-    { test_server::send(socket, "200 OK", body); };
+    {
+        socket->write("HTTP/1.1 200 OK\r\nContent-Length: " +
+                      QByteArray::number(body.size()) +
+                      "\r\nConnection: close\r\n\r\n" +
+                      body.left(body.size() / 2));
+    };
     NetworkTransport transport(options_for(server), nullptr);
 
     download_result result;

@@ -83,16 +83,6 @@ void when_shown(const std::function<void(Dialog&)>& handler, int tries = 300)
         });
 }
 
-QPushButton* button_named(QWidget& parent, const QString& text)
-{
-    for (QPushButton* button : parent.findChildren<QPushButton*>())
-    {
-        if (button->text() == text && button->isVisibleTo(&parent))
-            return button;
-    }
-    return nullptr;
-}
-
 QStringList action_texts(PluginsDialog& dialog)
 {
     QStringList texts;
