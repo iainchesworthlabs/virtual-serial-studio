@@ -25,12 +25,12 @@
 //              with MoveFileExW; the temporary file is removed when anything
 //              fails.  Reading opens the file shared for reading only, and a
 //              directory or a reparse point is refused.
-//   create     `create_private_file`, for a file in a directory that is not
+//   claim      `claim_private_file`, for a file in a directory that is not
 //              this one: CREATE_NEW, so a name that is taken (a link
 //              included) is refused, with the protected access list of one
 //              entry, this user, which is read back from the open handle
-//              before a byte is written; the file is deleted when anything
-//              fails.
+//              before the claim is handed out; the file is deleted when the
+//              claim goes without `keep`.
 //   random     BCryptGenRandom with the system-preferred generator.
 //
 // This file needs shell32 (SHGetKnownFolderPath), ole32 (CoTaskMemFree),
@@ -89,6 +89,16 @@ error_code system_error(DWORD value)
     return {static_cast<int>(value), boost::system::system_category()};
 }
 
+/// The last error of this thread, or `permission_denied` when it says none:
+/// a call that failed without setting one is still a failure.
+error_code last_error_or_denied()
+{
+    const DWORD value = ::GetLastError();
+    if (value == ERROR_SUCCESS)
+        return make_error_code(errc::permission_denied);
+    return system_error(value);
+}
+
 /// The user of a token, as the bytes of a TOKEN_USER; empty when unreadable.
 std::vector<unsigned char> token_user(HANDLE token)
 {
@@ -122,7 +132,7 @@ result<std::wstring> own_sid_text()
 {
     const auto user = own_user();
     if (user.empty())
-        return system_error(::GetLastError());
+        return last_error_or_denied();
     LPWSTR raw = nullptr;
     if (::ConvertSidToStringSidW(sid_of(user), &raw) == 0)
         return system_error(::GetLastError());
@@ -353,7 +363,7 @@ error_code ensure_private_directory(const std::filesystem::path& directory)
 {
     const auto user = own_user();
     if (user.empty())
-        return system_error(::GetLastError());
+        return last_error_or_denied();
     const auto sid = own_sid_text();
     if (!sid)
         return sid.error();
@@ -516,18 +526,65 @@ error_code random_bytes(std::span<std::uint8_t> out)
 
 namespace vss::control
 {
+namespace
+{
 
-error_code create_private_file(const std::filesystem::path& path,
-                               std::string_view bytes)
+/// The file that `claim_private_file` made, with its handle open.  Nothing
+/// else can open the file while the claim holds it.
+class windows_claim final : public private_file_claim
+{
+public:
+    windows_claim(platform::handle_owner handle, std::wstring path)
+        : handle_(std::move(handle)), path_(std::move(path))
+    {
+    }
+
+    ~windows_claim() override
+    {
+        if (!kept_)
+        {
+            // Closed first: the handle shares nothing, so the file cannot be
+            // deleted while it is open.
+            handle_.reset();
+            static_cast<void>(::DeleteFileW(path_.c_str()));
+        }
+    }
+
+    windows_claim(const windows_claim&) = delete;
+    windows_claim& operator=(const windows_claim&) = delete;
+
+    error_code write(std::string_view bytes) override
+    {
+        if (const error_code failed = platform::write_all(handle_.get(), bytes))
+            return failed;
+        if (::FlushFileBuffers(handle_.get()) == 0)
+            return platform::system_error(::GetLastError());
+        return {};
+    }
+
+    void keep() noexcept override { kept_ = true; }
+
+    HANDLE handle() const noexcept { return handle_.get(); }
+
+private:
+    platform::handle_owner handle_;
+    std::wstring path_;
+    bool kept_ = false;
+};
+
+} // namespace
+
+result<std::unique_ptr<private_file_claim>>
+claim_private_file(const std::filesystem::path& path)
 {
     const auto user = platform::own_user();
     if (user.empty())
-        return platform::system_error(::GetLastError());
+        return platform::last_error_or_denied();
     auto security = platform::file_security::make();
     if (!security)
         return security.error();
 
-    const std::wstring text = path.wstring();
+    std::wstring text = path.wstring();
     // CREATE_NEW fails when the name is taken, a link included.  READ_CONTROL
     // lets the access list be read back, and FILE_READ_ATTRIBUTES lets the
     // handle be asked what it is.  Nobody else may open the file meanwhile.
@@ -549,28 +606,20 @@ error_code create_private_file(const std::filesystem::path& path,
         return platform::system_error(failed);
     }
 
-    // The file is there from here, so it is deleted when anything fails.
-    error_code failed;
+    // The file is there from here: the claim deletes it unless it is kept,
+    // and it is not returned until the checks have passed.
+    auto claim =
+        std::make_unique<windows_claim>(std::move(handle), std::move(text));
     BY_HANDLE_FILE_INFORMATION information{};
-    if (::GetFileInformationByHandle(handle.get(), &information) == 0)
-        failed = platform::system_error(::GetLastError());
-    else if ((information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
-             (information.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
-        failed = make_error_code(errc::permission_denied);
-    if (!failed)
-        failed = platform::check_private_access(handle.get(), user);
-    if (!failed)
-        failed = platform::write_all(handle.get(), bytes);
-    if (!failed && ::FlushFileBuffers(handle.get()) == 0)
-        failed = platform::system_error(::GetLastError());
-    if (failed)
-    {
-        // Closed first: the handle shares nothing, so the file cannot be
-        // deleted while it is open.
-        handle.reset();
-        static_cast<void>(::DeleteFileW(text.c_str()));
-    }
-    return failed;
+    if (::GetFileInformationByHandle(claim->handle(), &information) == 0)
+        return platform::system_error(::GetLastError());
+    if ((information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
+        (information.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+        return make_error_code(errc::permission_denied);
+    if (const error_code refused =
+            platform::check_private_access(claim->handle(), user))
+        return refused;
+    return std::unique_ptr<private_file_claim>(std::move(claim));
 }
 
 } // namespace vss::control

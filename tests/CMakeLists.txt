@@ -125,6 +125,19 @@ if(TARGET vss_license_tool)
   endif()
 endif()
 
+# `vss_cli control ...` run in the test's own process, against a gateway of the
+# test's own, and what it leaves on disk read back as another program would.
+if(TARGET vss_cli_control)
+  list(APPEND VSS_UNIT_TEST_SOURCES unit/test_control_cli_out.cpp)
+  if(WIN32)
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/windows/test_control_cli_out_windows.cpp)
+  else()
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/posix/test_control_cli_out_posix.cpp)
+  endif()
+endif()
+
 add_executable(vss_unit_tests ${VSS_UNIT_TEST_SOURCES})
 if(TARGET vss_license_tool)
   target_link_libraries(vss_unit_tests PRIVATE vss_license_tool)
@@ -141,6 +154,9 @@ target_include_directories(vss_unit_tests PRIVATE
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_plugin vss_rules vss_control_proto
   vss_control_core vss_license_test_keys Vss::BoostJson Vss::Monocypher)
+if(TARGET vss_cli_control)
+  target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
+endif()
 if(WIN32)
   # public.h of the driver and the helper protocol, for the protocol tests.
   target_include_directories(vss_unit_tests PRIVATE

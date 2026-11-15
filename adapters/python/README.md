@@ -82,7 +82,11 @@ the length. The limits are in `vss_control/_wire.py`.
 timeout=10.0, loopback_port=None)` connects. `instance` is the name given to
 `vss_gate --instance=`. `token` is a token as text, `token_file` the path of a file whose first line is
 one (`vss_cli control token create --label=rig --role=control --out=rig.token`).
-With neither, the connection is the local user. `timeout` is the seconds one
+With neither, the connection is the local user. `--out` needs a name that is not
+a file yet: `vss_cli` makes the file first, so that only you can read it, and
+never replaces a file or follows a link. When the file cannot be made no token
+is made and nothing is shown, so a second run with the same name fails and
+needs another name (or the old file removed). `timeout` is the seconds one
 call may take.
 
 Calls: `status()`, `list_ports()`, `create_port(name)`, `remove_port(id)`,

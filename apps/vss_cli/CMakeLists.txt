@@ -3,11 +3,19 @@
 # vss_cli - headless access to the same studio the GUI drives.
 #
 
-add_executable(vss_cli main.cpp agent_command.cpp control_command.cpp
-  permissions_command.cpp plugin_command.cpp)
+# `vss_cli control ...` is a library so that the unit tests can run the command
+# in their own process, against a gateway of their own.
+add_library(vss_cli_control STATIC control_command.cpp)
+target_include_directories(vss_cli_control PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(vss_cli_control PUBLIC cxx_std_23)
+target_link_libraries(vss_cli_control PUBLIC Vss::control_core Vss::agent_core)
+vss_set_warnings(vss_cli_control)
+
+add_executable(vss_cli main.cpp agent_command.cpp permissions_command.cpp
+  plugin_command.cpp)
 target_compile_features(vss_cli PRIVATE cxx_std_23)
-target_link_libraries(vss_cli PRIVATE Vss::studio Vss::agent_core
-  Vss::control_core Vss::plugin Vss::BoostJson vss_testkit)
+target_link_libraries(vss_cli PRIVATE vss_cli_control Vss::studio
+  Vss::agent_core Vss::control_core Vss::plugin Vss::BoostJson vss_testkit)
 vss_set_warnings(vss_cli)
 
 # The program's icon in Explorer, and its own description, in the Windows

@@ -16,6 +16,7 @@
 #include <vss/control/proto/message.hpp>
 #include <vss/control/proto/policy.hpp>
 #include <vss/control/proto/secret.hpp>
+#include <vss/control/token_to_file.hpp>
 #include <vss/core/bytes.hpp>
 #include <vss/core/error.hpp>
 
@@ -973,69 +974,84 @@ void print_token(const secret_string& token)
     std::fprintf(stdout, "%.*s\n", static_cast<int>(text.size()), text.data());
 }
 
-/// Makes a new file at `path` with the token and a line ending in it, which
-/// only its owner can read from the moment the file exists.  The place where a
-/// token that is asked for in a file leaves this program.  An existing file or
-/// a link is never used, and a file that cannot be made private is an error:
-/// then nothing of the token is written.
-vss::error_code write_token_file(const std::string& path,
-                                 const secret_string& token)
+/// Says why a file for a token cannot be had.  A file that is there is never
+/// used, so that reason is plain.
+std::string out_file_reason(const vss::error_code& failed)
 {
-    std::string line(token.expose());
-    line.push_back('\n');
-    const vss::error_code written =
-        vss::control::create_private_file(path, line);
-    // The copy is a token too.
-    vss::control::secure_wipe(line.data(), line.size());
-    return written;
+    if (failed == vss::errc::already_exists)
+        return "the file exists already and is not replaced; name a new file";
+    if (failed == vss::errc::permission_denied)
+        return "the place cannot hold a file that only you can read";
+    return failed.message();
 }
 
-int token_create(client& gateway, const control_arguments& args)
+/// Prints the record of a token that was made, without the token.
+void print_token_record(const vss::control::token_entry& entry)
 {
-    const auto made = gateway.create_token(args.label, args.scopes, args.life_s,
-                                           args.transports);
-    if (!made)
-        return report("token create", made.error(), &gateway);
-    const vss::control::token_entry& entry = made->entry;
     std::printf("Token %s created for \"%s\"\n", entry.id.c_str(),
                 entry.label.c_str());
     std::printf("Scopes: %s\n", join_names(entry.scopes, ", ").c_str());
     std::printf("Expires: %s\n", date_text(entry.expires_ms).c_str());
+}
 
-    int outcome = exit_ok;
-    bool written = false;
+/// `token create --out=<file>`: the file is made first, empty, private and
+/// new, and only then is the token asked for.  A file that cannot be had
+/// means no token is made and nothing is shown.  When the token is made and
+/// cannot be written, it is revoked and the file is removed again, so no token
+/// is left that nobody holds, and the token is never shown.
+int token_create_in_file(client& gateway, const control_arguments& args)
+{
+    auto claimed = vss::control::claim_private_file(*args.out_file);
+    if (!claimed)
+    {
+        std::fprintf(stderr,
+                     "control token create failed: cannot make the file %s: "
+                     "%s; no token was made\n",
+                     args.out_file->c_str(),
+                     out_file_reason(claimed.error()).c_str());
+        return exit_refused;
+    }
+
+    const auto made = vss::control::create_token_to_file(
+        gateway, args.label, args.scopes, args.life_s, args.transports,
+        **claimed);
+    if (!made)
+        return report("token create", made.error(), &gateway);
+    if (made->write_error)
+    {
+        std::fprintf(
+            stderr,
+            "control token create failed: cannot write the token to "
+            "%s: %s; %s\n",
+            args.out_file->c_str(), made->write_error.message().c_str(),
+            made->revoked ? "the token was revoked"
+                          : "the token could not be revoked: run token revoke "
+                            "for it");
+        if (!made->revoked)
+            std::fprintf(stderr, "token id: %s\n", made->entry.id.c_str());
+        return exit_refused;
+    }
+    (*claimed)->keep();
+    print_token_record(made->entry);
+    std::printf("Token written to %s\n", args.out_file->c_str());
+    return exit_ok;
+}
+
+int token_create(client& gateway, const control_arguments& args)
+{
     if (args.out_file)
-    {
-        const vss::error_code failed =
-            write_token_file(*args.out_file, made->token);
-        written = !failed;
-        if (written)
-        {
-            std::printf("Token written to %s\n", args.out_file->c_str());
-        }
-        else
-        {
-            // A file that is there is never used, so the reason is plain.
-            const std::string reason =
-                failed == vss::errc::already_exists
-                    ? "the file exists already and is not replaced"
-                    : failed.message();
-            std::fprintf(stderr,
-                         "control token create failed: cannot write the "
-                         "token to %s: %s\n",
-                         args.out_file->c_str(), reason.c_str());
-            outcome = exit_refused;
-        }
-    }
-    // Without a file, or when it could not be written, this is the only
-    // chance to see the token.
-    if (!written)
-    {
-        std::puts("This is the only time the token is shown.  Keep it like a "
-                  "password.");
-        print_token(made->token);
-    }
-    return outcome;
+        return token_create_in_file(gateway, args);
+
+    const auto made = gateway.create_token(args.label, args.scopes, args.life_s,
+                                           args.transports);
+    if (!made)
+        return report("token create", made.error(), &gateway);
+    print_token_record(made->entry);
+    // Without a file this is the only chance to see the token.
+    std::puts("This is the only time the token is shown.  Keep it like a "
+              "password.");
+    print_token(made->token);
+    return exit_ok;
 }
 
 int token_list(client& gateway)
@@ -1246,22 +1262,28 @@ int expect_bytes(client& gateway, const control_arguments& args)
 
 /// `text` as it is when it is `limit` bytes or fewer.  Otherwise it is cut
 /// between two UTF-8 characters and ends in `...`, so that it is `limit` bytes
-/// or fewer and still says that it is not whole.  The gateway refuses a name
-/// or a message that is too long, and a report of a failed check must not be
-/// lost for that.
+/// or fewer and still says that it is not whole.  A limit that is shorter than
+/// the mark gets the cut text and no mark.  The gateway refuses a name or a
+/// message that is too long, and a report of a failed check must not be lost
+/// for that.
 std::string cut_to(std::string text, std::size_t limit)
 {
     constexpr std::string_view mark = "...";
     if (text.size() <= limit)
         return text;
-    std::size_t keep = limit - mark.size();
+    const bool marked = limit >= mark.size();
+    std::size_t keep = marked ? limit - mark.size() : limit;
     // `text[keep]` is the first byte that goes: not a lead byte means the
-    // cut is inside a character, so the character goes whole.
-    while (keep > 0 &&
-           (static_cast<unsigned char>(text[keep]) & 0xc0u) == 0x80u)
+    // cut is inside a character, so the character goes whole.  A character is
+    // four bytes at most, so text that is not UTF-8 is not walked back far.
+    for (int back = 0;
+         back < 3 && keep > 0 &&
+         (static_cast<unsigned char>(text[keep]) & 0xc0u) == 0x80u;
+         ++back)
         --keep;
     text.resize(keep);
-    text += mark;
+    if (marked)
+        text += mark;
     return text;
 }
 
@@ -1405,8 +1427,11 @@ const char* control_usage() noexcept
            "      and either a role or a list of scope names.  The token\n"
            "      lives --days days (1 to 365, 30 by default).  It is shown\n"
            "      once, on the screen or, with --out, in a file; keep it like\n"
-           "      a password.  --transport says where the token is good: "
-           "local\n"
+           "      a password.  --out needs a name that is not a file yet: it\n"
+           "      never replaces a file and never follows a link.  The file\n"
+           "      is made first and only you can read it; when it cannot be\n"
+           "      made no token is made and nothing is shown.  --transport\n"
+           "      says where the token is good: local\n"
            "      (the pipe or socket, which is the default), loopback (TCP,\n"
            "      see --loopback-port below), or both when it is given twice.\n"
            "      list shows the records, never the tokens, and where each is\n"

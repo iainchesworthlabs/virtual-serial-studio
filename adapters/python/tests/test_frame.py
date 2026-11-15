@@ -195,6 +195,17 @@ class WireTests(unittest.TestCase):
                     self.assertTrue(cut.endswith(_wire.CUT_MARK))
                     raw.decode("utf-8", "strict")
 
+    def test_a_limit_shorter_than_the_mark_cuts_and_does_not_mark(self):
+        self.assertEqual(_wire.clean_text("abcdefgh", 2), "ab")
+        self.assertEqual(_wire.clean_text("abcdefgh", 0), "")
+        self.assertEqual(_wire.clean_text("abcdefgh", -1), "")
+        # A character that does not fit whole goes whole.
+        self.assertEqual(_wire.clean_text("ééé", 3), "...")
+        self.assertEqual(_wire.clean_text("ééé", 5), "é...")
+        self.assertEqual(_wire.clean_text("€€", 2), "")
+        # Three is the mark and nothing else.
+        self.assertEqual(_wire.clean_text("abcdefgh", 3), "...")
+
     def test_the_limits_are_the_gateways(self):
         # libs/vss_control_proto/include/vss/control/proto/message.hpp:
         # max_text_size, max_run_name_size, max_case_message_size.
