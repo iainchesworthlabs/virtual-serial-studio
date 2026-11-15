@@ -32,7 +32,10 @@
 #include "platform/process_platform.hpp"
 
 #include <vss/core/error.hpp>
+#include <vss/plugin/error.hpp>
 #include <vss/plugin/host/process.hpp>
+#include <vss/plugin/host/sandbox.hpp>
+#include <vss/plugin/policy.hpp>
 
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_category.hpp>
@@ -367,6 +370,11 @@ private:
 result<std::unique_ptr<plugin_process::impl>>
 start_process(const process_request& request)
 {
+    // Nothing confines a plugin here yet, so a caller that needs any
+    // confinement gets no process at all.
+    if (available_sandbox().level() < request.least)
+        return make_error_code(plugin_errc::sandbox_insufficient);
+
     // The texts the child uses.
     std::string program = request.program.string();
     std::string directory = request.working_directory.string();
