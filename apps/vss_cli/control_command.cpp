@@ -1001,15 +1001,16 @@ void print_token_record(const vss::control::token_entry& entry)
 /// means no token is made and nothing is shown.  When the token is made and
 /// cannot be written, it is revoked and the file is removed again, so no token
 /// is left that nobody holds, and the token is never shown.
-int token_create_in_file(client& gateway, const control_arguments& args)
+int token_create_in_file(client& gateway, const control_arguments& args,
+                         const std::string& out_file)
 {
-    auto claimed = vss::control::claim_private_file(*args.out_file);
+    auto claimed = vss::control::claim_private_file(out_file);
     if (!claimed)
     {
         std::fprintf(stderr,
                      "control token create failed: cannot make the file %s: "
                      "%s; no token was made\n",
-                     args.out_file->c_str(),
+                     out_file.c_str(),
                      out_file_reason(claimed.error()).c_str());
         return exit_refused;
     }
@@ -1025,7 +1026,7 @@ int token_create_in_file(client& gateway, const control_arguments& args)
             stderr,
             "control token create failed: cannot write the token to "
             "%s: %s; %s\n",
-            args.out_file->c_str(), made->write_error.message().c_str(),
+            out_file.c_str(), made->write_error.message().c_str(),
             made->revoked ? "the token was revoked"
                           : "the token could not be revoked: run token revoke "
                             "for it");
@@ -1035,14 +1036,14 @@ int token_create_in_file(client& gateway, const control_arguments& args)
     }
     (*claimed)->keep();
     print_token_record(made->entry);
-    std::printf("Token written to %s\n", args.out_file->c_str());
+    std::printf("Token written to %s\n", out_file.c_str());
     return exit_ok;
 }
 
 int token_create(client& gateway, const control_arguments& args)
 {
     if (args.out_file)
-        return token_create_in_file(gateway, args);
+        return token_create_in_file(gateway, args, *args.out_file);
 
     const auto made = gateway.create_token(args.label, args.scopes, args.life_s,
                                            args.transports);
