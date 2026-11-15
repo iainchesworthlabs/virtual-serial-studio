@@ -57,15 +57,6 @@ struct licence_banner
     bool renew = false;
 };
 
-/// Where to write about a licence. The one place to change it. The name is a
-/// reserved one that cannot receive mail: the owner sets the real address
-/// before the first licence is issued.
-QString support_address();
-
-/// Where the documents are published. Studio copies it to the clipboard and
-/// never opens it. Like `support_address`, the one place to change it.
-QString documents_address();
-
 /// Where issues are opened.
 QString issues_address();
 

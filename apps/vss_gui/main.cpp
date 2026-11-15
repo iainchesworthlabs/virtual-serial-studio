@@ -126,8 +126,6 @@ try
         vss::gui::support::application_name());
     QApplication::setApplicationVersion(
         vss::gui::support::current_version_string());
-    QApplication::setOrganizationDomain(
-        QStringLiteral("virtualserial.example"));
     // Settings, Performance, Profiling is remembered here, as soon as the
     // settings store has its name. An explicit --no-profile or VSS_PROFILE=0
     // wins over it, and so do the unattended runs.

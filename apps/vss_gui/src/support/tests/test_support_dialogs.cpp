@@ -16,6 +16,7 @@
 
 #include "backend/fake_studio_backend.hpp"
 #include "support/about_dialog.hpp"
+#include "support/app_identity.hpp"
 #include "support/build_info.hpp"
 #include "support/bundle.hpp"
 #include "support/event_log.hpp"
@@ -1029,10 +1030,8 @@ TEST_CASE("support page: each copy button puts its own text on the clipboard")
     using vss::gui::support::issues_address;
     using vss::gui::support::support_address;
 
-    REQUIRE_EQ(
-        documents_address(),
-        QStringLiteral(
-            "https://iainchesworthlabs.github.io/virtual-serial-studio/"));
+    REQUIRE_EQ(documents_address(),
+               QStringLiteral("https://virtual-serial-studio.com/docs/"));
     REQUIRE_EQ(issues_address(),
                QStringLiteral("https://github.com/iainchesworthlabs/"
                               "virtual-serial-studio/issues"));

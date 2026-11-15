@@ -6,6 +6,8 @@
 
 #include "support/licence_text.hpp"
 
+#include "support/app_identity.hpp"
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QLocale>
@@ -79,20 +81,6 @@ QString invalid_sentence(lic::reason reason, const QString& computer_name)
 }
 
 } // namespace
-
-QString support_address()
-{
-    // This name is reserved (RFC 2606) and cannot receive mail. The owner sets
-    // the real address here, and only here, before the first licence is
-    // issued.
-    return QStringLiteral("support@virtual-serial-studio.invalid");
-}
-
-QString documents_address()
-{
-    return QStringLiteral(
-        "https://iainchesworthlabs.github.io/virtual-serial-studio/");
-}
 
 QString issues_address()
 {

@@ -6,6 +6,7 @@
 
 #include "support/licence_dialog.hpp"
 
+#include "support/app_identity.hpp"
 #include "theme/theme.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
