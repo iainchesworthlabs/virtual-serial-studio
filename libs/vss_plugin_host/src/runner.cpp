@@ -127,6 +127,7 @@ public:
         close_streams();
         session_.reset();
         process_.reset();
+        process_id_ = 0;
         static_cast<void>(run_.stop(clock_type::now()));
         static_cast<void>(run_.on_stopped(clock_type::now()));
         publish_now();
