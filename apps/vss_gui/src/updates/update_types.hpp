@@ -36,7 +36,7 @@ inline constexpr const char* kDownloadsPage =
     "https://virtual-serial-studio.com/downloads.html";
 
 /// A feed larger than this is cut off and refused.
-inline constexpr std::int64_t kMaxFeedBytes = 64 * 1024;
+inline constexpr std::int64_t kMaxFeedBytes = std::int64_t{64} * 1024;
 
 /// A request that has not finished after this long is given up.
 inline constexpr int kFeedTimeoutMs = 15 * 1000;

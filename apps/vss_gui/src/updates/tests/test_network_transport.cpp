@@ -209,6 +209,20 @@ std::function<void(transport_error)> into(download_result& result)
     };
 }
 
+/// The names of the headers every request carries, sorted. Each has one
+/// value, the same on every computer: the two cache headers ask a proxy for
+/// a fresh copy, and the rest are set in `prepare`.
+QList<QByteArray> fixed_headers()
+{
+    return {"accept-encoding",
+            "accept-language",
+            "cache-control",
+            "connection",
+            "host",
+            "pragma",
+            "user-agent"};
+}
+
 /// Bytes that differ along their length, so a piece out of order shows.
 QByteArray patterned(qsizetype size)
 {
@@ -240,15 +254,19 @@ TEST_CASE("update transport: a feed request carries a fixed set of headers "
     REQUIRE_EQ(server.heads.size(), qsizetype{1});
     REQUIRE(server.request_line(0) ==
             QByteArray("GET /updates/v1/feed.json HTTP/1.1"));
-    const QList<QByteArray> expected{"accept-encoding", "accept-language",
-                                     "connection", "host", "user-agent"};
-    REQUIRE(server.header_names(0) == expected);
+    REQUIRE(server.header_names(0) == fixed_headers());
     REQUIRE(server.header(0, "user-agent") ==
             std::optional<QByteArray>(QByteArray(kUserAgent)));
     REQUIRE(server.header(0, "accept-language") ==
             std::optional<QByteArray>(QByteArray("*")));
     REQUIRE(server.header(0, "accept-encoding") ==
             std::optional<QByteArray>(QByteArray("identity")));
+    REQUIRE(server.header(0, "cache-control") ==
+            std::optional<QByteArray>(QByteArray("no-cache")));
+    REQUIRE(server.header(0, "pragma") ==
+            std::optional<QByteArray>(QByteArray("no-cache")));
+    REQUIRE(server.header(0, "connection") ==
+            std::optional<QByteArray>(QByteArray("Keep-Alive")));
 }
 
 TEST_CASE("update transport: a cookie the server sets is never sent back")
@@ -449,7 +467,7 @@ TEST_CASE("update transport: an address with a user name in it is refused")
 TEST_CASE("update transport: a download arrives whole, in order, in pieces "
           "of at most 64 KiB")
 {
-    const QByteArray body = patterned(3 * 1024 * 1024 + 123);
+    const QByteArray body = patterned(qsizetype{3} * 1024 * 1024 + 123);
     test_server server;
     server.respond = [body](QTcpSocket* socket, const QByteArray&)
     { test_server::send(socket, "200 OK", body); };
@@ -463,20 +481,18 @@ TEST_CASE("update transport: a download arrives whole, in order, in pieces "
     REQUIRE(result.error == transport_error::none);
     REQUIRE_EQ(result.calls, 1);
     REQUIRE(result.bytes == body);
-    REQUIRE(result.largest_piece <= qsizetype{64 * 1024});
+    REQUIRE(result.largest_piece <= qsizetype{64} * 1024);
     REQUIRE(!result.piece_after_done);
 
     // A download says no more about the computer than a feed request.
-    const QList<QByteArray> expected{"accept-encoding", "accept-language",
-                                     "connection", "host", "user-agent"};
-    REQUIRE(server.header_names(0) == expected);
+    REQUIRE(server.header_names(0) == fixed_headers());
     REQUIRE(server.request_line(0) == QByteArray("GET /file.exe HTTP/1.1"));
 }
 
 TEST_CASE("update transport: more bytes than the feed promised stop the "
           "download")
 {
-    const QByteArray body = patterned(400 * 1024);
+    const QByteArray body = patterned(qsizetype{400} * 1024);
     test_server server;
     server.respond = [body](QTcpSocket* socket, const QByteArray&)
     { test_server::send(socket, "200 OK", body); };
@@ -494,7 +510,7 @@ TEST_CASE("update transport: more bytes than the feed promised stop the "
 TEST_CASE("update transport: a receiver that says stop ends the download "
           "as cancelled")
 {
-    const QByteArray body = patterned(2 * 1024 * 1024);
+    const QByteArray body = patterned(qsizetype{2} * 1024 * 1024);
     test_server server;
     server.respond = [body](QTcpSocket* socket, const QByteArray&)
     { test_server::send(socket, "200 OK", body); };
@@ -513,7 +529,7 @@ TEST_CASE("update transport: a receiver that says stop ends the download "
 
 TEST_CASE("update transport: cancel ends a download and no piece follows")
 {
-    const QByteArray body = patterned(2 * 1024 * 1024);
+    const QByteArray body = patterned(qsizetype{2} * 1024 * 1024);
     test_server server;
     server.respond = [body](QTcpSocket* socket, const QByteArray&)
     { test_server::send(socket, "200 OK", body); };

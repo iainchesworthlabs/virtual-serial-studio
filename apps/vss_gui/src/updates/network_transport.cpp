@@ -29,12 +29,12 @@ namespace
 /// A download that receives nothing for this long is given up.
 constexpr int kDownloadIdleTimeoutMs = 30 * 1000;
 /// The largest piece handed to the caller.
-constexpr qint64 kPieceBytes = 64 * 1024;
+constexpr qint64 kPieceBytes = qint64{64} * 1024;
 /// How many pieces may wait for the GUI thread. With the reply's read
 /// buffer this bounds the memory a slow receiver can make the download
 /// hold, whatever the size of the file.
 constexpr int kMaxPendingPieces = 16;
-constexpr qint64 kReadBufferBytes = 1024 * 1024;
+constexpr qint64 kReadBufferBytes = qint64{1024} * 1024;
 constexpr int kMaxRedirects = 5;
 
 /// The system's proxy settings, for this manager only. The application's

@@ -66,7 +66,7 @@ std::unique_ptr<checked_file> open_checked_file(const QString& path)
 {
     // FILE_FLAG_OPEN_REPARSE_POINT opens a link itself and not what it
     // points to, so the test below sees it.
-    const HANDLE handle =
+    HANDLE handle =
         CreateFileW(native(path).c_str(), GENERIC_READ, FILE_SHARE_READ,
                     nullptr, OPEN_EXISTING,
                     FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN |
