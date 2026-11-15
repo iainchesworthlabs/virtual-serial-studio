@@ -27,6 +27,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <ios>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -781,10 +783,38 @@ namespace
 sandbox_profile profile_for(const scratch_directory& scratch)
 {
     sandbox_profile profile;
-    profile.plugin_directory =
-        std::filesystem::path(VSS_TEST_PLUGIN_PROGRAM).parent_path();
-    profile.data_directory = scratch.path();
+    profile.name = "com.example.test";
+    profile.plugin_directory = scratch.path() / "plugin";
+    profile.data_directory = scratch.path() / "data";
     return profile;
+}
+
+/// A request for the test plugin as an installed plugin is laid out: the
+/// program copied into a directory of its own, a data directory beside it,
+/// and a profile that names the two.
+process_request confined_request(const scratch_directory& scratch,
+                                 std::vector<std::string> arguments)
+{
+    const sandbox_profile profile = profile_for(scratch);
+    std::error_code ec;
+    std::filesystem::create_directories(profile.plugin_directory, ec);
+    std::filesystem::create_directories(profile.data_directory, ec);
+    const std::filesystem::path program =
+        profile.plugin_directory /
+        std::filesystem::path(VSS_TEST_PLUGIN_PROGRAM).filename();
+    std::filesystem::copy_file(
+        VSS_TEST_PLUGIN_PROGRAM, program,
+        std::filesystem::copy_options::overwrite_existing, ec);
+    REQUIRE(!ec);
+
+    process_request request;
+    request.program = program;
+    request.arguments = std::move(arguments);
+    request.working_directory = profile.data_directory;
+    request.environment =
+        plugin_environment("com.example.test", profile.data_directory);
+    request.sandbox = profile;
+    return request;
 }
 
 } // namespace
@@ -833,14 +863,13 @@ TEST_CASE("plugin process: a start reports what confines the plugin")
     REQUIRE(plain.sandbox().level() == sandbox_level::none);
     static_cast<void>(wait_for_end(plain));
 
-    // With one, a start applies what this computer says it can, and no
-    // system closes the file system yet, so the level is still none.
-    request.sandbox = profile_for(scratch);
-    plugin_process confined = start_process(request);
+    // With one, a start applies what this computer says it can.
+    plugin_process confined =
+        start_process(confined_request(scratch, {"--exit=0"}));
     const sandbox_report can = available_sandbox();
     for (const sandbox_part part : all_sandbox_parts)
         REQUIRE_EQ(confined.sandbox().has(part), can.has(part));
-    REQUIRE(confined.sandbox().level() == sandbox_level::none);
+    REQUIRE(confined.sandbox().level() == can.level());
     const exit_status status = wait_for_end(confined);
     REQUIRE(!status.abnormal);
     REQUIRE_EQ(status.code, 0);
@@ -852,8 +881,7 @@ TEST_CASE("plugin process: a plugin that may not start programs cannot")
         VSS_SKIP("this system does not limit the processes of a plugin yet");
     const scratch_directory scratch;
     process_request request =
-        request_for(scratch, {"--spawn-children=1", "--stdout=after"});
-    request.sandbox = profile_for(scratch);
+        confined_request(scratch, {"--spawn-children=1", "--stdout=after"});
     plugin_process process = start_process(request);
     REQUIRE(process.sandbox().has(sandbox_part::limits));
 
@@ -872,11 +900,9 @@ TEST_CASE("plugin process: a plugin that may start programs is held to its "
         VSS_SKIP("this system does not limit the processes of a plugin yet");
     const scratch_directory scratch;
     process_request request =
-        request_for(scratch, {"--spawn-children=5", "--hang"});
-    sandbox_profile profile = profile_for(scratch);
-    profile.start_programs = true;
-    profile.limits.processes = 3;
-    request.sandbox = profile;
+        confined_request(scratch, {"--spawn-children=5", "--hang"});
+    request.sandbox->start_programs = true;
+    request.sandbox->limits.processes = 3;
     plugin_process process = start_process(request);
 
     // The plugin and two children fit; the third child does not, and the
@@ -895,10 +921,8 @@ TEST_CASE("plugin process: a plugin is held to its memory")
         VSS_SKIP("this system does not limit the memory of a plugin yet");
     const scratch_directory scratch;
     process_request request =
-        request_for(scratch, {"--allocate=32", "--allocate=512"});
-    sandbox_profile profile = profile_for(scratch);
-    profile.limits.memory_bytes = 128ULL * 1024 * 1024;
-    request.sandbox = profile;
+        confined_request(scratch, {"--allocate=32", "--allocate=512"});
+    request.sandbox->limits.memory_bytes = 128ULL * 1024 * 1024;
     plugin_process process = start_process(request);
 
     // 32 MiB fit below 128 MiB.  512 more do not: the plugin is refused
@@ -907,4 +931,82 @@ TEST_CASE("plugin process: a plugin is held to its memory")
     REQUIRE(count_of(output, "allocated 32\n") == 1);
     REQUIRE(count_of(output, "allocated 512\n") == 0);
     static_cast<void>(wait_for_end(process));
+}
+
+TEST_CASE("plugin process: a confined plugin reaches its own directories "
+          "and no other")
+{
+    if (!available_sandbox().has(sandbox_part::file_system))
+        VSS_SKIP("this system does not close the file system to a plugin yet");
+    const scratch_directory scratch;
+    // A file of the user that no profile names.
+    const std::filesystem::path secret = scratch.path() / "secret.txt";
+    {
+        std::ofstream out(secret, std::ios::binary);
+        out << "not for a plugin";
+    }
+    const std::filesystem::path inside = scratch.path() / "data" / "kept.txt";
+    const std::filesystem::path outside = scratch.path() / "made.txt";
+
+    process_request request = confined_request(
+        scratch,
+        {"--read-file=" + secret.string(), "--write-file=" + outside.string(),
+         "--write-file=" + inside.string(), "--read-file=" + inside.string(),
+         "--stdout=done"});
+    request.least = sandbox_level::partial;
+    plugin_process process = start_process(request);
+    REQUIRE(process.sandbox().has(sandbox_part::file_system));
+    REQUIRE(process.sandbox().level() >= sandbox_level::partial);
+
+    const std::string output = io::read_to_end(process.output(), long_limit);
+    const std::vector<std::string> lines = lines_of(output);
+    REQUIRE(has_line(lines, "done"));
+    // The file outside was not read and no file was made outside.
+    REQUIRE_EQ(count_of(output, "read-failed\n"), std::size_t{1});
+    REQUIRE_EQ(count_of(output, "write-failed\n"), std::size_t{1});
+    REQUIRE(!std::filesystem::exists(outside));
+    // Its own data directory works.
+    REQUIRE_EQ(count_of(output, "written\n"), std::size_t{1});
+    REQUIRE(has_line(lines, "read 26"));
+    REQUIRE(std::filesystem::exists(inside));
+    const exit_status status = wait_for_end(process);
+    REQUIRE(!status.abnormal);
+}
+
+TEST_CASE("plugin process: the same plugin without a profile reads the file")
+{
+    // The check of the test above: what it refuses is refused by the
+    // sandbox and not by the way the test is written.
+    const scratch_directory scratch;
+    const std::filesystem::path secret = scratch.path() / "secret.txt";
+    {
+        std::ofstream out(secret, std::ios::binary);
+        out << "not for a plugin";
+    }
+    plugin_process process =
+        start_process(request_for(scratch, {"--read-file=" + secret.string()}));
+    const std::string output = io::read_to_end(process.output(), long_limit);
+    REQUIRE(has_line(lines_of(output), "read 16"));
+    static_cast<void>(wait_for_end(process));
+}
+
+TEST_CASE("plugin process: a start that cannot reach the level asked for "
+          "starts nothing")
+{
+    const scratch_directory scratch;
+    process_request request = confined_request(
+        scratch,
+        {"--write-file=" + (scratch.path() / "data" / "ran.txt").string()});
+    request.least = sandbox_level::full;
+    auto started = plugin_process::start(request);
+    if (available_sandbox().level() == sandbox_level::full)
+    {
+        REQUIRE(started.has_value());
+        REQUIRE(started.value().sandbox().level() == sandbox_level::full);
+        return;
+    }
+    REQUIRE(started.has_error());
+    REQUIRE(started.error() ==
+            make_error_code(vss::plugin::plugin_errc::sandbox_insufficient));
+    REQUIRE(!std::filesystem::exists(scratch.path() / "data" / "ran.txt"));
 }

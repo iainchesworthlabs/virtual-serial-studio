@@ -26,7 +26,7 @@ if(WIN32)
     src/platform/windows/process_windows.cpp)
   # advapi32 for the user's SID and the pipe's access list; bcrypt for the
   # random part of a pipe's name.
-  target_link_libraries(vss_plugin_host PRIVATE advapi32 bcrypt)
+  target_link_libraries(vss_plugin_host PRIVATE advapi32 bcrypt userenv)
 else()
   target_sources(vss_plugin_host PRIVATE
     src/platform/posix/process_posix.cpp)

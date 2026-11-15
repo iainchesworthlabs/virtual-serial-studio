@@ -33,6 +33,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -57,6 +58,9 @@ struct sandbox_limits
 
 struct sandbox_profile
 {
+    /// A name for what is confined, the same at every start of the same
+    /// plugin: the plugin's id.  Not empty.
+    std::string name;
     /// The plugin's own directory: read, and run programs from.
     std::filesystem::path plugin_directory;
     /// The plugin's data directory: read and write.

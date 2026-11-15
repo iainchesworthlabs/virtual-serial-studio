@@ -22,10 +22,10 @@
 //   descriptor, or on Windows the value of a handle.
 // - No other descriptor or handle of the host.
 //
-// A request may carry a sandbox profile (sandbox.hpp).  What this code can
-// apply of it so far is little: limits and the user interface on Windows,
-// and no closing of the file system anywhere, so every start still reports
-// the level `none` and nothing in Studio starts a plugin.
+// A request may carry a sandbox profile (sandbox.hpp).  Windows applies
+// all of it (a job object and an AppContainer).  Linux and macOS apply
+// nothing of it yet and report the level `none`.  Nothing in Studio starts
+// a plugin.
 //
 // The process is the head of a group of its own (a job object on Windows; a
 // session and process group elsewhere), so that `kill` ends what it started
@@ -82,6 +82,10 @@ struct process_request
     /// `plugin_process::sandbox`, and may be less than was asked for: the
     /// start does not fail because a part could not be applied.
     std::optional<sandbox_profile> sandbox;
+    /// The least level the start may reach.  When this computer cannot
+    /// apply that much, nothing is started and the start fails with
+    /// `plugin_errc::sandbox_insufficient`.
+    sandbox_level least = sandbox_level::none;
 };
 
 /// The environment of section 7.1 for a plugin: `VSS_PLUGIN_ID`,

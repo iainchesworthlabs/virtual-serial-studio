@@ -22,19 +22,29 @@
 //   started.  Once both ends are open, nothing else can connect.
 //
 // The process is put in a job object before its first instruction runs.
-// Closing or ending the job ends everything in it.
+// Closing or ending the job ends everything in it.  With a sandbox profile
+// the job also holds the limits and takes the user interface away, and
+// the process runs in an AppContainer: an identity that can reach the
+// plugin's own directory and its data directory, because this code grants
+// it those, and no other file of the user, no network unless granted, and
+// no other process.
 //
 
 #include "platform/process_platform.hpp"
 
 #include <vss/core/error.hpp>
 #include <vss/plugin/error.hpp>
+#include <vss/plugin/hash.hpp>
 #include <vss/plugin/host/process.hpp>
+#include <vss/plugin/host/sandbox.hpp>
+#include <vss/plugin/policy.hpp>
 
 #include <windows.h>
 
+#include <aclapi.h>
 #include <bcrypt.h>
 #include <sddl.h>
+#include <userenv.h>
 
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_category.hpp>
@@ -45,6 +55,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cwchar>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -280,51 +291,6 @@ std::optional<std::wstring> environment_block(
     return block;
 }
 
-/// The start-up attribute that names the handles a new process inherits.
-class handle_list
-{
-public:
-    explicit handle_list(std::vector<HANDLE> handles)
-        : handles_(std::move(handles))
-    {
-    }
-    ~handle_list()
-    {
-        if (ready_)
-            ::DeleteProcThreadAttributeList(list());
-    }
-    handle_list(const handle_list&) = delete;
-    handle_list& operator=(const handle_list&) = delete;
-
-    error_code prepare()
-    {
-        SIZE_T size = 0;
-        ::InitializeProcThreadAttributeList(nullptr, 1, 0, &size);
-        if (size == 0)
-            return last_error();
-        storage_.resize(size);
-        if (::InitializeProcThreadAttributeList(list(), 1, 0, &size) == 0)
-            return last_error();
-        ready_ = true;
-        if (::UpdateProcThreadAttribute(
-                list(), 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
-                static_cast<void*>(handles_.data()),
-                handles_.size() * sizeof(HANDLE), nullptr, nullptr) == 0)
-            return last_error();
-        return {};
-    }
-
-    LPPROC_THREAD_ATTRIBUTE_LIST list() noexcept
-    {
-        return reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage_.data());
-    }
-
-private:
-    std::vector<HANDLE> handles_;
-    std::vector<std::byte> storage_;
-    bool ready_ = false;
-};
-
 /// A job and what it confines.
 struct confined_job
 {
@@ -395,6 +361,219 @@ result<confined_job> make_job(const sandbox_profile* profile)
         made.report.applied.push_back(sandbox_part::user_interface);
     return made;
 }
+
+struct sid_free
+{
+    void operator()(void* sid) const noexcept { ::FreeSid(sid); }
+};
+
+/// The AppContainer of one plugin: an identity of its own that Windows
+/// gives no file, no network and no other process unless something grants
+/// it.  It needs no profile to be registered; the identity is worked out
+/// from the name.
+struct app_container
+{
+    std::unique_ptr<void, sid_free> sid;
+    /// The well-known SIDs of the capabilities granted, and the list that
+    /// points at them.
+    std::vector<std::vector<std::byte>> capability_sids;
+    std::vector<SID_AND_ATTRIBUTES> capabilities;
+
+    SECURITY_CAPABILITIES security() noexcept
+    {
+        SECURITY_CAPABILITIES result{};
+        result.AppContainerSid = sid.get();
+        result.Capabilities =
+            capabilities.empty() ? nullptr : capabilities.data();
+        result.CapabilityCount = static_cast<DWORD>(capabilities.size());
+        return result;
+    }
+};
+
+/// The name of a plugin's AppContainer: fixed letters and a hash of the
+/// plugin's name, so that any name gives a name Windows takes, and the
+/// same plugin gets the same container at every start.
+std::wstring container_name(const std::string& name)
+{
+    const sha512_digest digest = sha512_of(std::string_view(name));
+    constexpr std::wstring_view digits = L"0123456789abcdef";
+    std::wstring text = L"vss.plugin.";
+    for (std::size_t i = 0; i < 20; ++i)
+    {
+        const auto byte = std::to_integer<unsigned>(digest[i]);
+        text.push_back(digits[byte >> 4U]);
+        text.push_back(digits[byte & 0x0fU]);
+    }
+    return text;
+}
+
+/// Lets the container reach a directory and everything in it.
+error_code grant(const std::filesystem::path& directory, PSID sid, DWORD access)
+{
+    std::wstring path = directory.native();
+    PACL old_list = nullptr;
+    PSECURITY_DESCRIPTOR raw = nullptr;
+    DWORD status = ::GetNamedSecurityInfoW(path.c_str(), SE_FILE_OBJECT,
+                                           DACL_SECURITY_INFORMATION, nullptr,
+                                           nullptr, &old_list, nullptr, &raw);
+    if (status != ERROR_SUCCESS)
+        return system_error(status);
+    const std::unique_ptr<void, local_free> descriptor(raw);
+
+    EXPLICIT_ACCESSW entry{};
+    entry.grfAccessPermissions = access;
+    entry.grfAccessMode = GRANT_ACCESS;
+    entry.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+    entry.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    entry.Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+    entry.Trustee.ptstrName = static_cast<LPWSTR>(sid);
+    PACL new_list = nullptr;
+    status = ::SetEntriesInAclW(1, &entry, old_list, &new_list);
+    if (status != ERROR_SUCCESS)
+        return system_error(status);
+    const std::unique_ptr<void, local_free> owner(new_list);
+    status = ::SetNamedSecurityInfoW(path.data(), SE_FILE_OBJECT,
+                                     DACL_SECURITY_INFORMATION, nullptr,
+                                     nullptr, new_list, nullptr);
+    return status == ERROR_SUCCESS ? error_code{} : system_error(status);
+}
+
+/// Adds a capability of the kind Windows has a fixed SID for.
+error_code add_capability(app_container& container, WELL_KNOWN_SID_TYPE kind)
+{
+    std::vector<std::byte> sid(SECURITY_MAX_SID_SIZE);
+    DWORD size = static_cast<DWORD>(sid.size());
+    if (::CreateWellKnownSid(kind, nullptr, sid.data(), &size) == 0)
+        return last_error();
+    container.capability_sids.push_back(std::move(sid));
+    SID_AND_ATTRIBUTES entry{};
+    entry.Sid = container.capability_sids.back().data();
+    entry.Attributes = SE_GROUP_ENABLED;
+    container.capabilities.push_back(entry);
+    return {};
+}
+
+/// Makes the container of a profile and lets it reach the directories of
+/// the profile and nothing else.  The plugin's own directory can be read
+/// and run from; its data directory and the directories the user chose
+/// for writing can be changed.
+result<app_container> prepare_container(const sandbox_profile& profile)
+{
+    if (profile.name.empty())
+        return make_error_code(plugin_errc::start_failed);
+    app_container container;
+    PSID raw = nullptr;
+    const HRESULT derived = ::DeriveAppContainerSidFromAppContainerName(
+        container_name(profile.name).c_str(), &raw);
+    if (FAILED(derived) || raw == nullptr)
+        return make_error_code(plugin_errc::sandbox_insufficient);
+    container.sid.reset(raw);
+
+    constexpr DWORD read = FILE_GENERIC_READ | FILE_GENERIC_EXECUTE;
+    constexpr DWORD change =
+        read | FILE_GENERIC_WRITE | DELETE | FILE_DELETE_CHILD;
+    if (const error_code failed =
+            grant(profile.plugin_directory, container.sid.get(), read))
+        return failed;
+    if (const error_code failed =
+            grant(profile.data_directory, container.sid.get(), change))
+        return failed;
+    for (const auto& directory : profile.read_directories)
+    {
+        if (const error_code failed =
+                grant(directory, container.sid.get(), read))
+            return failed;
+    }
+    for (const auto& directory : profile.write_directories)
+    {
+        if (const error_code failed =
+                grant(directory, container.sid.get(), change))
+            return failed;
+    }
+
+    // Without a capability an AppContainer has no network at all, the
+    // computer's own addresses included.
+    if (profile.network_outbound || profile.network_listen)
+    {
+        // The capability list must not move once entries point into it.
+        container.capability_sids.reserve(3);
+        const WELL_KNOWN_SID_TYPE reach =
+            profile.network_listen ? WinCapabilityInternetClientServerSid
+                                   : WinCapabilityInternetClientSid;
+        if (const error_code failed = add_capability(container, reach))
+            return failed;
+        if (const error_code failed = add_capability(
+                container, WinCapabilityPrivateNetworkClientServerSid))
+            return failed;
+    }
+    return container;
+}
+
+/// The start-up attributes of a plugin's process: the handles it inherits,
+/// and with a container the identity it runs as and the closing of the
+/// window system's calls to it.
+class start_attributes
+{
+public:
+    start_attributes(std::vector<HANDLE> handles, app_container* container)
+        : handles_(std::move(handles)), container_(container)
+    {
+    }
+    ~start_attributes()
+    {
+        if (ready_)
+            ::DeleteProcThreadAttributeList(list());
+    }
+    start_attributes(const start_attributes&) = delete;
+    start_attributes& operator=(const start_attributes&) = delete;
+
+    error_code prepare()
+    {
+        const DWORD count = container_ != nullptr ? 3 : 1;
+        SIZE_T size = 0;
+        ::InitializeProcThreadAttributeList(nullptr, count, 0, &size);
+        if (size == 0)
+            return last_error();
+        storage_.resize(size);
+        if (::InitializeProcThreadAttributeList(list(), count, 0, &size) == 0)
+            return last_error();
+        ready_ = true;
+        if (::UpdateProcThreadAttribute(
+                list(), 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                static_cast<void*>(handles_.data()),
+                handles_.size() * sizeof(HANDLE), nullptr, nullptr) == 0)
+            return last_error();
+        if (container_ == nullptr)
+            return {};
+        security_ = container_->security();
+        if (::UpdateProcThreadAttribute(
+                list(), 0, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
+                &security_, sizeof(security_), nullptr, nullptr) == 0)
+            return last_error();
+        // A plugin has no window, so it has no use for the calls of the
+        // window system, which are a large part of what the kernel offers.
+        policy_ =
+            PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_ON;
+        if (::UpdateProcThreadAttribute(
+                list(), 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy_,
+                sizeof(policy_), nullptr, nullptr) == 0)
+            return last_error();
+        return {};
+    }
+
+    LPPROC_THREAD_ATTRIBUTE_LIST list() noexcept
+    {
+        return reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(storage_.data());
+    }
+
+private:
+    std::vector<HANDLE> handles_;
+    app_container* container_ = nullptr;
+    SECURITY_CAPABILITIES security_{};
+    DWORD64 policy_ = 0;
+    std::vector<std::byte> storage_;
+    bool ready_ = false;
+};
 
 /// The exit code a process killed by the host is given.
 constexpr UINT killed_code = 1;
@@ -559,32 +738,70 @@ start_process(const process_request& request)
     if (!environment)
         return make_error_code(plugin_errc::start_failed);
 
-    handle_list inherited(
-        {input.get(), output->plugin.get(), channel->plugin.get()});
-    if (const error_code failed = inherited.prepare())
-        return failed;
-
     auto job = make_job(request.sandbox ? &*request.sandbox : nullptr);
     if (!job)
         return job.error();
 
-    STARTUPINFOEXW startup{};
-    startup.StartupInfo.cb = sizeof(startup);
-    startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
-    startup.StartupInfo.hStdInput = input.get();
-    startup.StartupInfo.hStdOutput = output->plugin.get();
-    startup.StartupInfo.hStdError = output->plugin.get();
-    startup.lpAttributeList = inherited.list();
+    // The container, when a profile asks for one and it can be made.  If
+    // it cannot, or the program does not start in it, the start goes on
+    // without it and the report says so, unless that is less than the
+    // caller will take.
+    std::optional<app_container> container;
+    if (request.sandbox)
+    {
+        auto made = prepare_container(*request.sandbox);
+        if (made)
+            container = std::move(*made);
+    }
 
-    // Suspended, so that it is in the job before it runs anything.
     PROCESS_INFORMATION information{};
-    if (::CreateProcessW(request.program.c_str(), command_line.data(), nullptr,
-                         nullptr, TRUE,
-                         CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT |
-                             EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW,
-                         environment->data(), request.working_directory.c_str(),
-                         &startup.StartupInfo, &information) == 0)
-        return last_error();
+    for (;;)
+    {
+        sandbox_report report = job->report;
+        if (container)
+        {
+            for (const sandbox_part part :
+                 {sandbox_part::file_system, sandbox_part::network,
+                  sandbox_part::other_processes, sandbox_part::system_calls})
+                report.applied.push_back(part);
+        }
+        if (report.level() < request.least)
+            return make_error_code(plugin_errc::sandbox_insufficient);
+
+        start_attributes attributes(
+            {input.get(), output->plugin.get(), channel->plugin.get()},
+            container ? &*container : nullptr);
+        error_code failed = attributes.prepare();
+        if (!failed)
+        {
+            STARTUPINFOEXW startup{};
+            startup.StartupInfo.cb = sizeof(startup);
+            startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
+            startup.StartupInfo.hStdInput = input.get();
+            startup.StartupInfo.hStdOutput = output->plugin.get();
+            startup.StartupInfo.hStdError = output->plugin.get();
+            startup.lpAttributeList = attributes.list();
+
+            // Suspended, so that it is in the job before it runs anything.
+            std::wstring line = command_line;
+            if (::CreateProcessW(
+                    request.program.c_str(), line.data(), nullptr, nullptr,
+                    TRUE,
+                    CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT |
+                        EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW,
+                    environment->data(), request.working_directory.c_str(),
+                    &startup.StartupInfo, &information) == 0)
+                failed = last_error();
+        }
+        if (!failed)
+        {
+            job->report = std::move(report);
+            break;
+        }
+        if (!container)
+            return failed;
+        container.reset();
+    }
     owned_handle process(information.hProcess);
     const owned_handle thread(information.hThread);
 
@@ -615,8 +832,8 @@ start_process(const process_request& request)
 sandbox_report available_sandbox()
 {
     sandbox_report report;
-    report.applied = {sandbox_part::containment, sandbox_part::user_interface,
-                      sandbox_part::limits};
+    report.applied.assign(std::begin(all_sandbox_parts),
+                          std::end(all_sandbox_parts));
     return report;
 }
 

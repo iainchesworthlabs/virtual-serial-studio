@@ -35,6 +35,10 @@
 //   --allocate=<n>        takes n mebibytes of memory one at a time and
 //                         writes to each; prints "allocated <n>", or
 //                         "allocation-failed <m>" after m of them
+//   --read-file=<path>    prints "read <n>" for the n bytes of the file,
+//                         or "read-failed"
+//   --write-file=<path>   writes a few bytes to the file; prints "written"
+//                         or "write-failed"
 //   --hang                prints "hanging" and never returns
 //   --crash               ends the process the way a fault does
 //   --exit=<code>         exits at once with the code
@@ -53,6 +57,8 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
+#include <ios>
 #include <memory>
 #include <new>
 #include <optional>
@@ -264,6 +270,31 @@ void allocate_memory(unsigned long long mebibytes)
     say("allocated " + std::to_string(mebibytes));
 }
 
+void read_file(const std::string& path)
+{
+    std::ifstream in(path, std::ios::binary);
+    if (!in.is_open())
+    {
+        say("read-failed");
+        return;
+    }
+    std::size_t total = 0;
+    std::array<char, 4096> buffer{};
+    while (
+        in.read(buffer.data(), static_cast<std::streamsize>(buffer.size())) ||
+        in.gcount() > 0)
+        total += static_cast<std::size_t>(in.gcount());
+    say("read " + std::to_string(total));
+}
+
+void write_file(const std::string& path)
+{
+    std::ofstream out(path, std::ios::binary);
+    out << "written by vss_test_plugin";
+    out.close();
+    say(out.fail() ? "write-failed" : "written");
+}
+
 void flood_standard_output(unsigned long long bytes)
 {
     const std::string chunk(4096, 'x');
@@ -357,6 +388,16 @@ std::optional<int> act(std::string_view argument, const char* self)
             allocate_memory(*count);
             return std::nullopt;
         }
+    }
+    if (const auto text = value_after(argument, "--read-file="))
+    {
+        read_file(std::string(*text));
+        return std::nullopt;
+    }
+    if (const auto text = value_after(argument, "--write-file="))
+    {
+        write_file(std::string(*text));
+        return std::nullopt;
     }
     if (argument == "--hang")
     {
