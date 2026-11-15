@@ -627,7 +627,7 @@ validates the resulting access token. No sign-in page exists in Studio and none 
 ### Operations and scopes
 
 The table is the design. The "Built" column says what the code has: the table in `libs/vss_control_proto/src/policy.cpp`
-has 22 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
+has 27 rows, the ones marked "Yes" or "In part" here and the administration operations below. The scope is the
 design's, except where the Notes say the code asks for another.
 
 | Operation | Scope | Built | Notes |
@@ -635,7 +635,8 @@ design's, except where the Notes say the code asks for another.
 | `hello` | none (after auth) | Yes | Version, features, the principal's effective scopes |
 | `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version, and the edition (`community`, `pro` or `enterprise`) with the state of the licence. Whose the licence is, its number and its dates are not given. `vss_gate` does not read a licence yet, so it reports `community` and `none`. Not built: the endpoint state and counters |
 | `ports.list` | `monitor` | Yes | |
-| `ports.get`, `links.list`, `links.get`, `lines.get` | `monitor` | Not built | |
+| `ports.get`, `links.list`, `links.get` | `monitor` | Yes | One port, and the links alone, as `ports.list` has them. An id of the right form that nothing has is `not_found`; one that is not of the right form is `invalid_argument`, as for `ports.remove` |
+| `lines.get` | `monitor` | Not built | |
 | `events.subscribe`, `events.unsubscribe` | `monitor` | Yes | State, counters, line changes, and that bytes moved and how many; no bytes |
 | `traffic.subscribe`, `traffic.unsubscribe` | `monitor.data` | Yes | The bytes. A subscription may name the ports it wants. The port filter of a token is not built: a `monitor.data` token reads every port |
 | `traffic.history` | `monitor.data` | Not built | It needs pages of the hub's ring from the agent |
@@ -650,7 +651,8 @@ design's, except where the Notes say the code asks for another.
 | `runs.begin`, `runs.end`, `report.junit` | `monitor` | Yes | The design had `control.ports`. A run changes no port, so the code asks for `monitor` (section 13) |
 | `runs.record` | `monitor` | Yes | Not in the first design: it adds a check of the harness's own to a run |
 | `record.start`, `record.stop`, `record.fetch` | `record` | Not built | Section 10 |
-| `session.close`, `ping` | none | Not built | |
+| `ping` | none | Yes | Any session that has said `hello`. It asks the agent nothing, so it answers while no agent runs |
+| `session.close` | none | Yes | Any session may end itself. The gateway answers `done`, then closes the connection; nothing sent after it in the same write is read. The end is in the audit log as the end of a session, with the reason `closed_by_client` |
 
 Deliberately absent from the remote surface: `release_port` (ends another process), `create_com0com_pair` and
 anything that elevates, `devices` and `facts` (they describe the computer, A3), `run_benchmark` (ties up the
@@ -1056,11 +1058,34 @@ Differences from section 3 as first written: the token crosses loopback in clear
 loopback comes with L3 and is not offered yet. The default ceiling for TCP is the control role without
 `control.apply`. The token is to stop crossing the wire (see "Presentation" in section 4).
 
+### What the reading operations built
+
+`ports.get`, `links.list` and `links.get` under `monitor`, and `ping` and `session.close`, which need no scope. None
+of them needs a change to the agent: the gateway asks the agent for its list, as `ports.list` does, and picks from it.
+`vss_cli control port show`, `links`, `link show` and `ping`, and `get_port`, `list_links`, `get_link` and `ping` in
+the Python client, make the requests; the Python client's `close()` now sends `session.close` first.
+
+```
+{"id": 7, "op": "ports.get", "port": "p_3"}
+{"id": 7, "reply": "port", "revision": 12, "port": {"id": "p_3", "name": "a", ...}}
+{"id": 8, "op": "links.list"}
+{"id": 8, "reply": "links", "revision": 12, "links": [{"id": "l_1", "mode": "one_way", ...}]}
+```
+
+| Claim | Proven by | Still paper |
+|---|---|---|
+| One port and one link are what the list has | With two ports and a link made through the gateway, `ports.get` of each gives the entry `ports.list` has for it, `links.list` gives the links of `ports.list`, and `links.get` gives the one link. A removed port and the link that went with it are `not_found` | The three read the whole list from the agent and pick from it. The agent has no request for one port, so a long list is read for each call |
+| An id that is not one is not passed on | `COM3`, `p_`, a name, nothing, and a link's id given as a port's (and the other way round) are `invalid_argument`; a well-formed id that nothing has is `not_found`. A text over 1024 bytes, a missing field and a field that is not text end the session, as for `ports.remove` | |
+| The three need `monitor` and nothing else | A token with `control.data` and no `monitor` is refused all three with `forbidden`, whether or not the id is one; a monitor reads them | |
+| `ping` and `session.close` need no scope | The same token pings and ends its session. `ping` answers while no agent runs, and the three readers then say `unavailable`, as `ports.list` does | |
+| A session that asks to close is closed after its answer, and only it | The reply is read, then the connection is closed: the next request fails and the session is gone from `sessions.list` while the others are not. Requests in the same write after `session.close` are not read. The audit log has `session.closed` with the reason `closed_by_client` and no record of an operation | A client that never reads the answer is closed by the time limit that closes one that never reads an error (`handshake_timeout`); that is the same code, and it is not run again for `session.close` |
+| The Python client leaves no session behind | `close()` sends `session.close`, ignores any error from it and closes its end; a gateway that does not answer costs one call's time limit, not more. The gateway's count of sessions drops after it | |
+
 ### What is not built
 
 Everything in the table of section 9 that is marked "Not built", gathered here in one place:
 
-- Reading: `ports.get`, `links.list`, `links.get`, `lines.get`, `traffic.history`, and the endpoint state and the
+- Reading: `lines.get`, `traffic.history`, and the endpoint state and the
   counters in `status`. `status` has the edition and the state of the licence, but `vss_gate` does not read a licence
   yet, so it always reports `community` and `none`.
 - Changing ports: `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set`, `scripts.set`, `scripts.clear`,
@@ -1071,7 +1096,7 @@ Everything in the table of section 9 that is marked "Not built", gathered here i
   this API.
 - Triggers: `triggers.subscribe`, `triggers.read`, `expect.trigger`.
 - Recording: `record.start`, `record.stop`, `record.fetch`.
-- Other: `session.close`, `ping`, `idempotency_key`, and the administration operations `listeners.*`, `tls.rotate`,
+- Other: `idempotency_key`, and the administration operations `listeners.*`, `tls.rotate`,
   `tls.pairing_bundle`, `policy.*` and `audit.*`.
 - Scopes: `control.faults`, `control.apply` and `record` exist and can be given to a token, and no operation asks for
   them, so they allow nothing yet.

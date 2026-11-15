@@ -1061,6 +1061,19 @@ class KeygenTests(ToolTestCase):
         self.assertIn(":(F)", listing)
         self.assertNotIn("(I)", listing)
 
+    @unittest.skipUnless(os.name == "nt", "Windows permissions")
+    def test_an_entry_for_anyone_else_is_refused(self) -> None:
+        # Authenticated Users, which the tool does not remove by name: the
+        # file is not private, so it is refused and not used for a key.
+        key = self.write("someone-else.key", b"")
+        icacls = ps.windows_program("icacls")
+        subprocess.run(
+            [icacls, str(key), "/grant", "*S-1-5-11:R"],
+            capture_output=True, text=True, check=True,
+        )
+        with self.assertRaises(ps.Refusal):
+            ps.restrict_to_current_user(str(key))
+
     def test_keygen_refuses_a_file_that_exists(self) -> None:
         key = self.write("new.key", b"keep this\n")
         done = self.keygen()
