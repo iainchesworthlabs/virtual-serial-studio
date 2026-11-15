@@ -6,6 +6,7 @@
 
 #include "platform.hpp"
 
+#include <cerrno>
 #include <cstddef>
 #include <cstdlib>
 
@@ -47,6 +48,8 @@ bool write_private_file(const std::filesystem::path& path,
     while (written && !text.empty())
     {
         const auto count = ::write(file, text.data(), text.size());
+        if (count < 0 && errno == EINTR)
+            continue;
         if (count <= 0)
             written = false;
         else
@@ -73,6 +76,8 @@ std::optional<std::size_t> read_file_into(const std::filesystem::path& path,
     while (total < out.size())
     {
         const auto count = ::read(file, out.data() + total, out.size() - total);
+        if (count < 0 && errno == EINTR)
+            continue;
         if (count < 0)
         {
             failed = true;

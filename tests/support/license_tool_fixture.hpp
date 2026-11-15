@@ -46,11 +46,11 @@ using variable_reader =
     std::function<std::optional<std::string>(const std::string&)>;
 
 /// Runs one command at 1 June 2027, inside the term of the golden licence.
-/// `builtin` stands for the revocation list built into the build; it is the
-/// release's own list unless a test gives another.
-inline outcome run_tool(
-    std::initializer_list<std::string> words, variable_reader variable = {},
-    vss::license::revocation_list builtin = vss::license::builtin_revocations())
+/// `builtin` stands for the revocation list built into the build. It is empty
+/// unless a test gives another, so no test depends on what a release withdraws.
+inline outcome run_tool(std::initializer_list<std::string> words,
+                        variable_reader variable = {},
+                        vss::license::revocation_list builtin = {})
 {
     const std::vector<std::string> arguments(words);
     std::ostringstream out;

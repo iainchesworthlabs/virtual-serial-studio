@@ -433,7 +433,7 @@ int verify(std::span<const std::string> words, surroundings& where)
         consulted = "the file given (sequence " +
                     std::to_string(list->sequence) + ") and " + consulted +
                     "; the " + (file_wins ? "file" : "built-in list") +
-                    " is the newer";
+                    " is used";
         revoked = newer(where.builtin, *list);
     }
     judged.revocations = &revoked;
@@ -707,7 +707,9 @@ constexpr std::array<std::string_view, 5> revocation_request_fields{
 constexpr std::array<std::string_view, 2> revoked_key_request_fields{"key_id",
                                                                      "from"};
 
-/// A field name as a message shows it: no control characters, and not long.
+/// A field name as a message shows it: control characters and every byte
+/// outside ASCII are replaced, so that a zero-width character or a letter that
+/// looks like another cannot make a wrong name read as a right one. Not long.
 std::string shown(std::string_view name)
 {
     constexpr std::size_t longest = 64;
@@ -715,7 +717,7 @@ std::string shown(std::string_view name)
     for (const char c : name.substr(0, longest))
     {
         const auto byte = static_cast<unsigned char>(c);
-        text += byte < 0x20 || byte == 0x7f ? '?' : c;
+        text += byte < 0x20 || byte >= 0x7f ? '?' : c;
     }
     if (name.size() > longest)
         text += "...";
@@ -747,8 +749,8 @@ unknown_field(const boost::json::object& object,
             std::string qualified(owner);
             if (!owner.empty())
                 qualified += '.';
-            return "the field " + qualified + shown(name) +
-                   " is not one this tool knows";
+            return "the field \"" + qualified + shown(name) +
+                   "\" is not one this tool knows";
         }
     }
     return std::nullopt;
@@ -832,6 +834,12 @@ std::optional<std::string> licence_fault(const boost::json::object& request,
         return std::string("issued_at is more than 48 hours ahead of this "
                            "computer's clock, so it is not when the licence "
                            "was signed");
+
+    // "Payload", `issued_at` and `expires_at`: a licence signed after its
+    // term has ended could only ever be in its grace period or expired.
+    if (value.issued_at > value.expires_at)
+        return std::string("issued_at is after expires_at, so the licence "
+                           "would be signed after its term has ended");
 
     // "Payload", `grace_days`, and "Trials": a trial has no grace period, one
     // seat and no machine binding.

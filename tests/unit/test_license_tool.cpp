@@ -472,7 +472,8 @@ TEST_CASE("licence tool: a request field the tool does not know is refused by "
     // an error and not a licence with the field left out.
     json::object singular = golden_request();
     singular["machine"] = json::array{"LAB-RIG-*"};
-    require_refused(singular, "the field machine is not one this tool knows");
+    require_refused(singular,
+                    "the field \"machine\" is not one this tool knows");
 
     json::object misspelt = golden_request();
     misspelt["update_until"] = "2027-11-13T23:59:59Z";
@@ -484,18 +485,28 @@ TEST_CASE("licence tool: a request field the tool does not know is refused by "
 
     json::object licensee = golden_request();
     licensee["licensee"].as_object()["contct"] = "Test team";
-    require_refused(licensee, "licensee.contct");
+    require_refused(licensee, "\"licensee.contct\"");
 
-    // A name with a control character is shown without it.
+    // A name that only looks right is shown so that it does not: a trailing
+    // space is inside the quotes, and a control character, a zero-width
+    // character or a look-alike letter is a question mark, one for each byte.
+    json::object space = golden_request();
+    space["features "] = json::array{"support"};
+    require_refused(space, "the field \"features \" is not one");
+
     json::object control = golden_request();
     control["bad\nname"] = 1;
-    scratch_directory scratch;
-    const outcome shown =
-        run_tool({"issue", "--request",
-                  write_text(scratch, "request.json", json::serialize(control)),
-                  "--dry-run"});
-    REQUIRE_EQ(shown.status, tool::exit_failed);
-    REQUIRE(shown.err.find("bad?name") != std::string::npos);
+    require_refused(control, "\"bad?name\"");
+
+    json::object zero_width = golden_request();
+    zero_width["machines\xe2\x80\x8b"] = json::array();
+    require_refused(zero_width, "\"machines???\"");
+
+    // Cyrillic small letter ie, which looks like a Latin e.
+    json::object look_alike = golden_request();
+    look_alike["f\xd0\xb5"
+               "atures"] = json::array();
+    require_refused(look_alike, "\"f??atures\"");
 
     // The untouched request is still accepted.
     REQUIRE(dry_run_accepts(golden_request()));
@@ -507,6 +518,8 @@ TEST_CASE("licence tool: a request holding every payload field is accepted")
     // the library writes with every optional field set has to pass.
     auto value = vss::license::parse_payload(bytes_of(golden_payload()));
     REQUIRE(value);
+    value->kind = vss::license::licence_kind::enterprise;
+    value->edition = vss::license::edition::enterprise;
     value->machines = {"LAB-RIG-*"};
     value->updates_until = *vss::license::parse_time("2027-11-13T23:59:59Z");
     value->replaces = "VSS-2026-000100";
@@ -594,6 +607,13 @@ TEST_CASE("licence tool: issued_at cannot be well ahead of the clock")
     a_year["issued_at"] = "2028-06-01T00:00:00Z";
     require_refused(a_year, "issued_at");
 
+    // A licence signed after its term has ended.
+    json::object after = golden_request();
+    after["issued_at"] = "2027-06-01T00:00:01Z";
+    after["expires_at"] = "2027-06-01T00:00:00Z";
+    after["starts_at"] = "2027-05-01T00:00:00Z";
+    require_refused(after, "issued_at is after expires_at");
+
     json::object near = golden_request();
     near["issued_at"] = "2027-06-02T12:00:00Z";
     REQUIRE(dry_run_accepts(near));
@@ -668,7 +688,7 @@ TEST_CASE("licence tool: verify consults the list built into the build")
     REQUIRE(withdrawn.out.find("Revocations: the list built into this build "
                                "(sequence 3)") != std::string::npos);
 
-    // The real build's list is empty, so the same licence is valid there.
+    // With an empty list the same licence is valid.
     const outcome clean =
         run_tool({"verify", golden_path(), "--test", "--at", "2027-03-01"});
     REQUIRE_EQ(clean.status, tool::exit_ok);
@@ -713,7 +733,7 @@ TEST_CASE("licence tool: a given revocation list competes with the built-in "
     REQUIRE_EQ(replaced.status, tool::exit_ok);
     REQUIRE(replaced.out.find("sequence 6") != std::string::npos);
     REQUIRE(replaced.out.find("sequence 5") != std::string::npos);
-    REQUIRE(replaced.out.find("the file is the newer") != std::string::npos);
+    REQUIRE(replaced.out.find("the file is used") != std::string::npos);
 
     // An older file does not take the built-in list's place.
     const std::string older = signed_list(4, {}, "four.vssrev");
@@ -722,8 +742,19 @@ TEST_CASE("licence tool: a given revocation list competes with the built-in "
                                   {}, builtin);
     REQUIRE_EQ(kept.status, tool::exit_failed);
     REQUIRE(kept.out.find("withdrawn") != std::string::npos);
-    REQUIRE(kept.out.find("the built-in list is the newer") !=
-            std::string::npos);
+    REQUIRE(kept.out.find("the built-in list is used") != std::string::npos);
+
+    // The same number is the normal case after a release, when the built-in
+    // list is set to that of the signed list of the day. The built-in list is
+    // kept, as Studio keeps it, and the output does not call it newer.
+    const std::string same = signed_list(5, {}, "five.vssrev");
+    const outcome tied = run_tool({"verify", golden_path(), "--test", "--at",
+                                   "2027-03-01", "--revocations", same},
+                                  {}, builtin);
+    REQUIRE_EQ(tied.status, tool::exit_failed);
+    REQUIRE(tied.out.find("withdrawn") != std::string::npos);
+    REQUIRE(tied.out.find("the built-in list is used") != std::string::npos);
+    REQUIRE(tied.out.find("newer") == std::string::npos);
 }
 
 TEST_CASE("licence tool: a key file is read whole, with its white space")
