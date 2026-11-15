@@ -70,7 +70,7 @@ const char* to_string(feed_end_reason reason) noexcept
 }
 
 generator_feed::generator_feed(feed_options options)
-    : options_(std::move(options))
+    : options_(options)
 {
     options_.window_bytes =
         std::clamp<std::uint64_t>(options_.window_bytes, 1, max_feed_window);

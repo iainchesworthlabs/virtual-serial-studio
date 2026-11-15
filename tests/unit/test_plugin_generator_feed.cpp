@@ -624,7 +624,7 @@ TEST_CASE("generator feed: a slow port holds the credit back")
 
     for (int step = 1; step < 9; ++step)
     {
-        port.clock = at_ms(10 * step);
+        port.clock = at_ms(10LL * step);
         out = feed.on_time(port.clock, port);
         REQUIRE_EQ(out.written, std::uint64_t{100});
         REQUIRE(!out.credit.has_value());
@@ -662,7 +662,7 @@ TEST_CASE("generator feed: a port that is not ready stops the credit")
     // Time passes and nothing leaves, so nothing is given back.
     for (int step = 1; step < 50; ++step)
     {
-        const feed_output out = feed.on_time(at_ms(step * 10), port);
+        const feed_output out = feed.on_time(at_ms(10LL * step), port);
         REQUIRE(!out.credit.has_value());
         REQUIRE_EQ(out.written, std::uint64_t{0});
     }
