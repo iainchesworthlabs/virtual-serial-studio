@@ -15,6 +15,7 @@
 
 #include "qt_wait.hpp"
 #include "test_framework.hpp"
+#include "test_plugin_files.hpp"
 
 #include <QTemporaryDir>
 
@@ -47,8 +48,9 @@ void write_file(const fs::path& path, const std::string& text)
     stream.write(text.data(), static_cast<std::streamsize>(text.size()));
 }
 
-/// A plugin folder `root/<id>`: the test plugin program and a `plugin.json`
-/// that lists it, as the system tests lay one out.
+/// A plugin folder `root/<id>`: the test plugin program, the runtime library
+/// a build with the address sanitiser of MSVC needs beside it, and a
+/// `plugin.json` that lists them, as the system tests lay one out.
 fs::path make_plugin(const fs::path& root)
 {
     const fs::path program = fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM));
@@ -56,11 +58,11 @@ fs::path make_plugin(const fs::path& root)
     std::error_code ec;
     fs::create_directories(directory, ec);
     REQUIRE(!ec);
-    const fs::path copy = directory / program.filename();
-    fs::copy_file(program, copy, fs::copy_options::overwrite_existing, ec);
+    const std::vector<fs::path> copies = vss_test_support::copy_test_plugin(
+        program, VSS_TEST_PLUGIN_RUNTIME, directory, ec);
     REQUIRE(!ec);
-    const std::string bytes = read_file(copy);
-    const std::string name = copy.filename().string();
+    REQUIRE(!copies.empty());
+    const std::string name = copies.front().filename().string();
     std::string manifest;
     manifest += "{\n  \"manifest_version\": 1,\n  \"id\": \"";
     manifest += kPluginId;
@@ -80,10 +82,17 @@ fs::path make_plugin(const fs::path& root)
                 "\"required\": true, \"reason\": \"To read the ports.\" } ],\n";
     manifest += "  \"extension_points\": [ { \"kind\": \"generator\", "
                 "\"id\": \"pulse\", \"name\": \"Pulse\" } ],\n";
-    manifest += "  \"files\": [ { \"path\": \"" + name +
-                "\", \"size\": " + std::to_string(bytes.size()) +
-                ", \"sha512\": \"" + plug::to_hex(plug::sha512_of(bytes)) +
-                "\" } ]\n}\n";
+    manifest += "  \"files\": [";
+    for (const fs::path& copy : copies)
+    {
+        const std::string bytes = read_file(copy);
+        manifest += copy == copies.front() ? " " : ", ";
+        manifest += "{ \"path\": \"" + copy.filename().string() +
+                    "\", \"size\": " + std::to_string(bytes.size()) +
+                    ", \"sha512\": \"" + plug::to_hex(plug::sha512_of(bytes)) +
+                    "\" }";
+    }
+    manifest += " ]\n}\n";
     write_file(directory / "plugin.json", manifest);
     return directory;
 }

@@ -81,9 +81,18 @@ if(VSS_BUILD_TESTS)
   target_link_libraries(vss_gui_backend_tests PRIVATE
     vss_gui_backend Vss::license_test_keys Qt6::Core)
   target_compile_definitions(vss_gui_backend_tests PRIVATE QT_NO_KEYWORDS)
-  # The service test starts the test plugin program of the system tests.
+  # The service test starts the test plugin program of the system tests. In a
+  # build with the address sanitiser of MSVC the plugin needs the runtime
+  # library that tests/CMakeLists.txt puts beside it, so the test is told its
+  # name and copies it with the program.
   add_dependencies(vss_gui_backend_tests vss_test_plugin)
+  if(MSVC AND ICL_SANITIZERS MATCHES "address")
+    set(_vss_backend_plugin_runtime "clang_rt.asan_dynamic-x86_64.dll")
+  else()
+    set(_vss_backend_plugin_runtime "")
+  endif()
   target_compile_definitions(vss_gui_backend_tests PRIVATE
-    VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>")
+    VSS_TEST_PLUGIN_PROGRAM="$<TARGET_FILE:vss_test_plugin>"
+    VSS_TEST_PLUGIN_RUNTIME="${_vss_backend_plugin_runtime}")
   vss_set_warnings(vss_gui_backend_tests)
 endif()
