@@ -178,6 +178,77 @@ These are not in the repository and an agent does not create them.
   `WIN_TESTSIGN_PFX_BASE64` and `WIN_TESTSIGN_PFX_PASSWORD`.
 - For a signed and notarised macOS package: the Developer ID certificate, a notary API key,
   and the variables and secrets listed under "macOS signing and notarisation".
+- For the update feed: the two feed keys, their public halves in
+  `libs/vss_update/src/trusted_keys_release.cpp` and the private half of the first as the secret
+  `UPDATE_FEED_PRIVATE_KEY` of the `release` environment (next section). Without them a release
+  is made as before and no feed is signed.
+
+## The update feed
+
+Studio will learn which release is the newest from one small signed file, the update feed
+([Online updates](updates.md)). The `feed` job of `release.yml` makes it. It runs after the
+publish job, on a tag only, in the `release` environment, so the owner approves it as well as
+the publish job. A pull request never starts it and never reaches the secret.
+
+The job does this:
+
+1. It asks `tools/update_feed.py keys` which feed keys this build trusts. When
+   `trusted_keys_release.cpp` lists none, or the secret `UPDATE_FEED_PRIVATE_KEY` is empty, it
+   writes "No update feed was signed: ..." in the job summary and ends with success. Nothing is
+   signed and nothing is attached.
+2. It lists the releases of the repository (`collect`), takes the newest final release and the
+   newest pre-release by the version in the tag, and writes the payload (`payload`). The serial is
+   the number of published releases, so it rises with every release.
+   The summary that Studio shows is the release's notes as plain text, without the Markdown
+   marks, cut to 2000 bytes. The job waits for the owner's approval, so the notes can be edited
+   before it runs.
+3. It signs the payload with the secret and the first key in `trusted_keys_release.cpp` (`sign`).
+   The key is written to a file that no other user can read, in the runner's temporary folder, and
+   the last step removes it whatever happens. No step prints it.
+4. It checks the signed file with the public keys in `trusted_keys_release.cpp`, as Studio will
+   (`verify --keys-from`). A secret that is not the private half of a listed key fails the run
+   here, before anything is attached to the release.
+5. It attaches `update-feed.json` to the release of the tag.
+
+**What the owner does, once.**
+
+- Make the keys `upd-<year>-a` and `upd-<year>-b` on your own computer, as the licence keys were
+  made ([Licensing](licensing.md), "Where the private keys live"). The second stays offline.
+- Add the two public halves to `libs/vss_update/src/trusted_keys_release.cpp`, with the first
+  key first, in the form that the comment in that file describes. `update_feed.py` reads the file
+  as text and refuses one that it cannot read exactly. A key with a window (`not_after`,
+  `revoked_from`) cannot be read yet, so rotating a key needs the tool taught about windows first.
+- Add the private half of the first key as the secret `UPDATE_FEED_PRIVATE_KEY` of the `release`
+  environment.
+
+**The website.** Studio reads the feed from `https://virtual-serial-studio.com/updates/v1/feed.json`.
+The Docs workflow downloads `update-feed.json` of the newest release that has one and writes it
+there unchanged (`tools/site_build.py --refresh-release`), and `tools/site_check.py` verifies the
+copy with the keys in `trusted_keys_release.cpp`. The push to `main` that a final release makes starts
+the Docs workflow before the `feed` job has attached the file, so after the `feed` job has
+finished, run the Docs workflow by hand on `main` (`gh workflow run docs.yml --ref main`). Do the same
+after a pre-release. Studio sees the new feed only when the site has been published.
+
+**Publishing a feed again between releases** (a summary corrected, a file withdrawn). There is no
+manual run of the job, because the private key is kept by the owner and a run in the `release`
+environment is a run of the whole workflow. Do it on your own computer, with the private key file:
+
+```
+gh release download <newest tag> --pattern update-feed.json --dir old
+python3 tools/update_feed.py verify --keys-from libs/vss_update/src/trusted_keys_release.cpp old/update-feed.json
+python3 tools/update_feed.py collect --repo iainchesworthlabs/virtual-serial-studio --out feed-input
+python3 tools/update_feed.py payload --serial <the serial above plus 1> --issued-at <now, as 2026-12-01T03:40:00Z> \
+  --stable feed-input/stable [--preview feed-input/preview] --out feed.payload.json
+python3 tools/update_feed.py sign --key <private key file> --key-id upd-2026-a --payload feed.payload.json --out update-feed.json
+python3 tools/update_feed.py verify --keys-from libs/vss_update/src/trusted_keys_release.cpp update-feed.json
+gh release upload <newest tag> update-feed.json --clobber
+```
+
+The first `verify` prints the serial of the feed that is published. The new one must be higher,
+because Studio refuses a lower serial than it has accepted. To change a summary, edit
+`feed-input/stable/summary.txt` (or `preview`) before `payload`. To withdraw a release, leave its
+folder out of `payload`, so that the feed no longer names it ([Online updates](updates.md),
+section 10). Then run the Docs workflow as above.
 
 ## Linux packages
 

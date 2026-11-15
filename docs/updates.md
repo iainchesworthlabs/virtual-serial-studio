@@ -22,7 +22,8 @@ checks by hand, and can download, check and start the install of a newer Studio.
 | Part | Where | Used by |
 |---|---|---|
 | Semantic versions, the reader and verifier of the signed feed, and the choice of what to offer | `libs/vss_update` | Its unit tests and a fuzz target. Nothing in Studio calls it yet |
-| The tool that builds, signs and verifies a feed | `tools/update_feed.py` | Its tests. No workflow runs it yet |
+| The tool that collects a feed's inputs from the releases, builds, signs and verifies a feed, and reads the feed keys from `trusted_keys_release.cpp` | `tools/update_feed.py` | The `feed` job, the website check and its tests |
+| The `feed` job of the release workflow, and the copy of the feed on the website | `.github/workflows/release.yml`, `tools/site_build.py`, `tools/site_check.py` | Every tagged release. The job signs nothing until the owner has added the keys (section 5), and the site has no copy until a release has a feed |
 
 The parts in Studio, with tests:
 

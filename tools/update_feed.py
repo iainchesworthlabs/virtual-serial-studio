@@ -6,23 +6,43 @@
 The update feed is a small signed file that says which Studio (and which
 official plugins) are current (docs/updates.md, section 4). This tool makes
 its payload from the files of a release, signs the payload and checks a
-finished feed. It works from files only and makes no network request, so the
-release job and the tests feed it the same way.
+finished feed. Only ``collect`` can make a network request, and only when it
+is given ``--repo`` alone; the other commands work from files, so the release
+job and the tests feed them the same way.
 
+    python3 tools/update_feed.py collect --repo owner/name --out feed-input \\
+        [--releases-json releases.json]
     python3 tools/update_feed.py payload --serial 12 \\
-        --issued-at 2026-12-01T03:40:00Z --stable release-v0.2.0 \\
-        [--preview release-v0.3.0-rc.1] [--plugins plugins.json] \\
+        --issued-at 2026-12-01T03:40:00Z --stable feed-input/stable \\
+        [--preview feed-input/preview] [--plugins plugins.json] \\
         --out feed.payload.json
     python3 tools/update_feed.py sign --key upd-2026-a.key \\
         --key-id upd-2026-a --payload feed.payload.json \\
         --out update-feed.json
     python3 tools/update_feed.py verify --public-key <64 hex characters> \\
         [--key-id upd-2026-a] [--min-serial 12] update-feed.json
+    python3 tools/update_feed.py verify \\
+        --keys-from libs/vss_update/src/trusted_keys_release.cpp update-feed.json
+    python3 tools/update_feed.py keys \\
+        --keys-from libs/vss_update/src/trusted_keys_release.cpp
+
+``collect`` reads the releases of a repository as the GitHub API gives them
+(``GET /repos/{owner}/{repo}/releases``; ``--releases-json`` names a saved
+response instead of asking), ignores drafts, picks the newest final release
+and the newest pre-release by the version in the tag, and writes a release
+folder for each into ``<out>/stable`` and ``<out>/preview``, which are what
+``payload`` reads. It also writes ``<out>/serial.json`` and prints the serial,
+the number of published releases (docs/updates.md, section 10).
 
 A release folder holds ``release.json`` (the shape of website/data/release.json:
 tag, prerelease, published_at, html_url and the assets with name, size and url),
 ``SHA512SUMS`` (as ``sha512sum`` writes it) and, if there is one,
 ``summary.txt`` (plain text, UTF-8: the summary of the release).
+
+The keys Studio trusts are read from ``trusted_keys_release.cpp`` by
+``--keys-from``, which holds the text convention described at ``read_feed_keys``
+and in the comment of that file. ``keys`` prints the key ids in the file, one
+for each line, and nothing when it holds none.
 
 The envelope, the signed message and the call to OpenSSL are those of
 tools/plugin_sign.py, which this tool imports. It never makes a key, never
@@ -36,8 +56,10 @@ together. ``payload`` and ``sign`` run it before they write anything, and
 
 Exit codes: 0 success, 1 a check or a verification failed, 2 a usage error:
 a wrong option, a file or folder that the command line names and that is
-missing, a bad key id, or no usable OpenSSL. Messages go to standard error;
-only results go to standard output.
+missing, a bad key id, or no usable OpenSSL, and 3 when ``verify --keys-from``
+finds that the file names no key at all (the build trusts no feed key, which
+is not a bad signature). Messages go to standard error; only results go to
+standard output.
 
 OpenSSL 3.0 or later is needed to sign and to verify. A key file with a
 passphrase is not supported. Standard library only, Python 3.9 or later.
@@ -50,10 +72,13 @@ import datetime
 import json
 import os
 import re
+import shutil
 import sys
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+import urllib.request
+from typing import Any, Callable, Dict, List, NamedTuple, Optional, Tuple, Union
 
 import plugin_sign as ps
+import site_build
 from plugin_sign import (
     EXIT_FAILED,
     EXIT_OK,
@@ -63,6 +88,8 @@ from plugin_sign import (
     quoted,
     shown_path,
 )
+
+EXIT_NO_KEYS = 3
 
 PURPOSE = "update-feed"
 FEED_VERSION = 1
@@ -808,7 +835,436 @@ def refuse_problems(problems: List[str], what: str) -> None:
         )
 
 
+# -- The keys Studio is built with -------------------------------------------
+
+
+class FeedKey(NamedTuple):
+    key_id: str
+    public_key: bytes
+
+
+class NoKeys(Refusal):
+    """The file lists no key. It has its own exit status, so that a job can
+    tell a build that trusts no feed key from a feed that does not verify."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message, EXIT_NO_KEYS)
+
+
+KEYS_FILE_LIMIT = 256 * 1024
+KEY_BYTES = 32
+
+# What a comment or a literal looks like. A comment is blanked and a literal
+# is kept, so that "//" in a string is not a comment.
+_COMMENT_OR_LITERAL = re.compile(
+    r"""//[^\n]*|/\*.*?\*/|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'""", re.DOTALL
+)
+_KEY_DECLARATION = re.compile(
+    r"\bconstexpr\s+(?:\w+::)*public_key\s+([A-Za-z_]\w*)\s*\{([^{}]*)\}\s*;", re.ASCII
+)
+_ANY_KEY_DECLARATION = re.compile(r"\bconstexpr\b[^;{}]*\bpublic_key\b", re.ASCII)
+_MAKE_CALL = re.compile(r"\bmake\s*\(", re.ASCII)
+_KEY_ENTRY = re.compile(
+    r"""make\s*\(\s*"([^"\\]*)"\s*,\s*(?:\w+::)*feed_purpose\s*,"""
+    r"""\s*([A-Za-z_]\w*)\s*\)""",
+    re.ASCII,
+)
+_KEY_LIST = re.compile(
+    r"std::array\s*<\s*(?:\w+::)*trusted_key\s*,\s*([0-9]+)\s*>", re.ASCII
+)
+_EMPTY_LIST = re.compile(r"\breturn\s*\{\s*\}\s*;", re.ASCII)
+_KEY_WINDOW = re.compile(r"\b(not_before|not_after|revoked_from)\b", re.ASCII)
+_KEY_BYTE = re.compile(r"0[xX][0-9a-fA-F]{2}")
+
+
+def _code_of(text: str, where: str) -> str:
+    """``text`` without its comments. An unfinished comment is refused."""
+
+    def blank(found: "re.Match[str]") -> str:
+        literal = found.group(0)
+        return literal if literal[0] in "\"'" else " "
+
+    code = _COMMENT_OR_LITERAL.sub(blank, text)
+    if "/*" in _COMMENT_OR_LITERAL.sub(" ", code):
+        raise Refusal("%s has a comment that is not closed" % where, EXIT_USAGE)
+    return code
+
+
+def read_feed_keys(path: str) -> List[FeedKey]:
+    """The feed keys that ``libs/vss_update/src/trusted_keys_release.cpp``
+    lists, in the order of the list: the first is the key that signs.
+
+    The file is C++, and this reads it as text, so it takes only the form
+    that the file's own comment describes (comments are ignored):
+
+    * Each key is an array ``constexpr public_key NAME{0xHH, ..., 0xHH};``
+      with exactly 32 bytes, each written as ``0x`` and two hex digits,
+      separated by commas, and no comma after the last. The type may have a
+      namespace in front of it.
+    * Each key is listed once, as ``make("KEY-ID", feed_purpose, NAME)``,
+      in the ``std::array<trusted_key, N>`` that ``builtin_feed_keys``
+      returns, where N is the number of entries. A key id is 1 to 64 lower
+      case letters, digits and hyphens, and is not used twice.
+    * With no key the function holds ``return {};`` and the file has no
+      array of keys and no entry.
+    * A key window (``not_before``, ``not_after``, ``revoked_from``) is not
+      read, so a file that names one is refused: a key that has a window
+      must not be taken for one that has none.
+
+    Anything else that the reader cannot account for is refused with
+    ``EXIT_USAGE``: a key of another length, an entry whose array is not
+    there, an array that no entry uses, a second purpose or an entry of
+    another shape.
+    """
+    where = shown_path(path)
+    data = ps.read_file(path, "the key file")
+    if len(data) > KEYS_FILE_LIMIT:
+        raise Refusal("%s is larger than %d bytes" % (where, KEYS_FILE_LIMIT), EXIT_USAGE)
+    try:
+        text = data.decode("utf-8")
+    except UnicodeDecodeError:
+        raise Refusal("%s is not valid UTF-8" % where, EXIT_USAGE) from None
+    code = _code_of(text, where)
+
+    window = _KEY_WINDOW.search(code)
+    if window is not None:
+        raise Refusal(
+            "%s names %s, which this tool does not read; it cannot tell what "
+            "that key may sign" % (where, window.group(1)),
+            EXIT_USAGE,
+        )
+
+    arrays: Dict[str, bytes] = {}
+    declarations = _KEY_DECLARATION.findall(code)
+    if len(_ANY_KEY_DECLARATION.findall(code)) != len(declarations):
+        raise Refusal(
+            "%s has a public_key that is not written as constexpr public_key "
+            "NAME{0x.., ...};" % where,
+            EXIT_USAGE,
+        )
+    for name, body in declarations:
+        if name in arrays:
+            raise Refusal("%s declares the key %s twice" % (where, name), EXIT_USAGE)
+        items = [item.strip() for item in body.split(",")]
+        if len(items) != KEY_BYTES or any(_KEY_BYTE.fullmatch(i) is None for i in items):
+            raise Refusal(
+                "%s: the key %s must be %d bytes written 0xHH and separated by "
+                "commas (and no comma after the last)" % (where, name, KEY_BYTES),
+                EXIT_USAGE,
+            )
+        arrays[name] = bytes(int(item, 16) for item in items)
+
+    keys: List[FeedKey] = []
+    used: List[str] = []
+    for call in _MAKE_CALL.finditer(code):
+        # The function that makes an entry is declared as `trusted_key make(`.
+        if code[: call.start()].rstrip().endswith("trusted_key"):
+            continue
+        entry = _KEY_ENTRY.match(code, call.start())
+        if entry is None:
+            raise Refusal(
+                "%s has an entry that is not make(\"KEY-ID\", feed_purpose, NAME): %s"
+                % (where, quoted(code[call.start():call.start() + 60].splitlines()[0])),
+                EXIT_USAGE,
+            )
+        key_id, name = entry.group(1), entry.group(2)
+        if not ps.is_key_id(key_id):
+            raise Refusal(
+                "%s has the key id %s: 1 to 64 lower-case letters, digits and "
+                "hyphens" % (where, quoted(key_id)),
+                EXIT_USAGE,
+            )
+        if key_id in (k.key_id for k in keys):
+            raise Refusal("%s lists the key id %s twice" % (where, key_id), EXIT_USAGE)
+        if name not in arrays:
+            raise Refusal(
+                "%s lists the key id %s with %s, which is not a key array"
+                % (where, key_id, name),
+                EXIT_USAGE,
+            )
+        if name in used:
+            raise Refusal("%s uses the key %s twice" % (where, name), EXIT_USAGE)
+        used.append(name)
+        keys.append(FeedKey(key_id, arrays[name]))
+
+    unused = [name for name in arrays if name not in used]
+    if unused:
+        raise Refusal(
+            "%s declares the key %s and lists no entry for it" % (where, unused[0]),
+            EXIT_USAGE,
+        )
+    sizes = _KEY_LIST.findall(code)
+    if keys:
+        if [int(size) for size in sizes] != [len(keys)]:
+            raise Refusal(
+                "%s must hold one std::array<trusted_key, %d> for its %d entries"
+                % (where, len(keys), len(keys)),
+                EXIT_USAGE,
+            )
+    elif sizes or _EMPTY_LIST.search(code) is None:
+        raise Refusal(
+            "%s lists no key, but it is not the empty list (return {};) either"
+            % where,
+            EXIT_USAGE,
+        )
+    return keys
+
+
+# -- Collecting the inputs from the releases ---------------------------------
+
+API_TIMEOUT_SECONDS = 30
+API_PAGE_SIZE = 100
+API_MAX_PAGES = 20
+API_USER_AGENT = "virtual-serial-studio-update-feed"
+MAX_API_RESPONSE = 16 * 1024 * 1024
+MAX_SUMS_BYTES = 1024 * 1024
+SUMS_ASSET = "SHA512SUMS"
+_REPOSITORY = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", re.ASCII)
+
+
+def _read_limited(response: Any, limit: int, what: str) -> bytes:
+    data = response.read(limit + 1)
+    if len(data) > limit:
+        raise Refusal("%s is larger than %d bytes" % (what, limit))
+    return bytes(data)
+
+
+def fetch_releases(repo: str) -> List[Any]:
+    """All the releases of ``repo`` that the GitHub API lists, newest first.
+    One request for each page of 100, with the token in GH_TOKEN or
+    GITHUB_TOKEN if there is one. Nothing but the API host sees the token and
+    no message shows it."""
+    headers = {"Accept": "application/vnd.github+json", "User-Agent": API_USER_AGENT}
+    token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
+    if token:
+        headers["Authorization"] = "Bearer " + token
+    entries: List[Any] = []
+    for page in range(1, API_MAX_PAGES + 1):
+        request = urllib.request.Request(
+            "https://api.github.com/repos/%s/releases?per_page=%d&page=%d"
+            % (repo, API_PAGE_SIZE, page),
+            headers=headers,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
+                body = _read_limited(response, MAX_API_RESPONSE, "the answer of GitHub")
+            found = json.loads(body.decode("utf-8"))
+        except (OSError, ValueError) as error:
+            raise Refusal("could not read the releases of %s (%s)" % (repo, error)) from None
+        if not isinstance(found, list):
+            raise Refusal("GitHub did not answer with a list of releases")
+        entries.extend(found)
+        if len(found) < API_PAGE_SIZE:
+            return entries
+    raise Refusal("%s has more releases than this tool reads" % repo)
+
+
+def download_bytes(url: str, limit: int) -> bytes:
+    """A file of a release over HTTPS, at most ``limit`` bytes. No token is
+    sent: a release file is public, and a redirect would pass a token on to
+    another host."""
+    if not url.startswith("https://"):
+        raise Refusal("%s is not an https address" % shown_path(url))
+    request = urllib.request.Request(url, headers={"User-Agent": API_USER_AGENT})
+    try:
+        with urllib.request.urlopen(request, timeout=API_TIMEOUT_SECONDS) as response:
+            return _read_limited(response, limit, shown_path(url))
+    except OSError as error:
+        raise Refusal("could not download %s (%s)" % (shown_path(url), error)) from None
+
+
+_MARKDOWN_LINK = re.compile(r"\[([^\]\n]*)\]\([^)\s]*\)")
+_MARKDOWN_HEADING = re.compile(r"^#{1,6}[ \t]+", re.MULTILINE)
+
+
+def without_markdown(text: str) -> str:
+    """Release notes are written in Markdown and Studio shows a summary as
+    plain text, so the marks that would only be noise there are taken out: a
+    link keeps its words and loses its address, a heading loses its ``#``,
+    and ``**`` and the backtick go. Everything else stays as written."""
+    text = _MARKDOWN_LINK.sub(lambda found: found.group(1), text)
+    text = _MARKDOWN_HEADING.sub("", text)
+    return text.replace("**", "").replace("`", "")
+
+
+def summary_of(body: Any) -> Optional[str]:
+    """The body of a release as the plain text of a feed summary, or ``None``
+    for an empty body: the Markdown marks gone (``without_markdown``), line
+    ends as a line feed, any other control character gone (a tab becomes a
+    space), at most ``MAX_SUMMARY_BYTES`` bytes of UTF-8, with ``...`` where
+    it was cut. It is cut at the end of a line when one is near the limit."""
+    if not isinstance(body, str):
+        return None
+    kept = []
+    plain = without_markdown(body.replace("\r\n", "\n").replace("\r", "\n"))
+    for c in plain:
+        point = ord(c)
+        if c == "\n":
+            kept.append(c)
+        elif c == "\t":
+            kept.append(" ")
+        elif point < 0x20 or 0x7F <= point <= 0x9F or 0xD800 <= point <= 0xDFFF:
+            continue
+        else:
+            kept.append(c)
+    text = "".join(kept).strip()
+    if not text:
+        return None
+    encoded = text.encode("utf-8")
+    if len(encoded) > MAX_SUMMARY_BYTES:
+        room = MAX_SUMMARY_BYTES - len("...")
+        text = encoded[:room].decode("utf-8", "ignore")
+        line_end = text.rfind("\n")
+        if line_end > len(text) * 3 // 4:
+            text = text[:line_end].rstrip() + "\n"
+        else:
+            text = text.rstrip()
+        text += "..."
+    return text
+
+
+def _release_version(entry: Dict[str, Any]) -> Optional[str]:
+    tag = entry.get("tag_name")
+    if not isinstance(tag, str):
+        return None
+    version = tag[1:] if tag.startswith("v") else tag
+    return version if is_version(version) else None
+
+
+def pick_releases(
+    entries: List[Any],
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]], int]:
+    """The newest final release, the newest pre-release and the number of
+    published releases. A draft is not published. The newest is the greatest
+    version of the tag, not the latest date; a tag that is not a version is
+    not picked, though it counts as a release."""
+    published = 0
+    newest: Dict[bool, Optional[Dict[str, Any]]] = {False: None, True: None}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise Refusal("the list of releases holds something that is not a release")
+        if entry.get("draft") is True:
+            continue
+        published += 1
+        version = _release_version(entry)
+        if version is None:
+            continue
+        pre = entry.get("prerelease") is True
+        best = newest[pre]
+        best_version = _release_version(best) if best is not None else None
+        if best_version is None or compare_versions(version, best_version) > 0:
+            newest[pre] = entry
+    return newest[False], newest[True], published
+
+
+def write_release_folder(
+    entry: Dict[str, Any],
+    repo: str,
+    folder: str,
+    download: Callable[[str, int], bytes],
+) -> None:
+    """Writes ``release.json``, ``SHA512SUMS`` and, if the body gives one,
+    ``summary.txt`` for a release as ``load_release`` reads them."""
+    tag = entry.get("tag_name")
+    try:
+        # The same conversion, with the same checks of every address, as the
+        # website's record of the newest release.
+        record = site_build.convert_release([entry], repo)
+    except site_build.BuildError as error:
+        raise Refusal("the release %s: %s" % (quoted(tag), error)) from None
+    sums = next((a for a in record["assets"] if a["name"] == SUMS_ASSET), None)
+    if sums is None:
+        raise Refusal("the release %s has no %s" % (quoted(tag), SUMS_ASSET))
+    sums_data = download(str(sums["url"]), MAX_SUMS_BYTES)
+    summary = summary_of(entry.get("body"))
+    try:
+        os.makedirs(folder, exist_ok=True)
+        with open(os.path.join(folder, "release.json"), "wb") as handle:
+            handle.write((json.dumps(record, indent=1) + "\n").encode("utf-8"))
+        with open(os.path.join(folder, SUMS_ASSET), "wb") as handle:
+            handle.write(sums_data)
+        if summary is not None:
+            with open(os.path.join(folder, "summary.txt"), "wb") as handle:
+                handle.write((summary + "\n").encode("utf-8"))
+    except OSError as error:
+        raise Refusal(
+            "could not write in %s (%s)" % (shown_path(folder), error.strerror), EXIT_USAGE
+        ) from None
+
+
+def collect(
+    repo: str,
+    entries: List[Any],
+    out: str,
+    download: Callable[[str, int], bytes] = download_bytes,
+) -> int:
+    """Writes ``<out>/stable``, ``<out>/preview`` and ``<out>/serial.json``
+    from the releases and returns the serial. A folder of an earlier run that
+    this run does not write again is removed."""
+    stable, preview, serial = pick_releases(entries)
+    if stable is None and preview is None:
+        raise Refusal("%s has no published release with a version in its tag" % repo)
+    if stable is not None and preview is not None:
+        stable_version = str(_release_version(stable))
+        preview_version = str(_release_version(preview))
+        if compare_versions(preview_version, stable_version) <= 0:
+            print(
+                "update_feed: the pre-release %s is not newer than the release %s, "
+                "so it is left out" % (preview_version, stable_version),
+                file=sys.stderr,
+            )
+            preview = None
+    for name in ("stable", "preview", "serial.json"):
+        old = os.path.join(out, name)
+        try:
+            if os.path.isdir(old):
+                shutil.rmtree(old)
+            elif os.path.isfile(old):
+                os.remove(old)
+        except OSError as error:
+            raise Refusal(
+                "could not remove %s (%s)" % (shown_path(old), error.strerror), EXIT_USAGE
+            ) from None
+    for name, entry in (("stable", stable), ("preview", preview)):
+        if entry is not None:
+            write_release_folder(entry, repo, os.path.join(out, name), download)
+            print(
+                "update_feed: %s is the release for the %s channel"
+                % (entry.get("tag_name"), name),
+                file=sys.stderr,
+            )
+    try:
+        with open(os.path.join(out, "serial.json"), "wb") as handle:
+            handle.write((json.dumps({"serial": serial}) + "\n").encode("utf-8"))
+    except OSError as error:
+        raise Refusal(
+            "could not write in %s (%s)" % (shown_path(out), error.strerror), EXIT_USAGE
+        ) from None
+    return serial
+
+
 # -- Commands ----------------------------------------------------------------
+
+
+def command_collect(args: argparse.Namespace) -> int:
+    if _REPOSITORY.fullmatch(args.repo) is None:
+        raise Refusal("--repo must be written owner/name", EXIT_USAGE)
+    if args.releases_json is not None:
+        try:
+            entries = ps.load_strict(ps.read_file(args.releases_json, "the releases file"))
+        except ValueError as error:
+            raise Refusal("%s %s" % (shown_path(args.releases_json), error)) from None
+        if not isinstance(entries, list):
+            raise Refusal(
+                "%s must hold the list of releases that GitHub answers with"
+                % shown_path(args.releases_json)
+            )
+    else:
+        entries = fetch_releases(args.repo)
+    serial = collect(args.repo, entries, args.out, download_bytes)
+    print(serial)
+    return EXIT_OK
+
 
 
 def command_payload(args: argparse.Namespace) -> int:
@@ -873,31 +1329,38 @@ def command_sign(args: argparse.Namespace) -> int:
 _PUBLIC_KEY_HEX = re.compile(r"[0-9a-fA-F]{64}")
 
 
-def command_verify(args: argparse.Namespace) -> int:
-    if _PUBLIC_KEY_HEX.fullmatch(args.public_key) is None:
-        raise Refusal("--public-key must be 64 hex characters", EXIT_USAGE)
-    public_key = bytes.fromhex(args.public_key)
-    data = ps.read_file(args.file, "the update feed")
+def verify_feed(
+    data: bytes,
+    name: str,
+    find_key: Callable[[str], bytes],
+    key_id: Optional[str] = None,
+    min_serial: Optional[int] = None,
+    openssl_override: Optional[str] = None,
+) -> int:
+    """Checks a feed as Studio would and returns its serial. ``find_key``
+    gives the public key for the key id that the file names, or refuses.
+    Raises ``Refusal`` for every reason the feed is not accepted."""
     if len(data) > MAX_ENVELOPE_SIZE:
         raise Refusal(
             "%s is larger than %d bytes, which Studio does not read"
-            % (shown_path(args.file), MAX_ENVELOPE_SIZE)
+            % (shown_path(name), MAX_ENVELOPE_SIZE)
         )
     try:
         found = ps.parse_envelope(data)
     except ValueError as error:
-        raise Refusal("%s %s" % (shown_path(args.file), error)) from None
+        raise Refusal("%s %s" % (shown_path(name), error)) from None
     if found.purpose != PURPOSE:
         raise Refusal(
             "the file is signed as %s, not as %s" % (quoted(found.purpose), quoted(PURPOSE))
         )
     # Studio finds the key by the id in the file, so the right key under the
     # wrong id is a feed that Studio refuses.
-    if args.key_id is not None and found.key_id != args.key_id:
+    if key_id is not None and found.key_id != key_id:
         raise Refusal(
-            "the file names the key %s, not %s" % (quoted(found.key_id), quoted(args.key_id))
+            "the file names the key %s, not %s" % (quoted(found.key_id), quoted(key_id))
         )
-    openssl = ps.find_openssl(args.openssl)
+    public_key = find_key(found.key_id)
+    openssl = ps.find_openssl(openssl_override)
     message = ps.signed_message(found.purpose, found.payload)
     if not ps.verify_bytes(openssl, public_key, message, found.signature):
         raise Refusal("the signature does not hold")
@@ -909,11 +1372,82 @@ def command_verify(args: argparse.Namespace) -> int:
             % (problems[0], more)
         )
     serial = ps.load_strict(found.payload)["serial"]
-    if args.min_serial is not None and serial < args.min_serial:
+    if min_serial is not None and serial < min_serial:
         raise Refusal(
-            "the serial %d is lower than the lowest allowed, %d" % (serial, args.min_serial)
+            "the serial %d is lower than the lowest allowed, %d" % (serial, min_serial)
         )
+    return int(serial)
+
+
+def key_finder(keys: List[FeedKey]) -> Callable[[str], bytes]:
+    """``find_key`` for a list of keys: the one whose id the feed names."""
+    by_id = {key.key_id: key.public_key for key in keys}
+
+    def find(key_id: str) -> bytes:
+        if key_id not in by_id:
+            raise Refusal(
+                "the file names the key %s, which this build does not trust "
+                "(it trusts %s)" % (quoted(key_id), ", ".join(by_id))
+            )
+        return by_id[key_id]
+
+    return find
+
+
+def trusted_keys(keys_path: str) -> List[FeedKey]:
+    """The keys in the C++ file of the keys Studio is built with. Raises
+    ``NoKeys`` when the file lists none: a build that trusts no feed key."""
+    keys = read_feed_keys(keys_path)
+    if not keys:
+        raise NoKeys(
+            "%s lists no update feed key, so this build trusts none"
+            % shown_path(keys_path)
+        )
+    return keys
+
+
+def verify_with_keys_file(
+    data: bytes,
+    name: str,
+    keys_path: str,
+    min_serial: Optional[int] = None,
+    openssl_override: Optional[str] = None,
+) -> int:
+    """Checks a feed with the keys that ``keys_path`` lists and returns its
+    serial. Raises ``NoKeys`` when the file lists no key and ``Refusal`` for
+    any other reason that the feed is not accepted."""
+    return verify_feed(
+        data, name, key_finder(trusted_keys(keys_path)), None, min_serial,
+        openssl_override,
+    )
+
+
+def command_verify(args: argparse.Namespace) -> int:
+    if (args.public_key is None) == (args.keys_from is None):
+        raise Refusal("give --public-key or --keys-from, and not both", EXIT_USAGE)
+    if args.public_key is not None:
+        if _PUBLIC_KEY_HEX.fullmatch(args.public_key) is None:
+            raise Refusal("--public-key must be 64 hex characters", EXIT_USAGE)
+        public_key = bytes.fromhex(args.public_key)
+
+        def find_key(_key_id: str) -> bytes:
+            return public_key
+
+    else:
+        # The keys come first: a build with none is not a bad signature, and
+        # that is the answer whether or not the feed file is there.
+        find_key = key_finder(trusted_keys(args.keys_from))
+    data = ps.read_file(args.file, "the update feed")
+    serial = verify_feed(
+        data, args.file, find_key, args.key_id, args.min_serial, args.openssl
+    )
     print("ok serial %d" % serial)
+    return EXIT_OK
+
+
+def command_keys(args: argparse.Namespace) -> int:
+    for key in read_feed_keys(args.keys_from):
+        print(key.key_id)
     return EXIT_OK
 
 
@@ -936,6 +1470,17 @@ def build_parser() -> argparse.ArgumentParser:
 
     openssl_help = "the OpenSSL program, if not on PATH"
 
+    sub = add(
+        "collect", "write the release folders and the serial from the releases", command_collect
+    )
+    sub.add_argument("--repo", required=True, help="the repository, as owner/name")
+    sub.add_argument(
+        "--releases-json",
+        metavar="FILE",
+        help="a saved answer of the GitHub releases API, instead of asking GitHub",
+    )
+    sub.add_argument("--out", required=True, help="the folder to write")
+
     sub = add("payload", "write the payload from release folders", command_payload)
     sub.add_argument("--serial", required=True, type=int, help="the serial of the feed")
     sub.add_argument("--issued-at", required=True, help="UTC, as 2026-12-01T03:40:00Z")
@@ -952,11 +1497,24 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_argument("--openssl", metavar="PATH", help=openssl_help)
 
     sub = add("verify", "check the signature and the payload of a feed", command_verify)
-    sub.add_argument("--public-key", required=True, help="64 hex characters")
+    sub.add_argument("--public-key", help="64 hex characters")
+    sub.add_argument(
+        "--keys-from",
+        metavar="FILE",
+        help="the C++ file of the keys Studio is built with, instead of --public-key",
+    )
     sub.add_argument("--key-id", help="refuse a feed that names another key")
     sub.add_argument("--min-serial", type=int, help="refuse a lower serial")
     sub.add_argument("--openssl", metavar="PATH", help=openssl_help)
     sub.add_argument("file", help="the feed file")
+
+    sub = add("keys", "list the feed key ids of the keys file, one for each line", command_keys)
+    sub.add_argument(
+        "--keys-from",
+        required=True,
+        metavar="FILE",
+        help="the C++ file of the keys Studio is built with",
+    )
     return parser
 
 

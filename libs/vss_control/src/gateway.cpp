@@ -2550,6 +2550,8 @@ private:
         {
             if (std::holds_alternative<status_request>(asked.body))
                 return reply{asked.id, status(client, sessions_now)};
+            if (std::holds_alternative<audit_verify_request>(asked.body))
+                return verify_audit(asked.id);
             if (std::holds_alternative<ports_list_request>(asked.body))
                 return list_ports(client, asked.id);
             if (const auto* getting =
@@ -2569,6 +2571,12 @@ private:
             if (const auto* linking =
                     std::get_if<links_connect_request>(&asked.body))
                 return connect_ports(client, asked.id, *linking);
+            if (const auto* unlinking =
+                    std::get_if<links_disconnect_request>(&asked.body))
+                return disconnect_link(client, asked.id, *unlinking);
+            if (const auto* renaming =
+                    std::get_if<ports_rename_request>(&asked.body))
+                return rename_port(client, asked.id, *renaming);
             if (const auto* sending =
                     std::get_if<ports_send_request>(&asked.body))
                 return send_bytes(client, asked.id, *sending);
@@ -2731,6 +2739,49 @@ private:
         return answer;
     }
 
+    reply disconnect_link(session& client, std::uint64_t id,
+                          const links_disconnect_request& wanted)
+    {
+        const auto link = parse_link_id(wanted.link);
+        reply answer = error_reply_for(id, api_errc::invalid_argument);
+        if (link)
+        {
+            answer = error_reply_for(id, api_errc::unavailable);
+            if (agent::client* const source = agent_of(client))
+            {
+                const auto removed = source->disconnect(*link);
+                answer = removed ? reply{id, done_reply{}}
+                                 : agent_refused(client, id, removed.error());
+            }
+        }
+        record_change(client, operation::links_disconnect,
+                      {{"link", link ? wanted.link : std::string()}},
+                      outcome_name(answer));
+        return answer;
+    }
+
+    reply rename_port(session& client, std::uint64_t id,
+                      const ports_rename_request& wanted)
+    {
+        const auto port = parse_port_id(wanted.port);
+        reply answer = error_reply_for(id, api_errc::invalid_argument);
+        if (port)
+        {
+            answer = error_reply_for(id, api_errc::unavailable);
+            if (agent::client* const source = agent_of(client))
+            {
+                const auto renamed = source->rename_port(*port, wanted.name);
+                answer = renamed ? reply{id, done_reply{}}
+                                 : agent_refused(client, id, renamed.error());
+            }
+        }
+        record_change(client, operation::ports_rename,
+                      {{"port", port ? wanted.port : std::string()},
+                       {"name", wanted.name}},
+                      outcome_name(answer));
+        return answer;
+    }
+
     reply send_bytes(session& client, std::uint64_t id,
                      const ports_send_request& wanted)
     {
@@ -2783,6 +2834,33 @@ private:
         for (const agent::link_summary& link : listed->links)
             out.links.push_back(summarise(link));
         return out;
+    }
+
+    /// `audit.verify`: the chain of the gateway's own log, checked while no
+    /// record is being written.  Only the name of a file is given, never
+    /// its directory.
+    reply verify_audit(std::uint64_t id)
+    {
+        const auto found = audit_->verify();
+        if (!found)
+            return error_reply_for(id, api_errc::internal);
+        audit_reply out;
+        out.intact = found->intact;
+        out.records = found->records;
+        if (!found->intact)
+        {
+            out.file = found->file.filename().string();
+            out.line = found->line;
+            out.problem = found->problem;
+            // The reader takes a broken log only with a place and a reason.
+            if (out.file.empty())
+                out.file = "audit.jsonl";
+            if (out.line == 0)
+                out.line = 1;
+            if (out.problem.empty())
+                out.problem = "the chain is broken";
+        }
+        return reply{id, std::move(out)};
     }
 
     reply list_ports(session& client, std::uint64_t id)
