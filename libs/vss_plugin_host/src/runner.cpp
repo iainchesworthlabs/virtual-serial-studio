@@ -382,6 +382,7 @@ private:
         while (log_.size() >= options_.kept_log_lines)
             log_.pop_front();
         log_.push_back(runner_log_line{from_output, level, std::move(text)});
+        ++log_total_;
     }
 
     /// Does what a call to the session asks: sends its frames and takes
@@ -719,6 +720,7 @@ private:
         next->api = api_;
         next->status = status_;
         next->log.assign(log_.begin(), log_.end());
+        next->log_total = log_total_;
         next->output_bytes_dropped = output_dropped_;
         next->revision = ++revision_;
         const std::lock_guard lock(snapshot_mutex_);
@@ -769,6 +771,7 @@ private:
     std::size_t output_in_window_ = 0;
     std::uint64_t output_dropped_ = 0;
     std::deque<runner_log_line> log_;
+    std::uint64_t log_total_ = 0;
 
     error_code last_failure_;
     std::string detail_;
