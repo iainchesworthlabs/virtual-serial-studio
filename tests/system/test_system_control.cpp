@@ -1806,30 +1806,55 @@ TEST_CASE("system control: vss_gate does not start on a port that is taken")
     REQUIRE(!contains(output, "listening on"));
 }
 
-TEST_CASE("system control: a token file that exists is not used, and the "
-          "token is shown instead")
+TEST_CASE("system control: a token file that exists is not used, no token is "
+          "made and none is shown")
 {
     gate_process gate(unique_instance());
     const std::string& instance = gate.instance();
 
     const std::filesystem::path file = gate.scratch_dir() / "rig.token";
+    // The first run makes the file, as a rig script does; the second run, with
+    // the same name, is the same script on the next day.
+    const auto first = run_cli("control", instance,
+                               {"token", "create", "--label=first",
+                                "--scope=monitor", "--out=" + file.string()});
+    require_exit(first, 0, "vss_cli control token create --out");
+    const std::string kept = read_text(file);
+
+    const auto second = run_cli("control", instance,
+                                {"token", "create", "--label=second",
+                                 "--scope=monitor", "--out=" + file.string()});
+    require_exit(second, 1,
+                 "vss_cli control token create --out, a file that is there");
+    REQUIRE(contains(second.output, "exists already"));
+    REQUIRE(contains(second.output, "no token was made"));
+    REQUIRE(!contains(second.output, "Token written to"));
+    REQUIRE(!contains(second.output, "only time"));
+    // Nothing of a token is on the screen, and the file is as it was.
+    REQUIRE(!find_token(second.output).has_value());
+    REQUIRE(!contains(second.output, kept.substr(0, kept.size() - 1)));
+    REQUIRE_EQ(read_text(file), kept);
+
+    // Only the first token is there.
+    const auto listed = run_cli("control", instance, {"token", "list"});
+    require_exit(listed, 0, "vss_cli control token list");
+    REQUIRE(contains(listed.output, "first"));
+    REQUIRE(!contains(listed.output, "second"));
+
+    // A file that was there before the first run is the same.
+    const std::filesystem::path older = gate.scratch_dir() / "older.token";
     {
-        std::ofstream earlier(file, std::ios::binary);
+        std::ofstream earlier(older, std::ios::binary);
         earlier << "an earlier file\n";
     }
-    const auto made = run_cli("control", instance,
-                              {"token", "create", "--label=taken",
-                               "--scope=monitor", "--out=" + file.string()});
-    require_exit(made, 1,
-                 "vss_cli control token create --out, a file that is "
-                 "there");
-    REQUIRE(contains(made.output, "exists already"));
-    REQUIRE(!contains(made.output, "Token written to"));
-    // The file is as it was, and nothing of the token is in it.
-    REQUIRE_EQ(read_text(file), std::string("an earlier file\n"));
-    // The token was made, so it is shown, as it is when it cannot be written.
-    REQUIRE(find_token(made.output).has_value());
-    REQUIRE(contains(made.output, "only time"));
+    const auto third = run_cli("control", instance,
+                               {"token", "create", "--label=third",
+                                "--scope=monitor", "--out=" + older.string()});
+    require_exit(third, 1, "vss_cli control token create --out, an old file");
+    REQUIRE(!find_token(third.output).has_value());
+    REQUIRE_EQ(read_text(older), std::string("an earlier file\n"));
+    const auto again = run_cli("control", instance, {"token", "list"});
+    REQUIRE(!contains(again.output, "third"));
 }
 
 TEST_CASE("system control: a run name and a check that are too long are cut, "

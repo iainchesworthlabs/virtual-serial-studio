@@ -63,7 +63,10 @@ def clean_text(text, limit=MAX_TEXT_SIZE):
     raw = text.encode("utf-8", "replace")
     if len(raw) <= limit:
         return raw.decode("utf-8")
-    # `ignore` drops a character that the cut left in two.
+    # A limit shorter than the mark has no room for it: the text is cut and
+    # not marked.  `ignore` drops a character that the cut left in two.
+    if limit < len(CUT_MARK):
+        return raw[: max(limit, 0)].decode("utf-8", "ignore")
     kept = raw[: limit - len(CUT_MARK)].decode("utf-8", "ignore")
     return kept + CUT_MARK
 

@@ -474,7 +474,7 @@ TEST_CASE("control private file: a link in place of the name is not followed")
     // may not have.  Without it there is no link to test; a file that exists
     // is refused in test_control_private_file.cpp.
     if (made)
-        return;
+        VSS_SKIP("symbolic links cannot be made here");
 
     REQUIRE(control::create_private_file(link, "vsst1_example\n") ==
             vss::make_error_code(vss::errc::already_exists));
