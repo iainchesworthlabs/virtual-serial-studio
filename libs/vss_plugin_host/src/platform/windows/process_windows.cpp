@@ -802,6 +802,8 @@ start_process(const process_request& request)
         auto made = prepare_container(*request.sandbox);
         if (made)
             container = std::move(*made);
+        else
+            job->report.failure = made.error();
     }
 
     PROCESS_INFORMATION information{};
@@ -850,6 +852,7 @@ start_process(const process_request& request)
         }
         if (!container)
             return failed;
+        job->report.failure = failed;
         container.reset();
     }
     owned_handle process(information.hProcess);

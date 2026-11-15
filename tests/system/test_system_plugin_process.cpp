@@ -869,6 +869,7 @@ TEST_CASE("plugin process: a start reports what confines the plugin")
     const sandbox_report can = available_sandbox();
     for (const sandbox_part part : all_sandbox_parts)
         REQUIRE_EQ(confined.sandbox().has(part), can.has(part));
+    REQUIRE_EQ(confined.sandbox().failure.message(), std::string("The operation completed successfully"));
     REQUIRE(confined.sandbox().level() == can.level());
     const exit_status status = wait_for_end(confined);
     REQUIRE(!status.abnormal);

@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include <vss/core/error.hpp>
 #include <vss/plugin/policy.hpp>
 
 #include <cstdint>
@@ -110,6 +111,9 @@ struct sandbox_report
 {
     /// The parts that were applied, each once.
     std::vector<sandbox_part> applied;
+    /// Why a part that this computer can apply was not applied to this
+    /// process: the first thing that failed.  Success when nothing did.
+    error_code failure;
 
     bool has(sandbox_part part) const noexcept;
     /// The parts that were not applied, in the order of
