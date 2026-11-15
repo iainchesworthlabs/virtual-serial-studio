@@ -517,14 +517,8 @@ namespace
 /// A fresh folder for one test, removed at the end of it.
 struct scratch_folder
 {
-    scratch_folder()
+    scratch_folder() : path(fresh_path())
     {
-        static int counter = 0;
-        path =
-            std::filesystem::temp_directory_path() /
-            ("vss-document-save-" + std::to_string(++counter) + "-" +
-             std::to_string(
-                 std::chrono::steady_clock::now().time_since_epoch().count()));
         std::filesystem::create_directories(path);
     }
     ~scratch_folder()
@@ -534,6 +528,17 @@ struct scratch_folder
     }
     scratch_folder(const scratch_folder&) = delete;
     scratch_folder& operator=(const scratch_folder&) = delete;
+
+    /// A name no other test, and no earlier run, has used.
+    static std::filesystem::path fresh_path()
+    {
+        static int counter = 0;
+        return std::filesystem::temp_directory_path() /
+               ("vss-document-save-" + std::to_string(++counter) + "-" +
+                std::to_string(std::chrono::steady_clock::now()
+                                   .time_since_epoch()
+                                   .count()));
+    }
 
     std::filesystem::path path;
 };
