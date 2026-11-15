@@ -38,6 +38,18 @@ HELPER = DRIVERS / "vsscom_helper" / "install-helper.ps1"
 TRUST = DRIVERS / "trust" / "install-trust.ps1"
 POWERSHELL = shutil.which("powershell") if sys.platform == "win32" else None
 
+
+def powershell_env(**extra: str) -> dict[str, str]:
+    """The environment for Windows PowerShell, without the module path of the caller.
+
+    When the tests are started from PowerShell 7 (as on the CI runners) the inherited PSModulePath names its
+    modules, and Windows PowerShell 5.1 then cannot load its own, such as Microsoft.PowerShell.Security. Without
+    the variable it works out its own path.
+    """
+    env = {name: value for name, value in os.environ.items() if name.upper() != "PSMODULEPATH"}
+    env.update(extra)
+    return env
+
 # Defined first in every harness. Whatever a test does not stub cannot reach the machine.
 PRELUDE = r"""
 $ErrorActionPreference = 'Stop'
@@ -80,6 +92,8 @@ function sc.exe {
     }
 }
 function icacls.exe { Log ('icacls.exe ' + ($args -join ' ')); $global:LASTEXITCODE = [int] $Scenario.icacls_code }
+# The scratch program is not signed; install-helper.ps1 only warns about that.
+function Get-AuthenticodeSignature { [pscustomobject]@{ Status = 'NotSigned' } }
 function New-Service {
     [CmdletBinding()] param($Name, $BinaryPathName, $DisplayName, $StartupType, $Description)
     Log "New-Service $Name BinaryPathName=[$BinaryPathName] StartupType=$StartupType"
@@ -137,13 +151,12 @@ class Harness(unittest.TestCase):
             PRELUDE + stubs + "\n$global:LASTEXITCODE = 99\n" + call + "\nexit $LASTEXITCODE\n",
             encoding="utf-8",
         )
-        env = {
-            **os.environ,
-            "VSS_TEST_LOG": str(log),
-            "VSS_TEST_SCENARIO": str(scenario_file),
-            "ProgramW6432": str(self.programs),
-            "ProgramFiles": str(self.programs),
-        }
+        env = powershell_env(
+            VSS_TEST_LOG=str(log),
+            VSS_TEST_SCENARIO=str(scenario_file),
+            ProgramW6432=str(self.programs),
+            ProgramFiles=str(self.programs),
+        )
         result = subprocess.run(
             [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
             env=env,
@@ -484,7 +497,7 @@ class InvokeBounded(Harness):
         )
         result = subprocess.run(
             [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(harness)],
-            capture_output=True, text=True, timeout=120, check=False,
+            env=powershell_env(), capture_output=True, text=True, timeout=120, check=False,
         )
         return Run(result.returncode, result.stdout, result.stderr, [])
 
@@ -741,6 +754,7 @@ class InstallTrust(Harness):
         script.write_text(FIXTURE, encoding="utf-8")
         result = subprocess.run(
             [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), "-Folder", str(cls.fixture)],
+            env=powershell_env(),
             capture_output=True,
             text=True,
             timeout=120,
@@ -767,7 +781,7 @@ class InstallTrust(Harness):
         subprocess.run(
             [POWERSHELL, "-NoProfile", "-Command",
              f"foreach ($n in {names}) {{ Remove-Item -LiteralPath \"HKCU:\\Software\\Microsoft\\SystemCertificates\\$n\" -Recurse -Force -ErrorAction SilentlyContinue }}"],
-            capture_output=True, text=True, timeout=60, check=False,
+            env=powershell_env(), capture_output=True, text=True, timeout=60, check=False,
         )
 
     def trust(self, *extra: str, package: bool = True, location: str = "CurrentUser", **scenario: object) -> Run:
@@ -788,7 +802,7 @@ class InstallTrust(Harness):
         script.write_text(INSPECT, encoding="utf-8")
         result = subprocess.run(
             [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), ",".join(self.stores.values())],
-            capture_output=True, text=True, timeout=120, check=False,
+            env=powershell_env(), capture_output=True, text=True, timeout=120, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         return json.loads(result.stdout)
@@ -806,7 +820,7 @@ class InstallTrust(Harness):
         )
         result = subprocess.run(
             [POWERSHELL, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script), self.stores[store], str(self.fixture / pem_name)],
-            capture_output=True, text=True, timeout=60, check=False,
+            env=powershell_env(), capture_output=True, text=True, timeout=60, check=False,
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
