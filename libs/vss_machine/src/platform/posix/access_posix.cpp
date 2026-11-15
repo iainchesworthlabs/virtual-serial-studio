@@ -7,20 +7,24 @@
 // file or folder.
 //
 
-#include "platform/access_platform.hpp"
+#include "platform/machine_platform.hpp"
+
+#include <boost/system/errc.hpp>
 
 #include <sys/stat.h>
 
-namespace vss::plugin::platform
+namespace vss::machine::platform
 {
 
-result<access_finding> examine(const std::filesystem::path& path, bool /*last*/)
+boost::system::result<access_finding> examine(const std::filesystem::path& path,
+                                              bool /*last*/)
 {
     // lstat, not stat: the caller resolved every link already, and a link
     // that appeared since then must be seen as a link, not followed.
     struct stat info = {};
     if (::lstat(path.c_str(), &info) != 0)
-        return make_error_code(errc::io_error);
+        return boost::system::errc::make_error_code(
+            boost::system::errc::io_error);
 
     access_finding found;
     if (S_ISLNK(info.st_mode))
@@ -50,4 +54,4 @@ result<access_finding> examine(const std::filesystem::path& path, bool /*last*/)
     return found;
 }
 
-} // namespace vss::plugin::platform
+} // namespace vss::machine::platform
