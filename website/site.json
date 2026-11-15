@@ -28,7 +28,8 @@
     {"match": "\\.x86_64\\.rpm$", "platform": "Linux", "label": "Package for Fedora and RHEL, x86-64"},
     {"match": "-linux-x86_64\\.tar\\.gz$", "platform": "Linux", "label": "Archive, x86-64"},
     {"match": "^SHA512SUMS$", "platform": "Checksums and contents", "label": "SHA-512 checksums of every file"},
-    {"match": "^sbom\\.spdx\\.json$", "platform": "Checksums and contents", "label": "Software bill of materials, SPDX"}
+    {"match": "^sbom\\.spdx\\.json$", "platform": "Checksums and contents", "label": "Software bill of materials, SPDX"},
+    {"match": "^update-feed\\.json$", "platform": "Checksums and contents", "label": "Update feed, the signed file that Studio reads"}
   ],
   "external_paths": ["docs/"],
   "allowed_link_hosts": ["github.com", "www.gnu.org"],
