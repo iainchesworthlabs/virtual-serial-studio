@@ -808,6 +808,13 @@ result<install_report> install_plugin(const fs::path& source,
             install_refusal(found, options.allow_unsigned, detail);
         if (refusal.failed())
             return refusal;
+        if (!found.declared.has_value())
+        {
+            // install_refusal refuses a plugin with no manifest, so this is
+            // not reached; the check keeps the access below safe.
+            return refuse(plugin_errc::manifest_invalid, detail,
+                          "the plugin has no manifest");
+        }
         const manifest& declared = *found.declared;
 
         // The machine folder is checked before anything is made in it.
