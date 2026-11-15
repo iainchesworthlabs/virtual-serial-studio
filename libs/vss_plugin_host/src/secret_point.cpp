@@ -74,14 +74,17 @@ std::optional<secret_to_show> read(const api_message& message)
     const std::int64_t seconds = life->get_int64();
     if (seconds < 1 || seconds > longest_life_s)
         return std::nullopt;
-    // The secret is shown as it is, but only when it is plain text: a
-    // control character in it could only be there to mislead.
+    // The secret is shown exactly as it is, so it may hold only what
+    // every program shows the same way: the printable characters of
+    // ASCII.  Anything else (a control character, a character that
+    // changes the direction of text, one that cannot be seen) could only
+    // make the user read something other than what was sent.
     const bool plain =
         std::ranges::all_of(*text,
                             [](char c)
                             {
                                 const auto byte = static_cast<unsigned char>(c);
-                                return byte >= 0x20 && byte != 0x7f;
+                                return byte >= 0x20 && byte <= 0x7e;
                             });
     if (!plain)
         return std::nullopt;

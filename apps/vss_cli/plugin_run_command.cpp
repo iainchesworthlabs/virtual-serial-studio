@@ -1381,8 +1381,7 @@ int run_plugin(const options& given, const places& where)
                     out["text"] = sup::text_value(secret.text);
                     out["expires_s"] = secret.expires.count();
                     std::string line = json::serialize(out);
-                    line += '
-';
+                    line += '\n';
                     print(line);
                 }
                 else
@@ -1393,8 +1392,7 @@ int run_plugin(const options& given, const places& where)
                     line += sup::plain(secret.text);
                     line += " (good for ";
                     line += std::to_string(secret.expires.count());
-                    line += " s)
-";
+                    line += " s)\n";
                     print(line);
                 }
                 done(true);

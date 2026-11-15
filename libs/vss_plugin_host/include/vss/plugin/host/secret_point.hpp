@@ -15,7 +15,9 @@
 //   secret.show   plugin to host, request
 //     label       what the secret is, for the user: plain text of 1 to 64
 //                 bytes, such as "Pairing code"
-//     text        the secret: plain text of 1 to 512 bytes
+//     text        the secret: 1 to 512 printable characters of ASCII
+//                 (space to tilde), so that it is shown the same
+//                 everywhere
 //     expires_s   how long it is good for: 1 to 3600 seconds
 //   answered `ok` when the user has seen it, or with the error
 //   `not_granted` when they closed it without looking or this program
