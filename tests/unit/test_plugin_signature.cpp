@@ -354,15 +354,16 @@ TEST_CASE("plugin signature: a key list reads and answers")
 
 TEST_CASE("plugin signature: a key list that is not understood is refused")
 {
-    const auto with_keys = [](std::string_view entries) {
+    const auto with_keys = [](std::string_view entries)
+    {
         std::string text = R"({ "key_list_version": 1, "serial": 1,
             "issued": "2026-11-13", "keys": [ )";
         text += entries;
         text += " ] }";
         return text;
     };
-    const std::string good = key_entry("k", plugins_fill, "plugin",
-                                       "2026-11-01", "2028-11-01");
+    const std::string good =
+        key_entry("k", plugins_fill, "plugin", "2026-11-01", "2028-11-01");
     REQUIRE(parse_key_list(with_keys(good)).has_value());
 
     require_key_list_refused("", "not JSON");
@@ -396,28 +397,23 @@ TEST_CASE("plugin signature: a key list that is not understood is refused")
                             "2026-11-01", "2028-11-01")),
         "twice");
     // Only the two purposes of plugins: a licence key has no place here.
+    require_key_list_refused(with_keys(key_entry("k", plugins_fill, "licence",
+                                                 "2026-11-01", "2028-11-01")),
+                             "keys.purpose: cannot be");
+    require_key_list_refused(with_keys(key_entry("k k", plugins_fill, "plugin",
+                                                 "2026-11-01", "2028-11-01")),
+                             "keys.key_id: cannot be");
+    require_key_list_refused(with_keys(key_entry("k", plugins_fill, "plugin",
+                                                 "2028-11-01", "2026-11-01")),
+                             "keys.valid_to: is before valid_from");
     require_key_list_refused(
-        with_keys(key_entry("k", plugins_fill, "licence", "2026-11-01",
-                            "2028-11-01")),
-        "keys.purpose: cannot be");
-    require_key_list_refused(
-        with_keys(key_entry("k k", plugins_fill, "plugin", "2026-11-01",
-                            "2028-11-01")),
-        "keys.key_id: cannot be");
-    require_key_list_refused(
-        with_keys(key_entry("k", plugins_fill, "plugin", "2028-11-01",
-                            "2026-11-01")),
-        "keys.valid_to: is before valid_from");
-    require_key_list_refused(
-        with_keys(key_entry("k", plugins_fill, "plugin", "2026-11-01",
-                            "soon")),
+        with_keys(key_entry("k", plugins_fill, "plugin", "2026-11-01", "soon")),
         "keys.valid_to: must be a date");
-    require_key_list_refused(
-        with_keys(R"({ "key_id": "k", "public_key": "abcd",
+    require_key_list_refused(with_keys(R"({ "key_id": "k", "public_key": "abcd",
                        "purpose": "plugin", "name": "n",
                        "valid_from": "2026-11-01",
                        "valid_to": "2028-11-01" })"),
-        "keys.public_key: must be 64");
+                             "keys.public_key: must be 64");
     require_key_list_refused(
         with_keys(R"({ "key_id": "k", "purpose": "plugin" })"),
         "must be a string");
@@ -444,7 +440,8 @@ TEST_CASE("plugin signature: a key list counts only when a root signed it")
     REQUIRE(detail.empty());
     REQUIRE(good.value() == official_keys());
 
-    const auto refused = [&](const std::string& text, std::string_view part) {
+    const auto refused = [&](const std::string& text, std::string_view part)
+    {
         std::string why;
         const auto read = read_key_list(text, known, &why);
         REQUIRE(read.has_error());
@@ -460,8 +457,7 @@ TEST_CASE("plugin signature: a key list counts only when a root signed it")
     refused(signed_text(key_list_purpose, "root-2027", payload, root_fill),
             "not signed with a root key");
     // Signed under the root's name with another key.
-    refused(signed_text(key_list_purpose, "root-2026", payload,
-                        stranger_fill),
+    refused(signed_text(key_list_purpose, "root-2026", payload, stranger_fill),
             "does not hold");
     // The roots built into this program are not the test root: a list
     // signed with the test key under a built-in root's id does not pass.
@@ -475,9 +471,10 @@ TEST_CASE("plugin signature: a key list counts only when a root signed it")
     }
     // A payload changed after it was signed.
     {
-        signed_file::envelope changed = signed_file::parse(
-            signed_text(key_list_purpose, "root-2026", payload, root_fill))
-                                            .value();
+        signed_file::envelope changed =
+            signed_file::parse(
+                signed_text(key_list_purpose, "root-2026", payload, root_fill))
+                .value();
         changed.payload.back() = static_cast<std::uint8_t>(' ');
         refused(signed_file::write(changed), "does not hold");
     }
@@ -485,8 +482,8 @@ TEST_CASE("plugin signature: a key list counts only when a root signed it")
     {
         std::string why;
         const auto read = read_key_list(
-            signed_text(key_list_purpose, "root-2026", "{}", root_fill),
-            known, &why);
+            signed_text(key_list_purpose, "root-2026", "{}", root_fill), known,
+            &why);
         REQUIRE(read.has_error());
         REQUIRE(read.error() == errc::config_error);
     }
@@ -503,17 +500,18 @@ TEST_CASE("plugin signature: a revocation list counts only when an official "
              "issued_at": "2026-11-13", "key_ids": ["plugins-2025"] })";
 
     std::string detail = "old";
-    const auto good = read_revocations(
-        signed_text(revocations_purpose, "revocations-2026", payload,
-                    revocations_fill),
-        official, &detail);
+    const auto good =
+        read_revocations(signed_text(revocations_purpose, "revocations-2026",
+                                     payload, revocations_fill),
+                         official, &detail);
     REQUIRE(good.has_value());
     REQUIRE(detail.empty());
     REQUIRE_EQ(good.value().serial, std::uint64_t{7});
     REQUIRE(good.value().revokes_key("plugins-2025"));
 
     const auto refused = [&](const std::string& text, const key_list& keys,
-                             std::string_view part) {
+                             std::string_view part)
+    {
         std::string why;
         const auto read = read_revocations(text, keys, &why);
         REQUIRE(read.has_error());
@@ -523,18 +521,18 @@ TEST_CASE("plugin signature: a revocation list counts only when an official "
     refused("nothing", official, "not a signed file");
     // The key for plugins does not sign revocation lists, and a plugin
     // signature is not a revocation list.
-    refused(signed_text(revocations_purpose, "plugins-2026", payload,
-                        plugins_fill),
-            official, "not signed with an official key");
+    refused(
+        signed_text(revocations_purpose, "plugins-2026", payload, plugins_fill),
+        official, "not signed with an official key");
     refused(signed_text(plugin_purpose, "revocations-2026", payload,
                         revocations_fill),
             official, "not signed as a revocation list");
     refused(signed_text(revocations_purpose, "revocations-2026", payload,
                         stranger_fill),
             official, "does not hold");
-    refused(signed_text(revocations_purpose, "someone", payload,
-                        revocations_fill),
-            official, "not signed with an official key");
+    refused(
+        signed_text(revocations_purpose, "someone", payload, revocations_fill),
+        official, "not signed with an official key");
     // A withdrawn key signs nothing more.
     refused(signed_text(revocations_purpose, "revocations-2026", payload,
                         revocations_fill),
@@ -548,10 +546,10 @@ TEST_CASE("plugin signature: a revocation list counts only when an official "
     // The right key signs something that is not a revocation list.
     {
         std::string why;
-        const auto read = read_revocations(
-            signed_text(revocations_purpose, "revocations-2026", "{}",
-                        revocations_fill),
-            official, &why);
+        const auto read = read_revocations(signed_text(revocations_purpose,
+                                                       "revocations-2026", "{}",
+                                                       revocations_fill),
+                                           official, &why);
         REQUIRE(read.has_error());
         REQUIRE(read.error() == errc::config_error);
     }
@@ -582,9 +580,9 @@ TEST_CASE("plugin signature: the signing script and this code make the same "
     compact += R"("version":"1.2.0","manifest_sha512":")";
     compact += to_hex(sha512_of(plugin.manifest_bytes));
     compact += R"("})";
-    REQUIRE_EQ(signed_text(plugin_purpose, "plugins-2026", compact,
-                           plugins_fill),
-               from_script);
+    REQUIRE_EQ(
+        signed_text(plugin_purpose, "plugins-2026", compact, plugins_fill),
+        from_script);
 
     plugin.signature = from_script;
     const signature_finding found = plugin.check();
@@ -700,6 +698,82 @@ TEST_CASE("plugin signature: the first place that knows the key id decides")
     other.user_keys = {approved_signer{"acme", public_of(stranger_fill)}};
     other.sign_with("acme", stranger_fill);
     require_invalid(other, "does not hold");
+}
+
+TEST_CASE("plugin signature: only the owner's key makes a plugin official, "
+          "whatever the plugin says of itself")
+{
+    // A plugin that gives the owner's name as its author and is signed
+    // with somebody else's key.
+    plugin_under_test plugin;
+    plugin.declared.author.name = "Virtual Serial Studio";
+    plugin.declared.files = {file_entry{"bin/plugin", 1, {}}};
+    plugin.declared.needs.api = api_range{api_version{1, 0}, 1, std::nullopt};
+    plugin.declared.not_after = 2027y / 11 / 1;
+
+    const auto level_of = [&]() -> std::optional<trust_level>
+    {
+        verify_input input;
+        input.declared = &plugin.declared;
+        input.signature = plugin.check();
+        input.today = today;
+        input.host_api = api_version{1, 0};
+        input.sandbox = sandbox_level::full;
+        const auto decided = verify(input);
+        if (!decided.has_value())
+            return std::nullopt;
+        return decided.value().level;
+    };
+
+    // A key the user approved: third party, never official.
+    plugin.user_keys = {approved_signer{"acme-2026", public_of(author_fill)}};
+    plugin.sign_with("acme-2026", author_fill);
+    REQUIRE(plugin.check().origin == key_origin::user);
+    std::optional<trust_level> level = level_of();
+    REQUIRE(level.has_value());
+    REQUIRE(level == trust_level::third_party_signed);
+
+    // The same key approved by the administrator.
+    plugin.user_keys.clear();
+    plugin.administrator_keys = {
+        approved_signer{"acme-2026", public_of(author_fill)}};
+    REQUIRE(plugin.check().origin == key_origin::administrator);
+    level = level_of();
+    REQUIRE(level.has_value());
+    REQUIRE(level == trust_level::third_party_signed);
+
+    // A key nobody approved, and no signature at all.
+    plugin.administrator_keys.clear();
+    REQUIRE(plugin.check().origin == key_origin::unknown);
+    REQUIRE(level_of() != trust_level::official);
+    plugin.signature.reset();
+    REQUIRE(plugin.check().origin == key_origin::unknown);
+    REQUIRE(level_of() != trust_level::official);
+
+    // The id of the owner's key on somebody else's key, approved in both
+    // places a key can be approved in: the signature does not hold.
+    plugin.user_keys = {
+        approved_signer{"plugins-2026", public_of(author_fill)}};
+    plugin.administrator_keys = plugin.user_keys;
+    plugin.sign_with("plugins-2026", author_fill);
+    require_invalid(plugin, "does not hold");
+    REQUIRE(plugin.check().origin != key_origin::official);
+
+    // An id that only official plugins may use, with the approved key.
+    plugin.user_keys = {approved_signer{"acme-2026", public_of(author_fill)}};
+    plugin.administrator_keys.clear();
+    plugin.declared.id = "com.virtualserialstudio.diagnostics";
+    plugin.sign_with("acme-2026", author_fill);
+    REQUIRE(plugin.check().origin == key_origin::user);
+    verify_input input;
+    input.declared = &plugin.declared;
+    input.signature = plugin.check();
+    input.today = today;
+    input.host_api = api_version{1, 0};
+    input.sandbox = sandbox_level::full;
+    const auto decided = verify(input);
+    REQUIRE(decided.has_error());
+    REQUIRE(decided.error() == make_error_code(plugin_errc::reserved_id));
 }
 
 TEST_CASE("plugin signature: what was signed must be this plugin")
