@@ -39,6 +39,10 @@
 //                         or "read-failed"
 //   --write-file=<path>   writes a few bytes to the file; prints "written"
 //                         or "write-failed"
+//   --connect=<port>      tries a TCP connection to 127.0.0.1 at the port;
+//                         prints "connected" or "connect-failed"
+//   --open-process=<pid>  tries to open another process; prints
+//                         "process-opened" or "process-refused"
 //   --hang                prints "hanging" and never returns
 //   --crash               ends the process the way a fault does
 //   --exit=<code>         exits at once with the code
@@ -398,6 +402,24 @@ std::optional<int> act(std::string_view argument, const char* self)
     {
         write_file(std::string(*text));
         return std::nullopt;
+    }
+    if (const auto text = value_after(argument, "--connect="))
+    {
+        if (const auto port = parse_number<unsigned short>(*text))
+        {
+            say(test_plugin::connect_loopback(*port) ? "connected"
+                                                     : "connect-failed");
+            return std::nullopt;
+        }
+    }
+    if (const auto text = value_after(argument, "--open-process="))
+    {
+        if (const auto pid = parse_number<long long>(*text))
+        {
+            say(test_plugin::can_open_process(*pid) ? "process-opened"
+                                                    : "process-refused");
+            return std::nullopt;
+        }
     }
     if (argument == "--hang")
     {

@@ -62,4 +62,12 @@ void crash();
 /// The number the system gives this process.
 long long process_id();
 
+/// Whether a TCP connection to this computer itself (127.0.0.1) at `port`
+/// could be made.
+bool connect_loopback(unsigned short port);
+
+/// Whether another process can be opened to be asked about (Windows) or
+/// signalled (elsewhere).
+bool can_open_process(long long pid);
+
 } // namespace test_plugin

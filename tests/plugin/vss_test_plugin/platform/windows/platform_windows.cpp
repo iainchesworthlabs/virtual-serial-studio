@@ -10,7 +10,11 @@
 
 #include "platform.hpp"
 
+#include <winsock2.h>
+
 #include <windows.h>
+
+#include <cstring>
 
 #include <fcntl.h>
 #include <io.h>
@@ -224,6 +228,38 @@ void crash()
 long long process_id()
 {
     return static_cast<long long>(::GetCurrentProcessId());
+}
+
+bool connect_loopback(unsigned short port)
+{
+    WSADATA data{};
+    if (::WSAStartup(MAKEWORD(2, 2), &data) != 0)
+        return false;
+    bool connected = false;
+    const SOCKET socket = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (socket != INVALID_SOCKET)
+    {
+        sockaddr_in address{};
+        address.sin_family = AF_INET;
+        address.sin_port = ::htons(port);
+        address.sin_addr.s_addr = ::htonl(INADDR_LOOPBACK);
+        sockaddr generic{};
+        std::memcpy(&generic, &address, sizeof(generic));
+        connected = ::connect(socket, &generic, sizeof(generic)) == 0;
+        ::closesocket(socket);
+    }
+    ::WSACleanup();
+    return connected;
+}
+
+bool can_open_process(long long pid)
+{
+    HANDLE process = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,
+                                   static_cast<DWORD>(pid));
+    if (process == nullptr)
+        return false;
+    ::CloseHandle(process);
+    return true;
 }
 
 } // namespace test_plugin

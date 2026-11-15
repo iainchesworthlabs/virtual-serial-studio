@@ -8,12 +8,17 @@
 
 #include "platform.hpp"
 
+#include <arpa/inet.h>
 #include <dirent.h>
 #include <fcntl.h>
+#include <netinet/in.h>
 #include <signal.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <cstring>
 
 #include <algorithm>
 #include <cerrno>
@@ -160,6 +165,28 @@ void crash()
 long long process_id()
 {
     return static_cast<long long>(::getpid());
+}
+
+bool connect_loopback(unsigned short port)
+{
+    const int descriptor = ::socket(AF_INET, SOCK_STREAM, 0);
+    if (descriptor < 0)
+        return false;
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_port = htons(port);
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    sockaddr generic{};
+    std::memcpy(&generic, &address, sizeof(generic));
+    const bool connected =
+        ::connect(descriptor, &generic, sizeof(generic)) == 0;
+    ::close(descriptor);
+    return connected;
+}
+
+bool can_open_process(long long pid)
+{
+    return ::kill(static_cast<pid_t>(pid), 0) == 0;
 }
 
 } // namespace test_plugin

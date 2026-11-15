@@ -263,13 +263,13 @@ with_container_variables(const process_request& request)
     for (const std::string_view name :
          {"LOCALAPPDATA", "APPDATA", "USERPROFILE", "TEMP", "TMP"})
     {
-        const bool present =
-            std::ranges::any_of(environment, [name](const auto& entry)
-                                {
-                                    return ::_stricmp(entry.first.c_str(),
-                                                      std::string(name)
-                                                          .c_str()) == 0;
-                                });
+        const bool present = std::ranges::any_of(
+            environment,
+            [name](const auto& entry)
+            {
+                return ::_stricmp(entry.first.c_str(),
+                                  std::string(name).c_str()) == 0;
+            });
         if (!present)
             environment.emplace_back(std::string(name), data);
     }
@@ -811,9 +811,8 @@ start_process(const process_request& request)
     if (command_line.size() > 32766)
         return make_error_code(plugin_errc::start_failed);
 
-    auto environment =
-        environment_block(with_container_variables(request),
-                          channel->plugin.get());
+    auto environment = environment_block(with_container_variables(request),
+                                         channel->plugin.get());
     if (!environment)
         return make_error_code(plugin_errc::start_failed);
 

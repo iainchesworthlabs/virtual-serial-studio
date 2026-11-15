@@ -17,6 +17,10 @@
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/policy.hpp>
 
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/address_v4.hpp>
+#include <boost/asio/ip/tcp.hpp>
+
 #include "native_io.hpp"
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
@@ -866,7 +870,7 @@ TEST_CASE("plugin process: a start reports what confines the plugin")
     // With one, a start applies what this computer says it can.
     plugin_process confined =
         start_process(confined_request(scratch, {"--exit=0"}));
-    REQUIRE_EQ(confined.sandbox().failure.message(), std::string("x"));
+    REQUIRE(!confined.sandbox().failure);
     const sandbox_report can = available_sandbox();
     for (const sandbox_part part : all_sandbox_parts)
         REQUIRE_EQ(confined.sandbox().has(part), can.has(part));
@@ -1010,4 +1014,46 @@ TEST_CASE("plugin process: a start that cannot reach the level asked for "
     REQUIRE(started.error() ==
             make_error_code(vss::plugin::plugin_errc::sandbox_insufficient));
     REQUIRE(!std::filesystem::exists(scratch.path() / "data" / "ran.txt"));
+}
+
+TEST_CASE("plugin process: a confined plugin has no network and no other "
+          "process")
+{
+    // Something on this computer that listens, and this process itself.
+    boost::asio::io_context context;
+    boost::asio::ip::tcp::acceptor listener(
+        context, boost::asio::ip::tcp::endpoint(
+                     boost::asio::ip::address_v4::loopback(), 0));
+    const std::string connect =
+        "--connect=" + std::to_string(listener.local_endpoint().port());
+    const std::string open =
+        "--open-process=" + std::to_string(io::own_process_id());
+
+    // Without a profile the plugin reaches both, which shows that the
+    // test asks for something real.
+    {
+        const scratch_directory scratch;
+        plugin_process process =
+            start_process(request_for(scratch, {connect, open}));
+        const std::vector<std::string> lines =
+            lines_of(io::read_to_end(process.output(), long_limit));
+        REQUIRE(has_line(lines, "connected"));
+        REQUIRE(has_line(lines, "process-opened"));
+        static_cast<void>(wait_for_end(process));
+    }
+
+    const sandbox_report can = available_sandbox();
+    if (!can.has(sandbox_part::network) ||
+        !can.has(sandbox_part::other_processes))
+        VSS_SKIP("this system does not close the network to a plugin yet");
+    const scratch_directory scratch;
+    plugin_process process =
+        start_process(confined_request(scratch, {connect, open}));
+    REQUIRE(process.sandbox().has(sandbox_part::network));
+    REQUIRE(process.sandbox().has(sandbox_part::other_processes));
+    const std::vector<std::string> lines =
+        lines_of(io::read_to_end(process.output(), long_limit));
+    REQUIRE(has_line(lines, "connect-failed"));
+    REQUIRE(has_line(lines, "process-refused"));
+    static_cast<void>(wait_for_end(process));
 }
