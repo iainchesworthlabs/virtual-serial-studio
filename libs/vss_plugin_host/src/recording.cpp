@@ -1780,9 +1780,10 @@ struct place_reader::state
         const auto read = read_line();
         if (!read)
             return read.error();
-        if (!read->has_value())
+        const std::optional<std::string_view>& found_line = *read;
+        if (!found_line.has_value())
             return finish_file();
-        const std::string_view text = **read;
+        const std::string_view text = *found_line;
         if (text.empty())
             return fail_line(recording_errc::place_invalid, "is blank");
         if (text.find('\r') != std::string_view::npos)
@@ -1967,9 +1968,10 @@ result<recording> read_recording(const fs::path& folder, std::string* detail)
             if (!next)
                 return refuse(static_cast<recording_errc>(next.error().value()),
                               std::string(walker->detail()));
-            if (!next->has_value())
+            const std::optional<recording_event>& item = *next;
+            if (!item.has_value())
                 break;
-            const recording_event& event = **next;
+            const recording_event& event = *item;
             if (event.kind != recording_event_kind::dropped)
                 continue;
             if (lost > recording_max_number - event.lost)

@@ -102,7 +102,7 @@ struct feed_options
     /// Credit given back is held until at least this many bytes are owed, or
     /// until the plugin would otherwise be left without credit or the queue
     /// is empty.  So a slow trickle is not a message per write.
-    std::uint64_t grant_threshold = 16 * 1024;
+    std::uint64_t grant_threshold = std::uint64_t{16} * 1024;
     /// How many refused batches end the feed as `misbehaving`.  The first
     /// is answered `busy` by the owner and the next ones are counted.
     std::uint32_t refusals_to_end = 3;

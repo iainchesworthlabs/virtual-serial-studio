@@ -453,16 +453,16 @@ private:
         // A recording that reached a limit is finished when it is asked
         // about, so that the plugin learns its size.
         // So is one whose time is up while nothing happens at its places.
-        if (!current_->over && current_->limit_seconds != 0 &&
-            nanoseconds_between(current_->started, clock_type::now()) /
+        recording_run& run = *current_;
+        if (!run.over && run.limit_seconds != 0 &&
+            nanoseconds_between(run.started, clock_type::now()) /
                     1'000'000'000ULL >=
-                current_->limit_seconds)
+                run.limit_seconds)
         {
-            current_->over = true;
+            run.over = true;
         }
-        if (current_->over)
+        if (run.over)
             end_recording();
-        const recording_run& run = *current_;
         capture_result_message answer_body;
         answer_body.running = running();
         answer_body.ring = run.ring;

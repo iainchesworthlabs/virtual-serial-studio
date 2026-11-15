@@ -371,9 +371,10 @@ private:
                     fail(next.error());
                     return;
                 }
-                if (!*next)
+                auto& arrived = *next;
+                if (!arrived.has_value())
                     break;
-                held_ = std::move(**next);
+                held_.emplace(std::move(*arrived));
             }
             const std::shared_ptr<callbacks> handlers = callbacks_;
             const bool taken =
