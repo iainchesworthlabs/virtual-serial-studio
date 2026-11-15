@@ -346,8 +346,10 @@ plugin_view base(const QString& id, const QString& name, plugin_state state,
     view.fingerprint = view.hash.left(16);
     view.folder = QStringLiteral("C:/Users/you/Studio/plugins/") + name;
     view.isolation = plugin_isolation::none;
-    view.adds.push_back(
-        {plugin_addition_kind::fixture, name + QStringLiteral(" device")});
+    view.adds.push_back({plugin_addition_kind::fixture,
+                         name + QStringLiteral(" device"),
+                         {},
+                         {}});
     view.permissions.push_back(permission(QStringLiteral("ports.read"), true));
     switch (trust)
     {
@@ -424,8 +426,10 @@ std::vector<plugin_view> fake_plugin_samples()
                                          {QStringLiteral("127.0.0.1:5020")}));
     off.permissions.push_back(permission(QStringLiteral("net.outbound"), false,
                                          {}, {QStringLiteral("example.org")}));
-    off.adds.push_back(
-        {plugin_addition_kind::link_behaviour, QStringLiteral("Noisy line")});
+    off.adds.push_back({plugin_addition_kind::link_behaviour,
+                        QStringLiteral("Noisy line"),
+                        {},
+                        {}});
     list.push_back(off);
 
     plugin_view decision = base(

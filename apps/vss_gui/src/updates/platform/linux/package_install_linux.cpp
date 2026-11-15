@@ -94,14 +94,10 @@ void install_package(vss::update::file_kind kind, const QString& path,
                      const vss::update::sha512_digest& sha512, QObject* context,
                      std::function<void(package_install_result)> done)
 {
-    const auto report =
-        std::make_shared<std::function<void(package_install_result)>>(
-            std::move(done));
     if (!package_install_available(kind))
     {
         QMetaObject::invokeMethod(
-            context,
-            [report] { (*report)(package_install_result::not_available); },
+            context, [done] { done(package_install_result::not_available); },
             Qt::QueuedConnection);
         return;
     }
@@ -115,26 +111,26 @@ void install_package(vss::update::file_kind kind, const QString& path,
     QObject::connect(process, &QProcess::finished, process,
                      &QObject::deleteLater);
     QObject::connect(process, &QProcess::finished, context,
-                     [report, settled](int code, QProcess::ExitStatus status)
+                     [done, settled](int code, QProcess::ExitStatus status)
                      {
                          if (std::exchange(*settled, true))
                              return;
                          if (status == QProcess::NormalExit && code == 0)
-                             (*report)(package_install_result::done);
+                             done(package_install_result::done);
                          else if (status == QProcess::NormalExit &&
                                   code == kPkexecDismissed)
-                             (*report)(package_install_result::declined);
+                             done(package_install_result::declined);
                          else
-                             (*report)(package_install_result::failed);
+                             done(package_install_result::failed);
                      });
     QObject::connect(process, &QProcess::errorOccurred, context,
-                     [report, settled, process](QProcess::ProcessError error)
+                     [done, settled, process](QProcess::ProcessError error)
                      {
                          if (error != QProcess::FailedToStart ||
                              std::exchange(*settled, true))
                              return;
                          process->deleteLater();
-                         (*report)(package_install_result::failed);
+                         done(package_install_result::failed);
                      });
     process->start(
         QString::fromLatin1(kPkexec),

@@ -559,7 +559,8 @@ TEST_CASE("plugin runner: its status, a log message and its error output are "
     // What the plugin wrote is in one kind of line only.
     REQUIRE(find_line(*snapshot, true, "a-log-line") == nullptr);
     REQUIRE(find_line(*snapshot, false, "a-line-of-error") == nullptr);
-    REQUIRE(snapshot->log.size() <= runner_options{}.kept_log_lines);
+    const runner_options defaults;
+    REQUIRE(snapshot->log.size() <= defaults.kept_log_lines);
 }
 
 // -- plugins that fail --------------------------------------------------------

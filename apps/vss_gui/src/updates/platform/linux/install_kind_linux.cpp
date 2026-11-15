@@ -42,22 +42,20 @@ public:
     void detect(std::function<void(vss::update::file_kind)> done) override
     {
         using vss::update::file_kind;
-        const auto answer =
-            std::make_shared<std::function<void(file_kind)>>(std::move(done));
         ask(QStringLiteral("dpkg-query"), {QStringLiteral("-S"), program_file_},
-            [this, answer](bool owned)
+            [this, done = std::move(done)](bool owned)
             {
                 if (owned)
                 {
-                    (*answer)(file_kind::linux_deb);
+                    done(file_kind::linux_deb);
                     return;
                 }
                 ask(QStringLiteral("rpm"),
                     {QStringLiteral("-qf"), program_file_},
-                    [answer](bool owned_by_rpm)
+                    [done](bool owned_by_rpm)
                     {
-                        (*answer)(owned_by_rpm ? file_kind::linux_rpm
-                                               : file_kind::linux_archive);
+                        done(owned_by_rpm ? file_kind::linux_rpm
+                                          : file_kind::linux_archive);
                     });
             });
     }

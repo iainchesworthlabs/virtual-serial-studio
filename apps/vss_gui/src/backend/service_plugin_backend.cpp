@@ -49,12 +49,6 @@ QString path_text(const fs::path& path)
                              static_cast<qsizetype>(text.size()));
 }
 
-std::string text_of(const fs::path& path)
-{
-    const std::u8string text = path.generic_u8string();
-    return std::string(text.begin(), text.end());
-}
-
 std::chrono::year_month_day today_date()
 {
     return std::chrono::year_month_day(std::chrono::floor<std::chrono::days>(
