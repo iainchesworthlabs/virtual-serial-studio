@@ -121,7 +121,9 @@ Run `vss_cli --help` for the full list.
 The installers and packages carry `vss_gui` and `vss_cli` only. `vss_agent`,
 `vss_gate` and `adapters/python`, which the last lines above use, are built from
 source (see [docs/building.md](docs/building.md)). The ports they make are
-in-process loopback ports.
+in-process loopback ports. The control endpoint on the same computer, the
+Python client and the JUnit report of a run are in the Community edition and
+need no licence.
 
 ### From Python
 
