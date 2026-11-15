@@ -1,7 +1,8 @@
 # Online updates (design)
 
 Status: **proposal**, written on 15 November 2026. The owner decided the four main points the same day; section 13
-records them and lists what is still open. Nothing here is built yet. Section 12 is the order of work.
+records them and lists what is still open. Part of it is built, with no window and no request: see
+[What is built](#what-is-built). Section 12 is the order of work.
 
 Studio learns that a newer version of itself, or of an official plugin, has been published, tells the user, and
 on a yes downloads it, checks it and starts the install. This page is the design: what the user sees, the file
@@ -11,6 +12,19 @@ changes in the rest of the project.
 It builds on [Licensing](licensing.md) (the signed-file envelope and the Ed25519 code), on
 [The plugin framework](plugins.md) (discovery, the official signature, the kinds of install) and on
 [Releasing](releasing.md) (the packages and the publish job), and does not repeat them.
+
+## What is built
+
+**This build does not check for updates and makes no request.** Two parts exist, with tests:
+
+| Part | Where | Used by |
+|---|---|---|
+| Semantic versions, the reader and verifier of the signed feed, and the choice of what to offer | `libs/vss_update` | Its unit tests and a fuzz target. Nothing in Studio calls it yet |
+| The tool that builds, signs and verifies a feed | `tools/update_feed.py` | Its tests. No workflow runs it yet |
+
+The list of feed keys built into the program is empty, so the reader refuses every feed with "no update keys"
+until the owner adds the public halves (section 5). Everything else on this page (the request, the timer, the
+screens, the download, the install step, the publishing job, the copy on the website) is not built.
 
 ## 1. Scope
 
@@ -225,11 +239,12 @@ a second signed file; that is not designed now.
 | `feed_version` | 1. Any other value is refused |
 | `serial` | A whole number from 1, higher in every feed that is published. Studio keeps the highest it has accepted and refuses a lower one, so an old feed cannot be put back |
 | `issued_at` | UTC. Checked against the signing key's window (`check_key_window`) |
-| `studio` | At most one entry for each channel: `stable` (the newest final release) and `preview` (the newest pre-release, present only while it is newer than the newest final release) |
+| `studio` | At most one entry for each channel: `stable` (the newest final release) and `preview` (the newest pre-release). The tool leaves the preview entry out when it is not newer than the stable one; the reader does not insist on that, because the choice in section 4.4 takes the greater of the two anyway |
 | `version` | Semantic versioning 2.0.0 without build metadata: `0.2.0`, `0.3.0-rc.1`. The same form as `build_info::version` |
-| `released` | A date. For a plugin it is the date the licence's version window is compared with (section 8) |
-| `summary` | Plain text. Shown as text, never as HTML or rich text |
-| `notes_url`, `url` | `https` only, at most 2048 characters, no user name or password in it |
+| `released` | A date, `YYYY-MM-DD`, from the year 1. For a plugin it is the date the licence's version window is compared with (section 8) |
+| `summary` | Plain text, at most 2000 bytes of UTF-8, with no control character but a new line. Shown as text, never as HTML or rich text. May be left out |
+| `notes_url`, `url` | `https` only, with a host, at most 2048 printable ASCII characters, no user name or password in it and no backslash |
+| `name` | The file's name, which Studio saves the download under: 1 to 255 letters, digits and `._+~-`, not starting or ending with a dot, and not a device name of Windows (`CON`, `NUL`, `COM1` and the like, whatever follows the first dot). Nothing that can be a path on any system |
 | `kind` | `windows-installer`, `windows-zip`, `macos-dmg`, `macos-archive`, `linux-deb`, `linux-rpm`, `linux-archive` |
 | `os` (plugins) | `windows`, `macos`, `linux` |
 | `arch` | `x86_64` or `arm64` |
@@ -456,7 +471,9 @@ own fake transport and a fake clock, and every state of section 3 can be shown f
 
 1. The release workflow's `publish` job publishes the release as it does today.
 2. A new `feed` job runs after it, in the `release` environment. It lists the newest final release and the newest
-   pre-release, reads each one's `SHA512SUMS` and file list, writes the payload with the next `serial`, signs it
+   pre-release, reads each one's `SHA512SUMS` and file list (`tools/update_feed.py payload`; GitHub changes a
+   tilde in a file name to a dot when a file is uploaded, so the tool finds the checksum of the pre-release deb
+   under the name it was built with), writes the payload with the next `serial`, signs it
    with `UPDATE_FEED_PRIVATE_KEY` and uploads `update-feed.json` to the new release. The `serial` is the number of
    releases published so far, read from the releases list, so it rises with every release and needs no stored
    state. A feed that has to be published again between releases (a summary corrected, a file withdrawn) is made by
