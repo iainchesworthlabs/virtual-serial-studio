@@ -221,9 +221,11 @@ decoder_frame_message sample_frame()
     return body;
 }
 
-const std::string frame_head =
-    R"({"op":"decoder.frame","instance":3,"place":"p","direction":"rx",)"
-    R"("offset":0,"length":10,"t_start_ns":1,"t_end_ns":2,"message":"m")";
+std::string frame_head()
+{
+    return R"({"op":"decoder.frame","instance":3,"place":"p","direction":"rx",)"
+           R"("offset":0,"length":10,"t_start_ns":1,"t_end_ns":2,"message":"m")";
+}
 
 } // namespace
 
@@ -968,7 +970,7 @@ TEST_CASE("plugin api: decoder.frame is written and read")
 
 TEST_CASE("plugin api: decoder.frame has defaults for what it leaves out")
 {
-    const auto read = accepted<decoder_frame_message>(frame_head + "}");
+    const auto read = accepted<decoder_frame_message>(frame_head() + "}");
     REQUIRE(read.summary.empty());
     REQUIRE(read.fields.empty());
     decoder_frame_message body = read;
@@ -982,7 +984,7 @@ TEST_CASE("plugin api: decoder.frame is refused when it is wrong")
     using message_type = decoder_frame_message;
     const auto bad = [](std::string_view from, std::string_view to)
     {
-        std::string text = frame_head;
+        std::string text = frame_head();
         const std::size_t at = text.find(from);
         REQUIRE(at != std::string::npos);
         text.replace(at, from.size(), to);
@@ -1040,7 +1042,7 @@ TEST_CASE("plugin api: decoder.frame is refused when it is wrong")
     require_refused<message_type>(
         bad(R"("message":"m")", R"("message":"m","fields":[1])"),
         "decoder.frame.fields[0]: must be an object");
-    require_refused<message_type>(frame_head + "}", "has no bytes", {1});
+    require_refused<message_type>(frame_head() + "}", "has no bytes", {1});
     require_refused<message_type>(
         bad(R"({"op":"decoder.frame",)", R"({"op":"decoder.frame","id":1,)"),
         "neither an id nor a re");
@@ -1050,7 +1052,7 @@ TEST_CASE("plugin api: decoder.frame has the limits of its members")
 {
     using message_type = decoder_frame_message;
     const auto with = [](std::string_view more)
-    { return frame_head + "," + std::string(more) + "}"; };
+    { return frame_head() + "," + std::string(more) + "}"; };
     const std::string text_edge = repeated('s', max_api_text);
     REQUIRE_EQ(accepted<message_type>(with("\"summary\":\"" + text_edge + "\""))
                    .summary.size(),
@@ -1076,11 +1078,11 @@ TEST_CASE("plugin api: decoder.frame has the limits of its members")
         R"(,"fields":[{"name":"f","offset":0,"length":10,"value":"v"})";
     const auto fields = [&](std::string_view more)
     {
-        return frame_head + std::string(field_head) + "," + std::string(more) +
-               "]}";
+        return frame_head() + std::string(field_head) + "," +
+               std::string(more) + "]}";
     };
     REQUIRE_EQ(
-        accepted<message_type>(frame_head + field_head + "]}").fields.size(),
+        accepted<message_type>(frame_head() + field_head + "]}").fields.size(),
         std::size_t{1});
     require_refused<message_type>(
         fields(R"({"name":"g","offset":0,"length":11,"value":""})"),
@@ -1144,11 +1146,11 @@ TEST_CASE("plugin api: decoder.frame has the limits of its members")
         many += R"({"name":"f","offset":0,"length":1,"value":""})";
     }
     REQUIRE_EQ(
-        accepted<message_type>(frame_head + R"(,"fields":[)" + many + "]}")
+        accepted<message_type>(frame_head() + R"(,"fields":[)" + many + "]}")
             .fields.size(),
         max_decoder_fields);
     require_refused<message_type>(
-        frame_head + R"(,"fields":[)" + many +
+        frame_head() + R"(,"fields":[)" + many +
             R"(,{"name":"f","offset":0,"length":1,"value":""}]})",
         "decoder.frame.fields: has more than 64 entries");
 
@@ -1297,7 +1299,7 @@ TEST_CASE("plugin api: a decoder.frame field may have no bytes")
     body.fields[0] = decoder_field{"over", 1, max_decoder_chunk, "v"};
     require_not_written(body);
     require_refused<message_type>(
-        frame_head + R"(,"fields":[{"name":"f","offset":0,"length":)" +
+        frame_head() + R"(,"fields":[{"name":"f","offset":0,"length":)" +
             number_text(max_decoder_chunk + 1) + R"(,"value":"v"}]})",
         "decoder.frame.fields[0].length: must be a whole number from 0 to "
         "65536");

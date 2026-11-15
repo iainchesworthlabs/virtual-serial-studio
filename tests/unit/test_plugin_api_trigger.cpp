@@ -69,9 +69,11 @@ trigger_publish_message sample_trigger()
     return body;
 }
 
-const std::string trigger_head =
-    R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":5,)"
-    R"("place":"p","direction":"rx","text":"t")";
+std::string trigger_head()
+{
+    return R"({"op":"trigger.publish","instance":3,"kind":"check","when_ns":5,)"
+           R"("place":"p","direction":"rx","text":"t")";
+}
 
 } // namespace
 
@@ -103,7 +105,7 @@ TEST_CASE("plugin api: trigger.publish is written and read")
 TEST_CASE("plugin api: trigger.publish needs only what every trigger has")
 {
     using message_type = trigger_publish_message;
-    const auto read = accepted<message_type>(trigger_head + "}");
+    const auto read = accepted<message_type>(trigger_head() + "}");
     REQUIRE(read.kind == trigger_kind::check);
     REQUIRE(read.sender.empty());
     REQUIRE(read.code.empty());
@@ -220,17 +222,17 @@ TEST_CASE("plugin api: the host stamps a trigger, and the plugin does not")
     using message_type = trigger_publish_message;
     // `from` and the time are not members: they are passed over.
     const auto read = accepted<message_type>(
-        trigger_head +
+        trigger_head() +
         R"(,"from":{"plugin":"x","instance":9},"published_ns":4})");
-    REQUIRE(read == accepted<message_type>(trigger_head + "}"));
+    REQUIRE(read == accepted<message_type>(trigger_head() + "}"));
     // `id` is the id of the frame, and a notification has none.
     require_refused<message_type>(
         R"({"op":"trigger.publish","id":4127,"instance":3,"kind":"check",)"
         R"("when_ns":5,"place":"p","direction":"rx","text":"t"})",
         "neither an id nor a re");
     // A trigger has no bytes.
-    require_refused<message_type>(trigger_head + "}", "has no bytes", {1});
-    require_refused<message_type>(trigger_head + "}", "has no bytes",
+    require_refused<message_type>(trigger_head() + "}", "has no bytes", {1});
+    require_refused<message_type>(trigger_head() + "}", "has no bytes",
                                   bytes_of(4096));
 }
 
@@ -239,7 +241,7 @@ TEST_CASE("plugin api: trigger.publish needs its members")
     using message_type = trigger_publish_message;
     const auto without = [](std::string_view member)
     {
-        std::string text = trigger_head + "}";
+        std::string text = trigger_head() + "}";
         const std::size_t at = text.find(member);
         REQUIRE(at != std::string::npos);
         text.erase(at, member.size());
@@ -351,7 +353,9 @@ TEST_CASE("plugin api: the protocol of a trigger is checked")
 {
     using message_type = trigger_publish_message;
     const auto with = [](std::string_view protocol)
-    { return trigger_head + R"(,"protocol":)" + std::string(protocol) + "}"; };
+    {
+        return trigger_head() + R"(,"protocol":)" + std::string(protocol) + "}";
+    };
     (void)accepted<message_type>(with(R"({"id":"a","version":"1"})"));
     require_refused<message_type>(with("[]"),
                                   "trigger.publish.protocol: must be an "
@@ -397,7 +401,7 @@ TEST_CASE("plugin api: the frame of a trigger is checked")
 {
     using message_type = trigger_publish_message;
     const auto with = [](std::string_view frame)
-    { return trigger_head + R"(,"frame":)" + std::string(frame) + "}"; };
+    { return trigger_head() + R"(,"frame":)" + std::string(frame) + "}"; };
     const std::string good =
         R"({"offset":0,"length":10,"t_start_ns":1,"t_end_ns":2,"message":"m"})";
     (void)accepted<message_type>(with(good));
@@ -474,9 +478,12 @@ TEST_CASE("plugin api: the field and the request of a trigger are checked")
         R"(,"frame":{"offset":0,"length":65536,"t_start_ns":1,"t_end_ns":2,)"
         R"("message":"m"})";
     const auto field = [&frame](std::string_view text)
-    { return trigger_head + frame + R"(,"field":)" + std::string(text) + "}"; };
+    {
+        return trigger_head() + frame + R"(,"field":)" + std::string(text) +
+               "}";
+    };
     const auto request = [](std::string_view text)
-    { return trigger_head + R"(,"request":)" + std::string(text) + "}"; };
+    { return trigger_head() + R"(,"request":)" + std::string(text) + "}"; };
     (void)accepted<message_type>(
         field(R"({"name":"check","offset":7,"length":2})"));
     require_refused<message_type>(field("[]"),
@@ -495,8 +502,8 @@ TEST_CASE("plugin api: the field and the request of a trigger are checked")
     require_refused<message_type>(field(R"({"name":"c","offset":7})"),
                                   "trigger.publish.field.length: is required");
     // A field of no bytes is a field that is not there.
-    const auto empty = accepted<message_type>(
-        field(R"({"name":"c","offset":7,"length":0})"));
+    const auto empty =
+        accepted<message_type>(field(R"({"name":"c","offset":7,"length":0})"));
     REQUIRE(empty.field.has_value());
     REQUIRE_EQ(empty.field->length, std::uint64_t{0});
     require_refused<message_type>(
@@ -555,7 +562,7 @@ TEST_CASE("plugin api: the check value of a trigger comes in a pair")
 {
     using message_type = trigger_publish_message;
     const auto with = [](std::string_view more)
-    { return trigger_head + "," + std::string(more) + "}"; };
+    { return trigger_head() + "," + std::string(more) + "}"; };
     (void)accepted<message_type>(with(R"("expected":"3A91","actual":"3A90")"));
     REQUIRE_EQ(
         accepted<message_type>(with(R"("expected":"3A91","actual":"3A90")"))
@@ -611,7 +618,7 @@ TEST_CASE("plugin api: the range that a check value covers is a pair")
         R"("message":"m"})";
     const auto with = [&frame](std::string_view covers)
     {
-        return trigger_head + frame + R"(,"covers":)" + std::string(covers) +
+        return trigger_head() + frame + R"(,"covers":)" + std::string(covers) +
                "}";
     };
     REQUIRE(accepted<message_type>(with("[1,6]")).covers ==
@@ -661,7 +668,7 @@ TEST_CASE("plugin api: a field and a covered range lie inside the frame")
         R"(,"frame":{"offset":40,"length":10,"t_start_ns":1,"t_end_ns":2,)"
         R"("message":"m"})";
     const auto with = [&frame](std::string_view more)
-    { return trigger_head + frame + std::string(more) + "}"; };
+    { return trigger_head() + frame + std::string(more) + "}"; };
     // Offsets of a field count from the start of the frame, not of the place.
     (void)accepted<message_type>(
         with(R"(,"field":{"name":"c","offset":8,"length":2})"));
@@ -679,10 +686,10 @@ TEST_CASE("plugin api: a field and a covered range lie inside the frame")
         "trigger.publish.covers: does not lie within the frame");
     // Neither has anything to lie in without a frame.
     require_refused<message_type>(
-        trigger_head + R"(,"field":{"name":"c","offset":0,"length":1}})",
+        trigger_head() + R"(,"field":{"name":"c","offset":0,"length":1}})",
         "trigger.publish.field: needs a frame to lie in");
     require_refused<message_type>(
-        trigger_head + R"(,"covers":[0,1]})",
+        trigger_head() + R"(,"covers":[0,1]})",
         "trigger.publish.covers: needs a frame to lie in");
 
     trigger_publish_message body = sample_trigger();
@@ -702,7 +709,7 @@ TEST_CASE("plugin api: the cause of a trigger is one of two")
 {
     using message_type = trigger_publish_message;
     const auto with = [](std::string_view cause)
-    { return trigger_head + R"(,"cause":)" + std::string(cause) + "}"; };
+    { return trigger_head() + R"(,"cause":)" + std::string(cause) + "}"; };
     REQUIRE(accepted<message_type>(with(R"({"fault":"overlap","event":9912})"))
                 .cause ==
             std::optional<trigger_cause>(trigger_cause{

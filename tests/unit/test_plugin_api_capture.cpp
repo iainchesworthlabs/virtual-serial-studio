@@ -66,8 +66,10 @@ std::string file_list(std::size_t count)
     return out;
 }
 
-const std::string start_head =
-    R"({"op":"capture.start","id":1,"places":["a"],)";
+std::string start_head()
+{
+    return R"({"op":"capture.start","id":1,"places":["a"],)";
+}
 
 capture_start_message plain_start()
 {
@@ -170,19 +172,19 @@ TEST_CASE("plugin api: capture.start is refused when it is wrong")
     require_refused<message_type>(head + R"(["a","b","a"]})",
                                   "capture.start.places: names a place twice");
     require_refused<message_type>(
-        start_head + R"("limit_bytes":"9"})",
+        start_head() + R"("limit_bytes":"9"})",
         "capture.start.limit_bytes: must be a whole number");
     require_refused<message_type>(
-        start_head + R"("limit_bytes":1.5})",
+        start_head() + R"("limit_bytes":1.5})",
         "capture.start.limit_bytes: must be a whole number");
     require_refused<message_type>(
-        start_head + R"("limit_seconds":null})",
+        start_head() + R"("limit_seconds":null})",
         "capture.start.limit_seconds: must be a whole number");
-    require_refused<message_type>(start_head + R"("ring":-1})",
+    require_refused<message_type>(start_head() + R"("ring":-1})",
                                   "capture.start.ring: must be a whole number");
-    require_refused<message_type>(start_head + R"("ring":true})",
+    require_refused<message_type>(start_head() + R"("ring":true})",
                                   "capture.start.ring: must be a whole number");
-    require_refused<message_type>(start_head + R"("ring":0})", "has no bytes",
+    require_refused<message_type>(start_head() + R"("ring":0})", "has no bytes",
                                   {1});
     require_refused<message_type>(
         R"({"op":"capture.start","re":1,"places":["a"]})", "must have an id");
@@ -193,37 +195,37 @@ TEST_CASE("plugin api: capture.start is refused when it is wrong")
 TEST_CASE("plugin api: capture.start has the limits of its members")
 {
     using message_type = capture_start_message;
+    REQUIRE_EQ(accepted<message_type>(start_head() + R"("limit_bytes":1})")
+                   .limit_bytes,
+               std::uint64_t{1});
     REQUIRE_EQ(
-        accepted<message_type>(start_head + R"("limit_bytes":1})").limit_bytes,
-        std::uint64_t{1});
-    REQUIRE_EQ(
-        accepted<message_type>(start_head + R"("limit_bytes":268435456})")
+        accepted<message_type>(start_head() + R"("limit_bytes":268435456})")
             .limit_bytes,
         max_capture_bytes);
     require_refused<message_type>(
-        start_head + R"("limit_bytes":268435457})",
+        start_head() + R"("limit_bytes":268435457})",
         "capture.start.limit_bytes: must be a whole number "
         "from 1 to 268435456");
     require_refused<message_type>(
-        start_head + R"("limit_bytes":0})",
+        start_head() + R"("limit_bytes":0})",
         "capture.start.limit_bytes: must be a whole number");
-    REQUIRE_EQ(accepted<message_type>(start_head + R"("limit_seconds":1})")
+    REQUIRE_EQ(accepted<message_type>(start_head() + R"("limit_seconds":1})")
                    .limit_seconds,
                std::uint64_t{1});
-    REQUIRE_EQ(accepted<message_type>(start_head + R"("limit_seconds":3600})")
+    REQUIRE_EQ(accepted<message_type>(start_head() + R"("limit_seconds":3600})")
                    .limit_seconds,
                max_capture_seconds);
     require_refused<message_type>(
-        start_head + R"("limit_seconds":3601})",
+        start_head() + R"("limit_seconds":3601})",
         "capture.start.limit_seconds: must be a whole number "
         "from 1 to 3600");
     require_refused<message_type>(
-        start_head + R"("limit_seconds":0})",
+        start_head() + R"("limit_seconds":0})",
         "capture.start.limit_seconds: must be a whole number");
-    REQUIRE_EQ(accepted<message_type>(start_head + R"("ring":60})").ring,
+    REQUIRE_EQ(accepted<message_type>(start_head() + R"("ring":60})").ring,
                max_capture_ring_minutes);
     require_refused<message_type>(
-        start_head + R"("ring":61})",
+        start_head() + R"("ring":61})",
         "capture.start.ring: must be a whole number from 0 "
         "to 60");
 
@@ -291,21 +293,22 @@ TEST_CASE("plugin api: a snapshot is accepted only with a ring")
     const std::string snapshot =
         R"("snapshot_on":{"kinds":["check"],"places":[]})";
     const std::string only = "is accepted only when ring is not 0";
-    require_refused<message_type>(start_head + snapshot + "}",
+    require_refused<message_type>(start_head() + snapshot + "}",
                                   "capture.start.snapshot_on: " + only);
-    require_refused<message_type>(start_head + R"("ring":0,)" + snapshot + "}",
+    require_refused<message_type>(start_head() + R"("ring":0,)" + snapshot +
+                                      "}",
                                   "capture.start.snapshot_on: " + only);
-    require_refused<message_type>(start_head + R"("before_s":1})",
+    require_refused<message_type>(start_head() + R"("before_s":1})",
                                   "capture.start.before_s: " + only);
-    require_refused<message_type>(start_head + R"("before_s":0})",
+    require_refused<message_type>(start_head() + R"("before_s":0})",
                                   "capture.start.before_s: " + only);
-    require_refused<message_type>(start_head + R"("after_s":1})",
+    require_refused<message_type>(start_head() + R"("after_s":1})",
                                   "capture.start.after_s: " + only);
-    require_refused<message_type>(start_head + R"("ring":0,"after_s":0})",
+    require_refused<message_type>(start_head() + R"("ring":0,"after_s":0})",
                                   "capture.start.after_s: " + only);
 
     const auto read =
-        accepted<message_type>(start_head + R"("ring":1,)" + snapshot +
+        accepted<message_type>(start_head() + R"("ring":1,)" + snapshot +
                                R"(,"before_s":2,"after_s":3})");
     REQUIRE(read.snapshot_on.has_value());
     REQUIRE_EQ(read.before_s, std::uint64_t{2});
@@ -333,7 +336,7 @@ TEST_CASE("plugin api: a snapshot is accepted only with a ring")
 TEST_CASE("plugin api: the snapshot of capture.start has its limits")
 {
     using message_type = capture_start_message;
-    const std::string head = start_head + R"("ring":3,)";
+    const std::string head = start_head() + R"("ring":3,)";
     const auto kinds = [&head](std::string_view list)
     { return head + R"("snapshot_on":{"kinds":)" + std::string(list) + "}}"; };
     // Every kind of section 20.7 is accepted.
@@ -1213,7 +1216,7 @@ TEST_CASE("plugin api: capture.start names its recording")
     body.name = "run-7";
     const auto read = round_trip(body, 1);
     REQUIRE_EQ(read.name, std::string("run-7"));
-    REQUIRE_EQ(accepted<message_type>(start_head + R"("name":"x"})").name,
+    REQUIRE_EQ(accepted<message_type>(start_head() + R"("name":"x"})").name,
                std::string("x"));
     REQUIRE_EQ(accepted<message_type>(R"({"op":"capture.start","id":1,)"
                                       R"("places":["a"]})")
