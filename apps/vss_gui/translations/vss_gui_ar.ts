@@ -9450,6 +9450,11 @@ Networks: %5</source>
             <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
             <translation>تعذّرت إعادة كل ما كان يعمل، لذلك تم وضع علامة على الإعداد بأنه تغيّر.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>يحتاج الإعداد إلى جهاز أو نقطة نهاية شبكية غير متاحة على هذا الحاسوب. تحقق من الجهاز ثم أعد المحاولة.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

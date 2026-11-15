@@ -424,8 +424,11 @@ studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
 
     const std::string final_name = unique_name(name);
 
-    auto created = vss::create_virtual_port(hub_->executor(), kind, final_name,
-                                            com_number);
+    auto created = options_.make_virtual_port
+                       ? options_.make_virtual_port(hub_->executor(), kind,
+                                                    final_name, com_number)
+                       : vss::create_virtual_port(hub_->executor(), kind,
+                                                  final_name, com_number);
     if (!created)
         return created.error();
 
@@ -1737,6 +1740,19 @@ result<void> studio::replace(const config::document& value)
     VSS_PROFILE_ZONE("studio.replace");
     if (const error_code invalid = config::validate(value))
         return invalid;
+    // Two ports of the driver cannot have one COM number.  Say so at once,
+    // before anything is removed, instead of waiting for a number that cannot
+    // come free.
+    {
+        std::unordered_set<unsigned> numbers;
+        for (const auto& port : value.ports)
+        {
+            if (port.kind == "virtual" &&
+                port.virtual_kind == "windows-driver" && port.com_number != 0 &&
+                !numbers.insert(port.com_number).second)
+                return make_error_code(errc::already_exists);
+        }
+    }
     std::lock_guard change(change_mutex_);
     forget_plugins_of_removed_links();
 
@@ -1840,23 +1856,34 @@ result<void> studio::replace(const config::document& value)
 
     std::vector<link_id> made_links;
     std::vector<endpoint_id> made_ports;
+    // The COM number of each port this call made, by id.
+    std::unordered_map<endpoint_id, unsigned> made_numbers;
     std::vector<const running_port*> taken_away;
     std::vector<config::link_entry> taken_links;
-    // The COM numbers this call freed, and when.  The driver does not hand
-    // one out again at once, so making a port with such a number is tried
-    // again until Windows lets go.
+    // The COM numbers that are not free yet, and since when: the ones this
+    // call removed, and the ones of ports it made and then removed again.
+    // The driver does not hand a number out again at once, so making a port
+    // with such a number is tried again until Windows lets go, for up to the
+    // wait counted from the last removal.  A number that was handed out is
+    // not in the map: a refusal for it is real and ends the call.  When the
+    // wait runs out before the number is free, the put-back gets one try.
     std::map<unsigned, std::chrono::steady_clock::time_point> freed;
 
     const auto make_after_removal = [&](const config::port_entry& entry)
     {
-        const auto since = freed.find(entry.com_number);
-        if (entry.kind != "virtual" || entry.com_number == 0 ||
-            since == freed.end())
-            return make_port(entry);
-        return retry_while_number_busy([&] { return make_port(entry); },
-                                       since->second);
+        const bool numbered = entry.kind == "virtual" && entry.com_number != 0;
+        const auto since =
+            numbered ? freed.find(entry.com_number) : freed.end();
+        auto made =
+            since == freed.end()
+                ? make_port(entry)
+                : retry_while_number_busy(
+                      [&] { return make_port(entry); }, since->second,
+                      options_.com_number_step, options_.com_number_wait);
+        if (made && numbered)
+            freed.erase(entry.com_number);
+        return made;
     };
-
     // Undoes this call as far as it can: what it made goes, and what it
     // removed is made again.  A port that comes back is a new endpoint with
     // the place it had, and a driver port waits for its COM number as above.
@@ -1866,7 +1893,13 @@ result<void> studio::replace(const config::document& value)
         for (const link_id id : made_links)
             static_cast<void>(disconnect(id));
         for (const endpoint_id id : made_ports)
+        {
             static_cast<void>(remove_port(id));
+            // Windows takes the number back again, and takes its time.
+            if (const auto number = made_numbers.find(id);
+                number != made_numbers.end())
+                freed[number->second] = std::chrono::steady_clock::now();
+        }
         for (const auto* port : taken_away)
         {
             const auto again = make_after_removal(port->entry);
@@ -1931,6 +1964,8 @@ result<void> studio::replace(const config::document& value)
             return added.error();
         }
         made_ports.push_back((*added)->id());
+        if (wanted->kind == "virtual" && wanted->com_number != 0)
+            made_numbers.emplace((*added)->id(), wanted->com_number);
         ids.emplace(wanted->name, (*added)->id());
     }
     if (const auto linked = make_links(to_make, ids, made_links); !linked)

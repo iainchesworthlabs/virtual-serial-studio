@@ -127,6 +127,18 @@ struct studio_options
     bool stable_links = false;
     /// Directory for the links.  Empty means `resolve_link_directory`.
     std::string stable_dir;
+    /// Makes the virtual ports of `create_virtual_port`; empty means
+    /// `vss::create_virtual_port`.  It is there so that a test can stand in
+    /// for the Windows driver, which refuses a COM number for a while after
+    /// its port was removed.
+    std::function<result<virtual_port_result>(const transport::executor_type&,
+                                              virtual_port_kind,
+                                              const std::string&, unsigned)>
+        make_virtual_port;
+    /// How long `replace` waits for a COM number it freed, and how often it
+    /// tries (see `retry_while_number_busy`).
+    std::chrono::milliseconds com_number_wait{com_number_removal_wait};
+    std::chrono::milliseconds com_number_step{500};
 };
 
 /// The application service shared by the command line tool and the GUI.

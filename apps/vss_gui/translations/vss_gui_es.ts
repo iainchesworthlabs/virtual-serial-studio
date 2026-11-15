@@ -9426,6 +9426,11 @@ Redes: %5</translation>
             <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
             <translation>No se pudo restaurar todo lo que estaba en ejecución, por lo que la configuración se ha marcado como modificada.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>La configuración necesita un dispositivo o punto final de red que no está disponible en este PC. Compruebe el dispositivo e inténtelo de nuevo.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

@@ -105,6 +105,13 @@ public:
     {
         lose_on_failed_replace_ = name;
     }
+    /// When a `replace` fails because of `fail_next`, the first link is
+    /// removed and made again, as the engine's put-back does: it has a new id
+    /// and comes last.  Nothing else changes.
+    void remake_link_on_failed_replace(bool on = true)
+    {
+        remake_link_on_failed_replace_ = on;
+    }
     /// The fallible call after `calls` more fallible calls returns this
     /// error and consumes it, so a test can fail the second step of an
     /// operation that makes several backend calls.
@@ -324,6 +331,7 @@ private:
     QHash<vss::link_id, line_wiring> wiring_;
     std::chrono::milliseconds create_delay_{0};
     QString lose_on_failed_replace_;
+    bool remake_link_on_failed_replace_ = false;
     /// Guards the ports and links: a job on a worker thread changes them while
     /// the GUI thread reads them.  Recursive, as the mutators call each other.
     mutable std::recursive_mutex mutex_;

@@ -119,6 +119,7 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <functional>
 #include <optional>
@@ -131,6 +132,46 @@ namespace
 {
 
 constexpr const char* kRecentFiles = "ui/recentFiles";
+
+/// Whether two setups are the same: the same name, description and ports in
+/// the same order, and the same links in any order.  The engine writes links
+/// in the order of their ids, and a link that was put back has a new one.
+bool same_setup(const vss::config::document& left,
+                const vss::config::document& right)
+{
+    if (left.name != right.name || left.description != right.description ||
+        left.ports != right.ports || left.links.size() != right.links.size())
+        return false;
+    std::vector<bool> used(right.links.size(), false);
+    for (const auto& link : left.links)
+    {
+        bool found = false;
+        for (std::size_t index = 0; index < right.links.size() && !found;
+             ++index)
+        {
+            if (!used[index] && right.links[index] == link)
+            {
+                used[index] = true;
+                found = true;
+            }
+        }
+        if (!found)
+            return false;
+    }
+    return true;
+}
+
+/// The ids of ports or links, in order.
+template <typename Views>
+std::vector<std::uint64_t> sorted_ids(const Views& views)
+{
+    std::vector<std::uint64_t> ids;
+    ids.reserve(views.size());
+    for (const auto& view : views)
+        ids.push_back(static_cast<std::uint64_t>(view.id));
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
 
 QString document_name(const QString& path)
 {
@@ -1914,7 +1955,7 @@ bool ShellWindow::setup_busy() const
 
 void ShellWindow::apply_in_background(
     vss::config::document document, bool replace,
-    std::function<void(const vss::result<void>&, bool changed)> finished)
+    std::function<void(const vss::result<void>&, failed_apply)> finished)
 {
     if (setup_busy())
         return;
@@ -1922,13 +1963,19 @@ void ShellWindow::apply_in_background(
     {
         vss::config::document document;
         vss::config::document before;
+        std::vector<std::uint64_t> port_ids;
+        std::vector<std::uint64_t> link_ids;
         vss::error_code error;
     };
     auto state = std::make_shared<outcome>();
     state->document = std::move(document);
     // What runs now, to see after a failure whether it was put back whole.
     if (replace)
+    {
         state->before = backend_.snapshot();
+        state->port_ids = sorted_ids(backend_.ports());
+        state->link_ids = sorted_ids(backend_.links());
+    }
 
     // Nothing in the window may change the setup while the engine works on
     // it, and the changes it makes meanwhile are not the user's edits.
@@ -1983,23 +2030,30 @@ void ShellWindow::apply_in_background(
             status_->clearMessage();
             loading_ = false;
             backend_.refresh();
-            if (!state->error)
+            if (!state->error || !replace)
             {
-                finished(vss::result<void>{}, false);
+                finished(state->error ? vss::result<void>(state->error)
+                                      : vss::result<void>{},
+                         failed_apply::untouched);
                 return;
             }
             // A replace that failed puts back what it removed as far as it
             // can.  When what runs is no longer the setup that was open, the
-            // title must not say it is.
-            const bool changed =
-                replace && backend_.snapshot() != state->before;
-            if (changed)
+            // title must not say it is; when it is the same setup but some of
+            // it was stopped and started again, it was not left unchanged.
+            failed_apply left = failed_apply::untouched;
+            if (!same_setup(backend_.snapshot(), state->before))
+                left = failed_apply::different;
+            else if (sorted_ids(backend_.ports()) != state->port_ids ||
+                     sorted_ids(backend_.links()) != state->link_ids)
+                left = failed_apply::remade;
+            if (left == failed_apply::different)
             {
                 last_signature_ = document_signature();
                 set_dirty(true);
                 update_title();
             }
-            finished(state->error, changed);
+            finished(state->error, left);
         });
 }
 
@@ -2020,20 +2074,25 @@ void ShellWindow::open_templates()
         [this, title = dialog.result_title(),
          is_template = dialog.result_is_template(),
          path = dialog.result_path()](const vss::result<void>& applied,
-                                      bool changed)
+                                      failed_apply left)
         {
             if (!applied)
             {
-                ErrorDialog error(
-                    tr("Could not open %1").arg(title),
-                    changed ? tr("Not everything that was running could be "
-                                 "put back, so the setup is marked as "
-                                 "changed.")
-                            : tr("The setup needs a device or network "
-                                 "endpoint that is not available on this PC. "
-                                 "Nothing was changed. Check the device, then "
-                                 "try again."),
-                    error_text(applied.error()), this);
+                // Say only what is true: nothing was changed only when
+                // nothing was touched.
+                const QString text =
+                    left == failed_apply::different
+                        ? tr("Not everything that was running could be put "
+                             "back, so the setup is marked as changed.")
+                    : left == failed_apply::remade
+                        ? tr("The setup needs a device or network endpoint "
+                             "that is not available on this PC. Check the "
+                             "device, then try again.")
+                        : tr("The setup needs a device or network endpoint "
+                             "that is not available on this PC. Nothing was "
+                             "changed. Check the device, then try again.");
+                ErrorDialog error(tr("Could not open %1").arg(title), text,
+                                  error_text(applied.error()), this);
                 error.exec();
                 status_->refresh();
                 return;
@@ -3138,18 +3197,20 @@ void ShellWindow::open_path(const QString& path)
 
     apply_in_background(
         *document, true,
-        [this, path](const vss::result<void>& applied, bool changed)
+        [this, path](const vss::result<void>& applied, failed_apply left)
         {
             if (!applied)
             {
+                // As the template dialog does: the sentence is the message
+                // and the engine text is behind Copy details.
+                const bool different = left == failed_apply::different;
                 ErrorDialog dialog(
                     tr("Could not open %1").arg(QFileInfo(path).fileName()),
-                    changed ? error_text(applied.error()) + QLatin1Char(' ') +
-                                  tr("Not everything that was running could "
-                                     "be put back, so the setup is marked as "
-                                     "changed.")
-                            : error_text(applied.error()),
-                    {}, this);
+                    different
+                        ? tr("Not everything that was running could be put "
+                             "back, so the setup is marked as changed.")
+                        : error_text(applied.error()),
+                    different ? error_text(applied.error()) : QString(), this);
                 dialog.exec();
                 return;
             }
@@ -3693,7 +3754,7 @@ void ShellWindow::start_running_setup(bool automatic)
     apply_in_background(
         setup->document, false,
         [this, setup = *setup, automatic](const vss::result<void>& applied,
-                                          bool /*changed*/)
+                                          failed_apply)
         {
             if (!applied)
             {

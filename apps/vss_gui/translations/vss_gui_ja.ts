@@ -9420,6 +9420,11 @@ Networks: %5</source>
             <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
             <translation>実行中だったものをすべて元に戻すことができなかったため、セットアップは変更ありとして表示されています。</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>セットアップに必要なデバイスまたはネットワークエンドポイントが、このPCで利用できません。デバイスを確認して、もう一度やり直してください。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

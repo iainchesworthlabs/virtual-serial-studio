@@ -9426,6 +9426,11 @@ Networks: %5</source>
             <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
             <translation>לא ניתן היה להחזיר את כל מה שרץ, ולכן התצורה סומנה כמשתנה.</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>התצורה זקוקה להתקן או לנקודת קצה ברשת שאינם זמינים במחשב זה. בדקו את ההתקן ונסו שוב.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <map>
 #include <optional>
 #include <string>
 #include <thread>
@@ -1533,6 +1534,236 @@ TEST_CASE("studio: a failed replace puts the running setup back")
 
     // The setup that runs again works as before: it can be replaced.
     REQUIRE(app.replace(first));
+
+    // A link that is put back beside one that stays has a newer id, so it
+    // comes after the other one.  Both run.
+    config::document four;
+    four.name = "first";
+    four.ports = {loopback_entry("a"), loopback_entry("b"), loopback_entry("c"),
+                  loopback_entry("d")};
+    four.links = {duplex_entry("a", "b"), duplex_entry("c", "d")};
+
+    // `c` and `d` and their link stay, `a` and `b` go with their link, and the
+    // device that is not there makes the call fail.
+    config::port_entry no_device;
+    no_device.name = "bad";
+    no_device.kind = "physical";
+    no_device.uri = "serial://no-such-device-for-tests";
+    config::document stays;
+    stays.name = "second";
+    stays.ports = {loopback_entry("c"), loopback_entry("d"), no_device};
+    stays.links = {duplex_entry("c", "d")};
+
+    studio other;
+    REQUIRE(other.apply(four));
+    const auto four_before = other.snapshot();
+    REQUIRE(!other.replace(stays));
+
+    const auto four_after = other.snapshot();
+    REQUIRE_EQ(four_after.name, std::string("first"));
+    REQUIRE((four_after.ports == four_before.ports));
+    REQUIRE_EQ(four_after.links.size(), std::size_t{2});
+    for (const auto& link : four_before.links)
+        REQUIRE(std::ranges::find(four_after.links, link) !=
+                four_after.links.end());
+}
+
+TEST_CASE("studio: a failed replace puts a port back in its place when the "
+          "port that stays is in the middle")
+{
+    config::document first;
+    first.ports = {loopback_entry("b"), loopback_entry("a"),
+                   loopback_entry("c")};
+
+    config::port_entry changed_b = loopback_entry("b");
+    changed_b.capture = false;
+    config::port_entry changed_c = loopback_entry("c");
+    changed_c.capture = false;
+    config::port_entry bad;
+    bad.name = "bad";
+    bad.kind = "physical";
+    bad.uri = "serial://no-such-device-for-tests";
+    config::document second;
+    second.ports = {changed_b, loopback_entry("a"), changed_c, bad};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    const auto kept = app.find("a");
+    const auto before = app.snapshot();
+    REQUIRE(!app.replace(second));
+
+    // `b` and `c` were removed and made again, with `a` between them.
+    const auto after = app.snapshot();
+    REQUIRE_EQ(after.ports.size(), std::size_t{3});
+    REQUIRE_EQ(after.ports[0].name, std::string("b"));
+    REQUIRE_EQ(after.ports[1].name, std::string("a"));
+    REQUIRE_EQ(after.ports[2].name, std::string("c"));
+    REQUIRE((after.ports == before.ports));
+    REQUIRE(app.find("a") == kept);
+}
+
+namespace
+{
+
+/// Stands in for the Windows driver, which hands out a COM number once and
+/// refuses it with `already_exists` while a port has it and for `busy` after
+/// that port is gone.  The ports it makes are loopbacks.
+struct stand_in_driver
+{
+    explicit stand_in_driver(std::chrono::milliseconds wait) : busy(wait) {}
+
+    studio_options options()
+    {
+        studio_options made;
+        made.make_virtual_port =
+            [this](const transport::executor_type& executor,
+                   virtual_port_kind kind, const std::string& name,
+                   unsigned number)
+        { return make(executor, kind, name, number); };
+        return made;
+    }
+
+    result<virtual_port_result> make(const transport::executor_type& executor,
+                                     virtual_port_kind kind,
+                                     const std::string& name, unsigned number)
+    {
+        if (kind != virtual_port_kind::windows_driver || number == 0)
+            return create_virtual_port(executor, virtual_port_kind::loopback,
+                                       name, 0);
+        const auto now = std::chrono::steady_clock::now();
+        if (const auto it = numbers.find(number); it != numbers.end())
+        {
+            held& number_holder = it->second;
+            if (app != nullptr && app->find(number_holder.name) != nullptr)
+            {
+                ++refusals;
+                return make_error_code(errc::already_exists);
+            }
+            if (!number_holder.gone)
+                number_holder.gone = now;
+            if (now < *number_holder.gone + busy)
+            {
+                ++refusals;
+                return make_error_code(errc::already_exists);
+            }
+        }
+        numbers[number] = held{name, std::nullopt};
+        return create_virtual_port(executor, virtual_port_kind::loopback, name,
+                                   0);
+    }
+
+    struct held
+    {
+        std::string name;
+        std::optional<std::chrono::steady_clock::time_point> gone;
+    };
+    std::chrono::milliseconds busy;
+    std::map<unsigned, held> numbers;
+    studio* app = nullptr;
+    int refusals = 0;
+};
+
+config::port_entry driver_entry(std::string name, unsigned number)
+{
+    config::port_entry port;
+    port.name = std::move(name);
+    port.kind = "virtual";
+    port.virtual_kind = "windows-driver";
+    port.com_number = number;
+    return port;
+}
+
+} // namespace
+
+TEST_CASE("studio: replace tries a COM number again until it is free")
+{
+    stand_in_driver driver(std::chrono::milliseconds(300));
+    auto options = driver.options();
+    options.com_number_step = std::chrono::milliseconds(20);
+    studio app(options);
+    driver.app = &app;
+
+    config::document first;
+    first.ports = {driver_entry("dut", 5)};
+    REQUIRE(app.apply(first));
+
+    // Another name, the same number: the old port is removed and the number
+    // is refused until the driver lets go.  The call waits and gets it.
+    config::document second;
+    second.ports = {driver_entry("device", 5)};
+    REQUIRE(app.replace(second));
+    REQUIRE(driver.refusals > 0);
+    REQUIRE(app.find("device") != nullptr);
+    REQUIRE(app.find("dut") == nullptr);
+    REQUIRE_EQ(app.snapshot().ports[0].com_number, 5u);
+}
+
+TEST_CASE("studio: a failed replace waits again for a number its own port "
+          "held")
+{
+    // The number is busy for 1000 ms after a port is gone, and replace waits
+    // up to 1500 ms after it removed a port.  The old port is removed, the
+    // new port gets its number after about 1000 ms, a device that is not
+    // there then fails the call, and the put-back removes the new port and
+    // must wait for the number again, counted from that removal and not from
+    // the first.
+    stand_in_driver driver(std::chrono::milliseconds(1000));
+    auto options = driver.options();
+    options.com_number_step = std::chrono::milliseconds(20);
+    options.com_number_wait = std::chrono::milliseconds(1500);
+    studio app(options);
+    driver.app = &app;
+
+    config::document first;
+    first.name = "first";
+    first.ports = {driver_entry("dut", 5), loopback_entry("other")};
+    first.links = {duplex_entry("dut", "other")};
+    REQUIRE(app.apply(first));
+    const auto before = app.snapshot();
+
+    config::port_entry bad;
+    bad.name = "bad";
+    bad.kind = "physical";
+    bad.uri = "serial://no-such-device-for-tests";
+    config::document second;
+    second.name = "second";
+    second.ports = {driver_entry("device", 5), bad};
+
+    REQUIRE(!app.replace(second));
+    REQUIRE(app.find("dut") != nullptr);
+    REQUIRE(app.find("device") == nullptr);
+    const auto after = app.snapshot();
+    REQUIRE_EQ(after.name, std::string("first"));
+    REQUIRE((after.ports == before.ports));
+    REQUIRE_EQ(after.links.size(), std::size_t{1});
+}
+
+TEST_CASE("studio: two ports of one document with one COM number are refused "
+          "at once")
+{
+    stand_in_driver driver(std::chrono::milliseconds(1000));
+    auto options = driver.options();
+    options.com_number_step = std::chrono::milliseconds(20);
+    options.com_number_wait = std::chrono::milliseconds(1500);
+    studio app(options);
+    driver.app = &app;
+
+    config::document first;
+    first.ports = {driver_entry("dut", 5)};
+    REQUIRE(app.apply(first));
+    const auto kept = app.find("dut");
+
+    config::document second;
+    second.ports = {driver_entry("x", 5), driver_entry("y", 5)};
+    const auto started = std::chrono::steady_clock::now();
+    const auto replaced = app.replace(second);
+    const auto took = std::chrono::steady_clock::now() - started;
+    REQUIRE(!replaced);
+    REQUIRE_EQ(replaced.error(), make_error_code(errc::already_exists));
+    // Nothing was waited for and nothing was removed.
+    REQUIRE(took < std::chrono::milliseconds(500));
+    REQUIRE(app.find("dut") == kept);
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{1});
 }
 
 TEST_CASE("studio: a snapshot passes validation for a port that holds a uri")
