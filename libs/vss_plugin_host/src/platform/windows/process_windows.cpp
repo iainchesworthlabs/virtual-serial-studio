@@ -325,21 +325,75 @@ private:
     bool ready_ = false;
 };
 
-/// A job that ends everything in it when its last handle is closed, and
-/// that shows no error window for a process that crashes.
-result<owned_handle> make_job()
+/// A job and what it confines.
+struct confined_job
 {
-    owned_handle job(::CreateJobObjectW(nullptr, nullptr));
-    if (!job.valid())
+    owned_handle job;
+    sandbox_report report;
+};
+
+/// A job that ends everything in it when its last handle is closed, and
+/// that shows no error window for a process that crashes.  With a profile
+/// it also holds the plugin to its limits and takes the user interface
+/// away from it.  A part that cannot be set is left out of the report and
+/// the job is still made: whether that is enough is the caller's to say.
+result<confined_job> make_job(const sandbox_profile* profile)
+{
+    confined_job made;
+    made.job = owned_handle(::CreateJobObjectW(nullptr, nullptr));
+    if (!made.job.valid())
         return last_error();
     JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
     limits.BasicLimitInformation.LimitFlags =
         JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE |
         JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION;
-    if (::SetInformationJobObject(job.get(), JobObjectExtendedLimitInformation,
-                                  &limits, sizeof(limits)) == 0)
+    if (::SetInformationJobObject(made.job.get(),
+                                  JobObjectExtendedLimitInformation, &limits,
+                                  sizeof(limits)) == 0)
         return last_error();
-    return job;
+    // Everything in the job ends with it, and a process cannot leave a job.
+    made.report.applied.push_back(sandbox_part::containment);
+    if (profile == nullptr)
+        return made;
+
+    // Memory and the number of processes.  A plugin that may not start
+    // programs is one process.  Windows has no limit on open files for a
+    // job; the others stand for "limits".
+    limits.BasicLimitInformation.LimitFlags |=
+        JOB_OBJECT_LIMIT_JOB_MEMORY | JOB_OBJECT_LIMIT_ACTIVE_PROCESS;
+    limits.JobMemoryLimit = static_cast<SIZE_T>(std::min<std::uint64_t>(
+        profile->limits.memory_bytes, std::numeric_limits<SIZE_T>::max()));
+    limits.BasicLimitInformation.ActiveProcessLimit =
+        profile->start_programs ? std::max<DWORD>(1, profile->limits.processes)
+                                : 1;
+    bool limited = ::SetInformationJobObject(made.job.get(),
+                                             JobObjectExtendedLimitInformation,
+                                             &limits, sizeof(limits)) != 0;
+    // A hard cap on processor time, in hundredths of a percent of all
+    // processors.
+    JOBOBJECT_CPU_RATE_CONTROL_INFORMATION rate{};
+    rate.ControlFlags = JOB_OBJECT_CPU_RATE_CONTROL_ENABLE |
+                        JOB_OBJECT_CPU_RATE_CONTROL_HARD_CAP;
+    rate.CpuRate = std::clamp<DWORD>(profile->limits.cpu_percent, 1, 100) * 100;
+    limited = ::SetInformationJobObject(made.job.get(),
+                                        JobObjectCpuRateControlInformation,
+                                        &rate, sizeof(rate)) != 0 &&
+              limited;
+    if (limited)
+        made.report.applied.push_back(sandbox_part::limits);
+
+    // No desktop, clipboard, display settings, global atoms, handles of
+    // windows outside the job, system parameters or shutting Windows down.
+    JOBOBJECT_BASIC_UI_RESTRICTIONS restrictions{};
+    restrictions.UIRestrictionsClass =
+        JOB_OBJECT_UILIMIT_DESKTOP | JOB_OBJECT_UILIMIT_DISPLAYSETTINGS |
+        JOB_OBJECT_UILIMIT_EXITWINDOWS | JOB_OBJECT_UILIMIT_GLOBALATOMS |
+        JOB_OBJECT_UILIMIT_HANDLES | JOB_OBJECT_UILIMIT_READCLIPBOARD |
+        JOB_OBJECT_UILIMIT_SYSTEMPARAMETERS | JOB_OBJECT_UILIMIT_WRITECLIPBOARD;
+    if (::SetInformationJobObject(made.job.get(), JobObjectBasicUIRestrictions,
+                                  &restrictions, sizeof(restrictions)) != 0)
+        made.report.applied.push_back(sandbox_part::user_interface);
+    return made;
 }
 
 /// The exit code a process killed by the host is given.
@@ -351,13 +405,15 @@ constexpr DWORD gone_limit_ms = 5000;
 class windows_process final : public plugin_process::impl
 {
 public:
-    windows_process(owned_handle process, owned_handle job,
-                    owned_handle channel, owned_handle output,
-                    DWORD id) noexcept
-        : process_(std::move(process)), job_(std::move(job)),
-          channel_(std::move(channel)), output_(std::move(output)), id_(id)
+    windows_process(owned_handle process, confined_job job,
+                    owned_handle channel, owned_handle output, DWORD id)
+        : process_(std::move(process)), job_(std::move(job.job)),
+          channel_(std::move(channel)), output_(std::move(output)), id_(id),
+          report_(std::move(job.report))
     {
     }
+
+    sandbox_report sandbox() const override { return report_; }
 
     ~windows_process() override
     {
@@ -436,6 +492,7 @@ private:
     owned_handle channel_;
     owned_handle output_;
     DWORD id_ = 0;
+    sandbox_report report_;
     bool killed_ = false;
     std::optional<exit_status> ended_;
 };
@@ -507,7 +564,7 @@ start_process(const process_request& request)
     if (const error_code failed = inherited.prepare())
         return failed;
 
-    auto job = make_job();
+    auto job = make_job(request.sandbox ? &*request.sandbox : nullptr);
     if (!job)
         return job.error();
 
@@ -531,7 +588,7 @@ start_process(const process_request& request)
     owned_handle process(information.hProcess);
     const owned_handle thread(information.hThread);
 
-    if (::AssignProcessToJobObject(job->get(), process.get()) == 0)
+    if (::AssignProcessToJobObject(job->job.get(), process.get()) == 0)
     {
         const error_code failed = last_error();
         ::TerminateProcess(process.get(), killed_code);
@@ -541,7 +598,7 @@ start_process(const process_request& request)
     if (::ResumeThread(thread.get()) == static_cast<DWORD>(-1))
     {
         const error_code failed = last_error();
-        ::TerminateJobObject(job->get(), killed_code);
+        ::TerminateJobObject(job->job.get(), killed_code);
         ::WaitForSingleObject(process.get(), gone_limit_ms);
         return failed;
     }
@@ -553,6 +610,14 @@ start_process(const process_request& request)
         std::make_unique<windows_process>(
             std::move(process), std::move(*job), std::move(channel->host),
             std::move(output->host), information.dwProcessId));
+}
+
+sandbox_report available_sandbox()
+{
+    sandbox_report report;
+    report.applied = {sandbox_part::containment, sandbox_part::user_interface,
+                      sandbox_part::limits};
+    return report;
 }
 
 std::vector<std::pair<std::string, std::string>> system_environment()

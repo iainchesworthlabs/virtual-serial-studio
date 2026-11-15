@@ -14,6 +14,8 @@
 
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/host/process.hpp>
+#include <vss/plugin/host/sandbox.hpp>
+#include <vss/plugin/policy.hpp>
 
 #include "native_io.hpp"
 #include "scratch_directory.hpp"
@@ -33,12 +35,18 @@
 #include <utility>
 #include <vector>
 
+using vss::plugin::sandbox_level;
+using vss::plugin::host::all_sandbox_parts;
+using vss::plugin::host::available_sandbox;
 using vss::plugin::host::exit_status;
 using vss::plugin::host::native_handle;
 using vss::plugin::host::no_handle;
 using vss::plugin::host::plugin_environment;
 using vss::plugin::host::plugin_process;
 using vss::plugin::host::process_request;
+using vss::plugin::host::sandbox_part;
+using vss::plugin::host::sandbox_profile;
+using vss::plugin::host::sandbox_report;
 using vss_test_support::scratch_directory;
 using namespace std::chrono_literals;
 
@@ -765,4 +773,138 @@ TEST_CASE("plugin process: the environment of a plugin")
             }
         }
     }
+}
+
+namespace
+{
+
+sandbox_profile profile_for(const scratch_directory& scratch)
+{
+    sandbox_profile profile;
+    profile.plugin_directory =
+        std::filesystem::path(VSS_TEST_PLUGIN_PROGRAM).parent_path();
+    profile.data_directory = scratch.path();
+    return profile;
+}
+
+} // namespace
+
+TEST_CASE("plugin process: the level of a sandbox follows what was applied")
+{
+    sandbox_report report;
+    REQUIRE(report.level() == sandbox_level::none);
+    REQUIRE_EQ(report.not_applied().size(), std::size(all_sandbox_parts));
+
+    // Limits, the user interface and containment do not keep a plugin from
+    // the files of the user, so they are no sandbox.
+    report.applied = {sandbox_part::containment, sandbox_part::limits,
+                      sandbox_part::user_interface};
+    REQUIRE(report.level() == sandbox_level::none);
+
+    // A closed file system without containment is none either.
+    report.applied = {sandbox_part::file_system, sandbox_part::network,
+                      sandbox_part::limits};
+    REQUIRE(report.level() == sandbox_level::none);
+
+    report.applied = {sandbox_part::containment, sandbox_part::file_system};
+    REQUIRE(report.level() == sandbox_level::partial);
+    REQUIRE(!report.has(sandbox_part::network));
+    REQUIRE_EQ(report.not_applied().size(), std::size_t{5});
+    REQUIRE(report.not_applied().front() == sandbox_part::network);
+
+    report.applied.assign(std::begin(all_sandbox_parts),
+                          std::end(all_sandbox_parts));
+    REQUIRE(report.level() == sandbox_level::full);
+    REQUIRE(report.not_applied().empty());
+
+    for (const sandbox_part part : all_sandbox_parts)
+        REQUIRE(to_string(part) != "unknown");
+}
+
+TEST_CASE("plugin process: a start reports what confines the plugin")
+{
+    const scratch_directory scratch;
+    process_request request = request_for(scratch, {"--exit=0"});
+
+    // Without a profile nothing is claimed beyond what always holds.
+    plugin_process plain = start_process(request);
+    REQUIRE(!plain.sandbox().has(sandbox_part::file_system));
+    REQUIRE(!plain.sandbox().has(sandbox_part::limits));
+    REQUIRE(plain.sandbox().level() == sandbox_level::none);
+    static_cast<void>(wait_for_end(plain));
+
+    // With one, a start applies what this computer says it can, and no
+    // system closes the file system yet, so the level is still none.
+    request.sandbox = profile_for(scratch);
+    plugin_process confined = start_process(request);
+    const sandbox_report can = available_sandbox();
+    for (const sandbox_part part : all_sandbox_parts)
+        REQUIRE_EQ(confined.sandbox().has(part), can.has(part));
+    REQUIRE(confined.sandbox().level() == sandbox_level::none);
+    const exit_status status = wait_for_end(confined);
+    REQUIRE(!status.abnormal);
+    REQUIRE_EQ(status.code, 0);
+}
+
+TEST_CASE("plugin process: a plugin that may not start programs cannot")
+{
+    if (!available_sandbox().has(sandbox_part::limits))
+        VSS_SKIP("this system does not limit the processes of a plugin yet");
+    const scratch_directory scratch;
+    process_request request =
+        request_for(scratch, {"--spawn-children=1", "--stdout=after"});
+    request.sandbox = profile_for(scratch);
+    plugin_process process = start_process(request);
+    REQUIRE(process.sandbox().has(sandbox_part::limits));
+
+    const std::string output = io::read_to_end(process.output(), long_limit);
+    REQUIRE(numbers_after(output, "child ").empty());
+    REQUIRE(count_of(output, "a child could not be started") == 1);
+    const exit_status status = wait_for_end(process);
+    REQUIRE(!status.abnormal);
+    REQUIRE_EQ(status.code, 5);
+}
+
+TEST_CASE("plugin process: a plugin that may start programs is held to its "
+          "number of processes")
+{
+    if (!available_sandbox().has(sandbox_part::limits))
+        VSS_SKIP("this system does not limit the processes of a plugin yet");
+    const scratch_directory scratch;
+    process_request request =
+        request_for(scratch, {"--spawn-children=5", "--hang"});
+    sandbox_profile profile = profile_for(scratch);
+    profile.start_programs = true;
+    profile.limits.processes = 3;
+    request.sandbox = profile;
+    plugin_process process = start_process(request);
+
+    // The plugin and two children fit; the third child does not, and the
+    // plugin exits.
+    const std::string output =
+        read_while_not(process.output(), [](const std::string& text)
+                       { return count_of(text, "could not be started") >= 1; });
+    REQUIRE_EQ(numbers_after(output, "child ").size(), std::size_t{2});
+    const exit_status status = wait_for_end(process);
+    REQUIRE_EQ(status.code, 5);
+}
+
+TEST_CASE("plugin process: a plugin is held to its memory")
+{
+    if (!available_sandbox().has(sandbox_part::limits))
+        VSS_SKIP("this system does not limit the memory of a plugin yet");
+    const scratch_directory scratch;
+    process_request request =
+        request_for(scratch, {"--allocate=32", "--allocate=512"});
+    sandbox_profile profile = profile_for(scratch);
+    profile.limits.memory_bytes = 128ULL * 1024 * 1024;
+    request.sandbox = profile;
+    plugin_process process = start_process(request);
+
+    // 32 MiB fit below 128 MiB.  512 more do not: the plugin is refused
+    // the memory, or is ended, before it has them.
+    const std::string output = io::read_to_end(process.output(), long_limit);
+    REQUIRE(count_of(output, "allocated 32\n") == 1);
+    REQUIRE(count_of(output, "allocated 512\n") == 0);
+    static_cast<void>(wait_for_end(process));
 }

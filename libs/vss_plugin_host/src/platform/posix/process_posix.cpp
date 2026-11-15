@@ -255,6 +255,13 @@ public:
         wait(gone_limit);
     }
 
+    sandbox_report sandbox() const override
+    {
+        // The process group ends with `kill`, but a child that makes a
+        // session of its own leaves it, so even containment is not claimed.
+        return {};
+    }
+
     std::uint64_t id() const noexcept override
     {
         return static_cast<std::uint64_t>(id_);
@@ -447,6 +454,11 @@ start_process(const process_request& request)
     return std::unique_ptr<plugin_process::impl>(
         std::make_unique<posix_process>(child, std::move(channel_host),
                                         std::move(output_host)));
+}
+
+sandbox_report available_sandbox()
+{
+    return {};
 }
 
 std::vector<std::pair<std::string, std::string>> system_environment()

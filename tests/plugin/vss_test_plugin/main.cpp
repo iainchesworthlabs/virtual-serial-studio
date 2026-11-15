@@ -32,6 +32,9 @@
 //   --pid                 prints "pid <process id>"
 //   --flood-stdout=<n>    writes n bytes 'x' to standard output, in chunks of
 //                         4096, and a newline
+//   --allocate=<n>        takes n mebibytes of memory one at a time and
+//                         writes to each; prints "allocated <n>", or
+//                         "allocation-failed <m>" after m of them
 //   --hang                prints "hanging" and never returns
 //   --crash               ends the process the way a fault does
 //   --exit=<code>         exits at once with the code
@@ -48,7 +51,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
+#include <memory>
+#include <new>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -239,6 +245,25 @@ std::optional<int> spawn_children(unsigned long long count, const char* self)
     return std::nullopt;
 }
 
+void allocate_memory(unsigned long long mebibytes)
+{
+    constexpr std::size_t chunk = std::size_t{1024} * 1024;
+    // Kept until the process ends, so that the memory stays in use.
+    static std::vector<std::unique_ptr<char[]>> kept;
+    for (unsigned long long made = 0; made < mebibytes; ++made)
+    {
+        std::unique_ptr<char[]> block(new (std::nothrow) char[chunk]);
+        if (!block)
+        {
+            say("allocation-failed " + std::to_string(made));
+            return;
+        }
+        std::memset(block.get(), 0x5a, chunk);
+        kept.push_back(std::move(block));
+    }
+    say("allocated " + std::to_string(mebibytes));
+}
+
 void flood_standard_output(unsigned long long bytes)
 {
     const std::string chunk(4096, 'x');
@@ -322,6 +347,14 @@ std::optional<int> act(std::string_view argument, const char* self)
         if (const auto bytes = parse_number<unsigned long long>(*text))
         {
             flood_standard_output(*bytes);
+            return std::nullopt;
+        }
+    }
+    if (const auto text = value_after(argument, "--allocate="))
+    {
+        if (const auto count = parse_number<unsigned long long>(*text))
+        {
+            allocate_memory(*count);
             return std::nullopt;
         }
     }
