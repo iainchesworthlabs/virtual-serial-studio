@@ -9,21 +9,34 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <p><span class="chip info hollow">In development</span></p>
 </div>
 <div class="note warn">
-<p>The plugins on this page are being built and none can be downloaded yet. The page describes what the first version will contain. Details may change.</p>
+<p>The plugins on this page are being built and none can be downloaded yet. The page describes what the first version will contain. Details may change. The Python client below is not a plugin and is in the Community edition.</p>
 </div>
+</section>
+
+<section class="band plain" aria-labelledby="python-title">
+<div class="head">
+<h2 id="python-title">The Python client</h2>
+<p class="lead">A Python client for the control gateway is in the Community edition and needs no licence. A test script uses it to make and link ports, send bytes, wait for bytes and read the event and traffic streams.</p>
+<p><span class="chip ok">Community, free</span></p>
+</div>
+<dl class="rows">
+<div><dt>Where to get it</dt><dd>It is in the <a href="{{repo_url}}/tree/develop/adapters/python">repository on GitHub, in <code>adapters/python</code></a>. It is not in the installers or the packages. Use it from that folder, or install it with <code>pip install ./adapters/python</code>.</dd></div>
+<div><dt>What it needs</dt><dd>Python 3.9 or later and no other package. It talks to the control gateway, <code>vss_gate</code>, on the same computer. The gateway and the agent behind it are built from source: they are not in the installers yet.</dd></div>
+<div><dt>What it cannot do yet</dt><dd>A port made through the gateway is a loopback port inside the agent, so another program cannot open it. Faults and response timing cannot be set through it.</dd></div>
+</dl>
 </section>
 
 <section class="band pane" aria-labelledby="bind-title">
 <div class="head">
 <h2 id="bind-title">Language and framework bindings</h2>
-<p class="lead">Each binding does the same things: create ports, link them, send and expect bytes, inject faults and read the event log. All of them are in the first version.</p>
+<p class="lead">These are official plugins, so they are the Pro edition. Each binding does the same things: create ports, link them, send and expect bytes, inject faults and read the event log. All of them are in the first version.</p>
 </div>
 <div class="table-wrap">
 <table>
 <caption class="visually-hidden">Language and framework bindings</caption>
 <thead><tr><th scope="col">Binding</th><th scope="col">What it gives you</th></tr></thead>
 <tbody>
-<tr><th scope="row">Python and pytest</th><td>A library, and a pytest plugin with fixtures for ports and links.</td></tr>
+<tr><th scope="row">pytest</th><td>A pytest plugin with fixtures for ports and links. The Python client itself is in the Community edition.</td></tr>
 <tr><th scope="row">C and C++</th><td>A stable C interface. The C#, Java and Node.js bindings wrap it, so a lab can bind a language of its own.</td></tr>
 <tr><th scope="row">C# and .NET</th><td>A library for .NET test projects.</td></tr>
 <tr><th scope="row">Java</th><td>A library for JVM test projects.</td></tr>

@@ -173,7 +173,7 @@ All of this is in the first version.
 
 | Plugin | Purpose |
 |---|---|
-| Python library and pytest plugin | Create ports, link them, inject faults, send and expect bytes, read the event log |
+| pytest plugin | Create ports, link them, inject faults, send and expect bytes, read the event log |
 | Bindings for other languages | C and C++ (a stable C ABI), C# and .NET, Java, Node.js; the C ABI is what the others wrap, so a lab can bind its own language |
 | Robot Framework library | The same, as keywords for Robot Framework, an open-source, keyword-driven test automation framework (Python-based) that many hardware and QA labs use to write tests as readable tables |
 | TestStand and LabVIEW wrappers | For lab test rigs |
@@ -181,7 +181,10 @@ All of this is in the first version.
 | Reports | JUnit XML and a plain log of a run, for CI systems |
 
 The control endpoint is local only by default (see "Access to the control
-endpoint" below). The adapters check the licence file. The plugin API stays
+endpoint" below). The adapters check the licence file. The Python client in
+`adapters/python` is not one of them: the owner has decided that it is in the
+Community edition, so it checks no licence. It is in the source tree and is
+not in the installers or packages. The plugin API stays
 public, documented and free, so third parties can write their own plugins; Pro
 is the maintained, supported, compatibility-tested set built on it, and that
 set is private. The agent's internal protocol is private too and may change
