@@ -212,9 +212,9 @@ const std::vector<program_facts>& test_plugin_facts()
     static const std::vector<program_facts> facts = []
     {
         std::vector<program_facts> all;
-        for (const fs::path& source : test_plugin_files(
-                 fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)),
-                 VSS_TEST_PLUGIN_RUNTIME))
+        for (const fs::path& source :
+             test_plugin_files(fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)),
+                               VSS_TEST_PLUGIN_RUNTIME))
         {
             const std::string bytes = read_file(source);
             program_facts out;
@@ -1371,4 +1371,38 @@ TEST_CASE("plugin service: calls made while a scan runs are not lost")
                  });
     REQUIRE(entry_of(*last, official_id).decided);
     REQUIRE(wait_until_gone(pid));
+}
+
+TEST_CASE("plugin service: an approved key is kept by the service and shown")
+{
+    service_fixture fixture;
+    plugin_service& service = fixture.start(fixture.options());
+    service.rescan();
+    static_cast<void>(wait_for(service, "the first scan",
+                               [](const service_snapshot& now)
+                               { return now.scans > 0; }));
+
+    approved_key key;
+    key.key_id = "acme-2026";
+    key.name = "Acme";
+    key.public_key.fill(0x11);
+    service.approve_key(key);
+    const snapshot_ptr approved =
+        wait_for(service, "the key to be shown", [](const service_snapshot& now)
+                 { return now.approved_keys.size() == std::size_t{1}; });
+    REQUIRE_EQ(approved->approved_keys.front().key_id, "acme-2026");
+    REQUIRE_EQ(approved->approved_keys.front().name, "Acme");
+
+    // It is in the trust store on disk, written by the service.
+    const auto stored = load_trust_store(fixture.trust_file());
+    REQUIRE(stored.has_value());
+    REQUIRE(stored.value().find_key("acme-2026") != nullptr);
+
+    service.forget_key("acme-2026");
+    static_cast<void>(wait_for(service, "the key to go",
+                               [](const service_snapshot& now)
+                               { return now.approved_keys.empty(); }));
+    const auto after = load_trust_store(fixture.trust_file());
+    REQUIRE(after.has_value());
+    REQUIRE(after.value().find_key("acme-2026") == nullptr);
 }
