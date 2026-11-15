@@ -760,6 +760,10 @@ struct reply_writer
         agent["running"] = body.agent_running;
         agent["version"] = clean_text(body.agent_version);
         header["agent"] = std::move(agent);
+        json::object licence;
+        licence["edition"] = clean_text(body.edition);
+        licence["state"] = clean_text(body.licence_state);
+        header["licence"] = std::move(licence);
     }
 
     void operator()(const ports_reply& body) const
@@ -811,11 +815,21 @@ result<reply_body> read_status_reply(const json::object& header)
 {
     status_reply body;
     const json::value* const agent = header.if_contains("agent");
-    if (agent == nullptr || !agent->is_object() ||
+    const json::value* const licence = header.if_contains("licence");
+    if (agent == nullptr || !agent->is_object() || licence == nullptr ||
+        !licence->is_object() ||
         !read_u64(header, "uptime_ms", body.uptime_ms) ||
         !read_u64(header, "sessions", body.sessions) ||
         !read_bool(agent->get_object(), "running", body.agent_running) ||
-        !read_text(agent->get_object(), "version", body.agent_version))
+        !read_text(agent->get_object(), "version", body.agent_version) ||
+        !read_text(licence->get_object(), "edition", body.edition) ||
+        !read_text(licence->get_object(), "state", body.licence_state))
+        return malformed();
+    // An edition is in force only with a licence that is.
+    if (!is_edition_name(body.edition) ||
+        !is_licence_state_name(body.licence_state) ||
+        (body.edition != "free" &&
+         !is_active_licence_state(body.licence_state)))
         return malformed();
     return reply_body{std::move(body)};
 }
@@ -1331,6 +1345,23 @@ std::optional<std::uint64_t> parse_port_id(std::string_view text) noexcept
         value = value * 10 + next;
     }
     return value;
+}
+
+bool is_edition_name(std::string_view text) noexcept
+{
+    return text == "free" || text == "pro" || text == "enterprise";
+}
+
+bool is_active_licence_state(std::string_view text) noexcept
+{
+    return text == "valid" || text == "expiring" || text == "grace";
+}
+
+bool is_licence_state_name(std::string_view text) noexcept
+{
+    return is_active_licence_state(text) || text == "none" ||
+           text == "expired" || text == "not_yet_valid" ||
+           text == "clock_suspect" || text == "invalid";
 }
 
 } // namespace vss::control

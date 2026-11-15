@@ -62,6 +62,7 @@
 
 namespace agent = vss::agent;
 namespace control = vss::control;
+namespace license = vss::license;
 namespace json = boost::json;
 using namespace std::chrono_literals;
 
@@ -576,6 +577,9 @@ TEST_CASE("control gateway: a local connection is this user and may monitor")
     REQUIRE(status->agent_running);
     REQUIRE_EQ(status->agent_version, agent::agent_version());
     REQUIRE_EQ(status->sessions, std::uint64_t{2});
+    // A gateway that is told of no licence says so.
+    REQUIRE_EQ(status->edition, std::string("free"));
+    REQUIRE_EQ(status->licence_state, std::string("none"));
 
     const auto listed = client->list_ports();
     REQUIRE(listed);
@@ -583,6 +587,73 @@ TEST_CASE("control gateway: a local connection is this user and may monitor")
     REQUIRE_EQ(listed->ports[0].name, std::string("alpha"));
     REQUIRE_EQ(listed->ports[0].id, control::port_id_text((*port)->id()));
     REQUIRE_EQ(env.gate.counters().sessions, std::uint64_t{2});
+}
+
+TEST_CASE("control gateway: status gives the edition and the state of the "
+          "licence, and nothing else of it")
+{
+    struct told
+    {
+        license::state state;
+        license::edition edition;
+        const char* edition_given;
+        const char* state_given;
+    };
+    using license::edition;
+    using license::state;
+    // What the program knows, and what a caller is told.  An edition counts
+    // only with a licence in force.
+    const told cases[] = {
+        {state::valid, edition::pro, "pro", "valid"},
+        {state::expiring, edition::enterprise, "enterprise", "expiring"},
+        {state::grace, edition::pro, "pro", "grace"},
+        {state::expired, edition::pro, "free", "expired"},
+        {state::not_yet_valid, edition::enterprise, "free",
+         "not_yet_valid"},
+        {state::clock_suspect, edition::pro, "free", "clock_suspect"},
+        {state::invalid, edition::pro, "free", "invalid"},
+        {state::none, edition::pro, "free", "none"},
+    };
+    for (const told& item : cases)
+    {
+        license::status known;
+        known.state = item.state;
+        license::licence held;
+        held.edition = item.edition;
+        held.licence_id = "L-0042";
+        held.licensee_name = "Acme Ltd";
+        known.value = held;
+        control::gateway_options options;
+        options.licence = [known] { return known; };
+        fixture env(options);
+        auto client = env.connect();
+        const auto status = client->status();
+        REQUIRE(status);
+        REQUIRE_EQ(status->edition, std::string(item.edition_given));
+        REQUIRE_EQ(status->licence_state, std::string(item.state_given));
+    }
+
+    // A state that says the licence is in force, with no licence to go
+    // with it, gives no edition.
+    license::status bare;
+    bare.state = license::state::valid;
+    control::gateway_options options;
+    options.licence = [bare] { return bare; };
+    fixture env(options);
+    auto client = env.connect();
+    const auto status = client->status();
+    REQUIRE(status);
+    REQUIRE_EQ(status->edition, std::string("free"));
+    REQUIRE_EQ(status->licence_state, std::string("valid"));
+
+    // The reply as it crosses the wire has those two words of the licence
+    // and no other.
+    control::status_reply reply;
+    reply.edition = "pro";
+    reply.licence_state = "valid";
+    const std::string wire = control::encode(control::reply{1, reply}).header;
+    REQUIRE(wire.find(R"("licence":{"edition":"pro","state":"valid"})") !=
+            std::string::npos);
 }
 
 TEST_CASE("control gateway: the control role is a setting, and admin is "

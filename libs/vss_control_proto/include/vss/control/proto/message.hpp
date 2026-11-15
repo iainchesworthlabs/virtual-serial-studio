@@ -371,6 +371,19 @@ struct hello_reply
     friend bool operator==(const hello_reply&, const hello_reply&) = default;
 };
 
+/// Whether `text` names an edition a `status` reply may carry: `free`, `pro`
+/// or `enterprise`.
+bool is_edition_name(std::string_view text) noexcept;
+
+/// Whether `text` names a state of the licence a `status` reply may carry:
+/// `none`, `valid`, `expiring`, `grace`, `expired`, `not_yet_valid`,
+/// `clock_suspect` or `invalid`.
+bool is_licence_state_name(std::string_view text) noexcept;
+
+/// Whether a licence in the state `text` names is in force: `valid`,
+/// `expiring` or `grace`.
+bool is_active_licence_state(std::string_view text) noexcept;
+
 struct status_reply
 {
     std::uint64_t uptime_ms = 0;
@@ -379,6 +392,13 @@ struct status_reply
     bool agent_running = false;
     /// Empty when the agent is not running.
     std::string agent_version;
+    /// The edition in force on the computer the gateway runs on, and the
+    /// state of its licence; see #is_edition_name and
+    /// #is_licence_state_name.  `free` unless a licence is in force.  Whose
+    /// the licence is, its number and its dates are never here: any caller
+    /// that may look can read this reply.
+    std::string edition = "free";
+    std::string licence_state = "none";
 
     friend bool operator==(const status_reply&, const status_reply&) = default;
 };

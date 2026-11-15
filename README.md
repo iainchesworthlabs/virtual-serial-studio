@@ -99,7 +99,7 @@ vss_cli bench --from=serial://COM3 --to=serial://COM5 --bytes=10MB
 vss_cli selftest
 vss_agent &                         # keep ports after the command that made them (a first slice)
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
-vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
+vss_gate &                          # let this user's programs watch and control the agent's ports (Community)
 vss_gate --loopback-port=5800 &     # also serve the control API on TCP at 127.0.0.1 and ::1 (off unless given); every TCP connection needs a token made for it
 vss_cli control status              # who you are to the gateway and what you may do; `control stop` ends it
 vss_cli control token create --label=rig --role=monitor   # a token for another program; `token list`, `token revoke <id>`
