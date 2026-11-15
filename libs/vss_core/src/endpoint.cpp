@@ -256,13 +256,14 @@ void endpoint::do_read()
                 if (generation == self->generation_.load())
                 {
                     self->read_armed_.reset();
-                    self->on_read(ec, count);
+                    self->on_read(generation, ec, count);
                 }
             });
         });
 }
 
-void endpoint::on_read(boost::system::error_code ec, std::size_t count)
+void endpoint::on_read(std::uint64_t generation, boost::system::error_code ec,
+                       std::size_t count)
 {
     VSS_PROFILE_ZONE_NAMED(zone, "endpoint.read");
     VSS_PROFILE_ZONE_VALUE(zone, count);
@@ -272,7 +273,7 @@ void endpoint::on_read(boost::system::error_code ec, std::size_t count)
 
     if (ec)
     {
-        handle_read_failure(ec, "read");
+        handle_read_failure(generation, ec, "read");
         return;
     }
 
@@ -313,7 +314,8 @@ void endpoint::on_read(boost::system::error_code ec, std::size_t count)
     do_read();
 }
 
-void endpoint::handle_read_failure(const boost::system::error_code& ec,
+void endpoint::handle_read_failure(std::uint64_t generation,
+                                   const boost::system::error_code& ec,
                                    std::string_view what)
 {
     if (ec == boost::asio::error::operation_aborted)
@@ -323,7 +325,19 @@ void endpoint::handle_read_failure(const boost::system::error_code& ec,
     }
 
     VSS_PROFILE_ZONE("endpoint.read_failure");
-    running_ = false;
+
+    // The generation is checked, and `running_` written, under the lock that
+    // reopen() swaps the transport under.  A read of a transport since
+    // replaced fails nothing: the endpoint is open on the new one, and
+    // closing or marking it failed here would undo a reopen that succeeded.
+    std::shared_ptr<transport> failed;
+    {
+        std::lock_guard lock(transport_mutex_);
+        if (generation != generation_.load())
+            return;
+        running_ = false;
+        failed = transport_;
+    }
     {
         std::lock_guard lock(stats_mutex_);
         stats_.errors += 1;
@@ -334,9 +348,13 @@ void endpoint::handle_read_failure(const boost::system::error_code& ec,
         || ec == boost::asio::error::connection_reset
         || ec == boost::asio::error::broken_pipe;
 
-    if (const auto current = active_transport())
-        current->close();
+    // The transport this read belongs to, not whatever is active by now.
+    if (failed)
+        failed->close();
 
+    // A reopen() that runs in full between the check above and the transitions
+    // below leaves the state label wrong (failed or closed) while the endpoint
+    // works; it takes the swap and the transitions on one strand to close that.
     if (graceful)
     {
         transition(endpoint_state::closed);

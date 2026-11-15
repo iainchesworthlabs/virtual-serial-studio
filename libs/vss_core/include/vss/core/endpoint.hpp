@@ -192,7 +192,9 @@ private:
 
     std::shared_ptr<transport> active_transport() const;
     void do_read();
-    void on_read(boost::system::error_code ec, std::size_t count);
+    /// \p generation is the generation the read was armed for.
+    void on_read(std::uint64_t generation, boost::system::error_code ec,
+                 std::size_t count);
     /// Empties the write queue and resets the byte count and `writing_`.  It
     /// returns the handlers the queue held, so each can be called once after
     /// the lock is released.  `write_mutex_` must be held.
@@ -208,7 +210,8 @@ private:
     void on_write(const std::shared_ptr<pending_write>& write,
                   std::uint64_t generation, boost::system::error_code ec,
                   std::size_t count);
-    void handle_read_failure(const boost::system::error_code& ec,
+    void handle_read_failure(std::uint64_t generation,
+                             const boost::system::error_code& ec,
                              std::string_view what);
     void transition(endpoint_state next);
     void emit(error_code ec, std::string message,

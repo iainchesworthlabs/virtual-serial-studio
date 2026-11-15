@@ -120,6 +120,23 @@ public:
         return true;
     }
 
+    /// Completes the oldest pending read with the error `ec` and no bytes.
+    /// False when none is pending.
+    bool fail_read(boost::system::error_code ec)
+    {
+        pending_read read;
+        {
+            std::lock_guard lock(mutex_);
+            if (pending_reads_.empty())
+                return false;
+            read = std::move(pending_reads_.front());
+            pending_reads_.pop_front();
+        }
+        boost::asio::post(executor_, [handler = std::move(read.handler), ec]
+                          { handler(ec, 0); });
+        return true;
+    }
+
     /// Completes the oldest pending write: with `ec`, and with all its bytes
     /// when `ec` is clear.  False when none is pending.
     bool complete_write(boost::system::error_code ec = {})

@@ -1067,3 +1067,80 @@ TEST_CASE("endpoint: writes racing reopen are never sent twice")
         REQUIRE(std::adjacent_find(texts.begin(), texts.end()) == texts.end());
     }
 }
+
+TEST_CASE("endpoint: a failed read of the replaced transport leaves the new one alone")
+{
+    scripted_endpoint fixture;
+
+    event_recorder recorder;
+    const subscription_guard subscription(
+        *fixture.hub, event_filter{fixture.endpoint->id(), std::nullopt},
+        [recorder](const endpoint_event& event) { recorder.record(event); });
+
+    // The strand is busy, so the reopen is made while the read of the first
+    // transport is still waiting to be handled.
+    std::promise<void> release;
+    const std::shared_future<void> gate = release.get_future().share();
+    struct release_on_exit
+    {
+        std::promise<void>& held;
+        bool released = false;
+        void now()
+        {
+            if (!released)
+                held.set_value();
+            released = true;
+        }
+        ~release_on_exit() { now(); }
+    } guard{release};
+    boost::asio::post(fixture.endpoint->get_executor(), [gate] { gate.wait(); });
+
+    const auto fresh = make_scripted(*fixture.hub);
+    REQUIRE(fixture.endpoint->reopen(fresh));
+    REQUIRE(fixture.transport->fail_read(boost::asio::error::network_down));
+    guard.now();
+    drain_strand(*fixture.endpoint);
+
+    REQUIRE(fresh->is_open());
+    REQUIRE_EQ(fixture.endpoint->state(), endpoint_state::open);
+    REQUIRE_EQ(fresh->reads_armed(), std::size_t{1});
+    REQUIRE_EQ(recorder.count(event_kind::error), std::size_t{0});
+}
+
+TEST_CASE("endpoint: a read that fails as the endpoint is reopened never closes the new transport")
+{
+    // The failure of the read of the first transport and the reopen are on
+    // two threads and meet at a different point each round.  Whichever comes
+    // first, the new transport is not closed and is read.  (The state label
+    // can be wrong in one order, and is not asked about.)
+    auto hub = start_hub();
+    for (int round = 0; round < 1500; ++round)
+    {
+        const auto first = make_scripted(*hub);
+        const auto added = hub->add_endpoint("race" + std::to_string(round),
+                                             endpoint_kind::tcp, first);
+        REQUIRE(added);
+        const auto endpoint = *added;
+        REQUIRE(wait_until([&] { return first->reads_armed() == 1; }, 5000ms));
+
+        const auto fresh = make_scripted(*hub);
+        std::atomic<int> ready{0};
+        std::thread failing([&] {
+            ready.fetch_add(1);
+            while (ready.load() < 2)
+                std::this_thread::yield();
+            first->fail_read(boost::asio::error::network_down);
+        });
+        ready.fetch_add(1);
+        while (ready.load() < 2)
+            std::this_thread::yield();
+        static_cast<void>(endpoint->reopen(fresh));
+        failing.join();
+
+        drain_strand(*endpoint);
+        drain_strand(*endpoint);
+        REQUIRE(fresh->is_open());
+        REQUIRE_EQ(fresh->reads_armed(), std::size_t{1});
+        REQUIRE(hub->remove_endpoint(endpoint->id()).has_value());
+    }
+}
