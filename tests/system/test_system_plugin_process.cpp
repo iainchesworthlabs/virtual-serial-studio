@@ -866,10 +866,10 @@ TEST_CASE("plugin process: a start reports what confines the plugin")
     // With one, a start applies what this computer says it can.
     plugin_process confined =
         start_process(confined_request(scratch, {"--exit=0"}));
+    REQUIRE_EQ(confined.sandbox().failure.message(), std::string("x"));
     const sandbox_report can = available_sandbox();
     for (const sandbox_part part : all_sandbox_parts)
         REQUIRE_EQ(confined.sandbox().has(part), can.has(part));
-    REQUIRE_EQ(confined.sandbox().failure.message(), std::string("The operation completed successfully"));
     REQUIRE(confined.sandbox().level() == can.level());
     const exit_status status = wait_for_end(confined);
     REQUIRE(!status.abnormal);
