@@ -59,6 +59,7 @@
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
+#include <vss/plugin/host/capture_point.hpp>
 #include <vss/plugin/host/control_relay.hpp>
 #include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/instances.hpp>

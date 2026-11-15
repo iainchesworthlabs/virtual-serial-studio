@@ -8,6 +8,7 @@
 #
 
 add_library(vss_plugin_host
+  src/capture_point.cpp
   src/control_relay.cpp
   src/extension.cpp
   src/instances.cpp

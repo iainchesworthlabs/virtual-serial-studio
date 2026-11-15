@@ -70,6 +70,8 @@ struct extension_context
     std::string plugin_id;
     /// The plugin's name from its manifest: untrusted text.
     std::string plugin_name;
+    /// The plugin's version from its manifest.
+    std::string plugin_version;
     /// The permissions that were granted.  Never what was asked for.
     std::vector<permission> granted;
     /// The plugin's data directory.
