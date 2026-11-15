@@ -29,10 +29,32 @@
 
 !insertmacro GetParameters
 !insertmacro GetOptions
+!insertmacro un.GetParameters
+!insertmacro un.GetOptions
 
 Var VssDriverWanted
 Var VssDriverCheckbox
 Var VssDriverLog
+
+; An upgrade is told to the old uninstaller, never guessed. The installer of a newer
+; version runs the old uninstaller with /VSSUPGRADE=1 (cmake/packaging/windows/
+; nsis-template.cmake changes that one line of CPack's template). Only an uninstaller
+; started with that switch keeps the driver, the helper service, the PATH entry and the
+; per-user entries; any other uninstall removes them, whatever folder it runs from
+; (Uninstall.exe /S _?=<folder> is how an unattended uninstall is made to wait, and it
+; runs from the install folder too).
+;
+; VssIsUpgrade is 1 in an uninstaller started with the switch, and empty otherwise.
+; VssUpgradeFolder is, in the installer, the folder of the version whose uninstaller it
+; ran, and empty when it ran none. It is what the clean-up of a cancelled upgrade uses.
+Var VssIsUpgrade
+Var VssUpgradeFolder
+
+; The folder of the upgrade stash: what the old uninstaller leaves for the new
+; installer to take the driver, the helper service and the PATH entry away again if
+; the upgrade does not finish. Inside the install folder, which only administrators
+; can write.
+!define VSS_UNDO_DIR "undo-upgrade"
 
 ; The command line decides when there is no page: /DRIVER=0 skips the driver.
 Function VssDriverSwitch
@@ -153,13 +175,13 @@ done:
 FunctionEnd
 
 ; Takes the driver away when Studio is uninstalled. The installer of a newer
-; version runs the old uninstaller in place (the uninstaller then runs from the
-; install folder itself, which a normal uninstall never does) to replace the
-; files, and that must not take the driver and its COM numbers away: the new
-; installer sets it up again over the same package.
+; version runs the old uninstaller with /VSSUPGRADE=1 to replace the files, and that
+; must not take the driver and its COM numbers away: the new installer sets it up
+; again over the same package, and takes it away itself if the upgrade is cancelled.
+; An uninstaller started without the switch always removes it.
 Function un.VssRemoveDriver
   Push $0
-  ${If} $EXEDIR == $INSTDIR
+  ${If} $VssIsUpgrade == 1
     DetailPrint "Upgrade: the driver, the helper service and the ports stay in place."
     Goto done
   ${EndIf}
@@ -278,16 +300,20 @@ done:
   Pop $0
 FunctionEnd
 
-; Takes the folder out of the PATH when Studio is uninstalled. An upgrade runs the old
-; uninstaller in place (see un.VssRemoveDriver) and leaves the PATH as it is.
+; Takes the folder out of the PATH when Studio is uninstalled. An upgrade (an
+; uninstaller started with /VSSUPGRADE=1, see un.VssRemoveDriver) leaves the PATH as it
+; is. path-setup.log is the log of the PATH work. It is deleted with the rest, except
+; when taking the folder out failed: then it stays in the install folder, which stays
+; with it, and the message says so, because it is the only thing left that says why the
+; PATH still names a folder that is gone.
 Function un.VssRemovePath
   Push $0
-  ${If} $EXEDIR == $INSTDIR
+  ${If} $VssIsUpgrade == 1
     DetailPrint "Upgrade: the PATH stays as it is."
-    Goto done
+    Goto clean
   ${EndIf}
   ${IfNot} ${FileExists} "$INSTDIR\bin\edit-path.ps1"
-    Goto done
+    Goto clean
   ${EndIf}
 
   DetailPrint "Taking $INSTDIR\bin out of the PATH."
@@ -295,8 +321,13 @@ Function un.VssRemovePath
   ${If} $0 == 0
     SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
   ${Else}
-    MessageBox MB_OK|MB_ICONEXCLAMATION "Virtual Serial Studio is removed, but its folder could not be taken out of the PATH (code $0). The PATH was not changed.$\r$\n$\r$\nWhat happened is in $INSTDIR\path-setup.log" /SD IDOK
+    DetailPrint "PATH: NOT changed (code $0). The log is $INSTDIR\path-setup.log"
+    MessageBox MB_OK|MB_ICONEXCLAMATION "Virtual Serial Studio is removed, but its folder could not be taken out of the PATH (code $0). The PATH was not changed.$\r$\n$\r$\nThe folder $INSTDIR\bin is still on it. What happened is in $INSTDIR\path-setup.log, which stays there for you to read." /SD IDOK
+    Goto done
   ${EndIf}
+
+clean:
+  Delete "$INSTDIR\path-setup.log"
 
 done:
   ; The script is not in CPack's list of installed files (VssInstallPath puts it
@@ -368,7 +399,7 @@ Function un.VssStopStudio
     Goto done
   ${EndIf}
 
-  ${If} $EXEDIR != $INSTDIR
+  ${If} $VssIsUpgrade != 1
     MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "Virtual Serial Studio is running. Uninstalling closes it, and that stops its ports." /SD IDOK IDOK close
     Delete "$INSTDIR\stop-studio.log"
     Abort "Virtual Serial Studio is still running, so nothing was removed."
@@ -392,7 +423,7 @@ FunctionEnd
 ; not do in a folder that belongs to somebody else.
 Function un.VssForgetUsers
   Push $0
-  ${If} $EXEDIR == $INSTDIR
+  ${If} $VssIsUpgrade == 1
     DetailPrint "Upgrade: start at sign-in and each user's running setup stay as they are."
     Goto done
   ${EndIf}
@@ -413,4 +444,131 @@ done:
   ; the uninstaller would leave it, and the folder with it.
   Delete "$INSTDIR\bin\stop-studio.ps1"
   Pop $0
+FunctionEnd
+
+; ---- An upgrade: telling it, and taking back a cancelled one -------------------
+;
+; The installer of a newer version runs the uninstaller of the old one first, before
+; its first page (CPack's template, with /VSSUPGRADE=1 added, see nsis-template.cmake).
+; That uninstaller deletes the program, its own Uninstall.exe and its entry in
+; Apps & features, and keeps the driver, the helper service, the PATH entry and the
+; per-user entries, because the new installer sets them up again. If the person then
+; cancels, or the install fails, nothing would set them up and nothing could remove
+; them. So the old uninstaller leaves the scripts that remove them in a folder
+; (undo-upgrade) in the install folder, and the new installer runs them if it does not
+; get to the end. A finished install deletes the folder. If the installer is killed
+; (a power cut, Task Manager) the folder stays, and the next install replaces it.
+
+; First in the uninstall: is this an upgrade? Only the switch says so. A switch that is
+; not there, or has any other value, is a real uninstall, which removes everything.
+Function un.VssReadUpgrade
+  Push $0
+  Push $1
+  StrCpy $VssIsUpgrade ""
+  ${un.GetParameters} $0
+  ${un.GetOptions} $0 "/VSSUPGRADE=" $1
+  ${If} $1 == "1"
+    StrCpy $VssIsUpgrade 1
+  ${EndIf}
+  Pop $1
+  Pop $0
+FunctionEnd
+
+; In an upgrade, before anything is taken away: keeps the scripts that remove what the
+; upgrade leaves, for the new installer. The same scripts the real uninstall runs.
+Function un.VssStashUndo
+  ${If} $VssIsUpgrade != 1
+    Return
+  ${EndIf}
+  RMDir /r "$INSTDIR\${VSS_UNDO_DIR}"
+  CreateDirectory "$INSTDIR\${VSS_UNDO_DIR}\helper"
+  CopyFiles /SILENT "$INSTDIR\bin\driver\remove-driver.ps1" "$INSTDIR\${VSS_UNDO_DIR}\remove-driver.ps1"
+  CopyFiles /SILENT "$INSTDIR\bin\driver\helper\install-helper.ps1" "$INSTDIR\${VSS_UNDO_DIR}\helper\install-helper.ps1"
+  CopyFiles /SILENT "$INSTDIR\bin\edit-path.ps1" "$INSTDIR\${VSS_UNDO_DIR}\edit-path.ps1"
+  CopyFiles /SILENT "$INSTDIR\bin\stop-studio.ps1" "$INSTDIR\${VSS_UNDO_DIR}\stop-studio.ps1"
+FunctionEnd
+
+; At the end of a finished install: the upgrade went through, so there is nothing to
+; take back. The install folder is cleared too, for a folder left by an installer that
+; was killed before.
+Function VssUpgradeDone
+  ${If} $VssUpgradeFolder != ""
+    RMDir /r "$VssUpgradeFolder\${VSS_UNDO_DIR}"
+    StrCpy $VssUpgradeFolder ""
+  ${EndIf}
+  RMDir /r "$INSTDIR\${VSS_UNDO_DIR}"
+FunctionEnd
+
+; The person cancelled, or the install failed, after the old version was uninstalled:
+; Studio is gone, so what the old uninstaller kept for this installer goes too, by the
+; scripts it left. It does nothing when this installer ran no uninstaller, or the old
+; one did not leave the scripts (it was an older build). It runs once. Each script
+; writes its own log in the old install folder, and a log is kept only when its script
+; failed, with the scripts, so that the person can run them by hand.
+Function VssUndoUpgrade
+  Push $0
+  Push $1
+  Push $R0
+  Push $R1
+  StrCpy $R0 $VssUpgradeFolder
+  StrCpy $VssUpgradeFolder ""
+  ${If} $R0 == ""
+    Goto done
+  ${EndIf}
+  StrCpy $R1 "$R0\${VSS_UNDO_DIR}"
+  ${IfNot} ${FileExists} "$R1\remove-driver.ps1"
+    Goto done
+  ${EndIf}
+
+  DetailPrint "The upgrade did not finish. Taking the driver, the helper service and the PATH entry of the earlier version away."
+  StrCpy $1 0
+
+  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\remove-driver.ps1" > "$R0\driver-remove.log" 2>&1' $0
+  ${If} $0 == 0
+  ${OrIf} $0 == 10
+    Delete "$R0\driver-remove.log"
+    ${If} $0 == 10
+      SetRebootFlag true
+    ${EndIf}
+  ${Else}
+    StrCpy $1 1
+  ${EndIf}
+
+  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\edit-path.ps1" -Action Remove -Directory "$R0\bin" > "$R0\path-setup.log" 2>&1' $0
+  ${If} $0 == 0
+    Delete "$R0\path-setup.log"
+    SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
+  ${Else}
+    StrCpy $1 1
+  ${EndIf}
+
+  ExecWait '"$WINDIR\Sysnative\cmd.exe" /C set "PSModulePath=" & "$WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "$R1\stop-studio.ps1" -Action Forget -Directory "$R0\bin" > "$R0\forget-users.log" 2>&1' $0
+  ${If} $0 == 0
+    Delete "$R0\forget-users.log"
+  ${Else}
+    StrCpy $1 1
+  ${EndIf}
+
+  ${If} $1 == 0
+    RMDir /r "$R1"
+    RMDir "$R0"
+  ${Else}
+    MessageBox MB_OK|MB_ICONEXCLAMATION "The upgrade did not finish, and the earlier version of Virtual Serial Studio was already removed. Taking its driver, helper service or PATH entry away did not finish.$\r$\n$\r$\nThe logs are in $R0 (driver-remove.log, path-setup.log, forget-users.log; the ones that are not there worked). The scripts that remove them are in $R1; run them as administrator." /SD IDOK
+  ${EndIf}
+
+done:
+  Pop $R1
+  Pop $R0
+  Pop $1
+  Pop $0
+FunctionEnd
+
+; MUI calls this when the person confirmed that they cancel; .onInstFailed is called
+; when an install that began fails (a section aborts, a file cannot be written).
+Function VssOnUserAbort
+  Call VssUndoUpgrade
+FunctionEnd
+
+Function .onInstFailed
+  Call VssUndoUpgrade
 FunctionEnd

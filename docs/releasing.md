@@ -380,16 +380,26 @@ Serial Studio**) and where the log is. A silent install shows nothing, exits 0 a
 the log and the `VssDriver` value; automation reads the value. A signed and trusted
 package installs with no step by hand.
 
-**Upgrade and uninstall.** An upgrade runs the old uninstaller in place, and the installer
-tells that apart from a real uninstall (the old uninstaller runs from the install folder
-itself, which a normal uninstall never does): it leaves the driver package, the helper
-service and the ports' COM numbers alone, replaces the files, and runs the set-up again,
-which stops the helper before it replaces `vsscom_helper.exe`. A real uninstall runs
+**Upgrade and uninstall.** An upgrade runs the old uninstaller first, and the new installer
+tells it so: it starts it with `/VSSUPGRADE=1` (CPack's NSIS template has one line for this,
+and `cmake/packaging/windows/nsis-template.cmake` writes the copy of it that is used; the
+configure step stops if a CMake release moves that line). Only an uninstaller started with
+that switch keeps the driver package, the helper service, the PATH entry and the per-user
+entries. Where the uninstaller runs from does not matter: `Uninstall.exe /S _?=<folder>`,
+which is how an unattended uninstall is made to wait, removes everything. An upgrade leaves
+the driver and the ports' COM numbers alone, replaces the files, and runs the set-up
+again, which stops the helper before it replaces `vsscom_helper.exe`. Because the old
+version is gone before the new installer's first page, the old uninstaller also leaves the
+scripts that take those things away in `undo-upgrade` in the install folder. If the person
+cancels, or the install fails, the new installer runs them (driver, PATH, start at
+sign-in) and deletes the folder; a finished install deletes it too. If an installer is
+killed the folder stays, and the next install replaces it. A real uninstall runs
 `bin\driver\remove-driver.ps1`: it stops and deletes the helper service (the ports it made go
 with it), deletes the `vsscom_um` package from the driver store (which removes the devices
 that use it), checks that none is left and removes the helper's folder. It touches no
 certificate and no setting, and no other driver. If it fails, the uninstaller says so and
-keeps `driver-remove.log`.
+keeps `driver-remove.log`. If it cannot take the folder out of the PATH, it says so and keeps
+`path-setup.log` in the install folder, which stays with it.
 
 **A Studio that is running.** Windows cannot replace or delete a program that runs, so
 before an upgrade copies the files and before an uninstall deletes them the installer
