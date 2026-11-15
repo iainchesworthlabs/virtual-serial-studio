@@ -906,6 +906,7 @@ TEST_CASE("plugin process: a plugin that may start programs is held to its "
     const scratch_directory scratch;
     process_request request =
         confined_request(scratch, {"--spawn-children=5", "--hang"});
+    REQUIRE(request.sandbox.has_value());
     request.sandbox->start_programs = true;
     request.sandbox->limits.processes = 3;
     plugin_process process = start_process(request);
@@ -927,6 +928,7 @@ TEST_CASE("plugin process: a plugin is held to its memory")
     const scratch_directory scratch;
     process_request request =
         confined_request(scratch, {"--allocate=32", "--allocate=512"});
+    REQUIRE(request.sandbox.has_value());
     request.sandbox->limits.memory_bytes = 128ULL * 1024 * 1024;
     plugin_process process = start_process(request);
 

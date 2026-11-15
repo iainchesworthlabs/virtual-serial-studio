@@ -418,11 +418,9 @@ container_functions find_container_functions() noexcept
     if (library == nullptr)
         return functions;
     functions.create = reinterpret_cast<container_functions::create_profile>(
-        reinterpret_cast<void*>(
-            ::GetProcAddress(library, "CreateAppContainerProfile")));
+        ::GetProcAddress(library, "CreateAppContainerProfile"));
     functions.derive = reinterpret_cast<container_functions::derive_sid>(
-        reinterpret_cast<void*>(::GetProcAddress(
-            library, "DeriveAppContainerSidFromAppContainerName")));
+        ::GetProcAddress(library, "DeriveAppContainerSidFromAppContainerName"));
     return functions;
 }
 
@@ -549,8 +547,8 @@ result<app_container> prepare_container(const sandbox_profile& profile)
     container.sid.reset(raw);
 
     constexpr DWORD read = FILE_GENERIC_READ | FILE_GENERIC_EXECUTE;
-    constexpr DWORD change =
-        read | FILE_GENERIC_WRITE | DELETE | FILE_DELETE_CHILD;
+    // Everything but changing who may reach the directory.
+    constexpr DWORD change = FILE_ALL_ACCESS & ~(WRITE_DAC | WRITE_OWNER);
     if (const error_code failed =
             grant(profile.plugin_directory, container.sid.get(), read))
         return failed;
