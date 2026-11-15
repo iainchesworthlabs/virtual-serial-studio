@@ -222,7 +222,10 @@ void crash()
 {
     static_cast<void>(
         ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX));
-    ::RaiseException(0xC0000005u, EXCEPTION_NONCONTINUABLE, 0, nullptr);
+    // A fail-fast ends the process as a fault does and goes past every
+    // handler, the address sanitiser's included, which would otherwise
+    // turn the fault into an ordinary exit.
+    ::RaiseFailFastException(nullptr, nullptr, 0);
 }
 
 long long process_id()
