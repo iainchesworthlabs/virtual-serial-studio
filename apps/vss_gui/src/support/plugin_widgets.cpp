@@ -8,6 +8,7 @@
 
 #include "support/plugin_text.hpp"
 #include "theme/icon_provider.hpp"
+#include "theme/scaled_font.hpp"
 #include "widgets/common.hpp"
 #include "widgets/notes.hpp"
 
@@ -46,12 +47,8 @@ QLabel* make_fixed_label(const QString& text, QWidget* parent, bool large)
     auto* label = new QLabel(parent);
     label->setTextFormat(Qt::PlainText);
     label->setText(text);
-    QFont font = Theme::instance().font(text_style::data);
-    if (large && font.pixelSize() > 0)
-        font.setPixelSize(font.pixelSize() * 3 / 2);
-    else if (large)
-        font.setPointSizeF(font.pointSizeF() * 1.5);
-    label->setFont(font);
+    const QFont font = Theme::instance().font(text_style::data);
+    label->setFont(large ? scaled_font(font, 1.5) : font);
     label->setWordWrap(false);
     label->setTextInteractionFlags(Qt::TextSelectableByMouse);
     return label;
