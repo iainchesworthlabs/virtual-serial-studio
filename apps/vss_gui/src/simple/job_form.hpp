@@ -148,7 +148,7 @@ private:
     void set_busy(bool busy);
     /// Reports a finished build on the GUI thread.
     void finish_submit(const vss::result<vss::endpoint_id>& built,
-                       unsigned clashed);
+                       unsigned clashed, bool previous_lost);
 
     std::optional<list_spec> spec(bool second) const;
     std::vector<end_plan>& list(bool second);

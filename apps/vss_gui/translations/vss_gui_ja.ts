@@ -3302,6 +3302,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>設定を変更できませんでした。Studio からの報告：%1。以前の設定を元に戻せませんでした。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
         </message>
@@ -18072,6 +18077,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>設定を変更できませんでした。Studio からの報告：%1。以前の状態は、Studio で可能なところは元に戻しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>設定を変更できませんでした。Studio からの報告：%1。以前の設定を元に戻せませんでした。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

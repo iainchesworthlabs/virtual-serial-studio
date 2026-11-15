@@ -3303,6 +3303,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. לא ניתן היה להחזיר את התצורה הקודמת.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Studio לא הצליח לקרוא אילו מספרי COM Windows שומר, ולכן הוא בוחר מספר פנוי בעת יצירת היציאה ומציג אותו כשהיציאה מוכנה.</translation>
         </message>
@@ -18084,6 +18089,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. מה שהיה קודם הוחזר למקומו, ככל ש-Studio הצליח.</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>לא ניתן היה לשנות את התצורה. Studio דיווח: %1. לא ניתן היה להחזיר את התצורה הקודמת.</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

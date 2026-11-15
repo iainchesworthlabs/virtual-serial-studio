@@ -11,6 +11,7 @@
 
 #include "backend/engine_studio_backend.hpp"
 #include "backend/fake_studio_backend.hpp"
+#include "dialogs/network_uri.hpp"
 #include "simple/job_form.hpp"
 #include "simple/job_grid.hpp"
 #include "simple/job_plan.hpp"
@@ -18,6 +19,7 @@
 #include "simple/setup_page.hpp"
 #include "simple/simple_page.hpp"
 #include "theme/theme.hpp"
+#include "widgets/controls.hpp"
 #include "widgets/notes.hpp"
 
 #include <vss/core/link.hpp>
@@ -25,15 +27,21 @@
 
 #include <QApplication>
 #include <QComboBox>
+#include <QHostAddress>
 #include <QLabel>
+#include <QLineEdit>
 #include <QListWidget>
 #include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollArea>
+#include <QSpinBox>
+#include <QTcpServer>
+#include <QTcpSocket>
 
 #include <algorithm>
 #include <chrono>
+#include <optional>
 #include <stdexcept>
 
 namespace
@@ -1450,4 +1458,510 @@ TEST_CASE("simple: pictures for a person to review")
     page.open_job(job::port);
     settle();
     page.grab().save(folder + QStringLiteral("/4-port-form.png"));
+}
+
+namespace
+{
+
+/// The network job: a device on this PC, and the port other computers use.
+job_plan network_plan(const QString& device, unsigned listen_port = 4001)
+{
+    job_plan plan;
+    plan.kind = job::network;
+    end_plan end;
+    end.what = end_plan::kind::device;
+    end.device_path = device;
+    plan.first.push_back(end);
+    plan.listen_port = listen_port;
+    return plan;
+}
+
+/// The network job with a device reached over TCP on this PC: the one device
+/// the real engine can open without hardware.
+job_plan network_device_plan(unsigned device_port, unsigned listen_port)
+{
+    job_plan plan;
+    plan.kind = job::network;
+    end_plan end;
+    end.what = end_plan::kind::network_device;
+    end.address = QStringLiteral("127.0.0.1");
+    end.network_port = device_port;
+    plan.first.push_back(end);
+    plan.listen_port = listen_port;
+    return plan;
+}
+
+std::optional<port_view> port_with_path(const std::vector<port_view>& ports,
+                                        const QString& prefix)
+{
+    for (const auto& port : ports)
+    {
+        if (port.path.startsWith(prefix))
+            return port;
+    }
+    return std::nullopt;
+}
+
+/// What Change is given for the network setup on `backend`: its two ports and
+/// its link, with the device and the listener told apart by their paths.
+setup_view hand_network_setup(const StudioBackend& backend)
+{
+    setup_view setup;
+    setup.kind = job::network;
+    for (const auto& port : backend.ports())
+    {
+        setup.group.ports.push_back(port.id);
+        if (port.path.startsWith(QStringLiteral("tcp-listen://")))
+            setup.listener = port.id;
+        else
+            setup.device = port.id;
+    }
+    const auto links = backend.links();
+    REQUIRE_EQ(links.size(), std::size_t{1});
+    setup.link = links.front().id;
+    return setup;
+}
+
+/// A TCP port nothing listens on at the moment.
+unsigned unused_port()
+{
+    QTcpServer server;
+    REQUIRE(server.listen(QHostAddress::LocalHost, 0));
+    const unsigned port = server.serverPort();
+    server.close();
+    return port;
+}
+
+} // namespace
+
+TEST_CASE("simple: the network job listens for other computers")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    REQUIRE(build_setup(backend, network_plan(QStringLiteral("COM3"), 4005))
+                .has_value());
+
+    // `tcp://` would connect out to the address; only `tcp-listen://` waits
+    // for others.  The fake treats both alike, so the address is what counts.
+    const auto ports = backend.ports();
+    REQUIRE_EQ(ports.size(), std::size_t{2});
+    REQUIRE(port_with_path(ports, QStringLiteral("tcp-listen://0.0.0.0:4005"))
+                .has_value());
+    REQUIRE(port_with_path(ports, QStringLiteral("serial://COM3")).has_value());
+    for (const auto& port : ports)
+        REQUIRE(!port.path.startsWith(QStringLiteral("tcp://")));
+
+    // The setup is read back as the network job, with its port.
+    const auto found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::network);
+    REQUIRE_EQ(plan_from(found[0], ports).listen_port, 4005u);
+}
+
+TEST_CASE("simple: the network job gives the device every setting of the form")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    job_plan plan = network_plan(QStringLiteral("COM3"));
+    plan.serial.baud_rate = 9600;
+    plan.serial.data_bits = 7;
+    plan.serial.parity = vss::parity_mode::even;
+    plan.serial.stop_bits = vss::stop_bits_mode::two;
+    plan.serial.flow_control = vss::flow_control_mode::hardware;
+    REQUIRE(build_setup(backend, plan).has_value());
+
+    const auto device =
+        port_with_path(backend.ports(), QStringLiteral("serial://COM3"));
+    REQUIRE(device.has_value());
+    REQUIRE(device->serial == plan.serial);
+}
+
+TEST_CASE("simple: a network job on the real engine can be connected to")
+{
+    // A TCP server on this PC stands for the serial device, which needs no
+    // hardware.  The engine connects to it, and listens on a port of its own.
+    QTcpServer box;
+    REQUIRE(box.listen(QHostAddress::LocalHost, 0));
+    const unsigned listen_port = unused_port();
+
+    vss::studio studio;
+    EngineStudioBackend backend(studio);
+    REQUIRE(
+        build_setup(backend, network_device_plan(box.serverPort(), listen_port))
+            .has_value());
+    const auto listener =
+        port_with_path(backend.ports(), QStringLiteral("tcp-listen://"));
+    REQUIRE(listener.has_value());
+
+    // Another computer connects to the listening port.
+    QTcpSocket other;
+    other.connectToHost(QHostAddress::LocalHost,
+                        static_cast<quint16>(listen_port));
+    REQUIRE(vss_test::wait_until(
+        [&other] { return other.state() == QAbstractSocket::ConnectedState; }));
+    REQUIRE(
+        vss_test::wait_until([&box] { return box.hasPendingConnections(); }));
+    QTcpSocket* device = box.nextPendingConnection();
+    REQUIRE(device != nullptr);
+
+    // Bytes cross both ways.
+    const QByteArray to_device("to the device");
+    other.write(to_device);
+    REQUIRE(vss_test::wait_until(
+        [&] { return device->bytesAvailable() >= to_device.size(); }));
+    REQUIRE(device->readAll() == to_device);
+    const QByteArray from_device("from the device");
+    device->write(from_device);
+    REQUIRE(vss_test::wait_until(
+        [&] { return other.bytesAvailable() >= from_device.size(); }));
+    REQUIRE(other.readAll() == from_device);
+
+    // The listener counts the computer that is connected.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            backend.refresh();
+            const auto shown = backend.port(listener->id);
+            return shown && shown->clients == std::size_t{1};
+        }));
+}
+
+TEST_CASE("simple: a failed network change puts the old setup back, or says "
+          "it could not")
+{
+    QTcpServer box;
+    REQUIRE(box.listen(QHostAddress::LocalHost, 0));
+    const unsigned listen_port = unused_port();
+
+    vss::studio studio;
+    EngineStudioBackend backend(studio);
+    REQUIRE(
+        build_setup(backend, network_device_plan(box.serverPort(), listen_port))
+            .has_value());
+    auto previous = hand_network_setup(backend);
+
+    // Nothing answers at the new device, so the new setup cannot be made.  The
+    // old one used the same listen port, so it had to be closed first, and it
+    // is made again.
+    const job_plan unreachable =
+        network_device_plan(unused_port(), listen_port);
+    bool lost = true;
+    REQUIRE(!build_setup(backend, unreachable, &previous, nullptr, &lost)
+                 .has_value());
+    REQUIRE(!lost);
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+    {
+        QTcpSocket other;
+        other.connectToHost(QHostAddress::LocalHost,
+                            static_cast<quint16>(listen_port));
+        REQUIRE(vss_test::wait_until(
+            [&other]
+            { return other.state() == QAbstractSocket::ConnectedState; }));
+    }
+
+    // With the device gone the old setup cannot be made again either, and the
+    // call says so.
+    previous = hand_network_setup(backend);
+    box.close();
+    lost = false;
+    REQUIRE(!build_setup(backend, unreachable, &previous, nullptr, &lost)
+                 .has_value());
+    REQUIRE(lost);
+    REQUIRE(backend.ports().empty());
+}
+
+TEST_CASE("simple: the form does not say a network setup was put back when it "
+          "was not")
+{
+    QTcpServer box;
+    REQUIRE(box.listen(QHostAddress::LocalHost, 0));
+    const unsigned listen_port = unused_port();
+
+    vss::studio studio;
+    EngineStudioBackend backend(studio);
+    REQUIRE(
+        build_setup(backend, network_device_plan(box.serverPort(), listen_port))
+            .has_value());
+    const auto previous = hand_network_setup(backend);
+    JobForm form(backend, job::network, previous);
+    box.close();
+
+    REQUIRE(!submit_and_wait(&form));
+    const QString failure = failure_text(form);
+    REQUIRE(failure.startsWith(
+        QStringLiteral("Could not change the setup. Studio reported: ")));
+    REQUIRE(failure.endsWith(
+        QStringLiteral("The previous setup could not be put back.")));
+    REQUIRE(!failure.contains(QStringLiteral("put back where Studio could")));
+}
+
+TEST_CASE("simple: a failed network change in the form says the old setup was "
+          "put back")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    REQUIRE(
+        build_setup(backend, network_plan(QStringLiteral("COM3"))).has_value());
+    const auto previous = setups(backend).front();
+    REQUIRE(previous.kind == job::network);
+
+    JobForm form(backend, job::network, previous);
+    auto* port = form.findChild<QSpinBox*>(QStringLiteral("jobFormListenPort"));
+    REQUIRE(port != nullptr);
+    port->setValue(80);
+    // The old pair is closed (two calls), the device opens (the third), and
+    // the network port is refused (the fourth).
+    backend.fail_after(3, vss::make_error_code(vss::errc::timeout));
+    REQUIRE(!submit_and_wait(&form));
+
+    const QString failure = failure_text(form);
+    REQUIRE(failure.startsWith(
+        QStringLiteral("Could not change the setup. Studio reported: ")));
+    REQUIRE(failure.endsWith(QStringLiteral("put back where Studio could.")));
+
+    // The old setup is there again, on its old port.
+    const auto found = setups(backend);
+    REQUIRE_EQ(found.size(), std::size_t{1});
+    REQUIRE(found[0].kind == job::network);
+    REQUIRE_EQ(plan_from(found[0], backend.ports()).listen_port, 4001u);
+}
+
+TEST_CASE("simple: device settings chosen when changing a setup reach the "
+          "device")
+{
+    FakeStudioBackend backend;
+    capabilities caps = windows_caps();
+    caps.port_settings = true;
+    backend.set_capabilities(caps);
+    job_plan plan = share_plan(2);
+    plan.serial.baud_rate = 9600;
+    REQUIRE(build_setup(backend, plan).has_value());
+    const auto setup = setups(backend).front();
+    REQUIRE_EQ(
+        vss_test::require_value(backend.port(setup.device)).serial.baud_rate,
+        9600u);
+
+    JobForm form(backend, setup.kind, setup);
+    auto* baud = form.findChild<QComboBox*>(QStringLiteral("jobFormBaud"));
+    REQUIRE(baud != nullptr);
+    baud->setCurrentIndex(baud->findData(19200U));
+    REQUIRE(submit_and_wait(&form));
+
+    // The device and the programs are the same ports, and the device runs at
+    // the new speed.
+    REQUIRE_EQ(backend.ports().size(), std::size_t{3});
+    REQUIRE_EQ(
+        vss_test::require_value(backend.port(setup.device)).serial.baud_rate,
+        19200u);
+}
+
+TEST_CASE("simple: a change of device settings is refused where the build "
+          "cannot apply them")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    job_plan plan = share_plan(2);
+    plan.serial.baud_rate = 9600;
+    REQUIRE(build_setup(backend, plan).has_value());
+    const auto setup = setups(backend).front();
+
+    job_plan changed = plan_from(setup, backend.ports());
+    changed.serial.baud_rate = 19200;
+    const auto result = build_setup(backend, changed, &setup);
+    REQUIRE(!result.has_value());
+    REQUIRE(result.error() == vss::errc::unsupported);
+    REQUIRE_EQ(
+        vss_test::require_value(backend.port(setup.device)).serial.baud_rate,
+        9600u);
+    REQUIRE_EQ(backend.ports().size(), std::size_t{3});
+}
+
+TEST_CASE("simple: a port that chose its COM number is made before an "
+          "Automatic one")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    job_plan plan;
+    plan.kind = job::pair;
+    end_plan automatic;
+    end_plan chosen;
+    chosen.com_number = 3;
+    plan.first.push_back(automatic);
+    plan.second.push_back(chosen);
+    const auto built = build_setup(backend, plan);
+    REQUIRE(built.has_value());
+
+    // Studio gives an Automatic port the lowest number that is free, so the
+    // port that asked for COM3 is made first and nothing can take it.
+    const auto ports = backend.ports();
+    REQUIRE_EQ(ports.size(), std::size_t{2});
+    REQUIRE_EQ(ports[0].com_number, 3u);
+    REQUIRE_EQ(ports[1].com_number, 0u);
+
+    // The setup still reads in the order of the form: the Automatic port first.
+    const auto links = backend.links();
+    REQUIRE_EQ(links.size(), std::size_t{1});
+    REQUIRE_EQ(*built, ports[1].id);
+    REQUIRE_EQ(links[0].sources.front(), ports[1].id);
+    REQUIRE_EQ(links[0].targets.front(), ports[0].id);
+}
+
+TEST_CASE("simple: a network device address is read as host, port and "
+          "protocol")
+{
+    const auto parse = [](const QString& text)
+    { return parse_device_address(text); };
+
+    auto address = parse(QStringLiteral("192.168.1.50"));
+    REQUIRE(address.has_value());
+    REQUIRE_EQ(address->host, QStringLiteral("192.168.1.50"));
+    REQUIRE(!address->port.has_value());
+    REQUIRE(!address->transport.has_value());
+
+    address = parse(QStringLiteral("  box.local:4002 "));
+    REQUIRE(address.has_value());
+    REQUIRE_EQ(address->host, QStringLiteral("box.local"));
+    REQUIRE_EQ(*address->port, 4002);
+
+    address = parse(QStringLiteral("tcp://192.168.1.50:4001"));
+    REQUIRE(address.has_value());
+    REQUIRE_EQ(address->host, QStringLiteral("192.168.1.50"));
+    REQUIRE_EQ(*address->port, 4001);
+    REQUIRE(*address->transport == network_transport::tcp);
+
+    address = parse(QStringLiteral("rfc2217://box.local"));
+    REQUIRE(address.has_value());
+    REQUIRE(*address->transport == network_transport::rfc2217);
+    REQUIRE(!address->port.has_value());
+
+    for (const QString& text :
+         {QStringLiteral("fd00::5"), QStringLiteral("[fd00::5]"),
+          QStringLiteral("::1"), QStringLiteral("fe80::1%eth0")})
+    {
+        address = parse(text);
+        REQUIRE(address.has_value());
+        REQUIRE(!address->port.has_value());
+        REQUIRE(!address->host.contains(QLatin1Char('[')));
+    }
+    address = parse(QStringLiteral("[fd00::5]:4002"));
+    REQUIRE(address.has_value());
+    REQUIRE_EQ(address->host, QStringLiteral("fd00::5"));
+    REQUIRE_EQ(*address->port, 4002);
+
+    for (const QString& text :
+         {QString(), QStringLiteral("my host"), QStringLiteral("a/b"),
+          QStringLiteral("192.168.1.50:4001:4001"),
+          QStringLiteral("tcp://tcp://192.168.1.50"),
+          QStringLiteral("udp://192.168.1.50:4001"),
+          QStringLiteral("tcp-listen://0.0.0.0:4001"),
+          QStringLiteral("192.168.1.50:0"),
+          QStringLiteral("192.168.1.50:70000"), QStringLiteral("192.168.1.50:"),
+          QStringLiteral("[fd00::5"), QStringLiteral("[192.168.1.50]"),
+          QStringLiteral("fd00:::5"), QStringLiteral("host?x=1"),
+          QString(300, QLatin1Char('a'))})
+        REQUIRE(!parse(text).has_value());
+}
+
+TEST_CASE("simple: a network device's address is written and read back whole")
+{
+    end_plan end;
+    end.what = end_plan::kind::network_device;
+    end.network_port = 4001;
+    const auto uri = [&end](const QString& typed)
+    {
+        end.address = typed;
+        return device_uri(end, {});
+    };
+    REQUIRE_EQ(uri(QStringLiteral("192.168.1.50")),
+               QStringLiteral("tcp://192.168.1.50:4001"));
+    REQUIRE_EQ(uri(QStringLiteral("192.168.1.50:4002")),
+               QStringLiteral("tcp://192.168.1.50:4002"));
+    REQUIRE_EQ(uri(QStringLiteral("tcp://192.168.1.50:4001")),
+               QStringLiteral("tcp://192.168.1.50:4001"));
+    REQUIRE_EQ(uri(QStringLiteral("rfc2217://box:4003")),
+               QStringLiteral("rfc2217://box:4003"));
+    REQUIRE_EQ(uri(QStringLiteral("fd00::5")),
+               QStringLiteral("tcp://[fd00::5]:4001"));
+    REQUIRE_EQ(uri(QStringLiteral("[fd00::5]")),
+               QStringLiteral("tcp://[fd00::5]:4001"));
+    end.rfc2217 = true;
+    REQUIRE_EQ(uri(QStringLiteral("box")),
+               QStringLiteral("rfc2217://box:4001"));
+
+    // A setup made with an IPv6 device reads back as that host and port.
+    setup_view setup;
+    setup.kind = job::talk;
+    setup.device = 1;
+    const auto read_back =
+        plan_from(setup, {hand_port(1, vss::endpoint_kind::tcp,
+                                    QStringLiteral("tcp://[fd00::5]:4007"))});
+    REQUIRE_EQ(read_back.first.size(), std::size_t{1});
+    REQUIRE_EQ(read_back.first.front().address, QStringLiteral("fd00::5"));
+    REQUIRE_EQ(read_back.first.front().network_port, 4007u);
+    const auto bare =
+        plan_from(setup, {hand_port(1, vss::endpoint_kind::rfc2217,
+                                    QStringLiteral("192.168.1.50:4002"))});
+    REQUIRE_EQ(bare.first.front().address, QStringLiteral("192.168.1.50"));
+    REQUIRE_EQ(bare.first.front().network_port, 4002u);
+    REQUIRE(bare.first.front().rfc2217);
+}
+
+TEST_CASE("simple: the form checks the address of a network device")
+{
+    FakeStudioBackend backend;
+    backend.set_capabilities(windows_caps());
+    with_devices(backend);
+    JobForm form(backend, job::attach);
+    auto* where =
+        form.findChild<SegmentedControl*>(QStringLiteral("jobFormWhere"));
+    REQUIRE(where != nullptr);
+    where->set_current(1);
+    settle();
+    auto* address =
+        form.findChild<QLineEdit*>(QStringLiteral("jobFormAddress"));
+    REQUIRE(address != nullptr);
+    const auto type = [&form, address](const QString& text)
+    {
+        address->setText(text);
+        Q_EMIT address->textEdited(text);
+        return form.blocker();
+    };
+    REQUIRE(!form.create_button()->isEnabled());
+
+    // Each of these is refused, with a sentence that shows how an address is
+    // written.
+    for (const QString& text :
+         {QStringLiteral("my host"), QStringLiteral("a/b"),
+          QStringLiteral("192.168.1.50:4001:4001"),
+          QStringLiteral("tcp://tcp://192.168.1.50"),
+          QString(300, QLatin1Char('a'))})
+    {
+        REQUIRE(!type(text).isEmpty());
+        REQUIRE(!form.create_button()->isEnabled());
+    }
+    REQUIRE(type(QStringLiteral("192.168.1.50")).isEmpty());
+    REQUIRE(form.create_button()->isEnabled());
+
+    // A port and a protocol typed with the address move to their own boxes
+    // when the person has finished.
+    REQUIRE(type(QStringLiteral("rfc2217://box.local:4003")).isEmpty());
+    Q_EMIT address->editingFinished();
+    REQUIRE_EQ(address->text(), QStringLiteral("box.local"));
+    REQUIRE_EQ(form.plan().first.front().network_port, 4003u);
+    REQUIRE(form.plan().first.front().rfc2217);
+    auto* port = form.findChild<QSpinBox*>(QStringLiteral("jobFormDevicePort"));
+    auto* protocol =
+        form.findChild<QComboBox*>(QStringLiteral("jobFormProtocol"));
+    REQUIRE(port != nullptr);
+    REQUIRE(protocol != nullptr);
+    REQUIRE_EQ(port->value(), 4003);
+    REQUIRE_EQ(protocol->currentIndex(), 1);
+
+    // An IPv6 address is bracketed once, with the port and protocol chosen.
+    REQUIRE(type(QStringLiteral("fd00::5")).isEmpty());
+    REQUIRE(submit_and_wait(&form));
+    REQUIRE(port_with_path(backend.ports(),
+                           QStringLiteral("rfc2217://[fd00::5]:4003"))
+                .has_value());
 }

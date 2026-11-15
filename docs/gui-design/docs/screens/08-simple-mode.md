@@ -113,7 +113,9 @@ real port, com0com or an earlier port that Windows remembers. What was there bef
 Studio has chosen another number for you. Choose Apply to try again." The refused number is not offered again in that
 form and the row already holds a free number. Any other refusal reads "Could not set it up. Studio reported: <the
 reason>. Nothing was changed." or, when changing, "Could not change the setup. Studio reported: <the reason>. What was
-there before was put back where Studio could."
+there before was put back where Studio could." When a change closed the old setup first (the network job does, because
+the old and the new setup may want the same device and port) and the old one could not be made again, the second
+sentence reads "The previous setup could not be put back."
 
 ## What each job builds
 
