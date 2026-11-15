@@ -361,7 +361,12 @@ QSize Switch::sizeHint() const
     const QFontMetrics metrics(font());
     const int text_width =
         text().isEmpty() ? 0 : metrics.horizontalAdvance(text());
-    return QSize(34 + 8 + text_width, std::max(24, metrics.height()));
+    // The focus ring goes around the whole control, so the track and the
+    // label keep the room it needs (its width and gap, the smallest spacing
+    // step) from every edge.
+    const int room = Theme::instance().space(0);
+    return QSize(2 * room + 34 + 8 + text_width,
+                 2 * room + std::max(18, metrics.height()));
 }
 
 QSize Switch::minimumSizeHint() const
@@ -375,8 +380,9 @@ void Switch::paintEvent(QPaintEvent* event)
     const Theme& theme = Theme::instance();
     QPainter painter(this);
     painter.setRenderHint(QPainter::Antialiasing);
+    const int room = theme.space(0);
     const int track_y = (height() - 18) / 2;
-    const QRectF track(0.5, track_y + 0.5, 34, 18);
+    const QRectF track(room + 0.5, track_y + 0.5, 34, 18);
     const QColor on = theme.colour(isEnabled() ? colour_role::accent
                                                : colour_role::disabledText);
     const QColor off = theme.colour(colour_role::trackOff);
@@ -384,22 +390,25 @@ void Switch::paintEvent(QPaintEvent* event)
     painter.setBrush(isChecked() ? on : off);
     painter.drawRoundedRect(track, 9, 9);
 
-    const qreal knob_x = isChecked() ? 18.0 : 2.0;
+    const qreal knob_x = room + (isChecked() ? 18.0 : 2.0);
     painter.setPen(Qt::NoPen);
     painter.setBrush(theme.colour(colour_role::onAccent));
     painter.drawEllipse(QRectF(knob_x, track_y + 2, 14, 14));
 
+    // The ring goes around the whole control, track and label, as it does
+    // for a check box.
     if (hasFocus() && FocusRingStyle::keyboard_focus())
     {
-        painter.setBrush(Qt::NoBrush);
-        painter.setPen(QPen(theme.colour(colour_role::focus), 2.0));
-        painter.drawRoundedRect(track.adjusted(-2, -2, 2, 2), 11, 11);
+        FocusRingStyle::paint_ring(
+            painter, QRectF(rect()),
+            Theme::instance().radius(QStringLiteral("control")));
     }
 
     painter.setPen(theme.colour(isEnabled() ? colour_role::ink
                                             : colour_role::disabledText));
     painter.setFont(font());
-    painter.drawText(QRect(42, 0, width() - 42, height()),
+    const int text_x = room + 34 + 8;
+    painter.drawText(QRect(text_x, 0, width() - text_x - room, height()),
                      Qt::AlignLeft | Qt::AlignVCenter, text());
 }
 

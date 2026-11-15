@@ -39,6 +39,9 @@ inline constexpr std::size_t max_signal_bytes = 256;
 inline constexpr std::size_t max_sequence_steps = 64;
 inline constexpr std::size_t max_actions = 16;
 inline constexpr std::size_t max_reply_parts = 32;
+/// The check values in one reply.  Each is worked out over the reply so far,
+/// bit by bit for a CRC, so their number bounds what a reply costs to build.
+inline constexpr std::size_t max_reply_checks = 4;
 inline constexpr std::size_t max_delay_table = 256;
 inline constexpr std::size_t max_timeline = 1024;
 inline constexpr std::size_t max_tight_actions = 16;

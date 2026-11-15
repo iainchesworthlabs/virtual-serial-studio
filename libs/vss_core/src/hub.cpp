@@ -603,9 +603,13 @@ std::shared_ptr<delay_line> hub::make_delay(endpoint_id to,
 hub::route_entry hub::make_route(const link_record& link, endpoint_id from,
                                  endpoint_id to)
 {
-    return route_entry{link.id, to, make_delay(to, link.options),
-                       arbitrates(link.options.policy, link.mode, link.sources,
-                                  link.targets, from)};
+    route_entry route;
+    route.link = link.id;
+    route.to = to;
+    route.delay = make_delay(to, link.options);
+    route.arbitrated = arbitrates(link.options.policy, link.mode, link.sources,
+                                  link.targets, from);
+    return route;
 }
 
 void hub::add_route(const link_record& link, endpoint_id from, endpoint_id to)
@@ -1253,8 +1257,8 @@ result<void> hub::set_link_options(link_id id, const link_options& options)
 
         struct slot
         {
-            endpoint_id from;
-            route_entry* route;
+            endpoint_id from = 0;
+            route_entry* route = nullptr;
         };
         std::vector<slot> mine;
         for (auto& [from, routes] : routes_)

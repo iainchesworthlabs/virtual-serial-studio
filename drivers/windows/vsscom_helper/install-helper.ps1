@@ -14,7 +14,17 @@
 # starts with Windows and restarts itself if it stops by accident. Nothing else
 # is changed: the user-mode driver is a separate package.
 #
-# Exit code 0 when the service is installed and running (or removed).
+# Exit codes:
+#   0   the service is installed and running (or removed)
+#   2   not run as an administrator
+#   1   anything else (the reason is written to the error stream)
+#
+# The service is registered with its path in quotes. The folder name has spaces, and
+# a path without quotes makes Windows try C:\Program.exe first, as SYSTEM. The path is
+# not passed to sc.exe: Windows PowerShell 5.1 hands sc.exe the argument with its quotes
+# stripped. New-Service passes the string to the service manager as it is, and the
+# script reads the stored path back from the registry and stops, taking the service out
+# again, if it does not begin with a quote or cannot be read.
 
 [CmdletBinding()]
 param(
@@ -35,9 +45,15 @@ if (-not $InstallDir) {
 }
 $name = 'vsscom_helper'
 
-$identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-if (-not $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Error 'run this as an administrator'
+function Test-IsAdministrator {
+    $identity = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
+    $identity.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+# Write-Error would throw here, because $ErrorActionPreference is Stop, and the exit that
+# follows it would never run. The message goes to the error stream directly.
+if (-not (Test-IsAdministrator)) {
+    [Console]::Error.WriteLine('run this as an administrator')
     exit 2
 }
 
@@ -85,9 +101,20 @@ try {
     & icacls.exe $InstallDir /inheritance:r /grant:r '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' '*S-1-5-32-545:(OI)(CI)RX' | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'icacls failed' }
 
-    & sc.exe create $name binPath= "`"$target`"" start= auto obj= LocalSystem DisplayName= 'Virtual Serial Studio port helper' | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw 'sc create failed' }
-    & sc.exe description $name 'Makes virtual serial ports for the user-mode driver, for ordinary users.' | Out-Null
+    # The path is stored in quotes (see the top of this file). The service runs as LocalSystem,
+    # which is what New-Service gives it when no credential is named.
+    New-Service -Name $name -BinaryPathName "`"$target`"" -DisplayName 'Virtual Serial Studio port helper' -StartupType Automatic `
+        -Description 'Makes virtual serial ports for the user-mode driver, for ordinary users.' | Out-Null
+    # What the service manager stored, read from the registry (WMI can fail on its own).
+    $stored = $null
+    try { $stored = (Get-ItemProperty -LiteralPath "HKLM:\SYSTEM\CurrentControlSet\Services\$name" -Name ImagePath).ImagePath }
+    catch { $stored = $null }
+    if (-not $stored -or -not $stored.StartsWith('"')) {
+        # Do not leave a service that runs as SYSTEM with a path Windows would search, or one that was
+        # not checked.
+        Remove-HelperService
+        throw "the $name service was registered with a path that is not in quotes, or the path could not be read back ($stored)"
+    }
     # Restart after a stop that was not asked for; the ports of the stopped helper are gone.
     & sc.exe failure $name reset= 86400 actions= restart/5000/restart/5000/none/0 | Out-Null
     & sc.exe start $name | Out-Null
@@ -96,6 +123,6 @@ try {
     exit 0
 }
 catch {
-    Write-Error $_.Exception.Message
+    [Console]::Error.WriteLine($_.Exception.Message)
     exit 1
 }

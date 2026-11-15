@@ -1,7 +1,16 @@
 {
   "docs": [
     "docs/**",
-    "*.md",
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "SECURITY.md",
+    "AGENTS.md",
+    "adapters/**/*.md",
+    "apps/**/README.md",
+    "libs/**/README.md",
+    "cmake/**/README.md",
+    "website/README.md",
     "LICENSE*",
     "changelog.d/**"
   ],
@@ -29,6 +38,7 @@
     "tests/**",
     "perf/**",
     "tools/**",
+    "THIRD_PARTY_NOTICES.md",
     "CMakeLists.txt",
     "CMakePresets.json",
     "vcpkg.json",
@@ -40,6 +50,7 @@
     "apps/**",
     "libs/**",
     "cmake/**",
+    "THIRD_PARTY_NOTICES.md",
     "CMakeLists.txt",
     "CMakePresets.json",
     "vcpkg.json",

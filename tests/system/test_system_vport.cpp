@@ -69,8 +69,20 @@ public:
             argv.push_back(item.data());
         argv.push_back(nullptr);
 
-        const int rc = ::posix_spawn(&pid_, program.c_str(), &actions, nullptr,
-                                     argv.data(), environ);
+        // The program is started with SIGHUP at its default, whatever this
+        // test runner inherited: under `nohup` it would be ignored, and
+        // vss_cli leaves an ignored SIGHUP ignored.
+        posix_spawnattr_t attributes;
+        posix_spawnattr_init(&attributes);
+        sigset_t defaults;
+        sigemptyset(&defaults);
+        sigaddset(&defaults, SIGHUP);
+        posix_spawnattr_setsigdefault(&attributes, &defaults);
+        posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETSIGDEF);
+
+        const int rc = ::posix_spawn(&pid_, program.c_str(), &actions,
+                                     &attributes, argv.data(), environ);
+        posix_spawnattr_destroy(&attributes);
         posix_spawn_file_actions_destroy(&actions);
         ::close(pipes[1]);
         if (rc != 0)
@@ -228,6 +240,21 @@ TEST_CASE("vport: SIGINT also stops it and removes the name")
     cli.signal(SIGINT);
     REQUIRE_EQ(cli.wait(), 0);
     REQUIRE(!fs::exists(fs::symlink_status(directory / "vss-int")));
+}
+
+TEST_CASE("vport: SIGHUP, which a closing terminal sends, removes the name too")
+{
+    scratch_directory scratch;
+    const auto directory = scratch.path() / "links";
+
+    cli_process cli(
+        {"vport", "--name=vss-hup", stable_dir_argument(directory)});
+    REQUIRE_EQ(link_of(cli.read_line()), (directory / "vss-hup").string());
+    REQUIRE(fs::is_symlink(directory / "vss-hup"));
+
+    cli.signal(SIGHUP);
+    REQUIRE_EQ(cli.wait(), 0);
+    REQUIRE(!fs::exists(fs::symlink_status(directory / "vss-hup")));
 }
 
 TEST_CASE("vport: the same name works again after the process was killed")

@@ -16,7 +16,8 @@
 #include <string>
 #include <vector>
 
-namespace vss {
+namespace vss
+{
 
 struct replay_options
 {
@@ -51,10 +52,10 @@ class replay_player
 public:
     /// `errc::invalid_argument` for a speed that is not above zero, a missing
     /// endpoint, or a capture with nothing to send in the chosen direction.
-    static result<std::shared_ptr<replay_player>> start(
-        hub& engine, std::shared_ptr<endpoint> target,
-        const std::vector<capture_record>& records,
-        const replay_options& options = {});
+    static result<std::shared_ptr<replay_player>>
+    start(hub& engine, std::shared_ptr<endpoint> target,
+          const std::vector<capture_record>& records,
+          const replay_options& options = {});
 
     ~replay_player();
 
@@ -68,11 +69,21 @@ public:
     bool finished() const;
 
     std::uint64_t records_sent() const;
+    /// Bytes handed to the endpoint, which may still be in its queue.
     std::uint64_t bytes_sent() const;
     /// Complete passes through the capture.
     std::uint64_t passes() const;
     /// Writes the endpoint refused.
     std::uint64_t write_errors() const;
+    /// Bytes of the records whose write the endpoint has finished.  Only
+    /// this player's own writes count, not what a link or a program writes to
+    /// the same endpoint.
+    std::uint64_t bytes_written() const;
+    /// Bytes of the records whose write the endpoint refused or lost.  Once
+    /// `bytes_written() + bytes_failed()` reaches `bytes_sent()` every write
+    /// has ended.  A write that is dropped when the endpoint closes never
+    /// ends, so neither count includes it.
+    std::uint64_t bytes_failed() const;
 
     /// Records that will be sent in one pass.
     std::size_t records_per_pass() const;
@@ -85,4 +96,3 @@ private:
 };
 
 } // namespace vss
-

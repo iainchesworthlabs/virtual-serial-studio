@@ -1,0 +1,1 @@
+**The notices name the Qt Canvas Painter licence.** Qt Canvas Painter, which draws the canvas, is offered under the GPL version 3 or a commercial licence and not under the LGPL. `THIRD_PARTY_NOTICES.md`, `third_party.json` and the README now say so, and say that a package containing it is conveyed under version 3 of the GPL.

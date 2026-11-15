@@ -33,6 +33,11 @@
 #include <vss/license/signed_file.hpp>
 #include <vss/license/test_keys.hpp>
 
+#include <vss/update/error.hpp>
+#include <vss/update/feed.hpp>
+#include <vss/update/select.hpp>
+#include <vss/update/version.hpp>
+
 #include <vss/ports/com0com.hpp>
 #include <vss/ports/loopback_transport.hpp>
 #include <vss/ports/native_lines.hpp>
@@ -43,11 +48,20 @@
 #include <vss/config/document.hpp>
 
 #include <vss/plugin/access.hpp>
+#include <vss/plugin/api_adapter.hpp>
+#include <vss/plugin/api_capture.hpp>
+#include <vss/plugin/api_decoder.hpp>
+#include <vss/plugin/api_fixture.hpp>
+#include <vss/plugin/api_generator.hpp>
+#include <vss/plugin/api_instance.hpp>
+#include <vss/plugin/api_message.hpp>
+#include <vss/plugin/api_modifier.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/host/process.hpp>
 #include <vss/plugin/host/runner.hpp>
+#include <vss/plugin/install.hpp>
 #include <vss/plugin/licence.hpp>
 #include <vss/plugin/lifecycle.hpp>
 #include <vss/plugin/locations.hpp>

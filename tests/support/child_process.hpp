@@ -26,9 +26,12 @@ class child_process
 {
 public:
     /// Starts `program` with `arguments`.  Throws `std::runtime_error` when it
-    /// cannot be started.
+    /// cannot be started.  The child's standard error goes to the same pipe as
+    /// its standard output, or, when `stderr_file` is not empty, to that file
+    /// (made new, or emptied), so that a test can tell the two apart.
     child_process(const std::string& program,
-                  const std::vector<std::string>& arguments);
+                  const std::vector<std::string>& arguments,
+                  const std::string& stderr_file = {});
 
     /// Kills the child if it still runs, and waits for it.
     ~child_process();
@@ -57,6 +60,10 @@ public:
     /// Everything the child printed that has not been read yet, read until the
     /// output ends or `limit` passes.
     std::string read_all(std::chrono::milliseconds limit);
+
+    /// Closes the read end of the pipe, as a program does that reads the
+    /// child's output and goes away: what the child writes after this fails.
+    void close_output();
 
     /// The operating system's process id.
     std::uint64_t id() const noexcept;

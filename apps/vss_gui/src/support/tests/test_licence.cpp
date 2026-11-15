@@ -571,9 +571,9 @@ TEST_CASE("licence dialog: every state of the tables, updated in place")
         QString edition;
         QString chip;
         StatusChip::kind kind;
-        bool note;
+        bool note = false;
         NoteBanner::kind note_kind;
-        bool import_primary;
+        bool import_primary = false;
     };
     const QString ends = sample::date("2027-11-13T00:00:00Z");
     const std::vector<state_case> cases = {

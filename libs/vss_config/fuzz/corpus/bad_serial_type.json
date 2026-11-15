@@ -1,1 +1,1 @@
-{"ports":[{"name":"a","kind":"virtual","serial":42}]}
+{"version":1,"ports":[{"name":"a","kind":"virtual","serial":42}]}

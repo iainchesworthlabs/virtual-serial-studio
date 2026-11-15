@@ -28,11 +28,13 @@
 #include <QLineEdit>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPointer>
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QSet>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QTimer>
 #include <QVBoxLayout>
@@ -475,10 +477,15 @@ QString JobForm::end_name(const end_plan& end) const
     case end_plan::kind::device:
         return end.device_path.isEmpty() ? tr("the device") : end.device_path;
     case end_plan::kind::network_device:
-        return end.address.isEmpty() ? tr("the network device")
-                                     : QStringLiteral("%1:%2")
-                                           .arg(end.address)
-                                           .arg(end.network_port);
+    {
+        // What was typed may carry its own port, so name the address that
+        // will be opened where it can be read.
+        const end_plan target = resolved_network_end(end).value_or(end);
+        return target.address.isEmpty() ? tr("the network device")
+                                        : QStringLiteral("%1:%2")
+                                              .arg(target.address)
+                                              .arg(target.network_port);
+    }
     }
     return {};
 }
@@ -638,6 +645,7 @@ void JobForm::build()
         auto* row = new QHBoxLayout();
         auto* label = new QLabel(tr("Network port"), body);
         listen_ = new QSpinBox(body);
+        listen_->setObjectName(QStringLiteral("jobFormListenPort"));
         listen_->setRange(1, 65535);
         listen_->setValue(static_cast<int>(plan_.listen_port));
         listen_->setAccessibleName(tr("Network port"));
@@ -1041,6 +1049,7 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
     {
         auto* line = new QHBoxLayout();
         auto* address = new QLineEdit(end.address, row);
+        address->setObjectName(QStringLiteral("jobFormAddress"));
         address->setPlaceholderText(tr("Address, such as 192.168.1.50"));
         address->setAccessibleName(tr("Device address"));
         connect(address, &QLineEdit::textEdited, this,
@@ -1053,6 +1062,7 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
                     update_all();
                 });
         auto* port = new QSpinBox(row);
+        port->setObjectName(QStringLiteral("jobFormDevicePort"));
         port->setRange(1, 65535);
         port->setValue(static_cast<int>(end.network_port));
         port->setAccessibleName(tr("Network port"));
@@ -1071,6 +1081,7 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
         // programs change the baud rate.
         protocol->addItem(QStringLiteral("TCP"), false);
         protocol->addItem(QStringLiteral("RFC 2217"), true);
+        protocol->setObjectName(QStringLiteral("jobFormProtocol"));
         protocol->setCurrentIndex(end.rfc2217 ? 1 : 0);
         connect(protocol, &QComboBox::activated, this,
                 [this, second, index, protocol]
@@ -1080,6 +1091,33 @@ QWidget* JobForm::device_row(bool second, int index, bool allow_network)
                     changed.rfc2217 = protocol->currentData().toBool();
                     changed.existing = 0;
                 });
+        // A port or a protocol typed with the address moves to its own box
+        // once the person has finished typing, not while they type.
+        connect(
+            address, &QLineEdit::editingFinished, this,
+            [this, second, index, address, port = QPointer<QSpinBox>(port),
+             protocol = QPointer<QComboBox>(protocol)]
+            {
+                auto& changed = list(second)[static_cast<std::size_t>(index)];
+                const auto typed = resolved_network_end(changed);
+                if (!typed || (typed->address == changed.address &&
+                               typed->network_port == changed.network_port &&
+                               typed->rfc2217 == changed.rfc2217))
+                    return;
+                changed.address = typed->address;
+                changed.network_port = typed->network_port;
+                changed.rfc2217 = typed->rfc2217;
+                const QSignalBlocker blocker_address(address);
+                address->setText(typed->address);
+                if (port)
+                {
+                    const QSignalBlocker blocker_port(port.data());
+                    port->setValue(static_cast<int>(typed->network_port));
+                }
+                if (protocol)
+                    protocol->setCurrentIndex(typed->rfc2217 ? 1 : 0);
+                update_all();
+            });
         line->addWidget(address, 1);
         line->addWidget(port);
         line->addWidget(protocol);
@@ -1474,8 +1512,11 @@ void JobForm::validate()
             }
             else if (end.what == end_plan::kind::network_device)
             {
+                QString reason;
                 if (end.address.isEmpty())
                     blocker_ = tr("Enter the device's network address.");
+                else if (!resolved_network_end(end, &reason))
+                    blocker_ = reason;
             }
             else if (end.existing == 0 && end.com_number != 0)
             {
@@ -1538,6 +1579,7 @@ bool JobForm::submit()
         job_plan plan;
         std::optional<setup_view> previous;
         unsigned clashed = 0;
+        bool previous_lost = false;
         vss::result<vss::endpoint_id> built = vss::endpoint_id{0};
     };
     auto state = std::make_shared<outcome>();
@@ -1547,27 +1589,28 @@ bool JobForm::submit()
     return work_.start(
         [this, state]
         {
-            state->built = build_setup(
-                backend_, state->plan,
-                state->previous ? &*state->previous : nullptr,
-                &state->clashed);
+            state->built =
+                build_setup(backend_, state->plan,
+                            state->previous ? &*state->previous : nullptr,
+                            &state->clashed, &state->previous_lost);
         },
         [this, state]
         {
             set_busy(false);
-            finish_submit(state->built, state->clashed);
+            finish_submit(state->built, state->clashed, state->previous_lost);
         });
 }
 
 void JobForm::finish_submit(const vss::result<vss::endpoint_id>& built,
-                            unsigned clashed)
+                            unsigned clashed, bool previous_lost)
 {
     backend_.refresh();
     if (!built)
     {
         if (const auto problem = driver_problem_of(built.error()))
         {
-            // The sentence already says that nothing was changed and what to do.
+            // The sentence already says that nothing was changed and what to
+            // do.
             error_->set_text(driver_problem_body(*problem));
             if (driver_problem_offers_setup(*problem))
             {
@@ -1577,12 +1620,12 @@ void JobForm::finish_submit(const vss::result<vss::endpoint_id>& built,
             else
             {
                 // Nothing to set up: the underlying code goes behind a button.
-                error_->set_action(
-                    tr("Copy details"),
-                    [] {
-                        QGuiApplication::clipboard()->setText(
-                            last_driver_details());
-                    });
+                error_->set_action(tr("Copy details"),
+                                   []
+                                   {
+                                       QGuiApplication::clipboard()->setText(
+                                           last_driver_details());
+                                   });
             }
             error_->setVisible(true);
             return;
@@ -1615,7 +1658,11 @@ void JobForm::finish_submit(const vss::result<vss::endpoint_id>& built,
             return;
         }
         error_->set_text(
-            editing()
+            previous_lost
+                ? tr("Could not change the setup. Studio reported: %1. The "
+                     "previous setup could not be put back.")
+                      .arg(error_text(built.error()))
+            : editing()
                 ? tr("Could not change the setup. Studio reported: %1. What "
                      "was there before was put back where Studio could.")
                       .arg(error_text(built.error()))

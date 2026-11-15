@@ -781,8 +781,8 @@ void SupportBundleDialog::update_counts()
 
 bool SupportBundleDialog::write_bundle(const QString& path, QString* error)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.support.bundle_dialog.write");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, path.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.support.bundle_dialog.write");
+    VSS_PROFILE_ZONE_TEXT(zone, path.toStdString());
     // The files the preview shows, so the zip cannot differ from what the
     // person looked at.
     StoredZipWriter writer;

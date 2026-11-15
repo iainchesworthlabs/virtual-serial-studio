@@ -79,6 +79,15 @@ constexpr std::array operation_rows{
     operation_info{operation::runs_end, "runs.end", scope::monitor, true},
     operation_info{operation::runs_record, "runs.record", scope::monitor, true},
     operation_info{operation::report_junit, "report.junit", scope::monitor,
+                   false},
+    operation_info{operation::ports_get, "ports.get", scope::monitor, false},
+    operation_info{operation::links_list, "links.list", scope::monitor, false},
+    operation_info{operation::links_get, "links.get", scope::monitor, false},
+    // These two reveal and change nothing about the ports, so any caller that
+    // has said `hello` may use them.  `session.close` ends only the caller's
+    // own session; the end is audited as every session's end is.
+    operation_info{operation::ping, "ping", std::nullopt, false},
+    operation_info{operation::session_close, "session.close", std::nullopt,
                    false}};
 
 } // namespace

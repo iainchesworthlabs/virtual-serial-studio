@@ -23,17 +23,21 @@ what discovery finds.
 | The administrator's policy file | `policy.cpp` | `vss_cli plugin list` reads it and says where it is and whether it can be used. Nothing applies it |
 | The official key list, the plugin signature and the revocation list signature | `signature.cpp`, `official_roots.cpp`, `revocations.cpp` | The tests and a fuzz target |
 | The trust store (`trust.json`) | `trust_store.cpp` | The tests and a fuzz target |
-| `verify`: whether a plugin may run | `verify.cpp` | Tests only |
+| `verify`: whether a plugin may run | `verify.cpp` | `inspect_plugin`, and so `vss_cli plugin list` and `verify` |
+| Looking at a plugin folder, installing and removing a plugin | `install.cpp` | `vss_cli plugin verify`, `install` and `remove` |
 | The licence question for an official plugin | `licence.cpp` | Tests only |
 | The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
+| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
 | The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
 | The restart and quarantine rules | `lifecycle.cpp` | Tests only |
 
-`params.changed`, `instance.create` and `instance.stop` of section 7.3 are not built: the codec passes them through as
-an unknown op.
+The messages of the extension points (sections 7.3 to 7.8, 19 and 20) are typed in `api_*.hpp`, and each can be read
+from and written to an `api_message`. Nothing sends or receives them yet: the host that does is not built.
 
-`vss_cli plugin list` never checks a signature. It does not run `verify` or the licence question and it does not apply
-the policy. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
+`vss_cli plugin list` and `vss_cli plugin verify` check the signature, run `verify` and, for an official plugin that names
+an edition, the licence question, as far as a command line can: it reads the policy file, the official key list built
+into the library and the date of the computer, and it has no licence, no revocation list and no engine capabilities.
+`vss_cli plugin install` and `remove` put a plugin on the computer and take it off. Everything else in this design (the supervisor, the launcher and the sandbox, the instance types, the
 modifiers, the decoders, the Plugins page and the trust dialog) is not built.
 
 ## 1. Scope and what is already decided
@@ -165,8 +169,8 @@ Search roots, in this order, the first to hold an id wins and a second is report
 | Root | Holds | Writable by |
 |---|---|---|
 | `<install>/studio-plugins/` | Official plugins that come with Studio or with a Pro install. It is not `<install>/plugins/`: the Linux package keeps Qt's own plug-ins there | Administrator |
-| Machine plugin directory (`%ProgramData%\VirtualSerialStudio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins an administrator installs for everyone | Administrator |
-| Per-user plugin directory (`%LOCALAPPDATA%\VirtualSerialStudio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/VirtualSerialStudio/plugins`) | Plugins the user installs | The user |
+| Machine plugin directory (`%ProgramData%\Virtual Serial Studio\plugins`, `/usr/local/share/virtual-serial-studio/plugins`, `/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins an administrator installs for everyone | Administrator |
+| Per-user plugin directory (`%LOCALAPPDATA%\Virtual Serial Studio\plugins`, `$XDG_DATA_HOME/virtual-serial-studio/plugins`, `~/Library/Application Support/Virtual Serial Studio/plugins`) | Plugins the user installs | The user |
 
 Rules:
 
@@ -190,7 +194,7 @@ Plugins page shows it (`screens/10-plugins.md`).
 
 - **Studio never raises its own rights.** From the window a user adds a plugin for themselves: Studio copies the
   folder into the per-user root. A plugin for everyone is put in the machine root by an administrator, by hand,
-  with an installer or with `vss_cli plugin install --machine` from an administrator's prompt. The window shows
+  with an installer or with `vss_cli plugin install --for-everyone` from an administrator's prompt. The window shows
   the path to use.
 - **An administrator can turn the per-user root off** (`user_plugins: false` in the policy, section 8.6). It is
   then not searched, and the page says so.
@@ -263,6 +267,21 @@ its own rights" above is about plugins; the driver set-up keeps the prompt it ha
 **Left for the installers' own work, not this design:** adding `vss_agent` and `vss_plugin_launcher` to the
 four packages and their signing lists (`docs/agent.md`, step 9), and creating the machine plugin directory with
 the right owner in the installer for everyone, so that it never has to be made by a program a user runs.
+
+**Installing from a command line.** `vss_cli plugin install <folder>` copies a plugin folder into a plugin root, and
+`vss_cli plugin remove <id>` removes one (`libs/vss_plugin/include/vss/plugin/install.hpp`). Installing never runs
+anything from the plugin. It looks at the source with the checks of 5.3 and refuses a source whose manifest or layout is
+wrong, whose files are not the ones the manifest lists, whose signature does not hold, whose id only official plugins may
+use, or that was revoked; a plugin without a signature needs `--allow-unsigned`. An expired plugin, one that this computer
+cannot isolate and one the licence does not cover are installed, with what is wrong reported, because those depend on
+the computer and change. Each file is read once from one open handle and its digest is taken as it is copied; the copy is
+made in a new folder inside the root and measured again, and must have the hash of the first look, before it is renamed
+to `<root>/<plugin id>` in one step. The plugin id becomes a folder name only when the manifest reader accepted it and it
+does not begin with the name of a Windows device (`con`, `nul`, `com1`, and so on), on every system. A copy is not
+flushed to disk before the rename, because the standard library has no portable way to do it, so a power loss can leave
+a folder whose files are shorter than they were; the next look at it finds the files wrong. The machine root is written only when only an
+administrator can change it. The package is taken as a folder: Studio has no zip reader, and the user unzips a plugin
+with the system's own tool.
 
 ### 5.3 Verify
 
@@ -489,6 +508,10 @@ in this build". Nothing pretends to carry out a rule it cannot.
 - **The agent's own protocol is private.** How Studio, `vss_cli` and the agent talk to each other
   (`libs/vss_agent_proto`) is an internal matter that changes without notice, and a plugin never speaks it. The
   plugin API borrows its framing (below) and nothing else.
+
+Every message of the extension points is listed, with its direction, its fields and their limits, in
+[the plugin API reference](plugin-api-reference.md). The headers `libs/vss_plugin/include/vss/plugin/api_*.hpp` are the
+definition in code, and where the reference and this section differ the reference follows the code.
 
 ### 7.1 Transport and framing
 
@@ -791,8 +814,8 @@ may carry a list:
 - A reader that does not know the plugin keeps every entry and writes it back as it was read.
 
 This is a change to the schema and to `vss_config`'s reader and writer. `vss_core` is not touched. The key is
-optional and the file's `version` stays 1: the reader has always passed over keys it does not know, so an older
-Studio opens a setup that has the list, and leaves the list out when it saves. The alternative that was not
+optional and the file's `version` stays 1. The reader refuses a key it does not know, so a Studio built before
+this list does not open a setup that has it. The alternative that was not
 taken is a file beside the setup (`<name>.plugins.json`), which needs no schema change but is lost when a
 person sends only the setup. The running setup that the agent keeps (`running-setup.json`) holds the same list.
 
@@ -946,8 +969,8 @@ There is no network, so:
 
 ### 8.6 Administrator policy
 
-A policy file `policy.json` in the machine configuration directory (`%ProgramData%\VirtualSerialStudio\`,
-`/etc/virtual-serial-studio/`, `/Library/Application Support/VirtualSerialStudio/`):
+A policy file `policy.json` in the machine configuration directory (`%ProgramData%\Virtual Serial Studio\`,
+`/etc/virtual-serial-studio/`, `/Library/Application Support/Virtual Serial Studio/`):
 
 ```json
 {
