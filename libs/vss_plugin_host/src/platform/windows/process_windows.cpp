@@ -44,7 +44,6 @@
 #include <aclapi.h>
 #include <bcrypt.h>
 #include <sddl.h>
-#include <userenv.h>
 
 #include <boost/system/error_code.hpp>
 #include <boost/system/system_category.hpp>
@@ -362,6 +361,31 @@ result<confined_job> make_job(const sandbox_profile* profile)
     return made;
 }
 
+/// The parts of Windows that an AppContainer needs came with Windows 8,
+/// and this project is built against the interface of Windows 7.  So the
+/// one function is looked up when it is needed, and the two numbers are
+/// written here as the Windows headers define them for later versions.  On
+/// a Windows without them nothing of a container is applied, and the
+/// report says so.
+using derive_container_sid = HRESULT(WINAPI*)(PCWSTR, PSID*);
+
+derive_container_sid find_derive_container_sid() noexcept
+{
+    const HMODULE library =
+        ::LoadLibraryExW(L"userenv.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
+    if (library == nullptr)
+        return nullptr;
+    return reinterpret_cast<derive_container_sid>(
+        reinterpret_cast<void*>(::GetProcAddress(
+            library, "DeriveAppContainerSidFromAppContainerName")));
+}
+
+/// PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES.
+constexpr DWORD_PTR security_capabilities_attribute = 0x00020009;
+
+/// PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_ON.
+constexpr DWORD64 win32k_calls_off = DWORD64{1} << 28U;
+
 struct sid_free
 {
     void operator()(void* sid) const noexcept { ::FreeSid(sid); }
@@ -400,7 +424,7 @@ std::wstring container_name(const std::string& name)
     std::wstring text = L"vss.plugin.";
     for (std::size_t i = 0; i < 20; ++i)
     {
-        const auto byte = std::to_integer<unsigned>(digest[i]);
+        const auto byte = static_cast<unsigned>(digest[i]);
         text.push_back(digits[byte >> 4U]);
         text.push_back(digits[byte & 0x0fU]);
     }
@@ -463,8 +487,10 @@ result<app_container> prepare_container(const sandbox_profile& profile)
         return make_error_code(plugin_errc::start_failed);
     app_container container;
     PSID raw = nullptr;
-    const HRESULT derived = ::DeriveAppContainerSidFromAppContainerName(
-        container_name(profile.name).c_str(), &raw);
+    const derive_container_sid derive = find_derive_container_sid();
+    if (derive == nullptr)
+        return make_error_code(plugin_errc::sandbox_insufficient);
+    const HRESULT derived = derive(container_name(profile.name).c_str(), &raw);
     if (FAILED(derived) || raw == nullptr)
         return make_error_code(plugin_errc::sandbox_insufficient);
     container.sid.reset(raw);
@@ -547,13 +573,12 @@ public:
             return {};
         security_ = container_->security();
         if (::UpdateProcThreadAttribute(
-                list(), 0, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
-                &security_, sizeof(security_), nullptr, nullptr) == 0)
+                list(), 0, security_capabilities_attribute, &security_,
+                sizeof(security_), nullptr, nullptr) == 0)
             return last_error();
         // A plugin has no window, so it has no use for the calls of the
         // window system, which are a large part of what the kernel offers.
-        policy_ =
-            PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_ON;
+        policy_ = win32k_calls_off;
         if (::UpdateProcThreadAttribute(
                 list(), 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy_,
                 sizeof(policy_), nullptr, nullptr) == 0)
@@ -832,8 +857,16 @@ start_process(const process_request& request)
 sandbox_report available_sandbox()
 {
     sandbox_report report;
-    report.applied.assign(std::begin(all_sandbox_parts),
-                          std::end(all_sandbox_parts));
+    if (find_derive_container_sid() != nullptr)
+    {
+        report.applied.assign(std::begin(all_sandbox_parts),
+                              std::end(all_sandbox_parts));
+    }
+    else
+    {
+        report.applied = {sandbox_part::containment,
+                          sandbox_part::user_interface, sandbox_part::limits};
+    }
     return report;
 }
 
