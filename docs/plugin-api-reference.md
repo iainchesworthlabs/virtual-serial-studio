@@ -1,10 +1,10 @@
 # The plugin API: every message of the extension points
 
-This page lists the messages that a plugin and the host send each other for the five extension points (generator,
-fixture, modifier, adapter, decoder), for parameters and instances, and for recordings and bundle sections. It is for
+This page lists the messages that a plugin and the host send each other for parameters and instances, the five
+extension points (generator, fixture, modifier, adapter, decoder), and recordings and bundle sections. It is for
 people who write plugins. [The plugin framework design](plugins.md) says why; this page says exactly what is on the
-wire. The definition in code is `libs/vss_plugin/include/vss/plugin/api_*.hpp`. Where this page and the code differ,
-the code is right and this page has a mistake.
+wire. The definition in code is `libs/vss_plugin/include/vss/plugin/api_*.hpp`, and a test checks that every message
+of the code has a row here. Where this page and the code differ, the code is right and this page has a mistake.
 
 The messages every plugin uses (`hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok`, `error`)
 are in `protocol.hpp` and in section 7.3 of the design, and are not repeated here. Nothing in Studio sends or receives
@@ -13,33 +13,42 @@ the messages on this page yet.
 ## How a message looks
 
 - A message is one frame of the agent's framing: a JSON object (the header) and a blob. The header has at most 64 KiB
-  and nests at most 8 deep. A frame has at most 1 MiB.
+  and nests at most 8 deep. A frame has at most 1 MiB. A message is written only when its header is inside that limit,
+  and every list and name limit below is set so that a message at all of its limits is.
 - The header has `op` (the name of the message, as in the tables), and `id` or `re` where the table says so.
-- **Kind.** A *request* has an `id` (a whole number from 1 to 9007199254740991) and no `re`. It is answered with `ok`,
-  with an `error`, or with the answer message the table names. An *answer* has a `re` that repeats the request's `id`,
-  and no `id`. A *notification* has neither, and is never answered. A message that is not as its kind says is refused.
+- **Kind.** A *request* has an `id` (a whole number from 1 to 9007199254740991) and no `re`. An *answer* has a `re` that
+  repeats the request's `id`, and no `id`. A *notification* has neither, and is never answered, so nothing can be
+  refused or answered with `busy` for it. A message that is not as its kind says is refused.
+- **Answered by.** Every request is answered with `ok`, with an `error`, or with the message the column names. The
+  `error` answers are those of section 7.3: `not_granted`, `not_declared`, `unsupported`, `refused` and the others.
 - **From.** `host` means the host sends it to the plugin, and `plugin` the other way. A receiver refuses a message that
   comes from the wrong side.
-- **Bytes** are in the blob and never in JSON. A message that has bytes says so (a member called `data` in the
-  tables); every other message must have an empty blob. The size of the blob is limited as the table says.
-- **Whole numbers** are JSON integers. Every instance, port, link, sequence number and time is from 0 or 1 up to
+- **Bytes** are in the blob and never in JSON. A message that has bytes says so (the tables name the blob); every
+  other message must have an empty blob. The size of the blob is limited as the table says.
+- **Whole numbers** are JSON integers. An instance, a sequence number and a time are from 0 or 1 up to
   9007199254740991 (2^53 - 1), as the table says. Times with `_ns` are nanoseconds on the host's clock, and `_us` are
   microseconds.
+- **Places.** A port, a link or an endpoint is always named by the name the hub gives it, as text, in a member called
+  `place` (or a list called `places`). A name is plain text of 1 to 128 bytes. A list of places never holds a name
+  twice. No message uses a number for a port or a link.
+- **Paths.** A path of a recording or of a file of a bundle section is inside the plugin's data directory and follows
+  the rules of a path in a manifest (no `..`, no drive, no reserved device name, at most 240 bytes). Two paths of one
+  list never differ only in case.
 - **Text** is UTF-8 with no control character and no mark that changes the direction of text, and has the length limit
-  the table gives, in bytes. Text is never markup and never a format string. A *name* is a text of 1 to 128 bytes. A
-  *token* is lower-case letters, digits, dots, hyphens and underscores.
+  the table gives, in bytes. Text is never markup and never a format string. A *token* is lower-case letters, digits,
+  dots, hyphens and underscores.
 - **Lists** have the limit the table gives, and it is checked before any entry is read.
-- **A JSON object as text** (`params`, `args`, `settings`, `result`) is written as one JSON object inside the header. A
-  number with a fraction is written in the form the JSON writer uses (0.5 is written `5E-1`), and a number that would
-  not read back as the same value is refused.
+- **A JSON object** (`params`, `args`, `settings`, `result`) is written compactly, as one JSON object inside the
+  header. A number with a fraction in it is written the way the JSON writer writes it (0.5 is `5E-1`), and a number
+  that would not read back as the same value is refused.
 - **A member the reader does not know** is ignored, so that a later minor version may add optional members (section 7.2
   of the design). A member that is known but wrong (the wrong type, out of range, too long, missing when required) makes
   the whole message `bad_request`. Two members with the same key in one object are refused before the message is read.
+- **A message is written only as it is read.** What is written is read back, and a message that would read back as
+  something else (a member that its kind does not use, a JSON object with spaces in it) is not written.
 - **Defaults.** A member marked optional, or with a default, may be left out.
-- Whether a message is allowed at all depends on the permissions the user granted and on what the manifest declares.
-  A message that is not allowed is answered with `not_granted` or `not_declared`. These checks are the host's, and a
-  reader of the frame cannot make them.
-
+- Whether a message is allowed at all depends on the permissions the user granted and on what the manifest declares,
+  and a host also keeps rates, credit and the numbers of its own. These checks are not made by reading a frame.
 
 ## Instances and parameters
 
@@ -49,187 +58,169 @@ it. Each kind has its own message that makes an instance (`generator.start`, `fi
 `error` answer to `params.changed`, with the value `refused` and a message that says why. There is no message to save or
 restore the state of an instance: the plugin keeps its own files in its data directory.
 
-| Message (op) | From | Kind | Members (type, limit) | Design section |
-|---|---|---|---|---|
-| `instance.create` | host | request | `instance`; `kind` (`generator`, `fixture`, `modifier`, `adapter` or `decoder`); `type` (token of 1 to 64 bytes: the `id` of the extension point in the manifest); `params` (JSON object, default `{}`) | 7.3 |
-| `instance.stop` | host | request | `instance` | 7.3 |
-| `params.changed` | host | request | `instance`; `params` (JSON object: the parameters that changed, already checked against the manifest) | 7.3, 7.8 |
-
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `instance.create` | host | request | `ok` | `instance`; `kind` (`generator`, `fixture`, `modifier`, `adapter` or `decoder`); `type` (token of 1 to 64 bytes: the `id` of the extension point in the manifest); `params` (JSON object, default `{}`) | 7.3 |
+| `instance.stop` | host | request | `ok` | `instance` | 7.3 |
+| `params.changed` | host | request | `ok`, or `error` with a reason | `instance`; `params` (JSON object: the parameters that changed, already checked against the manifest) | 7.3, 7.8 |
 
 ## Generators
 
-Design: 7.4. The host starts with up to 64 KiB of credit and tops it up as the engine takes bytes. A plugin that writes
-more than it has credit for is answered with `busy`, and is ended as misbehaving if it goes on; the reader cannot see
-credit, so this is the host's check. The timing class of a generator (`rules` or `async`) is in the manifest, and a
+Design: 7.4. An instance is made in two steps, for every kind and not only for a generator. The host first sends
+`instance.create`, with the `kind` and the `type` (the `id` of the extension point in the plugin's manifest) and the
+parameters, and the plugin answers `ok`. Only then does the host send `generator.start` for that `instance` (or
+`fixture.create`, `modifier.create` or `decoder.create` for the other kinds). That is where a plugin learns which type of
+its own an instance is. An adapter has no start message of its own, so `instance.create` is all it gets.
+
+The host starts with up to 64 KiB of credit and tops it up as the engine takes bytes. A `generator.write`
+is a notification, so a write without credit is not answered: the host drops the bytes and counts them, and ends a
+plugin that keeps going. The timing class of a generator (`rules` or `async`) is in the manifest, and a
 `generator.pattern` from an instance that did not declare `rules` is answered with `not_declared`.
 
-| Message (op) | From | Kind | Members (type, limit) | Design section |
-|---|---|---|---|---|
-| `generator.start` | host | request | `instance`; `port` (the endpoint, whole number from 1); `params` (JSON object, default `{}`) | 7.4 |
-| `generator.write` | plugin | notification | `instance`; the bytes in the blob, 1 to 65536 bytes (`max_generator_write`) | 7.4 |
-| `generator.credit` | host | notification | `instance`; `bytes` (whole number, 1 to 65536: `max_generator_credit`) | 7.4 |
-| `generator.pattern` | plugin | request | `instance`; the bytes of the pattern in the blob, 1 to 1024 bytes (`max_pattern_bytes`); `repeat` (0 to 4294967295, default 1; 0 is without end); `period_us` (0 to 60000000, default 0); `burst` (1 to 4096, default 1); `jitter` (microseconds, 0 to 60000000, default 0) | 7.4 |
-| `generator.stop` | host | request | `instance` | 7.4 |
-| `generator.done` | plugin | notification | `instance`; `reason` (plain text of 1 to 200 bytes) | 7.4 |
-
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `generator.start` | host | request | `ok` | `instance`; `place` (the port, a name); `params` (JSON object, default `{}`) | 7.4 |
+| `generator.write` | plugin | notification | none | `instance`; the bytes in the blob, 1 to 65536 bytes | 7.4 |
+| `generator.credit` | host | notification | none | `instance`; `bytes` (1 to 65536) | 7.4 |
+| `generator.pattern` | plugin | request | `ok` | `instance`; the bytes of the pattern in the blob, 1 to 1024 bytes; `repeat` (0 to 4294967295, default 1; 0 is without end); `period_us` (0 to 60000000, default 0); `burst` (1 to 4096, default 1); `jitter` (microseconds, 0 to 60000000, default 0) | 7.4 |
+| `generator.stop` | host | request | `ok` | `instance` | 7.4 |
+| `generator.done` | plugin | notification | none | `instance`; `reason` (plain text of 1 to 200 bytes) | 7.4 |
 
 ## Fixtures and rule sets
 
-Design: 6.3, 6.4, 7.5, 7.9, and [response timing](response-timing.md) for the rule set.
+Design: 6.3, 6.4, 7.5, 7.9, and [response timing](response-timing.md) for the rule set. A rule set is the blob of
+`rules.set`: it is a JSON document that does not fit the header. The reader checks only that it is one JSON object of
+valid UTF-8 that nests at most 16 deep and has no key twice. The host checks what it means with the rule compiler and
+answers with `rules.result`.
 
-`tests/unit/test_plugin_api_fixture.cpp`. Design: `docs/plugins.md` sections 6.3, 6.4, 7.5, 7.9. `instance` is a whole
-number 1 to `max_api_number` in every message that has one.
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `fixture.create` | host | request | `ok` | `instance`; `place` (the port, a name); `params` (JSON object, default `{}`) | 7.5 |
+| `fixture.data` | host | notification | none | `instance`; `ts_ns`; the bytes in the blob, 1 to 8192 bytes | 7.5 |
+| `fixture.line` | host | notification | none | `instance`; `ts_ns`; `dtr` (true or false); `rts` (true or false) | 7.5 |
+| `fixture.reply` | plugin | notification | none | `instance`; the bytes in the blob, 1 to 4096 bytes; `after_us` (optional, 0 to 60000000: the engine holds the bytes for that long) | 7.5, 6.3 |
+| `fixture.line.set` | plugin | notification | none | `instance`; `dtr` (optional true or false); `rts` (optional true or false), at least one of the two; `after_us` (optional, 0 to 60000000) | 7.5 |
+| `fixture.fault` | plugin | notification | none | `instance`; `fault` (`parity`, `framing`, `overrun`, `break`, `hang_up` or `disconnect`) | 7.5, 6.3 |
+| `rules.set` | plugin | request | `rules.result` | `instance`; the rule set in the blob, 1 to 262144 bytes | 7.5, 6.3 |
+| `rules.result` | host | answer | none | `accepted` (true or false); when not accepted: `rule` (optional, 0 to 255: the number of the rule that the first problem is in, counted from 0), `path` (optional text of 0 to 256 bytes, such as `rules[2].do[0].delay`), `reason` (plain text of 1 to 200 bytes). When accepted, none of the three | 7.5 |
+| `rules.event` | host | notification | none | `instance`; `ts_ns`; `rule` (plain text of 1 to 64 bytes: its name); `action` (plain text of 1 to 64 bytes: the kind of the action, as response timing names it, such as `reply`, `lines`, `mark` or `drop`) | 7.5 |
 
-| Message (op) | From | Kind | Members (type, limit) | Design section |
-|---|---|---|---|---|
-| `fixture.create` | host | request | `instance` (1..max_api_number); `endpoint` (whole number 1..max_api_number); `params` (JSON object text, default `{}`) | 7.5 (line 579) |
-| `fixture.data` | host | notification | `instance`; `ts_ns` (whole number 0..max_api_number); blob `data` 1..8192 bytes (`max_fixture_data`) | 7.5 (line 580) |
-| `fixture.line` | host | notification | `instance`; `ts_ns` (0..max_api_number); `dtr` (bool, required); `rts` (bool, required); no blob | 7.5 (line 581) |
-| `fixture.reply` | plugin | notification | `instance`; blob `data` 1..4096 bytes (`max_fixture_reply`, equal to `rules::max_reply_bytes`, static_assert in the source); `after_us` (optional whole number 0..max_api_delay_us, `std::optional<std::uint64_t>`) | 7.5 (line 582), 6.3 (line 416) |
-| `fixture.line.set` | plugin | notification | `instance`; `dtr` (optional bool); `rts` (optional bool), at least one of the two present; `after_us` (optional whole number 0..max_api_delay_us); no blob | 7.5 (line 583) |
-| `fixture.fault` | plugin | notification | `instance`; `fault_kind` (text, one of `parity`, `framing`, `overrun`, `break`, `hang_up`, `disconnect`; C++ enum `line_fault`); no blob | 7.5 (line 584) |
-| `rules.set` | plugin | request | `instance`; the rule set is the blob `data`: UTF-8 JSON, 1..max_api_blob (262144) bytes, one well formed JSON object, nesting at most `rules::max_document_depth` (16), no key twice, valid UTF-8. Decode does not check the meaning of the rules | 7.5 (line 585), 6.3 |
-| `rules.result` | host | answer (re = the id of the `rules.set`) | `accepted` (bool, required); only when not accepted: `rule` (optional whole number 0..255, the zero-based rule number from a problem path that starts `rules[N]`; absent when the problem is not in a rule), `path` (optional text 0..256, such as `rules[2].do[0].delay`), `reason` (text 1..200, plain). When `accepted` is true `rule`, `path` and `reason` must be absent (refused if present); no blob | 7.5 (line 585: "The reply says ...") |
-| `rules.event` | host | notification | `instance`; `ts_ns` (0..max_api_number); `rule` (text 1..64, plain: the name of the rule); `action` (whole number 0..15: the zero-based number of the action in the rule's action list); no blob | 7.5 (line 586) |
-
-Public function in the header: `rules_result_message check_rule_set(const rules_set_message&)`. It copies the blob to
-text, runs `vss::rules::compile_rule_set` with a problem list and builds the `rules.result`. The first problem gives
-`path` and `reason`; both are cut to their limits and every byte that is not printable ASCII becomes `?`, so the answer
-always reads back. `rule` is taken from a path that starts `rules[N]` with N below 256. If the compiler gives an error
-and no problem the reason is "the rule set is not accepted". A thrown exception gives "the rule set could not be
-checked". Nothing else in the header includes a rules header (the library links `Vss::rules` privately).
-
-Also in the header, for the modifier group: `enum class line_fault` (`parity`, `framing`, `overrun`, `break_signal`,
-`hang_up`, `disconnect`), `line_fault_names` (an inline constexpr array of spelling and value, the form `choice_of`
-takes) and `to_string(line_fault)`.
-
+`rules.set` replaces the instance's rule set. When the answer says it was not accepted, the old set stays.
 
 ## Behaviour modifiers
 
-Design: 7.6, 7.9. A batch and its result are matched by `seq`.
+Design: 7.6, 7.9. A batch and its result are matched by `seq` and are notifications, so a lost result is a timeout of the
+host, and a late result for an old `seq` is dropped.
 
-`tests/unit/test_plugin_api_modifier.cpp`. Design: `docs/plugins.md` sections 7.6 and 7.9. The header includes
-`api_fixture.hpp` for `line_fault` and `manifest.hpp` for `timeout_action`.
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `modifier.create` | host | request | `ok` | `instance`; `place` (the link, a name); `direction` (`a_to_b` or `b_to_a`); `params` (JSON object, default `{}`); `budget_us` (1 to 1000000); `max_batch_bytes` (1 to 65536); `max_batch_us` (1 to 1000000); `on_timeout` (`fail_open` or `fail_closed`); `flush_on` (optional, 0 to 255: a byte that ends a batch) | 7.6 |
+| `modifier.batch` | host | notification | none | `instance`; `seq` (from 1); `ts_ns` (the time of the first chunk); `chunks` (list of 1 to 256): each `offset` (from 0), `length` (1 to 65536) and `ts_ns`; the bytes of all the chunks in the blob, 1 to 65536 bytes | 7.6 |
+| `modifier.result` | plugin | notification | none | `instance`; `seq`; `actions` (list of 1 to 256, one for each chunk, in order, each as below); the bytes that actions refer to in the blob, 0 to 263168 bytes | 7.6 |
+| `modifier.stop` | host | request | `ok` | `instance` | 7.6 |
 
-| Message (op) | From | Kind | Members (type, limit) | Design section |
-|---|---|---|---|---|
-| `modifier.create` | host | request | `instance` (1..max_api_number); `link` (1..max_api_number); `direction` (`a_to_b` or `b_to_a`; enum `modifier_direction`); `params` (JSON object text, default `{}`); `budget_us` (1..1000000, `max_modifier_budget_us`); `max_batch_bytes` (1..65536, `max_modifier_batch`); `max_batch_us` (1..1000000, `max_modifier_batch_us`); `on_timeout` (`fail_open` or `fail_closed`; `timeout_action` of manifest.hpp); `flush_on` (optional whole number 0..255, `std::optional<std::uint8_t>`) | 7.6 (line 644, 650-651) |
-| `modifier.batch` | host | notification | `instance`; `seq` (1..max_api_number); `ts_ns` (0..max_api_number, the time of the first chunk); `chunks` (list of 1..256 objects, `max_modifier_chunks`): each `offset` (0..65536), `length` (1..65536), `ts_ns` (0..max_api_number); blob `data` 1..65536 bytes (`max_modifier_batch`), the bytes of all chunks. Rules: the length of the list is checked before any entry is read; every chunk lies inside the blob (checked without a sum that can wrap); chunks are in order and do not overlap (a gap is allowed); `ts_ns` does not go back and the first equals the `ts_ns` of the message | 7.6 (line 645) |
-| `modifier.result` | plugin | notification | `instance`; `seq` (1..max_api_number); `actions` (list of 1..256): one object per chunk, in order, each with a text `action` from the closed set below; blob `data` 0..max_api_blob (262144) bytes, the result blob. Every range lies inside the result blob | 7.6 (line 646, 655-659) |
-| `modifier.stop` | host | request | `instance`; no blob | 7.6 (line 647) |
+The chunks of a batch lie inside the blob, in order and not overlapping; their times do not go back and the first is
+the message's `ts_ns`. An action is an object with a text `action` and the members of its kind. A member of another kind
+is not written, and is ignored when read.
 
-Actions (the `action` member, `modifier_action_kind`; the other members of the object are those of its kind, and a
-member of another kind is ignored on reading and not written):
+| `action` | Other members | Effect |
+|---|---|---|
+| `pass` | none | The chunk goes on unchanged |
+| `drop` | none | The chunk is dropped |
+| `replace` | `offset`, `length` (0 or more): a range of the result blob | The range replaces the chunk |
+| `delay_us` | `us` (1 to 60000000) | The engine holds the chunk for that long |
+| `split` | `parts` (2 to 16), `gap_us` (0 to 60000000) | The chunk goes on in that many parts with that gap between them |
+| `insert_before`, `insert_after` | `offset`, `length` (1 or more): a range of the result blob | The range is sent before or after the chunk |
+| `fault` | `fault` (as for `fixture.fault`) | The fault is raised as the chunk passes |
 
-| `action` | Other members |
-|---|---|
-| `pass` | none |
-| `drop` | none |
-| `replace` | `offset` (0..262144), `length` (0..262144): a range of the result blob |
-| `delay_us` | `us` (1..max_api_delay_us) |
-| `split` | `parts` (2..16, `max_modifier_parts`), `gap_us` (0..max_api_delay_us) |
-| `insert_before` | `offset` (0..262144), `length` (1..262144): a range of the result blob |
-| `insert_after` | `offset`, `length` as `insert_before` |
-| `fault` | `fault` (one of the `line_fault` spellings: `parity`, `framing`, `overrun`, `break`, `hang_up`, `disconnect`) |
-
-Public function: `bool modifier_result_within_bounds(std::size_t batch_bytes, const modifier_result_message&) noexcept`
-is true when the result blob is at most 4 times `batch_bytes` plus 1024 bytes (`modifier_result_extra`) and the sum of
-`delay_us` and of the split gaps is at most `max_api_delay_us` (one minute). A split with `parts` parts has
-`parts - 1` gaps and each counts. It does not wrap for any value of the struct. It does not check that the number of
-actions equals the number of chunks (the host knows the batch) or the ranges (the decoder did).
-
+The host bounds a result by what its actions can send on: the batch itself and the length of every `replace` and insert,
+whether or not their ranges are the same range of the blob, at most four times the batch and 1 KiB, and the delays and
+the gaps of splits at most one minute in all. A result outside the bounds fails the whole batch.
 
 ## Automation adapters
 
-Design: 7.7.
+Design: 7.7, 9.1. When a plugin is not running, a request for it is answered with the `error` value `plugin_unavailable`.
 
-| Message (op) | From | Kind | Members (type, limit) | Design section |
-|---|---|---|---|---|
-| `agent.call` | plugin | request | `agent_op` (token, 1 to 64 bytes of lower-case letters, digits, dots, hyphens, underscores; required); `args` (JSON object text, default `{}`); `data` (0 to `max_api_blob` bytes, in the blob) | 7.7 |
-| `agent.result` | host | answer | `result` (JSON object text, default `{}`); `data` (0 to `max_api_blob` bytes, in the blob) | 7.7 (name chosen, see Choices) |
-| `agent.subscribe` | plugin | request | `data` (bool, default false; a flag in the header, not the blob); `places` (list of 0 to 256 names, each plain text 1 to `max_api_name` bytes; empty or absent is every place the grant covers) | 7.7, 19.4 |
-| `adapter.state` | plugin | notification | `listening` (bool, required); `address` (plain text 1 to 256 bytes; required when `listening` is true, refused when false); `protocol` (plain text 1 to 64 bytes, required) | 7.7 |
-
-Free function: `api_message make_plugin_unavailable(std::uint64_t re)` returns the `error` answer with category
-`vss.plugin.api`, value `plugin_unavailable` and the message `The plugin is not running.` (made with `make_error`).
-
-Constants: `max_agent_op` = 64, `max_subscribe_places` = 256, `max_adapter_address` = 256, `max_adapter_protocol` = 64.
-
-Details of reading: a bad `agent_op` says `agent.call.agent_op: must be 1 to 64 lower-case letters, ...`; a place entry
-says `agent.subscribe.places[2]: ...`; an `address` given with `listening` false says
-`adapter.state.address: must not be given when listening is false`. `agent.subscribe` has no blob.
-
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `agent.call` | plugin | request | `agent.result` | `agent_op` (token of 1 to 64 bytes: the agent's operation); `args` (JSON object, default `{}`); optional bytes in the blob, 0 to 262144 bytes | 7.7 |
+| `agent.result` | host | answer | none | `result` (JSON object, default `{}`); optional bytes in the blob, 0 to 262144 bytes | 7.7 |
+| `agent.subscribe` | plugin | request | `ok`; events follow as `agent.event` | `data` (true or false, default false: whether the events carry bytes; needs `traffic.tap`); `places` (list of 0 to 128 names, none twice; none is every place the grant covers) | 7.7, 19.4 |
+| `agent.event` | host | notification | none | `subscription` (the `id` of the `agent.subscribe`); `kind` (token of 1 to 64 bytes); `place` (a name); `t_ns`; the bytes of the event in the blob, 0 to 65536 bytes | 7.7 |
+| `adapter.state` | plugin | notification | none | `listening` (true or false); `address` (plain text of 1 to 256 bytes, given when listening and not otherwise); `protocol` (plain text of 1 to 64 bytes) | 7.7 |
 
 ## Recordings, timelines and bundle sections
 
-Design: 19.4, 19.5, 19.6, 20.8.
+Design: 19.4, 19.5, 19.6, 20.8. The host names a recording: `capture.start` may give a `name`, and `capture.result` says
+the path of the file the host writes and how large it is so far.
 
-| Message (op) | From | Kind | Members (type, limit) | Design section |
-|---|---|---|---|---|
-| `capture.start` | plugin | request | `places` (list of 1 to 256 names, each plain text 1 to `max_api_name` bytes, none twice; required); `limit_bytes` (1 to 268435456, default 67108864); `limit_seconds` (1 to 3600, default 600); `ring` (whole minutes 0 to 60, default 0 is not a ring); `snapshot_on` (optional object: `kinds` list of 1 to 16 names of the closed list, none twice; `places` list of 0 to 256 names); `before_s`, `after_s` (whole seconds 0 to 600, default 0). `snapshot_on`, `before_s` and `after_s` are refused when `ring` is 0 | 19.4, 19.6, 20.4, 20.8 (c) |
-| `capture.stop` | plugin | request | none | 19.4 |
-| `capture.status` | plugin | request | none | 19.4 |
-| `capture.result` | host | answer | `running` (bool); `bytes`, `seconds`, `dropped` (0 to `max_api_number`); `ring` (bool); all required | 19.4, 19.6 (name chosen, see Choices) |
-| `timeline.load` | plugin | request | `instance` (1 to `max_api_number`); `recording` (plain text 1 to 1024 bytes); `place` (plain text 1 to `max_api_name` bytes); `time_scale` (number 0.01 to 100, default 1.0); `seed` (optional whole number 0 to `max_api_number`) | 19.4 |
-| `bundle.prepare` | host | request | `section` (token 1 to `max_api_name` bytes: lower-case letters, digits, dots, hyphens, underscores); `settings` (JSON object text, default `{}`) | 19.4, 19.5 |
-| `bundle.result` | plugin | answer | `files` (list of 0 to 16 objects, required): `name` (plain file name, 1 to 128 bytes, no `/`, no backslash, not `.` or `..`, no control character, none twice) and `size` (0 to 268435456); the sizes add up to at most 268435456 | 19.5 (name chosen, see Choices) |
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `capture.start` | plugin | request | `ok` | `places` (list of 1 to 128 names, none twice); `name` (optional: the stem of the file's name, 1 to 64 bytes, no slash, by the rules of a manifest path name; the host chooses one when it is left out); `limit_bytes` (1 to 268435456, default 67108864); `limit_seconds` (1 to 3600, default 600); `ring` (whole minutes, 0 to 60, default 0 is not a ring); `snapshot_on` (optional object: `kinds`, a list of 1 to 16 of `framing`, `unknown_type`, `unknown_value`, `check`, `length`, `timeout`, `sequence`, `contention`, `line_error`, `decoder_lost`, `custom`, none twice; `places`, a list of 0 to 128 names, none twice); `before_s`, `after_s` (0 to 600, default 0). `snapshot_on`, `before_s` and `after_s` are refused when `ring` is 0 | 19.4, 20.8 |
+| `capture.stop` | plugin | request | `ok` | none | 19.4 |
+| `capture.status` | plugin | request | `capture.result` | none | 19.4 |
+| `capture.result` | host | answer | none | `running` (true or false); `bytes`, `seconds`, `dropped` (0 or more); `ring` (true or false); `recording` (a path inside the data directory, 1 to 240 bytes); `size` (0 or more: the bytes of that file so far) | 19.4, 19.6 |
+| `timeline.load` | plugin | request | `ok` | `instance`; `recording` (a path inside the data directory, 1 to 240 bytes); `place` (a name); `time_scale` (0.01 to 100, default 1; a number that does not read back as itself is refused); `seed` (optional, 0 or more) | 19.4 |
+| `bundle.prepare` | host | request | `bundle.result` | `section` (token of 1 to 128 bytes); `settings` (JSON object, default `{}`) | 19.5 |
+| `bundle.result` | plugin | answer | none | `files` (list of 0 to 16): each `name` (a path inside the section's folder, by the rules of a manifest path, 1 to 128 bytes) and `size` (0 to 268435456); the sizes add up to at most 268435456 bytes | 19.5 |
 
-Structs: `capture_start_message` (with `std::optional<snapshot_spec> snapshot_on`, and `before_s`, `after_s` as members of
-the message itself), `snapshot_spec` (`kinds`, `places`), `capture_stop_message`, `capture_status_message`,
-`capture_result_message`, `timeline_load_message`, `bundle_prepare_message`, `bundle_file` (`name`, `size`),
-`bundle_result_message`.
-
-Constants: `max_capture_places` = 256, `max_capture_bytes` = 268435456, `default_capture_bytes` = 67108864,
-`max_capture_seconds` = 3600, `default_capture_seconds` = 600, `max_capture_ring_minutes` = 60, `max_snapshot_kinds` = 16,
-`max_snapshot_seconds` = 600, `min_time_scale` = 0.01, `max_time_scale` = 100.0, `max_recording_path` = 1024,
-`max_bundle_files` = 16, `max_bundle_file_name` = 128, `max_bundle_section_bytes` = 268435456, and the array
-`snapshot_kinds` (framing, unknown_type, unknown_value, check, length, timeout, sequence, contention, line_error,
-decoder_lost, custom).
-
-Details of reading: `capture.start.snapshot_on: is accepted only when ring is not 0` (the same for `before_s` and
-`after_s`; a member that is present is refused even when it is 0). A time scale is checked for reading back exactly:
-`encode_as` refuses a `time_scale` whose text would read back as a different double with this library's JSON reader
-(it parses numbers with the default precision, which is not always exact). A name that is not plain text is refused as
-`...: must be plain text`; a control character in a file name of `bundle.result` is refused by that check or by the file
-name check.
-
+The section's folder is `bundles/<section id>/` under the plugin's data directory, by convention. The plugin writes the
+files of a section there before it answers `bundle.prepare`, and each `name` of `bundle.result` is a path inside that
+folder. The host reads the files from there; the plugin is not told where the bundle is saved.
 
 ## Decoders, the decode stream and triggers
 
-Design: 20.3 to 20.7.
+Design: 20.3 to 20.7. The host does not wait for a decoder. `decoder.data` carries items in the order the engine saw them,
+and a decoder acknowledges what it has taken so that the host sends at most 256 KiB that is not acknowledged. Loss is in
+the stream, as a `lost` item.
 
-`tests/unit/test_plugin_api_decoder.cpp`. Branch `agent/api-decoder`.
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `decoder.create` | host | request | `ok` | `instance`; `places` (list of 1 to 64, no `place` twice): each `place` (a name), `rate` (optional, 1 to 100000000 bits per second), `format` (optional, 1 to 16 bytes, such as `8N1`) and `bus` (optional, default false); `params` (JSON object, default `{}`) | 20.6 |
+| `decoder.data` | host | notification | none | `instance`; `seq` (from 1); `items` (list of 1 to 128, each as below); the bytes of all `data` items together in the blob, 0 to 262144 bytes, and the `length`s of the `data` items add up to its size | 20.4, 20.6 |
+| `decoder.ack` | plugin | notification | none | `instance`; `seq` | 20.4, 20.6 |
+| `decoder.frame` | plugin | notification | none | `instance`; `place`; `direction` (`rx` or `tx`); `offset`; `length` (1 to 65536); `t_start_ns`; `t_end_ns` (not before `t_start_ns`); `message` (plain text of 1 to 64 bytes); `summary` (optional, plain text of 0 to 200 bytes); `fields` (optional list of 0 to 64): each `name` (1 to 64 bytes), `offset` (from the start of the frame), `length` (0 to 65536) and `value` (plain text of 0 to 200 bytes), lying inside the frame | 20.6 |
+| `trigger.publish` | plugin | notification | none | `instance`; `kind` (`framing`, `unknown_type`, `unknown_value`, `check`, `length`, `timeout`, `sequence`, `contention`, `line_error`, `decoder_lost` or `custom`); `code` (token of 1 to 64 bytes, given exactly when `kind` is `custom`); `when_ns`; `place`; `direction`; `sender` (optional name); `protocol` (optional: `id`, 1 to 128 bytes, and `version`, 1 to 64 bytes); `frame` (optional: `offset`, `length` 1 to 65536, `t_start_ns`, `t_end_ns` not before it, `message` 0 to 64 bytes); `field` (optional: `name` 1 to 64 bytes, `offset` and `length` 0 to 65536, from the start of the frame); `expected` and `actual` (optional, both or neither, 1 to 128 bytes); `covers` (optional: two whole numbers, the first and the last byte, from the start of the frame); `cause` (optional, one of `fault` (a bus fault name) with its `event`, or `own_action`); `request` (optional: `offset`, `length` 1 to 65536, `t_end_ns`); `text` (plain text of 1 to 200 bytes). `field` and `covers` need a `frame` and lie inside it. The host stamps `id`, `from` and the time of publishing, so they are not members | 20.6, 20.7 |
+| `decoder.stop` | host | request | `ok` | `instance` | 20.6 |
 
-Every name is a text (plain, with no control character or direction mark) unless it says otherwise. "name" is 1 to
-`max_api_name` (128) bytes. "label" is 1 to `max_decoder_name` (64) bytes. A whole number is 0 to `max_api_number`
-unless a range is given.
+The items of `decoder.data` are objects with a text `item` that is one of these. Any other is refused.
 
-| Message (op) | From | Kind | Members (type, limit) | Design section |
-|---|---|---|---|---|
-| `decoder.create` | host | request | `instance` (1..max_api_number); `places` (list of 1..64 objects, no `place` twice): `place` (name), `rate` (optional, whole number 1..100,000,000, `max_place_rate`; 0 in the struct is "not given"), `format` (optional, plain text 1..16; empty in the struct is "not given"), `bus` (optional bool, default false); `params` (optional JSON object, default `{}`). No blob | 20.6 (table, line 2044) |
-| `decoder.data` | host | notification | `seq` (1..max_api_number); `items` (list of 1..256 objects, each with `item` of `data`, `line`, `line_error`, `bus_fault`, `rule`, `time` or `lost`; any other kind is refused); the blob is the bytes of all `data` items, 0..262144 (`max_decoder_blob`), and the `length`s of the `data` items must add up to its size exactly. No `instance` | 20.4 (lines 1925-1949), 20.6 (line 2045) |
-| item `data` | | | `place` (name), `direction` (`rx`/`tx`), `offset`, `t_ns`, `end_ns` (optional, not before `t_ns`), `length` (1..65536) | 20.4 (line 1930) |
-| item `line` | | | `place` (name), `t_ns`, `lines` (object of optional bools `dtr`, `rts`, `cts`, `dsr`, `dcd`, `ri`), `changed` (list of 0..6 of those names, none twice, each given in `lines`) | 20.4 (line 1931) |
-| item `line_error` | | | `place` (name), `t_ns`, `kind` (`parity`, `framing`, `overrun`, `break`) | 20.4 (line 1932) |
-| item `bus_fault` | | | `link` (name), `sender` (name), `t_ns`, `fault` (`overlap`, `too_soon`, `line_held`, `transmitter_off`, `overrun`), `offset`, `length` (1..65536) | 20.4 (line 1933) |
-| item `rule` | | | `place` (name), `t_ns`, `rule` (label), `action` (label) | 20.4 (line 1934) |
-| item `time` | | | `t_ns` | 20.4 (line 1935) |
-| item `lost` | | | `place` (name), `direction` (`rx`/`tx`), `from_offset`, `bytes` (1..max_api_number), `from_ns`, `to_ns` (not before `from_ns`) | 20.4 (line 1936) |
-| `decoder.ack` | plugin | notification | `seq` (1..max_api_number). No `instance` | 20.4 (line 1947), 20.6 (line 2046) |
-| `decoder.frame` | plugin | notification | `instance` (1..max_api_number, added); `place` (name); `direction` (`rx`/`tx`); `offset`; `length` (1..65536); `t_start_ns`; `t_end_ns` (not before `t_start_ns`); `message` (label); `summary` (optional, plain text 0..200); `fields` (optional list of 0..64 objects): `name` (label), `offset` (from the start of the frame), `length` (0..65536), `value` (plain text 0..200, required but may be empty); each field lies within the frame (`offset + length` not past `length`) | 20.6 (line 2047) |
-| `trigger.publish` | plugin | notification | `instance` (1..max_api_number, added); `kind` (`framing`, `unknown_type`, `unknown_value`, `check`, `length`, `timeout`, `sequence`, `contention`, `line_error`, `decoder_lost`, `custom`); `code` (token 1..64, given exactly when `kind` is `custom`); `when_ns`; `place` (name); `direction` (`rx`/`tx`); `sender` (optional name); `protocol` (optional): `id` (plain text 1..128), `version` (plain text 1..64); `frame` (optional): `offset`, `length` (1..65536), `t_start_ns`, `t_end_ns` (not before `t_start_ns`), `message` (plain text 0..64, required); `field` (optional): `name` (label), `offset`, `length` (1..65536); `expected`, `actual` (optional plain text 1..128, both or neither); `covers` (optional list of exactly two whole numbers, the second not before the first); `cause` (optional object with exactly one of `bus_fault` (one of the five fault names) with a required `event` (whole number), or `own_action` (whole number)); `request` (optional): `offset`, `length` (1..65536), `t_end_ns`; `text` (plain text 1..200). No `id`, `from` or publish time; no blob | 20.6 (line 2048), 20.7 (lines 2065-2102) |
-| `decoder.stop` | host | request | `instance` (1..max_api_number). No blob | 20.6 (line 2049) |
+| `item` | Members |
+|---|---|
+| `data` | `place`; `direction` (`rx` or `tx`); `offset` (the bytes at that place and direction before this chunk); `t_ns`; `end_ns` (optional, not before `t_ns`); `length` (1 to 65536) |
+| `line` | `place`; `t_ns`; `lines` (an object of optional true or false for `dtr`, `rts`, `cts`, `dsr`, `dcd` and `ri`); `changed` (list of 0 to 6 of those names, none twice, each given in `lines`) |
+| `line_error` | `place`; `t_ns`; `kind` (`parity`, `framing`, `overrun` or `break`) |
+| `bus_fault` | `place` (the link); `sender` (a name); `t_ns`; `fault` (`overlap`, `too_soon`, `line_held`, `transmitter_off` or `overrun`); `event` (its id, which `cause.event` of a trigger names); `offset`; `length` (1 to 65536) |
+| `rule` | `place`; `t_ns`; `rule` and `action` (plain text of 1 to 64 bytes each) |
+| `time` | `t_ns` |
+| `lost` | `place`; `direction`; `from_offset`; `bytes` (1 or more); `from_ns`; `to_ns` (not before `from_ns`) |
 
-Structs: `decoder_item` is `std::variant<decoder_data_item, decoder_line_item, decoder_line_error_item,
-decoder_bus_fault_item, decoder_rule_item, decoder_time_item, decoder_lost_item>` in the order of the table.
-`decoder_line_item::lines` is a `std::array<std::optional<bool>, 6>` indexed by `decoder_line`.
-`trigger_publish_message::cause` is `std::optional<std::variant<trigger_bus_cause, trigger_own_action>>`.
-No change was made to `api_codec.hpp/.cpp`.
+## Engine capabilities
 
+`hello_ack.capabilities` lists, by name, what this build of the engine can do. A plugin checks the list for what it
+needs and does without when it is not there: an operation that needs a missing capability is answered with an `error`
+whose value is `unsupported`. These are the names:
 
-## Limits that are named in the code
+| Capability | What it says | Design section |
+|---|---|---|
+| `engine_rules` | The engine runs rule sets for a port (`rules.set`) | 6.6 |
+| `rules_link` | Rule sets can be put on a link | 6.6 |
+| `rules_microseconds` | Delays in rule sets are exact to the microsecond | 6.6 |
+| `route_hook` | The engine has the stage on a route that a modifier uses | 7.6 |
+| `events_bus_fault_detail` | A bus fault event has its value, link and time | 20.4 |
+| `timeline` | The engine plays a recording as a timeline (`timeline.load`) | 19.4 |
 
-Every limit above is a named constant in the header of its group, so that a plugin written in C++ can use it. A limit
-that the design does not give was chosen as a conservative value, and the design may change it in a later minor version
-by raising it. A plugin must not depend on a limit being exactly the value shown here beyond what it needs to stay
-under it.
+`timeline` is not offered in release candidate 6. `timeline.load` is answered with an `error` whose value is
+`unsupported`, and a plugin that replays a recording checks for the capability and shows that it cannot.
+
+## Not built yet
+
+The design names these, and this version of the API has no message for them.
+
+| What | Design section |
+|---|---|
+| `inject` and `fault` for an async modifier | 7.6 |
+| Progress and cancel of `bundle.prepare` | 19.5 |
+| The `clock` of `hello_ack` | 7.3 |
+| Typed forms of `triggers.query`, `trigger_stats` and `update_rules` | 20.4, 20.8 |
+| A message from the host to a plugin for a user starting a recording. A recorder is an `adapter` instance, made with `instance.create` | 19.1, 19.4 |

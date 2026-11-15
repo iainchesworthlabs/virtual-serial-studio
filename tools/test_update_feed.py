@@ -10,20 +10,27 @@ Run with:
 The tests that sign or verify call OpenSSL 3 and are skipped, with a message,
 when it is not on the PATH. The rest is plain Python and always runs. The key
 for the signing tests is a THROWAWAY key that OpenSSL makes in a temporary
-folder when the tests start; no key file is in the repository.
+folder when the tests start; no key file is in the repository. The files of
+keys that the tests read are made in the tests, and no test makes a request:
+the two calls of ``collect`` are replaced.
 """
 
 from __future__ import annotations
 
 import base64
+import contextlib
 import copy
 import hashlib
+import io
 import json
+import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
+import urllib.error
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -1564,13 +1571,828 @@ class SigningTests(ToolTestCase):
         )
 
 
+# -- The keys Studio is built with -------------------------------------------
+
+REAL_KEYS_FILE = HERE.parent / "libs" / "vss_update" / "src" / "trusted_keys_release.cpp"
+LICENCE_KEYS_FILE = HERE.parent / "libs" / "vss_license" / "src" / "trusted_keys_release.cpp"
+
+# Not keys: bytes that make the reader's tests readable. The signing tests use
+# the throwaway keys that OpenSSL made in setUpModule.
+BYTES_A = bytes(range(32))
+BYTES_B = bytes(range(100, 132))
+
+CPP_HEAD = """\
+// SPDX-License-Identifier: GPL-3.0-or-later
+#include <vss/update/feed.hpp>
+
+namespace vss::update
+{
+
+namespace
+{
+
+"""
+
+CPP_MAKE = """
+trusted_key make(std::string_view key_id, std::string_view purpose,
+                 const public_key& key)
+{
+    trusted_key entry;
+    entry.key_id = std::string(key_id);
+    entry.purpose = std::string(purpose);
+    entry.key = key;
+    return entry;
+}
+
+} // namespace
+
+"""
+
+
+def array_text(name: str, data: bytes) -> str:
+    items = ["0x%02x" % b for b in data]
+    rows = [", ".join(items[i:i + 8]) for i in range(0, len(items), 8)]
+    return "constexpr public_key %s{%s};\n" % (name, ",\n    ".join(rows))
+
+
+def array_name(key_id: str) -> str:
+    return key_id.replace("-", "_")
+
+
+def keys_cpp(keys: List[Tuple[str, bytes]]) -> str:
+    """A file in the form that ``read_feed_keys`` reads, as the owner would
+    fill the file in the repository."""
+    text = CPP_HEAD
+    for key_id, data in keys:
+        text += "// base64url made up for the test\n" + array_text(array_name(key_id), data)
+    text += CPP_MAKE
+    text += "std::span<const vss::license::signed_file::trusted_key> builtin_feed_keys()\n{\n"
+    if keys:
+        entries = ",\n        ".join(
+            'make("%s", feed_purpose, %s)' % (key_id, array_name(key_id)) for key_id, _ in keys
+        )
+        text += "    static const std::array<trusted_key, %d> keys{\n        %s};\n    return keys;\n" % (
+            len(keys), entries,
+        )
+    else:
+        text += "    return {};\n"
+    return text + "}\n\n} // namespace vss::update\n"
+
+
+TWO_KEYS = [("upd-2026-a", BYTES_A), ("upd-2026-b", BYTES_B)]
+
+
+class ReadFeedKeysTests(ToolTestCase):
+    def read(self, text: str) -> List[uf.FeedKey]:
+        path = self.write("keys.cpp", text.encode("utf-8"))
+        return uf.read_feed_keys(str(path))
+
+    def refused(self, text: "str | bytes") -> str:
+        path = self.write("keys.cpp", text if isinstance(text, bytes) else text.encode("utf-8"))
+        with self.assertRaises(ps.Refusal) as caught:
+            uf.read_feed_keys(str(path))
+        self.assertEqual(caught.exception.code, ps.EXIT_USAGE)
+        self.assertNotIn("\n", caught.exception.message)
+        return caught.exception.message
+
+    def test_the_file_in_the_repository_lists_no_key(self) -> None:
+        self.assertEqual(uf.read_feed_keys(str(REAL_KEYS_FILE)), [])
+
+    def test_two_keys_in_the_order_of_the_file(self) -> None:
+        keys = self.read(keys_cpp(TWO_KEYS))
+        self.assertEqual(
+            keys,
+            [uf.FeedKey("upd-2026-a", BYTES_A), uf.FeedKey("upd-2026-b", BYTES_B)],
+        )
+
+    def test_one_key_and_an_empty_list_in_the_form_of_the_fixture(self) -> None:
+        self.assertEqual(self.read(keys_cpp(TWO_KEYS[:1])), [uf.FeedKey("upd-2026-a", BYTES_A)])
+        self.assertEqual(self.read(keys_cpp([])), [])
+
+    def test_the_layout_of_the_licence_file_is_read(self) -> None:
+        # The owner fills the file in the way the licence file is filled: the
+        # arrays in the licence file's layout (eight bytes to a line), the
+        # same `make`, the same list. Only the purposes and the names change.
+        text = LICENCE_KEYS_FILE.read_text(encoding="utf-8")
+        for old, new in (
+            ('make("lic-2026-a", licence_purpose, lic_2026_a),\n'
+             '        make("lic-2026-a", revocations_purpose, lic_2026_a),\n'
+             '        make("lic-2026-b", licence_purpose, lic_2026_b),\n'
+             '        make("lic-2026-b", revocations_purpose, lic_2026_b)};',
+             'make("lic-2026-a", feed_purpose, lic_2026_a),\n'
+             '        make("lic-2026-b", feed_purpose, lic_2026_b)};'),
+            ("std::array<trusted_key, 4>", "std::array<trusted_key, 2>"),
+        ):
+            self.assertIn(old, text)
+            text = text.replace(old, new)
+        keys = self.read(text)
+        self.assertEqual([k.key_id for k in keys], ["lic-2026-a", "lic-2026-b"])
+        self.assertEqual(keys[0].public_key[:4], bytes([0xEF, 0x26, 0x8C, 0xD4]))
+        self.assertEqual(len(keys[1].public_key), 32)
+
+    def test_a_namespace_in_front_of_the_names_is_allowed(self) -> None:
+        text = keys_cpp(TWO_KEYS)
+        text = text.replace("constexpr public_key", "constexpr vss::license::signed_file::public_key")
+        text = text.replace("feed_purpose,", "vss::update::feed_purpose,")
+        text = text.replace("std::array<trusted_key", "std::array<vss::license::signed_file::trusted_key")
+        self.assertEqual(len(self.read(text)), 2)
+
+    def test_comments_are_not_read(self) -> None:
+        text = keys_cpp(TWO_KEYS)
+        text = text.replace(
+            "namespace\n{",
+            '// make("upd-2026-c", feed_purpose, upd_2026_c)\n'
+            "/* constexpr public_key upd_2026_c{0x00}; */\n"
+            "// not_after\nnamespace\n{",
+        )
+        self.assertEqual(len(self.read(text)), 2)
+        # A comment sign inside a string is not a comment.
+        self.assertEqual(len(self.read(keys_cpp(TWO_KEYS) + 'const char* x = "//";\n')), 2)
+
+    def test_a_key_of_another_length_is_refused(self) -> None:
+        for size in (0, 1, 31, 33, 64):
+            with self.subTest(size=size):
+                message = self.refused(keys_cpp([("upd-2026-a", bytes(range(size)))]))
+                self.assertIn("upd_2026_a", message)
+                self.assertIn("32 bytes", message)
+
+    def test_a_key_written_in_another_way_is_refused(self) -> None:
+        good = keys_cpp(TWO_KEYS[:1])
+        for label, text in (
+            ("decimal", good.replace("0x00", "0")),
+            ("one digit", good.replace("0x01,", "0x1,")),
+            ("trailing comma", good.replace("0x1f}", "0x1f,}")),
+            ("a number that is not a byte", good.replace("0x01,", "0x100,")),
+            ("no constexpr", good.replace("constexpr public_key", "const public_key")),
+            ("an equals sign", good.replace("upd_2026_a{", "upd_2026_a = {")),
+        ):
+            with self.subTest(label):
+                self.refused(text)
+
+    def test_an_id_with_no_array_is_refused(self) -> None:
+        text = keys_cpp(TWO_KEYS).replace("feed_purpose, upd_2026_b", "feed_purpose, upd_2026_c")
+        message = self.refused(text)
+        self.assertIn("upd-2026-b", message)
+        self.assertIn("not a key array", message)
+
+    def test_an_array_with_no_entry_is_refused(self) -> None:
+        text = keys_cpp(TWO_KEYS)
+        text = text.replace(CPP_MAKE, array_text("upd_2026_c", BYTES_A) + CPP_MAKE)
+        self.assertIn("upd_2026_c", self.refused(text))
+
+    def test_a_key_listed_twice_is_refused(self) -> None:
+        both = keys_cpp(TWO_KEYS)
+        self.assertIn(
+            "twice",
+            self.refused(both.replace('make("upd-2026-b", feed_purpose, upd_2026_b)',
+                                      'make("upd-2026-a", feed_purpose, upd_2026_b)')),
+        )
+        self.assertIn(
+            "twice",
+            self.refused(both.replace("feed_purpose, upd_2026_b", "feed_purpose, upd_2026_a")),
+        )
+        self.assertIn("twice", self.refused(both.replace(CPP_MAKE, array_text("upd_2026_a", BYTES_B) + CPP_MAKE)))
+
+    def test_a_bad_id_or_another_purpose_is_refused(self) -> None:
+        good = keys_cpp(TWO_KEYS)
+        for label, text in (
+            ("capital", good.replace('"upd-2026-a"', '"Upd-2026-a"')),
+            ("underscore", good.replace('"upd-2026-a"', '"upd_2026_a"')),
+            ("empty", good.replace('"upd-2026-a"', '""')),
+            ("too long", good.replace('"upd-2026-a"', '"%s"' % ("a" * 65))),
+            ("licence", good.replace("feed_purpose, upd_2026_a", "licence_purpose, upd_2026_a")),
+            ("a string", good.replace("feed_purpose, upd_2026_a", '"update-feed", upd_2026_a')),
+            ("an expression", good.replace("upd_2026_a)", "upd_2026_a + 1)")),
+        ):
+            with self.subTest(label):
+                self.refused(text)
+
+    def test_the_size_of_the_list_must_be_the_number_of_entries(self) -> None:
+        good = keys_cpp(TWO_KEYS)
+        self.assertIn("std::array<trusted_key, 2>", good)
+        for count in (1, 3, 0):
+            with self.subTest(count=count):
+                self.refused(good.replace("std::array<trusted_key, 2>", "std::array<trusted_key, %d>" % count))
+        self.refused(good.replace("std::array<trusted_key, 2> keys{", "std::array<int, 2> keys{"))
+
+    def test_a_key_window_is_refused(self) -> None:
+        for name in ("not_before", "not_after", "revoked_from"):
+            with self.subTest(name):
+                text = keys_cpp(TWO_KEYS).replace("entry.key = key;", "entry.key = key;\n    entry.%s = {};" % name)
+                self.assertIn(name, self.refused(text))
+
+    def test_a_file_with_no_key_must_be_the_empty_list(self) -> None:
+        self.refused(CPP_HEAD)
+        self.refused(keys_cpp([]).replace("return {};", "return std::span<const int>{};"))
+        self.refused(
+            keys_cpp([]).replace(
+                "return {};", "static const std::array<trusted_key, 0> keys{};\n    return keys;"
+            )
+        )
+
+    def test_an_entry_made_another_way_is_not_taken_for_an_empty_list(self) -> None:
+        text = keys_cpp([]).replace("return {};", "return {add(feed_purpose, k)};")
+        self.refused(text.replace(CPP_MAKE, array_text("k", BYTES_A) + CPP_MAKE))
+
+    def test_a_file_that_cannot_be_read(self) -> None:
+        self.refused(keys_cpp(TWO_KEYS) + "/* not closed\n")
+        self.refused(b"\xff\xfe" + keys_cpp(TWO_KEYS).encode("utf-8"))
+        self.refused(keys_cpp(TWO_KEYS) + "//" + "x" * uf.KEYS_FILE_LIMIT)
+        with self.assertRaises(ps.Refusal) as caught:
+            uf.read_feed_keys(str(self.root / "missing.cpp"))
+        self.assertEqual(caught.exception.code, ps.EXIT_USAGE)
+
+    def test_the_keys_command(self) -> None:
+        path = self.write("keys.cpp", keys_cpp(TWO_KEYS).encode("utf-8"))
+        done = self.run_tool("keys", "--keys-from", path)
+        self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "upd-2026-a\nupd-2026-b\n", ""))
+
+    def test_the_keys_command_in_the_repository_prints_nothing(self) -> None:
+        done = self.run_tool("keys", "--keys-from", REAL_KEYS_FILE)
+        self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "", ""))
+
+    def test_the_keys_command_refuses_a_file_it_cannot_read(self) -> None:
+        path = self.write("keys.cpp", keys_cpp([("upd-2026-a", bytes(31))]).encode("utf-8"))
+        done = self.run_tool("keys", "--keys-from", path)
+        self.assertEqual((done.returncode, done.stdout), (2, ""))
+        self.assertEqual(len(done.stderr.strip().splitlines()), 1)
+        self.assertEqual(self.run_tool("keys", "--keys-from", self.root / "no.cpp").returncode, 2)
+        self.assertEqual(self.run_tool("keys").returncode, 2)
+
+    def test_the_comment_of_the_file_in_the_repository_tells_the_form(self) -> None:
+        text = REAL_KEYS_FILE.read_text(encoding="utf-8")
+        for words in ("constexpr public_key", "make(", "feed_purpose", "std::array<trusted_key, N>", "return {};"):
+            self.assertIn(words, text)
+
+
+@needs_openssl
+class VerifyWithKeysTests(ToolTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.payload = self.write("feed.payload.json", text_of(good_payload()).encode("utf-8"))
+        self.keys = self.write(
+            "keys.cpp",
+            keys_cpp(
+                [("upd-2026-a", bytes.fromhex(PUBLIC_KEY)), ("upd-2026-b", bytes.fromhex(OTHER_PUBLIC_KEY))]
+            ).encode("utf-8"),
+        )
+
+    def sign(self, key: Optional[Path], key_id: str, out: str = "update-feed.json") -> Path:
+        done = self.run_tool(
+            "sign", "--key", key, "--key-id", key_id, "--payload", self.payload, "--out", self.root / out
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return self.root / out
+
+    def verify(self, feed: Path, *extra: Any, keys: Optional[Path] = None) -> "subprocess.CompletedProcess[str]":
+        return self.run_tool("verify", "--keys-from", keys or self.keys, *extra, feed)
+
+    def test_each_key_verifies_the_feed_that_names_it(self) -> None:
+        for key, key_id in ((KEY, "upd-2026-a"), (OTHER_KEY, "upd-2026-b")):
+            with self.subTest(key_id):
+                done = self.verify(self.sign(key, key_id))
+                self.assertEqual((done.returncode, done.stdout, done.stderr), (0, "ok serial 12\n", ""))
+
+    def test_the_right_key_under_the_wrong_id_does_not_verify(self) -> None:
+        done = self.verify(self.sign(OTHER_KEY, "upd-2026-a"))
+        self.assertEqual((done.returncode, done.stdout), (1, ""))
+        self.assertIn("signature does not hold", done.stderr)
+        done = self.verify(self.sign(KEY, "upd-2026-b"))
+        self.assertEqual(done.returncode, 1)
+
+    def test_a_key_that_is_not_in_the_file(self) -> None:
+        feed = self.sign(KEY, "upd-2026-c")
+        done = self.verify(feed)
+        self.assertEqual((done.returncode, done.stdout), (1, ""))
+        self.assertIn("upd-2026-c", done.stderr)
+        self.assertIn("does not trust", done.stderr)
+
+    def test_a_secret_that_is_not_a_key_studio_trusts_fails(self) -> None:
+        # What the job guards against: the key that signed is not any of the
+        # public keys that the file lists.
+        keys = self.write(
+            "other.cpp", keys_cpp([("upd-2026-a", BYTES_A), ("upd-2026-b", BYTES_B)]).encode("utf-8")
+        )
+        done = self.verify(self.sign(KEY, "upd-2026-a"), keys=keys)
+        self.assertEqual(done.returncode, 1)
+
+    def test_a_build_with_no_key_has_its_own_exit_status(self) -> None:
+        feed = self.sign(KEY, "upd-2026-a")
+        empty = self.write("empty.cpp", keys_cpp([]).encode("utf-8"))
+        bad = self.write("bad.json", feed.read_bytes().replace(b"serial", b"seria1"))
+        for keys in (REAL_KEYS_FILE, empty):
+            done = self.verify(feed, keys=keys)
+            self.assertEqual((done.returncode, done.stdout), (3, ""), keys)
+            self.assertIn("trusts none", done.stderr)
+            self.assertEqual(len(done.stderr.strip().splitlines()), 1)
+            # It is the answer for a file that does not verify as well.
+            self.assertEqual(self.verify(bad, keys=keys).returncode, 3)
+            self.assertEqual(self.verify(self.root / "none.json", keys=keys).returncode, 3)
+        self.assertNotEqual(self.verify(bad).returncode, 3)
+        self.assertEqual(uf.EXIT_NO_KEYS, 3)
+
+    def test_a_keys_file_that_cannot_be_read_is_a_usage_error(self) -> None:
+        feed = self.sign(KEY, "upd-2026-a")
+        bad = self.write("bad.cpp", keys_cpp([("upd-2026-a", bytes(30))]).encode("utf-8"))
+        self.assertEqual(self.verify(feed, keys=bad).returncode, 2)
+        self.assertEqual(self.verify(feed, keys=self.root / "none.cpp").returncode, 2)
+
+    def test_one_way_of_giving_the_key(self) -> None:
+        feed = self.sign(KEY, "upd-2026-a")
+        both = self.run_tool("verify", "--keys-from", self.keys, "--public-key", PUBLIC_KEY, feed)
+        self.assertEqual(both.returncode, 2)
+        neither = self.run_tool("verify", feed)
+        self.assertEqual(neither.returncode, 2)
+
+    def test_the_other_options_still_apply(self) -> None:
+        feed = self.sign(KEY, "upd-2026-a")
+        self.assertEqual(self.verify(feed, "--key-id", "upd-2026-a").returncode, 0)
+        self.assertEqual(self.verify(feed, "--key-id", "upd-2026-b").returncode, 1)
+        self.assertEqual(self.verify(feed, "--min-serial", "12").returncode, 0)
+        self.assertEqual(self.verify(feed, "--min-serial", "13").returncode, 1)
+
+    def test_the_function_the_website_check_calls(self) -> None:
+        feed = self.sign(KEY, "upd-2026-a")
+        data = feed.read_bytes()
+        self.assertEqual(uf.verify_with_keys_file(data, "feed.json", str(self.keys)), 12)
+        with self.assertRaises(uf.NoKeys):
+            uf.verify_with_keys_file(data, "feed.json", str(REAL_KEYS_FILE))
+        other = self.write(
+            "other.cpp", keys_cpp([("upd-2026-a", BYTES_A)]).encode("utf-8")
+        )
+        with self.assertRaises(ps.Refusal) as caught:
+            uf.verify_with_keys_file(data, "feed.json", str(other))
+        self.assertEqual(caught.exception.code, ps.EXIT_FAILED)
+        self.assertNotIsInstance(caught.exception, uf.NoKeys)
+
+
+# -- Collecting the inputs from the releases ---------------------------------
+
+REPO_NAME = "iainchesworthlabs/virtual-serial-studio"
+
+
+def api_release(
+    tag: str,
+    prerelease: Optional[bool] = None,
+    draft: bool = False,
+    published_at: str = "2026-12-01T03:35:45Z",
+    body: Any = "Notes of the release.",
+    names: Optional[List[str]] = None,
+    **changes: Any,
+) -> Dict[str, Any]:
+    """A release as ``GET /repos/{owner}/{repo}/releases`` gives it."""
+    entry: Dict[str, Any] = {
+        "tag_name": tag,
+        "name": tag,
+        "draft": draft,
+        "prerelease": ("-" in tag) if prerelease is None else prerelease,
+        "published_at": None if draft else published_at,
+        "html_url": "%s/releases/tag/%s" % (REPO, tag),
+        "body": body,
+        "assets": [
+            {
+                "id": index,
+                "name": name,
+                "size": 1000 + len(name),
+                "browser_download_url": "%s/releases/download/%s/%s" % (REPO, tag, name),
+            }
+            for index, name in enumerate(release_names(tag) if names is None else names)
+        ],
+    }
+    entry.update(changes)
+    return entry
+
+
+class FakeDownload:
+    """What ``download_bytes`` is replaced with: the SHA512SUMS of a release,
+    made from the names of its files, and a record of what was asked for."""
+
+    def __init__(self) -> None:
+        self.urls: List[str] = []
+
+    def __call__(self, url: str, limit: int) -> bytes:
+        self.urls.append(url)
+        tag = url.split("/download/")[1].split("/")[0]
+        names = [
+            name
+            for name in release_names(tag)
+            if not name.endswith(".asc") and name not in ("SHA512SUMS", "update-feed.json")
+        ]
+        return "".join("%s  %s\n" % (digest_of(name), name) for name in sorted(names)).encode("utf-8")
+
+
+class CollectTests(ToolTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.out = self.root / "feed-input"
+        self.download = FakeDownload()
+
+    def collect(self, entries: List[Any]) -> int:
+        with contextlib.redirect_stderr(io.StringIO()):
+            return uf.collect(REPO_NAME, entries, str(self.out), self.download)
+
+    def collect_with_notes(self, entries: List[Any]) -> Tuple[int, str]:
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            serial = uf.collect(REPO_NAME, entries, str(self.out), self.download)
+        return serial, err.getvalue()
+
+    def tag_of(self, folder: str) -> str:
+        document = json.loads((self.out / folder / "release.json").read_bytes())
+        return str(document["tag"])
+
+    def test_the_newest_by_version_and_not_by_date_or_place(self) -> None:
+        entries = [
+            api_release("v0.1.0", published_at="2026-12-09T00:00:00Z"),
+            api_release("v0.2.0", published_at="2026-12-01T00:00:00Z"),
+            api_release("v0.3.0-rc.2", published_at="2026-11-01T00:00:00Z"),
+            api_release("v0.3.0-rc.10", published_at="2026-10-01T00:00:00Z"),
+            api_release("v0.3.0-rc.9", published_at="2026-12-20T00:00:00Z"),
+            api_release("v0.1.5", published_at="2026-12-30T00:00:00Z"),
+        ]
+        self.collect(entries)
+        self.assertEqual(self.tag_of("stable"), "v0.2.0")
+        self.assertEqual(self.tag_of("preview"), "v0.3.0-rc.10")
+
+    def test_a_draft_is_ignored_and_not_counted(self) -> None:
+        entries = [
+            api_release("v0.9.0", draft=True),
+            api_release("v0.8.0-rc.1", draft=True),
+            api_release("v0.2.0"),
+            api_release("v0.3.0-rc.1"),
+        ]
+        serial = self.collect(entries)
+        self.assertEqual(serial, 2)
+        self.assertEqual((self.tag_of("stable"), self.tag_of("preview")), ("v0.2.0", "v0.3.0-rc.1"))
+
+    def test_a_pre_release_that_is_not_newer_is_left_out_and_says_so(self) -> None:
+        for older in ("v0.2.0-rc.3", "v0.1.9-rc.1"):
+            with self.subTest(older):
+                serial, notes = self.collect_with_notes([api_release(older), api_release("v0.2.0")])
+                self.assertEqual(serial, 2)
+                self.assertTrue((self.out / "stable").is_dir())
+                self.assertFalse((self.out / "preview").exists())
+                self.assertIn("left out", notes)
+
+    def test_only_pre_releases_make_a_preview_folder_only(self) -> None:
+        self.collect([api_release("v0.1.0-rc.5"), api_release("v0.1.0-rc.4")])
+        self.assertFalse((self.out / "stable").exists())
+        self.assertEqual(self.tag_of("preview"), "v0.1.0-rc.5")
+
+    def test_nothing_to_publish_is_refused(self) -> None:
+        for entries in ([], [api_release("v0.1.0", draft=True)], [api_release("nightly")]):
+            with self.subTest(entries=len(entries)), self.assertRaises(ps.Refusal) as caught:
+                self.collect(entries)
+            self.assertIn("no published release", caught.exception.message)
+            self.assertEqual(caught.exception.code, ps.EXIT_FAILED)
+
+    def test_the_serial_is_the_number_of_published_releases(self) -> None:
+        entries = [
+            api_release("v0.2.0"),
+            api_release("v0.2.1", draft=True),
+            api_release("v0.2.0-rc.1"),
+            api_release("v0.1.0"),
+            api_release("not-a-version"),
+            api_release("v0.1.0-rc.9"),
+        ]
+        self.assertEqual(self.collect(entries), 5)
+        self.assertEqual(json.loads((self.out / "serial.json").read_bytes()), {"serial": 5})
+        self.assertTrue((self.out / "serial.json").read_bytes().endswith(b"\n"))
+
+    def test_the_serial_goes_up_with_a_release(self) -> None:
+        entries = [api_release("v0.1.0")]
+        first = self.collect(entries)
+        second = self.collect([api_release("v0.2.0")] + entries)
+        self.assertEqual(second, first + 1)
+
+    def test_a_folder_of_the_tool_s_own_shape(self) -> None:
+        self.collect([api_release("v0.1.0-rc.5")])
+        folder = self.out / "preview"
+        self.assertEqual(sorted(p.name for p in folder.iterdir()), ["SHA512SUMS", "release.json", "summary.txt"])
+        document = json.loads((folder / "release.json").read_bytes())
+        self.assertEqual(
+            sorted(document), ["assets", "html_url", "prerelease", "published_at", "tag"]
+        )
+        self.assertEqual(document["html_url"], "%s/releases/tag/v0.1.0-rc.5" % REPO)
+        self.assertEqual([a["name"] for a in document["assets"]], sorted(a["name"] for a in document["assets"]))
+        self.assertEqual(sorted(document["assets"][0]), ["name", "size", "url"])
+        self.assertTrue((folder / "release.json").read_bytes().endswith(b"\n"))
+        self.assertNotIn(b"\r", (folder / "release.json").read_bytes())
+        # Only the file of the sums is downloaded, from the release's own address.
+        self.assertEqual(
+            self.download.urls, ["%s/releases/download/v0.1.0-rc.5/SHA512SUMS" % REPO]
+        )
+
+    def test_a_folder_that_payload_reads(self) -> None:
+        self.collect(
+            [api_release("v0.1.0"), api_release("v0.2.0-rc.1", body="What is new.\r\n\r\nSecond line.\r\n")]
+        )
+        done = self.run_tool(
+            "payload", "--serial", 2, "--issued-at", "2026-12-01T03:40:00Z",
+            "--stable", self.out / "stable", "--preview", self.out / "preview",
+            "--out", self.root / "feed.payload.json",
+        )
+        self.assertEqual(done.returncode, 0, done.stderr)
+        document = self.read_payload()
+        self.assertEqual(
+            [(e["channel"], e["version"]) for e in document["studio"]],
+            [("stable", "0.1.0"), ("preview", "0.2.0-rc.1")],
+        )
+        self.assertEqual(document["studio"][1]["summary"], "What is new.\n\nSecond line.")
+        self.assertEqual(len(document["studio"][0]["files"]), 7)
+
+    @needs_openssl
+    def test_from_the_releases_to_a_feed_that_verifies_with_the_keys_file(self) -> None:
+        self.collect([api_release("v0.1.0"), api_release("v0.2.0-rc.1")])
+        keys = self.write(
+            "keys.cpp", keys_cpp([("upd-2026-a", bytes.fromhex(PUBLIC_KEY))]).encode("utf-8")
+        )
+        serial = json.loads((self.out / "serial.json").read_bytes())["serial"]
+        steps = (
+            ("payload", "--serial", serial, "--issued-at", "2026-12-01T03:40:00Z",
+             "--stable", self.out / "stable", "--preview", self.out / "preview",
+             "--out", self.root / "p.json"),
+            ("sign", "--key", KEY, "--key-id", "upd-2026-a", "--payload", self.root / "p.json",
+             "--out", self.root / "update-feed.json"),
+            ("verify", "--keys-from", keys, self.root / "update-feed.json"),
+        )
+        for step in steps:
+            done = self.run_tool(*step)
+            self.assertEqual(done.returncode, 0, "%s: %s" % (step[0], done.stderr))
+        self.assertEqual(done.stdout, "ok serial 2\n")
+
+    def test_an_old_run_leaves_nothing_behind(self) -> None:
+        self.collect([api_release("v0.1.0"), api_release("v0.2.0-rc.1")])
+        (self.out / "stable" / "stale.txt").write_text("x")
+        (self.out / "other.txt").write_text("kept")
+        self.collect([api_release("v0.3.0-rc.1")])
+        self.assertFalse((self.out / "stable").exists())
+        self.assertEqual(self.tag_of("preview"), "v0.3.0-rc.1")
+        self.assertEqual((self.out / "other.txt").read_text(), "kept")
+
+    def test_a_tag_that_is_not_a_version_is_not_picked(self) -> None:
+        entries = [api_release("nightly"), api_release("v0.1.0-dev", prerelease=True), api_release("v0.1.0")]
+        self.collect(entries)
+        self.assertEqual(self.tag_of("stable"), "v0.1.0")
+        self.assertFalse((self.out / "preview").exists())
+
+    def test_what_is_not_a_release_is_refused(self) -> None:
+        with self.assertRaises(ps.Refusal):
+            self.collect(["v0.1.0"])
+
+    def test_an_address_of_another_place_is_refused(self) -> None:
+        entry = api_release("v0.1.0")
+        entry["assets"][3]["browser_download_url"] = "https://example.com/x.deb"
+        with self.assertRaises(ps.Refusal) as caught:
+            self.collect([entry])
+        self.assertIn("does not start with", caught.exception.message)
+        self.assertEqual(self.download.urls, [])
+
+    def test_a_release_without_sha512sums_is_refused(self) -> None:
+        names = [name for name in release_names("v0.1.0") if name != "SHA512SUMS"]
+        with self.assertRaises(ps.Refusal) as caught:
+            self.collect([api_release("v0.1.0", names=names)])
+        self.assertIn("SHA512SUMS", caught.exception.message)
+
+    def test_a_download_that_fails_is_refused(self) -> None:
+        def broken(url: str, limit: int) -> bytes:
+            raise ps.Refusal("could not download the file")
+
+        with self.assertRaises(ps.Refusal), contextlib.redirect_stderr(io.StringIO()):
+            uf.collect(REPO_NAME, [api_release("v0.1.0")], str(self.out), broken)
+
+    # -- The summary
+
+    def test_no_body_no_summary_file(self) -> None:
+        for body in ("", "  \n\r\n\t ", None, 7, "\x00\x01"):
+            with self.subTest(body=body):
+                self.collect([api_release("v0.1.0", body=body)])
+                self.assertFalse((self.out / "stable" / "summary.txt").exists())
+
+    def test_the_body_as_plain_text(self) -> None:
+        body = "## Heading\r\n\r\nA line.\tTabbed.\x00\x1b\x7f\x85 End.\r\n\r\n"
+        self.collect([api_release("v0.1.0", body=body)])
+        text = (self.out / "stable" / "summary.txt").read_bytes()
+        self.assertEqual(text, b"Heading\n\nA line. Tabbed. End.\n")
+        self.assertIsNone(uf.summary_problem(text.decode("utf-8").rstrip("\n")))
+
+    def test_the_marks_of_markdown_are_taken_out(self) -> None:
+        body = (
+            "## What is in it\n\n"
+            "It replaces [rc.4](https://example.com/releases/tag/v0.1.0-rc.4), "
+            "and [the notes](https://example.com/a_(b)) say more.\n\n"
+            "**Read this first.** Remove the key with `reg delete \"HKCU\\Old\" /f`.\n\n"
+            "### Fixes\n"
+            "- A number # in a line stays, and so does a [bracket] with no address.\n"
+            "#not a heading\n"
+        )
+        self.assertEqual(
+            uf.summary_of(body),
+            "What is in it\n\n"
+            "It replaces rc.4, and the notes) say more.\n\n"
+            "Read this first. Remove the key with reg delete \"HKCU\\Old\" /f.\n\n"
+            "Fixes\n"
+            "- A number # in a line stays, and so does a [bracket] with no address.\n"
+            "#not a heading",
+        )
+
+    def test_a_long_body_is_cut_at_the_end_of_a_line_near_the_limit(self) -> None:
+        line = "A line of the notes that is fifty bytes long, yes.\n"
+        text = uf.summary_of(line * 100)
+        assert text is not None
+        self.assertLessEqual(len(text.encode("utf-8")), uf.MAX_SUMMARY_BYTES)
+        self.assertTrue(text.endswith("yes.\n..."))
+        self.assertIsNone(uf.summary_problem(text))
+
+    def test_a_body_over_the_limit_is_cut_at_a_character(self) -> None:
+        for unit in ("a", "é", "€", "\U0001F600"):
+            with self.subTest(unit=unit.encode("unicode_escape")):
+                text = uf.summary_of("Start\n" + unit * 3000)
+                assert text is not None
+                self.assertLessEqual(len(text.encode("utf-8")), uf.MAX_SUMMARY_BYTES)
+                self.assertGreater(len(text.encode("utf-8")), uf.MAX_SUMMARY_BYTES - 4)
+                self.assertTrue(text.endswith("..."))
+                self.assertTrue(text.startswith("Start\n"))
+                self.assertIsNone(uf.summary_problem(text))
+
+    def test_a_body_at_the_limit_is_not_cut(self) -> None:
+        body = "x" * uf.MAX_SUMMARY_BYTES
+        self.assertEqual(uf.summary_of(body), body)
+        self.assertEqual(uf.summary_of(body + "y"), "x" * (uf.MAX_SUMMARY_BYTES - 3) + "...")
+
+    def test_a_lone_surrogate_is_dropped(self) -> None:
+        self.assertEqual(uf.summary_of("a\ud800b"), "ab")
+
+    # -- The command
+
+    def releases_file(self, entries: Any) -> Path:
+        return self.write("releases.json", json.dumps(entries).encode("utf-8"))
+
+    def run_main(self, *arguments: Any) -> "Tuple[int, str, str]":
+        out, err = io.StringIO(), io.StringIO()
+        with unittest.mock.patch.object(uf, "download_bytes", self.download), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = uf.main([str(a) for a in arguments])
+        return code, out.getvalue(), err.getvalue()
+
+    def test_the_command_prints_the_serial_and_nothing_else(self) -> None:
+        releases = self.releases_file([api_release("v0.1.0"), api_release("v0.2.0-rc.1")])
+        code, out, err = self.run_main(
+            "collect", "--repo", REPO_NAME, "--releases-json", releases, "--out", self.out
+        )
+        self.assertEqual((code, out), (0, "2\n"))
+        self.assertIn("v0.1.0", err)
+        self.assertEqual(self.tag_of("stable"), "v0.1.0")
+
+    def test_the_command_makes_the_folder_it_is_given(self) -> None:
+        releases = self.releases_file([api_release("v0.1.0")])
+        out = self.root / "a" / "b"
+        code, _, _ = self.run_main("collect", "--repo", REPO_NAME, "--releases-json", releases, "--out", out)
+        self.assertEqual(code, 0)
+        self.assertTrue((out / "stable" / "release.json").is_file())
+
+    def test_the_command_refuses_with_one_sentence(self) -> None:
+        cases = (
+            ("a bad name", ("--repo", "nobody", "--releases-json", "x"), 2),
+            ("a name with a slash", ("--repo", "a/b/c", "--releases-json", "x"), 2),
+            ("no file", ("--repo", REPO_NAME, "--releases-json", str(self.root / "none.json")), 2),
+            ("not a list", ("--repo", REPO_NAME, "--releases-json", str(self.releases_file({"a": 1}))), 1),
+            ("not json", ("--repo", REPO_NAME, "--releases-json", str(self.write("x.json", b"{"))), 1),
+            ("no release", ("--repo", REPO_NAME, "--releases-json", str(self.releases_file([]))), 1),
+        )
+        for label, arguments, status in cases:
+            with self.subTest(label):
+                code, out, err = self.run_main("collect", *arguments, "--out", self.out)
+                self.assertEqual((code, out), (status, ""))
+                self.assertEqual(len(err.strip().splitlines()), 1, err)
+                self.assertTrue(err.startswith("update_feed: "))
+
+    def test_the_options_are_needed(self) -> None:
+        for arguments in (("collect",), ("collect", "--repo", REPO_NAME), ("collect", "--out", "x")):
+            self.assertEqual(self.run_tool(*arguments).returncode, 2, arguments)
+
+
+class FakeResponse(io.BytesIO):
+    def __enter__(self) -> "FakeResponse":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+
+class NetworkTests(ToolTestCase):
+    """The two requests of ``collect``, with ``urlopen`` replaced: nothing here
+    opens a socket."""
+
+    def fetch(self, pages: List[Any], environment: Dict[str, str]) -> Tuple[List[Any], List[Any]]:
+        seen: List[Any] = []
+
+        def fake(request: Any, timeout: float) -> FakeResponse:
+            seen.append((request, timeout))
+            number = int(request.full_url.rsplit("page=", 1)[1])
+            page = pages[number - 1]
+            if isinstance(page, Exception):
+                raise page
+            return FakeResponse(json.dumps(page).encode("utf-8"))
+
+        with unittest.mock.patch.dict(os.environ, environment), \
+                unittest.mock.patch("urllib.request.urlopen", fake):
+            found = uf.fetch_releases(REPO_NAME)
+        return found, seen
+
+    def test_every_page_is_read(self) -> None:
+        page_one = [{"tag_name": "v1.%d.0" % i} for i in range(100)]
+        found, seen = self.fetch([page_one, [{"tag_name": "v0.1.0"}]], {"GH_TOKEN": "", "GITHUB_TOKEN": ""})
+        self.assertEqual(len(found), 101)
+        self.assertEqual(
+            [request.full_url for request, _ in seen],
+            [
+                "https://api.github.com/repos/%s/releases?per_page=100&page=%d" % (REPO_NAME, n)
+                for n in (1, 2)
+            ],
+        )
+        self.assertEqual({timeout for _, timeout in seen}, {30})
+
+    def test_one_short_page_is_one_request(self) -> None:
+        found, seen = self.fetch([[{"tag_name": "v1.0.0"}]], {"GH_TOKEN": "", "GITHUB_TOKEN": ""})
+        self.assertEqual((len(found), len(seen)), (1, 1))
+
+    def test_the_token_goes_in_a_header_and_nowhere_else(self) -> None:
+        for variables, expected in (
+            ({"GH_TOKEN": "s3cret", "GITHUB_TOKEN": ""}, "Bearer s3cret"),
+            ({"GH_TOKEN": "", "GITHUB_TOKEN": "t0ken"}, "Bearer t0ken"),
+            ({"GH_TOKEN": "", "GITHUB_TOKEN": ""}, None),
+        ):
+            with self.subTest(variables=variables):
+                _, seen = self.fetch([[]], variables)
+                headers = {k.lower(): v for k, v in seen[0][0].header_items()}
+                self.assertEqual(headers.get("authorization"), expected)
+                self.assertEqual(headers["accept"], "application/vnd.github+json")
+                self.assertEqual(headers["user-agent"], "virtual-serial-studio-update-feed")
+                self.assertTrue(seen[0][0].full_url.startswith("https://api.github.com/"))
+                for secret in ("s3cret", "t0ken"):
+                    self.assertNotIn(secret, seen[0][0].full_url)
+
+    def test_a_failure_is_one_sentence_without_the_token(self) -> None:
+        error = urllib.error.URLError("no route to host")
+        with self.assertRaises(ps.Refusal) as caught:
+            self.fetch([error], {"GH_TOKEN": "s3cret", "GITHUB_TOKEN": ""})
+        self.assertIn("no route to host", caught.exception.message)
+        self.assertNotIn("s3cret", caught.exception.message)
+        self.assertNotIn("\n", caught.exception.message)
+
+    def test_an_answer_that_is_not_a_list_is_refused(self) -> None:
+        with self.assertRaises(ps.Refusal):
+            self.fetch([{"message": "Not Found"}], {"GH_TOKEN": "", "GITHUB_TOKEN": ""})
+
+    def test_an_answer_that_is_not_json_is_refused(self) -> None:
+        def fake(request: Any, timeout: float) -> FakeResponse:
+            return FakeResponse(b"<html>")
+
+        with unittest.mock.patch("urllib.request.urlopen", fake), self.assertRaises(ps.Refusal):
+            uf.fetch_releases(REPO_NAME)
+
+    def test_a_release_file_is_downloaded_without_the_token(self) -> None:
+        seen: List[Any] = []
+
+        def fake(request: Any, timeout: float) -> FakeResponse:
+            seen.append(request)
+            return FakeResponse(b"the sums")
+
+        url = "%s/releases/download/v0.1.0/SHA512SUMS" % REPO
+        with unittest.mock.patch.dict(os.environ, {"GH_TOKEN": "s3cret", "GITHUB_TOKEN": "s3cret"}), \
+                unittest.mock.patch("urllib.request.urlopen", fake):
+            self.assertEqual(uf.download_bytes(url, 100), b"the sums")
+        self.assertEqual(seen[0].full_url, url)
+        self.assertNotIn("authorization", {k.lower() for k, _ in seen[0].header_items()})
+
+    def test_a_download_is_limited_and_https(self) -> None:
+        def fake(request: Any, timeout: float) -> FakeResponse:
+            return FakeResponse(b"x" * 11)
+
+        with unittest.mock.patch("urllib.request.urlopen", fake):
+            self.assertEqual(uf.download_bytes(REPO + "/a", 11), b"x" * 11)
+            with self.assertRaises(ps.Refusal):
+                uf.download_bytes(REPO + "/a", 10)
+        with self.assertRaises(ps.Refusal):
+            uf.download_bytes("http://github.com/a", 10)
+
+    def test_a_download_that_fails_is_one_sentence(self) -> None:
+        def fake(request: Any, timeout: float) -> FakeResponse:
+            raise urllib.error.URLError("timed out")
+
+        with unittest.mock.patch("urllib.request.urlopen", fake), self.assertRaises(ps.Refusal) as caught:
+            uf.download_bytes(REPO + "/a", 10)
+        self.assertIn("timed out", caught.exception.message)
+
+
 class UsageTests(ToolTestCase):
     def test_no_command(self) -> None:
         done = self.run_tool()
         self.assertEqual(done.returncode, 2)
 
     def test_the_help_of_every_command(self) -> None:
-        for command in ("payload", "sign", "verify"):
+        for command in ("collect", "payload", "sign", "verify", "keys"):
             done = self.run_tool(command, "--help")
             self.assertEqual(done.returncode, 0, command)
             self.assertIn("usage:", done.stdout)
@@ -1581,6 +2403,8 @@ class UsageTests(ToolTestCase):
             ("sign", "--key", "k"),
             ("verify",),
             ("verify", "--public-key", "ab" * 32),
+            ("collect",),
+            ("keys",),
         ):
             self.assertEqual(self.run_tool(*arguments).returncode, 2, arguments)
 

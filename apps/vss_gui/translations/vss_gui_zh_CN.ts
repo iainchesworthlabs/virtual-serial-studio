@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>本程序是自由软件：您可以依据自由软件基金会发布的 GNU 通用公共许可证的条款，对本程序进行再发布和/或修改；许可证可以是第 3 版，也可以（由您选择）是任何更高版本。</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>本程序是自由软件：您可以依据自由软件基金会发布的 GNU 通用公共许可证的条款，对本程序进行再发布和/或修改；许可证为第 3 版。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studio 是自由软件，遵循 GNU 通用公共许可证第 3 版或更高版本。它使用以下组件：</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studio 是自由软件，遵循 GNU 通用公共许可证第 3 版。它使用以下组件：</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>GNU 宽通用公共许可证第 3 版，或 GNU 通用公共许可证第 3 版。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>GNU 通用公共许可证第 3 版。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,13 +328,129 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>版本 %1。自由软件，遵循 GNU 通用公共许可证第 3 版或更高版本。版本类型：%2。</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>版本 %1。自由软件，遵循 GNU 通用公共许可证第 3 版。版本类型：%2。</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
             <source>Create support bundle</source>
             <translation>创建支持包</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="268" />
+            <source>Updates</source>
+            <translation>更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="409" />
+            <source>This version</source>
+            <translation>此版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="413" />
+            <source>Newest version</source>
+            <translation>最新版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="417" />
+            <source>Last checked</source>
+            <translation>上次检查</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="431" />
+            <source>Check for updates automatically</source>
+            <translation>自动检查更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="436" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Studio 每天向 virtual-serial-studio.com 询问一次最新版本。不会发送任何关于您或此计算机的信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="455" />
+            <source>Check now</source>
+            <translation>立即检查</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="460" />
+            <source>Update...</source>
+            <translation>更新...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="32" />
+            <source>copied from the disk image</source>
+            <translation>从磁盘映像复制</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="36" />
+            <source>installed for everyone on this computer</source>
+            <translation>已为此计算机上的所有用户安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="38" />
+            <source>unpacked from an archive</source>
+            <translation>从压缩包解压</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="51" />
+            <source>Not checked yet.</source>
+            <translation>尚未检查。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="53" />
+            <source>Checking...</source>
+            <translation>正在检查...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="56" />
+            <source>This is a developer build. The newest release is %1.</source>
+            <translation>这是开发者构建版本。最新发布的版本是 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="60" />
+            <location filename="../src/support/update_text.cpp" line="64" />
+            <source>%1 is the newest version.</source>
+            <translation>%1 是最新版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="68" />
+            <source>%1 is available. Download it from virtual-serial-studio.com.</source>
+            <translation>%1 可用。请从 virtual-serial-studio.com 下载。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="72" />
+            <source>%1 is available.</source>
+            <translation>%1 可用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="76" />
+            <source>The update information could not be trusted, so nothing was changed.</source>
+            <translation>无法信任更新信息，因此未做任何更改。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="79" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio 无法连接到更新服务器。请检查网络连接后重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="83" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>您的管理员已关闭更新检查。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="86" />
+            <source>This build cannot check for updates.</source>
+            <translation>此构建版本无法检查更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="100" />
+            <source>%1, %2</source>
+            <translation>%1，%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="107" />
+            <source>Never</source>
+            <translation>从未</translation>
         </message>
     </context>
     <context>
@@ -2771,7 +2892,7 @@ Networks: %5</source>
             <source>%1, %2</source>
             <translation>%1，%2</translation>
         </message>
-        <message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
             <source>Provided by</source>
             <translation>提供者</translation>
@@ -2786,7 +2907,7 @@ Networks: %5</source>
             <source>These settings are kept. They apply again when the plugin is available.</source>
             <translation>这些设置会保留。插件可用时会再次生效。</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>JobForm</name>
         <message>
@@ -6615,6 +6736,41 @@ Networks: %5</source>
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio 无法写入登录启动项。没有做任何更改。</translation>
         </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="256" />
+            <source>Updates</source>
+            <translation>更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="263" />
+            <source>Check for updates automatically</source>
+            <translation>自动检查更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="269" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Studio 每天向 virtual-serial-studio.com 询问一次最新版本。不会发送任何关于您或此计算机的信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="277" />
+            <source>Include pre-release versions</source>
+            <translation>包含预发布版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="283" />
+            <source>Offers release candidates as well as finished releases.</source>
+            <translation>除正式发布的版本外，还会提供候选发布版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="883" />
+            <source>Set by your administrator.</source>
+            <translation>由您的管理员设置。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="885" />
+            <source>This build cannot check for updates.</source>
+            <translation>此构建版本无法检查更新。</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -9456,6 +9612,26 @@ Networks: %5</source>
             <translation>该配置需要此电脑上不可用的设备或网络端点。请检查设备，然后重试。</translation>
         </message>
         <message>
+            <location filename="../src/shell/shell_window.cpp" line="605" />
+            <source>Check for updates...</source>
+            <translation>检查更新...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="606" />
+            <source>update version new release download</source>
+            <translation>更新 版本 新 发布 下载</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3096" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>您的管理员已关闭更新检查。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3097" />
+            <source>This build cannot check for updates.</source>
+            <translation>此构建版本无法检查更新。</translation>
+        </message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
             <source>Plugins...</source>
             <translation>插件...</translation>
@@ -9470,7 +9646,7 @@ Networks: %5</source>
             <source>Started again.</source>
             <translation>已重新启动。</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>Shortcuts</name>
         <message>
@@ -19866,7 +20042,7 @@ Networks: %5</source>
             <source>Bundles</source>
             <translation>组合</translation>
         </message>
-        <message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
             <source>Plugins</source>
             <translation>插件</translation>
@@ -19876,7 +20052,7 @@ Networks: %5</source>
             <source>Show in Plugins</source>
             <translation>在“插件”中显示</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>TopologyView</name>
         <message numerus="yes">
@@ -20475,12 +20651,12 @@ Networks: %5</source>
             <source>licence number</source>
             <translation>许可证编号</translation>
         </message>
-        <message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/licence_dialog.cpp" line="1" />
             <source>Plugins</source>
             <translation>插件</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>LicenceImport</name>
         <message>
@@ -21008,8 +21184,272 @@ Networks: %5</source>
         </message>
     </context>
     <context>
-        <name>PluginDecisionDialog</name>
+        <name>UpdateNotice</name>
         <message>
+            <location filename="../src/shell/update_notice.cpp" line="26" />
+            <location filename="../src/shell/update_notice.cpp" line="76" />
+            <source>Turn on</source>
+            <translation>开启</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="77" />
+            <source>Details</source>
+            <translation>详细信息</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="79" />
+            <source>No thanks</source>
+            <translation>不用了</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="80" />
+            <source>Later</source>
+            <translation>稍后</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="113" />
+            <source>Check for updates automatically? Once a day Studio would ask virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>是否自动检查更新？Studio 每天会向 virtual-serial-studio.com 询问一次最新版本。不会发送任何关于您或此计算机的信息。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="122" />
+            <source>Virtual Serial Studio %1 is available.</source>
+            <translation>Virtual Serial Studio %1 可用。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="130" />
+            <source>Studio will check for updates once a day.</source>
+            <translation>Studio 每天检查一次更新。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="132" />
+            <source>Studio will not check for updates. You can change this in Settings.</source>
+            <translation>Studio 不会检查更新。您可以在“设置”中更改。</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateChip</name>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="139" />
+            <source>Update available</source>
+            <translation>有可用更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="144" />
+            <source>Update available: version %1. Open the update.</source>
+            <translation>有可用更新：版本 %1。打开更新。</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateDialog</name>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="164" />
+            <source>Update Virtual Serial Studio</source>
+            <translation>更新 Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="209" />
+            <source>What is new</source>
+            <translation>新增内容</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="238" />
+            <source>Release notes</source>
+            <translation>发行说明</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="273" />
+            <source>Download progress</source>
+            <translation>下载进度</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="292" />
+            <source>Restart Studio to use the new version.</source>
+            <translation>请重新启动 Studio 以使用新版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="299" />
+            <source>The package could not be installed. Use the command above.</source>
+            <translation>无法安装该软件包。请使用上方的命令。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="336" />
+            <source>Skip this version</source>
+            <translation>跳过此版本</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="342" />
+            <source>Not now</source>
+            <translation>暂不</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="343" />
+            <source>Cancel</source>
+            <translation>取消</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="346" />
+            <source>Show in folder</source>
+            <translation>在文件夹中显示</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="349" />
+            <source>Download and install</source>
+            <translation>下载并安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="352" />
+            <source>Open the downloads page</source>
+            <translation>打开下载页面</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="355" />
+            <source>Install now</source>
+            <translation>立即安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="358" />
+            <source>Open the disk image</source>
+            <translation>打开磁盘映像</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="361" />
+            <source>Install</source>
+            <translation>安装</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="364" />
+            <source>Try again</source>
+            <translation>重试</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="366" />
+            <source>Close</source>
+            <translation>关闭</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="443" />
+            <source>Could not start the installer</source>
+            <translation>无法启动安装程序</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="445" />
+            <source>Studio could not start %1. It is in %2.</source>
+            <translation>Studio 无法启动 %1。它位于 %2。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="461" />
+            <source>The download was not the file that was published, so it was deleted.</source>
+            <translation>下载的内容不是已发布的文件，因此已将其删除。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="469" />
+            <source>Studio could not save the download.</source>
+            <translation>Studio 无法保存下载的文件。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="474" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio 无法连接到更新服务器。请检查网络连接后重试。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="480" />
+            <source>Could not download the update</source>
+            <translation>无法下载更新</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="531" />
+            <source>Version %1 is available. You have %2.</source>
+            <translation>版本 %1 可用。您当前的版本是 %2。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="545" />
+            <source>Release notes for version %1, opens in your browser</source>
+            <translation>版本 %1 的发行说明，将在浏览器中打开</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="553" />
+            <source>%1, %2</source>
+            <translation>%1，%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="558" />
+            <source>There is no package for this kind of install. Download one from virtual-serial-studio.com.</source>
+            <translation>此安装方式没有可用的软件包。请从 virtual-serial-studio.com 下载一个。</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="571" />
+            <source>%n port is running. Installing stops it.</source>
+            <translation>
+                <numerusform>%n 个串口正在运行。安装会使其停止。</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="575" />
+            <source>%n ports are running. Installing stops them.</source>
+            <translation>
+                <numerusform>%n 个串口正在运行。安装会使它们停止。</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="600" />
+            <source>Checking the download...</source>
+            <translation>正在检查下载的文件...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="609" />
+            <source>Downloading %1...</source>
+            <translation>正在下载 %1...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="627" />
+            <source>%1 of %2</source>
+            <translation>%1 / %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="640" />
+            <source>%1 percent</source>
+            <translation>百分之 %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="659" />
+            <source>The update is ready. Studio will close and the installer will start. Windows asks for an administrator.</source>
+            <translation>更新已就绪。Studio 将关闭，安装程序将启动。Windows 会要求管理员。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="667" />
+            <source>The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens.</source>
+            <translation>更新已就绪。请退出 Studio，然后在打开的窗口中将 Virtual Serial Studio 拖到“应用程序”上。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="675" />
+            <source>The update is ready. Install it with this command, then start Studio again.</source>
+            <translation>更新已就绪。请使用此命令安装，然后重新启动 Studio。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="680" />
+            <source>Install command</source>
+            <translation>安装命令</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="696" />
+            <source>The download is in %1. This copy of Studio was unpacked from an archive, so unpack the new one in its place.</source>
+            <translation>下载的文件位于 %1。此 Studio 副本是从压缩包解压的，因此请在原位置解压新版本。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="821" />
+            <source>Studio will not mention %1 again.</source>
+            <translation>Studio 不会再提及 %1。</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="25" />
+            <source>%1 MB</source>
+            <translation>%1 MB</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginDecisionDialog</name>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Switch on %1?</source>
             <translation>开启 %1？</translation>
@@ -21142,7 +21582,7 @@ Networks: %5</source>
     </context>
     <context>
         <name>PluginInstallDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
             <source>Cancel</source>
             <translation>取消</translation>
@@ -21190,7 +21630,7 @@ Networks: %5</source>
     </context>
     <context>
         <name>PluginKeyImportDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
             <source>Approve the key of %1?</source>
             <translation>批准 %1 的密钥？</translation>
@@ -21258,7 +21698,7 @@ Networks: %5</source>
     </context>
     <context>
         <name>PluginNoIsolationDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Run %1 without isolation?</source>
             <translation>不隔离而运行 %1？</translation>
@@ -21306,7 +21746,7 @@ Networks: %5</source>
     </context>
     <context>
         <name>PluginPart</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
             <source>Switch on</source>
             <translation>开启</translation>
@@ -21414,7 +21854,7 @@ Networks: %5</source>
     </context>
     <context>
         <name>PluginsDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Virtual Serial Studio</source>
             <translation>Virtual Serial Studio</translation>
@@ -22329,7 +22769,7 @@ Networks: %5</source>
     </context>
     <context>
         <name>PluginToolbox</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
             <source>%1 is starting.</source>
             <translation>%1 正在启动。</translation>
@@ -22361,7 +22801,7 @@ From the plugin %2
     </context>
     <context>
         <name>PluginTrafficChip</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
             <source>Recording</source>
             <translation>正在记录</translation>
@@ -22405,7 +22845,7 @@ From the plugin %2
     </context>
     <context>
         <name>PluginSandbox</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
             <source>no containment</source>
             <translation>没有遏制</translation>

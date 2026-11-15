@@ -1133,8 +1133,8 @@ sent to the client as modem state.
 
 To let other computers connect, allow the port through the host firewall and
 listen on an interface they can reach (`0.0.0.0` for all interfaces). Try
-`127.0.0.1` first. Studio does not use the network unless you add an endpoint
-like these.
+`127.0.0.1` first. Apart from the check for updates (see [Updates](#updates)),
+Studio makes no network connection unless you add an endpoint like these.
 
 ### Who may connect
 
@@ -1400,6 +1400,9 @@ turns it on.
   quits. Builds without the profiler show both switches as unavailable. See
   [profiling](profiling.md).
 
+The last group in the dialog, **Updates**, has *Check for updates automatically*
+and *Include pre-release versions*. See [Updates](#updates).
+
 **Reset to defaults** restores them. The values are stored with `QSettings` (the
 registry on Windows, a configuration file on Linux and macOS).
 
@@ -1447,8 +1450,8 @@ registry on Windows, a configuration file on Linux and macOS).
   diagnostic information** copies the build information and the environment for
   a bug report.
 - **Help → About** shows the application icon, the version and the licence
-  at the top, and has five tabs: About (the GPLv3 notice and a link to the
-  source code), Build information (the version, Git tag, commit, branch,
+  at the top, and has six tabs: About (the GPLv3 notice and a link to the
+  source code), Updates (see [Updates](#updates)), Build information (the version, Git tag, commit, branch,
   whether the tree was modified, CI build number, build time, build type,
   compiler, and the Qt and Boost it was built with), Environment (operating
   system, architecture, Qt running, display and the language chosen), Licences
@@ -1562,6 +1565,151 @@ administrator can also put a plugin's folder in the machine plugin folder, which
 the page shows under the list. If your
 administrator has turned your own plugin folder off, those two buttons are
 disabled.
+
+## Updates
+
+Studio can ask whether a newer version has been published, tell you, and
+download it when you say yes. It is the only thing Studio asks the network for
+by itself. Studio always asks you first, and it never installs an update with
+nobody watching.
+
+The automatic check is off in a new install. Studio makes no request for an
+update until you have said yes, or until you check by hand.
+
+### The question at first start
+
+The first time Studio starts for you, a banner in the window asks: "Check for
+updates automatically? Once a day Studio would ask virtual-serial-studio.com for
+the newest version. Nothing about you or this computer is sent." The buttons are
+**Turn on** and **No thanks**.
+
+Either answer is kept, and Studio does not ask again, also after Studio itself
+is updated. The banner takes no focus and blocks nothing, and it stays until you
+answer it. It is not shown in a developer build, in a build that cannot check
+for updates, or when your administrator has turned update checks off.
+
+### Checking by hand
+
+**Help → Check for updates...** opens **Help → About** on the **Updates** tab and
+starts a check. The same action is found as "Check for updates" with `Ctrl+K`.
+The tab shows:
+
+| Row | What it says |
+|---|---|
+| This version | The version and the kind of install: "installed for everyone on this computer", "unpacked from an archive" or "copied from the disk image". |
+| Newest version | "Not checked yet.", "Checking...", "`<version>` is the newest version." or "`<version>` is available." |
+| Last checked | The date and time, or "Never". |
+| Plugins | One line for each installed official plugin that has a newer version. Left out when there is none. |
+
+**Check now** asks again. When something is available, **Update...** opens the
+update dialog. A check by hand works whether or not the automatic check is on.
+
+If the check fails, the sentence says why: "Studio could not reach the update
+server. Check the connection and try again." or "The update information could
+not be trusted, so nothing was changed." Nothing on your computer is changed.
+A developer build says "This is a developer build. The newest release is
+`<version>`." and offers no install.
+
+### When an update is found
+
+A check that runs by itself never opens a window. It shows a banner, "Virtual
+Serial Studio `<version>` is available.", with **Details** and **Later**, and puts
+an **Update available** chip in the status bar. **Later** hides the banner until
+Studio is next started. The chip stays.
+
+**Details**, the chip and **Update...** in About open the update dialog,
+"Update Virtual Serial Studio". It says "Version `<new version>` is available. You
+have `<this version>`." and shows:
+
+- **What is new**: the summary from the update information, as plain text, and a
+  **Release notes** link that opens in your browser.
+- The file, with its name and size, such as `virtual-serial-studio-v0.3.0-windows-x86_64.exe, 48 MB`.
+- When ports are running, a note: "3 ports are running. Installing stops them."
+
+The buttons are **Download and install**, **Skip this version** and **Not now**.
+**Skip this version** stops the automatic check from mentioning that version
+again. It speaks again for a later one, and a check by hand still shows it.
+**Not now** closes the dialog.
+
+When there is no file for the way this copy was installed, the dialog says "There
+is no package for this kind of install. Download one from
+virtual-serial-studio.com." and the main button is **Open the downloads page**.
+
+### Download and install
+
+**Download and install** shows a progress bar with **Cancel**. **Cancel** deletes
+what arrived and goes back to the first page. Then it reads "Checking the
+download...": Studio compares the file with the SHA-512 in the signed update
+information, and uses it only when they match. The file comes from the project's
+releases on GitHub.
+
+What happens next depends on how this copy of Studio was installed:
+
+| This copy of Studio | After the download is checked |
+|---|---|
+| Installed with the Windows installer | "The update is ready. Studio will close and the installer will start. Windows asks for an administrator." **Install now** starts the installer, and Studio then closes as Quit does, which stops the running ports. If you say no to the Windows prompt, nothing changes and Studio stays open. The installer shows its own pages and updates in place, so the driver, the helper service and your COM numbers are kept. |
+| Copied from the macOS disk image | "The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens." **Open the disk image** opens it. Studio does not replace itself. |
+| Installed from a `.deb` or `.rpm` package on Linux | The dialog shows the command, `sudo apt install <file>` or `sudo dnf install <file>`, with a copy button. Where `pkexec` exists, **Install** runs it and the system asks for an administrator. **Show in folder** shows the file. Start Studio again afterwards. |
+| Unpacked from a zip or another archive (Windows, macOS or Linux) | Once the download is checked, the file is put in your Downloads folder: "The download is in `<folder>`. This copy of Studio was unpacked from an archive, so unpack the new one in its place." **Show in folder** shows it. |
+
+**Not now** keeps the checked file until Studio quits. **Update...** in About
+then goes straight to this page. Studio never raises its own rights: every step
+that needs an administrator is a prompt from the system, for a program the
+system starts.
+
+If a download fails, the dialog names what failed and offers **Try again**. It
+says "Studio could not reach the update server. Check the connection and try
+again.", "The download was not the file that was published, so it was deleted."
+or "Studio could not save the download." Nothing is installed and
+Studio is as it was.
+
+### Turning the check on or off
+
+- In **Tools → Settings**, the **Updates** group has *Check for updates
+  automatically* and *Include pre-release versions* ("Offers release candidates
+  as well as finished releases."). The check box in the Updates tab of About is
+  the same setting as the first one. Both apply at once.
+- When the automatic check is on, Studio checks once a day, 60 seconds after it
+  starts. A check that fails by itself is silent and is tried again an hour
+  later, up to three times.
+- With it off, Studio checks only when you use **Check for updates...** or
+  **Check now**.
+- An administrator turns the check off for everyone on a computer with
+  `"update_check": false` in the policy file (see [Where Studio looks for
+  plugins](#where-studio-looks-for-plugins) for where it is, and the key's place
+  in [the plugin framework](plugins.md), section 8.6). Studio then makes no check
+  by itself and none by hand. **Check for updates...** and **Check now** are
+  disabled, the Settings check boxes are disabled with "Set by your
+  administrator.", and the sentence in About reads "Update checks are turned off
+  by your administrator." A policy file that cannot be trusted is ignored by the
+  update check, which then follows your setting.
+- `vss_cli` makes no update check. A computer that runs without a window is
+  updated by whoever sets it up.
+
+### What is sent
+
+A check is one HTTPS request for one file,
+`https://virtual-serial-studio.com/updates/v1/feed.json`. It has no query string,
+no cookie and no body. Its `User-Agent` is the fixed text `VirtualSerialStudio`,
+with no version and no system in it. Studio downloads the whole file and
+chooses for itself, so the site is never told which version you have. The
+server sees what any web server sees: the address the request came from and the
+time. Studio uses your system's proxy settings and never ignores a certificate
+error.
+
+The file is signed with an Ed25519 key. Studio checks the signature with a key
+it was built with, and refuses a file that does not verify. A file that is
+older than one Studio has already accepted is refused too, and an update is only
+ever a newer version than the one you run.
+
+A download is made only after you say yes. It comes from the project's releases
+on GitHub, which sees the request as it sees any download.
+
+Studio sends nothing about you, your computer or how you use Studio. No
+licence is sent, because there is no activation server and no licence check
+over the network. There is no usage data, no crash report and no account. See
+the [privacy page](https://virtual-serial-studio.com/privacy.html) for the
+same statement.
 
 ## Licences
 
@@ -1847,7 +1995,8 @@ again.
 down before they end. `--verbose` prints the port table every half second while
 `run`, `share`, `join`, `bus`, `bridge`, `loopback` and `vport` wait, and `vss_cli
 --help` lists every option. An option takes its value as `--name=value` or as
-`--name value`; an option a command does not have, a missing value and a value that
+`--name value`, except under `control`, `agent`, `permissions` and `plugin`,
+which take `--name=value` only; an option a command does not have, a missing value and a value that
 is not a number where one is needed end the command with exit code 2 and one line
 on standard error. `vss_cli --version` prints the version of the build, as
 `vss_gui --version` does.
@@ -2070,11 +2219,14 @@ The exit code is 0 when the plugin can be installed, 1 when it cannot, and 2 for
 a command line the program does not understand. A plugin cannot be installed
 when its folder is not a plugin folder, when a file is not what its manifest
 lists or the folder holds a file it does not list, when its signature does not
-hold, or when it can never run: its id is one that only official plugins may
-use, or it was withdrawn. A plugin that has expired, or that this computer
-cannot isolate, or that the licence does not cover, can be installed; the line
-`May run` says what is wrong. A plugin with no signature can be installed only
-with `--allow-unsigned`.
+hold, when its id cannot be the name of a folder (such as `con.example`), or
+when it can never run: its id is one that only official plugins may use, or it
+was withdrawn. A plugin that has expired, or that this computer cannot isolate,
+or that the licence does not cover, can be installed; the line `May run` says
+what is wrong. A plugin with no signature can be installed only with
+`--allow-unsigned`, and so can one signed with a key nobody has approved,
+because nothing shows who made it. The `Install` line says which of the two it
+is.
 
 `--json` prints one JSON object: `id`, `version`, `name`, `folder`,
 `fingerprint`, `problem` and `detail` (why the folder cannot be used, or
@@ -2100,23 +2252,37 @@ copies the plugin into your plugin folder, under its id, and prints what it did
 and what the checks found. It runs nothing from the plugin. If a check fails, it
 says which one and writes nothing.
 
-- The files are copied from the folder you give, each one read once, and the
-  copy is checked against the plugin's manifest again before it is put in place.
-  A file that changed while it was being copied stops the install.
-- The copy is made in a new folder beside the plugin folders and is renamed into
-  place in one step, so a failure leaves the old plugin or the new one and never
-  half of each. No folder is left behind when the install fails.
+- The folder is measured, and then each file is copied and checked against that
+  measurement as it is copied, including `plugin.json` and `plugin.sig`, which
+  are the files that were judged. A file that changed while the plugin was being
+  looked at or copied stops the install. The copy is checked against the
+  plugin's manifest again before it is put in place.
+- A copy keeps the owner's read and execute permissions of the file it came from,
+  is never writable by the group or others, and the program that the manifest
+  names is made executable for its owner (on Linux and macOS).
+- The copy is made in a folder called `.vss-work` inside the plugin folder and is
+  renamed into place in one step, so a failure leaves the old plugin or the new
+  one and never half of each. Studio ignores every name that starts with a dot
+  in a plugin folder, so nothing in `.vss-work` is taken for a plugin. The
+  folder is removed when the install ends. If an install is cut off, the next
+  install removes what it left.
 - A link, or anything that is not a plain file or folder, in the plugin folder
   stops the install.
 - A plugin with the same id that is already installed stops the install unless
   you give `--replace`. With it, the old copy is put aside, the new one is put in
   place and the old one is removed. If putting the new one in place fails, the
-  old one is put back.
+  old one is put back. If the old one cannot be removed, the command says so, with
+  the folder that holds it, and exits with 1; the new plugin is installed.
 - `--allow-unsigned` is needed for a plugin that has no signature.
 - `--for-everyone` installs into the folder of everyone on this computer. Run
   the command from a prompt that may write there. Studio does not ask for more
   rights. It stops with a message when the folder can be changed by someone who
-  is not an administrator, or when it cannot be written.
+  is not an administrator, or when it cannot be written. It does not make the
+  folder: when the folder is not there, it looks at the nearest folder above it
+  that is, and stops in the same way. `plugin remove --for-everyone` stops in
+  the same way. A plugin installed for everyone may not run confined until a
+  later step gives the confined plugin access to it, which a user cannot do
+  later on that folder.
 - `--root <folder>` installs into the folder you give. The policy file is read
   as it is for `plugin verify`.
 
@@ -2130,7 +2296,7 @@ data. It runs nothing.
 ### Running a plugin with `vss_cli plugin run`
 
 ```bash
-vss_cli plugin run <id> [--root <folder>]... [--data <folder>] [--trust <file>] [--seconds <n>] [--json]
+vss_cli plugin run <id> [--root <folder>]... [--data <folder>] [--trust <file>] [--seconds <n>] [--json] [--instance <kind>:<type>[=<params>]]...
 ```
 
 `plugin run` runs one installed plugin the way Studio's plugin host runs it, and
@@ -2197,13 +2363,54 @@ change the colours of your terminal.
   folder.
 - `--seconds <n>` stops the plugin after `n` seconds with the plugin running,
   from 1 to 2678400. Without it, or with 0, the command runs until `Ctrl-C`.
+  With `--instance`, the seconds count from when the plugin is running and each
+  instance is running or refused.
+- `--instance <kind>:<type>[=<params>]` asks the plugin host for an instance of
+  an extension point of the plugin, and may be repeated. `<kind>` is
+  `generator`, `fixture`, `modifier`, `adapter` or `decoder`, `<type>` is the
+  `id` of the extension point in the plugin's manifest, and `<params>` is the
+  text of a JSON object of at most 64 KiB. Without `=<params>` the parameters
+  are `{}`. The command checks only that the parameters are a JSON object; the
+  host checks the kind and the type against the manifest, and the plugin is
+  free to refuse the parameters. The instances are numbered 1, 2, 3 in the order
+  given. A bad `--instance` ends the command with exit code 2 and one line that
+  says what is wrong.
 
 The command grants a plugin no engine capabilities and reads no licence files, so
 a plugin that needs a licence is shown as `needs a licence`.
 
+#### Instances
+
+With `--instance`, the command prints one line each time the state of an
+instance changes:
+
+```text
+instance 1 adapter:recorder: waiting
+instance 1 adapter:recorder: running
+instance 2 adapter:nothing: refused; problem capability_missing
+instance 3 adapter:recorder: refused; problem misbehaving; reason "refused by the test plugin"
+```
+
+After the number and the kind and type comes the state: `waiting` (the plugin is
+not ready), `creating`, `running`, `refused` or `stopping`. A refused instance
+has the `problem`, a reason code such as `capability_missing` (the manifest has
+no such extension point), `too_many` (the manifest allows no more of the type),
+`misbehaving` (the plugin answered with an error) or `unresponsive` (the plugin
+did not answer), and the `reason` the plugin gave, as plain text. A line is
+printed again when the problem or the reason changes. A state that lasts only a
+moment may not be printed.
+
+With `--json` a change of an instance has `type` set to `instance` and the
+members `plugin`, `instance` (the number), `kind`, `instance_type`, `state`,
+`problem` (the code, or `null`), `reason` (the plugin's text, or `null`) and
+`params_pending`.
+
 The exit code is 0 when the plugin was running and was stopped by `--seconds` or
 by you, 1 when it never ran, or ran and failed too often, and 2 for a command
-line the program does not understand or an id that no plugin has.
+line the program does not understand or an id that no plugin has. When
+`--instance` was given and the command ends by `--seconds`, it is 0 only when
+every instance was running at some point; otherwise it is 1, and one line names
+the first instance that never ran.
 
 ### Where Studio looks for plugins
 

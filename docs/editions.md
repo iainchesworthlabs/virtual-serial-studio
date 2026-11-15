@@ -110,7 +110,8 @@ commercial terms.
 ## Licence files
 
 A licence is a file that Studio verifies offline with a public key built into
-it. There is no activation server and no telemetry.
+it. There is no activation server and no telemetry. The check for updates ([Online updates](updates.md)) is the same
+for every edition and sends no licence.
 
 | Licence | Term | Notes |
 |---|---|---|

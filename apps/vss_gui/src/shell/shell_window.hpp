@@ -52,6 +52,12 @@ class SendPanel;
 class StatusBar;
 class StudioTray;
 class TopologyJsonEditor;
+class UpdateNotice;
+
+namespace updates
+{
+class UpdateService;
+} // namespace updates
 
 namespace topology
 {
@@ -119,6 +125,25 @@ public:
     NoteBanner* resume_banner() const noexcept { return resume_banner_; }
     LicenceNotice* licence_notice() const noexcept { return licence_notice_; }
     PluginNotice* plugin_notice() const noexcept { return plugin_notice_; }
+
+    /// Gives the window the update service, once, after the window is made
+    /// and before it is shown. The window then has the update notice under
+    /// the licence notice, the update chip in the status bar, and the About
+    /// and Settings dialogs it opens have their update parts. Null, the
+    /// default, means no update screen at all. `service` outlives the window.
+    void set_update_service(updates::UpdateService* service);
+    UpdateNotice* update_notice() const noexcept { return update_notice_; }
+
+    /// Opens the update dialog and returns when it is closed. Nothing
+    /// happens without a service or while no update is on offer. `main`
+    /// connects `update_dialog_requested` to this; a test that only wants to
+    /// know that the dialog was asked for leaves it unconnected.
+    void show_update_dialog();
+
+Q_SIGNALS:
+    /// The person asked for the update dialog: the chip, "Details" on the
+    /// notice, or "Update..." in About (which is closed first).
+    void update_dialog_requested();
 
 protected:
     void closeEvent(QCloseEvent* event) override;
@@ -206,7 +231,14 @@ private:
     void open_settings();
     void open_troubleshoot();
     void open_shortcuts();
-    void open_about();
+    /// With `updates_tab` the dialog opens on the Updates tab and a check
+    /// by hand starts.
+    void open_about(bool updates_tab = false);
+    /// Only says that the update dialog is wanted.
+    void open_update_dialog();
+    /// Sets the tooltip of "Check for updates..." and its enabled state from
+    /// the service.
+    void update_update_action();
     void open_licence();
     /// Opens Plugins, on the plugin with this id (and folder) when given, and
     /// asks for the decision about it when `decide` is set.
@@ -320,6 +352,8 @@ private:
     NoteBanner* lost_banner_ = nullptr;
     LicenceNotice* licence_notice_ = nullptr;
     PluginNotice* plugin_notice_ = nullptr;
+    UpdateNotice* update_notice_ = nullptr;
+    updates::UpdateService* update_service_ = nullptr;
     QThread* recreate_thread_ = nullptr;
     EventLogPanel* event_log_ = nullptr;
     TopologyJsonEditor* json_editor_ = nullptr;

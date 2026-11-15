@@ -114,6 +114,12 @@ done
 
 # The GUI starts: loading the xcb platform plug-in is what needs the xcb libraries.
 xvfb-run -a vss_gui --version
+
+# The GUI can make a TLS connection, which the check for updates needs: Qt's TLS plug-in is in
+# the package and the OpenSSL 3 it loads came with the package's dependencies. ldd cannot show
+# this, because the plug-in loads OpenSSL when it is first used. No connection is made.
+test -f "$root/plugins/tls/libqopensslbackend.so"
+xvfb-run -a vss_gui --check-tls
 EOF
 )
 

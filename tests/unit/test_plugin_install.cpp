@@ -13,6 +13,8 @@
 #include <vss/core/error.hpp>
 #include <vss/license/sign.hpp>
 #include <vss/license/signed_file.hpp>
+#include <vss/machine/folders.hpp>
+#include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/install.hpp>
@@ -32,6 +34,7 @@
 #include <ios>
 #include <iterator>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -526,17 +529,61 @@ TEST_CASE("plugin install: an unsigned plugin installs only with "
     REQUIRE(hash_of_folder(done.value().directory) == hash_of_folder(source));
 }
 
-TEST_CASE("plugin install: a signed plugin with a key nobody has installs "
-          "without allow_unsigned")
+TEST_CASE("plugin install: a signed plugin with a key nobody has is treated "
+          "as unsigned and installs only with allow_unsigned")
 {
     const scratch_directory scratch;
     const fs::path source = make_plugin(scratch.path(), "source");
     sign_plugin(source, "nobody-1", stranger_fill);
-    const auto done = install_plugin(source, scratch.path() / "installed",
-                                     make_options(make_context()));
+    const fs::path root = scratch.path() / "installed";
+    install_options options = make_options(make_context());
+
+    std::string detail;
+    const inspection found = inspect_plugin(source, options.context);
+    REQUIRE(install_refusal(found, false, &detail) ==
+            plugin_errc::key_unknown);
+    REQUIRE(!detail.empty());
+    REQUIRE(!install_refusal(found, true).failed());
+    require_refused(source, root, options, plugin_errc::key_unknown);
+
+    options.allow_unsigned = true;
+    const auto done = install_plugin(source, root, options);
     REQUIRE(done.has_value());
     REQUIRE(level_of(done.value().found) ==
             trust_level::signed_unknown_key);
+}
+
+TEST_CASE("plugin install: a forged signature under an approved key id does "
+          "not hold, and a key the user approved is known")
+{
+    const scratch_directory scratch;
+    const fs::path source = make_plugin(scratch.path(), "source");
+    // Signed by a stranger but named as the approved key.
+    sign_plugin(source, "author-1", stranger_fill);
+    install_options options = make_options(make_context());
+    require_refused(source, scratch.path() / "installed", options,
+                    plugin_errc::signature_invalid);
+
+    // The same key id, signed for real, is known.
+    sign_plugin(source, "author-1", author_fill);
+    const inspection found = inspect_plugin(source, options.context);
+    REQUIRE(found.signature.state == signature_state::valid);
+    REQUIRE(!install_refusal(found, false).failed());
+}
+
+TEST_CASE("plugin install: an id that cannot be a folder name is refused by "
+          "install_refusal")
+{
+    const scratch_directory scratch;
+    spec device;
+    device.id = "con.example";
+    const fs::path source = make_plugin(scratch.path(), "source", device);
+    const inspection found = inspect_plugin(source, make_context());
+    REQUIRE(!found.problem.failed());
+    std::string detail;
+    REQUIRE(install_refusal(found, true, &detail) ==
+            plugin_errc::layout_invalid);
+    REQUIRE(!detail.empty());
 }
 
 TEST_CASE("plugin install: a plugin that does not hold is refused with its "
@@ -675,6 +722,10 @@ struct failing_operations
 {
     int fail_rename_at = 0;
     bool fail_remove = false;
+    /// The failing rename is the program dying: from then on nothing is
+    /// renamed or removed, so the files are as they were at that moment.
+    bool crash = false;
+    bool crashed = false;
     int renames = 0;
     file_operations real = default_file_operations();
 
@@ -684,19 +735,51 @@ struct failing_operations
         out.rename = [this](const fs::path& from, const fs::path& to)
         {
             ++renames;
-            if (renames == fail_rename_at)
+            if (crashed)
                 return make_error_code(errc::io_error);
+            if (renames == fail_rename_at)
+            {
+                crashed = crash;
+                return make_error_code(errc::io_error);
+            }
             return real.rename(from, to);
         };
         out.remove_all = [this](const fs::path& path)
         {
-            if (fail_remove)
+            if (fail_remove || crashed)
                 return make_error_code(errc::io_error);
             return real.remove_all(path);
         };
         return out;
     }
 };
+
+/// What discovery finds in `root`: the folder names of the plugins, with
+/// nothing wrong with them.
+std::vector<std::string> found_in(const fs::path& root)
+{
+    plugin_root entry;
+    entry.directory = root;
+    entry.scope = plugin_scope::for_user;
+    const discovery found = discover_plugins(std::span(&entry, 1));
+    std::vector<std::string> out;
+    for (const found_plugin& each : found.plugins)
+    {
+        REQUIRE(!each.problem.failed());
+        REQUIRE(!each.shadowed_by.has_value());
+        REQUIRE(each.directory.filename().string().front() != '.');
+        out.push_back(each.directory.filename().string() + " " +
+                      to_hex(sha512_of(read_file(each.directory / "bin" /
+                                                 "prog"))).substr(0, 8));
+    }
+    return out;
+}
+
+std::string id_and(std::string_view program)
+{
+    return "com.example.modbus " +
+           to_hex(sha512_of(program)).substr(0, 8);
+}
 
 } // namespace
 
@@ -774,8 +857,8 @@ TEST_CASE("plugin install: a failed rename of a new install leaves nothing")
     REQUIRE(names_in(root).empty());
 }
 
-TEST_CASE("plugin install: an old copy that cannot be removed is a warning, "
-          "not a failure")
+TEST_CASE("plugin install: an old copy that cannot be removed is an error "
+          "that names what is left, and discovery finds only the new plugin")
 {
     const scratch_directory scratch;
     const fs::path root = scratch.path() / "installed";
@@ -791,12 +874,125 @@ TEST_CASE("plugin install: an old copy that cannot be removed is a warning, "
     const file_operations operations = fails.operations();
     options.operations = &operations;
     options.replace = true;
-    const auto done = install_plugin(two, root, options);
-    REQUIRE(done.has_value());
-    REQUIRE(done.value().replaced);
-    REQUIRE(!done.value().warning.empty());
+    std::string detail;
+    const auto done = install_plugin(two, root, options, &detail);
+    REQUIRE(done.has_error());
+    REQUIRE(done.error() == errc::io_error);
+    REQUIRE(detail.find(".vss-work") != std::string::npos);
+    REQUIRE(detail.find("old copy") != std::string::npos);
     REQUIRE_EQ(read_file(root / "com.example.modbus" / "bin" / "prog"),
                std::string("new program"));
+    REQUIRE(fs::exists(root / ".vss-work"));
+    REQUIRE_EQ(found_in(root), std::vector<std::string>{id_and("new program")});
+
+    // The next install clears what was left.
+    options.operations = nullptr;
+    const auto again = install_plugin(two, root, options);
+    REQUIRE(again.has_value());
+    REQUIRE_EQ(names_in(root), std::vector<std::string>{"com.example.modbus"});
+}
+
+TEST_CASE("plugin install: after a crash at each step discovery finds the "
+          "right version or none, and the next install clears the leftovers")
+{
+    spec second;
+    second.program = "new program";
+
+    struct step
+    {
+        std::string name;
+        int fail_rename_at = 0;
+        bool fail_remove = false;
+        bool replace = false;
+        std::vector<std::string> found;
+    };
+    const std::vector<step> steps{
+        // A new install cut off after the copy: a whole plugin sits in the
+        // work folder and is not found.
+        {"new install, before the rename", 1, false, false, {}},
+        // A replace cut off before the old plugin is moved: the old one.
+        {"replace, before the old copy is moved", 1, false, true,
+         {id_and(std::string(program_text))}},
+        // Cut off with the old plugin aside and the new one not in place:
+        // neither is found, and neither is lost.
+        {"replace, between the two renames", 2, false, true, {}},
+        // Cut off after both renames: the new plugin, whose old copy is
+        // still in the work folder.
+        {"replace, before the old copy is removed", 0, true, true,
+         {id_and("new program")}},
+    };
+    for (const step& at : steps)
+    {
+        const scratch_directory scratch;
+        const fs::path root = scratch.path() / "installed";
+        const fs::path one = make_third_party(scratch.path(), "one");
+        const fs::path two = make_third_party(scratch.path(), "two", second);
+        install_options options = make_options(make_context());
+        if (at.replace)
+            REQUIRE(install_plugin(one, root, options).has_value());
+
+        failing_operations fails;
+        fails.fail_rename_at = at.fail_rename_at;
+        fails.fail_remove = at.fail_remove;
+        fails.crash = true;
+        const file_operations operations = fails.operations();
+        options.operations = &operations;
+        options.replace = at.replace;
+        REQUIRE(install_plugin(two, root, options).has_error());
+        REQUIRE_EQ(found_in(root), at.found);
+
+        options.operations = nullptr;
+        options.replace = true;
+        const auto again = install_plugin(two, root, options);
+        REQUIRE(again.has_value());
+        REQUIRE_EQ(names_in(root),
+                   std::vector<std::string>{"com.example.modbus"});
+        REQUIRE_EQ(found_in(root),
+                   std::vector<std::string>{id_and("new program")});
+    }
+}
+
+TEST_CASE("plugin discovery: an entry whose name starts with a dot is never a "
+          "plugin")
+{
+    const scratch_directory scratch;
+    const fs::path root = scratch.path() / "installed";
+    const fs::path source = make_third_party(scratch.path(), "source");
+    fs::create_directories(root);
+    fs::copy(source, root / ".hidden", fs::copy_options::recursive);
+    fs::create_directories(root / ".vss-work" / "i-1");
+    fs::copy(source, root / ".vss-work" / "i-1" / "new",
+             fs::copy_options::recursive);
+    REQUIRE(found_in(root).empty());
+}
+
+TEST_CASE("plugin install: the source is changed after it was looked at and "
+          "the copy is refused as changed")
+{
+    for (const std::string_view file :
+         {"plugin.json", "plugin.sig", "bin/prog"})
+    {
+        const scratch_directory scratch;
+        const fs::path source = make_third_party(scratch.path(), "source");
+        const fs::path root = scratch.path() / "installed";
+        file_operations operations = default_file_operations();
+        operations.inspected = [&](const fs::path& folder)
+        {
+            // Same size, other bytes, for the program; another text for the
+            // others.
+            std::string text = read_file(folder / std::string(file));
+            text.back() = text.back() == 'x' ? 'y' : 'x';
+            write_file(folder / std::string(file), text);
+        };
+        install_options options = make_options(make_context());
+        options.operations = &operations;
+        std::string detail;
+        const auto done = install_plugin(source, root, options, &detail);
+        REQUIRE(done.has_error());
+        REQUIRE(done.error() == plugin_errc::changed);
+        REQUIRE(!detail.empty());
+        REQUIRE(names_in(root).empty());
+    }
 }
 
 TEST_CASE("plugin install: the id is used as a folder name only when it "
@@ -866,7 +1062,8 @@ TEST_CASE("plugin install: the machine folder must not be writable by "
     REQUIRE(done.has_error());
     REQUIRE(done.error() == errc::permission_denied);
     REQUIRE(!detail.empty());
-    REQUIRE(!fs::exists(scratch.path() / "machine" / "com.example.modbus"));
+    // Not even the folder is made.
+    REQUIRE(!fs::exists(scratch.path() / "machine"));
 }
 
 // -- remove -----------------------------------------------------------------
@@ -885,17 +1082,39 @@ TEST_CASE("plugin remove: removes the plugin's folder and nothing else")
     write_file(root / "data" / "state.bin", "kept");
 
     std::string detail;
-    const auto done = remove_plugin(root, "com.example.modbus", nullptr,
+    const auto done = remove_plugin(root, "com.example.modbus", {},
                                     &detail);
     REQUIRE(done.has_value());
     REQUIRE(!fs::exists(root / "com.example.modbus"));
     REQUIRE(fs::exists(root / "com.example.other" / "plugin.json"));
     REQUIRE_EQ(read_file(root / "data" / "state.bin"), std::string("kept"));
 
-    const auto again = remove_plugin(root, "com.example.modbus", nullptr,
+    const auto again = remove_plugin(root, "com.example.modbus", {},
                                      &detail);
     REQUIRE(again.has_error());
     REQUIRE(again.error() == errc::not_found);
+}
+
+TEST_CASE("plugin remove: the machine folder must not be writable by others")
+{
+    const scratch_directory scratch;
+    const fs::path root = scratch.path() / "installed";
+    const fs::path source = make_third_party(scratch.path(), "source");
+    REQUIRE(install_plugin(source, root, make_options(make_context()))
+                .has_value());
+    remove_options options;
+    options.for_everyone = true;
+    std::string detail;
+    const auto done =
+        remove_plugin(root, "com.example.modbus", options, &detail);
+    REQUIRE(done.has_error());
+    REQUIRE(done.error() == errc::permission_denied);
+    REQUIRE(!detail.empty());
+    REQUIRE(fs::exists(root / "com.example.modbus" / "plugin.json"));
+    REQUIRE(remove_plugin(scratch.path() / "missing", "com.example.modbus",
+                          options)
+                .error() == errc::permission_denied);
+    REQUIRE(!fs::exists(scratch.path() / "missing"));
 }
 
 TEST_CASE("plugin remove: an id that is not a plugin id, or a folder that is "
@@ -919,7 +1138,7 @@ TEST_CASE("plugin remove: an id that is not a plugin id, or a folder that is "
 
     std::string detail;
     const auto not_plugin =
-        remove_plugin(root, "com.example.notplugin", nullptr, &detail);
+        remove_plugin(root, "com.example.notplugin", {}, &detail);
     REQUIRE(not_plugin.has_error());
     REQUIRE(not_plugin.error() == plugin_errc::layout_invalid);
     REQUIRE(!detail.empty());
@@ -1000,4 +1219,14 @@ TEST_CASE("plugin install: a context for this computer reads the trust store "
     const inspection found = inspect_plugin(directory, context);
     REQUIRE(level_of(found) == trust_level::third_party_signed);
     REQUIRE(found.run == plugin_errc::policy);
+}
+
+TEST_CASE("plugin install: the trust file is trust.json in the user's folder")
+{
+    // Studio and every command read one file.
+    const fs::path folder = vss::machine::user_folder();
+    if (folder.empty())
+        REQUIRE(trust_file_of_this_user().empty());
+    else
+        REQUIRE(trust_file_of_this_user() == folder / "trust.json");
 }

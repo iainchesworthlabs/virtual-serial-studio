@@ -8,6 +8,10 @@
 // of a plugin is the one that counts.  docs/plugins.md, section 5.2, is the
 // design.
 //
+// An entry of a plugin folder whose name starts with a dot is passed over,
+// whatever it is: `install_plugin` works in `.vss-work` and discovery must
+// never take what is half made, or what an install left over, for a plugin.
+//
 // Discovery reads and never runs anything.  It does not look at
 // signatures, at who owns a folder, at the policy or at the user's
 // decisions: `verify` and the checks around it do that with what discovery

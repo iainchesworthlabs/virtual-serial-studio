@@ -112,7 +112,7 @@ vss_cli control token create --label=rig --role=monitor   # a token for another 
 vss_cli control status --loopback-port=5800 --token-file=rig.token   # use a token over TCP; make it with `token create --transport=loopback --out=rig.token` (a new file name; `--out` never replaces a file)
 vss_cli control watch --count=20    # what happens to the ports, a line for each event; `--data` adds the bytes (scope monitor.data)
 vss_cli control sessions            # who is connected to the gateway; `control kick <number>` closes one session
-vss_cli control port create a      # make a port and print its id; `port remove <id>`, `link <id> <id> [--one-way]` (scope control.ports)
+vss_cli control port create a      # make a port and print its id; `port remove <id>`, `port rename <id> <name>`, `link <id> <id> [--one-way]`, `unlink <id>` (scope control.ports)
 vss_cli control port show p_1       # one port; `control links` lists the links, `link show <id>` shows one (scope monitor), `control ping` asks whether the gateway answers (no scope)
 vss_cli control send p_1 --hex=00ff0a   # send bytes to a port, two hex digits for each byte (scope control.data)
 vss_cli control expect p_2 --pattern=4f4b0d0a --send-to=p_1 --send=6f6b0d0a   # wait for bytes on a port, and send some once listening (scope monitor.data; control.data to send)

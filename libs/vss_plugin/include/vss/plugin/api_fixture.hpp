@@ -90,8 +90,9 @@ struct fixture_create_message
     static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
-    /// The endpoint the fixture is on: 1 to `max_api_number`.
-    std::uint64_t endpoint = 0;
+    /// The name the hub gives the port the fixture is on: 1 to
+    /// `max_api_name` bytes.
+    std::string place;
     /// The parameters as one JSON object, already checked.  "{}" for none.
     std::string params = "{}";
 
@@ -179,7 +180,7 @@ struct fixture_fault_message
     static constexpr api_role role() noexcept { return api_role::notification; }
 
     std::uint64_t instance = 0;
-    line_fault fault_kind = line_fault::parity;
+    line_fault fault = line_fault::parity;
 
     friend bool operator==(const fixture_fault_message&,
                            const fixture_fault_message&) = default;
@@ -225,7 +226,9 @@ struct rules_result_message
 };
 
 /// A rule of the set fired.  `rule` is the name of the rule, and `action` is
-/// the number of the action in the list that fired, counted from 0.
+/// the kind of the action that was done, as `docs/response-timing.md` names
+/// it (`reply`, `lines`, `line_error`, `set_state`, `set_slot`, `mark`,
+/// `drop`, `corrupt`, `truncate`, `duplicate`, `hold`, `pass`, `ask`).
 struct rules_event_message
 {
     static constexpr std::string_view op() noexcept { return "rules.event"; }
@@ -236,8 +239,8 @@ struct rules_event_message
     std::uint64_t ts_ns = 0;
     /// 1 to `max_rule_name` bytes.  Plain text.
     std::string rule;
-    /// 0 to `max_rule_actions` less one.
-    std::uint64_t action = 0;
+    /// 1 to `max_rule_name` bytes.  Plain text.
+    std::string action;
 
     friend bool operator==(const rules_event_message&,
                            const rules_event_message&) = default;

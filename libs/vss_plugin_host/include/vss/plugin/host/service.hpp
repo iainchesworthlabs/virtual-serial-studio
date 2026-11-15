@@ -30,6 +30,7 @@
 #include <vss/license/license.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/hash.hpp>
+#include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/start_plan.hpp>
 #include <vss/plugin/install.hpp>
@@ -93,6 +94,11 @@ struct service_plugin
     /// decided, as the trust store holds it.
     bool decided = false;
     std::optional<plugin_decision> decision;
+    /// When nobody has decided about this copy and the user decided about
+    /// an earlier copy of the same plugin: that decision.  It is what
+    /// "this plugin changed since you approved it" compares with, for
+    /// example which permissions are new.
+    std::optional<plugin_decision> earlier_decision;
     /// The manifest, when it could be read: what the plugin says of
     /// itself.  Every text in it is the plugin's own and untrusted.
     std::optional<manifest> declared;
@@ -100,6 +106,9 @@ struct service_plugin
     std::vector<permission_request> asked;
     std::vector<permission> granted;
     std::vector<permission> withheld;
+    /// The instances wanted of it, as they stand.  Empty when none are
+    /// wanted or the plugin has no runner.
+    std::vector<instance_view> instances;
     /// Its run, when it has a runner; null otherwise.
     std::shared_ptr<const runner_snapshot> run;
 };
@@ -159,6 +168,15 @@ public:
 
     /// Forgets the decision about one copy of a plugin.
     void forget(std::string plugin_id);
+
+    /// The instances wanted of a plugin, replacing the list before: what
+    /// the user set up for it (a recorder on these ports, a decoder on
+    /// that link).  The list is kept while the service lives, whether or
+    /// not the plugin runs, and the running plugin is kept in step with
+    /// it: see instances.hpp.  The parameters of each entry must already
+    /// have been checked against the plugin's manifest.
+    void set_instances(std::string plugin_id,
+                       std::vector<instance_spec> wanted);
 
     /// The user approves an author's key, or takes the approval back.
     /// Stored in the trust store by the service, in turn with its other

@@ -53,7 +53,9 @@ Decided in `editions.md`, and taken as given here:
 - Three **trust levels**: official (signed by the owner), third-party signed, and unsigned with a warning. An
   administrator can allow only official plugins. Trust decisions are tied to the file's hash. Each release carries a
   revocation list and plugins carry an expiry date.
-- **No network from the GUI, no telemetry.** Timing that must be exact stays in the engine.
+- **No network for plugins, no telemetry.** Studio's only connection of its own is the update check
+  ([Online updates](updates.md)); a plugin gets no network from Studio, and the framework has no update client of its
+  own. Timing that must be exact stays in the engine.
 - The signing key and the signing job are the owner's. This page designs the verifier and the file formats. It does
   not create, hold or name any key.
 
@@ -87,7 +89,9 @@ Non-goals for the first version:
 
 - In-process plugins with a C ABI or WASM. Not in the first version (decision 12). They stay possible later, and
   need a licence position from the owner first.
-- A plugin store, an update client or any network access. A plugin is installed by putting a directory in place.
+- A plugin store, an update client of the framework's own, or network access for the framework. A plugin is installed
+  by putting a directory in place. The update check of Studio ([Online updates](updates.md), section 8) can offer a
+  newer version of an official plugin that is already installed; the framework has no network code for it.
 - Plugins that draw their own windows. A plugin has parameters and a status line, nothing else, in Studio.
 - Hot code loading. A plugin changes by stopping and starting.
 
@@ -180,6 +184,8 @@ Rules:
   owned by the user or by an administrator, with no write access for others (Windows: the ACL is read, and an entry
   that grants write to `Everyone` or `Users` on a machine or install root rejects the plugin).
 - At most 64 plugins, and a manifest of at most 256 KiB. More is `rejected: too_many` or `manifest_too_large`.
+- An entry of a root whose name starts with a dot is skipped, whatever it is. `vss_cli plugin install` works in
+  `<root>/.vss-work/`, and a folder there, finished or half made, is never a plugin.
 
 **Scope.** A plugin has a scope, from the root it was found in. The host's view of a plugin carries it and the
 Plugins page shows it (`screens/10-plugins.md`).
@@ -274,13 +280,21 @@ anything from the plugin. It looks at the source with the checks of 5.3 and refu
 wrong, whose files are not the ones the manifest lists, whose signature does not hold, whose id only official plugins may
 use, or that was revoked; a plugin without a signature needs `--allow-unsigned`. An expired plugin, one that this computer
 cannot isolate and one the licence does not cover are installed, with what is wrong reported, because those depend on
-the computer and change. Each file is read once from one open handle and its digest is taken as it is copied; the copy is
-made in a new folder inside the root and measured again, and must have the hash of the first look, before it is renamed
-to `<root>/<plugin id>` in one step. The plugin id becomes a folder name only when the manifest reader accepted it and it
+the computer and change. The folder is measured, then each file is copied from one open handle with its digest taken as it is
+copied, and must be the file that was measured; the bytes of `plugin.json` and `plugin.sig` that were parsed and
+checked must be the measured ones, so the files copied are the files judged. A file keeps its owner's read and execute
+bits, is never writable by the group or others, and the program the manifest runs is executable for its owner. The copy
+is made in `<root>/.vss-work/<unique>/`, measured again, and must have the hash of the first look, before it is renamed
+to `<root>/<plugin id>` in one step; on a replace the old folder is moved into the same work folder, and a work folder
+that cannot be removed is an error that names it. Discovery skips every entry of a root whose name starts with a dot,
+so the work folder, and what a cut-off install leaves in it, is never a plugin; the next install clears it. A source
+signed with a key nobody approved is treated like an unsigned one and needs `--allow-unsigned`. The plugin id becomes a folder name only when the manifest reader accepted it and it
 does not begin with the name of a Windows device (`con`, `nul`, `com1`, and so on), on every system. A copy is not
 flushed to disk before the rename, because the standard library has no portable way to do it, so a power loss can leave
 a folder whose files are shorter than they were; the next look at it finds the files wrong. The machine root is written only when only an
-administrator can change it. The package is taken as a folder: Studio has no zip reader, and the user unzips a plugin
+administrator can change it, and it is never made by a command that cannot: when it is not there, the nearest folder
+above it that is must pass the same test. A plugin installed for everyone may not run confined until a later step gives
+the confined plugin read access to it. The package is taken as a folder: Studio has no zip reader, and the user unzips a plugin
 with the system's own tool.
 
 ### 5.3 Verify
@@ -586,7 +600,7 @@ A generator produces bytes onto a port.
 
 | Message | From | Content |
 |---|---|---|
-| `generator.start` | host | `instance`, `port` (an endpoint id), `params` |
+| `generator.start` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `generator.write` | plugin | `instance`, blob. Needs credit |
 | `generator.credit` | host | `instance`, `bytes`: how many more bytes the plugin may send |
 | `generator.pattern` | plugin | `instance`, a *declared pattern*: `{"bytes": hex, "repeat": n or 0, "period_us": n, "burst": n, "jitter": ...}`. The engine generates it (T0) |
@@ -594,8 +608,8 @@ A generator produces bytes onto a port.
 | `generator.done` | plugin | `instance`, a reason |
 
 **Flow control by credit.** The host grants at most 64 KiB of credit to start and tops up as the engine takes bytes,
-so a plugin can never get ahead of the port by more than that, and a plugin that writes without credit is refused with
-`busy` (the first time) and killed as `misbehaving` (when it keeps going). A generator is a source of async traffic. When it must be periodic and exact, it uses
+so a plugin can never get ahead of the port by more than that. A write without credit is dropped and counted, because a
+`generator.write` is a notification and has no id to answer, and a plugin that keeps going is killed as `misbehaving`. A generator is a source of async traffic. When it must be periodic and exact, it uses
 `generator.pattern`, which the engine runs.
 
 ### 7.5 Fixture types (T0 plus T2)
@@ -605,14 +619,14 @@ to an instance. The plugin sees what the other side writes and decides how to an
 
 | Message | From | Content |
 |---|---|---|
-| `fixture.create` | host | `instance`, `endpoint`, `params` |
+| `fixture.create` | host | `instance`, `place` (the hub's name for the port), `params` |
 | `fixture.data` | host | `instance`, `ts_ns`, blob: bytes that arrived at the fixture. Coalesced: up to 8 KiB or 1 ms of arrivals in one frame |
 | `fixture.line` | host | `instance`, `ts_ns`, the new state of DTR, RTS (for a fixture these are the lines the program set) |
 | `fixture.reply` | plugin | `instance`, blob, `after_us` (optional): bytes to write to the fixture. With `after_us`, the **engine** holds the bytes and writes them at the time (a one-off rule), so the delay is exact, not a delay of the plugin's |
 | `fixture.line.set` | plugin | `instance`, DTR, RTS, `after_us` |
-| `fixture.fault` | plugin | `instance`, a `fault_kind` |
+| `fixture.fault` | plugin | `instance`, a `fault` (`parity`, `framing`, `overrun`, `break`, `hang_up` or `disconnect`) |
 | `rules.set` | plugin | `instance`, a rule set (section 6.3). It replaces the instance's set atomically. The reply says whether it was accepted, with the position of the first error otherwise |
-| `rules.event` | host | `instance`, `ts_ns`, `rule`, `action`: a rule fired |
+| `rules.event` | host | `instance`, `ts_ns`, `rule` (its name), `action` (the kind of the action, as `docs/response-timing.md` names it): a rule fired |
 
 Most fixtures send one `rules.set` when created and again when a parameter changes. The device behaviour (what a
 "Model 2000 multimeter" answers to `*IDN?`) is a rule set the plugin builds from its parameters. The plugin process
@@ -670,7 +684,7 @@ So the modifier slice comes after the slice of `docs/response-timing.md` that ad
 
 | Message | From | Content |
 |---|---|---|
-| `modifier.create` | host | `instance`, `link`, `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
+| `modifier.create` | host | `instance`, `place` (the hub's name for the link), `direction` (`a_to_b`, `b_to_a` or both as two instances), `params`, `budget_us`, `max_batch_bytes`, `max_batch_us`, `on_timeout` |
 | `modifier.batch` | host | `instance`, `seq`, `ts_ns` of the first chunk, `chunks`: list of `{offset, length, ts_ns}`; the bytes as one blob |
 | `modifier.result` | plugin | `seq`, `actions`: one for each chunk, in order, and a blob for what replaced them |
 | `modifier.stop` | host | |
@@ -724,6 +738,7 @@ harness, a language binding's server, a monitoring source) and translates betwee
 |---|---|---|
 | `agent.call` | plugin | `op` and its arguments, as in the agent protocol (section 5 of `agent.md`). Only the operations in the plugin's granted set are allowed |
 | `agent.subscribe` | plugin | The agent's event stream, filtered by the grant (counters only, or taps) |
+| `agent.event` | host | One event of a subscription: `subscription` (the `id` of the `agent.subscribe`), `kind`, `place`, `t_ns`, and in the blob the bytes of the event when the subscription asked for data |
 | `adapter.state` | plugin | `listening` and the **exact address** it listens on, if any, and the protocol name. Shown on the page |
 
 Rules for the proxy:
@@ -977,7 +992,7 @@ flush, rename).
 
 ### 8.5 Revocation, expiry and the clock
 
-There is no network, so:
+The framework has no network code of its own, so:
 
 - **The revocation list** is a signed file, `revocations.json`, shipped inside each release (and importable by the
   user from a file: Plugins > Import revocations). It holds a `serial` (increasing integer), `issued_at`, and lists of
@@ -989,10 +1004,10 @@ There is no network, so:
   the list being applied.
 - **Expiry.** The manifest has `not_after` (a date; official plugins get a bounded lifetime, and the owner's signing job
   chooses it). **How long is not settled.** The owner's first thought was 28 days. This page recommends against
-  a period that short: an expired official plugin does not run and has no "Run anyway", and there is no network,
-  so every official plugin, the ones that come with Studio included, would stop 28 days after it was signed
-  until the person fetched and installed a new copy by hand, every month, and a computer that is kept offline
-  would lose them for good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
+  a period that short: an expired official plugin does not run and has no "Run anyway", and the framework fetches
+  nothing itself, so every official plugin, the ones that come with Studio included, would stop 28 days after it
+  was signed until a new copy was installed, every month, and a computer that is kept offline would lose them for
+  good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
   years in the example of section 8.9), that a plugin signed with a mistake is stopped by the revocation list,
   and that anything meant to lapse monthly is the licence's period (`docs/licensing.md`), which has a grace
   period and a renewal path built for it. An expired plugin is `rejected: expired`. There is a grace choice: the page offers "Run anyway for this
@@ -1024,7 +1039,8 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   "allow_no_sandbox": false,        // may a user override the minimum for one plugin (section 9.2)
   "user_plugins": true,             // is the per-user plugin directory searched (section 5.2)
   "on_timeout": null,               // "fail_open" | "fail_closed" | null (do not force)
-  "permissions_denied": ["net.outbound"]
+  "permissions_denied": ["net.outbound"],
+  "update_check": true              // may Studio check for updates (default true; false turns it off)
 }
 ```
 
@@ -1040,6 +1056,15 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   controls their own computer approves a key in their own trust store (section 8.4). Neither looks in the
   operating system's certificate store, which trusts every public web authority and would let in far more than
   is meant.
+- **`update_check`** is a boolean, `true` when the key is left out. `false` turns off the update check of Studio
+  ([Online updates](updates.md)): no check on the timer and no check by hand, and the menu item and the button are
+  disabled with "Update checks are turned off by your administrator." It is not a plugin rule, and it does not turn
+  the check on: the user's own setting still decides whether the timer check runs (it is off until the user turns it
+  on).
+- **The update check does not fail closed.** A policy file that fails the ownership test above, or does not parse,
+  is treated as `official_only` for plugins. The update check ignores such a file and follows the user's setting,
+  because the worst an attacker gains by forcing a check is one request for a public file
+  ([Online updates](updates.md), section 6.3).
 - A policy narrows what the user can do. It never grants beyond what the user decides. A user cannot widen it from
   Studio, and the page says "Set by your administrator" with the reason.
 
@@ -1147,10 +1172,12 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   and then checks the plugin's signature with that key.
 - **The newest list wins.** The verifier keeps the list with the highest `serial` it has seen, in the ledger of
   section 8.4, so an old list cannot be put back to bring a revoked key to life.
-- **How a new list reaches a computer.** There is no network, so the design has three routes: inside a Studio
-  release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an administrator or
-  a user imports. **None is built.** A key list beside a plugin would today be refused as `unlisted_file`, for a plugin
-  that lists its files, and nothing reads a key list from there or imports one outside the tests.
+- **How a new list reaches a computer.** The framework has no network code, so the design has three routes: inside a
+  Studio release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an
+  administrator or a user imports. Delivering a list over the update feed is left out of the first version
+  ([Online updates](updates.md), section 10). **None is built.** A key list beside a plugin would today be refused
+  as `unlisted_file`, for a plugin that lists its files, and nothing reads a key list from there or imports one
+  outside the tests.
 - **Replacing a signing key:** add its line, sign a list with the next serial. **Revoking one:** move its id to
   `revoked`, sign a list with the next serial. **A lost root:** a new root needs a new Studio release, which is why
   a next root is compiled in beside the current one.
@@ -1271,7 +1298,7 @@ name and, for some, a scope.
 | `data.private` | Read and write its own data directory | Always granted |
 | `bundle.section` | Add a section to a support bundle | The user sees the section, its preview and its tick box in Studio's own dialog (section 19) |
 | `net.listen` | Listen on a declared address and port | Loopback unless stated; shown |
-| `net.outbound` | Connect to declared hosts | Shown. Not granted by default. Absent for the GUI regardless: the GUI itself has no network access, and the policy can deny |
+| `net.outbound` | Connect to declared hosts | Shown. Not granted by default. A plugin never uses Studio's own connection, which is the update check only, and the policy can deny |
 | `process.spawn` | Start child programs | Child processes are inside the same sandbox and job |
 | `clipboard`, `ui` | **Never**. There is no such permission: a plugin has no window |
 
@@ -1446,6 +1473,8 @@ These follow `AGENTS.md` and `architecture.md`, and apply to every line of the h
 9. **Clocks are injected.** The supervisor and the trust code take a clock object, so tests step time and nothing
    sleeps.
 
+Rules 2 and 3 are implemented in `libs/vss_plugin_host/include/vss/plugin/host/traffic_tap.hpp`: one tap for each plugin, with a sink that holds a `shared_ptr` to the queue, a `closed` flag, drops that are counted, and a notification posted to an executor the host gives, never run on a hub strand.
+
 ## 12. Reason codes
 
 A plugin's state always carries one of these, as `vss::plugin_errc` (an `error_category` named `vss.plugin`),
@@ -1573,7 +1602,7 @@ reputation of the owner's signing key; the truth of what Studio tells the user.
 | Supply-chain attacker | Replaces an official plugin's files in a download, or compromises a plugin author's key |
 | Malware under the user's account | Writes into the user's plugin directory or trust store |
 | Other local users | Cannot reach the agent (`agent.md` section 3), but may be able to write to a world-writable plugin location |
-| Network attacker | Not present on the GUI path; present only for adapters that listen |
+| Network attacker | Present on the update check ([Online updates](updates.md), section 11) and for adapters that listen; not on any other path of the GUI |
 | Hostile device or program on a port | Sends adversarial bytes, which reach plugins as traffic |
 | A user who is tricked | Clicks through a prompt |
 
@@ -1607,7 +1636,7 @@ own trust ledger or system clock (the clock is a deterrent).
 | T10 | A manifest uses path tricks (`..`, drive letters, links, device names, case folding, alternate streams) | The layout rules in 5.3; paths normalised and checked; links not followed | |
 | T11 | A manifest string or a log line is used for injection into the GUI (markup, format strings, control characters, bidi override to spoof a name) | All plugin text is plain text, length-limited, with control and bidi characters removed or shown escaped; never a format string; the signer's name comes from the key record, not the plugin | A long name that looks like another: the id and the hash are always shown |
 | T12 | A confusing trust prompt leads the user to approve | One decision per hash, permissions in plain sentences, an increase in permissions called out, **no "trust everything"**, no default-enabled button on unofficial plugins, the warning wording as in `editions.md` | A determined click-through is the user's choice |
-| T13 | A revoked key or plugin keeps working | A signed revocation list with a rising serial, applied at once; an expiry on every official plugin; rotation | Without a network a user who never updates Studio never gets a new list. Expiry bounds that, and the page says when the last list was installed |
+| T13 | A revoked key or plugin keeps working | A signed revocation list with a rising serial, applied at once; an expiry on every official plugin; rotation | A list travels only inside a release, so a user who never updates Studio never gets a new list. Expiry bounds that, and the page says when the last list was installed |
 | T14 | The revocation list is rolled back or forged | Signed by an official key under its own purpose; only a higher serial accepted; the highest serial stored | A user who deletes their ledger |
 | T15 | The clock is set back to revive an expired plugin | High-water mark | A deterrent only, said so |
 | T16 | A compromised or hostile plugin directory (world-writable machine root) | Ownership and ACL checks; a machine root that fails is not searched, reported | |
@@ -1818,7 +1847,7 @@ The plugin decides **what** to record and replay. The engine and the agent do th
 | Know the ports, links and their state | `agent.call` (`list`, `snapshot`) | Proxy call | `ports.read` | Section 7.7, written for adapters only. **Change:** the read operations of the proxy are open to every plugin kind that holds the permission |
 | Follow events with times: opens, closes, line changes, faults, rule firings, counters | `agent.subscribe` without `data` | Proxy call | `ports.read` | The same change. Read-only: this plugin never holds `topology.modify` while recording |
 | A live view of the bytes while recording, so the user sees that it works | `agent.subscribe` with `data` (a tap; it may drop, and says how much) | Proxy call | `traffic.tap` | Section 7.7 |
-| **A complete recording** of chosen ports and links | `capture.start {places, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
+| **A complete recording** of chosen ports and links | `capture.start {places, name, limit_bytes, limit_seconds, ring}`, `capture.stop`, `capture.status`, answered with the recording's path and size; the agent writes the file | **New** engine-side operation | `traffic.tap` | **New.** Decision 14. `ring` keeps only the last N minutes, so a user can leave it on and pack what just happened |
 | The setup, the driver and engine state, the real serial ports | None: they are the support bundle's own sections | | | The plugin does not need `serial.devices` |
 | Add its sections to the bundle, with a preview | `contributes.bundle_sections` in the manifest; `bundle.prepare {section, settings}` from the host, answered with a list of files in the data directory | **New** contribution | `bundle.section` | **New.** Decision 15. Section 19.5 |
 | Redaction choices | The section's declared parameters, drawn by Studio's form in the bundle dialog | Parameters | none | Section 7.8, reused |
@@ -2052,7 +2081,7 @@ order the engine saw them:
 | `data` | `place`, `direction`, `offset` (the count of bytes at that place and direction before this chunk), `t_ns`, `end_ns` (on a half-duplex bus: when the last byte left the wire), the bytes. One engine chunk is one item; chunks are never joined |
 | `line` | `place`, `t_ns`, the lines and which changed |
 | `line_error` | `place`, `t_ns`, the kind |
-| `bus_fault` | `link`, the sender, `t_ns`, the `bus_fault` value, the `offset` and length of the sender's chunk |
+| `bus_fault` | `place` (the link), the sender, `t_ns`, the `bus_fault` value, `event` (its id, which a trigger's `cause` names), the `offset` and length of the sender's chunk |
 | `rule` | A rule fired at the place: its event as `docs/response-timing.md` defines it |
 | `time` | `t_ns`: the engine's time now |
 | `lost` | `place`, `direction`, `from_offset`, `bytes`, `from_ns`, `to_ns`: the decoder was too slow and this much was not sent |
@@ -2164,8 +2193,8 @@ binary protocols. For them a plugin contributes a **decoder**, a fifth kind of e
 | Message | From | Content |
 |---|---|---|
 | `decoder.create` | host | `instance`, the places and their settings (rate, format, whether a bus), `params` |
-| `decoder.data` | host | `seq` and a list of the items of section 20.4, with the bytes as one blob |
-| `decoder.ack` | plugin | `seq` |
+| `decoder.data` | host | `instance`, `seq` and a list of the items of section 20.4, with the bytes as one blob |
+| `decoder.ack` | plugin | `instance`, `seq` |
 | `decoder.frame` | plugin | `place`, `direction`, `offset`, `length`, `t_start_ns`, `t_end_ns`, a message name, a summary of at most 200 characters, and up to 64 fields as `{name, offset, length, value}`. Optional, rate limited, and dropped first when the plugin is over its limits |
 | `trigger.publish` | plugin | Section 20.7 |
 | `decoder.stop` | host | |
@@ -2200,7 +2229,7 @@ A trigger is one record. The format is public and versioned with the plugin API.
   "field": { "name": "check", "offset": 7, "length": 2 },
   "expected": "3A91", "actual": "3A90",
   "covers": [1, 6],
-  "cause": { "bus_fault": "overlap", "event": 9912 },
+  "cause": { "fault": "overlap", "event": 9912 },
   "request": { "offset": 48205, "length": 8, "t_end_ns": 18201000000 },
   "text": "Check value is 3A90, expected 3A91.",
   "from": { "plugin": "com.virtualserialstudio.protocol", "instance": 3 }

@@ -14,6 +14,10 @@
 // keep the latest snapshot and wake the main thread, which prints, so that
 // nothing on the service's strand waits for the terminal.
 //
+// `--instance` asks the host for an instance of one of the plugin's extension
+// points; the command then prints each change of the instance's state, and
+// with `--seconds` it fails when an instance never ran.
+//
 // It makes no trust decision: a plugin that needs one is reported as such and
 // the command ends.  No licence is read, so a plugin that needs one does not
 // run.  Text that came from a plugin is shown as plain text, or as an escaped
@@ -29,11 +33,13 @@
 #include <vss/machine/folders.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
+#include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/host/service.hpp>
 #include <vss/plugin/lifecycle.hpp>
 #include <vss/plugin/locations.hpp>
+#include <vss/plugin/manifest.hpp>
 #include <vss/plugin/policy.hpp>
 #include <vss/plugin/protocol.hpp>
 
@@ -44,6 +50,7 @@
 #include <boost/json.hpp>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <charconv>
 #include <chrono>
@@ -54,9 +61,11 @@
 #include <deque>
 #include <filesystem>
 #include <future>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -84,6 +93,15 @@ constexpr int exit_usage = 2;
 /// The longest `--seconds` takes: 31 days.
 constexpr long long most_seconds = 2678400;
 
+/// The most bytes of parameters an `--instance` takes: 64 KiB.
+constexpr std::size_t most_params_bytes = 65536;
+
+/// The kinds of extension point `--instance` names, as the manifest does.
+constexpr std::array instance_kinds{
+    plug::extension_kind::generator, plug::extension_kind::fixture,
+    plug::extension_kind::modifier, plug::extension_kind::adapter,
+    plug::extension_kind::decoder};
+
 /// How often the main thread looks for a signal and for the end of `--seconds`
 /// when nothing else wakes it.
 constexpr std::chrono::milliseconds poll_interval{100};
@@ -101,6 +119,8 @@ struct options
     std::optional<fs::path> data;
     std::optional<fs::path> trust;
     long long seconds = 0;
+    /// The instances asked for, numbered 1, 2, 3 in the order given.
+    std::vector<host::instance_spec> instances;
 };
 
 enum class taken
@@ -163,6 +183,62 @@ bool parse_seconds(const std::string& text, long long& out)
     return true;
 }
 
+/// Says what is wrong with an `--instance` and returns false.
+bool bad_instance(std::string_view head, std::string_view problem)
+{
+    std::string text = "plugin run: --instance ";
+    text += sup::plain(head);
+    text += ": ";
+    text += problem;
+    text += '\n';
+    std::fputs(text.c_str(), stderr);
+    return false;
+}
+
+/// Reads `<kind>:<type>[=<params>]`.  The command checks only that the
+/// parameters are a JSON object that is not too long: what the plugin makes
+/// of them is for the plugin and its manifest.
+bool parse_instance(std::string_view text, std::uint64_t number,
+                    host::instance_spec& out)
+{
+    const std::size_t equals = text.find('=');
+    const std::string_view head = text.substr(0, equals);
+    const std::size_t colon = head.find(':');
+    if (colon == std::string_view::npos)
+        return bad_instance(head, "needs a kind, a colon and a type, as in "
+                                  "adapter:recorder");
+    const std::string_view kind = head.substr(0, colon);
+    const std::string_view type = head.substr(colon + 1);
+
+    const auto named =
+        std::ranges::find_if(instance_kinds, [kind](plug::extension_kind each)
+                             { return plug::to_string(each) == kind; });
+    if (named == instance_kinds.end())
+        return bad_instance(head, "the kind must be generator, fixture, "
+                                  "modifier, adapter or decoder");
+    if (type.empty())
+        return bad_instance(head, "needs the id of an extension point after "
+                                  "the colon");
+
+    std::string params = "{}";
+    if (equals != std::string_view::npos)
+    {
+        params = std::string(text.substr(equals + 1));
+        if (params.size() > most_params_bytes)
+            return bad_instance(head, "the parameters are longer than 64 KiB");
+        vss::error_code ec;
+        const json::value parsed = json::parse(params, ec);
+        if (ec || !parsed.is_object())
+            return bad_instance(head, "the parameters are not a JSON object");
+    }
+
+    out.instance = number;
+    out.kind = *named;
+    out.type = std::string(type);
+    out.params = std::move(params);
+    return true;
+}
+
 /// Reads the words after `plugin run`.  When a word is wrong, says so and
 /// returns false.
 bool parse(const std::vector<std::string>& arguments, options& out)
@@ -208,6 +284,19 @@ bool parse(const std::vector<std::string>& arguments, options& out)
             {
                 if (!parse_seconds(value, out.seconds))
                     return false;
+                continue;
+            }
+        }
+        if (got == taken::no)
+        {
+            got = take_value(arguments, index, "--instance",
+                             "a kind, a colon and a type", value);
+            if (got == taken::yes)
+            {
+                host::instance_spec instance;
+                if (!parse_instance(value, out.instances.size() + 1, instance))
+                    return false;
+                out.instances.push_back(std::move(instance));
                 continue;
             }
         }
@@ -757,6 +846,77 @@ std::string note_json(const std::string& text)
     return json_line(std::move(out));
 }
 
+/// What the command says of one instance: what makes a new line.
+struct instance_shown
+{
+    host::instance_state state = host::instance_state::waiting;
+    std::string problem;
+    std::string reason;
+
+    friend bool operator==(const instance_shown&,
+                           const instance_shown&) = default;
+};
+
+instance_shown shown_of(const host::instance_view& item)
+{
+    instance_shown out;
+    out.state = item.state;
+    if (item.problem.failed())
+        out.problem = sup::code_text(item.problem);
+    out.reason = item.reason;
+    return out;
+}
+
+/// `adapter:recorder`, as the plugin's manifest names it.
+std::string instance_name(const host::instance_spec& spec)
+{
+    std::string out(plug::to_string(spec.kind));
+    out += ':';
+    out += sup::plain(spec.type);
+    return out;
+}
+
+std::string instance_text(const host::instance_view& item,
+                          const instance_shown& shown)
+{
+    std::string out = "instance ";
+    out += std::to_string(item.spec.instance);
+    out += ' ';
+    out += instance_name(item.spec);
+    out += ": ";
+    out += host::to_string(shown.state);
+    if (!shown.problem.empty())
+    {
+        out += "; problem ";
+        out += sup::plain(shown.problem);
+    }
+    if (!shown.reason.empty())
+    {
+        out += "; reason \"";
+        out += sup::plain(shown.reason);
+        out += '"';
+    }
+    out += '\n';
+    return out;
+}
+
+std::string instance_json(const std::string& id,
+                          const host::instance_view& item,
+                          const instance_shown& shown)
+{
+    json::object out;
+    out["type"] = "instance";
+    out["plugin"] = sup::text_value(id);
+    out["instance"] = item.spec.instance;
+    out["kind"] = std::string(plug::to_string(item.spec.kind));
+    out["instance_type"] = sup::text_value(item.spec.type);
+    out["state"] = std::string(host::to_string(shown.state));
+    out["problem"] = optional_text(shown.problem);
+    out["reason"] = optional_text(shown.reason);
+    out["params_pending"] = item.params_pending;
+    return json_line(std::move(out));
+}
+
 void print(const std::string& text)
 {
     std::fwrite(text.data(), 1, text.size(), stdout);
@@ -817,7 +977,8 @@ class reporter
 public:
     reporter(const options& given, const places& where)
         : json_(given.json), id_(given.id),
-          trust_file_(sup::path_text(where.trust_file))
+          trust_file_(sup::path_text(where.trust_file)),
+          wanted_(given.instances)
     {
     }
 
@@ -846,6 +1007,8 @@ public:
         show(now);
         if (entry->run != nullptr)
             show_log(entry->run->log);
+        if (!stopping_)
+            show_instances(entry->instances);
         if (now.state == group::running)
             reached_running_ = true;
         if (cannot_go_on(now.state))
@@ -855,8 +1018,13 @@ public:
         }
     }
 
-    /// The command has asked the service to stop.
-    void asked_to_stop() noexcept { stopping_ = true; }
+    /// The command has asked the service to stop, because `--seconds` has
+    /// passed or for another reason.
+    void asked_to_stop(bool time_is_up) noexcept
+    {
+        stopping_ = true;
+        ended_by_time_ = time_is_up;
+    }
 
     /// The service has shut down: whatever ran has gone.
     void closed()
@@ -874,6 +1042,16 @@ public:
     bool finished() const noexcept { return ended_ || missing_; }
 
     bool reached_running() const noexcept { return reached_running_; }
+
+    /// Every instance asked for has been running or has been refused, so
+    /// that `--seconds` does not cut short the plugin's answer to
+    /// "instance.create".
+    bool instances_settled() const
+    {
+        return std::ranges::all_of(
+            wanted_, [this](const host::instance_spec& spec)
+            { return settled_.contains(spec.instance); });
+    }
 
     /// Says on the error stream how it ended, when it did not end well, and
     /// gives the exit code.
@@ -900,6 +1078,16 @@ public:
             std::fputs(text.c_str(), stderr);
             return exit_failed;
         }
+        if (ended_by_time_)
+        {
+            for (const host::instance_spec& spec : wanted_)
+            {
+                if (ran_.contains(spec.instance))
+                    continue;
+                std::fputs(instance_failure(spec).c_str(), stderr);
+                return exit_failed;
+            }
+        }
         return exit_ok;
     }
 
@@ -922,6 +1110,46 @@ private:
         if (!last_.has_value() || !same_state(last_.value(), now))
             emit(json_ ? state_json(id_, now) : state_text(now));
         last_ = now;
+    }
+
+    /// The line about an instance that never ran, with the last problem
+    /// shown for it.
+    std::string instance_failure(const host::instance_spec& spec) const
+    {
+        std::string text = "plugin run: instance ";
+        text += std::to_string(spec.instance);
+        text += ' ';
+        text += instance_name(spec);
+        text += " did not reach running";
+        const auto last = last_instances_.find(spec.instance);
+        if (last != last_instances_.end() && !last->second.problem.empty())
+        {
+            text += ": ";
+            text += sup::plain(last->second.problem);
+        }
+        text += '\n';
+        return text;
+    }
+
+    /// A line for each instance whose state is not the one last shown.
+    void show_instances(const std::vector<host::instance_view>& views)
+    {
+        for (const host::instance_view& item : views)
+        {
+            const std::uint64_t number = item.spec.instance;
+            const instance_shown now = shown_of(item);
+            if (now.state == host::instance_state::running)
+                ran_.insert(number);
+            if (now.state == host::instance_state::running ||
+                now.state == host::instance_state::refused)
+                settled_.insert(number);
+            const auto last = last_instances_.find(number);
+            if (last != last_instances_.end() && last->second == now)
+                continue;
+            emit(json_ ? instance_json(id_, item, now)
+                       : instance_text(item, now));
+            last_instances_[number] = now;
+        }
     }
 
     void show_log(const std::vector<host::runner_log_line>& log)
@@ -985,6 +1213,8 @@ private:
     bool json_ = false;
     std::string id_;
     std::string trust_file_;
+    /// The instances asked for.
+    std::vector<host::instance_spec> wanted_;
 
     bool saw_scanning_ = false;
     bool scanned_ = false;
@@ -992,6 +1222,12 @@ private:
     bool ended_ = false;
     bool stopping_ = false;
     bool reached_running_ = false;
+    bool ended_by_time_ = false;
+    /// The numbers of the instances that were running at some point, and
+    /// that were running or refused.
+    std::set<std::uint64_t> ran_;
+    std::set<std::uint64_t> settled_;
+    std::map<std::uint64_t, instance_shown> last_instances_;
     view final_;
     std::optional<view> last_;
     std::vector<host::runner_log_line> shown_log_;
@@ -1137,6 +1373,8 @@ int run_plugin(const options& given, const places& where)
             state->snapshots.push_back(std::move(latest));
             state->changed.notify_all();
         });
+    if (!given.instances.empty())
+        service->set_instances(given.id, given.instances);
     service->rescan();
 
     reporter report(given, where);
@@ -1152,14 +1390,14 @@ int run_plugin(const options& given, const places& where)
 
         const auto now = std::chrono::steady_clock::now();
         if (!deadline.has_value() && given.seconds > 0 &&
-            report.reached_running())
+            report.reached_running() && report.instances_settled())
             deadline = now + std::chrono::seconds(given.seconds);
         const bool time_is_up = deadline.has_value() && now >= deadline.value();
         if (shutting_down ||
             !(g_stop_requested.load() || report.finished() || time_is_up))
             continue;
         shutting_down = true;
-        report.asked_to_stop();
+        report.asked_to_stop(time_is_up && !g_stop_requested.load());
         service->shut_down(
             [state]
             {
@@ -1178,6 +1416,7 @@ const char* plugin_run_usage() noexcept
 {
     return "  vss_cli plugin run <id> [--root <folder>]... [--data <folder>]\n"
            "                      [--trust <file>] [--seconds <n>] [--json]\n"
+           "                      [--instance <kind>:<type>[=<params>]]...\n"
            "      Run one installed plugin under the plugin host and print "
            "each\n"
            "      change of its state: starting, running, waiting to start "
@@ -1217,11 +1456,34 @@ const char* plugin_run_usage() noexcept
            "      plugin-data in your Virtual Serial Studio folder.  No "
            "licence is\n"
            "      read, so a plugin that needs one does not run.\n"
+           "      Each --instance asks the plugin host for an instance of an "
+           "extension\n"
+           "      point of the plugin.  <kind> is generator, fixture, "
+           "modifier,\n"
+           "      adapter or decoder, <type> is the id of the extension point "
+           "in the\n"
+           "      plugin's manifest, and <params> is a JSON object of at most "
+           "64 KiB,\n"
+           "      {} when left out.  The instances are numbered 1, 2, 3 in "
+           "the order\n"
+           "      given, and a line \"instance <n> <kind>:<type>: <state>\" "
+           "is printed\n"
+           "      each time the state of one changes: waiting, creating, "
+           "running,\n"
+           "      refused (with the problem and the plugin's reason) or "
+           "stopping.\n"
+           "      With --seconds, the time counts from when the plugin is "
+           "running\n"
+           "      and each instance is running or refused.\n"
            "      Exit code 0 means the plugin was running and was stopped, "
-           "1 that\n"
-           "      it never ran or failed too often, and 2 that the command "
-           "line is\n"
-           "      wrong or no plugin has the id.\n"
+           "and with\n"
+           "      --instance and --seconds that every instance was running at "
+           "some\n"
+           "      point.  1 means that the plugin never ran or failed too "
+           "often, or\n"
+           "      that an instance never ran, and 2 that the command line is "
+           "wrong or\n"
+           "      no plugin has the id.\n"
            "\n";
 }
 

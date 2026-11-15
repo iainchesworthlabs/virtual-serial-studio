@@ -7,6 +7,7 @@
 #include "plugin_support.hpp"
 
 #include <vss/plugin/error.hpp>
+#include <vss/plugin/install.hpp>
 #include <vss/plugin/licence.hpp>
 #include <vss/plugin/locations.hpp>
 #include <vss/ports/permissions.hpp>
@@ -231,6 +232,9 @@ computer this_computer(bool read_policy)
         out.policy_file = plug::plugin_locations_for(programs).policy_file;
         options.policy_file = out.policy_file;
     }
+    // The user's decisions are in `trust.json` in the user's folder, the
+    // same file Studio reads.  No file there means nothing is approved.
+    options.trust_file = plug::trust_file_of_this_user();
     out.context = plug::context_for_this_computer(options, &out.notes);
     return out;
 }

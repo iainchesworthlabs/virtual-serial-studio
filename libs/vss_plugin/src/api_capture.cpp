@@ -28,59 +28,6 @@ bool has_name(const std::vector<std::string>& names, std::string_view name)
                                { return one == name; });
 }
 
-/// A list of names, each 1 to `max_api_name` bytes of plain text, `least` to
-/// `most` of them.  Empty when the member is absent or wrong.  A name given
-/// twice is wrong when `unique`.
-std::vector<std::string> names_of(reading& state, const json::object& object,
-                                  std::string_view where, std::string_view key,
-                                  std::size_t least, std::size_t most,
-                                  bool unique)
-{
-    std::vector<std::string> out;
-    const json::array* const list =
-        list_of(state, object, where, key, most, least > 0);
-    if (list == nullptr)
-        return out;
-    const std::string list_name = member(where, key);
-    if (list->size() < least)
-    {
-        state.fail(list_name,
-                   "must have at least " + std::to_string(least) + " entry");
-        return out;
-    }
-    out.reserve(list->size());
-    for (std::size_t i = 0; i < list->size(); ++i)
-    {
-        const std::string at = entry(list_name, i);
-        const json::value& item = (*list)[i];
-        if (!item.is_string())
-        {
-            state.fail(at, "must be a string");
-            return {};
-        }
-        const std::string_view text = view_of(item.get_string());
-        if (text.empty() || text.size() > max_api_name)
-        {
-            state.fail(at, "must be 1 to " + std::to_string(max_api_name) +
-                               " bytes");
-            return {};
-        }
-        if (!clean_text(text))
-        {
-            state.fail(at, "must be plain text, with no control character or "
-                           "direction mark");
-            return {};
-        }
-        if (unique && has_name(out, text))
-        {
-            state.fail(at, "is given twice");
-            return {};
-        }
-        out.emplace_back(text);
-    }
-    return out;
-}
-
 json::array names_value(const std::vector<std::string>& names)
 {
     json::array out;
@@ -141,8 +88,8 @@ snapshot_spec read_snapshot(reading& state, const json::object& object,
 {
     snapshot_spec out;
     out.kinds = kinds_of(state, object, where);
-    out.places =
-        names_of(state, object, where, "places", 0, max_capture_places, false);
+    out.places = place_list_of(state, object, where, "places",
+                               max_capture_places, false, false);
     return out;
 }
 
@@ -164,8 +111,15 @@ void read_start(reading& state, const json::object& object,
                 capture_start_message& out)
 {
     constexpr auto where = capture_start_message::op();
-    out.places =
-        names_of(state, object, where, "places", 1, max_capture_places, true);
+    out.places = place_list_of(state, object, where, "places",
+                               max_capture_places, true, true);
+    out.name =
+        text_of(state, object, where, "name", max_capture_name, false, true);
+    if (!out.name.empty() && (out.name.find('/') != std::string::npos ||
+                              check_relative_path(out.name).has_value()))
+        state.fail(member(where, "name"),
+                   "must be a file name stem by the rules of a manifest path "
+                   "name, without a slash");
     out.limit_bytes = number_of(state, object, where, "limit_bytes", 1,
                                 max_capture_bytes, false)
                           .value_or(default_capture_bytes);
@@ -198,6 +152,7 @@ void read_start(reading& state, const json::object& object,
 bool write_start(json::object& header, const capture_start_message& body)
 {
     header.emplace("places", names_value(body.places));
+    put_optional(header, "name", body.name);
     header.emplace("limit_bytes", body.limit_bytes);
     header.emplace("limit_seconds", body.limit_seconds);
     header.emplace("ring", body.ring);
@@ -245,6 +200,10 @@ void read_capture_result(reading& state, const json::object& object,
         number_of(state, object, where, "dropped", 0, max_api_number, true)
             .value_or(0);
     out.ring = bool_of(state, object, where, "ring", true).value_or(false);
+    out.recording = relative_path_of(state, object, where, "recording",
+                                     max_recording_path, true);
+    out.size = number_of(state, object, where, "size", 0, max_api_number, true)
+                   .value_or(0);
 }
 
 bool write_capture_result(json::object& header,
@@ -255,6 +214,8 @@ bool write_capture_result(json::object& header,
     header.emplace("seconds", body.seconds);
     header.emplace("dropped", body.dropped);
     header.emplace("ring", body.ring);
+    header.emplace("recording", text_value(body.recording));
+    header.emplace("size", body.size);
     return true;
 }
 
@@ -293,13 +254,17 @@ void read_timeline(reading& state, const json::object& object,
     out.instance =
         number_of(state, object, where, "instance", 1, max_api_number, true)
             .value_or(0);
-    out.recording = text_of(state, object, where, "recording",
-                            max_recording_path, true, true);
-    out.place =
-        text_of(state, object, where, "place", max_api_name, true, true);
+    out.recording = relative_path_of(state, object, where, "recording",
+                                     max_recording_path, true);
+    out.place = place_of(state, object, where, "place", true);
     out.time_scale = real_of(state, object, where, "time_scale", min_time_scale,
                              max_time_scale, false)
                          .value_or(1.0);
+    // The writer refuses a number that does not read back as itself, so the
+    // reader does too: what is read can be written.
+    if (!state.failed() && !reads_back(out.time_scale))
+        state.fail(member(where, "time_scale"),
+                   "is a number that does not read back the same");
     out.seed =
         number_of(state, object, where, "seed", 0, max_api_number, false);
 }
@@ -331,19 +296,6 @@ bool write_prepare(json::object& header, const bundle_prepare_message& body)
     return put_object_text(header, "settings", body.settings);
 }
 
-bool plain_file_name(std::string_view name) noexcept
-{
-    if (name == "." || name == "..")
-        return false;
-    for (const char c : name)
-    {
-        const auto byte = static_cast<unsigned char>(c);
-        if (c == '/' || c == '\\' || byte < 0x20 || byte == 0x7f)
-            return false;
-    }
-    return clean_text(name);
-}
-
 void read_files(reading& state, const json::object& object,
                 bundle_result_message& out)
 {
@@ -362,23 +314,19 @@ void read_files(reading& state, const json::object& object,
         if (item == nullptr)
             return;
         bundle_file file;
-        file.name =
-            text_of(state, *item, at, "name", max_bundle_file_name, true, true);
-        if (!state.failed() && !plain_file_name(file.name))
-        {
-            state.fail(member(at, "name"),
-                       "must be a plain file name, with no slash, no "
-                       "backslash and no control character, and not . or ..");
-        }
+        file.name = relative_path_of(state, *item, at, "name",
+                                     max_bundle_file_name, true);
         file.size = number_of(state, *item, at, "size", 0,
                               max_bundle_section_bytes, true)
                         .value_or(0);
         if (state.failed())
             return;
-        if (std::ranges::any_of(out.files, [&file](const bundle_file& other)
-                                { return other.name == file.name; }))
+        if (std::ranges::any_of(
+                out.files, [&file](const bundle_file& other)
+                { return same_name_ignoring_case(other.name, file.name); }))
         {
-            state.fail(member(at, "name"), "is given twice");
+            state.fail(member(at, "name"),
+                       "is given twice, or differs from another only in case");
             return;
         }
         total += file.size;

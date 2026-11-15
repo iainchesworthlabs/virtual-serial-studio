@@ -67,8 +67,11 @@ profiler is paused.
 
 ## What leaves the computer
 
-`AGENTS.md` says there is no network access from the GUI and no telemetry. A
-Tracy profiler has to reach the program over TCP, so the shape is:
+`AGENTS.md` says Studio makes no network connection of its own except to check
+for updates and to download an update the user agreed to, and that it sends
+nothing about the user, the computer or how Studio is used: no telemetry. A
+Tracy profiler has to reach the program over TCP, so recording listens on this
+computer and sends nothing until a profiler connects. The shape is:
 
 - **Off by default** in anything that is shipped. Only a Debug build, which is
   never shipped, starts by itself.

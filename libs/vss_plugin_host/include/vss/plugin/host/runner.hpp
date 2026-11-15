@@ -123,6 +123,10 @@ struct runner_snapshot
     /// last saw knows which lines are new, and how many it missed.
     std::uint64_t log_total = 0;
     std::uint64_t output_bytes_dropped = 0;
+    /// How many times a process was started for this plugin.  A plugin
+    /// that is `ready` with another number than before was started again
+    /// in between and has forgotten everything it was told.
+    std::uint64_t starts = 0;
     /// Goes up by one with every snapshot of this runner.
     std::uint64_t revision = 0;
 };

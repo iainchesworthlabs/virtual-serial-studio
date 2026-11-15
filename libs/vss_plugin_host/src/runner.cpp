@@ -226,6 +226,7 @@ private:
             return;
         }
         process_.emplace(std::move(*started));
+        ++starts_;
         sandbox_ = process_->sandbox();
         process_id_ = process_->id();
 
@@ -724,6 +725,7 @@ private:
         next->log.assign(log_.begin(), log_.end());
         next->log_total = log_total_;
         next->output_bytes_dropped = output_dropped_;
+        next->starts = starts_;
         next->revision = ++revision_;
         const std::lock_guard lock(snapshot_mutex_);
         snapshot_ = std::move(next);
@@ -782,6 +784,7 @@ private:
     sandbox_report sandbox_;
     api_version api_;
     std::optional<status_message> status_;
+    std::uint64_t starts_ = 0;
     std::uint64_t revision_ = 0;
     bool publish_waiting_ = false;
 

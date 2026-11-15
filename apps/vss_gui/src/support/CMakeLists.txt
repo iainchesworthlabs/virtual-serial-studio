@@ -72,6 +72,10 @@ add_library(vss_gui_support STATIC
   troubleshoot.hpp
   troubleshoot_dialog.cpp
   troubleshoot_dialog.hpp
+  update_dialog.cpp
+  update_dialog.hpp
+  update_text.cpp
+  update_text.hpp
   third_party.cpp
   third_party.hpp
   third_party.qrc
@@ -91,6 +95,7 @@ target_link_libraries(vss_gui_support PUBLIC
   vss_gui_backend
   vss_gui_profiling
   vss_gui_rendering
+  vss_gui_updates
   Qt6::Widgets)
 
 if(WIN32)

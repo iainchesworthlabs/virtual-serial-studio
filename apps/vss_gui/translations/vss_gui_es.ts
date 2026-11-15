@@ -27,8 +27,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="170" />
-            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</source>
-            <translation>Este programa es software libre: puede redistribuirlo o modificarlo según los términos de la Licencia Pública General de GNU, publicada por la Free Software Foundation, ya sea la versión 3 de la Licencia o (a su elección) cualquier versión posterior.</translation>
+            <source>This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, version 3 of the License.</source>
+            <translation>Este programa es software libre: puede redistribuirlo o modificarlo según los términos de la Licencia Pública General de GNU, publicada por la Free Software Foundation, en la versión 3 de la Licencia.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="179" />
@@ -62,8 +62,8 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="237" />
-            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3 or later. It uses these components:</source>
-            <translation>Virtual Serial Studio es software libre bajo la Licencia Pública General de GNU, versión 3 o posterior. Usa estos componentes:</translation>
+            <source>Virtual Serial Studio is free software under the GNU General Public License, version 3. It uses these components:</source>
+            <translation>Virtual Serial Studio es software libre bajo la Licencia Pública General de GNU, versión 3. Usa estos componentes:</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="242" />
@@ -74,6 +74,11 @@
             <location filename="../src/support/about_dialog.cpp" line="243" />
             <source>GNU Lesser General Public License, version 3, or the GNU General Public License, version 3.</source>
             <translation>Licencia Pública General Reducida de GNU, versión 3, o Licencia Pública General de GNU, versión 3.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="243" />
+            <source>GNU General Public License, version 3.</source>
+            <translation>Licencia Pública General de GNU, versión 3.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="247" />
@@ -323,13 +328,129 @@
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
-            <source>Version %1. Free software under the GNU General Public License, version 3 or later. Edition: %2.</source>
-            <translation>Versión %1. Software libre bajo la Licencia Pública General de GNU, versión 3 o posterior. Edición: %2.</translation>
+            <source>Version %1. Free software under the GNU General Public License, version 3. Edition: %2.</source>
+            <translation>Versión %1. Software libre bajo la Licencia Pública General de GNU, versión 3. Edición: %2.</translation>
         </message>
         <message>
             <location filename="../src/support/about_dialog.cpp" line="1" />
             <source>Create support bundle</source>
             <translation>Crear paquete de soporte</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="268" />
+            <source>Updates</source>
+            <translation>Actualizaciones</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="409" />
+            <source>This version</source>
+            <translation>Esta versión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="413" />
+            <source>Newest version</source>
+            <translation>Versión más reciente</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="417" />
+            <source>Last checked</source>
+            <translation>Última comprobación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="431" />
+            <source>Check for updates automatically</source>
+            <translation>Buscar actualizaciones automáticamente</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="436" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Una vez al día, Studio consulta virtual-serial-studio.com para saber cuál es la versión más reciente. No se envía nada sobre usted ni sobre este equipo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="455" />
+            <source>Check now</source>
+            <translation>Comprobar ahora</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="460" />
+            <source>Update...</source>
+            <translation>Actualizar...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="32" />
+            <source>copied from the disk image</source>
+            <translation>copiada desde la imagen de disco</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="36" />
+            <source>installed for everyone on this computer</source>
+            <translation>instalada para todos en este equipo</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="38" />
+            <source>unpacked from an archive</source>
+            <translation>descomprimida de un archivo comprimido</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="51" />
+            <source>Not checked yet.</source>
+            <translation>Aún sin comprobar.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="53" />
+            <source>Checking...</source>
+            <translation>Comprobando...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="56" />
+            <source>This is a developer build. The newest release is %1.</source>
+            <translation>Esta es una compilación de desarrollo. La versión publicada más reciente es %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="60" />
+            <location filename="../src/support/update_text.cpp" line="64" />
+            <source>%1 is the newest version.</source>
+            <translation>%1 es la versión más reciente.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="68" />
+            <source>%1 is available. Download it from virtual-serial-studio.com.</source>
+            <translation>%1 está disponible. Descárguela de virtual-serial-studio.com.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="72" />
+            <source>%1 is available.</source>
+            <translation>%1 está disponible.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="76" />
+            <source>The update information could not be trusted, so nothing was changed.</source>
+            <translation>No se pudo confiar en la información de la actualización, así que no se cambió nada.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="79" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio no pudo conectar con el servidor de actualizaciones. Compruebe la conexión e inténtelo de nuevo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="83" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>Su administrador ha desactivado la búsqueda de actualizaciones.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="86" />
+            <source>This build cannot check for updates.</source>
+            <translation>Esta compilación no puede buscar actualizaciones.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="100" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="107" />
+            <source>Never</source>
+            <translation>Nunca</translation>
         </message>
     </context>
     <context>
@@ -2771,7 +2892,7 @@ Redes: %5</translation>
             <source>%1, %2</source>
             <translation>%1, %2</translation>
         </message>
-        <message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/panes/inspector_panel.cpp" line="1" />
             <source>Provided by</source>
             <translation>Proporcionado por</translation>
@@ -2786,7 +2907,7 @@ Redes: %5</translation>
             <source>These settings are kept. They apply again when the plugin is available.</source>
             <translation>Estos ajustes se conservan. Se aplican de nuevo cuando el complemento esté disponible.</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>JobForm</name>
         <message>
@@ -6618,6 +6739,41 @@ Redes: %5</translation>
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio no pudo escribir la entrada de inicio de sesión. No se cambió nada.</translation>
         </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="256" />
+            <source>Updates</source>
+            <translation>Actualizaciones</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="263" />
+            <source>Check for updates automatically</source>
+            <translation>Buscar actualizaciones automáticamente</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="269" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>Una vez al día, Studio consulta virtual-serial-studio.com para saber cuál es la versión más reciente. No se envía nada sobre usted ni sobre este equipo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="277" />
+            <source>Include pre-release versions</source>
+            <translation>Incluir versiones preliminares</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="283" />
+            <source>Offers release candidates as well as finished releases.</source>
+            <translation>Ofrece versiones candidatas además de las versiones finales.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="883" />
+            <source>Set by your administrator.</source>
+            <translation>Establecido por su administrador.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="885" />
+            <source>This build cannot check for updates.</source>
+            <translation>Esta compilación no puede buscar actualizaciones.</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -9462,6 +9618,26 @@ Redes: %5</translation>
             <translation>La configuración necesita un dispositivo o punto final de red que no está disponible en este PC. Compruebe el dispositivo e inténtelo de nuevo.</translation>
         </message>
         <message>
+            <location filename="../src/shell/shell_window.cpp" line="605" />
+            <source>Check for updates...</source>
+            <translation>Buscar actualizaciones...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="606" />
+            <source>update version new release download</source>
+            <translation>actualización versión nueva lanzamiento descargar</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3096" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>Su administrador ha desactivado la búsqueda de actualizaciones.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3097" />
+            <source>This build cannot check for updates.</source>
+            <translation>Esta compilación no puede buscar actualizaciones.</translation>
+        </message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/shell/shell_window.cpp" line="1" />
             <source>Plugins...</source>
             <translation>Complementos...</translation>
@@ -9476,7 +9652,7 @@ Redes: %5</translation>
             <source>Started again.</source>
             <translation>Iniciado de nuevo.</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>Shortcuts</name>
         <message>
@@ -19888,7 +20064,7 @@ Redes: %5</translation>
             <source>Bundles</source>
             <translation>Paquetes</translation>
         </message>
-        <message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/topology/toolbox.cpp" line="1" />
             <source>Plugins</source>
             <translation>Complementos</translation>
@@ -19898,7 +20074,7 @@ Redes: %5</translation>
             <source>Show in Plugins</source>
             <translation>Mostrar en Complementos</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>TopologyView</name>
         <message numerus="yes">
@@ -20502,12 +20678,12 @@ Redes: %5</translation>
             <source>licence number</source>
             <translation>número de licencia</translation>
         </message>
-        <message>
+            <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/licence_dialog.cpp" line="1" />
             <source>Plugins</source>
             <translation>Complementos</translation>
         </message>
-    </context>
+</context>
     <context>
         <name>LicenceImport</name>
         <message>
@@ -21037,8 +21213,274 @@ Redes: %5</translation>
         </message>
     </context>
     <context>
-        <name>PluginDecisionDialog</name>
+        <name>UpdateNotice</name>
         <message>
+            <location filename="../src/shell/update_notice.cpp" line="26" />
+            <location filename="../src/shell/update_notice.cpp" line="76" />
+            <source>Turn on</source>
+            <translation>Activar</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="77" />
+            <source>Details</source>
+            <translation>Detalles</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="79" />
+            <source>No thanks</source>
+            <translation>No, gracias</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="80" />
+            <source>Later</source>
+            <translation>Más tarde</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="113" />
+            <source>Check for updates automatically? Once a day Studio would ask virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>¿Buscar actualizaciones automáticamente? Una vez al día, Studio consultaría virtual-serial-studio.com para saber cuál es la versión más reciente. No se envía nada sobre usted ni sobre este equipo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="122" />
+            <source>Virtual Serial Studio %1 is available.</source>
+            <translation>Virtual Serial Studio %1 está disponible.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="130" />
+            <source>Studio will check for updates once a day.</source>
+            <translation>Studio buscará actualizaciones una vez al día.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="132" />
+            <source>Studio will not check for updates. You can change this in Settings.</source>
+            <translation>Studio no buscará actualizaciones. Puede cambiarlo en Ajustes.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateChip</name>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="139" />
+            <source>Update available</source>
+            <translation>Actualización disponible</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="144" />
+            <source>Update available: version %1. Open the update.</source>
+            <translation>Actualización disponible: versión %1. Abrir la actualización.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateDialog</name>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="164" />
+            <source>Update Virtual Serial Studio</source>
+            <translation>Actualizar Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="209" />
+            <source>What is new</source>
+            <translation>Novedades</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="238" />
+            <source>Release notes</source>
+            <translation>Notas de la versión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="273" />
+            <source>Download progress</source>
+            <translation>Progreso de la descarga</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="292" />
+            <source>Restart Studio to use the new version.</source>
+            <translation>Reinicie Studio para usar la nueva versión.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="299" />
+            <source>The package could not be installed. Use the command above.</source>
+            <translation>No se pudo instalar el paquete. Use el comando de arriba.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="336" />
+            <source>Skip this version</source>
+            <translation>Omitir esta versión</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="342" />
+            <source>Not now</source>
+            <translation>Ahora no</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="343" />
+            <source>Cancel</source>
+            <translation>Cancelar</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="346" />
+            <source>Show in folder</source>
+            <translation>Mostrar en la carpeta</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="349" />
+            <source>Download and install</source>
+            <translation>Descargar e instalar</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="352" />
+            <source>Open the downloads page</source>
+            <translation>Abrir la página de descargas</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="355" />
+            <source>Install now</source>
+            <translation>Instalar ahora</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="358" />
+            <source>Open the disk image</source>
+            <translation>Abrir la imagen de disco</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="361" />
+            <source>Install</source>
+            <translation>Instalar</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="364" />
+            <source>Try again</source>
+            <translation>Reintentar</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="366" />
+            <source>Close</source>
+            <translation>Cerrar</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="443" />
+            <source>Could not start the installer</source>
+            <translation>No se pudo iniciar el instalador</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="445" />
+            <source>Studio could not start %1. It is in %2.</source>
+            <translation>Studio no pudo iniciar %1. Está en %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="461" />
+            <source>The download was not the file that was published, so it was deleted.</source>
+            <translation>La descarga no era el archivo publicado, así que se eliminó.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="469" />
+            <source>Studio could not save the download.</source>
+            <translation>Studio no pudo guardar la descarga.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="474" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio no pudo conectar con el servidor de actualizaciones. Compruebe la conexión e inténtelo de nuevo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="480" />
+            <source>Could not download the update</source>
+            <translation>No se pudo descargar la actualización</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="531" />
+            <source>Version %1 is available. You have %2.</source>
+            <translation>La versión %1 está disponible. Tiene %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="545" />
+            <source>Release notes for version %1, opens in your browser</source>
+            <translation>Notas de la versión %1, se abren en su navegador</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="553" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="558" />
+            <source>There is no package for this kind of install. Download one from virtual-serial-studio.com.</source>
+            <translation>No hay ningún paquete para este tipo de instalación. Descargue uno de virtual-serial-studio.com.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="571" />
+            <source>%n port is running. Installing stops it.</source>
+            <translation>
+                <numerusform>%n puerto está en ejecución. La instalación lo detiene.</numerusform>
+                <numerusform>%n puertos están en ejecución. La instalación los detiene.</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="575" />
+            <source>%n ports are running. Installing stops them.</source>
+            <translation>
+                <numerusform>%n puerto está en ejecución. La instalación lo detiene.</numerusform>
+                <numerusform>%n puertos están en ejecución. La instalación los detiene.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="600" />
+            <source>Checking the download...</source>
+            <translation>Comprobando la descarga...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="609" />
+            <source>Downloading %1...</source>
+            <translation>Descargando %1...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="627" />
+            <source>%1 of %2</source>
+            <translation>%1 de %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="640" />
+            <source>%1 percent</source>
+            <translation>%1 por ciento</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="659" />
+            <source>The update is ready. Studio will close and the installer will start. Windows asks for an administrator.</source>
+            <translation>La actualización está lista. Studio se cerrará y se iniciará el instalador. Windows solicita un administrador.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="667" />
+            <source>The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens.</source>
+            <translation>La actualización está lista. Salga de Studio y arrastre Virtual Serial Studio a Aplicaciones en la ventana que se abre.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="675" />
+            <source>The update is ready. Install it with this command, then start Studio again.</source>
+            <translation>La actualización está lista. Instálela con este comando y luego inicie Studio de nuevo.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="680" />
+            <source>Install command</source>
+            <translation>Comando de instalación</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="696" />
+            <source>The download is in %1. This copy of Studio was unpacked from an archive, so unpack the new one in its place.</source>
+            <translation>La descarga está en %1. Esta copia de Studio se descomprimió de un archivo comprimido, así que descomprima la nueva en su lugar.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="821" />
+            <source>Studio will not mention %1 again.</source>
+            <translation>Studio no volverá a mencionar %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="25" />
+            <source>%1 MB</source>
+            <translation>%1 MB</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginDecisionDialog</name>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Switch on %1?</source>
             <translation>¿Activar %1?</translation>
@@ -21171,7 +21613,7 @@ Redes: %5</translation>
     </context>
     <context>
         <name>PluginInstallDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
             <source>Cancel</source>
             <translation>Cancelar</translation>
@@ -21219,7 +21661,7 @@ Redes: %5</translation>
     </context>
     <context>
         <name>PluginKeyImportDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_dialogs.cpp" line="1" />
             <source>Approve the key of %1?</source>
             <translation>¿Aprobar la clave de %1?</translation>
@@ -21287,7 +21729,7 @@ Redes: %5</translation>
     </context>
     <context>
         <name>PluginNoIsolationDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Run %1 without isolation?</source>
             <translation>¿Ejecutar %1 sin aislamiento?</translation>
@@ -21335,7 +21777,7 @@ Redes: %5</translation>
     </context>
     <context>
         <name>PluginPart</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
             <source>Switch on</source>
             <translation>Activar</translation>
@@ -21443,7 +21885,7 @@ Redes: %5</translation>
     </context>
     <context>
         <name>PluginsDialog</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_text.cpp" line="1" />
             <source>Virtual Serial Studio</source>
             <translation>Virtual Serial Studio</translation>
@@ -22364,7 +22806,7 @@ Redes: %5</translation>
     </context>
     <context>
         <name>PluginToolbox</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
             <source>%1 is starting.</source>
             <translation>%1 se está iniciando.</translation>
@@ -22396,7 +22838,7 @@ Del complemento %2
     </context>
     <context>
         <name>PluginTrafficChip</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/support/plugin_parts.cpp" line="1" />
             <source>Recording</source>
             <translation>Grabando</translation>
@@ -22443,7 +22885,7 @@ Del complemento %2
     </context>
     <context>
         <name>PluginSandbox</name>
-        <message>
+                <message>
             <location filename="D:/wt/boostasio-virtualserial-demoapp/plugin-gui-running/apps/vss_gui/src/backend/service_mapping.cpp" line="1" />
             <source>no containment</source>
             <translation>sin contención</translation>

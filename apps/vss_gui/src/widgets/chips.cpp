@@ -72,6 +72,14 @@ chip_palette palette_for(StatusChip::kind kind)
                 false,
                 false,
                 true};
+    case StatusChip::kind::info:
+        return {theme.colour(colour_role::accentSoft),
+                none,
+                theme.colour(colour_role::accentText),
+                theme.colour(colour_role::accent),
+                false,
+                false,
+                true};
     case StatusChip::kind::failed:
         return {theme.colour(colour_role::badSoft),
                 none,

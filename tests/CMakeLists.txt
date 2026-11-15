@@ -12,6 +12,7 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_control_audit.cpp
   unit/test_control_gateway.cpp
   unit/test_control_junit.cpp
+  unit/test_control_licence_watch.cpp
   unit/test_control_limiter.cpp
   unit/test_control_lines.cpp
   unit/test_control_loopback.cpp
@@ -61,14 +62,20 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_plugin_api_generator.cpp
   unit/test_plugin_api_instance.cpp
   unit/test_plugin_api_modifier.cpp
+  unit/test_plugin_api_ops.cpp
   unit/test_plugin_api_trigger.cpp
+  unit/test_plugin_bundle_sections.cpp
+  unit/test_plugin_decode_store.cpp
   unit/test_plugin_discover.cpp
+  unit/test_plugin_generator_feed.cpp
   unit/test_plugin_hash.cpp
   unit/test_plugin_install.cpp
   unit/test_plugin_licence.cpp
+  unit/test_plugin_traffic_tap.cpp
   unit/test_plugin_lifecycle.cpp
   unit/test_plugin_locations.cpp
   unit/test_plugin_manifest.cpp
+  unit/test_plugin_parameters.cpp
   unit/test_plugin_measure.cpp
   unit/test_plugin_protocol.cpp
   unit/test_plugin_session.cpp
@@ -114,6 +121,7 @@ if(WIN32)
     unit/platform/windows/test_license_locations_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
     unit/platform/windows/test_plugin_access_windows.cpp
+    unit/platform/windows/test_plugin_install_windows.cpp
     unit/platform/windows/test_plugin_locations_windows.cpp
     unit/platform/windows/test_ports_windows.cpp
     unit/platform/windows/test_timer_period_windows.cpp)
@@ -125,6 +133,7 @@ elseif(UNIX)
     unit/platform/posix/test_license_locations_posix.cpp
     unit/platform/posix/test_permissions_posix.cpp
     unit/platform/posix/test_plugin_access_posix.cpp
+    unit/platform/posix/test_plugin_install_posix.cpp
     unit/platform/posix/test_plugin_locations_posix.cpp)
   # The folders differ between Linux and macOS, so each has its own file.
   if(APPLE)
@@ -187,8 +196,8 @@ target_include_directories(vss_unit_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/fuzz
   ${PROJECT_SOURCE_DIR}/perf)
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
-  vss_agent_proto vss_agent_core vss_plugin vss_machine vss_rules vss_control_proto
-  vss_control_core vss_license_test_keys vss_update Vss::BoostJson
+  vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_machine vss_rules
+  vss_control_proto vss_control_core vss_license_test_keys vss_update Vss::BoostJson
   Vss::Monocypher)
 if(TARGET vss_cli_control)
   target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
@@ -225,7 +234,7 @@ endif()
 # how to start one.
 if(TARGET vss_cli)
   list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_cli.cpp
-    system/test_system_cli.cpp)
+    system/test_system_cli.cpp system/test_system_licence_cli.cpp)
   if(WIN32)
     list(APPEND VSS_SYSTEM_TEST_SOURCES
       support/platform/windows/child_process_windows.cpp)
@@ -269,6 +278,7 @@ if(MSVC AND ICL_SANITIZERS MATCHES "address")
 endif()
 list(APPEND VSS_SYSTEM_TEST_SOURCES
   system/test_system_plugin_control_relay.cpp
+  system/test_system_plugin_instances.cpp
   system/test_system_plugin_process.cpp
   system/test_system_plugin_runner.cpp
   system/test_system_plugin_service.cpp
@@ -499,6 +509,14 @@ endif()
 if(TARGET vss_gui_language_tests)
   add_test(NAME gui_language COMMAND vss_gui_language_tests --verbose)
   set_tests_properties(gui_language PROPERTIES
+    TIMEOUT 120
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
+endif()
+
+# The update service, driven with fakes. No test makes a request.
+if(TARGET vss_gui_updates_tests)
+  add_test(NAME gui_updates COMMAND vss_gui_updates_tests --verbose)
+  set_tests_properties(gui_updates PROPERTIES
     TIMEOUT 120
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;PATH=${VSS_QT_BIN_DIR};$ENV{PATH}")
 endif()

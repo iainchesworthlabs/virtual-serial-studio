@@ -100,7 +100,8 @@ TEST_CASE("plugin access: a policy file a user could have written is not "
     const fs::path file = scratch.path() / "policy.json";
     // It asks for everything to be allowed.  It must not get that.
     write_file(file, R"({ "policy_version": 1, "allow": "any",
-                          "min_sandbox": "none", "allow_no_sandbox": true })");
+                          "min_sandbox": "none", "allow_no_sandbox": true,
+                          "update_check": false })");
 
     const loaded_policy loaded = load_policy(file);
     REQUIRE(loaded.problem == errc::permission_denied);
@@ -110,6 +111,8 @@ TEST_CASE("plugin access: a policy file a user could have written is not "
     REQUIRE(rules == official_only_policy());
     REQUIRE(rules.allow == allow_level::official_only);
     REQUIRE(!rules.allow_no_sandbox);
+    // The file's "update_check": false is not followed either.
+    REQUIRE(rules.update_check);
 }
 
 TEST_CASE("plugin access: a policy file that is not a plain file is not used")

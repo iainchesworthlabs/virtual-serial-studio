@@ -11,6 +11,7 @@
 #include "support/setup_facts.hpp"
 #include "support/sign_in_start.hpp"
 #include "theme/theme.hpp"
+#include "updates/update_service.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
@@ -73,7 +74,14 @@ QWidget* scroll_page(QWidget* content, QWidget* parent)
 
 SettingsDialog::SettingsDialog(StudioBackend& backend,
                                const ui_settings& current, QWidget* parent)
-    : QDialog(parent), backend_(backend), settings_(current)
+    : SettingsDialog(backend, current, nullptr, parent)
+{
+}
+
+SettingsDialog::SettingsDialog(StudioBackend& backend,
+                               const ui_settings& current,
+                               updates::UpdateService* updates, QWidget* parent)
+    : QDialog(parent), backend_(backend), settings_(current), updates_(updates)
 {
     build();
 }
@@ -238,6 +246,58 @@ void SettingsDialog::build()
     ask_on_discard_->setObjectName(QStringLiteral("askOnDiscard"));
     ask_on_discard_->setChecked(settings_.ask_on_discard);
     general_layout->addWidget(ask_on_discard_);
+
+    // Updates: the last group of the page, only with the update service. The
+    // two check boxes are the service's settings and apply at once, as every
+    // setting does. They are not in `ui_settings`.
+    if (updates_ != nullptr)
+    {
+        auto* updates_label = new QLabel(
+            QCoreApplication::translate("Settings", "Updates"), general);
+        QFont updates_bold = Theme::instance().font(text_style::caption);
+        updates_bold.setWeight(QFont::DemiBold);
+        updates_label->setFont(updates_bold);
+        general_layout->addWidget(updates_label);
+
+        update_automatic_ =
+            new QCheckBox(QCoreApplication::translate(
+                              "Settings", "Check for updates automatically"),
+                          general);
+        update_automatic_->setObjectName(QStringLiteral("updateAutomatic"));
+        general_layout->addWidget(update_automatic_);
+        general_layout->addWidget(hint_label(
+            QCoreApplication::translate(
+                "Settings",
+                "Once a day Studio asks virtual-serial-studio.com for the "
+                "newest version. Nothing about you or this computer is "
+                "sent."),
+            general));
+
+        update_prerelease_ =
+            new QCheckBox(QCoreApplication::translate(
+                              "Settings", "Include pre-release versions"),
+                          general);
+        update_prerelease_->setObjectName(QStringLiteral("updatePrerelease"));
+        general_layout->addWidget(update_prerelease_);
+        general_layout->addWidget(hint_label(
+            QCoreApplication::translate(
+                "Settings",
+                "Offers release candidates as well as finished releases."),
+            general));
+
+        // Why the two check boxes are disabled, when they are.
+        update_note_ = hint_label(QString(), general);
+        update_note_->setObjectName(QStringLiteral("updateNote"));
+        general_layout->addWidget(update_note_);
+
+        connect(update_automatic_, &QCheckBox::toggled, this,
+                [this](bool on) { updates_->set_automatic(on); });
+        connect(update_prerelease_, &QCheckBox::toggled, this,
+                [this](bool on) { updates_->set_include_prerelease(on); });
+        connect(updates_, &updates::UpdateService::changed, this,
+                [this] { sync_updates(); });
+        sync_updates();
+    }
     general_layout->addStretch(1);
     pages_->addWidget(scroll_page(general, pages_));
 
@@ -802,8 +862,38 @@ void SettingsDialog::persist()
     Q_EMIT settings_changed(settings_);
 }
 
+void SettingsDialog::sync_updates()
+{
+    if (updates_ == nullptr)
+        return;
+    {
+        const QSignalBlocker block_automatic(update_automatic_);
+        const QSignalBlocker block_prerelease(update_prerelease_);
+        update_automatic_->setChecked(updates_->automatic());
+        update_prerelease_->setChecked(updates_->include_prerelease());
+    }
+    const bool available = updates_->available();
+    update_automatic_->setEnabled(available);
+    update_prerelease_->setEnabled(available);
+    QString note;
+    if (!available)
+    {
+        note =
+            updates_->state().state == updates::check_state::disabled_by_policy
+                ? QCoreApplication::translate("Settings",
+                                              "Set by your administrator.")
+                : QCoreApplication::translate(
+                      "Settings", "This build cannot check for updates.");
+    }
+    update_note_->setText(note);
+    update_note_->setVisible(!note.isEmpty());
+}
+
 void SettingsDialog::reset_to_defaults()
 {
+    // The update check boxes are left as they are: they are the service's
+    // settings, not `ui_settings`, and an answer given to the question of the
+    // first start must not be undone by a reset.
     settings_ = default_ui_settings();
     // The profiling switch reports what the profiler is doing now, and a
     // reset must not stop a recording in progress, so the choice for the next

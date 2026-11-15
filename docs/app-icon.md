@@ -47,4 +47,4 @@ the derived files does not merge.
   the top `CMakeLists.txt`, so a release changes it in one place.
 
 Help, About shows the icon, the version, the licence (GPL-3.0-or-later) and a link to the source. The link opens in the
-system's browser when the user follows it; the program makes no network request itself.
+system's browser when the user follows it; opening the link is the browser's request, and Studio makes none for it.

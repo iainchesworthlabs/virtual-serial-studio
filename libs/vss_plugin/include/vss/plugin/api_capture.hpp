@@ -35,8 +35,13 @@ namespace vss::plugin
 {
 
 /// The most places one `capture.start` names, and the most in the
-/// `places` of its `snapshot_on`.  A choice: the design gives no limit.
-inline constexpr std::size_t max_capture_places = 256;
+/// `places` of its `snapshot_on`.  A choice: the design gives no limit.  A
+/// name is at most 128 bytes and a list entry with its quotes and comma 131,
+/// so two full lists are 2 x 128 x 131 = 33,536 bytes, and the rest of the
+/// header is under 1,000: well inside the 64 KiB of a header.
+inline constexpr std::size_t max_capture_places = 128;
+/// The longest `name` of a recording, in bytes.
+inline constexpr std::size_t max_capture_name = 64;
 /// The largest `limit_bytes`: 256 MiB, the limit of a bundle section
 /// (section 19.5).
 inline constexpr std::uint64_t max_capture_bytes =
@@ -62,7 +67,7 @@ inline constexpr std::uint64_t max_snapshot_seconds = 600;
 inline constexpr double min_time_scale = 0.01;
 inline constexpr double max_time_scale = 100.0;
 /// The longest `recording` of `timeline.load`, in bytes.  A choice.
-inline constexpr std::size_t max_recording_path = 1024;
+inline constexpr std::size_t max_recording_path = max_path_length;
 
 /// The most files in one bundle section (section 19.5).
 inline constexpr std::size_t max_bundle_files = 16;
@@ -105,6 +110,10 @@ struct capture_start_message
     /// 1 to `max_capture_places` names, each 1 to `max_api_name` bytes of
     /// plain text, none twice.
     std::vector<std::string> places;
+    /// The stem of the recording's file name, 0 to `max_capture_name` bytes,
+    /// by the rules of a manifest path name and with no slash.  Empty: the
+    /// host chooses one.  The answer to `capture.status` gives the path.
+    std::string name;
     /// 1 to `max_capture_bytes`.  The recording stops when it is reached.
     std::uint64_t limit_bytes = default_capture_bytes;
     /// 1 to `max_capture_seconds`.  The recording stops when it is reached.
@@ -161,6 +170,13 @@ struct capture_result_message
     std::uint64_t dropped = 0;
     /// Whether the recording is a ring.
     bool ring = false;
+    /// The file the host writes, as a path inside the plugin's data
+    /// directory, by the rules of `check_relative_path`: 1 to
+    /// `max_recording_path` bytes.  `timeline.load` and `bundle.result` use
+    /// the same kind of path.
+    std::string recording;
+    /// The bytes of that file so far, 0 to `max_api_number`.
+    std::uint64_t size = 0;
 
     friend bool operator==(const capture_result_message&,
                            const capture_result_message&) = default;
@@ -175,10 +191,11 @@ struct timeline_load_message
     static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
-    /// The recording inside the plugin's data directory: 1 to
-    /// `max_recording_path` bytes of plain text.
+    /// The recording, as a path inside the plugin's data directory by the
+    /// rules of `check_relative_path`: 1 to `max_recording_path` bytes.
     std::string recording;
-    /// The place it plays onto: 1 to `max_api_name` bytes of plain text.
+    /// The name the hub gives the place it plays onto: 1 to `max_api_name`
+    /// bytes.
     std::string place;
     /// `min_time_scale` to `max_time_scale`.  1.0 is the recorded timing.
     double time_scale = 1.0;
@@ -213,8 +230,9 @@ struct bundle_prepare_message
 /// One file of a bundle section, in the plugin's data directory.
 struct bundle_file
 {
-    /// A plain file name of 1 to `max_bundle_file_name` bytes: no `/`, no
-    /// backslash, not `.` or `..`, and no control character.
+    /// A path inside the folder of the section, by the rules of
+    /// `check_relative_path`, of 1 to `max_bundle_file_name` bytes.  No two
+    /// paths of one list are the same when case is ignored.
     std::string name;
     /// 0 to `max_bundle_section_bytes`.
     std::uint64_t size = 0;

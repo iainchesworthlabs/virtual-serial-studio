@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace test_plugin
 {
@@ -45,9 +46,12 @@ struct serve_options
     /// After "hello_ack": a request with this "op" and an empty body, whose
     /// answer is printed as "answer <op of the answer>".
     std::optional<std::string> send_op;
-    /// A request with this "op" is answered with "ok" and printed as
-    /// "got <op>".
-    std::optional<std::string> echo_op;
+    /// A request with one of these "op"s is answered with "ok" and printed
+    /// as "got <op>".
+    std::vector<std::string> echo_ops;
+    /// A request with one of these "op"s is answered with an "error" whose
+    /// text is "refused by the test plugin", and printed as "got <op>".
+    std::vector<std::string> refuse_ops;
     /// After "hello_ack": 64 bytes that are not a frame.
     bool garbage_after_ready = false;
     /// After "hello_ack": this many "log" messages, as fast as possible.

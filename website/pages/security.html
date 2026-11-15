@@ -45,7 +45,7 @@ FD13 CB8C AC83 1664 8CD9  74D0 8149 254C 4189 4DBE</code></pre>
 <h2 id="design">How the product limits risk</h2>
 <ul>
 <li>Nothing listens on the network until you create an endpoint, and you choose the address and who may connect.</li>
-<li>The application has no telemetry and makes no connection of its own.</li>
+<li>The application has no telemetry. Its only connection of its own is the check for updates, which is off until you turn it on, and the download of an update that you agreed to.</li>
 <li>Plugins, when they arrive, run in a separate process, and an unsigned plugin loads only after you confirm.</li>
 <li>The control endpoint is off by default and local only when first turned on.</li>
 </ul>
