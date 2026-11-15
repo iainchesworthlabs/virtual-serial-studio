@@ -60,6 +60,7 @@ struct scan_result
 {
     std::vector<scanned_plugin> plugins;
     std::vector<std::string> notes;
+    std::vector<approved_key> approved_keys;
 };
 
 /// A change to the trust store, made before a scan.
@@ -207,6 +208,27 @@ public:
              { static_cast<void>(store.forget(id, hash, key_id)); });
     }
 
+    void approve_key(approved_key key)
+    {
+        scan(
+            [key = std::move(key)](trust_store& store,
+                                   const inspect_context& context,
+                                   std::vector<std::string>& notes) mutable
+            {
+                key.approved_on = std::chrono::year_month_day{context.today};
+                if (const auto stored = store.approve_key(std::move(key));
+                    !stored)
+                    notes.emplace_back("The key could not be approved.");
+            });
+    }
+
+    void forget_key(const std::string& key_id)
+    {
+        scan([key_id](trust_store& store, const inspect_context&,
+                      std::vector<std::string>&)
+             { static_cast<void>(store.forget_key(key_id)); });
+    }
+
     /// Puts a decision in the store, dated today, and says so when the
     /// store will not take it.
     static void keep(trust_store& store, plugin_decision decision,
@@ -300,6 +322,7 @@ private:
             shown.directory = plugin.directory;
             shown.scope = plugin.scope;
             shown.hash = plugin.hash;
+            shown.declared = plugin.declared;
             if (plugin.declared.has_value())
             {
                 shown.id = plugin.declared->id;
@@ -333,6 +356,8 @@ private:
                                                checked.hash, checked.key_id);
             }
             shown.decided = decision != nullptr;
+            if (decision != nullptr)
+                shown.decision = *decision;
 
             std::string detail;
             auto planned = plan_start(checked, decision, plan, &detail);
@@ -356,6 +381,8 @@ private:
             }
             result.plugins.push_back(std::move(scanned));
         }
+        if (context.trust.has_value())
+            result.approved_keys = context.trust->keys();
         for (const root_problem& root : found.roots)
         {
             if (root.problem && !root.detail.empty())
@@ -370,6 +397,7 @@ private:
         scanning_ = false;
         ++scans_;
         notes_ = std::move(found.notes);
+        approved_keys_ = std::move(found.approved_keys);
         shown_.clear();
         std::map<std::string, running_plugin> keep;
         for (scanned_plugin& scanned : found.plugins)
@@ -513,6 +541,7 @@ private:
                 plugin.run = found->second.runner->snapshot();
         }
         next->notes = notes_;
+        next->approved_keys = approved_keys_;
         next->scanning = scanning_;
         next->scans = scans_;
         next->revision = ++revision_;
@@ -533,6 +562,7 @@ private:
     std::vector<store_change> waiting_changes_;
     std::vector<service_plugin> shown_;
     std::vector<std::string> notes_;
+    std::vector<approved_key> approved_keys_;
     std::map<std::string, running_plugin> running_;
     /// Runners that were told to stop and have not yet.
     std::vector<std::shared_ptr<plugin_runner>> leaving_;
@@ -599,6 +629,18 @@ void plugin_service::forget(std::string plugin_id)
             self.when_scanned([plugin_id = std::move(plugin_id)](impl& me)
                               { me.forget(plugin_id); });
         });
+}
+
+void plugin_service::approve_key(approved_key key)
+{
+    impl_->post([key = std::move(key)](impl& self) mutable
+                { self.approve_key(std::move(key)); });
+}
+
+void plugin_service::forget_key(std::string key_id)
+{
+    impl_->post([key_id = std::move(key_id)](impl& self)
+                { self.forget_key(key_id); });
 }
 
 std::shared_ptr<const service_snapshot> plugin_service::snapshot() const
