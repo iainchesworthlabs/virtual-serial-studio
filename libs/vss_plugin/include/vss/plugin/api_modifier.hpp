@@ -45,6 +45,13 @@ inline constexpr std::size_t max_modifier_chunks = 256;
 inline constexpr std::uint64_t max_modifier_parts = 16;
 /// How much more than four times its batch a result may hold (section 7.6).
 inline constexpr std::size_t modifier_result_extra = 1024;
+/// The largest `flush_on`: one byte value.
+inline constexpr std::uint64_t max_flush_on = 255;
+/// The most bytes of the blob of one `modifier.result`: four times the largest
+/// batch and `modifier_result_extra` (section 7.6), 263,168 bytes.  It is more
+/// than `max_api_blob`, which is the limit of every other message.
+inline constexpr std::size_t max_modifier_result_blob =
+    4 * max_modifier_batch + modifier_result_extra;
 
 /// Which way of a link a modifier works on.
 enum class modifier_direction
@@ -70,7 +77,7 @@ struct modifier_create_message
 
     std::uint64_t instance = 0;
     /// 1 to `max_api_number`.
-    std::uint64_t link = 0;
+    std::string place;
     modifier_direction direction = modifier_direction::a_to_b;
     /// The parameters as one JSON object, already checked.  "{}" for none.
     std::string params = "{}";
@@ -159,7 +166,7 @@ struct modifier_action
     modifier_action_kind kind = modifier_action_kind::pass;
     /// `replace`, `insert_before`, `insert_after`: a range of the result
     /// blob.  `length` is 0 or more for `replace` and 1 or more for the
-    /// others.  Both are at most `max_api_blob`.
+    /// others.  Both are at most `max_modifier_result_blob`.
     std::uint64_t offset = 0;
     std::uint64_t length = 0;
     /// `delay_us`: 1 to `max_api_delay_us`.
@@ -190,7 +197,8 @@ struct modifier_result_message
     std::uint64_t seq = 0;
     /// 1 to `max_modifier_chunks` entries: one for each chunk, in order.
     std::vector<modifier_action> actions;
-    /// 0 to `max_api_blob` bytes, in the blob: what the actions refer to.
+    /// 0 to `max_modifier_result_blob` bytes, in the blob: what the actions
+    /// refer to.
     byte_buffer data;
 
     friend bool operator==(const modifier_result_message&,
@@ -211,10 +219,12 @@ struct modifier_stop_message
 };
 
 /// The host's bounds of section 7.6, for a result to a batch of
-/// `batch_bytes`: the result blob is at most four times the batch plus
-/// `modifier_result_extra` bytes, and the delays (`delay_us`, and the gaps
-/// of a `split`, which has `parts` less one of them) add up to at most
-/// `max_api_delay_us`.  A result that is not within them fails the whole
+/// `batch_bytes`: what the actions can send on (the batch itself and the
+/// length of every `replace` and insert, whether or not their ranges of the
+/// result blob are the same) and the result blob are each at most four times
+/// the batch plus `modifier_result_extra` bytes, and the delays (`delay_us`,
+/// and the gaps of a `split`, which has `parts` less one of them) add up to at
+/// most `max_api_delay_us`.  A result that is not within them fails the whole
 /// batch.
 bool modifier_result_within_bounds(
     std::size_t batch_bytes, const modifier_result_message& result) noexcept;

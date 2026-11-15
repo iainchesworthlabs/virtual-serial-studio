@@ -34,8 +34,10 @@ inline plugin::api_message message_of(std::string_view header,
     agent::frame frame;
     frame.header = std::string(header);
     frame.blob = std::move(blob);
-    const auto decoded = plugin::decode_message(frame);
-    REQUIRE(decoded.has_value());
+    std::string detail;
+    const auto decoded = plugin::decode_message(frame, &detail);
+    if (decoded.has_error())
+        throw vss_test::failure("the header is not a message: " + detail);
     return decoded.value();
 }
 
@@ -112,6 +114,22 @@ void require_refused(std::string_view header, std::string_view fragment,
     const auto again = plugin::decode_as<M>(message);
     REQUIRE(again.has_error());
     REQUIRE(again.error() == plugin::api_errc::bad_request);
+}
+
+/// `header` is refused, and the line for the log does not hold `text`: a
+/// detail never repeats what the plugin sent.
+template <class message_type>
+void require_detail_without(std::string_view header, std::string_view text,
+                            byte_buffer blob = {})
+{
+    const plugin::api_message message = message_of(header, std::move(blob));
+    std::string detail;
+    const auto typed = plugin::decode_as<message_type>(message, &detail);
+    REQUIRE(typed.has_error());
+    REQUIRE(!detail.empty());
+    if (detail.find(text) != std::string::npos)
+        throw vss_test::failure("the detail repeats " + std::string(text) +
+                                ": " + detail);
 }
 
 /// `body` cannot be written: it would not read back.

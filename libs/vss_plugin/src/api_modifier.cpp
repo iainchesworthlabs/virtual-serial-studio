@@ -56,8 +56,7 @@ void read_create(reading& state, const json::object& object,
 {
     constexpr auto where = modifier_create_message::op();
     out.instance = instance_of(state, object, where);
-    out.link = number_of(state, object, where, "link", 1, max_api_number, true)
-                   .value_or(0);
+    out.place = place_of(state, object, where, "place", true);
     const auto direction =
         choice_of(state, object, where, "direction", direction_names,
                   "\"a_to_b\" or \"b_to_a\"", true);
@@ -79,7 +78,7 @@ void read_create(reading& state, const json::object& object,
     if (action.has_value())
         out.on_timeout = *action;
     const auto flush =
-        number_of(state, object, where, "flush_on", 0, 255, false);
+        number_of(state, object, where, "flush_on", 0, max_flush_on, false);
     if (flush.has_value())
         out.flush_on = static_cast<std::uint8_t>(*flush);
 }
@@ -87,7 +86,7 @@ void read_create(reading& state, const json::object& object,
 bool write_create(json::object& header, const modifier_create_message& body)
 {
     header.emplace("instance", body.instance);
-    header.emplace("link", body.link);
+    header.emplace("place", text_value(body.place));
     header.emplace("direction", text_value(to_string(body.direction)));
     if (!put_object_text(header, "params", body.params))
         return false;
@@ -208,12 +207,12 @@ void read_action(reading& state, const json::object& object,
     {
         const std::uint64_t least =
             out.kind == modifier_action_kind::replace ? 0 : 1;
-        out.offset =
-            number_of(state, object, where, "offset", 0, max_api_blob, true)
-                .value_or(0);
-        out.length =
-            number_of(state, object, where, "length", least, max_api_blob, true)
-                .value_or(0);
+        out.offset = number_of(state, object, where, "offset", 0,
+                               max_modifier_result_blob, true)
+                         .value_or(0);
+        out.length = number_of(state, object, where, "length", least,
+                               max_modifier_result_blob, true)
+                         .value_or(0);
         if (!state.failed() &&
             (out.offset > blob_size || out.length > blob_size - out.offset))
             state.fail(where, "has a range that is not inside the result blob");
@@ -251,7 +250,7 @@ void read_result(reading& state, const json::object& object,
     constexpr auto where = modifier_result_message::op();
     out.instance = instance_of(state, object, where);
     out.seq = sequence_of(state, object, where);
-    blob_between(state, where, out.data, 0, max_api_blob);
+    blob_between(state, where, out.data, 0, max_modifier_result_blob);
     const json::array* const list =
         list_of(state, object, where, "actions", max_modifier_chunks, true);
     if (state.failed() || list == nullptr)
@@ -352,13 +351,33 @@ std::string_view to_string(modifier_action_kind value) noexcept
 bool modifier_result_within_bounds(
     std::size_t batch_bytes, const modifier_result_message& result) noexcept
 {
-    // Four times the batch and a little more, without overflow.
-    const std::size_t size = result.data.size();
-    const std::size_t excess =
-        size > modifier_result_extra ? size - modifier_result_extra : 0;
-    if (batch_bytes <= static_cast<std::size_t>(-1) / 4 &&
-        excess > batch_bytes * 4)
+    // What the actions can send on: at most the batch itself, which passes
+    // or is replaced or dropped, and every range an action adds.  Actions may
+    // use the same range of the result blob, so the sum of what they add can
+    // be many times the blob.  Each term is at most 256 KiB and there are at
+    // most 256 of them, so the sum cannot wrap.
+    constexpr std::uint64_t largest = std::numeric_limits<std::uint64_t>::max();
+    const std::uint64_t batch = batch_bytes;
+    const std::uint64_t most = batch > (largest - modifier_result_extra) / 4
+                                   ? largest
+                                   : batch * 4 + modifier_result_extra;
+    if (result.data.size() > most)
         return false;
+    std::uint64_t emitted = batch;
+    for (const modifier_action& action : result.actions)
+    {
+        if (action.kind != modifier_action_kind::replace &&
+            action.kind != modifier_action_kind::insert_before &&
+            action.kind != modifier_action_kind::insert_after)
+            continue;
+        // A batch so large that four times it does not fit in a number has no
+        // bound that a result could break.
+        if (most == largest)
+            continue;
+        if (action.length > most - emitted)
+            return false;
+        emitted += action.length;
+    }
 
     // The delays and the gaps of the splits add up to at most a minute.  Each
     // term is checked first, so that nothing wraps.

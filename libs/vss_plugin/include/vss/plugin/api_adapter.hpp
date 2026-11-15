@@ -35,7 +35,11 @@ namespace vss::plugin
 inline constexpr std::size_t max_agent_op = 64;
 /// The most places one `agent.subscribe` names.  A choice: the design gives no
 /// limit.
-inline constexpr std::size_t max_subscribe_places = 256;
+inline constexpr std::size_t max_subscribe_places = 128;
+/// The longest `kind` of an `agent.event`, in bytes.
+inline constexpr std::size_t max_agent_event_kind = 64;
+/// The most bytes of the blob of one `agent.event`.
+inline constexpr std::size_t max_agent_event_data = std::size_t{64} * 1024;
 /// The longest address in `adapter.state`, in bytes.  A choice: the design
 /// gives no limit.
 inline constexpr std::size_t max_adapter_address = 256;
@@ -103,6 +107,33 @@ struct agent_subscribe_message
                            const agent_subscribe_message&) = default;
 };
 
+/// An event of the agent that the plugin subscribed to.  The host sends one
+/// for each event that the subscription and the grant allow.  When the
+/// subscription asked for data, the bytes of the event are in the blob.
+struct agent_event_message
+{
+    static constexpr std::string_view op() noexcept { return "agent.event"; }
+    static constexpr api_side from() noexcept { return api_side::host; }
+    static constexpr api_role role() noexcept { return api_role::notification; }
+
+    /// The "id" of the `agent.subscribe` that asked for it: 1 to
+    /// `max_api_number`.
+    std::uint64_t subscription = 0;
+    /// What happened, as the agent names it (`counters`, `data`, `line` and
+    /// so on): a token of 1 to `max_agent_event_kind` bytes.
+    std::string kind;
+    /// The name the hub gives the place it happened at: 1 to `max_api_name`
+    /// bytes.
+    std::string place;
+    /// When, in nanoseconds on the host's clock: 0 to `max_api_number`.
+    std::uint64_t t_ns = 0;
+    /// The bytes of the event, 0 to `max_agent_event_data`, in the blob.
+    byte_buffer data;
+
+    friend bool operator==(const agent_event_message&,
+                           const agent_event_message&) = default;
+};
+
 /// What the adapter listens on, for the plugin's page.
 struct adapter_state_message
 {
@@ -126,6 +157,12 @@ struct adapter_state_message
 /// running.
 api_message make_plugin_unavailable(std::uint64_t re);
 
+template <>
+result<agent_event_message> decode_as<agent_event_message>(const api_message&,
+                                                           std::string*);
+template <>
+result<api_message> encode_as<agent_event_message>(const agent_event_message&,
+                                                   std::uint64_t);
 template <>
 result<agent_call_message> decode_as<agent_call_message>(const api_message&,
                                                          std::string*);

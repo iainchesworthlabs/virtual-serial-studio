@@ -41,7 +41,10 @@ inline constexpr std::uint64_t max_place_rate = 100'000'000;
 /// The longest format of a place ("8N1"), in bytes.
 inline constexpr std::size_t max_place_format = 16;
 /// The most items in one `decoder.data`.
-inline constexpr std::size_t max_decoder_items = 256;
+inline constexpr std::size_t max_decoder_items = 128;
+/// The number of entries in the `covers` of a trigger: the first byte and the
+/// last.
+inline constexpr std::size_t trigger_covers_count = 2;
 /// The most bytes in the blob of one `decoder.data`: what the host leaves
 /// unacknowledged (section 20.4).
 inline constexpr std::size_t max_decoder_blob = max_api_blob;
@@ -181,10 +184,13 @@ struct decoder_line_error_item
 /// The verdict of a half-duplex bus, with the sender's chunk.
 struct decoder_bus_fault_item
 {
-    std::string link;
+    /// The name the hub gives the link the bus is on.
+    std::string place;
     std::string sender;
     std::uint64_t t_ns = 0;
     decoder_fault fault = decoder_fault::overlap;
+    /// The id of the event that `trigger.publish` names in `cause.event`.
+    std::uint64_t event = 0;
     std::uint64_t offset = 0;
     /// 1 to `max_decoder_chunk`.
     std::uint64_t length = 0;
@@ -264,6 +270,8 @@ struct decoder_data_message
     static constexpr api_role role() noexcept { return api_role::notification; }
 
     /// 1 to `max_api_number`.
+    std::uint64_t instance = 0;
+    /// 1 to `max_api_number`.
     std::uint64_t seq = 0;
     /// 1 to `max_decoder_items` items.
     std::vector<decoder_item> items;
@@ -281,6 +289,8 @@ struct decoder_ack_message
     static constexpr api_side from() noexcept { return api_side::plugin; }
     static constexpr api_role role() noexcept { return api_role::notification; }
 
+    /// 1 to `max_api_number`.
+    std::uint64_t instance = 0;
     /// 1 to `max_api_number`.
     std::uint64_t seq = 0;
 
@@ -366,8 +376,10 @@ struct trigger_field
 {
     /// 1 to `max_decoder_name` bytes.  Plain text.
     std::string name;
+    /// From the start of the frame.
     std::uint64_t offset = 0;
-    /// 1 to `max_decoder_chunk`.
+    /// 0 to `max_decoder_chunk`, and `offset` plus `length` is not past the
+    /// frame's length.
     std::uint64_t length = 0;
 
     friend bool operator==(const trigger_field&,

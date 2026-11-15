@@ -95,7 +95,7 @@ TEST_CASE("plugin api: trigger.publish is written and read")
             R"("t_start_ns":18203200000,"t_end_ns":18204113250,)"
             R"("message":"read reply"},"field":{"name":"check","offset":7,)"
             R"("length":2},"expected":"3A91","actual":"3A90","covers":[1,6],)"
-            R"("cause":{"bus_fault":"overlap","event":9912},)"
+            R"("cause":{"fault":"overlap","event":9912},)"
             R"("request":{"offset":48205,"length":8,"t_end_ns":18201000000},)"
             R"("text":"Check value is 3A90, expected 3A91."})"));
 }
@@ -454,6 +454,8 @@ TEST_CASE("plugin api: the frame of a trigger is checked")
         "trigger.publish.frame.message: must be plain text");
 
     trigger_publish_message body = sample_trigger();
+    body.field.reset();
+    body.covers.reset();
     body.frame = trigger_frame{0, 0, 1, 2, "m"};
     require_not_written(body);
     body.frame = trigger_frame{0, 1, 3, 2, "m"};
@@ -467,8 +469,12 @@ TEST_CASE("plugin api: the frame of a trigger is checked")
 TEST_CASE("plugin api: the field and the request of a trigger are checked")
 {
     using message_type = trigger_publish_message;
-    const auto field = [](std::string_view text)
-    { return trigger_head + R"(,"field":)" + std::string(text) + "}"; };
+    // A frame as long as a frame can be, so that its field is inside it.
+    const std::string frame =
+        R"(,"frame":{"offset":0,"length":65536,"t_start_ns":1,"t_end_ns":2,)"
+        R"("message":"m"})";
+    const auto field = [&frame](std::string_view text)
+    { return trigger_head + frame + R"(,"field":)" + std::string(text) + "}"; };
     const auto request = [](std::string_view text)
     { return trigger_head + R"(,"request":)" + std::string(text) + "}"; };
     (void)accepted<message_type>(
@@ -488,16 +494,21 @@ TEST_CASE("plugin api: the field and the request of a trigger are checked")
                                   "trigger.publish.field.offset: is required");
     require_refused<message_type>(field(R"({"name":"c","offset":7})"),
                                   "trigger.publish.field.length: is required");
+    // A field of no bytes is a field that is not there.
+    REQUIRE_EQ(
+        accepted<message_type>(field(R"({"name":"c","offset":7,"length":0})"))
+            .field->length,
+        std::uint64_t{0});
     require_refused<message_type>(
-        field(R"({"name":"c","offset":7,"length":0})"),
+        field(R"({"name":"c","offset":7,"length":-1})"),
         "trigger.publish.field.length: must be a whole number "
-        "from 1 to 65536");
+        "from 0 to 65536");
     require_refused<message_type>(
-        field(R"({"name":"c","offset":7,"length":65537})"),
+        field(R"({"name":"c","offset":0,"length":65537})"),
         "trigger.publish.field.length: must be a whole number "
-        "from 1 to 65536");
+        "from 0 to 65536");
     (void)accepted<message_type>(
-        field(R"({"name":"c","offset":7,"length":65536})"));
+        field(R"({"name":"c","offset":0,"length":65536})"));
 
     (void)accepted<message_type>(
         request(R"({"offset":4,"length":8,"t_end_ns":9})"));
@@ -526,7 +537,7 @@ TEST_CASE("plugin api: the field and the request of a trigger are checked")
 
     trigger_publish_message body = sample_trigger();
     body.field = trigger_field{"c", 1, 0};
-    require_not_written(body);
+    (void)round_trip(body);
     body.field = trigger_field{"", 1, 1};
     require_not_written(body);
     body.field = trigger_field{"c", 1, 65537};
@@ -595,16 +606,23 @@ TEST_CASE("plugin api: the check value of a trigger comes in a pair")
 TEST_CASE("plugin api: the range that a check value covers is a pair")
 {
     using message_type = trigger_publish_message;
-    const auto with = [](std::string_view covers)
-    { return trigger_head + R"(,"covers":)" + std::string(covers) + "}"; };
+    const std::string frame =
+        R"(,"frame":{"offset":0,"length":65536,"t_start_ns":1,"t_end_ns":2,)"
+        R"("message":"m"})";
+    const auto with = [&frame](std::string_view covers)
+    {
+        return trigger_head + frame + R"(,"covers":)" + std::string(covers) +
+               "}";
+    };
     REQUIRE(accepted<message_type>(with("[1,6]")).covers ==
             std::optional<trigger_covers>(trigger_covers{1, 6}));
     REQUIRE(accepted<message_type>(with("[4,4]")).covers ==
             std::optional<trigger_covers>(trigger_covers{4, 4}));
-    REQUIRE(
-        accepted<message_type>(with("[0," + number_text(max_api_number) + "]"))
-            .covers ==
-        std::optional<trigger_covers>(trigger_covers{0, max_api_number}));
+    REQUIRE(accepted<message_type>(with("[0,65535]")).covers ==
+            std::optional<trigger_covers>(trigger_covers{0, 65535}));
+    require_refused<message_type>(
+        with("[0,65536]"), "trigger.publish.covers: does not lie within the "
+                           "frame");
     require_refused<message_type>(
         with("[6,1]"), "trigger.publish.covers[1]: must not be before the "
                        "first entry");
@@ -636,52 +654,96 @@ TEST_CASE("plugin api: the range that a check value covers is a pair")
     (void)round_trip(body);
 }
 
+TEST_CASE("plugin api: a field and a covered range lie inside the frame")
+{
+    using message_type = trigger_publish_message;
+    const std::string frame =
+        R"(,"frame":{"offset":40,"length":10,"t_start_ns":1,"t_end_ns":2,)"
+        R"("message":"m"})";
+    const auto with = [&frame](std::string_view more)
+    { return trigger_head + frame + std::string(more) + "}"; };
+    // Offsets of a field count from the start of the frame, not of the place.
+    (void)accepted<message_type>(
+        with(R"(,"field":{"name":"c","offset":8,"length":2})"));
+    require_refused<message_type>(
+        with(R"(,"field":{"name":"c","offset":8,"length":3})"),
+        "trigger.publish.field: does not lie within the frame");
+    require_refused<message_type>(
+        with(R"(,"field":{"name":"c","offset":11,"length":0})"),
+        "trigger.publish.field: does not lie within the frame");
+    (void)accepted<message_type>(
+        with(R"(,"field":{"name":"c","offset":10,"length":0})"));
+    (void)accepted<message_type>(with(R"(,"covers":[0,9])"));
+    require_refused<message_type>(
+        with(R"(,"covers":[0,10])"),
+        "trigger.publish.covers: does not lie within the frame");
+    // Neither has anything to lie in without a frame.
+    require_refused<message_type>(
+        trigger_head + R"(,"field":{"name":"c","offset":0,"length":1}})",
+        "trigger.publish.field: needs a frame to lie in");
+    require_refused<message_type>(
+        trigger_head + R"(,"covers":[0,1]})",
+        "trigger.publish.covers: needs a frame to lie in");
+
+    trigger_publish_message body = sample_trigger();
+    body.frame = trigger_frame{40, 10, 1, 2, "m"};
+    body.field = trigger_field{"c", 8, 3};
+    require_not_written(body);
+    body.field = trigger_field{"c", 8, 2};
+    body.covers = trigger_covers{0, 10};
+    require_not_written(body);
+    body.covers = trigger_covers{0, 9};
+    (void)round_trip(body);
+    body.frame.reset();
+    require_not_written(body);
+}
+
 TEST_CASE("plugin api: the cause of a trigger is one of two")
 {
     using message_type = trigger_publish_message;
     const auto with = [](std::string_view cause)
     { return trigger_head + R"(,"cause":)" + std::string(cause) + "}"; };
-    REQUIRE(
-        accepted<message_type>(with(R"({"bus_fault":"overlap","event":9912})"))
-            .cause == std::optional<trigger_cause>(trigger_cause{
-                          trigger_bus_cause{decoder_fault::overlap, 9912}}));
+    REQUIRE(accepted<message_type>(with(R"({"fault":"overlap","event":9912})"))
+                .cause ==
+            std::optional<trigger_cause>(trigger_cause{
+                trigger_bus_cause{decoder_fault::overlap, 9912}}));
     REQUIRE(
         accepted<message_type>(with(R"({"own_action":17})")).cause ==
         std::optional<trigger_cause>(trigger_cause{trigger_own_action{17}}));
     for (const std::string_view fault :
          {"overlap", "too_soon", "line_held", "transmitter_off", "overrun"})
     {
-        (void)round_trip(accepted<message_type>(with(
-            "{\"bus_fault\":\"" + std::string(fault) + "\",\"event\":0}")));
+        (void)round_trip(accepted<message_type>(
+            with("{\"fault\":\"" + std::string(fault) + "\",\"event\":0}")));
     }
     require_refused<message_type>(with("[]"),
                                   "trigger.publish.cause: must be an object");
+    require_refused<message_type>(with("{}"),
+                                  "trigger.publish.cause: must have fault or "
+                                  "own_action");
+    require_refused<message_type>(with(R"({"event":4})"),
+                                  "trigger.publish.cause: must have fault or "
+                                  "own_action");
     require_refused<message_type>(
-        with("{}"), "trigger.publish.cause: must have bus_fault or "
-                    "own_action");
-    require_refused<message_type>(
-        with(R"({"event":4})"), "trigger.publish.cause: must have bus_fault or "
-                                "own_action");
-    require_refused<message_type>(
-        with(R"({"bus_fault":"overlap","event":1,"own_action":2})"),
-        "trigger.publish.cause: must have only one of bus_fault and "
+        with(R"({"fault":"overlap","event":1,"own_action":2})"),
+        "trigger.publish.cause: must have only one of fault and "
         "own_action");
-    require_refused<message_type>(with(R"({"bus_fault":"overlap"})"),
+    require_refused<message_type>(with(R"({"fault":"overlap"})"),
                                   "trigger.publish.cause.event: is required");
     require_refused<message_type>(
-        with(R"({"bus_fault":"overlap","event":-1})"),
+        with(R"({"fault":"overlap","event":-1})"),
         "trigger.publish.cause.event: must be a whole number");
     require_refused<message_type>(
-        with(R"({"bus_fault":"overlap","event":)" +
+        with(R"({"fault":"overlap","event":)" +
              number_text(max_api_number + 1) + "}"),
         "trigger.publish.cause.event: must be a whole number");
     require_refused<message_type>(
-        with(R"({"bus_fault":"jam","event":1})"),
-        "trigger.publish.cause.bus_fault: must be overlap, "
+        with(R"({"fault":"jam","event":1})"),
+        "trigger.publish.cause.fault: must be overlap, "
         "too_soon, line_held, transmitter_off or overrun");
     require_refused<message_type>(
-        with(R"({"bus_fault":3,"event":1})"),
-        "trigger.publish.cause.bus_fault: must be overlap");
+        with(R"({"fault":3,"event":1})"),
+        "trigger.publish.cause.fault: must be overlap");
     require_refused<message_type>(
         with(R"({"own_action":"x"})"),
         "trigger.publish.cause.own_action: must be a whole "
@@ -729,6 +791,7 @@ TEST_CASE("plugin api: a trigger with every optional member gives them back")
     one.frame = full.frame;
     (void)round_trip(one);
     one = none;
+    one.frame = full.frame;
     one.field = full.field;
     (void)round_trip(one);
     one = none;
@@ -736,6 +799,7 @@ TEST_CASE("plugin api: a trigger with every optional member gives them back")
     one.actual = full.actual;
     (void)round_trip(one);
     one = none;
+    one.frame = full.frame;
     one.covers = full.covers;
     (void)round_trip(one);
     one = none;

@@ -50,8 +50,9 @@ struct generator_start_message
     static constexpr api_role role() noexcept { return api_role::request; }
 
     std::uint64_t instance = 0;
-    /// The endpoint the bytes go to.
-    std::uint64_t port = 0;
+    /// The name the hub gives the port the bytes go to: 1 to `max_api_name`
+    /// bytes.
+    std::string place;
     /// The parameters as one JSON object, already checked.  "{}" for none.
     std::string params = "{}";
 

@@ -23,46 +23,6 @@ static_assert(has_bytes<agent_call_message>);
 static_assert(has_bytes<agent_result_message>);
 static_assert(!has_bytes<agent_subscribe_message>);
 
-/// A list of names, each 1 to `max_api_name` bytes of plain text.  Empty when
-/// the member is absent or wrong.
-std::vector<std::string> names_of(reading& state, const json::object& object,
-                                  std::string_view where, std::string_view key,
-                                  std::size_t most)
-{
-    std::vector<std::string> out;
-    const json::array* const list =
-        list_of(state, object, where, key, most, false);
-    if (list == nullptr)
-        return out;
-    const std::string list_name = member(where, key);
-    out.reserve(list->size());
-    for (std::size_t i = 0; i < list->size(); ++i)
-    {
-        const std::string at = entry(list_name, i);
-        const json::value& item = (*list)[i];
-        if (!item.is_string())
-        {
-            state.fail(at, "must be a string");
-            return {};
-        }
-        const std::string_view text = view_of(item.get_string());
-        if (text.empty() || text.size() > max_api_name)
-        {
-            state.fail(at, "must be 1 to " + std::to_string(max_api_name) +
-                               " bytes");
-            return {};
-        }
-        if (!clean_text(text))
-        {
-            state.fail(at, "must be plain text, with no control character or "
-                           "direction mark");
-            return {};
-        }
-        out.emplace_back(text);
-    }
-    return out;
-}
-
 json::array names_value(const std::vector<std::string>& names)
 {
     json::array out;
@@ -106,7 +66,8 @@ void read_subscribe(reading& state, const json::object& object,
 {
     constexpr auto where = agent_subscribe_message::op();
     out.data = bool_of(state, object, where, "data", false).value_or(false);
-    out.places = names_of(state, object, where, "places", max_subscribe_places);
+    out.places = place_list_of(state, object, where, "places",
+                               max_subscribe_places, false, false);
 }
 
 bool write_subscribe(json::object& header, const agent_subscribe_message& body)
@@ -145,6 +106,30 @@ bool write_state(json::object& header, const adapter_state_message& body)
     else if (!body.address.empty())
         return false;
     header.emplace("protocol", text_value(body.protocol));
+    return true;
+}
+
+void read_event(reading& state, const json::object& object,
+                agent_event_message& out)
+{
+    constexpr auto where = agent_event_message::op();
+    out.subscription =
+        number_of(state, object, where, "subscription", 1, max_api_number, true)
+            .value_or(0);
+    out.kind =
+        token_of(state, object, where, "kind", max_agent_event_kind, true);
+    out.place = place_of(state, object, where, "place", true);
+    out.t_ns = number_of(state, object, where, "t_ns", 0, max_api_number, true)
+                   .value_or(0);
+    blob_between(state, where, out.data, 0, max_agent_event_data);
+}
+
+bool write_event(json::object& header, const agent_event_message& body)
+{
+    header.emplace("subscription", body.subscription);
+    header.emplace("kind", text_value(body.kind));
+    header.emplace("place", text_value(body.place));
+    header.emplace("t_ns", body.t_ns);
     return true;
 }
 
@@ -218,6 +203,21 @@ encode_as<adapter_state_message>(const adapter_state_message& body,
                                  std::uint64_t number)
 {
     return encode_with(body, number, write_state);
+}
+
+template <>
+result<agent_event_message>
+decode_as<agent_event_message>(const api_message& message, std::string* explain)
+{
+    return decode_with<agent_event_message>(message, explain, read_event);
+}
+
+template <>
+result<api_message>
+encode_as<agent_event_message>(const agent_event_message& body,
+                               std::uint64_t number)
+{
+    return encode_with(body, number, write_event);
 }
 
 } // namespace vss::plugin

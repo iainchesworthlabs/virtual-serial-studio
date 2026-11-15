@@ -112,11 +112,6 @@ std::string why_not_json(const std::string& what)
     return what;
 }
 
-char hex_digit(unsigned value) noexcept
-{
-    return "0123456789abcdef"[value & 0xfu];
-}
-
 } // namespace
 
 std::string_view view_of(const json::string& text) noexcept
@@ -346,36 +341,100 @@ std::string object_text_of(reading& state, const json::object& object,
     return text;
 }
 
-byte_buffer hex_of(reading& state, const json::object& object,
-                   std::string_view where, std::string_view key,
-                   std::size_t most, bool required)
+std::string json_problem(const std::string& what)
 {
-    const json::value* const value =
-        find_member(state, object, where, key, required);
-    if (value == nullptr)
-        return {};
-    if (!value->is_string())
+    if (what.find("is given twice") != std::string::npos)
+        return "has a key given twice in one object";
+    return "is not one JSON document within the limits";
+}
+
+std::string place_of(reading& state, const json::object& object,
+                     std::string_view where, std::string_view key,
+                     bool required)
+{
+    return text_of(state, object, where, key, max_api_name, required, true);
+}
+
+std::vector<std::string> place_list_of(reading& state,
+                                       const json::object& object,
+                                       std::string_view where,
+                                       std::string_view key, std::size_t most,
+                                       bool required, bool not_empty)
+{
+    std::vector<std::string> out;
+    const json::array* const list =
+        list_of(state, object, where, key, most, required);
+    if (list == nullptr)
+        return out;
+    if (not_empty && list->empty())
     {
-        state.fail(member(where, key), "must be a string");
-        return {};
+        state.fail(member(where, key), "must not be empty");
+        return out;
     }
-    const std::string_view text = view_of(value->get_string());
-    // The length is checked before anything is allocated for it.
-    if (text.empty() || text.size() % 2 != 0 || text.size() / 2 > most)
+    out.reserve(list->size());
+    for (std::size_t i = 0; i < list->size(); ++i)
     {
-        state.fail(member(where, key),
-                   "must be 1 to " + bytes_text(most) +
-                       " written as an even number of hex characters");
-        return {};
-    }
-    byte_buffer out(text.size() / 2);
-    if (!hex_to_bytes(text, out))
-    {
-        state.fail(member(where, key),
-                   "must be written in lower-case hex characters");
-        return {};
+        const json::value& item = (*list)[i];
+        const std::string place = entry(member(where, key), i);
+        if (!item.is_string())
+        {
+            state.fail(place, "must be a string");
+            return {};
+        }
+        const std::string_view name = view_of(item.get_string());
+        if (name.empty() || name.size() > max_api_name)
+        {
+            state.fail(place, "must be 1 to " + std::to_string(max_api_name) +
+                                  " bytes");
+            return {};
+        }
+        if (!clean_text(name))
+        {
+            state.fail(place, "must be plain text, with no control character "
+                              "or direction mark");
+            return {};
+        }
+        if (std::ranges::find(out, name) != out.end())
+        {
+            state.fail(member(where, key), "names a place twice");
+            return {};
+        }
+        out.emplace_back(name);
     }
     return out;
+}
+
+std::string relative_path_of(reading& state, const json::object& object,
+                             std::string_view where, std::string_view key,
+                             std::size_t most, bool required)
+{
+    std::string path = text_of(state, object, where, key, most, required, true);
+    if (path.empty())
+        return path;
+    // The reason that `check_relative_path` gives can quote the path, so it
+    // is not passed on.
+    if (check_relative_path(path).has_value())
+    {
+        state.fail(member(where, key),
+                   "must be a relative path by the rules of a manifest path");
+        return {};
+    }
+    return path;
+}
+
+bool same_name_ignoring_case(std::string_view first,
+                             std::string_view second) noexcept
+{
+    if (first.size() != second.size())
+        return false;
+    for (std::size_t i = 0; i < first.size(); ++i)
+    {
+        const auto fold = [](char c)
+        { return c >= 'A' && c <= 'Z' ? static_cast<char>(c - 'A' + 'a') : c; };
+        if (fold(first[i]) != fold(second[i]))
+            return false;
+    }
+    return true;
 }
 
 void no_blob(reading& state, std::string_view where, const byte_buffer& blob)
@@ -415,18 +474,6 @@ bool put_object_text(json::object& header, std::string_view key,
         return false;
     header.emplace(key, std::move(*value));
     return true;
-}
-
-std::string hex_text(const byte_buffer& bytes)
-{
-    std::string out;
-    out.reserve(bytes.size() * 2);
-    for (const std::uint8_t byte : bytes)
-    {
-        out += hex_digit(byte >> 4);
-        out += hex_digit(byte);
-    }
-    return out;
 }
 
 std::optional<json::value> open_message(reading& state,
