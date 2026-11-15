@@ -106,8 +106,8 @@ void StudioTray::set_sign_in(bool available, bool enabled)
 
 void StudioTray::notify(const QString& title, const QString& text, bool warn)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.shell.tray.notify");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, title.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.shell.tray.notify");
+    VSS_PROFILE_ZONE_TEXT(zone, title.toStdString());
     if (!QSystemTrayIcon::supportsMessages() || !icon_->isVisible())
         return;
     icon_->showMessage(title, text,
