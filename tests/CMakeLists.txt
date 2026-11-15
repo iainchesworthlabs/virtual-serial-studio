@@ -252,6 +252,18 @@ target_include_directories(vss_test_plugin PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/plugin/vss_test_plugin)
 target_compile_features(vss_test_plugin PRIVATE cxx_std_23)
 vss_set_warnings(vss_test_plugin)
+# A build with the address sanitiser of MSVC needs its runtime library when
+# the program starts. A plugin is started with an environment of its own, so
+# the library is not found through PATH as it is for the other programs:
+# it is put beside the test plugin.
+if(MSVC AND ICL_SANITIZERS MATCHES "address")
+  get_filename_component(_vss_compiler_dir "${CMAKE_CXX_COMPILER}" DIRECTORY)
+  add_custom_command(TARGET vss_test_plugin POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${_vss_compiler_dir}/clang_rt.asan_dynamic-x86_64.dll"
+            "$<TARGET_FILE_DIR:vss_test_plugin>"
+    VERBATIM)
+endif()
 list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_plugin_process.cpp)
 if(WIN32)
   target_sources(vss_test_plugin PRIVATE
