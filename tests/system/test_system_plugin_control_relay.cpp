@@ -75,6 +75,36 @@ control_session_request request_for(std::vector<std::string> scopes)
     return asking;
 }
 
+bool contains(const std::string& text, const std::string& part)
+{
+    return text.find(part) != std::string::npos;
+}
+
+/// One character as UTF-8, written without the character in the source.
+std::string cp(std::uint32_t point)
+{
+    std::string out;
+    if (point < 0x800)
+    {
+        out.push_back(static_cast<char>(0xc0 | (point >> 6)));
+        out.push_back(static_cast<char>(0x80 | (point & 0x3f)));
+    }
+    else if (point < 0x10000)
+    {
+        out.push_back(static_cast<char>(0xe0 | (point >> 12)));
+        out.push_back(static_cast<char>(0x80 | ((point >> 6) & 0x3f)));
+        out.push_back(static_cast<char>(0x80 | (point & 0x3f)));
+    }
+    else
+    {
+        out.push_back(static_cast<char>(0xf0 | (point >> 18)));
+        out.push_back(static_cast<char>(0x80 | ((point >> 12) & 0x3f)));
+        out.push_back(static_cast<char>(0x80 | ((point >> 6) & 0x3f)));
+        out.push_back(static_cast<char>(0x80 | (point & 0x3f)));
+    }
+    return out;
+}
+
 /// A string made of bytes, so that no source line holds a character that
 /// changes how the text around it reads.
 std::string raw(std::initializer_list<int> values)
@@ -306,13 +336,164 @@ TEST_CASE("plugin control relay: closing everything ends a request that waits "
     REQUIRE_EQ(rig.approvals().size(), std::size_t{2});
 }
 
-TEST_CASE("plugin control relay: a frame for a session that is not open is "
-          "refused")
+TEST_CASE("plugin control relay: a frame for a number that is no session is "
+          "dropped")
 {
     relay_rig rig(options_for(unused_instance()));
     rig.send(7, "{\"id\":1,\"op\":\"ping\"}");
-    REQUIRE_EQ(rig.wait_closed(7), std::string("The session is not open."));
-    REQUIRE(rig.wait_code(7) == control_close_code::refused_frame);
     rig.close_session(7);
+    // Nothing was said about a session the plugin made up.
     REQUIRE_EQ(rig.session_count(), std::size_t{0});
+    REQUIRE(rig.closed().empty());
+}
+
+TEST_CASE("plugin control relay: invisible characters are cleaned and odd "
+          "spaces become one space")
+{
+    const std::vector<std::uint32_t> invisible = {
+        0x61c,  0xad,    0x34f,   0x115f,  0x1160,  0x3164, 0x180e, 0xfe00,
+        0xfe0f, 0xe0100, 0xe01ef, 0xe0000, 0xe007f, 0x200b, 0x200f, 0x202a,
+        0x202e, 0x2066,  0x2069,  0xfeff,  0x2028,  0x85};
+    for (const std::uint32_t point : invisible)
+    {
+        std::string text = "a";
+        text.append(cp(point)).append("b");
+        REQUIRE_EQ(clean_control_text(text, 64), std::string("ab"));
+    }
+    const std::vector<std::uint32_t> spaces = {0xa0,   0x2000, 0x2003, 0x200a,
+                                               0x202f, 0x205f, 0x3000};
+    for (const std::uint32_t point : spaces)
+    {
+        std::string text = "a";
+        text.append(cp(point)).append("b");
+        REQUIRE_EQ(clean_control_text(text, 64), std::string("a b"));
+    }
+    std::string runs = cp(0x3000);
+    runs.append("  a ").append(cp(0xa0)).append(cp(0x2003)).append(" b  ");
+    runs.append(cp(0x202f));
+    REQUIRE_EQ(clean_control_text(runs, 64), std::string("a b"));
+    // The cap counts the single space.
+    REQUIRE_EQ(clean_control_text("ab   cd", 3), std::string("ab"));
+}
+
+TEST_CASE("plugin control relay: the plugin's id and name are cleaned for the "
+          "prompt")
+{
+    control_relay_options options = options_for(unused_instance());
+    options.plugin_id = "id";
+    options.plugin_id.append(cp(0x202e)).append(std::string(100, 'x'));
+    options.plugin_name = "Name";
+    options.plugin_name.append(cp(0x3000)).append(cp(0xa0)).append("here");
+    relay_rig rig(options);
+    rig.set_mode(approval_mode::deny);
+    rig.request(request_for({"monitor"}));
+    const auto asked = rig.approvals();
+    REQUIRE_EQ(asked.size(), std::size_t{1});
+    REQUIRE_EQ(asked[0].plugin_id.size(), std::size_t{64});
+    REQUIRE_EQ(asked[0].plugin_id.substr(0, 4), std::string("idxx"));
+    REQUIRE_EQ(asked[0].plugin_name, std::string("Name here"));
+}
+
+TEST_CASE("plugin control relay: after a refusal the relay refuses by itself "
+          "for longer each time")
+{
+    vss_test_relay::fake_clock clock;
+    control_relay_options options = options_for(unused_instance());
+    options.clock = clock.function();
+    relay_rig rig(options);
+    rig.set_mode(approval_mode::deny);
+
+    // Asks, and says what the plugin was told.
+    const auto ask = [&]
+    {
+        const auto answer = rig.request(request_for({"monitor"}));
+        REQUIRE(refusal_of(answer).why == control_refusal::permission_denied);
+        return refusal_of(answer).text;
+    };
+
+    REQUIRE(contains(ask(), "Try again in 60 seconds."));
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{1});
+    // Within the minute nobody is asked.
+    REQUIRE(contains(ask(), "Try again in 60 seconds."));
+    clock.advance(30s);
+    REQUIRE(contains(ask(), "Try again in 30 seconds."));
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{1});
+
+    // Then it asks, and the time doubles, up to 15 minutes.
+    clock.advance(31s);
+    REQUIRE(contains(ask(), "Try again in 2 minutes."));
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{2});
+    clock.advance(121s);
+    REQUIRE(contains(ask(), "Try again in 4 minutes."));
+    clock.advance(241s);
+    REQUIRE(contains(ask(), "Try again in 8 minutes."));
+    clock.advance(481s);
+    REQUIRE(contains(ask(), "Try again in 15 minutes."));
+    clock.advance(901s);
+    REQUIRE(contains(ask(), "Try again in 15 minutes."));
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{6});
+
+    // An approval starts it again from a minute.  No gateway runs, so the
+    // request ends there, but the owner said yes.
+    clock.advance(901s);
+    rig.set_mode(approval_mode::approve);
+    const auto approved = rig.request(request_for({"monitor"}));
+    REQUIRE(refusal_of(approved).why == control_refusal::plugin_unavailable);
+    rig.set_mode(approval_mode::deny);
+    REQUIRE(contains(ask(), "Try again in 60 seconds."));
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{8});
+}
+
+TEST_CASE("plugin control relay: a request's done is not called once the relay "
+          "is gone, and the relay may be destroyed inside it")
+{
+    {
+        boost::asio::io_context io;
+        auto relay = control_relay::create(io.get_executor(),
+                                           options_for(unused_instance()),
+                                           control_relay_handlers{});
+        bool called = false;
+        relay->request_session(request_for({"monitor"}),
+                               [&](const control_session_answer&)
+                               {
+                                   called = true;
+                                   relay.reset();
+                               });
+        io.run();
+        REQUIRE(called);
+        REQUIRE(relay == nullptr);
+    }
+    {
+        boost::asio::io_context io;
+        auto relay = control_relay::create(io.get_executor(),
+                                           options_for(unused_instance()),
+                                           control_relay_handlers{});
+        bool called = false;
+        relay->request_session(request_for({"monitor"}),
+                               [&](const control_session_answer&)
+                               { called = true; });
+        relay.reset();
+        io.run();
+        REQUIRE(!called);
+    }
+}
+
+TEST_CASE("plugin control relay: close_all's done is not called once the relay "
+          "is gone")
+{
+    boost::asio::io_context io;
+    auto relay =
+        control_relay::create(io.get_executor(), options_for(unused_instance()),
+                              control_relay_handlers{});
+    bool called = false;
+    relay->close_all([&] { called = true; });
+    io.run();
+    REQUIRE(called);
+
+    io.restart();
+    bool late = false;
+    relay->close_all([&] { late = true; });
+    relay.reset();
+    io.run();
+    REQUIRE(!late);
 }

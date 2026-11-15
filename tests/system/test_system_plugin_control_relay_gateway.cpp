@@ -14,6 +14,7 @@
 // revoked and no session of it is left.
 //
 
+#include <vss/agent/local_stream.hpp>
 #include <vss/agent/proto/frame.hpp>
 #include <vss/control/client.hpp>
 #include <vss/control/proto/message.hpp>
@@ -25,13 +26,20 @@
 #include "scratch_directory.hpp"
 #include "test_framework.hpp"
 
+#include <boost/asio/buffer.hpp>
+#include <boost/asio/executor_work_guard.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/post.hpp>
+
 #include <algorithm>
 #include <chrono>
+#include <condition_variable>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <iomanip>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <random>
 #include <sstream>
@@ -488,11 +496,11 @@ TEST_CASE("plugin control relay: a frame that says hello is refused and the "
     REQUIRE(contains(rig.wait_closed(second.session), "hello"));
     wait_until_revoked(gateway, 2);
 
-    // The session is gone for good: a later frame is told so.
+    // The session is gone for good: a later frame is dropped, and nothing is
+    // said about it.
     rig.send(first.session, "{\"id\":3,\"op\":\"ping\"}");
-    REQUIRE(rig.wait_closed_count(first.session, 2));
-    REQUIRE(rig.wait_code(first.session, 1) ==
-            control_close_code::refused_frame);
+    REQUIRE_EQ(rig.session_count(), std::size_t{0});
+    REQUIRE(!rig.wait_closed_count(first.session, 2, 200ms));
 }
 
 TEST_CASE("plugin control relay: a frame the gateway could not read closes the "
@@ -550,7 +558,10 @@ TEST_CASE("plugin control relay: admin is refused before anyone is asked")
 TEST_CASE("plugin control relay: a refused approval makes no token")
 {
     world gateway;
-    relay_rig rig(gateway.options());
+    vss_test_relay::fake_clock clock;
+    control_relay_options options = gateway.options();
+    options.clock = clock.function();
+    relay_rig rig(options);
     rig.set_mode(approval_mode::deny);
     control_session_request asking;
     asking.scopes = {"monitor"};
@@ -561,6 +572,7 @@ TEST_CASE("plugin control relay: a refused approval makes no token")
     REQUIRE_EQ(rig.approvals().size(), std::size_t{1});
     REQUIRE(plugin_tokens(gateway).empty());
     REQUIRE(token_sessions(gateway).empty());
+    clock.advance(std::chrono::seconds{61});
 
     // Nothing is made while the owner has not answered either.
     rig.set_mode(approval_mode::hold);
@@ -638,14 +650,11 @@ TEST_CASE("plugin control relay: closing one session revokes its token")
     // The one that is left works.
     send_request(rig, keep.session, 1, control::ping_request{});
     reply_as<control::done_reply>(wait_reply(rig, 1));
-    // The host closed it and said so; a frame for it is then refused.
+    // The host closed it and said so; a frame for it is then dropped.
     REQUIRE(rig.wait_code(drop.session) == control_close_code::host_stopped);
     rig.send(drop.session, "{\"id\":2,\"op\":\"ping\"}");
-    REQUIRE(rig.wait_closed_count(drop.session, 2));
-    REQUIRE(rig.wait_code(drop.session, 1) ==
-            control_close_code::refused_frame);
-    REQUIRE_EQ(rig.closed().back().reason,
-               std::string("The session is not open."));
+    REQUIRE_EQ(rig.session_count(), std::size_t{1});
+    REQUIRE(!rig.wait_closed_count(drop.session, 2, 200ms));
 }
 
 TEST_CASE("plugin control relay: a token revoked at the gateway ends the "
@@ -838,4 +847,513 @@ TEST_CASE("plugin control relay: the token is in no text the relay gives out")
     const auto lines = rig.lines();
     REQUIRE(!lines.empty());
     REQUIRE(contains(said, "revoked"));
+}
+
+// -- what the relay may spend
+// ---------------------------------------------------
+
+namespace
+{
+
+control_session_request asking_for(std::vector<std::string> scopes,
+                                   std::string peer)
+{
+    control_session_request asking;
+    asking.scopes = std::move(scopes);
+    asking.peer = std::move(peer);
+    asking.reason = "a test";
+    return asking;
+}
+
+} // namespace
+
+TEST_CASE("plugin control relay: a computer that has a session gets no second "
+          "token")
+{
+    world gateway;
+    relay_rig rig(gateway.options());
+    const auto first = rig.open({"monitor", "monitor.data"}, "lab computer");
+
+    // The same peer and the same scopes, in another order.
+    const auto again =
+        rig.request(asking_for({"monitor.data", "monitor"}, "lab computer"));
+    REQUIRE(refusal_of(again).why == control_refusal::busy);
+    REQUIRE_EQ(refusal_of(again).text,
+               std::string("A session for this computer is already open."));
+    // No one was asked, and no token was made.
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{1});
+    REQUIRE_EQ(plugin_tokens(gateway).size(), std::size_t{1});
+
+    // Another peer, or other scopes, are another session.
+    rig.open({"monitor", "monitor.data"}, "other computer");
+    rig.open({"monitor"}, "lab computer");
+    REQUIRE_EQ(plugin_tokens(gateway).size(), std::size_t{3});
+
+    // When the session is closed the computer may have another.
+    rig.close_session(first.session);
+    const auto reopened = rig.open({"monitor", "monitor.data"}, "lab computer");
+    REQUIRE(reopened.session != first.session);
+}
+
+TEST_CASE("plugin control relay: at most so many tokens are made in a day")
+{
+    world gateway;
+    vss_test_relay::fake_clock clock;
+    control_relay_options options = gateway.options();
+    options.clock = clock.function();
+    options.max_tokens_per_day = 2;
+    relay_rig rig(options);
+
+    const auto first = rig.open({"monitor"}, "a");
+    const auto second = rig.open({"monitor"}, "b");
+    // Closing a session gives the token back, but the gateway keeps its
+    // record, so the count stays.
+    rig.close_session(first.session);
+    rig.close_session(second.session);
+
+    const auto over = rig.request(asking_for({"monitor"}, "c"));
+    REQUIRE(refusal_of(over).why == control_refusal::busy);
+    REQUIRE(contains(refusal_of(over).text, "24 hours"));
+    // Refused before anyone was asked, and nothing was made.
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{2});
+    REQUIRE_EQ(plugin_tokens(gateway).size(), std::size_t{2});
+
+    clock.advance(std::chrono::hours{24});
+    rig.open({"monitor"}, "c");
+    REQUIRE_EQ(rig.approvals().size(), std::size_t{3});
+}
+
+TEST_CASE("plugin control relay: the label of a token always fits the "
+          "gateway's limit")
+{
+    world gateway;
+    control_relay_options options = gateway.options();
+    options.plugin_id = std::string(200, 'a');
+    relay_rig rig(options);
+    // The longest peer there is: 32 letters of two bytes each.
+    std::string peer;
+    for (int count = 0; count < 32; ++count)
+        peer.append("\xc3\xa9");
+    rig.open({"monitor"}, peer);
+    const auto tokens = plugin_tokens(gateway);
+    REQUIRE_EQ(tokens.size(), std::size_t{1});
+    REQUIRE_EQ(tokens[0].label.size(), std::size_t{128});
+    REQUIRE_EQ(tokens[0].label.substr(0, 7), std::string("plugin:"));
+    REQUIRE_EQ(tokens[0].label.substr(tokens[0].label.size() - peer.size()),
+               peer);
+}
+
+// -- the relay going away
+// --------------------------------------------------------
+
+TEST_CASE("plugin control relay: the relay may be destroyed inside a handler")
+{
+    world gateway;
+    relay_rig rig(gateway.options());
+    const auto opened = rig.open({"monitor"});
+    rig.destroy_in_closed();
+    rig.send(opened.session, "{\"id\":2,\"op\":\"hello\"}");
+    REQUIRE(rig.wait_code(opened.session) == control_close_code::refused_frame);
+    // The token is revoked without the relay.
+    wait_until_revoked(gateway, 1);
+}
+
+TEST_CASE("plugin control relay: closing everything while a token is being "
+          "made revokes it")
+{
+    world gateway;
+    relay_rig rig(gateway.options());
+    rig.set_mode(approval_mode::hold);
+    const auto waiting = rig.request_async(asking_for({"monitor"}, "lab"));
+    REQUIRE(rig.wait_approvals(1));
+    // The approval is on the strand before the close, so the gateway is
+    // asked for the token first.
+    rig.release(true);
+    rig.close_all();
+    REQUIRE(waiting.wait_for(long_limit) == std::future_status::ready);
+    REQUIRE(refusal_of(waiting.get()).why ==
+            control_refusal::plugin_unavailable);
+    REQUIRE_EQ(rig.session_count(), std::size_t{0});
+    wait_until_revoked(gateway, 1);
+}
+
+// -- what a plugin cannot do through the relay
+// -------------------------------------
+
+TEST_CASE("plugin control relay: administration is forbidden on any session")
+{
+    world gateway;
+    relay_rig rig(gateway.options());
+    const auto opened =
+        rig.open({"monitor", "monitor.data", "control.ports", "control.data",
+                  "control.faults", "control.apply", "record"});
+    std::vector<control::request_body> bodies;
+    bodies.emplace_back(
+        control::tokens_create_request{"x", {"monitor"}, 0, {}});
+    bodies.emplace_back(control::tokens_list_request{});
+    bodies.emplace_back(control::sessions_kick_request{1});
+    bodies.emplace_back(control::endpoint_stop_request{});
+    bodies.emplace_back(control::sessions_list_request{});
+    bodies.emplace_back(control::tokens_revoke_request{"aaaaaaaaaaaaa"});
+    std::uint64_t id = 10;
+    for (const control::request_body& body : bodies)
+    {
+        send_request(rig, opened.session, id, body);
+        const auto answer = wait_reply(rig, id);
+        const auto* error = std::get_if<control::error_reply>(&answer.body);
+        REQUIRE(error != nullptr);
+        REQUIRE_EQ(error->error.code, std::string("forbidden"));
+        ++id;
+    }
+    // Nothing happened: the gateway runs, the session works, and no token
+    // was made or revoked.
+    send_request(rig, opened.session, id, control::ping_request{});
+    reply_as<control::done_reply>(wait_reply(rig, id));
+    const auto tokens = plugin_tokens(gateway);
+    REQUIRE_EQ(tokens.size(), std::size_t{1});
+    REQUIRE(!tokens[0].revoked);
+}
+
+TEST_CASE("plugin control relay: an operation named twice is never taken for "
+          "hello by the gateway")
+{
+    world gateway;
+    relay_rig rig(gateway.options());
+    // What the relay and the gateway take as the operation is the same
+    // (both read the header with the same JSON reader), so one of two
+    // things happens: the relay refuses the frame, or the gateway answers
+    // the other operation.
+    const std::vector<std::string> headers = {
+        "{\"id\":5,\"op\":\"hello\",\"op\":\"ports.list\"}",
+        "{\"id\":6,\"op\":\"ports.list\",\"op\":\"hello\"}"};
+    std::uint64_t id = 5;
+    for (const std::string& header : headers)
+    {
+        std::string peer = "dup ";
+        peer.append(std::to_string(id));
+        const auto opened = rig.open({"monitor"}, peer);
+        rig.send(opened.session, header);
+
+        bool refused = false;
+        bool answered = false;
+        const auto deadline = std::chrono::steady_clock::now() + long_limit;
+        while (!refused && !answered)
+        {
+            for (const auto& note : rig.closed())
+                refused = refused || note.session == opened.session;
+            for (const offered_frame& item : rig.frames())
+            {
+                const auto decoded = control::decode_server_message(
+                    control::frame{item.header, item.blob});
+                const auto* reply =
+                    decoded ? std::get_if<control::reply>(&*decoded) : nullptr;
+                answered = answered || (reply != nullptr && reply->id == id);
+            }
+            REQUIRE(std::chrono::steady_clock::now() < deadline);
+            std::this_thread::sleep_for(10ms);
+        }
+        if (refused)
+        {
+            // The relay read `hello` and refused it.
+            REQUIRE(rig.wait_code(opened.session) ==
+                    control_close_code::refused_frame);
+            REQUIRE(!answered);
+        }
+        else
+        {
+            // The gateway read the other operation and answered it; it did
+            // not take the frame for a second hello, which would have ended
+            // the session.
+            reply_as<control::ports_reply>(wait_reply(rig, id));
+            send_request(rig, opened.session, 90 + id, control::ping_request{});
+            reply_as<control::done_reply>(wait_reply(rig, 90 + id));
+            REQUIRE_EQ(rig.session_count(), std::size_t{1});
+            rig.close_session(opened.session);
+        }
+        ++id;
+    }
+}
+
+TEST_CASE("plugin control relay: a gateway that is full ends the request with "
+          "the token revoked")
+{
+    world gateway;
+    // The gateway takes eight sessions on its local endpoint; two relays hold
+    // four each.
+    control_relay_options options_a = gateway.options();
+    options_a.plugin_id = "com.example.a";
+    control_relay_options options_b = gateway.options();
+    options_b.plugin_id = "com.example.b";
+    control_relay_options options_c = gateway.options();
+    options_c.plugin_id = "com.example.c";
+    relay_rig rig_a(options_a);
+    relay_rig rig_b(options_b);
+    relay_rig rig_c(options_c);
+    for (int count = 0; count < 4; ++count)
+    {
+        std::string peer = "peer ";
+        peer.append(std::to_string(count));
+        rig_a.open({"monitor"}, peer);
+        rig_b.open({"monitor"}, peer);
+    }
+
+    const auto answer = rig_c.request(asking_for({"monitor"}, "ninth"));
+    REQUIRE(refusal_of(answer).why == control_refusal::plugin_unavailable);
+    REQUIRE(contains(refusal_of(answer).text, "did not take"));
+    REQUIRE_EQ(rig_c.session_count(), std::size_t{0});
+
+    // The token that was made for it is revoked, and the others are not.
+    const auto deadline = std::chrono::steady_clock::now() + long_limit;
+    for (;;)
+    {
+        std::size_t revoked = 0;
+        bool its_own = false;
+        for (const control::token_entry& entry : plugin_tokens(gateway))
+        {
+            if (entry.revoked)
+            {
+                ++revoked;
+                its_own = entry.label.rfind("plugin:com.example.c", 0) == 0;
+            }
+        }
+        if (revoked == 1 && its_own && token_sessions(gateway).size() == 8)
+            break;
+        REQUIRE(std::chrono::steady_clock::now() < deadline);
+        std::this_thread::sleep_for(20ms);
+    }
+}
+
+// -- a gateway that is not the gateway
+// -------------------------------------------
+
+namespace
+{
+
+/// Something that listens where the gateway's local endpoint would be, under
+/// a name of its own, and records every frame it is sent.  It answers
+/// `hello` as another principal, or not at all.
+class fake_control_endpoint
+{
+public:
+    enum class behaviour
+    {
+        wrong_principal,
+        silent
+    };
+
+    fake_control_endpoint(std::string instance, behaviour how)
+        : instance_(std::move(instance)), how_(how),
+          guard_(boost::asio::make_work_guard(io_))
+    {
+        auto made = vss::agent::listen_local(
+            io_.get_executor(), vss::agent::local_endpoint::control, instance_);
+        if (!made)
+            throw vss_test::failure("the fake endpoint cannot listen");
+        listener_ = std::move(*made);
+        accept();
+        thread_ = std::thread([this] { io_.run(); });
+    }
+
+    ~fake_control_endpoint()
+    {
+        try
+        {
+            boost::asio::post(io_,
+                              [this]
+                              {
+                                  if (stream_)
+                                      stream_->close();
+                                  listener_->close();
+                              });
+            guard_.reset();
+            thread_.join();
+        }
+        catch (...) // NOLINT(bugprone-empty-catch)
+        {
+            // Nothing to be done in a destructor of a test.
+        }
+    }
+
+    fake_control_endpoint(const fake_control_endpoint&) = delete;
+    fake_control_endpoint& operator=(const fake_control_endpoint&) = delete;
+
+    const std::string& instance() const noexcept { return instance_; }
+
+    std::vector<std::string> received() const
+    {
+        const std::lock_guard lock(mutex_);
+        return headers_;
+    }
+
+    bool wait_for_frames(std::size_t count) const
+    {
+        const auto deadline = std::chrono::steady_clock::now() + long_limit;
+        while (std::chrono::steady_clock::now() < deadline)
+        {
+            if (received().size() >= count)
+                return true;
+            std::this_thread::sleep_for(10ms);
+        }
+        return false;
+    }
+
+private:
+    void accept()
+    {
+        listener_->async_accept(
+            [this](boost::system::error_code failed,
+                   std::unique_ptr<vss::agent::local_stream> connected)
+            {
+                if (failed)
+                    return;
+                stream_ = std::move(connected);
+                read();
+            });
+    }
+
+    void read()
+    {
+        stream_->async_read_some(
+            boost::asio::buffer(buffer_),
+            [this](boost::system::error_code failed, std::size_t size)
+            {
+                if (failed)
+                    return;
+                reader_.feed(vss::bytes_view(buffer_.data(), size));
+                for (;;)
+                {
+                    auto next = reader_.next();
+                    if (!next || !*next)
+                        break;
+                    handle(**next);
+                }
+                read();
+            });
+    }
+
+    void handle(const vss::agent::frame& received)
+    {
+        std::size_t count = 0;
+        {
+            const std::lock_guard lock(mutex_);
+            headers_.push_back(received.header);
+            count = headers_.size();
+        }
+        if (count != 1 || how_ != behaviour::wrong_principal)
+            return;
+        // The first frame is the hello: answer it as the user, with the local
+        // role, as a gateway that did not take the token would.
+        const auto asked = control::decode_request(received);
+        if (!asked)
+            return;
+        control::hello_reply welcome;
+        welcome.version = "fake";
+        welcome.principal = "local:someone";
+        welcome.scopes = {"monitor"};
+        control::reply answer;
+        answer.id = asked->id;
+        answer.body = welcome;
+        auto bytes = vss::agent::encode_frame(control::encode(answer));
+        if (!bytes)
+            return;
+        out_ = std::make_shared<vss::byte_buffer>(std::move(*bytes));
+        write(0);
+    }
+
+    void write(std::size_t offset)
+    {
+        stream_->async_write_some(
+            boost::asio::buffer(out_->data() + offset, out_->size() - offset),
+            [this, offset](boost::system::error_code failed, std::size_t size)
+            {
+                if (!failed && offset + size < out_->size())
+                    write(offset + size);
+            });
+    }
+
+    std::string instance_;
+    behaviour how_;
+    boost::asio::io_context io_;
+    boost::asio::executor_work_guard<boost::asio::io_context::executor_type>
+        guard_;
+    std::unique_ptr<vss::agent::local_listener> listener_;
+    std::unique_ptr<vss::agent::local_stream> stream_;
+    vss::byte_buffer buffer_ = vss::byte_buffer(4096);
+    vss::agent::frame_reader reader_;
+    std::shared_ptr<vss::byte_buffer> out_;
+    mutable std::mutex mutex_;
+    std::vector<std::string> headers_;
+    std::thread thread_;
+};
+
+} // namespace
+
+TEST_CASE("plugin control relay: a gateway that answers as another principal "
+          "gets no frame of the plugin")
+{
+    world gateway;
+    fake_control_endpoint fake(
+        unique_instance(), fake_control_endpoint::behaviour::wrong_principal);
+    control_relay_options options = gateway.options();
+    options.control_instance = fake.instance();
+    relay_rig rig(options);
+
+    const auto answer = rig.request(asking_for({"monitor"}, "lab"));
+    REQUIRE(refusal_of(answer).why == control_refusal::plugin_unavailable);
+    REQUIRE(contains(refusal_of(answer).text, "did not take the connection"));
+    REQUIRE_EQ(rig.session_count(), std::size_t{0});
+
+    // The plugin tries with the number the session would have had.
+    rig.send(1, "{\"id\":2,\"op\":\"ports.list\"}");
+    REQUIRE_EQ(rig.session_count(), std::size_t{0});
+    wait_until_revoked(gateway, 1);
+
+    // The fake was sent the hello and nothing else.
+    REQUIRE(fake.wait_for_frames(1));
+    const auto seen = fake.received();
+    REQUIRE_EQ(seen.size(), std::size_t{1});
+    REQUIRE(contains(seen[0], "\"op\":\"hello\""));
+    REQUIRE(contains(seen[0], "vsst1_"));
+    REQUIRE(!contains(rig.everything_said(), "vsst1"));
+}
+
+TEST_CASE("plugin control relay: a gateway that does not answer hello gets no "
+          "frame of the plugin")
+{
+    world gateway;
+    fake_control_endpoint fake(unique_instance(),
+                               fake_control_endpoint::behaviour::silent);
+    control_relay_options options = gateway.options();
+    options.control_instance = fake.instance();
+    relay_rig rig(options);
+
+    // The plugin sends a frame while the relay waits for the answer.
+    const auto waiting = rig.request_async(asking_for({"monitor"}, "lab"));
+    REQUIRE(fake.wait_for_frames(1));
+    rig.send(1, "{\"id\":2,\"op\":\"ports.list\"}");
+    REQUIRE(waiting.wait_for(long_limit) == std::future_status::ready);
+    REQUIRE(refusal_of(waiting.get()).why ==
+            control_refusal::plugin_unavailable);
+    REQUIRE(rig.wait_code(1) == control_close_code::refused_frame);
+    REQUIRE_EQ(rig.session_count(), std::size_t{0});
+    wait_until_revoked(gateway, 1);
+    REQUIRE_EQ(fake.received().size(), std::size_t{1});
+}
+
+TEST_CASE("plugin control relay: a gateway that never answers hello is given "
+          "up on and the token revoked")
+{
+    world gateway;
+    fake_control_endpoint fake(unique_instance(),
+                               fake_control_endpoint::behaviour::silent);
+    control_relay_options options = gateway.options();
+    options.control_instance = fake.instance();
+    options.step_timeout = std::chrono::milliseconds{3000};
+    relay_rig rig(options);
+
+    const auto answer = rig.request(asking_for({"monitor"}, "lab"));
+    REQUIRE(refusal_of(answer).why == control_refusal::plugin_unavailable);
+    REQUIRE(contains(refusal_of(answer).text, "did not answer hello"));
+    wait_until_revoked(gateway, 1);
+    REQUIRE_EQ(fake.received().size(), std::size_t{1});
 }

@@ -757,7 +757,14 @@ for the plugin (`libs/vss_plugin_host`, `control_relay.hpp`):
 
 - A request names scope names the control API has, never `admin`, and a plugin has at most four sessions and one request
   open at a time. Nothing is made until the user approves the exact scopes that will be asked of the gateway, shown with
-  the plugin's name and the cleaned `peer` text.
+  the plugin's name and the cleaned `peer` text. The id, name, `peer` and `reason` come from the plugin and its manifest,
+  so they are cleaned (no control, invisible or direction characters, odd spaces made ordinary) and cut to 64 bytes, and
+  the prompt shows the `reason` set apart as the plugin's own words.
+- The gateway keeps 256 token records, and a revoked one stays for the rest of its life and a week more, so a plugin must
+  not be able to use them up. While the host holds a session for the same `peer` and the same scopes a second request is
+  refused (`busy`); at most eight tokens are made for a plugin in 24 hours, and a request over that is refused before
+  anyone is asked. After the user refuses, further requests are refused without asking for a minute, then twice as long
+  after each refusal up to 15 minutes, until the user approves.
 - On approval the host connects to the gateway's administration endpoint as the user and makes a token for these scopes
   on the local endpoint only, with a life of 24 hours unless set otherwise and a label `plugin:<id> <peer>`. It connects
   to the gateway's local endpoint, says `hello` with that token and opens the session only when the gateway answers as
@@ -769,6 +776,8 @@ for the plugin (`libs/vss_plugin_host`, `control_relay.hpp`):
 - Each session has a token of its own. When the session ends (the plugin closes it, the gateway closes it or the token is
   revoked or ends, the plugin stops or fails) the host closes the connection and revokes the token on the administration
   endpoint, within a time limit, so a plugin that has gone leaves no usable token behind.
+- A frame for a session number the host does not know is dropped without a word. When a session ends the plugin is told
+  why, with a `code` and a `reason`; it never holds the token.
 - If no gateway runs the plugin is told `plugin_unavailable` and nothing is tried again. A plugin that reads slowly
   makes the host stop reading that connection, so the gateway's own back-pressure applies, and a plugin whose frames the
   gateway does not take as fast as they come loses the session.

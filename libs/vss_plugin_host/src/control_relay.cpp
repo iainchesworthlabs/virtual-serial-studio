@@ -123,11 +123,24 @@ utf8_char read_utf8(std::string_view text, std::size_t index) noexcept
 /// reads.
 bool unwanted(std::uint32_t point) noexcept
 {
-    return point < 0x20 || (point >= 0x7f && point <= 0x9f) ||
+    return point < 0x20 || (point >= 0x7f && point <= 0x9f) || point == 0xad ||
+           point == 0x34f || point == 0x61c || point == 0x115f ||
+           point == 0x1160 || point == 0x180e ||
            (point >= 0x200b && point <= 0x200f) || point == 0x2028 ||
            point == 0x2029 || (point >= 0x202a && point <= 0x202e) ||
-           (point >= 0x2060 && point <= 0x206f) || point == 0xfeff ||
-           (point >= 0xfff9 && point <= 0xfffb);
+           (point >= 0x2060 && point <= 0x206f) || point == 0x3164 ||
+           (point >= 0xfe00 && point <= 0xfe0f) || point == 0xfeff ||
+           (point >= 0xfff9 && point <= 0xfffb) ||
+           (point >= 0xe0000 && point <= 0xe007f) ||
+           (point >= 0xe0100 && point <= 0xe01ef);
+}
+
+/// Spaces of other widths, which are shown as an ordinary space.
+bool odd_space(std::uint32_t point) noexcept
+{
+    return point == 0x20 || point == 0xa0 ||
+           (point >= 0x2000 && point <= 0x200a) || point == 0x202f ||
+           point == 0x205f || point == 0x3000;
 }
 
 } // namespace
@@ -148,15 +161,23 @@ std::string clean_control_text(std::string_view text, std::size_t most_bytes)
         index += next.length;
         if (unwanted(next.point))
             continue;
+        if (odd_space(next.point))
+        {
+            // One space between words, and none at the start.
+            if (out.empty() || out.back() == ' ')
+                continue;
+            if (out.size() + 1 > most_bytes)
+                break;
+            out.push_back(' ');
+            continue;
+        }
         if (out.size() + piece.size() > most_bytes)
             break;
         out.append(piece);
     }
-    const std::size_t first = out.find_first_not_of(' ');
-    if (first == std::string::npos)
-        return {};
-    const std::size_t last = out.find_last_not_of(' ');
-    return out.substr(first, last - first + 1);
+    if (!out.empty() && out.back() == ' ')
+        out.pop_back();
+    return out;
 }
 
 // -- one connection to the gateway -------------------------------------------
@@ -176,6 +197,9 @@ using steady_timer = boost::asio::steady_timer;
 /// How long an administration call waits before it tries again after the
 /// gateway said it is full.
 constexpr std::chrono::milliseconds busy_wait{100};
+
+/// The window of the count of tokens.
+constexpr std::chrono::hours day{24};
 
 /// What the gateway answers to an administration request: the reply, or the
 /// error it carried.
@@ -672,6 +696,13 @@ public:
     {
         options_.max_sessions =
             std::min(options_.max_sessions, max_control_sessions);
+        // The label of a token is at most 128 bytes: "plugin:", the id, a
+        // space and the peer, which is at most 64.
+        label_id_ = clean_control_text(options_.plugin_id, 56);
+        shown_id_ =
+            clean_control_text(options_.plugin_id, max_control_peer_size);
+        shown_name_ =
+            clean_control_text(options_.plugin_name, max_control_peer_size);
     }
 
     void request_session(const control_session_request& request,
@@ -699,6 +730,45 @@ public:
                                       "may."));
             return;
         }
+        const std::string peer =
+            clean_control_text(request.peer, max_control_peer_size);
+        // One token for one computer and one set of scopes at a time: the
+        // gateway has room for few token records.
+        for (const auto& [number, held] : sessions_)
+        {
+            if (held.peer == peer && held.scopes == scopes)
+            {
+                answer_later(std::move(done),
+                             refused_with(control_refusal::busy,
+                                          "A session for this computer is "
+                                          "already open."));
+                return;
+            }
+        }
+        const auto now = clock_now();
+        if (refused_until_ && now < *refused_until_)
+        {
+            answer_later(
+                std::move(done),
+                refused_with(control_refusal::permission_denied,
+                             "A request was refused a short time ago. Try "
+                             "again in " +
+                                 wait_text(*refused_until_ - now) + "."));
+            return;
+        }
+        while (!created_.empty() && now - created_.front() >= day)
+            created_.pop_front();
+        if (created_.size() >= options_.max_tokens_per_day)
+        {
+            answer_later(
+                std::move(done),
+                refused_with(control_refusal::busy,
+                             "Too many sessions were made in the last 24 "
+                             "hours. Try again in " +
+                                 wait_text(created_.front() + day - now) +
+                                 "."));
+            return;
+        }
         if (!handlers_.approve)
         {
             answer_later(std::move(done),
@@ -709,9 +779,9 @@ public:
         }
 
         control_approval_request ask;
-        ask.plugin_id = options_.plugin_id;
-        ask.plugin_name = options_.plugin_name;
-        ask.peer = clean_control_text(request.peer, max_control_peer_size);
+        ask.plugin_id = shown_id_;
+        ask.plugin_name = shown_name_;
+        ask.peer = peer;
         ask.reason =
             clean_control_text(request.reason, max_control_reason_size);
         ask.scopes = scopes;
@@ -720,8 +790,9 @@ public:
         pending_.emplace();
         pending_->done = std::move(done);
         pending_->scopes = std::move(scopes);
+        pending_->peer = peer;
         pending_->label = "plugin:";
-        pending_->label.append(clean_control_text(options_.plugin_id, 128));
+        pending_->label.append(label_id_);
         if (!ask.peer.empty())
         {
             pending_->label.push_back(' ');
@@ -750,11 +821,20 @@ public:
                            byte_buffer blob)
     {
         const auto found = sessions_.find(number);
-        if (found == sessions_.end() || found->second.state != stage::open)
+        // A number the plugin made up is none of its business.
+        if (found == sessions_.end())
+            return;
+        if (found->second.state != stage::open)
         {
-            if (handlers_.closed)
-                handlers_.closed(number, control_close_code::refused_frame,
-                                 "The session is not open.");
+            // The plugin cannot know this number before the session is
+            // open, so it is guessing.
+            say("session " + std::to_string(number) +
+                " closed: a frame came before it was open");
+            end_session(number, control_close_code::refused_frame,
+                        "A frame came before the session was open.");
+            refuse_request(control_refusal::plugin_unavailable,
+                           "The request was cancelled by a frame that came "
+                           "before the session was open.");
             return;
         }
         std::string problem = header_problem(header);
@@ -836,19 +916,18 @@ public:
             pending_.reset();
         }
         revoke(std::move(tokens), std::move(done));
-        if (handlers_.closed)
-        {
-            for (const std::uint64_t number : open_sessions)
-                handlers_.closed(number, control_close_code::host_stopped,
-                                 "The host closed the session.");
-        }
+        for (const std::uint64_t number : open_sessions)
+            notify_closed(number, control_close_code::host_stopped,
+                          "The host closed the session.");
     }
 
     /// For the relay's destructor: no more calls to the owner.
     void shut_down()
     {
+        // The handlers are not cleared: one of them may be running.  They
+        // are not called again.
+        detached_ = true;
         pending_.reset();
-        handlers_ = {};
         close_all({});
     }
 
@@ -865,6 +944,8 @@ private:
     struct session
     {
         std::string token_id;
+        std::string peer;
+        std::vector<std::string> scopes;
         stage state = stage::greeting;
         std::uint64_t expires_ms = 0;
         std::shared_ptr<link> connection;
@@ -884,15 +965,41 @@ private:
     {
         answer_handler done;
         std::vector<std::string> scopes;
+        std::string peer;
         std::string label;
     };
 
+    std::chrono::steady_clock::time_point clock_now() const
+    {
+        return options_.clock ? options_.clock()
+                              : std::chrono::steady_clock::now();
+    }
+
+    /// A time to wait, in words.
+    static std::string wait_text(std::chrono::steady_clock::duration wait)
+    {
+        const auto seconds = std::max<std::chrono::seconds::rep>(
+            std::chrono::ceil<std::chrono::seconds>(wait).count(), 1);
+        if (seconds < 120)
+            return std::to_string(seconds) + " seconds";
+        if (seconds < 7200)
+            return std::to_string((seconds + 59) / 60) + " minutes";
+        return std::to_string((seconds + 3599) / 3600) + " hours";
+    }
+
+    void notify_closed(std::uint64_t number, control_close_code code,
+                       const std::string& reason)
+    {
+        if (!detached_ && handlers_.closed)
+            handlers_.closed(number, code, reason);
+    }
+
     void say(std::string_view line) const
     {
-        if (!handlers_.log)
+        if (detached_ || !handlers_.log)
             return;
         std::string text = "control relay ";
-        text.append(clean_control_text(options_.plugin_id, 128));
+        text.append(label_id_);
         text.append(": ");
         text.append(line);
         handlers_.log(text);
@@ -903,9 +1010,15 @@ private:
     {
         if (!done)
             return;
-        boost::asio::post(executor_, [done = std::move(done),
-                                      answer = std::move(answer)]() mutable
-                          { done(control_session_answer(std::move(answer))); });
+        boost::asio::post(
+            executor_,
+            [self = shared_from_this(), done = std::move(done),
+             answer = std::move(answer)]() mutable
+            {
+                // Not after the relay is gone.
+                if (!self->detached_)
+                    done(control_session_answer(std::move(answer)));
+            });
     }
 
     /// The reason a request is refused before anyone is asked, or nothing.
@@ -952,7 +1065,7 @@ private:
             return;
         answer_handler done = std::move(pending_->done);
         pending_.reset();
-        if (done)
+        if (done && !detached_)
             done(std::move(answer));
     }
 
@@ -968,10 +1081,21 @@ private:
             return;
         if (!approved)
         {
+            // The next request waits: a minute, then twice as long each
+            // time, until the owner approves.
+            ++refusals_;
+            auto wait = options_.refusal_cooldown;
+            for (std::size_t count = 1; count < refusals_; ++count)
+                wait = std::min(wait * 2, options_.refusal_cooldown_max);
+            wait = std::min(wait, options_.refusal_cooldown_max);
+            refused_until_ = clock_now() + wait;
             refuse_request(control_refusal::permission_denied,
-                           "The request was not approved.");
+                           "The request was not approved. Try again in " +
+                               wait_text(wait) + ".");
             return;
         }
+        refusals_ = 0;
+        refused_until_.reset();
         control::tokens_create_request create;
         create.label = pending_->label;
         create.scopes = pending_->scopes;
@@ -1014,6 +1138,8 @@ private:
             problem = "The control gateway did not make a token.";
         }
 
+        if (created)
+            created_.push_back(clock_now());
         if (epoch != epoch_)
         {
             // The relay was closed meanwhile and the request answered.  A
@@ -1034,8 +1160,9 @@ private:
     void open_connection(control::token_created_reply created)
     {
         const std::string token_id = created.entry.id;
-        auto connected = link::open(executor_, agent::local_endpoint::control,
-                                    options_.instance, false);
+        auto connected = link::open(
+            executor_, agent::local_endpoint::control,
+            options_.control_instance.value_or(options_.instance), false);
         if (!connected)
         {
             revoke({token_id}, {});
@@ -1046,6 +1173,9 @@ private:
         const std::uint64_t number = next_session_++;
         session& current = sessions_[number];
         current.token_id = token_id;
+        current.peer = pending_ ? pending_->peer : std::string();
+        current.scopes =
+            pending_ ? pending_->scopes : std::vector<std::string>();
         current.expires_ms = created.entry.expires_ms;
         current.connection = std::move(*connected);
         current.timer = std::make_shared<steady_timer>(executor_);
@@ -1079,7 +1209,7 @@ private:
         control::hello_request greeting;
         greeting.api = control::api_version;
         greeting.client = "plugin:";
-        greeting.client.append(clean_control_text(options_.plugin_id, 128));
+        greeting.client.append(label_id_);
         greeting.token = std::move(created.token);
         asked.body = std::move(greeting);
         agent::frame encoded = control::encode(asked);
@@ -1144,7 +1274,7 @@ private:
         const bool ends = says_unauthenticated(received);
         const std::uint64_t expires_ms = found->second.expires_ms;
         bool taken = true;
-        if (handlers_.to_plugin)
+        if (!detached_ && handlers_.to_plugin)
             taken = handlers_.to_plugin(number, received.header,
                                         bytes_view(received.blob));
         if (ends)
@@ -1258,8 +1388,7 @@ private:
         if (sessions_.find(number) == sessions_.end())
             return;
         drop_session(number);
-        if (handlers_.closed)
-            handlers_.closed(number, code, reason);
+        notify_closed(number, code, reason);
     }
 
     static std::uint64_t now_ms()
@@ -1308,18 +1437,24 @@ private:
         }
     }
 
-    /// Revokes tokens on the administration endpoint, as one try within the
-    /// time limit.  Nothing is retried; a token the gateway could not be
-    /// asked about ends when its life does.
-    void revoke(std::vector<std::string> tokens, std::function<void()> done)
+    /// Revokes tokens on the administration endpoint within the time limit.
+    /// A token that the gateway could not be asked about, or did not revoke,
+    /// is tried once more; after that it ends when its life does.  `done` is
+    /// not called once the relay is gone.
+    void revoke(std::vector<std::string> tokens, std::function<void()> done,
+                int attempt = 0)
     {
         if (tokens.empty())
         {
             // Done when the revoking that is under way has been done.
             if (done)
                 run_admin({}, {},
-                          [done = std::move(done)](
-                              error_code, const admin_results&) { done(); });
+                          [self = shared_from_this(), done = std::move(done)](
+                              error_code, const admin_results&)
+                          {
+                              if (!self->detached_)
+                                  done();
+                          });
             return;
         }
         std::vector<control::request_body> requests;
@@ -1328,23 +1463,35 @@ private:
             requests.emplace_back(control::tokens_revoke_request{id});
         run_admin(std::move(requests), options_.revoke_timeout,
                   [self = shared_from_this(), tokens = std::move(tokens),
-                   done = std::move(done)](error_code failed,
-                                           const admin_results& results)
+                   done = std::move(done),
+                   attempt](error_code failed, const admin_results& results)
                   {
-                      self->revoked(tokens, failed, results);
-                      if (done)
+                      std::vector<std::string> left =
+                          self->revoked(tokens, failed, results);
+                      if (!left.empty() && attempt == 0 &&
+                          failed != agent::protocol_errc::not_running)
+                      {
+                          self->revoke(std::move(left), done, 1);
+                          return;
+                      }
+                      if (done && !self->detached_)
                           done();
                   });
     }
 
-    void revoked(const std::vector<std::string>& tokens,
-                 const error_code& failed, const admin_results& results)
+    /// Says what happened to each token, and gives the ones that are still
+    /// good.  A token the gateway does not know is gone as well.
+    std::vector<std::string> revoked(const std::vector<std::string>& tokens,
+                                     const error_code& failed,
+                                     const admin_results& results)
     {
+        std::vector<std::string> left;
         for (std::size_t index = 0; index < tokens.size(); ++index)
         {
             std::string line = "token ";
             line.append(tokens[index]);
-            if (index < results.size() && results[index])
+            const bool answered = !failed && index < results.size();
+            if (answered && results[index])
             {
                 line.append(" revoked");
                 say(line);
@@ -1358,7 +1505,11 @@ private:
             else
                 line.append("no answer");
             say(line);
+            if (!(answered &&
+                  results[index].error() == control::api_errc::not_found))
+                left.push_back(tokens[index]);
         }
+        return left;
     }
 
     boost::asio::any_io_executor executor_;
@@ -1368,6 +1519,16 @@ private:
     std::deque<admin_task> admin_queue_;
     bool admin_busy_ = false;
     std::optional<pending_request> pending_;
+    std::string label_id_;
+    std::string shown_id_;
+    std::string shown_name_;
+    /// When tokens were made, for the daily count.
+    std::deque<std::chrono::steady_clock::time_point> created_;
+    /// How many times in a row the owner refused, and until when requests
+    /// are refused without asking.
+    std::size_t refusals_ = 0;
+    std::optional<std::chrono::steady_clock::time_point> refused_until_;
+    bool detached_ = false;
     std::uint64_t next_session_ = 1;
     /// Changes when the relay is closed, so that what was started before
     /// does not go on after.
@@ -1405,27 +1566,32 @@ control_relay::create(const boost::asio::any_io_executor& executor,
 void control_relay::request_session(const control_session_request& request,
                                     answer_handler done)
 {
+    const std::shared_ptr<impl> keep = impl_;
     impl_->request_session(request, std::move(done));
 }
 
 void control_relay::frame_from_plugin(std::uint64_t session, std::string header,
                                       byte_buffer blob)
 {
+    const std::shared_ptr<impl> keep = impl_;
     impl_->frame_from_plugin(session, std::move(header), std::move(blob));
 }
 
 void control_relay::plugin_has_room(std::uint64_t session)
 {
+    const std::shared_ptr<impl> keep = impl_;
     impl_->plugin_has_room(session);
 }
 
 void control_relay::close_session(std::uint64_t session)
 {
+    const std::shared_ptr<impl> keep = impl_;
     impl_->close_session(session);
 }
 
 void control_relay::close_all(std::function<void()> done)
 {
+    const std::shared_ptr<impl> keep = impl_;
     impl_->close_all(std::move(done));
 }
 

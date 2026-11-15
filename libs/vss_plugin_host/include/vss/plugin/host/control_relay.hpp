@@ -47,6 +47,19 @@
 // waits up to five seconds for a pipe whose instances are all taken, and
 // the gateway only lets that happen when it is overloaded.
 //
+// Lifetime.  The relay may be destroyed at any time, also from inside one
+// of its own handlers (a `done`, `closed`, `to_plugin` or `approve`).  The
+// destructor closes the connections and starts revoking the tokens, which
+// goes on without the relay.  After the destructor has run no handler is
+// called: not a request's `done`, not the `done` of `close_all`, not
+// `closed`, `to_plugin` or `log`.  A handler that is running when the relay
+// is destroyed is not touched.
+//
+// The gateway keeps at most 256 token records, and one stays for the token's
+// life and a week more even when revoked.  So a session is made only when
+// no session for the same peer and the same scopes is held, and at most
+// `max_tokens_per_day` tokens are made in 24 hours.
+//
 
 #pragma once
 
@@ -59,6 +72,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <variant>
@@ -176,15 +190,22 @@ inline constexpr std::size_t max_control_sessions = 4;
 /// What the owner is asked to approve.  `scopes` are exactly the scopes
 /// that will be asked of the gateway: valid names, each once, in the order
 /// of the scope list.
+///
+/// Every text here came from the plugin or its manifest and is untrusted.
+/// `plugin_id`, `plugin_name` and `peer` are cleaned (`clean_control_text`)
+/// and at most `max_control_peer_size` bytes.  `reason` is the plugin's own
+/// words: the prompt must show it set apart as such, never as a statement
+/// of the host.
 struct control_approval_request
 {
     std::string plugin_id;
     std::string plugin_name;
-    /// The plugin's text for who is behind this, cleaned: no control
-    /// characters, valid UTF-8, at most `max_control_peer_size` bytes.
+    /// The plugin's text for who is behind this, cleaned: no control or
+    /// invisible characters, valid UTF-8, at most `max_control_peer_size`
+    /// bytes.
     std::string peer;
     /// The plugin's reason, cleaned in the same way, at most
-    /// `max_control_reason_size` bytes.  Still the plugin's words.
+    /// `max_control_reason_size` bytes.  The plugin's own words.
     std::string reason;
     std::vector<std::string> scopes;
     /// How long the token lives.
@@ -200,6 +221,10 @@ struct control_relay_options
     /// The instance name of the gateway; empty for this user's ordinary
     /// one.  A test gives its own gateway another name.
     std::string instance;
+    /// The instance name for the gateway's local (not administration)
+    /// endpoint, when it differs from `instance`.  Only a test has use for
+    /// it, to put something else where the gateway's endpoint is.
+    std::optional<std::string> control_instance;
     /// How long a session's token lives.  The gateway takes at most a year.
     std::chrono::seconds token_life{std::chrono::hours{24}};
     /// How long the gateway has to make a token, and to answer `hello`.
@@ -214,6 +239,17 @@ struct control_relay_options
     /// connection.  One byte more and the session is closed instead of
     /// growing.
     std::size_t max_waiting_bytes = std::size_t{4} * 1024 * 1024;
+    /// The most tokens made in any 24 hours.  Over it a request is refused
+    /// with `busy` before anyone is asked.
+    std::size_t max_tokens_per_day = 8;
+    /// After the owner refuses, further requests are refused without
+    /// asking, for this long; each further refusal doubles the time up to
+    /// `refusal_cooldown_max`; an approval starts it again.
+    std::chrono::seconds refusal_cooldown{60};
+    std::chrono::seconds refusal_cooldown_max{std::chrono::minutes{15}};
+    /// The time the cooldown and the daily count are measured on.  The
+    /// steady clock when empty; a test gives its own to step.
+    std::function<std::chrono::steady_clock::time_point()> clock;
 };
 
 /// What the relay calls.  All run on the relay's strand and must not block.
@@ -256,8 +292,11 @@ struct control_relay_handlers
 
 /// `text` as safe to show a person: bytes that are not valid UTF-8 are
 /// dropped, and so are control characters, the line and paragraph
-/// separators, the zero width and direction controls, and the byte order
-/// mark.  Spaces at the ends are cut, and the result is at most
+/// separators, the zero width, direction and invisible filler characters
+/// (soft hyphen, combining grapheme joiner, Hangul fillers, the Mongolian
+/// vowel separator), variation selectors, tag characters and the byte order
+/// mark.  Wide and odd spaces become one ordinary space, runs of spaces
+/// become one, spaces at the ends are cut, and the result is at most
 /// `most_bytes` bytes without cutting a character.
 std::string clean_control_text(std::string_view text, std::size_t most_bytes);
 

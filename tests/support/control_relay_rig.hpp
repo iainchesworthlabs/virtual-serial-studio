@@ -22,6 +22,7 @@
 #include <boost/asio/post.hpp>
 #include <boost/asio/strand.hpp>
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -70,6 +71,27 @@ enum class approval_mode
     hold
 };
 
+/// A clock that a test steps by hand, for the relay's options.
+class fake_clock
+{
+public:
+    fake_clock() : ticks_(std::make_shared<std::atomic<std::int64_t>>(0)) {}
+
+    std::function<std::chrono::steady_clock::time_point()> function() const
+    {
+        return [ticks = ticks_]
+        {
+            return std::chrono::steady_clock::time_point(
+                std::chrono::seconds(ticks->load()));
+        };
+    }
+
+    void advance(std::chrono::seconds by) { ticks_->fetch_add(by.count()); }
+
+private:
+    std::shared_ptr<std::atomic<std::int64_t>> ticks_;
+};
+
 class relay_rig
 {
 public:
@@ -95,6 +117,9 @@ public:
                 closed_.push_back({session, code, std::string(reason)});
             }
             changed_.notify_all();
+            // The relay is destroyed from inside its own handler.
+            if (destroy_in_closed_.load())
+                relay_.reset();
         };
         handlers.log = [this](std::string_view line)
         {
@@ -128,6 +153,10 @@ public:
 
     relay_rig(const relay_rig&) = delete;
     relay_rig& operator=(const relay_rig&) = delete;
+
+    /// From now on the relay is destroyed inside its `closed` handler, on
+    /// the first call of it.  The rig makes no more calls to the relay then.
+    void destroy_in_closed() { destroy_in_closed_.store(true); }
 
     // -- the owner ------------------------------------------------------------
 
@@ -387,7 +416,8 @@ public:
     }
 
     /// Waits until the relay has called `closed` `count` times for a session.
-    bool wait_closed_count(std::uint64_t session, std::size_t count)
+    bool wait_closed_count(std::uint64_t session, std::size_t count,
+                           std::chrono::milliseconds limit = long_limit)
     {
         return wait_until(
             [&]
@@ -396,7 +426,8 @@ public:
                 for (const closed_note& note : closed_)
                     seen += note.session == session ? 1 : 0;
                 return seen >= count;
-            });
+            },
+            limit);
     }
 
     /// Every text the relay gave out: approvals, answers, reasons, log lines
@@ -490,6 +521,7 @@ private:
         guard_;
     boost::asio::strand<boost::asio::io_context::executor_type> strand_;
     std::shared_ptr<vss::plugin::host::control_relay> relay_;
+    std::atomic<bool> destroy_in_closed_{false};
     std::thread thread_;
 
     mutable std::mutex mutex_;
