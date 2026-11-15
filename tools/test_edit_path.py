@@ -53,14 +53,32 @@ class EditPath(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
 
+    def write_ps(self, value_expression: str, kind: str) -> None:
+        # For a value that an environment variable cannot carry: longer than 32767 characters, or not a string.
+        result = run_ps(
+            f"$k = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('{self.subkey}');"
+            f"$k.SetValue('Path', {value_expression}, [Microsoft.Win32.RegistryValueKind]::{kind}); $k.Close()"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def snapshot(self) -> str:
+        # The value as the registry holds it, whatever its type, and the type.
+        result = run_ps(
+            f"$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('{self.subkey}');"
+            "$v = $k.GetValue('Path', '', 'DoNotExpandEnvironmentNames'); ($v -join '|') + ' ' + $k.GetValueKind('Path'); $k.Close()"
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
     def read(self) -> tuple[str, str]:
         result = run_ps(
             f"$k = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('{self.subkey}');"
             "$k.GetValue('Path', '', 'DoNotExpandEnvironmentNames'); $k.GetValueKind('Path'); $k.Close()"
         )
         self.assertEqual(result.returncode, 0, result.stderr)
-        value, kind = result.stdout.strip().splitlines()
-        return value, kind
+        # An empty value prints an empty first line, so the lines are not stripped first.
+        lines = result.stdout.splitlines()
+        return "\n".join(lines[:-1]), lines[-1].strip()
 
     def edit(self, action: str) -> subprocess.CompletedProcess[str]:
         return run_ps(
@@ -83,10 +101,119 @@ class EditPath(unittest.TestCase):
         self.assertEqual(self.edit("Add").returncode, 0)
         self.assertEqual(self.read()[0], FOLDER)
 
+    def test_add_to_a_path_with_one_entry(self) -> None:
+        # One entry used to come back as a string, not a list, and the folder was glued onto it.
+        self.write(r"%SystemRoot%\system32")
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read(), (rf"%SystemRoot%\system32;{FOLDER}", "ExpandString"))
+
+    def test_add_to_a_path_with_one_entry_and_a_trailing_semicolon(self) -> None:
+        self.write(r"%SystemRoot%\system32;")
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read(), (rf"%SystemRoot%\system32;{FOLDER}", "ExpandString"))
+
+    def test_add_to_a_path_with_a_trailing_semicolon(self) -> None:
+        self.write(r"C:\One;C:\Two;")
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read()[0], rf"C:\One;C:\Two;{FOLDER}")
+
+    def test_add_to_a_path_with_a_doubled_semicolon_drops_the_empty_entry(self) -> None:
+        self.write(r"C:\One;;C:\Two")
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read()[0], rf"C:\One;C:\Two;{FOLDER}")
+
+    def test_add_to_a_path_that_is_only_semicolons(self) -> None:
+        self.write(";;")
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read()[0], FOLDER)
+
+    def test_add_when_the_entry_is_there_with_other_case_and_one_trailing_backslash(self) -> None:
+        self.write(rf"C:\One;{FOLDER.lower()}" + "\\")
+        before = self.read()
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read(), before)
+
+    def test_add_when_the_entry_is_the_only_one_and_is_there_already(self) -> None:
+        self.write(FOLDER)
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read()[0], FOLDER)
+
+    def test_add_when_the_entry_is_there_in_quotes(self) -> None:
+        self.write(rf'C:\One;"{FOLDER}"')
+        before = self.read()
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read(), before)
+
+    def test_add_keeps_a_plain_string_value_a_plain_string(self) -> None:
+        self.write(r"C:\One", kind="String")
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read(), (rf"C:\One;{FOLDER}", "String"))
+
+    def test_add_makes_an_expandable_string_when_there_is_no_value(self) -> None:
+        # A key with no Path value at all: the script makes one, of the type Windows uses.
+        run_ps(f"[Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('{self.subkey}').Close()")
+        self.assertEqual(self.edit("Add").returncode, 0)
+        self.assertEqual(self.read(), (FOLDER, "ExpandString"))
+
     def test_remove_takes_only_that_folder(self) -> None:
         self.write(rf"C:\One;{FOLDER};C:\Two")
         self.assertEqual(self.edit("Remove").returncode, 0)
         self.assertEqual(self.read()[0], r"C:\One;C:\Two")
+
+    def test_remove_from_a_path_that_holds_only_the_folder(self) -> None:
+        self.write(FOLDER)
+        self.assertEqual(self.edit("Remove").returncode, 0)
+        self.assertEqual(self.read(), ("", "ExpandString"))
+
+    def test_remove_leaves_one_entry_whole(self) -> None:
+        self.write(rf"%SystemRoot%\system32;{FOLDER}")
+        self.assertEqual(self.edit("Remove").returncode, 0)
+        self.assertEqual(self.read(), (r"%SystemRoot%\system32", "ExpandString"))
+
+    def test_remove_finds_the_folder_with_other_case_and_a_trailing_backslash(self) -> None:
+        self.write(rf"C:\One;{FOLDER.upper()}\;C:\Two;")
+        self.assertEqual(self.edit("Remove").returncode, 0)
+        self.assertEqual(self.read()[0], r"C:\One;C:\Two")
+
+    def test_remove_keeps_a_plain_string_value_a_plain_string(self) -> None:
+        self.write(rf"C:\One;{FOLDER}", kind="String")
+        self.assertEqual(self.edit("Remove").returncode, 0)
+        self.assertEqual(self.read(), (r"C:\One", "String"))
+
+    def test_remove_does_not_take_half_of_an_entry_with_one_quote(self) -> None:
+        # The folder sits inside a quoted entry that also holds a semicolon, so after the split
+        # the second half ends in a quote and does not start with one. It is not the folder.
+        value = rf'"C:\x;{FOLDER}";C:\One'
+        self.write(value)
+        result = self.edit("Remove")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        self.assertEqual(self.read()[0], value)
+
+    def test_a_path_that_is_not_a_string_is_refused_and_left_alone(self) -> None:
+        self.write_ps(r"[string[]]@('C:\One', 'C:\Two')", "MultiString")
+        before = self.snapshot()
+        for action in ("Add", "Remove"):
+            result = self.edit(action)
+            self.assertEqual(result.returncode, 2, result.stdout)
+            self.assertEqual(self.snapshot(), before)
+        self.write_ps("7", "DWord")
+        before = self.snapshot()
+        result = self.edit("Add")
+        self.assertEqual(result.returncode, 2, result.stdout)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_remove_is_not_refused_for_length(self) -> None:
+        # A PATH already over the limit (set by something else) can still lose the folder.
+        self.write_ps(
+            rf"((1..140 | ForEach-Object {{ 'C:\' + ('x' * 250) }}) -join ';') + ';{FOLDER}'", "ExpandString"
+        )
+        before_length = len(self.read()[0])
+        self.assertGreater(before_length, MAX_LENGTH)
+        result = self.edit("Remove")
+        self.assertEqual(result.returncode, 0, result.stdout)
+        value = self.read()[0]
+        self.assertNotIn(FOLDER, value)
+        self.assertEqual(len(value), before_length - len(FOLDER) - 1)
 
     def test_remove_when_absent_changes_nothing(self) -> None:
         self.write(r"C:\One;C:\Two")

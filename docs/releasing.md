@@ -357,7 +357,12 @@ service.
    upgrade and before the uninstall it starts `vss_cli virtual` from the installed folder
    and requires that the installer closed it, and before the uninstall it makes a start at
    sign-in entry and a running setup for the runner's user and requires the entry gone and
-   the setup marked as stopped afterwards.
+   the setup marked as stopped afterwards. After the upgrade it also runs two uninstalls from
+   the install folder and installs again after each: `Uninstall.exe /S _?=<folder>` must leave
+   no PATH entry, helper service, driver package or start at sign-in entry, and
+   `Uninstall.exe /S /VSSUPGRADE=1 _?=<folder>` must keep the PATH entry and leave the scripts
+   in `undo-upgrade`, which, run as the installer runs them, must leave a clean machine. A
+   cancelled upgrade with the wizard on screen is not run on the runner; it is a guest step.
 
 NSIS comes from Chocolatey through the `setup-toolchain` action, at the version in
 `.github/toolchain-versions.json`.
@@ -421,16 +426,47 @@ Serial Studio**) and where the log is. A silent install shows nothing, exits 0 a
 the log and the `VssDriver` value; automation reads the value. A signed and trusted
 package installs with no step by hand.
 
-**Upgrade and uninstall.** An upgrade runs the old uninstaller in place, and the installer
-tells that apart from a real uninstall (the old uninstaller runs from the install folder
-itself, which a normal uninstall never does): it leaves the driver package, the helper
-service and the ports' COM numbers alone, replaces the files, and runs the set-up again,
-which stops the helper before it replaces `vsscom_helper.exe`. A real uninstall runs
-`bin\driver\remove-driver.ps1`: it stops and deletes the helper service (the ports it made go
-with it), deletes the `vsscom_um` package from the driver store (which removes the devices
-that use it), checks that none is left and removes the helper's folder. It touches no
-certificate and no setting, and no other driver. If it fails, the uninstaller says so and
-keeps `driver-remove.log`.
+**Upgrade and uninstall.** An upgrade runs the old uninstaller first, and the new installer
+tells it so: it starts it with `/VSSUPGRADE=1` (CPack's NSIS template has one line for this,
+and `cmake/packaging/windows/nsis-template.cmake` writes the copy of it that is used; the
+configure step stops if a CMake release moves that line). Only an uninstaller started with
+that switch keeps the driver package, the helper service, the PATH entry and the per-user
+entries. The switch is for the installer's own use. Where the uninstaller runs from does not
+matter: `Uninstall.exe /S _?=<folder>`, which is how an unattended uninstall is made to wait,
+removes the driver, the helper service, the PATH entry and the per-user entries, and
+removes Studio, but leaves `Uninstall.exe` and the install folder, because an uninstaller
+started that way cannot delete itself; a deployment tool has to delete the folder. Passed
+by hand to an ordinary uninstall, `/VSSUPGRADE=1` keeps the driver, the helper service and
+the PATH entry, removes Studio and its uninstaller, and leaves the scripts that finish the
+job in `undo-upgrade` in the install folder (see below).
+
+An upgrade leaves the driver and the ports' COM numbers alone, replaces the files, and runs
+the set-up again, which stops the helper before it replaces `vsscom_helper.exe`. Because the
+old version is gone before the new installer's first page, the old uninstaller also leaves the
+scripts that take those things away in `undo-upgrade` in the install folder. If the person
+cancels, or the install fails (also a silent one, which exits with 2), the new installer
+runs them and takes away the driver, the helper service, the PATH entry and the start at
+sign-in entries, deletes `Uninstall.exe` and `undo-upgrade`, and removes the folder if it is
+empty. So a cancelled or failed upgrade also removes the PATH entry, and an install run
+again without `/ADDTOPATH=1` does not put it back. A finished install deletes `undo-upgrade`.
+This clean-up applies when the version being replaced already has this change, because
+that version's uninstaller makes the scripts. A cancelled upgrade from an older version
+leaves the helper service, the driver and the PATH entry, as it did before. If an installer
+is killed after the old version was removed, `undo-upgrade` stays and Apps & features has no
+entry, so the next install runs no uninstaller; it takes `undo-upgrade` as an unfinished
+upgrade, so that if it is cancelled or fails it runs the clean-up from it, and if it
+finishes it deletes the folder.
+
+A real uninstall runs `bin\driver\remove-driver.ps1`: it stops and deletes the helper service
+(the ports it made go with it), removes the port devices `SWD\VSSCOMUM\*`, absent ones
+included, and then deletes the `vsscom_um` package from the driver store, checks that none
+is left and removes the helper's folder. It touches no certificate and no setting, and no
+other driver. If it fails, the uninstaller says so and keeps `driver-remove.log`. If it
+cannot take the folder out of the PATH, it says so and keeps `path-setup.log` in the install
+folder, which stays with it; a silent uninstall shows no message, so the log is where to
+look. Where the install folder is under Program Files (the default) only administrators can
+change what is in it; a folder chosen somewhere else has the access list of its parent, as
+it already does for the other scripts there.
 
 **A Studio that is running.** Windows cannot replace or delete a program that runs, so
 before an upgrade copies the files and before an uninstall deletes them the installer
