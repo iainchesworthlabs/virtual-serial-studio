@@ -597,8 +597,8 @@ TEST_CASE("control gateway: status gives the edition and the state of the "
     {
         license::state state;
         license::edition edition;
-        const char* edition_given;
-        const char* state_given;
+        const char* edition_given = nullptr;
+        const char* state_given = nullptr;
     };
     using license::edition;
     using license::state;
