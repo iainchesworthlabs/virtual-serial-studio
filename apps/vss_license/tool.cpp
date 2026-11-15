@@ -732,7 +732,9 @@ std::optional<boost::json::object> request_object(std::string_view text)
     boost::json::value document = boost::json::parse(text, failed);
     if (failed || !document.is_object())
         return std::nullopt;
-    return std::move(document.as_object());
+    // Taken out of the document, not copied: a returned local is moved.
+    boost::json::object object = std::move(document.as_object());
+    return object;
 }
 
 /// A message for the first key of `object` that is not in `known`. `owner`
