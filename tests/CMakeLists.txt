@@ -240,7 +240,8 @@ endif()
 
 # The control tests start vss_gate beside them.
 if(TARGET vss_agent AND TARGET vss_cli AND TARGET vss_gate)
-  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp)
+  list(APPEND VSS_SYSTEM_TEST_SOURCES system/test_system_control.cpp
+    system/test_system_plugin_control_relay_gateway.cpp)
 endif()
 
 # The plugin process tests start vss_test_plugin, a program that does what
@@ -255,6 +256,7 @@ target_compile_features(vss_test_plugin PRIVATE cxx_std_23)
 target_link_libraries(vss_test_plugin PRIVATE vss_plugin)
 vss_set_warnings(vss_test_plugin)
 list(APPEND VSS_SYSTEM_TEST_SOURCES
+  system/test_system_plugin_control_relay.cpp
   system/test_system_plugin_process.cpp
   system/test_system_plugin_runner.cpp
   system/test_system_plugin_service.cpp
