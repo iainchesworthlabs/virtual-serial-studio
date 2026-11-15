@@ -9,6 +9,7 @@
 
 add_library(vss_plugin_host
   src/control_relay.cpp
+  src/extension.cpp
   src/instances.cpp
   src/process.cpp
   src/runner.cpp

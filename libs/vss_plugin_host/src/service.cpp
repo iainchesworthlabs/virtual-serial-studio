@@ -9,6 +9,7 @@
 #include <vss/core/error.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
+#include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
@@ -275,6 +276,10 @@ private:
     {
         std::shared_ptr<plugin_runner> runner;
         std::shared_ptr<plugin_instances> instances;
+        /// The extension points offered to this plugin.  Shared so that a
+        /// copy of the entry is the same plugin.
+        std::shared_ptr<std::vector<std::unique_ptr<extension_handler>>>
+            handlers;
         /// The start of the plugin that the instances were last told is
         /// ready; 0 when they were told it has gone.
         std::uint64_t ready_start = 0;
@@ -441,6 +446,8 @@ private:
             else if (runs)
             {
                 running_plugin entry;
+                const std::filesystem::path data_directory =
+                    scanned.plan->options.process.working_directory;
                 entry.hash = scanned.shown.hash;
                 entry.granted = scanned.shown.granted;
                 entry.runner =
@@ -465,6 +472,41 @@ private:
                 if (const auto wanted = wanted_.find(id);
                     wanted != wanted_.end())
                     entry.instances->want(wanted->second);
+                entry.handlers = std::make_shared<
+                    std::vector<std::unique_ptr<extension_handler>>>();
+                if (options_.extensions)
+                {
+                    extension_context context;
+                    context.plugin_id = id;
+                    context.plugin_name = scanned.shown.name;
+                    context.granted = scanned.shown.granted;
+                    context.data_directory = data_directory;
+                    context.instances = entry.instances;
+                    context.executor = boost::asio::any_io_executor(strand_);
+                    context.link.answer =
+                        [runner = entry.runner](std::uint64_t re,
+                                                api_message message)
+                    { runner->answer(re, std::move(message)); };
+                    context.link.notify =
+                        [runner = entry.runner](api_message message)
+                    { runner->notify(std::move(message)); };
+                    context.link.request =
+                        [runner =
+                             entry.runner](api_message message,
+                                           plugin_link::answer_handler handler,
+                                           std::chrono::milliseconds timeout)
+                    {
+                        runner->request(std::move(message), std::move(handler),
+                                        timeout);
+                    };
+                    *entry.handlers = options_.extensions(context);
+                }
+                entry.runner->on_message(
+                    [weak = weak_from_this(), id](const api_message& message)
+                    {
+                        if (const auto self = weak.lock())
+                            self->plugin_message(id, message);
+                    });
                 entry.runner->on_change(
                     [weak = weak_from_this(), id]()
                     {
@@ -482,6 +524,12 @@ private:
         for (auto& [id, entry] : running_)
         {
             entry.runner->stop("the plugin is no longer to run");
+            if (entry.ready_start != 0)
+            {
+                entry.instances->plugin_gone();
+                for (const auto& handler : *entry.handlers)
+                    handler->plugin_gone();
+            }
             leaving_.push_back(std::move(entry.runner));
         }
         running_ = std::move(keep);
@@ -512,6 +560,26 @@ private:
         }
     }
 
+    /// A message of an extension point came from a plugin.  The first
+    /// handler that takes it answers it; a message nobody takes is one
+    /// this host does not know.
+    void plugin_message(const std::string& id, const api_message& message)
+    {
+        const auto found = running_.find(id);
+        if (found == running_.end())
+            return;
+        // The plugin is told it is ready before its first message is
+        // taken, whichever of the two the service hears of first.
+        runner_changed(id);
+        const auto handlers = found->second.handlers;
+        for (const auto& handler : *handlers)
+        {
+            if (handler->take(message))
+                return;
+        }
+        found->second.runner->unknown(message);
+    }
+
     /// A runner's snapshot changed: its instances are told when the
     /// plugin became ready and when it went.
     void runner_changed(const std::string& id)
@@ -527,10 +595,14 @@ private:
             {
                 entry.ready_start = 0;
                 entry.instances->plugin_gone();
+                for (const auto& handler : *entry.handlers)
+                    handler->plugin_gone();
             }
             if (ready && entry.ready_start == 0)
             {
                 entry.ready_start = now->starts;
+                for (const auto& handler : *entry.handlers)
+                    handler->plugin_ready();
                 entry.instances->plugin_ready();
             }
         }
