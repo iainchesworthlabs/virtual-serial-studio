@@ -363,21 +363,39 @@ result<confined_job> make_job(const sandbox_profile* profile)
 
 /// The parts of Windows that an AppContainer needs came with Windows 8,
 /// and this project is built against the interface of Windows 7.  So the
-/// one function is looked up when it is needed, and the two numbers are
-/// written here as the Windows headers define them for later versions.  On
-/// a Windows without them nothing of a container is applied, and the
+/// two functions are looked up when they are needed, and the two numbers
+/// are written here as the Windows headers define them for later versions.
+/// On a Windows without them nothing of a container is applied, and the
 /// report says so.
-using derive_container_sid = HRESULT(WINAPI*)(PCWSTR, PSID*);
-
-derive_container_sid find_derive_container_sid() noexcept
+struct container_functions
 {
+    using create_profile = HRESULT(WINAPI*)(PCWSTR, PCWSTR, PCWSTR,
+                                            PSID_AND_ATTRIBUTES, DWORD, PSID*);
+    using derive_sid = HRESULT(WINAPI*)(PCWSTR, PSID*);
+
+    create_profile create = nullptr;
+    derive_sid derive = nullptr;
+
+    bool found() const noexcept
+    {
+        return create != nullptr && derive != nullptr;
+    }
+};
+
+container_functions find_container_functions() noexcept
+{
+    container_functions functions;
     const HMODULE library =
         ::LoadLibraryExW(L"userenv.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     if (library == nullptr)
-        return nullptr;
-    return reinterpret_cast<derive_container_sid>(
+        return functions;
+    functions.create = reinterpret_cast<container_functions::create_profile>(
+        reinterpret_cast<void*>(
+            ::GetProcAddress(library, "CreateAppContainerProfile")));
+    functions.derive = reinterpret_cast<container_functions::derive_sid>(
         reinterpret_cast<void*>(::GetProcAddress(
             library, "DeriveAppContainerSidFromAppContainerName")));
+    return functions;
 }
 
 /// PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES.
@@ -393,8 +411,7 @@ struct sid_free
 
 /// The AppContainer of one plugin: an identity of its own that Windows
 /// gives no file, no network and no other process unless something grants
-/// it.  It needs no profile to be registered; the identity is worked out
-/// from the name.
+/// it.
 struct app_container
 {
     std::unique_ptr<void, sid_free> sid;
@@ -487,11 +504,19 @@ result<app_container> prepare_container(const sandbox_profile& profile)
         return make_error_code(plugin_errc::start_failed);
     app_container container;
     PSID raw = nullptr;
-    const derive_container_sid derive = find_derive_container_sid();
-    if (derive == nullptr)
+    const container_functions functions = find_container_functions();
+    if (!functions.found())
         return make_error_code(plugin_errc::sandbox_insufficient);
-    const HRESULT derived = derive(container_name(profile.name).c_str(), &raw);
-    if (FAILED(derived) || raw == nullptr)
+    // Windows starts a process in a container only when the container is
+    // registered for this user.  It is registered once, under its name, and
+    // found again at every later start.
+    const std::wstring name = container_name(profile.name);
+    HRESULT made = functions.create(name.c_str(), name.c_str(),
+                                    L"A plugin of Virtual Serial Studio",
+                                    nullptr, 0, &raw);
+    if (made == HRESULT_FROM_WIN32(ERROR_ALREADY_EXISTS))
+        made = functions.derive(name.c_str(), &raw);
+    if (FAILED(made) || raw == nullptr)
         return make_error_code(plugin_errc::sandbox_insufficient);
     container.sid.reset(raw);
 
@@ -857,7 +882,7 @@ start_process(const process_request& request)
 sandbox_report available_sandbox()
 {
     sandbox_report report;
-    if (find_derive_container_sid() != nullptr)
+    if (find_container_functions().found())
     {
         report.applied.assign(std::begin(all_sandbox_parts),
                               std::end(all_sandbox_parts));
