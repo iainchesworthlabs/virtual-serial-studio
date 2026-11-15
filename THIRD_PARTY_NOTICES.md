@@ -3,9 +3,7 @@
 Virtual Serial Studio itself is licensed under the **GNU General Public
 License, version 3 or later** (see [LICENSE](LICENSE)). The components below
 keep their own licences. Every licence listed here is compatible with
-redistributing the combined application under the GPL, version 3. Qt Canvas
-Painter is GPL-3.0-only, so a binary that contains it is conveyed under
-version 3 (see below).
+redistributing the combined application under GPL-3.0-or-later.
 
 ## Linked or built against
 
@@ -13,7 +11,7 @@ version 3 (see below).
 |---|---|---|---|
 | [Boost.VirtualSerial](https://github.com/iainchesworthlabs/virtual-serial) | v0.1.0-beta.2 | Boost Software License 1.0 | Header-only; the serial transport, backends and mock fixture behind every endpoint |
 | [Boost](https://boost.org) | 1.92 headers | Boost Software License 1.0 | Asio, System, JSON |
-| [Qt](https://qt.io) | 6.12.0 | LGPL-3.0-only OR GPL-3.0-only OR commercial; the Qt Canvas Painter module is GPL-3.0-only OR commercial | The GUI; linked dynamically. The release packages carry the Qt libraries, and with them the Qt Canvas Painter library (`Qt6CanvasPainter`) that draws the canvas |
+| [Qt](https://qt.io) | 6.10.3 | LGPL-3.0-only OR GPL-3.0-only OR commercial | The GUI; linked dynamically |
 | [Monocypher](https://monocypher.org) | 4.0.2 | BSD-2-Clause OR CC0-1.0 | Vendored unchanged in `third_party/monocypher` and compiled into the program; the Ed25519 signature check behind licence files (`libs/vss_license`) |
 | [Tracy](https://github.com/wolfpld/tracy) | 0.14.1 (vcpkg) | BSD-3-Clause | Optional profiling client, compiled in when the build finds the vcpkg package (`VSS_TRACY`, on by default in vcpkg builds; the release packages are not built with vcpkg, so they do not contain it), built from an overlay of the vcpkg port (`cmake/vcpkg-ports/tracy`, MIT, adds the manual-lifetime and no-broadcast features); the capture and CSV tools are built from source in CI |
 
@@ -21,14 +19,6 @@ BSL-1.0 is a permissive licence whose only requirement is to keep the
 copyright notice; it may be combined with GPLv3 code. Qt is linked dynamically,
 so the LGPL relinking requirement is satisfied by the dynamic link, and a
 GPL-3.0-or-later application is one of the uses Qt's own GPLv3 option permits.
-
-Qt Canvas Painter is not offered under the LGPL. Qt's documentation for 6.12
-(<https://doc.qt.io/qt-6.12/qtcanvaspainter-index.html>) says it is available
-under commercial licences from The Qt Company and under the GNU General Public
-License, version 3. Studio uses it under the GPL, version 3, which Studio's own
-licence allows. A program that contains it can be conveyed under version 3 of the
-GPL, not "or any later version". The same page says Qt Canvas Painter 6.12.0 may
-contain NanoVG (version f93799c) under the zlib License.
 
 ## Bundled fonts
 
