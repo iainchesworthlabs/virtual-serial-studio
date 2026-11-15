@@ -12,6 +12,7 @@
 #include <QStringList>
 
 #include <algorithm>
+#include <utility>
 
 namespace vss::gui
 {
@@ -221,7 +222,7 @@ std::optional<device_address> parse_device_address(const QString& text,
     {
         // No colon is a name or an IPv4 address.  Two or more is an IPv6
         // address with no port, so `192.168.1.50:4001:4001` is not one.
-        host = rest;
+        host = std::move(rest);
         if (host.contains(QLatin1Char(':')) && !ipv6_address(host))
             return refuse(network_address_error());
     }
@@ -238,12 +239,12 @@ std::optional<device_address> parse_device_address(const QString& text,
             return refuse(network_port_error());
         result.port = port;
     }
-    constexpr qsizetype longest_host = 253;
-    if (!valid_remote_host(host) || host.size() > longest_host ||
+    constexpr qsizetype kLongestHost = 253;
+    if (!valid_remote_host(host) || host.size() > kLongestHost ||
         host.contains(QLatin1Char('[')) || host.contains(QLatin1Char(']')) ||
         host.contains(QLatin1Char('@')))
         return refuse(network_address_error());
-    result.host = host;
+    result.host = std::move(host);
     return result;
 }
 
