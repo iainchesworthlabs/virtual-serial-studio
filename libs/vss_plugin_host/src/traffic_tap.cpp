@@ -86,12 +86,12 @@ struct traffic_tap::state
             }
         }
         if (to_post)
-            post_notify(self, std::move(to_post), std::move(where));
+            post_notify(self, std::move(to_post), where);
     }
 
     static void post_notify(const std::shared_ptr<state>& self,
                             std::shared_ptr<std::function<void()>> call,
-                            boost::asio::any_io_executor where)
+                            const boost::asio::any_io_executor& where)
     {
         boost::asio::post(
             where, [self, call = std::move(call)] {
@@ -203,7 +203,7 @@ void traffic_tap::set_notify(std::function<void()> notify,
         now = !state_->queue.empty();
     }
     if (now)
-        state::post_notify(state_, std::move(call), std::move(where));
+        state::post_notify(state_, std::move(call), where);
 }
 
 std::size_t traffic_tap::queued_items() const

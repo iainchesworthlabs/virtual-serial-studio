@@ -355,11 +355,13 @@ TEST_CASE("traffic tap: closing and destroying while traffic flows")
 {
     auto hub = start_hub(4);
     std::vector<mock_endpoint> ports;
+    ports.reserve(4);
     for (int i = 0; i < 4; ++i)
         ports.push_back(add_mock(*hub, "port" + std::to_string(i)));
 
     std::atomic<bool> stop{false};
     std::vector<std::thread> senders;
+    senders.reserve(ports.size());
     for (const auto& port : ports)
     {
         senders.emplace_back([&stop, port] {
@@ -375,6 +377,7 @@ TEST_CASE("traffic tap: closing and destroying while traffic flows")
     for (int round = 0; round < 200; ++round)
     {
         std::vector<tap_place> places;
+        places.reserve(ports.size());
         for (std::size_t i = 0; i < ports.size(); ++i)
             places.push_back(place_of("p" + std::to_string(i), ports[i]));
         tap_limits limits;
