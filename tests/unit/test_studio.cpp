@@ -605,6 +605,11 @@ TEST_CASE("studio: unknown identifiers are handled")
 
 TEST_CASE("studio: applying a mock and an automatic virtual port")
 {
+    // Where the driver is installed an automatic port is a real COM port, and
+    // a unit test does not make one on the machine it runs on.
+    if (vss::driver_available())
+        VSS_SKIP("the Windows driver is installed; it would make a real port");
+
     config::document document;
     document.name = "mixed";
 
@@ -737,6 +742,11 @@ TEST_CASE("studio: a driver topology fails cleanly without the driver")
 
 TEST_CASE("studio: virtual port kinds round trip through the snapshot")
 {
+    // Windows has no pseudo terminals, so the request falls back to an
+    // automatic port, which is a real COM port where the driver is installed.
+    if (vss::driver_available())
+        VSS_SKIP("the Windows driver is installed; it would make a real port");
+
     studio app;
     const auto created =
         app.create_virtual_port("best", virtual_port_kind::pty);
