@@ -345,7 +345,7 @@ std::string create_token(const std::string& instance, const std::string& label,
 /// A text that must not hold a secret, and what the secret looks like in it.
 struct needle
 {
-    const char* kind;
+    const char* kind = nullptr;
     std::string text;
 };
 

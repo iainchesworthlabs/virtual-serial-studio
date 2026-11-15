@@ -1132,7 +1132,7 @@ result<document> load_file(const std::string& path, std::string& problem)
     if (size > max_setup_file_size)
     {
         problem = "the file is larger than " +
-                  std::to_string(max_setup_file_size / (1024 * 1024)) +
+                  std::to_string(max_setup_file_size / (std::uintmax_t{1024} * 1024)) +
                   " MiB, which is the most a setup file may be";
         return make_error_code(errc::config_error);
     }

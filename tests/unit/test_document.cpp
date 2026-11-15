@@ -665,7 +665,7 @@ TEST_CASE("document: a file over the size limit is refused")
     // so.
     {
         std::ofstream stream(path, std::ios::binary | std::ios::trunc);
-        const std::string block(1024 * 1024, ' ');
+        const std::string block(std::size_t{1024} * 1024, ' ');
         for (std::uintmax_t written = 0; written < max_setup_file_size;
              written += block.size())
             stream << block;

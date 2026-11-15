@@ -266,8 +266,8 @@ bool parse_port(const QString& text, int& port)
 std::optional<network_endpoint> parse_network_uri(const QString& text,
                                                   QString* error)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.dialogs.network_uri.parse");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, text.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.dialogs.network_uri.parse");
+    VSS_PROFILE_ZONE_TEXT(zone, text.toStdString());
     if (error != nullptr)
         error->clear();
     // Every address needs a scheme followed by ://.
@@ -388,9 +388,9 @@ bool is_loopback_host(const QString& host)
 
 bool rfc2217_server_is_open(const QString& uri)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone,
+    VSS_PROFILE_ZONE_NAMED(zone,
                            "gui.dialogs.network_uri.rfc2217_probe");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, uri.toStdString());
+    VSS_PROFILE_ZONE_TEXT(zone, uri.toStdString());
     const auto parsed = parse_network_uri(uri);
     if (!parsed || parsed->role != network_role::server ||
         parsed->transport != network_transport::rfc2217)

@@ -42,7 +42,7 @@ BOOL WINAPI on_console_event(DWORD type)
         // Windows ends the process when this returns, so the ports would stay
         // behind.  Ask the command to stop and wait until it has.
         g_request_stop(0);
-        if (const HANDLE finished = g_finished.load(); finished != nullptr)
+        if (const auto finished = g_finished.load(); finished != nullptr)
             static_cast<void>(WaitForSingleObject(finished, cleanup_wait_ms));
         return TRUE;
     }
@@ -65,7 +65,7 @@ void catch_stop_signals(void (*request_stop)(int))
 
 void command_finished()
 {
-    if (const HANDLE finished = g_finished.load(); finished != nullptr)
+    if (const auto finished = g_finished.load(); finished != nullptr)
         static_cast<void>(SetEvent(finished));
 }
 

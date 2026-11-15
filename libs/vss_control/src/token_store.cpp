@@ -58,7 +58,7 @@ public:
             ++index;
         if (index == texts_.size())
         {
-            if (texts_.size() < most_texts)
+            if (texts_.size() < most_texts_)
                 texts_.push_back(std::move(text));
             else
                 texts_.back() = std::move(text);
@@ -76,7 +76,7 @@ public:
     }
 
 private:
-    static constexpr std::size_t most_texts = 8;
+    static constexpr std::size_t most_texts_ = 8;
 
     std::mutex mutex_;
     std::vector<std::string> texts_;

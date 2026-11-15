@@ -1534,7 +1534,7 @@ try
                      "vss_cli: no command (vss_cli --help lists them)\n");
         return 2;
     }
-    const std::string command = words[*command_index];
+    const std::string& command = words[*command_index];
 
     // These four read their own options.
     const bool reads_own_options = command == "agent" || command == "control" ||

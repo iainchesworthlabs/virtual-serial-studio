@@ -1602,7 +1602,7 @@ TEST_CASE("control gateway: every wrong token gets the same answer, and the "
     struct attempt
     {
         control::secret_string token;
-        bool admin;
+        bool admin = false;
         std::string reason;
     };
     const std::vector<attempt> attempts{

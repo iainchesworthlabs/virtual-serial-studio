@@ -53,7 +53,7 @@ constexpr std::string_view allow_key = "allow=";
 /// The most handed to a socket in one operation. The write deadline starts
 /// again after each, and the bytes of one hub write are not held by one
 /// operation however large they are.
-constexpr std::size_t write_slice = 64U * 1024U;
+constexpr std::size_t write_slice = std::size_t{64} * 1024;
 
 /// The shortest time between two notices of the same kind that a listener
 /// cannot take clients. A script opening connections as fast as it can, or an
@@ -383,7 +383,7 @@ public:
         : executor_(executor)
         , strand_(asio::make_strand(executor))
         , address_(std::move(address))
-        , limits_(limits)
+        , limits_(std::move(limits))
         , acceptor_(strand_)
         , datagrams_(strand_)
         , accept_timer_(strand_)
@@ -1260,7 +1260,7 @@ private:
 
 listen_transport::listen_transport(const executor_type& executor,
                                    listen_address address, error_code& ec,
-                                   listen_limits limits)
+                                   const listen_limits& limits)
     : state_(std::make_shared<state>(executor, std::move(address), limits))
 {
     ec = state_->open();

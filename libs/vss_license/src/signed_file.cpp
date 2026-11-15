@@ -48,8 +48,9 @@ int sextet(char c)
 /// check. This looks at bytes only and does no arithmetic.
 bool canonical_encoding(std::span<const std::uint8_t, 32> point)
 {
-    const std::uint8_t top = point[31] & 0x7fU;
-    const bool sign = (point[31] & 0x80U) != 0;
+    const std::uint8_t last = point.last<1>()[0];
+    const std::uint8_t top = last & 0x7fU;
+    const bool sign = (last & 0x80U) != 0;
     const auto middle = point.subspan(1, 30);
     const bool middle_ones = std::ranges::all_of(middle, [](std::uint8_t byte)
                                                  { return byte == 0xffU; });

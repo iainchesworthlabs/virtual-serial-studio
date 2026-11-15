@@ -16,6 +16,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 
 namespace vss::license::tool
 {
@@ -40,6 +41,18 @@ struct surroundings
     /// consults, as Studio does. The program passes `builtin_revocations()`;
     /// the tests pass their own.
     revocation_list builtin;
+
+    surroundings(std::ostream& out_stream, std::ostream& err_stream,
+                 std::function<std::optional<std::string>(const std::string&)>
+                     variable_reader,
+                 time_point time_now, revocation_list builtin_list)
+        : out(out_stream)
+        , err(err_stream)
+        , variable(std::move(variable_reader))
+        , now(time_now)
+        , builtin(std::move(builtin_list))
+    {
+    }
 };
 
 /// Runs one command. `arguments` are the words after the program name.

@@ -592,7 +592,7 @@ one_connection_server::behaviour slow_reader(std::chrono::milliseconds delay,
         const auto start = std::chrono::steady_clock::now();
         while (!stop.load() && std::chrono::steady_clock::now() - start < delay)
             std::this_thread::sleep_for(10ms);
-        std::vector<char> buffer(64 * 1024);
+        std::vector<char> buffer(std::size_t{64} * 1024);
         boost::system::error_code error;
         while (!stop.load())
         {
@@ -659,7 +659,7 @@ std::string capture_text(std::size_t records, std::size_t size, char mark,
 TEST_CASE("cli: play waits until the port has written what was queued")
 {
     constexpr std::size_t records = 4;
-    constexpr std::size_t size = 512 * 1024;
+    constexpr std::size_t size = std::size_t{512} * 1024;
     scratch_directory scratch;
     const fs::path capture = scratch.path() / "big.cap";
     write_file(capture, capture_text(records, size, 'A', 0));
@@ -689,7 +689,7 @@ TEST_CASE("cli: play waits until the port has written what was queued")
 TEST_CASE("cli: play counts its own writes when a link feeds the same port")
 {
     constexpr std::size_t records = 4;
-    constexpr std::size_t size = 512 * 1024;
+    constexpr std::size_t size = std::size_t{512} * 1024;
     scratch_directory scratch;
     const fs::path capture = scratch.path() / "mixed.cap";
     write_file(capture, capture_text(records, size, 'A', 300));
@@ -698,7 +698,7 @@ TEST_CASE("cli: play counts its own writes when a link feeds the same port")
     // far end sends 'B' all the time.  The far end of `t` reads late.
     reader_counts counts;
     one_connection_server target(4096, slow_reader(2000ms, counts, 'A'));
-    one_connection_server feeder(65536, chatty_sender(16 * 1024, 'B'));
+    one_connection_server feeder(65536, chatty_sender(std::size_t{16} * 1024, 'B'));
     const fs::path topology = scratch.path() / "mixed.json";
     write_file(topology,
                R"({"version":1,"ports":[)"
@@ -735,7 +735,7 @@ TEST_CASE("cli: play says so, and exits 1, when the port refuses what it was "
     // Twenty records of half a megabyte at once are more than the port's
     // queue of eight megabytes; what it refuses is not sent.
     constexpr std::size_t records = 20;
-    constexpr std::size_t size = 512 * 1024;
+    constexpr std::size_t size = std::size_t{512} * 1024;
     scratch_directory scratch;
     const fs::path capture = scratch.path() / "flood.cap";
     write_file(capture, capture_text(records, size, 'A', 0));
@@ -800,7 +800,7 @@ TEST_CASE("cli: --seconds also limits the wait for a port that takes nothing")
     // what was written, not after the stall limit of five.
     scratch_directory scratch;
     const fs::path capture = scratch.path() / "stuck.cap";
-    write_file(capture, capture_text(32, 64 * 1024, 'A', 0));
+    write_file(capture, capture_text(32, std::size_t{64} * 1024, 'A', 0));
 
     reader_counts counts;
     one_connection_server server(4096, slow_reader(60s, counts, 'A'));

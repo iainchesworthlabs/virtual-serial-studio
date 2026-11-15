@@ -507,8 +507,6 @@ void save_sheet(const std::vector<review_cell>& cells, const char* mode)
                    .arg(QString::fromUtf8(dir), QString::fromUtf8(mode)));
 }
 
-} // namespace
-
 /// How far the ring keeps from the control's content: the 2 px stroke is
 /// followed by a gap of `focusRing.offset`, also 2 px.
 constexpr int kClearance = 2;
@@ -622,6 +620,8 @@ int blocked_content(const QImage& off, const QImage& on, const QRect& rect,
     }
     return blocked;
 }
+
+} // namespace
 
 TEST_CASE("focus ring: clears the content of every control")
 {
@@ -806,7 +806,8 @@ TEST_CASE("focus ring: a dialog opened from the keyboard shows it")
         }
         REQUIRE(focused != nullptr);
         REQUIRE_EQ(vss::gui::FocusRingStyle::keyboard_focus(), keyboard);
-        REQUIRE_EQ(ring_shown(*focused), keyboard);
+        if (focused != nullptr)
+            REQUIRE_EQ(ring_shown(*focused), keyboard);
         dialog.close();
     }
 }
@@ -868,6 +869,9 @@ struct field_column
     QComboBox* combo = nullptr;
     QComboBox* editable = nullptr;
     QSpinBox* spin = nullptr;
+
+    field_column(const field_column&) = delete;
+    field_column& operator=(const field_column&) = delete;
 
     explicit field_column(int text_scale)
     {

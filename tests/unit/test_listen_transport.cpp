@@ -111,7 +111,7 @@ bool wait_for_peers(const listen_transport& transport, std::size_t count)
 
 std::unique_ptr<listen_transport> listen_on(loop& running,
                                             listen_protocol protocol,
-                                            listen_limits limits = {})
+                                            const listen_limits& limits = {})
 {
     listen_address address;
     address.protocol = protocol;
@@ -673,7 +673,7 @@ std::shared_future<write_outcome> start_write(listen_transport& transport,
 std::shared_future<write_outcome> fill_until_held(listen_transport& transport,
                                                   std::size_t& sent)
 {
-    constexpr std::size_t part = 16 * 1024;
+    constexpr std::size_t part = std::size_t{16} * 1024;
     constexpr std::size_t most = std::size_t{256} * 1024 * 1024;
     while (sent < most)
     {
@@ -762,7 +762,7 @@ TEST_CASE("listen: a client that stops reading is dropped and the other keeps "
 
     // The stuck client never reads. Every write must still complete, and the
     // other client must receive every byte, until the stuck one is dropped.
-    constexpr std::size_t part = 16 * 1024;
+    constexpr std::size_t part = std::size_t{16} * 1024;
     constexpr std::size_t most = std::size_t{128} * 1024 * 1024;
     std::string got;
     std::size_t sent = 0;
@@ -802,8 +802,8 @@ TEST_CASE("listen: a client that reads steadily, slower than the source, "
     // The source writes at once and each write waits for the one before, as
     // the endpoint does. The writes finish at the pace of the reader.
     constexpr std::size_t total = std::size_t{4} * 1024 * 1024;
-    constexpr std::size_t part = 16 * 1024;
-    steady_reader reader(slow, total, 256 * 1024);
+    constexpr std::size_t part = std::size_t{16} * 1024;
+    steady_reader reader(slow, total, std::size_t{256} * 1024);
     for (std::size_t sent = 0; sent < total; sent += part)
         REQUIRE_EQ(write_to(*transport, pattern(sent, part)), part);
     const std::string& got = reader.finish();
@@ -829,8 +829,8 @@ TEST_CASE("listen: with a stuck client and a slow one, the stuck one is dropped 
     const std::string stuck_name = name_of(stuck);
 
     constexpr std::size_t total = std::size_t{4} * 1024 * 1024;
-    constexpr std::size_t part = 16 * 1024;
-    steady_reader reader(slow, total, 256 * 1024);
+    constexpr std::size_t part = std::size_t{16} * 1024;
+    steady_reader reader(slow, total, std::size_t{256} * 1024);
     for (std::size_t sent = 0; sent < total; sent += part)
         REQUIRE_EQ(write_to(*transport, pattern(sent, part)), part);
     const std::string& got = reader.finish();
@@ -935,7 +935,7 @@ TEST_CASE("listen: a client that takes no data for the deadline is dropped")
 
     // About 8 MB a second: the socket buffers fill in well under a second and
     // the queue stays far below its bound while the deadline runs out.
-    constexpr std::size_t part = 16 * 1024;
+    constexpr std::size_t part = std::size_t{16} * 1024;
     const auto give_up = std::chrono::steady_clock::now() + 20s;
     std::string got;
     std::size_t sent = 0;
@@ -970,7 +970,7 @@ TEST_CASE("listen: a lone client that takes no data is dropped by the deadline "
 
     // Each write finishes: while the client is behind it waits, and the
     // deadline then drops the client, which leaves nobody to wait for.
-    constexpr std::size_t part = 16 * 1024;
+    constexpr std::size_t part = std::size_t{16} * 1024;
     std::size_t sent = 0;
     while (transport->peer_count() == 1 && sent < std::size_t{64} * 1024 * 1024)
     {
@@ -1137,6 +1137,7 @@ TEST_CASE("listen: an accept that keeps failing waits longer, says so once and "
 
     asio::io_context client_io;
     std::vector<asio::ip::tcp::socket> clients;
+    clients.reserve(7);
     for (int index = 0; index < 4; ++index)
         clients.push_back(connect_to(client_io, transport->local_port()));
     REQUIRE(wait_for_peers(*transport, 1));

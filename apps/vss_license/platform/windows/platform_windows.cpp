@@ -46,7 +46,7 @@ bool write_private_file(const std::filesystem::path& path,
     attributes.bInheritHandle = FALSE;
 
     // CREATE_NEW fails if the name exists.
-    const HANDLE file =
+    const auto file =
         ::CreateFileW(path.c_str(), GENERIC_WRITE, 0, &attributes, CREATE_NEW,
                       FILE_ATTRIBUTE_NORMAL, nullptr);
     ::LocalFree(descriptor);
@@ -70,7 +70,7 @@ bool write_private_file(const std::filesystem::path& path,
 std::optional<std::size_t> read_file_into(const std::filesystem::path& path,
                                           std::span<char> out)
 {
-    const HANDLE file =
+    const auto file =
         ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
                       OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file == INVALID_HANDLE_VALUE)

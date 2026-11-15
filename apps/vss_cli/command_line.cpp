@@ -233,6 +233,8 @@ std::optional<long long> parse_whole_number(std::string_view text)
         return std::nullopt;
     long long value = 0;
     const char* const end = text.data() + text.size();
+    // The end pointer carries the size, so the data() call is bounded.
+    // NOLINTNEXTLINE(bugprone-suspicious-stringview-data-usage)
     const auto [stop, error] = std::from_chars(text.data(), end, value);
     if (error != std::errc{} || stop != end)
         return std::nullopt;

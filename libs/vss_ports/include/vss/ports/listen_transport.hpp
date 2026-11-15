@@ -153,7 +153,7 @@ public:
     /// Binds and starts listening. `ec` is set when the address is in use or
     /// cannot be bound.
     listen_transport(const executor_type& executor, listen_address address,
-                     error_code& ec, listen_limits limits = {});
+                     error_code& ec, const listen_limits& limits = {});
     ~listen_transport() override;
 
     listen_transport(const listen_transport&) = delete;
