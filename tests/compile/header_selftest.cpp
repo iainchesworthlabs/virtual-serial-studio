@@ -43,6 +43,14 @@
 #include <vss/config/document.hpp>
 
 #include <vss/plugin/access.hpp>
+#include <vss/plugin/api_adapter.hpp>
+#include <vss/plugin/api_capture.hpp>
+#include <vss/plugin/api_decoder.hpp>
+#include <vss/plugin/api_fixture.hpp>
+#include <vss/plugin/api_generator.hpp>
+#include <vss/plugin/api_instance.hpp>
+#include <vss/plugin/api_message.hpp>
+#include <vss/plugin/api_modifier.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
