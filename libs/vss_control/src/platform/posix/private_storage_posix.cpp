@@ -18,9 +18,16 @@
 //              same checks), flushed with fsync and renamed over the target;
 //              the temporary file is removed when anything fails.  Reading
 //              uses the same open flags and the same checks on the descriptor.
+//   create     `create_private_file`, for a file in a directory that is not
+//              this one: O_CREAT | O_EXCL | O_NOFOLLOW with mode 0600, so a
+//              name that is taken, a link included, is refused and nothing is
+//              followed; the same checks on the descriptor before a byte is
+//              written; the file is removed when anything fails.
 //
 
 #include "platform/private_storage_platform.hpp"
+
+#include <vss/control/private_file.hpp>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -287,3 +294,43 @@ result<std::string> read_private_file(const std::filesystem::path& path,
 }
 
 } // namespace vss::control::platform
+
+namespace vss::control
+{
+
+error_code create_private_file(const std::filesystem::path& path,
+                               std::string_view bytes)
+{
+    const std::string text = path.string();
+    // O_EXCL fails with EEXIST when the name is taken, and also when it is a
+    // link, whatever the link points to.  The mode is for a file that is made
+    // by this call, so it is 0600 (less what the umask takes away) from the
+    // first moment.
+    const platform::descriptor_owner descriptor(::open(
+        text.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW,
+        S_IRUSR | S_IWUSR));
+    if (descriptor.get() < 0)
+    {
+        const int failed = errno;
+        if (failed == EEXIST)
+            return make_error_code(errc::already_exists);
+        return platform::system_error(failed);
+    }
+
+    // The file is there from here, so it is removed when anything fails.
+    struct stat info{};
+    error_code failed;
+    if (::fstat(descriptor.get(), &info) != 0)
+        failed = platform::system_error(errno);
+    else
+        failed = platform::check_private_file(info);
+    if (!failed)
+        failed = platform::write_all(descriptor.get(), bytes);
+    if (!failed && ::fsync(descriptor.get()) != 0)
+        failed = platform::system_error(errno);
+    if (failed)
+        static_cast<void>(::unlink(text.c_str()));
+    return failed;
+}
+
+} // namespace vss::control

@@ -16,14 +16,21 @@
 //              group enabled (an elevated process makes objects owned by the
 //              group).  A path that is a file or a reparse point is refused.
 //   file       opened for appending only, shared for reading and deleting, not
-//              inherited by child processes.  A new file takes the access list
-//              of its directory.  A directory or a reparse point in place of
-//              the file is refused.
+//              inherited by child processes.  A new file is made with the same
+//              protected access list as the directory (one entry, this user),
+//              so it does not depend on the directory it is in.  A directory
+//              or a reparse point in place of the file is refused.
 //   replace    the whole file: written to `<path>.tmp`, which nobody else can
 //              open while it is written, flushed, and moved over the target
 //              with MoveFileExW; the temporary file is removed when anything
 //              fails.  Reading opens the file shared for reading only, and a
 //              directory or a reparse point is refused.
+//   create     `create_private_file`, for a file in a directory that is not
+//              this one: CREATE_NEW, so a name that is taken (a link
+//              included) is refused, with the protected access list of one
+//              entry, this user, which is read back from the open handle
+//              before a byte is written; the file is deleted when anything
+//              fails.
 //   random     BCryptGenRandom with the system-preferred generator.
 //
 // This file needs shell32 (SHGetKnownFolderPath), ole32 (CoTaskMemFree),
@@ -31,6 +38,8 @@
 //
 
 #include "platform/private_storage_platform.hpp"
+
+#include <vss/control/private_file.hpp>
 
 #include <windows.h>
 
@@ -191,17 +200,102 @@ error_code write_all(HANDLE handle, std::string_view bytes)
     return {};
 }
 
+/// The security attributes of a file that is made here: a protected access
+/// list of one entry that allows everything to this user.  Nothing is
+/// inherited, so the access of the directory does not matter, and the file is
+/// private from the moment it exists.
+class file_security
+{
+public:
+    static result<std::unique_ptr<file_security>> make()
+    {
+        const auto sid = own_sid_text();
+        if (!sid)
+            return sid.error();
+        const std::wstring sddl = L"D:P(A;;FA;;;" + *sid + L")";
+        PSECURITY_DESCRIPTOR descriptor = nullptr;
+        if (::ConvertStringSecurityDescriptorToSecurityDescriptorW(
+                sddl.c_str(), SDDL_REVISION_1, &descriptor, nullptr) == 0)
+            return system_error(::GetLastError());
+        return std::unique_ptr<file_security>(new file_security(descriptor));
+    }
+
+    file_security(const file_security&) = delete;
+    file_security& operator=(const file_security&) = delete;
+
+    SECURITY_ATTRIBUTES* attributes() noexcept { return &attributes_; }
+
+private:
+    explicit file_security(PSECURITY_DESCRIPTOR descriptor)
+        : descriptor_(descriptor)
+    {
+        attributes_.nLength = sizeof(attributes_);
+        attributes_.lpSecurityDescriptor = descriptor;
+        attributes_.bInheritHandle = FALSE;
+    }
+
+    local_owner descriptor_;
+    SECURITY_ATTRIBUTES attributes_{};
+};
+
+/// Says whether the access list of an open file is what `file_security` made:
+/// protected, with one entry that allows and names this user.  What another
+/// program would be let to do is read from the handle, not assumed.  The
+/// handle needs READ_CONTROL.
+error_code check_private_access(HANDLE handle,
+                                const std::vector<unsigned char>& user)
+{
+    PACL dacl = nullptr;
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    const DWORD status =
+        ::GetSecurityInfo(handle, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+                          nullptr, nullptr, &dacl, nullptr, &descriptor);
+    const local_owner release(descriptor);
+    if (status != ERROR_SUCCESS)
+        return system_error(status);
+    // No list at all lets everyone in.
+    if (dacl == nullptr || descriptor == nullptr)
+        return make_error_code(errc::permission_denied);
+
+    SECURITY_DESCRIPTOR_CONTROL bits = 0;
+    DWORD revision = 0;
+    if (::GetSecurityDescriptorControl(descriptor, &bits, &revision) == 0)
+        return system_error(::GetLastError());
+    if ((bits & SE_DACL_PROTECTED) == 0)
+        return make_error_code(errc::permission_denied);
+
+    ACL_SIZE_INFORMATION entries{};
+    if (::GetAclInformation(dacl, &entries, sizeof(entries),
+                            AclSizeInformation) == 0)
+        return system_error(::GetLastError());
+    if (entries.AceCount != 1)
+        return make_error_code(errc::permission_denied);
+    void* found = nullptr;
+    if (::GetAce(dacl, 0, &found) == 0 || found == nullptr)
+        return make_error_code(errc::permission_denied);
+    if (static_cast<const ACE_HEADER*>(found)->AceType !=
+        ACCESS_ALLOWED_ACE_TYPE)
+        return make_error_code(errc::permission_denied);
+    PSID entry = &static_cast<ACCESS_ALLOWED_ACE*>(found)->SidStart;
+    if (::EqualSid(entry, sid_of(user)) == 0)
+        return make_error_code(errc::permission_denied);
+    return {};
+}
+
 /// Makes `temporary` (emptying it when it exists), writes `bytes` and flushes
 /// them to the disk.  Nobody else can open the file meanwhile.  The file is
 /// closed when this returns.
 error_code write_temporary_file(const std::wstring& temporary,
                                 std::string_view bytes)
 {
+    auto security = file_security::make();
+    if (!security)
+        return security.error();
     // FILE_READ_ATTRIBUTES lets the handle be asked what it is, below.
     handle_owner handle(::CreateFileW(
-        temporary.c_str(), GENERIC_WRITE | FILE_READ_ATTRIBUTES, 0, nullptr,
-        CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT,
-        nullptr));
+        temporary.c_str(), GENERIC_WRITE | FILE_READ_ATTRIBUTES, 0,
+        (*security)->attributes(), CREATE_ALWAYS,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
     if (handle.get() == INVALID_HANDLE_VALUE)
     {
         const DWORD failed = ::GetLastError();
@@ -296,13 +390,17 @@ error_code ensure_private_directory(const std::filesystem::path& directory)
 result<std::unique_ptr<private_file>>
 open_private_append(const std::filesystem::path& path)
 {
+    auto security = file_security::make();
+    if (!security)
+        return security.error();
     const std::wstring text = path.wstring();
     // FILE_READ_ATTRIBUTES lets the handle be asked what it is, below.  Without
     // FILE_WRITE_DATA every write goes to the end of the file.
     handle_owner handle(::CreateFileW(
         text.c_str(), FILE_APPEND_DATA | FILE_READ_ATTRIBUTES,
-        FILE_SHARE_READ | FILE_SHARE_DELETE, nullptr, OPEN_ALWAYS,
-        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+        FILE_SHARE_READ | FILE_SHARE_DELETE, (*security)->attributes(),
+        OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT,
+        nullptr));
     if (handle.get() == INVALID_HANDLE_VALUE)
     {
         static_cast<void>(handle.release());
@@ -415,3 +513,64 @@ error_code random_bytes(std::span<std::uint8_t> out)
 }
 
 } // namespace vss::control::platform
+
+namespace vss::control
+{
+
+error_code create_private_file(const std::filesystem::path& path,
+                               std::string_view bytes)
+{
+    const auto user = platform::own_user();
+    if (user.empty())
+        return platform::system_error(::GetLastError());
+    auto security = platform::file_security::make();
+    if (!security)
+        return security.error();
+
+    const std::wstring text = path.wstring();
+    // CREATE_NEW fails when the name is taken, a link included.  READ_CONTROL
+    // lets the access list be read back, and FILE_READ_ATTRIBUTES lets the
+    // handle be asked what it is.  Nobody else may open the file meanwhile.
+    platform::handle_owner handle(::CreateFileW(
+        text.c_str(), GENERIC_WRITE | READ_CONTROL | FILE_READ_ATTRIBUTES, 0,
+        (*security)->attributes(), CREATE_NEW,
+        FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr));
+    if (handle.get() == INVALID_HANDLE_VALUE)
+    {
+        const DWORD failed = ::GetLastError();
+        static_cast<void>(handle.release());
+        if (failed == ERROR_FILE_EXISTS || failed == ERROR_ALREADY_EXISTS)
+            return make_error_code(errc::already_exists);
+        // A directory with this name is refused as access denied.  A name
+        // that is there is a name that is taken, whatever it is.
+        if (failed == ERROR_ACCESS_DENIED &&
+            ::GetFileAttributesW(text.c_str()) != INVALID_FILE_ATTRIBUTES)
+            return make_error_code(errc::already_exists);
+        return platform::system_error(failed);
+    }
+
+    // The file is there from here, so it is deleted when anything fails.
+    error_code failed;
+    BY_HANDLE_FILE_INFORMATION information{};
+    if (::GetFileInformationByHandle(handle.get(), &information) == 0)
+        failed = platform::system_error(::GetLastError());
+    else if ((information.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0 ||
+             (information.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+        failed = make_error_code(errc::permission_denied);
+    if (!failed)
+        failed = platform::check_private_access(handle.get(), user);
+    if (!failed)
+        failed = platform::write_all(handle.get(), bytes);
+    if (!failed && ::FlushFileBuffers(handle.get()) == 0)
+        failed = platform::system_error(::GetLastError());
+    if (failed)
+    {
+        // Closed first: the handle shares nothing, so the file cannot be
+        // deleted while it is open.
+        handle.reset();
+        static_cast<void>(::DeleteFileW(text.c_str()));
+    }
+    return failed;
+}
+
+} // namespace vss::control

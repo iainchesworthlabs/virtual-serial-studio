@@ -14,6 +14,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_control_junit.cpp
   unit/test_control_limiter.cpp
   unit/test_control_lines.cpp
+  unit/test_control_loopback.cpp
+  unit/test_control_private_file.cpp
   unit/test_control_proto.cpp
   unit/test_control_token.cpp
   unit/test_control_token_file.cpp

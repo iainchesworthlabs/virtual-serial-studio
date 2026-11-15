@@ -11,6 +11,7 @@
 
 #include <vss/agent/proto/error.hpp>
 #include <vss/control/client.hpp>
+#include <vss/control/private_file.hpp>
 #include <vss/control/proto/error.hpp>
 #include <vss/control/proto/message.hpp>
 #include <vss/control/proto/policy.hpp>
@@ -25,7 +26,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
-#include <filesystem>
 #include <fstream>
 #include <ios>
 #include <optional>
@@ -522,8 +522,8 @@ bool is_outcome(std::string_view outcome) noexcept
 /// Reads the words and options of `run <what> ...` into `parsed`.  False when
 /// they are not what the command takes: a name or an id that is empty, an
 /// outcome that is missing or not one of the four, a duration that is not a
-/// number, or an option that belongs to another command.  Whether a name is
-/// too long is for the gateway to say.
+/// number, or an option that belongs to another command.  A name or a message
+/// that is too long is cut when it is sent, not refused.
 bool read_run_command(const raw_arguments& raw, control_arguments& parsed)
 {
     const std::vector<std::string>& words = raw.words;
@@ -925,13 +925,23 @@ std::string date_text(std::uint64_t since_epoch_ms)
     return std::string(text.data());
 }
 
-int status(client& gateway)
+/// The gateway's reply does not say which doors it has open, so this says only
+/// what is known: the gateway runs, and the way this command reached it.  The
+/// line must never claim more, such as that nothing but the local endpoint is
+/// open: a gateway that answers on the pipe or socket may be listening on
+/// loopback TCP as well.
+int status(client& gateway, const control_arguments& args)
 {
     const auto state = gateway.status();
     if (!state)
         return report("status", state.error(), &gateway);
     const auto& hello = gateway.gateway();
-    std::puts("Remote control: local only");
+    std::puts("Remote control: on");
+    if (args.loopback_port)
+        std::printf("Reached over: TCP on 127.0.0.1:%u\n",
+                    static_cast<unsigned>(*args.loopback_port));
+    else
+        std::puts("Reached over: the local pipe or socket");
     std::printf("Gateway: %s, API %u\n", hello.version.c_str(), hello.api);
     std::printf("You are: %s\n", hello.principal.c_str());
     std::printf("You may: %s\n", join_scopes(hello.scopes).c_str());
@@ -963,24 +973,21 @@ void print_token(const secret_string& token)
     std::fprintf(stdout, "%.*s\n", static_cast<int>(text.size()), text.data());
 }
 
-/// Writes the token and a line ending to `path`, which only its owner may
-/// read.  The place where a token that is asked for in a file leaves this
-/// program.  False when the file cannot be written.
-bool write_token_file(const std::string& path, const secret_string& token)
+/// Makes a new file at `path` with the token and a line ending in it, which
+/// only its owner can read from the moment the file exists.  The place where a
+/// token that is asked for in a file leaves this program.  An existing file or
+/// a link is never used, and a file that cannot be made private is an error:
+/// then nothing of the token is written.
+vss::error_code write_token_file(const std::string& path,
+                                 const secret_string& token)
 {
-    std::ofstream file(path, std::ios::binary | std::ios::trunc);
-    if (!file)
-        return false;
-    // The file is empty yet, so the token is never readable by others.
-    std::error_code ignored;
-    std::filesystem::permissions(path,
-                                 std::filesystem::perms::owner_read |
-                                     std::filesystem::perms::owner_write,
-                                 std::filesystem::perm_options::replace,
-                                 ignored);
-    file << token.expose() << '\n';
-    file.close();
-    return !file.fail();
+    std::string line(token.expose());
+    line.push_back('\n');
+    const vss::error_code written =
+        vss::control::create_private_file(path, line);
+    // The copy is a token too.
+    vss::control::secure_wipe(line.data(), line.size());
+    return written;
 }
 
 int token_create(client& gateway, const control_arguments& args)
@@ -999,17 +1006,24 @@ int token_create(client& gateway, const control_arguments& args)
     bool written = false;
     if (args.out_file)
     {
-        written = write_token_file(*args.out_file, made->token);
+        const vss::error_code failed =
+            write_token_file(*args.out_file, made->token);
+        written = !failed;
         if (written)
         {
             std::printf("Token written to %s\n", args.out_file->c_str());
         }
         else
         {
+            // A file that is there is never used, so the reason is plain.
+            const std::string reason =
+                failed == vss::errc::already_exists
+                    ? "the file exists already and is not replaced"
+                    : failed.message();
             std::fprintf(stderr,
                          "control token create failed: cannot write the "
-                         "token to %s\n",
-                         args.out_file->c_str());
+                         "token to %s: %s\n",
+                         args.out_file->c_str(), reason.c_str());
             outcome = exit_refused;
         }
     }
@@ -1230,10 +1244,32 @@ int expect_bytes(client& gateway, const control_arguments& args)
     return exit_ok;
 }
 
+/// `text` as it is when it is `limit` bytes or fewer.  Otherwise it is cut
+/// between two UTF-8 characters and ends in `...`, so that it is `limit` bytes
+/// or fewer and still says that it is not whole.  The gateway refuses a name
+/// or a message that is too long, and a report of a failed check must not be
+/// lost for that.
+std::string cut_to(std::string text, std::size_t limit)
+{
+    constexpr std::string_view mark = "...";
+    if (text.size() <= limit)
+        return text;
+    std::size_t keep = limit - mark.size();
+    // `text[keep]` is the first byte that goes: not a lead byte means the
+    // cut is inside a character, so the character goes whole.
+    while (keep > 0 &&
+           (static_cast<unsigned char>(text[keep]) & 0xc0u) == 0x80u)
+        --keep;
+    text.resize(keep);
+    text += mark;
+    return text;
+}
+
 /// Opens the run and prints its id.
 int run_begin(client& gateway, const control_arguments& args)
 {
-    const auto begun = gateway.begin_run(args.run_name);
+    const auto begun = gateway.begin_run(
+        cut_to(args.run_name, vss::control::max_run_name_size));
     if (!begun)
         return report_with_code("run begin", begun.error(), gateway);
     std::printf("%s\n", plain_word(begun->run).c_str());
@@ -1258,9 +1294,9 @@ int run_end(client& gateway)
 int run_record(client& gateway, const control_arguments& args)
 {
     vss::control::runs_record_request noted;
-    noted.name = args.run_name;
+    noted.name = cut_to(args.run_name, vss::control::max_run_name_size);
     noted.outcome = args.outcome;
-    noted.message = args.message;
+    noted.message = cut_to(args.message, vss::control::max_case_message_size);
     noted.duration_ms = args.duration_ms;
     const auto recorded = gateway.record_in_run(noted);
     if (!recorded)
@@ -1452,13 +1488,15 @@ const char* control_usage() noexcept
            "      noted with how it ended, and --label is its name in the\n"
            "      report (expect and the port when there is none).  run\n"
            "      record adds a check of your own: a name, how it ended, a\n"
-           "      message and how long it took in ms.  run end closes the run\n"
-           "      and prints its id, tests, failures, errors, skipped and\n"
-           "      duration_ms; the exit code is 0 whatever the counts.  run\n"
-           "      report gives the run as JUnit XML, the latest one when no\n"
-           "      id is given, on the screen or with --out in a file that is\n"
-           "      made or emptied first.  Only the user or token that opened\n"
-           "      a run can read it.  These need the scope monitor.\n"
+           "      message and how long it took in ms.  A name over 128 bytes\n"
+           "      or a message over 512 is cut and ends in \"...\".  run end\n"
+           "      closes the run and prints its id, tests, failures, errors,\n"
+           "      skipped and duration_ms; the exit code is 0 whatever the\n"
+           "      counts.  run report gives the run as JUnit XML, the latest\n"
+           "      one when no id is given, on the screen or with --out in a\n"
+           "      file that is made or emptied first.  Only the user or token\n"
+           "      that opened a run can read it.  These need the scope\n"
+           "      monitor.\n"
            "\n"
            "  vss_cli control <command> ... --loopback-port=<port>\n"
            "           --token-file=<file>\n"
@@ -1552,7 +1590,7 @@ int command_control(const std::vector<std::string>& arguments)
     case action_kind::none:
         break;
     }
-    return status(gateway);
+    return status(gateway, args);
 }
 
 } // namespace vss_cli

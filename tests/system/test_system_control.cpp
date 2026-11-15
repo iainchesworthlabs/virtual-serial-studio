@@ -732,7 +732,8 @@ TEST_CASE("system control: the gateway shows the ports of the agent")
             "vss_cli control status did not exit with 0; output: " +
             status.output);
     }
-    REQUIRE(contains(status.output, "Remote control: local only"));
+    REQUIRE(contains(status.output, "Remote control: on"));
+    REQUIRE(!contains(status.output, "local only"));
     REQUIRE(contains(status.output, "You may: monitor"));
     REQUIRE(contains(status.output, "Agent: running"));
 
@@ -814,7 +815,8 @@ TEST_CASE("system control: a gateway with no agent says so")
 
     const auto status = run_cli("control", instance, {"status"});
     REQUIRE(status.code == 0);
-    REQUIRE(contains(status.output, "Remote control: local only"));
+    REQUIRE(contains(status.output, "Remote control: on"));
+    REQUIRE(!contains(status.output, "local only"));
     REQUIRE(contains(status.output, "Agent: not running"));
 
     auto script = connect_client(instance);
@@ -1692,6 +1694,12 @@ TEST_CASE("system control: a token made for loopback works over TCP and "
         run_cli("control", instance, {"status", port_option, tcp_option});
     require_exit(status, 0, "vss_cli control status over TCP");
     REQUIRE(contains(status.output, "You are: token:"));
+    // The command says how it was reached, and never that nothing but the
+    // local endpoint is open, which the gateway's reply does not tell it.
+    REQUIRE(contains(status.output, "Remote control: on"));
+    REQUIRE(contains(status.output, "Reached over: TCP on 127.0.0.1:" +
+                                        std::to_string(started.port)));
+    REQUIRE(!contains(status.output, "local only"));
     static_cast<void>(
         control_create_port(instance, "viaTcp", {port_option, tcp_option}));
     REQUIRE(agent_lists_port(instance, "viaTcp"));
@@ -1719,6 +1727,9 @@ TEST_CASE("system control: a token made for loopback works over TCP and "
     const auto still_local =
         run_cli("control", instance, {"status", local_option});
     require_exit(still_local, 0, "vss_cli control status, a local token");
+    REQUIRE(
+        contains(still_local.output, "Reached over: the local pipe or socket"));
+    REQUIRE(!contains(still_local.output, "TCP"));
 
     // Without a token file there is nobody to be over TCP, and the command
     // line is refused before anything is connected.
@@ -1793,4 +1804,63 @@ TEST_CASE("system control: vss_gate does not start on a port that is taken")
     }
     REQUIRE(contains(output, "cannot start"));
     REQUIRE(!contains(output, "listening on"));
+}
+
+TEST_CASE("system control: a token file that exists is not used, and the "
+          "token is shown instead")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const std::filesystem::path file = gate.scratch_dir() / "rig.token";
+    {
+        std::ofstream earlier(file, std::ios::binary);
+        earlier << "an earlier file\n";
+    }
+    const auto made = run_cli("control", instance,
+                              {"token", "create", "--label=taken",
+                               "--scope=monitor", "--out=" + file.string()});
+    require_exit(made, 1,
+                 "vss_cli control token create --out, a file that is "
+                 "there");
+    REQUIRE(contains(made.output, "exists already"));
+    REQUIRE(!contains(made.output, "Token written to"));
+    // The file is as it was, and nothing of the token is in it.
+    REQUIRE_EQ(read_text(file), std::string("an earlier file\n"));
+    // The token was made, so it is shown, as it is when it cannot be written.
+    REQUIRE(find_token(made.output).has_value());
+    REQUIRE(contains(made.output, "only time"));
+}
+
+TEST_CASE("system control: a run name and a check that are too long are cut, "
+          "not refused")
+{
+    gate_process gate(unique_instance());
+    const std::string& instance = gate.instance();
+
+    const std::string long_name = std::string(300, 'n');
+    const std::string long_message =
+        "assertion failed: " + std::string(900, 'm');
+    const auto begun =
+        run_cli("control", instance, {"run", "begin", long_name});
+    const std::string run_id =
+        id_line(begun, "r_", "vss_cli control run begin, a long name");
+    const auto noted = run_cli("control", instance,
+                               {"run", "record", long_name, "--outcome=failed",
+                                "--message=" + long_message, "--duration=3"});
+    require_exit(noted, 0, "vss_cli control run record, a long message");
+    const auto ended = run_cli("control", instance, {"run", "end"});
+    require_exit(ended, 0, "vss_cli control run end");
+    REQUIRE(contains(ended.output, "tests=1"));
+    REQUIRE(contains(ended.output, "failures=1"));
+
+    const auto shown = run_cli("control", instance, {"run", "report", run_id});
+    require_exit(shown, 0, "vss_cli control run report");
+    // 128 bytes of the name and 512 of the message, each ending in "...".
+    REQUIRE(
+        contains(shown.output, "name=\"" + std::string(125, 'n') + "...\""));
+    REQUIRE(contains(shown.output, "message=\"assertion failed: " +
+                                       std::string(512 - 18 - 3, 'm') +
+                                       "...\""));
+    REQUIRE(!contains(shown.output, std::string(126, 'n')));
 }
