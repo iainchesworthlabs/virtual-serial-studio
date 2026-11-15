@@ -30,9 +30,11 @@
 #include "stop_signals.hpp"
 
 #include <vss/core/error.hpp>
+#include <vss/core/hub.hpp>
 #include <vss/machine/folders.hpp>
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
+#include <vss/plugin/host/capture_point.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
@@ -755,7 +757,7 @@ json::value optional_text(const std::string& text)
     return sup::text_value(text);
 }
 
-std::string json_line(json::object value)
+std::string json_line(const json::object& value)
 {
     std::string out = json::serialize(value);
     out += '\n';
@@ -814,7 +816,7 @@ std::string state_json(const std::string& id, const view& now)
         out["wait_ms"] = nullptr;
     out["failures"] = static_cast<std::uint64_t>(now.failures);
     out["failure_limit"] = static_cast<std::uint64_t>(now.failure_limit);
-    return json_line(std::move(out));
+    return json_line(out);
 }
 
 std::string log_text(const host::runner_log_line& line)
@@ -836,7 +838,7 @@ std::string log_json(const std::string& id, const host::runner_log_line& line)
     out["source"] = line.from_output ? "output" : "log";
     out["level"] = std::string(plug::to_string(line.level));
     out["text"] = sup::text_value(line.text);
-    return json_line(std::move(out));
+    return json_line(out);
 }
 
 std::string note_json(const std::string& text)
@@ -844,7 +846,7 @@ std::string note_json(const std::string& text)
     json::object out;
     out["type"] = "note";
     out["text"] = sup::text_value(text);
-    return json_line(std::move(out));
+    return json_line(out);
 }
 
 /// What the command says of one instance: what makes a new line.
@@ -915,7 +917,7 @@ std::string instance_json(const std::string& id,
     out["problem"] = optional_text(shown.problem);
     out["reason"] = optional_text(shown.reason);
     out["params_pending"] = item.params_pending;
-    return json_line(std::move(out));
+    return json_line(out);
 }
 
 void print(const std::string& text)
@@ -1350,6 +1352,9 @@ int run_plugin(const options& given, const places& where)
     g_stop_requested.store(false);
     platform::catch_stop_signals(request_stop);
 
+    // A command line has no ports, so a plugin that asks for a recording
+    // is told that its places do not exist.
+    vss::hub no_ports;
     host_threads threads;
     host::service_options setup;
     setup.roots = where.roots;
@@ -1364,12 +1369,17 @@ int run_plugin(const options& given, const places& where)
     // a secret to show the user (a pairing code) gets it printed here.  It
     // is printed once and kept nowhere.
     const bool as_json = given.json;
-    setup.extensions = [as_json](const host::extension_context& context)
+    setup.extensions =
+        [as_json, &no_ports](const host::extension_context& context)
     {
         std::vector<std::unique_ptr<host::extension_handler>> handlers;
+        handlers.push_back(host::make_capture_point(
+            context, no_ports,
+            [](std::string_view) -> std::optional<host::capture_place>
+            { return std::nullopt; }));
         handlers.push_back(host::make_secret_point(
             context,
-            [as_json](host::secret_to_show secret,
+            [as_json](const host::secret_to_show& secret,
                       const std::function<void(bool)>& done)
             {
                 if (as_json)

@@ -479,6 +479,7 @@ private:
                     extension_context context;
                     context.plugin_id = id;
                     context.plugin_name = scanned.shown.name;
+                    context.plugin_version = scanned.shown.version;
                     context.granted = scanned.shown.granted;
                     context.data_directory = data_directory;
                     context.instances = entry.instances;

@@ -177,9 +177,9 @@ private:
         std::uint64_t epoch = 0;
     };
 
-    void refuse(std::uint64_t id, api_errc code, std::string text)
+    void refuse(std::uint64_t id, api_errc code, const std::string& text)
     {
-        context_.link.answer(id, error_answer(code, std::move(text)));
+        context_.link.answer(id, error_answer(code, text));
     }
 
     extension_context context_;

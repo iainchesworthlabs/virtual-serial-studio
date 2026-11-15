@@ -1914,7 +1914,7 @@ project already has.
 
 ```
 traffic/recording.json     the index
-traffic/<n>.jsonl          one file for each recorded place: JSON Lines, a capture format vss::capture already writes
+traffic/<n>.jsonl          one file for each recorded place: JSON Lines, the line format below
 notes/notes.txt            UTF-8 text
 ```
 
@@ -1953,6 +1953,64 @@ notes/notes.txt            UTF-8 text
   `dropped` says how many bytes the recording lost, which should be zero.
 - **Sizes.** A recording stops at its limit and says so. Defaults: 64 MiB or 10 minutes; ring mode keeps the last
   10 minutes. The maximum is the section limit above.
+
+**The index in detail.** The host's writer and reader (`vss/plugin/host/recording.hpp`) take section 19.6 as follows,
+and a reader refuses an index that does not fit it:
+
+- The members are written in the order of the example, with no spaces and a line feed at the end. A reader ignores a
+  member it does not know and refuses a key that is given twice in one object. The index is at most 1 MiB.
+- `origin_utc` is exactly `YYYY-MM-DDThh:mm:ssZ`, a time that exists, in the years 1970 to 9999. `time_unit` is `"ns"`.
+  `duration_ns`, `seed`, `dropped` and every other whole number are 0 to 2^53 - 1, the largest whole number every JSON
+  reader keeps exactly. No line has a `t_ns` above `duration_ns`.
+- `places` holds 1 to 15 places, so that the index and the places are within the 16 files of a section. `file` is a
+  plain file name in the recording's folder, by the path rules of the manifest (section 5.3): no separator, no `..`, no
+  reserved device name, no name that ends in a dot or a space. It is not the index and is not listed twice, however the
+  letters are cased. `kind` is `port` or `link`. `name` is 1 to 256 bytes of plain text and is different for every
+  place. `settings` is at most 256 bytes of plain text. `bytes` is the sum of `bytes` over the file's `data` lines, not
+  the size of the file. `sha256` is the SHA-256 of the file's bytes as they are on disk, as 64 lower-case hex digits.
+- Each of `rule_sets` is `{"generation": <whole number>, "text": "<plain text>"}`. Its text may hold line feeds,
+  carriage returns and tabs.
+- Each of `redactions` is `{"place": <the name of a place>, "from_ns": ..., "to_ns": ..., "how": "blanked"}`, with
+  `from_ns` not above `to_ns` and `to_ns` not above `duration_ns`. `"blanked"` is the one way there is.
+- `dropped` is the sum of `bytes` over the `dropped` lines of all the places.
+- `made_by.plugin` is a plugin id and `made_by.version` a version, as in a manifest.
+- The folder holds the index and the place files the index lists, and nothing else. A link of any kind (a symbolic link,
+  a junction, a file with a second name), a subfolder and an unlisted file are refused.
+
+**The place file.** Each place file is UTF-8 JSON Lines: one JSON object on each line, each line ended by one line feed
+(never a carriage return, the last line too), no blank line and no byte-order mark. A line is at most 16,384 bytes, not
+counting its line feed. Every line has `t_ns`, whole nanoseconds since `origin_utc` (0 to 2^53 - 1), and `kind`, which
+says what else it holds. Lines are in non-decreasing `t_ns`.
+
+| `kind` | Members after `t_ns` and `kind`, in this order | Meaning |
+|---|---|---|
+| `data` | `direction`: `"R"` or `"W"`. `bytes`: 1 to 4096. `hex`: exactly 2 x `bytes` lower-case hex digits, no spaces, no prefix | `R` is bytes the place received, bytes that came in from whatever is attached to it. `W` is bytes written to the place, bytes the hub sent out to what is attached. They are the engine's `rx` and `tx` and the `R` and `W` of the capture of `vss_studio`. A chunk of more than 4096 bytes is several lines with the same `t_ns` |
+| `line` | `lines`: an object with exactly the six members `dtr`, `rts`, `cts`, `dsr`, `dcd` and `ri`, each `true` or `false`. `changed`: a list of 1 to 6 of those names, none twice | The state of the six control lines after a change, and which of them changed. The break signal is not recorded |
+| `fault` | `fault`: 1 to 64 bytes of plain text | A fault on the place, such as `overrun` or `parity` |
+| `dropped` | `bytes`: 1 or more | How many bytes of traffic were lost at this point |
+
+An example, one line of each kind:
+
+```
+{"t_ns":1000,"kind":"data","direction":"R","bytes":2,"hex":"4869"}
+{"t_ns":2000,"kind":"line","lines":{"dtr":true,"rts":true,"cts":false,"dsr":false,"dcd":false,"ri":false},"changed":["dtr","rts"]}
+{"t_ns":3000,"kind":"fault","fault":"parity"}
+{"t_ns":4000,"kind":"dropped","bytes":16}
+```
+
+A writer writes the members in the order above with no spaces, so the same events always give the same bytes. A reader
+accepts any order and white space, ignores a member it does not know, and refuses a `kind` it does not know, a line over
+16,384 bytes, a line that is not an object, a key given twice in one line, a `t_ns` lower than the line before, a `t_ns`
+that is not a whole number, a line with no final line feed, a carriage return, a blank line and a byte-order mark. It
+reads a place file one line at a time, never the whole file.
+
+**Limits and a ring.** A writer given `limit_bytes` stops when the `bytes` of all the `data` lines together reach it:
+the chunk that reaches it is cut at the limit, and nothing more is written. A writer given `limit_seconds` writes a line
+at exactly that time and stops at the first line after it. A recording that stopped at a limit says so to the program
+that made it; the format has no member for it. In ring mode the writer keeps one file for each minute of each place and
+removes the oldest when a newer one starts, so about the last N minutes are kept. When the recording ends the minutes
+that are left are joined, in order, into the one place file, and its SHA-256 is that of the joined file. A ring has no
+`limit_bytes` or `limit_seconds`.
 
 A replay never trusts a bundle. It is a file from someone else: the index and every line are parsed with limits,
 paths inside the zip follow the layout rules of section 5.3, and the reader has a fuzz harness (section 16).

@@ -21,10 +21,10 @@ bool extension_context::may(permission wanted) const noexcept
     return std::ranges::find(granted, wanted) != granted.end();
 }
 
-api_message error_answer(api_errc code, std::string text)
+api_message error_answer(api_errc code, const std::string& text)
 {
     // The session sets the number of the request this answers.
-    return make_error(0, code, std::move(text));
+    return make_error(0, code, text);
 }
 
 api_message ok_answer()
