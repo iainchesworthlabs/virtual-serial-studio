@@ -45,6 +45,7 @@
 #include "shell/status_bar.hpp"
 #include "shell/studio_tray.hpp"
 #include "shell/undo_steps.hpp"
+#include "shell/update_notice.hpp"
 #include "simple/job_grid.hpp"
 #include "simple/simple_page.hpp"
 #include "support/about_dialog.hpp"
@@ -62,12 +63,15 @@
 #include "support/support_bundle_dialog.hpp"
 #include "support/support_dialog.hpp"
 #include "support/troubleshoot_dialog.hpp"
+#include "support/update_dialog.hpp"
+#include "support/update_text.hpp"
 #include "theme/icon_provider.hpp"
 #include "theme/theme.hpp"
 #include "topology/links_list.hpp"
 #include "topology/toolbox.hpp"
 #include "topology/topology_text.hpp"
 #include "topology/topology_view.hpp"
+#include "updates/update_service.hpp"
 #include "widgets/chips.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/dialogs.hpp"
@@ -596,6 +600,12 @@ void ShellWindow::build_actions()
     add(QStringLiteral("help.support"), tr("Support..."),
         tr("support help contact bundle address issues"), {}, {},
         action_level::simple, [this] { open_support(); });
+    // Without an update service, and while one cannot check, it is disabled.
+    add(
+        QStringLiteral("help.updates"), tr("Check for updates..."),
+        tr("update version new release download"), {}, {}, action_level::simple,
+        [this] { open_about(true); }, false, [this]
+        { return update_service_ != nullptr && update_service_->available(); });
     add(QStringLiteral("help.about"), tr("About"),
         tr("version licence copyright"), {}, {}, action_level::simple,
         [this] { open_about(); });
@@ -754,6 +764,7 @@ void ShellWindow::build_menus()
     add(help, QStringLiteral("help.environment"));
     add(help, QStringLiteral("help.licence"));
     add(help, QStringLiteral("help.support"));
+    add(help, QStringLiteral("help.updates"));
     add(help, QStringLiteral("help.about"));
 }
 
@@ -1375,6 +1386,8 @@ void ShellWindow::build_status()
             [this](bool advanced) { level_.set_advanced(advanced); });
     connect(status_, &StatusBar::licence_requested, this,
             [this] { open_licence(); });
+    connect(status_, &StatusBar::update_requested, this,
+            [this] { open_update_dialog(); });
     status_->set_advanced(level_.advanced());
     menuBar()->setFont(Theme::instance().font(text_style::body));
     // One header row: the menus on the left, the action search and the
@@ -3042,9 +3055,73 @@ void ShellWindow::restart_elevated()
     }
 }
 
+void ShellWindow::set_update_service(updates::UpdateService* service)
+{
+    if (service == update_service_)
+        return;
+    update_service_ = service;
+    status_->set_update_service(service);
+    if (service != nullptr)
+    {
+        // The banner sits in the body, directly below the licence notice.
+        QWidget* body = centralWidget();
+        update_notice_ = new UpdateNotice(*service, body);
+        if (auto* column = qobject_cast<QVBoxLayout*>(body->layout()))
+            column->insertWidget(column->indexOf(licence_notice_) + 1,
+                                 update_notice_);
+        connect(update_notice_, &UpdateNotice::answered, this,
+                [this](bool turned_on)
+                {
+                    ToastManager::instance().show(
+                        this, support::update_answer_toast(turned_on));
+                });
+        connect(update_notice_, &UpdateNotice::details_requested, this,
+                [this] { open_update_dialog(); });
+        connect(service, &updates::UpdateService::changed, this,
+                [this] { update_update_action(); });
+    }
+    update_update_action();
+}
+
+void ShellWindow::update_update_action()
+{
+    QAction* action = registry_.action(QStringLiteral("help.updates"));
+    if (action == nullptr)
+        return;
+    QString why;
+    if (update_service_ != nullptr && !update_service_->available())
+    {
+        why = update_service_->state().state ==
+                      updates::check_state::disabled_by_policy
+                  ? tr("Update checks are turned off by your administrator.")
+                  : tr("This build cannot check for updates.");
+    }
+    // An empty tooltip is the action's own text again.
+    action->setToolTip(why);
+    action->setStatusTip(why);
+    registry_.refresh();
+}
+
+void ShellWindow::open_update_dialog()
+{
+    // The dialog itself is connected by the owner of the window.
+    Q_EMIT update_dialog_requested();
+}
+
+void ShellWindow::show_update_dialog()
+{
+    if (update_service_ == nullptr || !update_service_->state().offer)
+        return;
+    support::UpdateDialog dialog(*update_service_, backend_, this);
+    connect(&dialog, &support::UpdateDialog::toast_requested, this,
+            [this](const QString& message)
+            { ToastManager::instance().show(this, message); });
+    dialog.exec();
+}
+
 void ShellWindow::open_settings()
 {
-    SettingsDialog dialog(backend_, load_ui_settings(), this);
+    SettingsDialog dialog(backend_, load_ui_settings(), update_service_, this);
     connect(&dialog, &SettingsDialog::advanced_changed, this,
             [this](bool advanced) { level_.set_advanced(advanced); });
     connect(&dialog, &SettingsDialog::settings_changed, this,
@@ -3077,12 +3154,28 @@ void ShellWindow::open_shortcuts()
     dialog.exec();
 }
 
-void ShellWindow::open_about()
+void ShellWindow::open_about(bool updates_tab)
 {
-    AboutDialog dialog(backend_, this);
+    AboutDialog dialog(backend_, update_service_, this);
     connect(&dialog, &AboutDialog::bundle_requested, this,
             &ShellWindow::open_bundle);
+    // "Update..." closes About first; the update dialog follows once it has
+    // closed, so two modal dialogs never stack.
+    bool update_wanted = false;
+    connect(&dialog, &AboutDialog::update_requested, this,
+            [&dialog, &update_wanted]
+            {
+                update_wanted = true;
+                dialog.accept();
+            });
+    if (updates_tab && update_service_ != nullptr)
+    {
+        dialog.show_updates_tab();
+        update_service_->check_now();
+    }
     dialog.exec();
+    if (update_wanted)
+        open_update_dialog();
 }
 
 void ShellWindow::open_licence()

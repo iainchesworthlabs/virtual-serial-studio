@@ -56,7 +56,7 @@ Three access levels were decided, each needing more set-up than the last:
 3. **Administrator control.** Plugins add OAuth 2.0 / OpenID Connect, an external identity provider and the client
    credentials grant for unattended rigs.
 
-Constraints that are not open: no telemetry; no network access from the GUI process; the GUI thread never blocks on
+Constraints that are not open: no telemetry; no network connection of its own from the GUI process except to check for updates and to download an update the user agreed to, and no listening socket; the GUI thread never blocks on
 hub threads; the agent stays per user and stays free of network code; `vss_core` behaviour and the JSON topology
 schema do not change.
 
@@ -143,7 +143,7 @@ listeners, authentication, authorisation, rate limits and the audit log, and tra
 | Option | For | Against | Verdict |
 |---|---|---|---|
 | Listeners inside `vss_agent` | One process fewer | A network bug is an engine bug; every user of the agent carries the attack surface even when remote control is off; the agent would link a TLS library and an HTTP-free parser it does not otherwise need | Rejected |
-| Listeners inside `vss_gui` | | Forbidden: no network access from the GUI process | Rejected |
+| Listeners inside `vss_gui` | | Forbidden: the GUI opens no listening socket. Its one network connection is an outgoing request for one public file (the update check, `updates.md`) | Rejected |
 | A separate `vss_gate` | The agent, the GUI and `vss_cli` link nothing new and open no listener; it can crash and restart without stopping a port; the audit log and the secrets live in one small process; it can drop privileges and be sandboxed independently | One more process to start and stop | **Recommended** |
 
 `vss_gate` is started by the agent's owner (the GUI's enable switch, or `vss_cli control enable`), not by an

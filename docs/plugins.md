@@ -53,7 +53,9 @@ Decided in `editions.md`, and taken as given here:
 - Three **trust levels**: official (signed by the owner), third-party signed, and unsigned with a warning. An
   administrator can allow only official plugins. Trust decisions are tied to the file's hash. Each release carries a
   revocation list and plugins carry an expiry date.
-- **No network from the GUI, no telemetry.** Timing that must be exact stays in the engine.
+- **No network for plugins, no telemetry.** Studio's only connection of its own is the update check
+  ([Online updates](updates.md)); a plugin gets no network from Studio, and the framework has no update client of its
+  own. Timing that must be exact stays in the engine.
 - The signing key and the signing job are the owner's. This page designs the verifier and the file formats. It does
   not create, hold or name any key.
 
@@ -87,7 +89,9 @@ Non-goals for the first version:
 
 - In-process plugins with a C ABI or WASM. Not in the first version (decision 12). They stay possible later, and
   need a licence position from the owner first.
-- A plugin store, an update client or any network access. A plugin is installed by putting a directory in place.
+- A plugin store, an update client of the framework's own, or network access for the framework. A plugin is installed
+  by putting a directory in place. The update check of Studio ([Online updates](updates.md), section 8) can offer a
+  newer version of an official plugin that is already installed; the framework has no network code for it.
 - Plugins that draw their own windows. A plugin has parameters and a status line, nothing else, in Studio.
 - Hot code loading. A plugin changes by stopping and starting.
 
@@ -938,7 +942,7 @@ flush, rename).
 
 ### 8.5 Revocation, expiry and the clock
 
-There is no network, so:
+The framework has no network code of its own, so:
 
 - **The revocation list** is a signed file, `revocations.json`, shipped inside each release (and importable by the
   user from a file: Plugins > Import revocations). It holds a `serial` (increasing integer), `issued_at`, and lists of
@@ -950,10 +954,10 @@ There is no network, so:
   the list being applied.
 - **Expiry.** The manifest has `not_after` (a date; official plugins get a bounded lifetime, and the owner's signing job
   chooses it). **How long is not settled.** The owner's first thought was 28 days. This page recommends against
-  a period that short: an expired official plugin does not run and has no "Run anyway", and there is no network,
-  so every official plugin, the ones that come with Studio included, would stop 28 days after it was signed
-  until the person fetched and installed a new copy by hand, every month, and a computer that is kept offline
-  would lose them for good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
+  a period that short: an expired official plugin does not run and has no "Run anyway", and the framework fetches
+  nothing itself, so every official plugin, the ones that come with Studio included, would stop 28 days after it
+  was signed until a new copy was installed, every month, and a computer that is kept offline would lose them for
+  good. The recommendation is that `not_after` runs to the signing key's `valid_to` (two
   years in the example of section 8.9), that a plugin signed with a mistake is stopped by the revocation list,
   and that anything meant to lapse monthly is the licence's period (`docs/licensing.md`), which has a grace
   period and a renewal path built for it. An expired plugin is `rejected: expired`. There is a grace choice: the page offers "Run anyway for this
@@ -985,7 +989,8 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   "allow_no_sandbox": false,        // may a user override the minimum for one plugin (section 9.2)
   "user_plugins": true,             // is the per-user plugin directory searched (section 5.2)
   "on_timeout": null,               // "fail_open" | "fail_closed" | null (do not force)
-  "permissions_denied": ["net.outbound"]
+  "permissions_denied": ["net.outbound"],
+  "update_check": true              // may Studio check for updates (default true; false turns it off)
 }
 ```
 
@@ -1001,6 +1006,15 @@ A policy file `policy.json` in the machine configuration directory (`%ProgramDat
   controls their own computer approves a key in their own trust store (section 8.4). Neither looks in the
   operating system's certificate store, which trusts every public web authority and would let in far more than
   is meant.
+- **`update_check`** is a boolean, `true` when the key is left out. `false` turns off the update check of Studio
+  ([Online updates](updates.md)): no check on the timer and no check by hand, and the menu item and the button are
+  disabled with "Update checks are turned off by your administrator." It is not a plugin rule, and it does not turn
+  the check on: the user's own setting still decides whether the timer check runs (it is off until the user turns it
+  on).
+- **The update check does not fail closed.** A policy file that fails the ownership test above, or does not parse,
+  is treated as `official_only` for plugins. The update check ignores such a file and follows the user's setting,
+  because the worst an attacker gains by forcing a check is one request for a public file
+  ([Online updates](updates.md), section 6.3).
 - A policy narrows what the user can do. It never grants beyond what the user decides. A user cannot widen it from
   Studio, and the page says "Set by your administrator" with the reason.
 
@@ -1108,10 +1122,12 @@ So there are two secrets, and neither is ever on a computer that runs Studio or 
   and then checks the plugin's signature with that key.
 - **The newest list wins.** The verifier keeps the list with the highest `serial` it has seen, in the ledger of
   section 8.4, so an old list cannot be put back to bring a revoked key to life.
-- **How a new list reaches a computer.** There is no network, so the design has three routes: inside a Studio
-  release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an administrator or
-  a user imports. **None is built.** A key list beside a plugin would today be refused as `unlisted_file`, for a plugin
-  that lists its files, and nothing reads a key list from there or imports one outside the tests.
+- **How a new list reaches a computer.** The framework has no network code, so the design has three routes: inside a
+  Studio release, beside a plugin (a plugin folder may hold a newer `official-keys.json`), or as a file an
+  administrator or a user imports. Delivering a list over the update feed is left out of the first version
+  ([Online updates](updates.md), section 10). **None is built.** A key list beside a plugin would today be refused
+  as `unlisted_file`, for a plugin that lists its files, and nothing reads a key list from there or imports one
+  outside the tests.
 - **Replacing a signing key:** add its line, sign a list with the next serial. **Revoking one:** move its id to
   `revoked`, sign a list with the next serial. **A lost root:** a new root needs a new Studio release, which is why
   a next root is compiled in beside the current one.
@@ -1232,7 +1248,7 @@ name and, for some, a scope.
 | `data.private` | Read and write its own data directory | Always granted |
 | `bundle.section` | Add a section to a support bundle | The user sees the section, its preview and its tick box in Studio's own dialog (section 19) |
 | `net.listen` | Listen on a declared address and port | Loopback unless stated; shown |
-| `net.outbound` | Connect to declared hosts | Shown. Not granted by default. Absent for the GUI regardless: the GUI itself has no network access, and the policy can deny |
+| `net.outbound` | Connect to declared hosts | Shown. Not granted by default. A plugin never uses Studio's own connection, which is the update check only, and the policy can deny |
 | `process.spawn` | Start child programs | Child processes are inside the same sandbox and job |
 | `clipboard`, `ui` | **Never**. There is no such permission: a plugin has no window |
 
@@ -1507,7 +1523,7 @@ reputation of the owner's signing key; the truth of what Studio tells the user.
 | Supply-chain attacker | Replaces an official plugin's files in a download, or compromises a plugin author's key |
 | Malware under the user's account | Writes into the user's plugin directory or trust store |
 | Other local users | Cannot reach the agent (`agent.md` section 3), but may be able to write to a world-writable plugin location |
-| Network attacker | Not present on the GUI path; present only for adapters that listen |
+| Network attacker | Present on the update check ([Online updates](updates.md), section 11) and for adapters that listen; not on any other path of the GUI |
 | Hostile device or program on a port | Sends adversarial bytes, which reach plugins as traffic |
 | A user who is tricked | Clicks through a prompt |
 
@@ -1541,7 +1557,7 @@ own trust ledger or system clock (the clock is a deterrent).
 | T10 | A manifest uses path tricks (`..`, drive letters, links, device names, case folding, alternate streams) | The layout rules in 5.3; paths normalised and checked; links not followed | |
 | T11 | A manifest string or a log line is used for injection into the GUI (markup, format strings, control characters, bidi override to spoof a name) | All plugin text is plain text, length-limited, with control and bidi characters removed or shown escaped; never a format string; the signer's name comes from the key record, not the plugin | A long name that looks like another: the id and the hash are always shown |
 | T12 | A confusing trust prompt leads the user to approve | One decision per hash, permissions in plain sentences, an increase in permissions called out, **no "trust everything"**, no default-enabled button on unofficial plugins, the warning wording as in `editions.md` | A determined click-through is the user's choice |
-| T13 | A revoked key or plugin keeps working | A signed revocation list with a rising serial, applied at once; an expiry on every official plugin; rotation | Without a network a user who never updates Studio never gets a new list. Expiry bounds that, and the page says when the last list was installed |
+| T13 | A revoked key or plugin keeps working | A signed revocation list with a rising serial, applied at once; an expiry on every official plugin; rotation | A list travels only inside a release, so a user who never updates Studio never gets a new list. Expiry bounds that, and the page says when the last list was installed |
 | T14 | The revocation list is rolled back or forged | Signed by an official key under its own purpose; only a higher serial accepted; the highest serial stored | A user who deletes their ledger |
 | T15 | The clock is set back to revive an expired plugin | High-water mark | A deterrent only, said so |
 | T16 | A compromised or hostile plugin directory (world-writable machine root) | Ownership and ACL checks; a machine root that fails is not searched, reported | |

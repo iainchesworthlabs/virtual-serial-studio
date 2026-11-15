@@ -310,8 +310,9 @@ checks that no file name has a character GitHub would change, checks the version
 and the rpm in a Fedora 44 container (both with glibc 2.42 or newer and GCC 16, the
 oldest systems the packages claim), runs `vss_cli selftest`, runs `ldd` on the programs,
 the Qt libraries and the plug-ins Studio uses to find a missing dependency, validates the launcher
-entry, starts `vss_gui --version` under Xvfb (which loads the `xcb` plug-in), and
-removes the package. Run it on a machine with docker:
+entry, starts `vss_gui --version` under Xvfb (which loads the `xcb` plug-in), runs
+`vss_gui --check-tls` (which loads Qt's TLS plug-in and the system's OpenSSL 3, as the check
+for updates does, and makes no connection), and removes the package. Run it on a machine with docker:
 
 ```
 tools/ci/check_linux_packages.sh <directory with the .deb and .rpm> v0.1.0-rc.1
@@ -376,8 +377,8 @@ generator. The settings are in `cmake/packaging/VssPackage-darwin.cmake`, chosen
 `cmake/VssPackage.cmake` from the system name (each system has its own
 `cmake/packaging/VssPackage-<system>.cmake`). A developer can make one from a macOS build directory with
 `cpack --config build/macos-release-gui/CPackConfig.cmake -G DragNDrop`. The job then mounts
-the image with `hdiutil attach`, runs `vss_cli selftest` and `vss_gui --version` from the
-mounted volume and detaches it, and uploads the image with the other packages.
+the image with `hdiutil attach`, runs `vss_cli selftest`, `vss_gui --version` and
+`vss_gui --check-tls` from the mounted volume and detaches it, and uploads the image with the other packages.
 
 ### What macOS needs besides the app
 
@@ -421,7 +422,7 @@ service.
    and verified.
 5. On the runner the installer is run silently twice (the first with `/ADDTOPATH=1`), the
    second time as an upgrade, then
-   `vss_cli selftest` and `vss_gui --version` run from `%ProgramFiles%\Virtual Serial Studio`,
+   `vss_cli selftest`, `vss_gui --version` and `vss_gui --check-tls` run from `%ProgramFiles%\Virtual Serial Studio`,
    and a silent uninstall must leave no folder, Apps & features entry, Start menu folder,
    helper service or driver package, and must give the machine PATH back as it was. The
    check also requires the folder on the PATH exactly once after the upgrade. Before the

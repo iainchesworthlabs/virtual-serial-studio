@@ -200,6 +200,7 @@ TEST_CASE("plugin verify: a policy with only its version has the defaults")
     REQUIRE(parsed->min_sandbox == sandbox_level::partial);
     REQUIRE(!parsed->allow_no_sandbox);
     REQUIRE(parsed->user_plugins);
+    REQUIRE(parsed->update_check);
     REQUIRE(!parsed->on_timeout.has_value());
 }
 
@@ -219,6 +220,7 @@ TEST_CASE("plugin verify: a policy reads every key")
         "min_sandbox": "full",
         "allow_no_sandbox": true,
         "user_plugins": false,
+        "update_check": false,
         "on_timeout": "fail_closed",
         "permissions_denied": ["net.outbound", "process.spawn"]
     })");
@@ -236,6 +238,7 @@ TEST_CASE("plugin verify: a policy reads every key")
     REQUIRE(parsed->min_sandbox == sandbox_level::full);
     REQUIRE(parsed->allow_no_sandbox);
     REQUIRE(!parsed->user_plugins);
+    REQUIRE(!parsed->update_check);
     REQUIRE(parsed->on_timeout == timeout_action::fail_closed);
     REQUIRE_EQ(parsed->permissions_denied.size(), std::size_t{2});
     REQUIRE(parsed->permissions_denied[1] == permission::process_spawn);
@@ -321,6 +324,10 @@ TEST_CASE("plugin verify: a policy that is not understood is refused")
         "allow_no_sandbox: must be true or false");
     require_policy_refused(R"({ "policy_version": 1, "user_plugins": 0 })",
                            "user_plugins: must be true or false");
+    require_policy_refused(R"({ "policy_version": 1, "update_check": "no" })",
+                           "update_check: must be true or false");
+    require_policy_refused(R"({ "policy_version": 1, "update_check": null })",
+                           "update_check: must be true or false");
     require_policy_refused(
         R"({ "policy_version": 1, "on_timeout": "fail_safe" })",
         "on_timeout: unknown value");
@@ -355,6 +362,8 @@ TEST_CASE("plugin verify: the fallback policy allows only official plugins")
     REQUIRE(fallback.min_sandbox == sandbox_level::full);
     REQUIRE(!fallback.allow_no_sandbox);
     REQUIRE(!fallback.user_plugins);
+    // An untrusted file neither turns the update check off nor on.
+    REQUIRE(fallback.update_check);
 }
 
 TEST_CASE("plugin verify: a key id is a short plain token")

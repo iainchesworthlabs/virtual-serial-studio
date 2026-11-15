@@ -331,6 +331,122 @@
             <source>Create support bundle</source>
             <translation>באַשאַפֿן שטיצע־פּעקל</translation>
         </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="268" />
+            <source>Updates</source>
+            <translation>דערהײַנטיקונגען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="409" />
+            <source>This version</source>
+            <translation>די דאָזיקע ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="413" />
+            <source>Newest version</source>
+            <translation>די נײַסטע ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="417" />
+            <source>Last checked</source>
+            <translation>צום לעצטן קאָנטראָלירט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="431" />
+            <source>Check for updates automatically</source>
+            <translation>אויטאָמאַטיש קאָנטראָלירן אויף דערהײַנטיקונגען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="436" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>איין מאָל אַ טאָג פֿרעגט Studio בײַ virtual-serial-studio.com וועגן דער נײַסטער ווערסיע. גאָרנישט וועגן אײַך אָדער וועגן דעם דאָזיקן קאָמפּיוטער ווערט געשיקט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="455" />
+            <source>Check now</source>
+            <translation>קאָנטראָלירן יעצט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/about_dialog.cpp" line="460" />
+            <source>Update...</source>
+            <translation>דערהײַנטיקן...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="32" />
+            <source>copied from the disk image</source>
+            <translation>אָפּגעקאָפּירט פֿון דעם דיסק־בילד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="36" />
+            <source>installed for everyone on this computer</source>
+            <translation>אינסטאַלירט פֿאַר אַלעמען אויף דעם דאָזיקן קאָמפּיוטער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="38" />
+            <source>unpacked from an archive</source>
+            <translation>אויסגעפּאַקט פֿון אַן אַרכיוו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="51" />
+            <source>Not checked yet.</source>
+            <translation>נאָך נישט קאָנטראָלירט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="53" />
+            <source>Checking...</source>
+            <translation>מען קאָנטראָלירט...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="56" />
+            <source>This is a developer build. The newest release is %1.</source>
+            <translation>דאָס איז אַן אַנטוויקלער־בילד. די נײַסטע פֿאַרעפֿנטלעכטע ווערסיע איז %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="60" />
+            <location filename="../src/support/update_text.cpp" line="64" />
+            <source>%1 is the newest version.</source>
+            <translation>%1 איז די נײַסטע ווערסיע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="68" />
+            <source>%1 is available. Download it from virtual-serial-studio.com.</source>
+            <translation>%1 איז פֿאַראַן. לאָדט אַראָפּ פֿון virtual-serial-studio.com.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="72" />
+            <source>%1 is available.</source>
+            <translation>%1 איז פֿאַראַן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="76" />
+            <source>The update information could not be trusted, so nothing was changed.</source>
+            <translation>מען קען זיך נישט פֿאַרלאָזן אויף דער דערהײַנטיקונג־אינפֿאָרמאַציע, דעריבער איז גאָרנישט געענדערט געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="79" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio האָט נישט געקענט דערגרייכן דעם דערהײַנטיקונג־סערווער. קאָנטראָלירט די פֿאַרבינדונג און פּרובירט נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="83" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>אײַער אַדמיניסטראַטאָר האָט אויסגעשאַלט די קאָנטראָלירונג אויף דערהײַנטיקונגען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="86" />
+            <source>This build cannot check for updates.</source>
+            <translation>מיט דעם דאָזיקן בילד קען מען נישט קאָנטראָלירן אויף דערהײַנטיקונגען.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="100" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="107" />
+            <source>Never</source>
+            <translation>קיינמאָל</translation>
+        </message>
     </context>
     <context>
         <name>AddFixtureDialog</name>
@@ -6603,6 +6719,41 @@ Networks: %5</source>
             <source>Studio could not write the sign-in entry. Nothing was changed.</source>
             <translation>Studio האָט נישט געקענט שרײַבן דעם אָנמעלד־פּאָזיציע. גאָרנישט איז געביטן געוואָרן.</translation>
         </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="256" />
+            <source>Updates</source>
+            <translation>דערהײַנטיקונגען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="263" />
+            <source>Check for updates automatically</source>
+            <translation>אויטאָמאַטיש קאָנטראָלירן אויף דערהײַנטיקונגען</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="269" />
+            <source>Once a day Studio asks virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>איין מאָל אַ טאָג פֿרעגט Studio בײַ virtual-serial-studio.com וועגן דער נײַסטער ווערסיע. גאָרנישט וועגן אײַך אָדער וועגן דעם דאָזיקן קאָמפּיוטער ווערט געשיקט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="277" />
+            <source>Include pre-release versions</source>
+            <translation>אַרײַננעמען פּרע־ריליס־ווערסיעס</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="283" />
+            <source>Offers release candidates as well as finished releases.</source>
+            <translation>ווײַזט ריליס־קאַנדידאַטן אויך, נישט נאָר פֿאַרטיקע ווערסיעס.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="883" />
+            <source>Set by your administrator.</source>
+            <translation>באַשטימט דורך אײַער אַדמיניסטראַטאָר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/settings_dialog.cpp" line="885" />
+            <source>This build cannot check for updates.</source>
+            <translation>מיט דעם דאָזיקן בילד קען מען נישט קאָנטראָלירן אויף דערהײַנטיקונגען.</translation>
+        </message>
     </context>
     <context>
         <name>SetupCheck</name>
@@ -9445,6 +9596,26 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="2090" />
             <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
             <translation>די אײַנשטעלונג דאַרף אַן אַפּאַראַט אָדער נעץ־ענדפּונקט וואָס איז נישט פֿאַראַנען אויף דעם קאָמפּיוטער. קאָנטראָלירט דעם אַפּאַראַט און פּרובירט נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="605" />
+            <source>Check for updates...</source>
+            <translation>קאָנטראָלירן אויף דערהײַנטיקונגען...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="606" />
+            <source>update version new release download</source>
+            <translation>דערהײַנטיקונג ווערסיע נײַ ריליס אַראָפּלאָדן</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3096" />
+            <source>Update checks are turned off by your administrator.</source>
+            <translation>אײַער אַדמיניסטראַטאָר האָט אויסגעשאַלט די קאָנטראָלירונג אויף דערהײַנטיקונגען.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="3097" />
+            <source>This build cannot check for updates.</source>
+            <translation>מיט דעם דאָזיקן בילד קען מען נישט קאָנטראָלירן אויף דערהײַנטיקונגען.</translation>
         </message>
     </context>
     <context>
@@ -20989,6 +21160,272 @@ Networks: %5</source>
             <location filename="../src/support/support_dialog.cpp" line="1" />
             <source>Support ended with your licence on %1.</source>
             <translation>די שטיצע האָט זיך געענדיקט מיט אײַער דערלויבעניש דעם %1.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateNotice</name>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="26" />
+            <location filename="../src/shell/update_notice.cpp" line="76" />
+            <source>Turn on</source>
+            <translation>אָנשטעלן</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="77" />
+            <source>Details</source>
+            <translation>דעטאַלן</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="79" />
+            <source>No thanks</source>
+            <translation>ניין, אַ דאַנק</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/update_notice.cpp" line="80" />
+            <source>Later</source>
+            <translation>שפּעטער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="113" />
+            <source>Check for updates automatically? Once a day Studio would ask virtual-serial-studio.com for the newest version. Nothing about you or this computer is sent.</source>
+            <translation>אויטאָמאַטיש קאָנטראָלירן אויף דערהײַנטיקונגען? איין מאָל אַ טאָג וואָלט Studio געפֿרעגט בײַ virtual-serial-studio.com וועגן דער נײַסטער ווערסיע. גאָרנישט וועגן אײַך אָדער וועגן דעם דאָזיקן קאָמפּיוטער ווערט געשיקט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="122" />
+            <source>Virtual Serial Studio %1 is available.</source>
+            <translation>Virtual Serial Studio %1 איז פֿאַראַן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="130" />
+            <source>Studio will check for updates once a day.</source>
+            <translation>Studio וועט קאָנטראָלירן אויף דערהײַנטיקונגען איין מאָל אַ טאָג.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="132" />
+            <source>Studio will not check for updates. You can change this in Settings.</source>
+            <translation>Studio וועט נישט קאָנטראָלירן אויף דערהײַנטיקונגען. איר קענט דאָס ענדערן אין פּרעפֿערענצן.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateChip</name>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="139" />
+            <source>Update available</source>
+            <translation>דערהײַנטיקונג פֿאַראַן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="144" />
+            <source>Update available: version %1. Open the update.</source>
+            <translation>דערהײַנטיקונג פֿאַראַן: ווערסיע %1. עפֿנט די דערהײַנטיקונג.</translation>
+        </message>
+    </context>
+    <context>
+        <name>UpdateDialog</name>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="164" />
+            <source>Update Virtual Serial Studio</source>
+            <translation>דערהײַנטיקן Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="209" />
+            <source>What is new</source>
+            <translation>וואָס איז נײַ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="238" />
+            <source>Release notes</source>
+            <translation>ריליס־נאָטיצן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="273" />
+            <source>Download progress</source>
+            <translation>פּראָגרעס פֿון דעם אַראָפּלאָדן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="292" />
+            <source>Restart Studio to use the new version.</source>
+            <translation>סטאַרט Studio איבער כּדי צו נוצן די נײַע ווערסיע.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="299" />
+            <source>The package could not be installed. Use the command above.</source>
+            <translation>מען האָט נישט געקענט אינסטאַלירן דעם פּעקל. ניצט די קאָמאַנדע אויבן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="336" />
+            <source>Skip this version</source>
+            <translation>איבערשפּרינגען די דאָזיקע ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="342" />
+            <source>Not now</source>
+            <translation>נישט יעצט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="343" />
+            <source>Cancel</source>
+            <translation>אַנולירן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="346" />
+            <source>Show in folder</source>
+            <translation>ווײַזן אין פּאַפּקע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="349" />
+            <source>Download and install</source>
+            <translation>אַראָפּלאָדן און אינסטאַלירן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="352" />
+            <source>Open the downloads page</source>
+            <translation>עפֿענען די אַראָפּלאָד־זײַט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="355" />
+            <source>Install now</source>
+            <translation>אינסטאַלירן יעצט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="358" />
+            <source>Open the disk image</source>
+            <translation>עפֿענען דעם דיסק־בילד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="361" />
+            <source>Install</source>
+            <translation>אינסטאַלירן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="364" />
+            <source>Try again</source>
+            <translation>פּרובירט נאָך אַ מאָל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="366" />
+            <source>Close</source>
+            <translation>פֿאַרמאַכן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="443" />
+            <source>Could not start the installer</source>
+            <translation>מען האָט נישט געקענט אָנהייבן דעם אינסטאַלירער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="445" />
+            <source>Studio could not start %1. It is in %2.</source>
+            <translation>Studio האָט נישט געקענט אָנהייבן %1. עס געפֿינט זיך אין %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="461" />
+            <source>The download was not the file that was published, so it was deleted.</source>
+            <translation>דער אַראָפּלאָד איז נישט געווען די פֿאַרעפֿנטלעכטע טעקע, דעריבער איז ער אויסגעמעקט געוואָרן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="469" />
+            <source>Studio could not save the download.</source>
+            <translation>Studio האָט נישט געקענט אָפּהיטן דעם אַראָפּלאָד.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="474" />
+            <source>Studio could not reach the update server. Check the connection and try again.</source>
+            <translation>Studio האָט נישט געקענט דערגרייכן דעם דערהײַנטיקונג־סערווער. קאָנטראָלירט די פֿאַרבינדונג און פּרובירט נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="480" />
+            <source>Could not download the update</source>
+            <translation>מען האָט נישט געקענט אַראָפּלאָדן די דערהײַנטיקונג</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="531" />
+            <source>Version %1 is available. You have %2.</source>
+            <translation>ווערסיע %1 איז פֿאַראַן. איר האָט %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="545" />
+            <source>Release notes for version %1, opens in your browser</source>
+            <translation>ריליס־נאָטיצן פֿאַר ווערסיע %1, עפֿענען זיך אין אײַער בראַוזער</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="553" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="558" />
+            <source>There is no package for this kind of install. Download one from virtual-serial-studio.com.</source>
+            <translation>עס איז נישטאָ קיין פּעקל פֿאַר דעם סאָרט אינסטאַלאַציע. לאָדט אײנעם אַראָפּ פֿון virtual-serial-studio.com.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="571" />
+            <source>%n port is running. Installing stops it.</source>
+            <translation>
+                <numerusform>%n פּאָרט לויפֿט. די אינסטאַלאַציע שטעלט אים אָפּ.</numerusform>
+                <numerusform>%n פּאָרטן לויפֿן. די אינסטאַלאַציע שטעלט זיי אָפּ.</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/update_dialog.cpp" line="575" />
+            <source>%n ports are running. Installing stops them.</source>
+            <translation>
+                <numerusform>%n פּאָרט לויפֿט. די אינסטאַלאַציע שטעלט אים אָפּ.</numerusform>
+                <numerusform>%n פּאָרטן לויפֿן. די אינסטאַלאַציע שטעלט זיי אָפּ.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="600" />
+            <source>Checking the download...</source>
+            <translation>מען קאָנטראָלירט דעם אַראָפּלאָד...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="609" />
+            <source>Downloading %1...</source>
+            <translation>מען לאָדט אַראָפּ %1...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="627" />
+            <source>%1 of %2</source>
+            <translation>%1 פֿון %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="640" />
+            <source>%1 percent</source>
+            <translation>%1 פּראָצענט</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="659" />
+            <source>The update is ready. Studio will close and the installer will start. Windows asks for an administrator.</source>
+            <translation>די דערהײַנטיקונג איז גרייט. Studio וועט זיך פֿאַרמאַכן און דער אינסטאַלירער וועט זיך אָנהייבן. Windows פֿרעגט נאָך אַן אַדמיניסטראַטאָר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="667" />
+            <source>The update is ready. Quit Studio, then drag Virtual Serial Studio onto Applications in the window that opens.</source>
+            <translation>די דערהײַנטיקונג איז גרייט. פֿאַרלאָזט Studio און שלעפּט דערנאָך Virtual Serial Studio אויף Applications אין דעם פֿענצטער וואָס עפֿנט זיך.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="675" />
+            <source>The update is ready. Install it with this command, then start Studio again.</source>
+            <translation>די דערהײַנטיקונג איז גרייט. אינסטאַלירט זי מיט דער דאָזיקער קאָמאַנדע, דערנאָך סטאַרט Studio נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="680" />
+            <source>Install command</source>
+            <translation>אינסטאַלאַציע־קאָמאַנדע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="696" />
+            <source>The download is in %1. This copy of Studio was unpacked from an archive, so unpack the new one in its place.</source>
+            <translation>דער אַראָפּלאָד געפֿינט זיך אין %1. די דאָזיקע קאָפּיע פֿון Studio איז אויסגעפּאַקט געוואָרן פֿון אַן אַרכיוו, דעריבער פּאַקט אויס די נײַע אויף איר אָרט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_dialog.cpp" line="821" />
+            <source>Studio will not mention %1 again.</source>
+            <translation>Studio וועט מער נישט דערמאָנען %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/update_text.cpp" line="25" />
+            <source>%1 MB</source>
+            <translation>%1 MB</translation>
         </message>
     </context>
 </TS>

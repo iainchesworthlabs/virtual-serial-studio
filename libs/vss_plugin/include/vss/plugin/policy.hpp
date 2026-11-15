@@ -87,6 +87,9 @@ struct policy
     bool allow_no_sandbox = false;
     /// Whether the per-user plugin directory is searched.
     bool user_plugins = true;
+    /// Whether Studio may check for updates. False turns off the timer
+    /// check and the check by hand (docs/updates.md, section 6.3).
+    bool update_check = true;
     /// Forces what an in-line plugin's bytes do when it does not answer.
     std::optional<timeout_action> on_timeout;
     /// Permissions no plugin gets, whatever the user decides.
