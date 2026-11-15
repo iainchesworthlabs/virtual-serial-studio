@@ -27,6 +27,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace vss_test_support::license_tool
@@ -45,15 +46,18 @@ using variable_reader =
     std::function<std::optional<std::string>(const std::string&)>;
 
 /// Runs one command at 1 June 2027, inside the term of the golden licence.
-inline outcome run_tool(std::initializer_list<std::string> words,
-                        variable_reader variable = {})
+/// `builtin` stands for the revocation list built into the build; it is the
+/// release's own list unless a test gives another.
+inline outcome run_tool(
+    std::initializer_list<std::string> words, variable_reader variable = {},
+    vss::license::revocation_list builtin = vss::license::builtin_revocations())
 {
     const std::vector<std::string> arguments(words);
     std::ostringstream out;
     std::ostringstream err;
     vss::license::tool::surroundings where{
         out, err, std::move(variable),
-        *vss::license::parse_time("2027-06-01T00:00:00Z")};
+        *vss::license::parse_time("2027-06-01T00:00:00Z"), std::move(builtin)};
     outcome result;
     result.status = vss::license::tool::run(arguments, where);
     result.out = out.str();

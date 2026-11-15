@@ -33,8 +33,13 @@ struct surroundings
     std::ostream& err;
     /// Reads an environment variable. Used for `--key-env` only.
     std::function<std::optional<std::string>(const std::string&)> variable;
-    /// The time `verify` judges at when `--at` is not given.
+    /// The time `verify` judges at when `--at` is not given, and the time
+    /// `issue` holds a request's `issued_at` against.
     time_point now;
+    /// The revocation list built into this build, which `verify` always
+    /// consults, as Studio does. The program passes `builtin_revocations()`;
+    /// the tests pass their own.
+    revocation_list builtin;
 };
 
 /// Runs one command. `arguments` are the words after the program name.

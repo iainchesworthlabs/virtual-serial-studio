@@ -117,7 +117,10 @@ endif()
 # The commands of vss_license, run in the test process.
 if(TARGET vss_license_tool)
   list(APPEND VSS_UNIT_TEST_SOURCES unit/test_license_tool.cpp)
-  if(UNIX)
+  if(WIN32)
+    list(APPEND VSS_UNIT_TEST_SOURCES
+      unit/platform/windows/test_license_tool_windows.cpp)
+  elseif(UNIX)
     list(APPEND VSS_UNIT_TEST_SOURCES
       unit/platform/posix/test_license_tool_posix.cpp)
   endif()
