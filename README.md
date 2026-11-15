@@ -97,6 +97,7 @@ vss_cli run lab.json --seconds=60
 vss_cli capture lab.json --out=run.cap --port=master --seconds=60
 vss_cli bench --from=serial://COM3 --to=serial://COM5 --bytes=10MB
 vss_cli selftest
+vss_cli licence                      # the edition and the licence files Studio finds on this computer; `licence import <file>` installs one
 vss_agent &                         # keep ports after the command that made them (a first slice)
 vss_cli agent create-port demo      # a loopback port in the agent; `vss_cli agent ports` lists it
 vss_gate &                          # let this user's programs watch the agent's ports (a first slice)
@@ -256,7 +257,7 @@ python tools/changelog.py --release 0.2.0
 libs/vss_core        hub, endpoints, links, control lines, events
 libs/vss_ports       serial transport, PTY, loopback, com0com, enumeration
 libs/vss_config      JSON topology documents
-libs/vss_license     licence files and the signed envelope (verify, judge, sign)
+libs/vss_license     licence files and the signed envelope (verify, judge, sign), and the store that finds them
 libs/vss_studio      the application service shared by the CLI and the GUI
 libs/vss_testkit     reusable fakes and helpers for tests
 libs/vss_agent_proto the wire protocol of the per-user agent

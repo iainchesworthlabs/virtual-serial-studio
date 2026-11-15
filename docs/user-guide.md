@@ -1476,7 +1476,9 @@ effect at once, with no restart. Importing never deletes an older file.
 
 | Folder | Where | Used for |
 |---|---|---|
-| Your licence folder | The `licences` folder in Studio's per-user data folder | Where **Import licence...** copies files |
+| Your licence folder, Windows | `%LOCALAPPDATA%\Virtual Serial Studio\licences` | Where **Import licence...** copies files |
+| Your licence folder, Linux | `$XDG_DATA_HOME/virtual-serial-studio/licences`, or `~/.local/share/virtual-serial-studio/licences` when `XDG_DATA_HOME` is not set | The same |
+| Your licence folder, macOS | `~/Library/Application Support/Virtual Serial Studio/licences` | The same |
 | The per-machine folder, Windows | `%ProgramData%\Virtual Serial Studio\licences` | A licence an administrator puts there for every user of the computer |
 | The per-machine folder, Linux | `/etc/virtual-serial-studio/licences` | The same |
 | The per-machine folder, macOS | `/Library/Application Support/Virtual Serial Studio/licences` | The same |
@@ -1486,6 +1488,22 @@ the most: a valid licence before one in its grace period, that before one that
 has ended, then Enterprise before Pro, then the one that ends last. The others
 are listed on the Licence page. Studio only reads the per-machine folder. It
 never writes to it, and **Remove** does not touch a file there.
+
+### From the command line
+
+`vss_cli licence` prints what Studio sees on this computer, one line for each
+fact: `Edition:` (`community`, `pro` or `enterprise`), `State:` (`none`,
+`valid`, `expiring`, `grace`, `expired`, `not_yet_valid`, `clock_suspect` or
+`invalid`), `Reason:` when the licence is not in force, then the licence
+number, its kind, who it is licensed to, its term, the days left and the
+seats, and the licence files it found in both folders. The edition and state
+words are the ones the control gateway's status uses. It reads files and
+sends nothing, and its exit status is 0 whatever it finds.
+
+`vss_cli licence import <file>` checks a licence file as Studio does and copies
+it to your licence folder. It prints one sentence and exits with 0 when the
+licence is installed and 1 when nothing was copied. The file you give it stays
+where it was.
 
 ### When a licence ends
 

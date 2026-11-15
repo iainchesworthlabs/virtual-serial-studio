@@ -11,6 +11,7 @@
 
 #include "agent_command.hpp"
 #include "control_command.hpp"
+#include "licence_command.hpp"
 #include "permissions_command.hpp"
 #include "plugin_command.hpp"
 
@@ -223,10 +224,12 @@ void print_usage()
         "%s"
         // Fourth %s: the plugin command, supplied by plugin_usage().
         "%s"
+        // Fifth %s: the licence commands, supplied by licence_usage().
+        "%s"
         "  Common: --verbose, --quiet\n"
         "\n"
         "  Profiling (Tracy; off unless asked, this computer only):\n"
-        // Fifth %s: the profiling options from vss::profiling::usage().
+        // Sixth %s: the profiling options from vss::profiling::usage().
         "%s"
         "\n"
         // The licence notice is the standard GPL interactive-program text.
@@ -235,6 +238,7 @@ void print_usage()
         "WARRANTY; see LICENSE for details.\n",
         vss_cli::agent_usage(), vss_cli::control_usage(),
         vss_cli::permissions_usage(), vss_cli::plugin_usage(),
+        vss_cli::licence_usage(),
         // usage() is a string_view; copy it to get a terminated %s string.
         std::string(vss::profiling::usage()).c_str());
 }
@@ -1592,6 +1596,12 @@ try
         {
             VSS_PROFILE_ZONE("cli.plugin");
             return vss_cli::command_plugin(
+                std::vector<std::string>(argv + 1, argv + argc));
+        }
+        if (command == "licence")
+        {
+            VSS_PROFILE_ZONE("cli.licence");
+            return vss_cli::command_licence(
                 std::vector<std::string>(argv + 1, argv + argc));
         }
     }

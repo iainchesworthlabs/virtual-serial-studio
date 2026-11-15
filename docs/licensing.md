@@ -270,10 +270,16 @@ revocation list only ever holds ids, never names.
 
 | Place | Used for |
 |---|---|
-| Per-user data directory, `licences/` | What Help, Licence, Import licence copies the file to |
+| Per-user folder (`%LOCALAPPDATA%\Virtual Serial Studio\licences`, `$XDG_DATA_HOME/virtual-serial-studio/licences` or `~/.local/share/virtual-serial-studio/licences`, `~/Library/Application Support/Virtual Serial Studio/licences`) | What Help, Licence, Import licence and `vss_cli licence import` copy the file to |
 | Per-machine directory (`%ProgramData%\Virtual Serial Studio\licences`, `/etc/virtual-serial-studio/licences`, `/Library/Application Support/Virtual Serial Studio/licences`) | An administrator installing a licence for the computers they manage. Studio only reads it |
 
-Studio reads every `.vsslic` in both places and uses the best one: a valid
+On Linux the per-user folder is under `$XDG_DATA_HOME` when that is an absolute
+path, and under `~/.local/share` when it is unset, empty or not absolute. The
+latest time seen and the clock resets used are kept in `licence-clock.json`,
+beside the per-user `licences` folder.
+
+Studio reads every `.vsslic` in both places (at most 64 from each, in name
+order, and none larger than 64 KiB) and uses the best one: a valid
 licence beats one in grace, which beats an expired one; then Enterprise beats
 Pro; then the latest expiry. The others are listed on the Licence page.
 Importing never deletes an older file, and removing a licence is a button with
@@ -459,12 +465,20 @@ links it. It has no Qt and no network code, and builds as two parts:
 | Part | Does | Used by |
 |---|---|---|
 | `vss::signed_file` | The envelope: parse, size limits, base64url, the signed message, Ed25519 verify, the trust list with purposes and windows | The licence code, and the plugin signer for its manifests |
-| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio's window (its backend), `vss_license`, the plugin library `vss_plugin`, official plugins. `vss_cli` does not use it and has no licence command |
+| `vss::license` | The payload, the states, the clock check, revocation, machine names, `check(feature)` | Studio's window (its backend), `vss_license`, `vss_cli licence`, the plugin library `vss_plugin`, official plugins |
+| `vss::license::store` | The licence files on this computer: the per-user and per-machine folders, the best licence, import, remove, the revocation lists and the stored latest time | Studio's window (its backend, through a thin adaptor) and `vss_cli licence` |
 
 Time, the computer's name and the stored latest time are passed in, so every
 state can be tested without touching the clock. Results are
 `vss::result<T>`. Signing lives in a third small part, `vss::signed_file_sign`,
 that Studio does not link.
+
+`vss::license::store` is where the files are read. It has no Qt. It reads a
+file only after checking its size, copies an imported file to a new name in the
+per-user folder (it never replaces a file), and never writes to the per-machine
+folder. `vss_cli licence` prints what the store found, and
+`vss_cli licence import <file>` imports a file through it. The agent, the
+control gateway and the plugin host do not ask it yet.
 
 The plugin framework session should build its signature check on
 `vss::signed_file` and not write a second one. A note saying so is in the
@@ -623,8 +637,9 @@ What is not built: any use of `check(feature)` that changes what Studio offers
 (the Licence page and the Support page ask it, to say what the licence grants,
 and nothing else does), a licence service in the agent and the control
 gateway, so the gateway's `status` has no edition, and the plugin host that
-would run an official plugin. `vss_license` is built with the tools and is not
-installed.
+would run an official plugin. The licence store is built (`vss::license::store`,
+used by Studio and by `vss_cli licence`); the agent and the gateway do not ask
+it yet. `vss_license` is built with the tools and is not installed.
 
 The private repository, its workflow, the environment and the real keys are
 the owner's to create. This repository gives them the tool and this page.
