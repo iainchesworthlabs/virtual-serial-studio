@@ -1,0 +1,1 @@
+**The website's recorded release is the fifth release candidate.** A build of the website that does not ask GitHub for the newest release now lists the files of `v0.1.0-rc.5` on the downloads page, where it listed those of the third release candidate.

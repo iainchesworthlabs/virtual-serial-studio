@@ -11,11 +11,13 @@
 #include <vss/control/proto/policy.hpp>
 #include <vss/control/token_store.hpp>
 #include <vss/core/error.hpp>
+#include <vss/license/license.hpp>
 
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -89,6 +91,14 @@ struct gateway_options
     /// refusal from the same source.  The ones between are counted and the
     /// count is written with the next, so a flood cannot fill the log.
     std::chrono::milliseconds audit_burst_period{1000};
+    /// What the program that runs the gateway knows of the licence on this
+    /// computer.  Asked for each `status` reply, on the gateway's own
+    /// executor, so it must answer at once and must not read a file each
+    /// time; the gateway itself reads no licence.  Empty for a gateway
+    /// that knows of none, which reports `community` and `none`.  A reply
+    /// carries the edition, which is `community` unless the licence is in
+    /// force, and the name of the state, and nothing else of it.
+    std::function<license::status()> licence;
 };
 
 /// What the gateway has seen, for the tests and the log.

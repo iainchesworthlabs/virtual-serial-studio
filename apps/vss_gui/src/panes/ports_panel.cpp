@@ -285,17 +285,32 @@ void PortsPanel::refresh()
 
     if (ports.empty())
     {
+        // The next setup that appears gets its own first selection.
+        setup_shown_ = false;
         if (selection_.port() != 0)
             selection_.select_port(0);
         return;
     }
 
-    const int wanted_row = wanted != 0 ? model_->row_for_id(wanted) : -1;
-    if (wanted_row < 0)
+    // A refresh never changes what is selected. The one exception is the
+    // first time a setup shows: with nothing selected, the first port is.
+    // After that, no port selected is a choice (a link may be selected on the
+    // canvas), and a port the filter hides is still the selected port.
+    const bool appeared = !setup_shown_;
+    setup_shown_ = true;
+    if (wanted == 0)
     {
-        const int first = model_->rowCount() > 0 ? 0 : -1;
-        if (first >= 0)
-            selection_.select_port(model_->port_id(first));
+        if (appeared && selection_.link() == 0 && model_->rowCount() > 0)
+            selection_.select_port(model_->port_id(0));
+        return;
+    }
+    const bool exists =
+        std::any_of(ports.begin(), ports.end(),
+                    [wanted](const auto& port) { return port.id == wanted; });
+    if (!exists)
+    {
+        // The selected port is gone.
+        selection_.select_port(0);
         return;
     }
     select_port(wanted);

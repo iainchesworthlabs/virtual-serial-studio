@@ -313,11 +313,16 @@ void SendPanel::set_selected_port(vss::endpoint_id id)
     if (pinned())
         return;
     const int index = ports_->findData(QVariant::fromValue<qulonglong>(id));
-    if (index >= 0)
+    if (index < 0)
+        return;
     {
         const QSignalBlocker blocker(ports_);
         ports_->setCurrentIndex(index);
     }
+    // The combo's own signal was silenced, so bring the heading and the Send
+    // button up to date here.
+    update_target();
+    update_send_enabled();
 }
 
 QString SendPanel::text() const
