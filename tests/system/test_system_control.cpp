@@ -736,6 +736,7 @@ TEST_CASE("system control: the gateway shows the ports of the agent")
     REQUIRE(!contains(status.output, "local only"));
     REQUIRE(contains(status.output, "You may: monitor"));
     REQUIRE(contains(status.output, "Agent: running"));
+    REQUIRE(contains(status.output, "Edition: community (licence: none)"));
 
     auto script = connect_client(instance);
     const auto listed = script->list_ports();

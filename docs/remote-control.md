@@ -28,10 +28,20 @@ describes it.
 
 ## The problem
 
-Pro adds a control endpoint. A test harness (pytest, the C ABI and its wrappers for C#/.NET, Java and Node.js,
-LabVIEW, TestStand, Robot Framework, the JUnit report writer) drives Studio through it. The same endpoint lets one
-other computer control or watch a running Studio. That turns a program that today has no listener into one that
-accepts commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+Studio has a control endpoint. A test harness drives Studio through it, and the same API is what lets one other
+computer control or watch a running Studio. That turns a program that had no listener into one that accepts
+commands, and the commands can create ports, write bytes to real devices and change what a test rig does.
+
+**Which edition has what.** The owner has decided:
+
+- **Community:** the control endpoint on this computer (`vss_gate` with the local pipe or socket, tokens and
+  loopback TCP), the Python client in `adapters/python`, and runs with the JUnit report. Nothing in the code asks
+  for a licence for any of them.
+- **Pro:** the pytest plugin, the bindings for other languages (the C ABI and its wrappers for C#/.NET, Java and
+  Node.js), Robot Framework, TestStand and LabVIEW, and remote control and monitoring between the two computers
+  of a seat. The remote part (TLS, the OAuth 2.0 and OpenID Connect interface, and listening beyond this
+  computer) is a plugin and is not in this repository. `vss_gate` in this repository cannot listen on any
+  address but this computer's own.
 
 **What a seat covers.** One Pro licence is one seat, and a seat is two computers: the one you work at and one other
 that you control or monitor from it, in either direction. Remote control and monitoring between those two is part
@@ -134,11 +144,11 @@ listeners, authentication, authorisation, rate limits and the audit log, and tra
 |---|---|---|---|
 | Listeners inside `vss_agent` | One process fewer | A network bug is an engine bug; every user of the agent carries the attack surface even when remote control is off; the agent would link a TLS library and an HTTP-free parser it does not otherwise need | Rejected |
 | Listeners inside `vss_gui` | | Forbidden: no network access from the GUI process | Rejected |
-| A separate `vss_gate` | The agent, the GUI and `vss_cli` link nothing new and open no listener; Community builds do not contain it; it can crash and restart without stopping a port; the audit log and the secrets live in one small process; it can drop privileges and be sandboxed independently | One more process to start and stop | **Recommended** |
+| A separate `vss_gate` | The agent, the GUI and `vss_cli` link nothing new and open no listener; it can crash and restart without stopping a port; the audit log and the secrets live in one small process; it can drop privileges and be sandboxed independently | One more process to start and stop | **Recommended** |
 
 `vss_gate` is started by the agent's owner (the GUI's enable switch, or `vss_cli control enable`), not by an
-incoming connection. When no listener is enabled it is not running. It is part of the Pro plugin set, so Community
-builds contain none of this code.
+incoming connection. When no listener is enabled it is not running. It is part of the Community edition; what
+reaches beyond this computer is in the Pro plugin and not in `vss_gate`.
 
 The gateway connects to the agent as a normal local client, one connection **per remote session**, so that a
 `monitor` session can be given a connection that the agent itself makes read-only (agent.md, decision 10, the
@@ -397,7 +407,7 @@ A scope names a class of actions. A token carries a set of scopes; a role is a n
 
 | Scope | Allows | Does not allow |
 |---|---|---|
-| `monitor` | Read the list of ports and links, their state, counters, line states and the event stream **without** bytes; the endpoint's own status; the version. The licence edition is not built: the gateway reads no licence | The bytes of any traffic |
+| `monitor` | Read the list of ports and links, their state, counters, line states and the event stream **without** bytes; the endpoint's own status, with the edition and the state of the licence; the version | The bytes of any traffic |
 | `monitor.data` | Subscribe to traffic bytes and read the history. Optionally limited to named ports (a filter in the token record; **not built**: a `monitor.data` token reads every port, and a subscription may name the ports it wants) | Any change |
 | `control.ports` | Create and remove ports, link and unlink, rename, change settings and lines, start and stop | Writing data, faults |
 | `control.data` | `send` bytes, play a file the **sender uploads** (never one named by path), set up scripted replies | Anything outside the ports the principal made, if `own ports only` is set |
@@ -623,7 +633,7 @@ design's, except where the Notes say the code asks for another.
 | Operation | Scope | Built | Notes |
 |---|---|---|---|
 | `hello` | none (after auth) | Yes | Version, features, the principal's effective scopes |
-| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version. Not built: the edition, the endpoint state and counters |
+| `status` | `monitor` | In part | Built: uptime, the number of sessions, whether the agent is running and its version, and the edition (`community`, `pro` or `enterprise`) with the state of the licence. Whose the licence is, its number and its dates are not given. `vss_gate` does not read a licence yet, so it reports `community` and `none`. Not built: the endpoint state and counters |
 | `ports.list` | `monitor` | Yes | |
 | `ports.get`, `links.list`, `links.get`, `lines.get` | `monitor` | Not built | |
 | `events.subscribe`, `events.unsubscribe` | `monitor` | Yes | State, counters, line changes, and that bytes moved and how many; no bytes |
@@ -884,8 +894,7 @@ policy check, the token code and the peer-credential code are not delegated.
 | The API is the control API, not the agent's | Ports and links cross as `p_<n>` and `l_<n>`; an agent error crosses as `unavailable` and nothing else | Engine errors by name, which no operation of this slice can produce |
 
 Not built in this slice, and the reason: `vss_cli control` has `status` and `stop` only, because nothing starts
-`vss_gate` on demand yet; the gateway is in this repository and is built with the tools, where the editions page puts
-it in the Pro set, because that split is the licensing work's to make; and SHA-256 comes from Boost.Hash2, which
+`vss_gate` on demand yet; and SHA-256 comes from Boost.Hash2, which
 raises the oldest Boost that builds this repository from 1.74 to 1.88.
 
 ### What slice 2 built
@@ -1051,8 +1060,9 @@ loopback comes with L3 and is not offered yet. The default ceiling for TCP is th
 
 Everything in the table of section 9 that is marked "Not built", gathered here in one place:
 
-- Reading: `ports.get`, `links.list`, `links.get`, `lines.get`, `traffic.history`, and the edition, the endpoint state
-  and the counters in `status`.
+- Reading: `ports.get`, `links.list`, `links.get`, `lines.get`, `traffic.history`, and the endpoint state and the
+  counters in `status`. `status` has the edition and the state of the licence, but `vss_gate` does not read a licence
+  yet, so it always reports `community` and `none`.
 - Changing ports: `ports.rename`, `ports.settings`, `links.disconnect`, `lines.set`, `scripts.set`, `scripts.clear`,
   `topology.apply`, `topology.snapshot`, and "own ports only" for a scoped token.
 - Faults and timing: `faults.inject` and `timing.set`. The response timing rules engine is built as a library only,

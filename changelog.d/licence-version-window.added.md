@@ -1,0 +1,1 @@
+**A licence with a version window keeps the plugins released in time.** A licence can carry an `updates_until` date. After such a licence has ended, an official plugin whose signed manifest gives a release date on or before that date still runs; a plugin released later needs a current licence. A licence without the date ends as before. Annual licences are issued without it.

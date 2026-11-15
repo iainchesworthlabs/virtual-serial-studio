@@ -435,6 +435,16 @@ Plugins released later need a current licence. When the field is absent, expiry
 means what the States table says. The release date comes from the plugin's
 signed manifest, never from a file time.
 
+The comparison is in the library: `check(status, feature, released)` grants a
+feature the licence names when the licence has ended, sets `updates_until` and
+the release date is on or before it, and says so in `by_version_window`. It
+applies to a licence that has ended and to nothing else: one that is withdrawn,
+for other computers, not started, or judged while the clock looks wrong grants
+nothing through it. The plugin check (`vss::plugin::check_licence`) passes the
+`released` date of the plugin's manifest; a plugin with no release date gets
+the plain answer. The Licence page does not yet show a second "ended" variant
+for a licence with a window.
+
 | | Subscription only (`updates_until` absent) | Version window (`updates_until` = `expires_at`) |
 |---|---|---|
 | After expiry | Community, after the grace period | The versions already released keep working. No updates, no support |
@@ -474,7 +484,13 @@ shared notes folder.
 
 A command line tool, offline, in this repository. It is built with the other
 tools (`VSS_BUILD_TOOLS`) as the target `vss_license_program`, and the file is
-named `vss_license`. It is not installed with Studio.
+named `vss_license`. It is the owner's tool: it issues licences, signs
+revocation lists and makes keys, and customers do not need it. It is not
+installed with Studio and is in no installer, archive, disk image, deb or rpm.
+`tools/ci/check_package_contents.py` fails a release if the tool, one of its
+libraries or a key file is in a staged tree or a package, and its test fails
+if an `install()` rule ever names the tool. A customer imports a licence with
+Help, Licence.
 
 | Command | Does |
 |---|---|

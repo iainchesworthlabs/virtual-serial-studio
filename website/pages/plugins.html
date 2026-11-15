@@ -9,28 +9,43 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <p><span class="chip info hollow">In development</span></p>
 </div>
 <div class="note warn">
-<p>The plugins on this page are being built and none can be downloaded yet. The page describes what the first version will contain. Details may change.</p>
+<p>The plugins on this page are being built and none can be downloaded yet. The page describes what the first version will contain. Details may change. The control endpoint and the Python client below are not plugins and are in the Community edition.</p>
 </div>
+</section>
+
+<section class="band plain" aria-labelledby="python-title">
+<div class="head">
+<h2 id="python-title">The control endpoint and the Python client</h2>
+<p class="lead">The control endpoint lets a program on the same computer drive Studio. It is the program <code>vss_gate</code>, and a Python client for it is in the repository. Both are in the Community edition and need no licence, and so are the JUnit reports of a run. A test script uses them to make and link ports, send bytes, wait for bytes and read the event and traffic streams.</p>
+<p><span class="chip ok">Community, free</span></p>
+</div>
+<dl class="rows">
+<div><dt>Where to get them</dt><dd>Both are in the <a href="{{repo_url}}">repository on GitHub</a> and neither is in the installers or the packages yet. The endpoint, <code>vss_gate</code>, and the agent behind it, <code>vss_agent</code>, are built from source. The Python client is in <a href="{{repo_url}}/tree/develop/adapters/python"><code>adapters/python</code></a>: use it from that folder, or install it with <code>pip install ./adapters/python</code>.</dd></div>
+<div><dt>Who can reach the endpoint</dt><dd>Only programs on the same computer. By default that is a local socket for your own account. You can also turn on TCP on the loopback address, where every connection needs a token that you make.</dd></div>
+<div><dt>Reports of a run</dt><dd>A script can open a named run, record what passed and what failed, and ask the endpoint for the result as JUnit XML, for a CI system to collect. This is in the Community edition too.</dd></div>
+<div><dt>What the Python client needs</dt><dd>Python 3.9 or later and no other package.</dd></div>
+<div><dt>What they cannot do yet</dt><dd>A port made through the endpoint is a loopback port inside the agent, so another program cannot open it. Faults and response timing cannot be set through it.</dd></div>
+<div><dt>From another computer</dt><dd>Controlling or watching Studio from another computer is a Pro plugin. <a href="#remote-title">Remote control and remote monitoring</a>.</dd></div>
+</dl>
 </section>
 
 <section class="band pane" aria-labelledby="bind-title">
 <div class="head">
 <h2 id="bind-title">Language and framework bindings</h2>
-<p class="lead">Each binding does the same things: create ports, link them, send and expect bytes, inject faults and read the event log. All of them are in the first version.</p>
+<p class="lead">These are official plugins, so they are the Pro edition. Each binding does the same things: create ports, link them, send and expect bytes, inject faults and read the event log. All of them are in the first version.</p>
 </div>
 <div class="table-wrap">
 <table>
 <caption class="visually-hidden">Language and framework bindings</caption>
 <thead><tr><th scope="col">Binding</th><th scope="col">What it gives you</th></tr></thead>
 <tbody>
-<tr><th scope="row">Python and pytest</th><td>A library, and a pytest plugin with fixtures for ports and links.</td></tr>
+<tr><th scope="row">pytest</th><td>A pytest plugin with fixtures for ports and links. The Python client itself is in the Community edition.</td></tr>
 <tr><th scope="row">C and C++</th><td>A stable C interface. The C#, Java and Node.js bindings wrap it, so a lab can bind a language of its own.</td></tr>
 <tr><th scope="row">C# and .NET</th><td>A library for .NET test projects.</td></tr>
 <tr><th scope="row">Java</th><td>A library for JVM test projects.</td></tr>
 <tr><th scope="row">Node.js</th><td>A package for JavaScript and TypeScript tests.</td></tr>
 <tr><th scope="row">Robot Framework</th><td>The same operations as keywords, for tests written as readable tables.</td></tr>
 <tr><th scope="row">LabVIEW and TestStand</th><td>Wrappers for lab test rigs and their sequences.</td></tr>
-<tr><th scope="row">Reports</th><td>JUnit XML and a plain log of each run, for a CI system to collect.</td></tr>
 </tbody>
 </table>
 </div>
@@ -72,7 +87,7 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <section class="band pane" aria-labelledby="remote-title">
 <div class="head">
 <h2 id="remote-title">Remote control and remote monitoring</h2>
-<p class="lead">Run Studio from a CI machine or a rig controller, and watch a running Studio from one other computer. The control endpoint is off until you turn it on. There are three levels of access, and each needs more setup than the one before.</p>
+<p class="lead">A Pro plugin lets one other computer control or watch a running Studio, such as a CI machine or a rig controller. It uses the same control endpoint, which is off until you turn it on. There are three levels of access, and each needs more setup than the one before.</p>
 </div>
 <ol class="steps">
 <li><span><strong>Local only, the default.</strong> A local socket that only programs on the same computer and account can reach.</span></li>

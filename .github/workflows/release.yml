@@ -25,6 +25,7 @@ on:
       - "cmake/packaging/**"
       - "packaging/**"
       - "tools/ci/check_linux_packages.sh"
+      - "tools/ci/check_package_contents.py"
 
 permissions: {}
 
@@ -105,6 +106,13 @@ jobs:
           cmake --preset "$PRESET"
           cmake --build --preset "$PRESET"
           cmake --install "build/$PRESET" --component runtime --prefix stage
+
+      # vss_license issues licences, signs revocation lists and makes keys. It is the owner's tool: no archive,
+      # installer or package may hold it, or a key file. The zip, the tar.gz and the Windows installer are made from
+      # this staged tree, so checking it covers them.
+      - name: Check that the staged tree holds no licence issuing tool and no key
+        shell: bash
+        run: python3 tools/ci/check_package_contents.py --source . --tree stage
 
       # Both programs run from the installed tree. The command line tool checks the wiring with no hardware. The GUI
       # needs a display to start, which a hosted Linux runner does not have, so there the check is that every library
@@ -311,6 +319,10 @@ jobs:
           # CPack leaves its staging tree beside the packages, so it works outside dist/.
           cpack --config "build/$PRESET/CPackConfig.cmake" -B "$RUNNER_TEMP/cpack"
           cp "$RUNNER_TEMP"/cpack/*.deb "$RUNNER_TEMP"/cpack/*.rpm dist/
+          # What the deb and the rpm hold, as each package itself lists it.
+          dpkg-deb --contents dist/*.deb > "$RUNNER_TEMP/package-contents.txt"
+          rpm -qpl dist/*.rpm >> "$RUNNER_TEMP/package-contents.txt"
+          python3 tools/ci/check_package_contents.py --listing "$RUNNER_TEMP/package-contents.txt"
 
       # Each package is installed in a clean container of the system it is for, which runs what it installed and then removes it.
       - name: Install the deb and rpm in clean containers
@@ -333,6 +345,8 @@ jobs:
           out="$RUNNER_TEMP/cpack"
           cpack --config "build/$PRESET/CPackConfig.cmake" -G DragNDrop -B "$out"
           find "$out/_CPack_Packages" -maxdepth 4 | sort
+          # The tree CPack staged is what the disk image holds.
+          python3 tools/ci/check_package_contents.py --tree "$out/_CPack_Packages"
           shopt -s nullglob
           images=("$out"/*.dmg)
           test "${#images[@]}" -eq 1

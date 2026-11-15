@@ -244,10 +244,25 @@ struct entitlement
     /// Empty when there is no readable licence.
     std::string licence_id;
     int days_left = 0;
+    /// Granted by the version window: the licence has ended, and what was
+    /// asked about was released on or before its `updates_until`.
+    bool by_version_window = false;
 };
 
 /// Whether the licence behind `current` turns `feature` on, and why not.
 entitlement check(const status& current, std::string_view feature);
+
+/// The same question for something with a release date, such as an official
+/// plugin (the date comes from its signed manifest, never from a file time).
+///
+/// A licence that sets `updates_until` keeps what was released on or before
+/// that date working after the licence has ended, for good
+/// (docs/licensing.md, "The version window"). This applies to an ended
+/// licence only: one that is withdrawn, not for this computer, not started,
+/// or judged while the clock looks wrong grants nothing here either. A
+/// licence without `updates_until` gives the answer of `check` above.
+entitlement check(const status& current, std::string_view feature,
+                  time_point released);
 
 /// Whether a `features` entry covers a feature name: the same name, or a
 /// prefix ending in `.*`.
