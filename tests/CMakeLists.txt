@@ -116,6 +116,7 @@ if(WIN32)
     unit/platform/windows/test_license_locations_windows.cpp
     unit/platform/windows/test_manifest_windows.cpp
     unit/platform/windows/test_plugin_access_windows.cpp
+    unit/platform/windows/test_plugin_install_windows.cpp
     unit/platform/windows/test_plugin_locations_windows.cpp
     unit/platform/windows/test_ports_windows.cpp
     unit/platform/windows/test_timer_period_windows.cpp)
@@ -127,6 +128,7 @@ elseif(UNIX)
     unit/platform/posix/test_license_locations_posix.cpp
     unit/platform/posix/test_permissions_posix.cpp
     unit/platform/posix/test_plugin_access_posix.cpp
+    unit/platform/posix/test_plugin_install_posix.cpp
     unit/platform/posix/test_plugin_locations_posix.cpp)
   # The folders differ between Linux and macOS, so each has its own file.
   if(APPLE)

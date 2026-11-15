@@ -103,6 +103,52 @@ signature_file read_signature_file(const fs::path& directory)
     return out;
 }
 
+const file_entry* find_entry(const std::vector<file_entry>& files,
+                             std::string_view name) noexcept
+{
+    for (const file_entry& entry : files)
+    {
+        if (entry.path == name)
+            return &entry;
+    }
+    return nullptr;
+}
+
+bool is_these_bytes(const file_entry& entry, std::string_view bytes)
+{
+    return entry.size == bytes.size() && entry.sha512 == sha512_of(bytes);
+}
+
+/// Holds the bytes of `plugin.json` and `plugin.sig` that were parsed and
+/// checked to the measurement of the folder, which is what the copy is held
+/// to.  Empty text when they agree.
+std::string bytes_not_measured(const inspection& out,
+                               const std::optional<std::string>& signature)
+{
+    const std::string_view manifest_name = manifest_file_name;
+    const std::string_view signature_name = signature_file_name;
+    const file_entry* manifest_entry = find_entry(out.files, manifest_name);
+    if (manifest_entry == nullptr ||
+        !is_these_bytes(*manifest_entry, out.manifest_bytes))
+    {
+        return "plugin.json changed while it was being looked at";
+    }
+    const file_entry* signature_entry = find_entry(out.files, signature_name);
+    if (signature.has_value())
+    {
+        if (signature_entry == nullptr ||
+            !is_these_bytes(*signature_entry, *signature))
+        {
+            return "plugin.sig changed while it was being looked at";
+        }
+    }
+    else if (signature_entry != nullptr)
+    {
+        return "plugin.sig appeared while it was being looked at";
+    }
+    return {};
+}
+
 bool official_blocks(const error_code& run) noexcept
 {
     return run == plugin_errc::reserved_id || run == plugin_errc::revoked ||
@@ -162,6 +208,15 @@ inspection inspect(const fs::path& directory, const inspect_context& context)
         out.problem = sig.problem;
         out.detail = sig.detail;
     }
+    if (!out.problem.failed())
+    {
+        std::string moved = bytes_not_measured(out, sig.bytes);
+        if (!moved.empty())
+        {
+            out.problem = make_error_code(plugin_errc::changed);
+            out.detail = std::move(moved);
+        }
+    }
 
     // The signature is looked at even when a file is wrong, so that the
     // answer can name the signer.  A signature that does not hold is an
@@ -212,22 +267,9 @@ inspection inspect(const fs::path& directory, const inspect_context& context)
     {
         out.run = decided.error();
         out.run_detail = run_detail;
-        // `verify` gives no level with a refusal.  The level a signature
-        // gives is worked out the same way for the report.
-        switch (out.signature.state)
-        {
-        case signature_state::valid:
-            out.level = out.signature.origin == key_origin::official
-                            ? trust_level::official
-                            : trust_level::third_party_signed;
-            break;
-        case signature_state::unknown_key:
-            out.level = trust_level::signed_unknown_key;
-            break;
-        default:
-            out.level = trust_level::unsigned_plugin;
-            break;
-        }
+        // `verify` gives no level with a refusal; the level a signature
+        // gives is the same one.
+        out.level = trust_level_of(out.signature);
         out.key_id = out.signature.key_id;
     }
     else
@@ -272,6 +314,11 @@ fs::path make_target(const fs::path& root, std::string_view id)
 
 // -- copying ----------------------------------------------------------------
 
+/// The folder inside a plugin root where an install works.  Discovery skips
+/// every name that starts with a dot, so nothing in here is ever taken for a
+/// plugin.
+constexpr std::string_view work_folder_name = ".vss-work";
+
 /// Removes a folder when it goes out of scope, unless it was kept.
 class folder_guard
 {
@@ -288,10 +335,27 @@ public:
     folder_guard(const folder_guard&) = delete;
     folder_guard& operator=(const folder_guard&) = delete;
     void keep() noexcept { path_.clear(); }
-    void aim_at(fs::path path) { path_ = std::move(path); }
 
 private:
     const file_operations& operations_;
+    fs::path path_;
+};
+
+/// Removes an empty folder when it goes out of scope.  A folder with
+/// something in it stays, which is the point.
+class empty_folder_remover
+{
+public:
+    explicit empty_folder_remover(fs::path path) : path_(std::move(path)) {}
+    ~empty_folder_remover()
+    {
+        std::error_code ec;
+        fs::remove(path_, ec);
+    }
+    empty_folder_remover(const empty_folder_remover&) = delete;
+    empty_folder_remover& operator=(const empty_folder_remover&) = delete;
+
+private:
     fs::path path_;
 };
 
@@ -326,25 +390,53 @@ result<fs::path> make_work_folder(const fs::path& root,
                       shown(root));
 }
 
-/// A name inside `root` that nothing uses, starting with `prefix`.  Nothing
-/// is made.
-fs::path free_name(const fs::path& root, std::string_view prefix)
+/// Removes what an install that was cut off left in the work folder.  What
+/// cannot be removed stays where discovery does not look.
+void clean_stale_work(const fs::path& work_root,
+                      const file_operations& operations)
 {
     std::error_code ec;
-    for (;;)
+    fs::directory_iterator iterator(work_root, ec);
+    if (ec)
+        return;
+    std::vector<fs::path> stale;
+    for (; iterator != fs::directory_iterator{}; iterator.increment(ec))
     {
-        std::string name(prefix);
-        name += std::to_string(name_counter.fetch_add(1));
-        const fs::path path = root / name;
-        if (fs::symlink_status(path, ec).type() == fs::file_type::not_found)
-            return path;
+        if (ec)
+            break;
+        stale.push_back(iterator->path());
     }
+    for (const fs::path& path : stale)
+        (void)operations.remove_all(path);
+}
+
+/// The permissions of a copy: what the source had for its owner (read and
+/// execute) and for others (read and execute), the owner always able to read
+/// and write, nobody else able to write, and the owner able to execute when
+/// this is the program that is run.
+error_code copy_permissions(const fs::path& from, const fs::path& to,
+                            bool executable)
+{
+    std::error_code ec;
+    const fs::perms source = fs::status(from, ec).permissions();
+    if (ec)
+        return from_std(ec);
+    constexpr fs::perms kept = fs::perms::owner_exec | fs::perms::group_read |
+                               fs::perms::group_exec | fs::perms::others_read |
+                               fs::perms::others_exec;
+    fs::perms wanted = (source & kept) | fs::perms::owner_read |
+                       fs::perms::owner_write;
+    if (executable)
+        wanted |= fs::perms::owner_exec;
+    fs::permissions(to, wanted, fs::perm_options::replace, ec);
+    return from_std(ec);
 }
 
 /// Copies one file from one open handle, taking its digest as it goes, and
 /// refuses it when it is not the file that was measured.
 result<void> copy_file_once(const fs::path& from, const fs::path& to,
-                            const file_entry& expected, std::string* detail)
+                            const file_entry& expected, bool executable,
+                            std::string* detail)
 {
     const std::string name = expected.path;
     std::error_code ec;
@@ -407,14 +499,21 @@ result<void> copy_file_once(const fs::path& from, const fs::path& to,
         return refuse(plugin_errc::changed, detail,
                       "\"" + name + "\" changed while it was being copied");
     }
+    const error_code set = copy_permissions(from, to, executable);
+    if (set.failed())
+    {
+        return refuse(errc::io_error, detail,
+                      "cannot set the permissions of \"" + name +
+                          "\": " + set.message());
+    }
     return {};
 }
 
 /// Copies every file of the inspected plugin into `work`, `plugin.json` last,
 /// so that a half-made folder is never taken for a plugin, then measures the
 /// copy and holds it to the hash of the first look.
-result<void> copy_plugin(const inspection& found, const fs::path& work,
-                         std::string* detail)
+result<void> copy_plugin(const inspection& found, const std::string& program,
+                         const fs::path& work, std::string* detail)
 {
     const std::string manifest_name(manifest_file_name);
     for (const file_entry& entry : found.files)
@@ -424,6 +523,7 @@ result<void> copy_plugin(const inspection& found, const fs::path& work,
         const fs::path relative(entry.path);
         const result<void> done = copy_file_once(found.directory / relative,
                                                  work / relative, entry,
+                                                 entry.path == program,
                                                  detail);
         if (done.has_error())
             return done;
@@ -434,7 +534,7 @@ result<void> copy_plugin(const inspection& found, const fs::path& work,
             continue;
         const result<void> done = copy_file_once(
             found.directory / manifest_name, work / manifest_name, entry,
-            detail);
+            false, detail);
         if (done.has_error())
             return done;
     }
@@ -452,6 +552,58 @@ result<void> copy_plugin(const inspection& found, const fs::path& work,
     {
         return refuse(plugin_errc::changed, detail,
                       "the copy is not the plugin that was checked");
+    }
+    return {};
+}
+
+/// Whether only administrators can write to `root`, or, when it is not
+/// there, to the nearest folder above it that is.  Makes nothing.
+error_code only_administrators_write(const fs::path& root, std::string* detail)
+{
+    fs::path probe = root;
+    for (;;)
+    {
+        std::error_code ec;
+        const fs::file_status status = fs::symlink_status(probe, ec);
+        if (status.type() != fs::file_type::not_found)
+        {
+            if (ec)
+            {
+                return refuse(errc::permission_denied, detail,
+                              "cannot look at " + shown(probe) + ": " +
+                                  ec.message());
+            }
+            if (status.type() != fs::file_type::directory)
+            {
+                return refuse(errc::permission_denied, detail,
+                              shown(probe) + " is not a folder");
+            }
+            break;
+        }
+        const fs::path parent = probe.parent_path();
+        if (parent.empty() || parent == probe)
+        {
+            return refuse(errc::permission_denied, detail,
+                          "no folder above " + shown(root) + " exists");
+        }
+        probe = parent;
+    }
+    std::string access_detail;
+    const result<write_access> who = who_can_write(probe, &access_detail);
+    if (who.has_error())
+    {
+        return refuse(errc::permission_denied, detail,
+                      "cannot tell who may write to " + shown(probe) + ": " +
+                          (access_detail.empty() ? who.error().message()
+                                                 : access_detail));
+    }
+    if (who.value() != write_access::administrators_only)
+    {
+        return refuse(errc::permission_denied, detail,
+                      shown(probe) +
+                          " can be changed by someone who is not an "
+                          "administrator: " +
+                          access_detail);
     }
     return {};
 }
@@ -502,10 +654,24 @@ error_code install_refusal(const inspection& found, bool allow_unsigned,
         set_detail(detail, line.empty() ? why.message() : line);
         return why;
     }
+    if (found.declared.has_value() &&
+        !usable_as_folder_name(found.declared->id))
+    {
+        set_detail(detail, "the id of the plugin cannot be the name of a "
+                           "folder");
+        return make_error_code(plugin_errc::layout_invalid);
+    }
     if (found.signature.state == signature_state::absent && !allow_unsigned)
     {
         set_detail(detail, "the plugin is not signed");
         return make_error_code(plugin_errc::signature_missing);
+    }
+    if (found.signature.state == signature_state::unknown_key &&
+        !allow_unsigned)
+    {
+        set_detail(detail, "the plugin is signed with a key that nobody has "
+                           "approved, so nothing shows who made it");
+        return make_error_code(plugin_errc::key_unknown);
     }
     return {};
 }
@@ -642,13 +808,15 @@ result<install_report> install_plugin(const fs::path& source,
         if (refusal.failed())
             return refusal;
         const manifest& declared = *found.declared;
-        if (!usable_as_folder_name(declared.id))
-        {
-            return refuse(plugin_errc::layout_invalid, detail,
-                          "the id of the plugin cannot be the name of a "
-                          "folder");
-        }
 
+        // The machine folder is checked before anything is made in it.
+        if (options.for_everyone)
+        {
+            const error_code allowed =
+                only_administrators_write(target_root, detail);
+            if (allowed.failed())
+                return allowed;
+        }
         std::error_code ec;
         fs::create_directories(target_root, ec);
         if (ec)
@@ -657,36 +825,18 @@ result<install_report> install_plugin(const fs::path& source,
                           "cannot make the plugin folder " +
                               shown(target_root) + ": " + ec.message());
         }
-        if (options.for_everyone)
-        {
-            std::string access_detail;
-            const result<write_access> who =
-                who_can_write(target_root, &access_detail);
-            if (who.has_error())
-            {
-                return refuse(errc::permission_denied, detail,
-                              "cannot tell who may write to " +
-                                  shown(target_root) + ": " +
-                                  (access_detail.empty()
-                                       ? who.error().message()
-                                       : access_detail));
-            }
-            if (who.value() != write_access::administrators_only)
-            {
-                return refuse(errc::permission_denied, detail,
-                              shown(target_root) +
-                                  " can be changed by someone who is not an "
-                                  "administrator: " +
-                                  access_detail);
-            }
-        }
 
         report.directory = make_target(target_root, declared.id);
         std::error_code exists_ec;
         const fs::file_status existing =
             fs::symlink_status(report.directory, exists_ec);
-        const bool there = !exists_ec &&
-                           existing.type() != fs::file_type::not_found;
+        if (existing.type() != fs::file_type::not_found && exists_ec)
+        {
+            return refuse(errc::io_error, detail,
+                          "cannot look at " + shown(report.directory) + ": " +
+                              exists_ec.message());
+        }
+        const bool there = existing.type() != fs::file_type::not_found;
         if (there && !options.replace)
         {
             return refuse(errc::already_exists, detail,
@@ -694,20 +844,52 @@ result<install_report> install_plugin(const fs::path& source,
                               " is already installed in " +
                               shown(target_root));
         }
+        if (there && existing.type() != fs::file_type::directory)
+        {
+            return refuse(plugin_errc::layout_invalid, detail,
+                          shown(report.directory) +
+                              " is a link or not a folder, so it is not "
+                              "replaced");
+        }
+
+        // Everything the install makes is under one work folder that
+        // discovery does not read.
+        const fs::path work_root = target_root / std::string(work_folder_name);
+        std::error_code work_ec;
+        fs::create_directory(work_root, work_ec);
+        if (work_ec)
+        {
+            return refuse(errc::io_error, detail,
+                          "cannot make " + shown(work_root) + ": " +
+                              work_ec.message());
+        }
+        const empty_folder_remover tidy(work_root);
+        clean_stale_work(work_root, operations);
 
         std::string work_detail;
-        result<fs::path> work =
-            make_work_folder(target_root, ".vss-new-", &work_detail);
+        result<fs::path> work = make_work_folder(work_root, "i-", &work_detail);
         if (work.has_error())
         {
             set_detail(detail, work_detail);
             return work.error();
         }
-        folder_guard new_folder(operations, work.value());
+        folder_guard work_folder(operations, work.value());
+        const fs::path staged = work.value() / "new";
+        const fs::path aside = work.value() / "old";
+        fs::create_directory(staged, work_ec);
+        if (work_ec)
+        {
+            return refuse(errc::io_error, detail,
+                          "cannot make " + shown(staged) + ": " +
+                              work_ec.message());
+        }
+
+        if (operations.inspected)
+            operations.inspected(source);
 
         std::string copy_detail;
-        const result<void> copied =
-            copy_plugin(found, work.value(), &copy_detail);
+        const result<void> copied = copy_plugin(
+            found, declared.run.executable, staged, &copy_detail);
         if (copied.has_error())
         {
             set_detail(detail, copy_detail);
@@ -717,7 +899,7 @@ result<install_report> install_plugin(const fs::path& source,
         if (!there)
         {
             const error_code moved =
-                operations.rename(work.value(), report.directory);
+                operations.rename(staged, report.directory);
             if (moved.failed())
             {
                 return refuse(errc::io_error, detail,
@@ -725,12 +907,10 @@ result<install_report> install_plugin(const fs::path& source,
                                   shown(report.directory) + ": " +
                                   moved.message());
             }
-            new_folder.keep();
             return report;
         }
 
         // Replace: the old folder aside, the new one in, the old one gone.
-        const fs::path aside = free_name(target_root, ".vss-old-");
         const error_code first = operations.rename(report.directory, aside);
         if (first.failed())
         {
@@ -739,7 +919,7 @@ result<install_report> install_plugin(const fs::path& source,
                               " aside: " + first.message());
         }
         const error_code second =
-            operations.rename(work.value(), report.directory);
+            operations.rename(staged, report.directory);
         if (second.failed())
         {
             const error_code back =
@@ -748,8 +928,12 @@ result<install_report> install_plugin(const fs::path& source,
                                " into place: " + second.message();
             if (back.failed())
             {
+                // The old copy is the only one left; the next install
+                // would remove it with the other leftovers, so it is named.
+                work_folder.keep();
                 text += "; the old copy could not be put back and is in " +
-                        shown(aside) + ": " + back.message();
+                        shown(aside) + ", where the next install removes it: " +
+                        back.message();
             }
             else
             {
@@ -757,13 +941,19 @@ result<install_report> install_plugin(const fs::path& source,
             }
             return refuse(errc::io_error, detail, std::move(text));
         }
-        new_folder.keep();
         report.replaced = true;
-        const error_code removed = operations.remove_all(aside);
+        work_folder.keep();
+        const error_code removed = operations.remove_all(work.value());
         if (removed.failed())
         {
-            report.warning = "the old copy could not be removed and is in " +
-                             shown(aside) + ": " + removed.message();
+            return refuse(errc::io_error, detail,
+                          "the new copy of " + declared.id +
+                              " is installed in " + shown(report.directory) +
+                              ", but the old copy could not be removed and "
+                              "is in " +
+                              shown(aside) + ", where the next install "
+                                             "removes it: " +
+                              removed.message());
         }
         return report;
     }
@@ -776,7 +966,7 @@ result<install_report> install_plugin(const fs::path& source,
 
 result<void> remove_plugin(const fs::path& target_root,
                            std::string_view plugin_id,
-                           const file_operations* operations,
+                           const remove_options& options,
                            std::string* detail)
 {
     set_detail(detail, std::string{});
@@ -788,8 +978,15 @@ result<void> remove_plugin(const fs::path& target_root,
                           "that is not the id of a plugin");
         }
         const file_operations real = default_file_operations();
-        const file_operations& ops = operations != nullptr ? *operations
-                                                           : real;
+        const file_operations& ops =
+            options.operations != nullptr ? *options.operations : real;
+        if (options.for_everyone)
+        {
+            const error_code allowed =
+                only_administrators_write(target_root, detail);
+            if (allowed.failed())
+                return allowed;
+        }
         const fs::path folder = make_target(target_root, plugin_id);
         std::error_code ec;
         const fs::file_status status = fs::symlink_status(folder, ec);

@@ -2118,11 +2118,14 @@ The exit code is 0 when the plugin can be installed, 1 when it cannot, and 2 for
 a command line the program does not understand. A plugin cannot be installed
 when its folder is not a plugin folder, when a file is not what its manifest
 lists or the folder holds a file it does not list, when its signature does not
-hold, or when it can never run: its id is one that only official plugins may
-use, or it was withdrawn. A plugin that has expired, or that this computer
-cannot isolate, or that the licence does not cover, can be installed; the line
-`May run` says what is wrong. A plugin with no signature can be installed only
-with `--allow-unsigned`.
+hold, when its id cannot be the name of a folder (such as `con.example`), or
+when it can never run: its id is one that only official plugins may use, or it
+was withdrawn. A plugin that has expired, or that this computer cannot isolate,
+or that the licence does not cover, can be installed; the line `May run` says
+what is wrong. A plugin with no signature can be installed only with
+`--allow-unsigned`, and so can one signed with a key nobody has approved,
+because nothing shows who made it. The `Install` line says which of the two it
+is.
 
 `--json` prints one JSON object: `id`, `version`, `name`, `folder`,
 `fingerprint`, `problem` and `detail` (why the folder cannot be used, or
@@ -2148,23 +2151,37 @@ copies the plugin into your plugin folder, under its id, and prints what it did
 and what the checks found. It runs nothing from the plugin. If a check fails, it
 says which one and writes nothing.
 
-- The files are copied from the folder you give, each one read once, and the
-  copy is checked against the plugin's manifest again before it is put in place.
-  A file that changed while it was being copied stops the install.
-- The copy is made in a new folder beside the plugin folders and is renamed into
-  place in one step, so a failure leaves the old plugin or the new one and never
-  half of each. No folder is left behind when the install fails.
+- The folder is measured, and then each file is copied and checked against that
+  measurement as it is copied, including `plugin.json` and `plugin.sig`, which
+  are the files that were judged. A file that changed while the plugin was being
+  looked at or copied stops the install. The copy is checked against the
+  plugin's manifest again before it is put in place.
+- A copy keeps the owner's read and execute permissions of the file it came from,
+  is never writable by the group or others, and the program that the manifest
+  names is made executable for its owner (on Linux and macOS).
+- The copy is made in a folder called `.vss-work` inside the plugin folder and is
+  renamed into place in one step, so a failure leaves the old plugin or the new
+  one and never half of each. Studio ignores every name that starts with a dot
+  in a plugin folder, so nothing in `.vss-work` is taken for a plugin. The
+  folder is removed when the install ends. If an install is cut off, the next
+  install removes what it left.
 - A link, or anything that is not a plain file or folder, in the plugin folder
   stops the install.
 - A plugin with the same id that is already installed stops the install unless
   you give `--replace`. With it, the old copy is put aside, the new one is put in
   place and the old one is removed. If putting the new one in place fails, the
-  old one is put back.
+  old one is put back. If the old one cannot be removed, the command says so, with
+  the folder that holds it, and exits with 1; the new plugin is installed.
 - `--allow-unsigned` is needed for a plugin that has no signature.
 - `--for-everyone` installs into the folder of everyone on this computer. Run
   the command from a prompt that may write there. Studio does not ask for more
   rights. It stops with a message when the folder can be changed by someone who
-  is not an administrator, or when it cannot be written.
+  is not an administrator, or when it cannot be written. It does not make the
+  folder: when the folder is not there, it looks at the nearest folder above it
+  that is, and stops in the same way. `plugin remove --for-everyone` stops in
+  the same way. A plugin installed for everyone may not run confined until a
+  later step gives the confined plugin access to it, which a user cannot do
+  later on that folder.
 - `--root <folder>` installs into the folder you give. The policy file is read
   as it is for `plugin verify`.
 
