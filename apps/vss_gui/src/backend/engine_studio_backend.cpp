@@ -274,6 +274,7 @@ capabilities EngineStudioBackend::caps() const
 {
     capabilities caps = capabilities{};
     caps.licences = licences_ != nullptr;
+    caps.plugins = plugins_ != nullptr;
     // Boost.VirtualSerial's network backends only connect. Waiting for other
     // computers is `vss_ports`' listen transport (`tcp-listen://`,
     // `udp-listen://` and `rfc2217-listen://`), which
@@ -1239,6 +1240,12 @@ void EngineStudioBackend::rebuild()
         // it reads back as it goes; the signals belong to the GUI thread.
         QMetaObject::invokeMethod(this, emit_changes, Qt::QueuedConnection);
     }
+}
+
+void EngineStudioBackend::set_plugin_backend(
+    std::unique_ptr<PluginBackend> host)
+{
+    plugins_ = std::move(host);
 }
 
 void EngineStudioBackend::set_licence_store(

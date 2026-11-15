@@ -81,7 +81,22 @@ bool port_is_entry(const port_view& view, const vss::config::port_entry& entry)
 
 } // namespace
 
-FakeStudioBackend::FakeStudioBackend(QObject* parent) : StudioBackend(parent) {}
+FakeStudioBackend::FakeStudioBackend(QObject* parent)
+    : StudioBackend(parent), plugins_(std::make_unique<FakePluginBackend>())
+{
+}
+
+FakeStudioBackend::~FakeStudioBackend() = default;
+
+PluginBackend* FakeStudioBackend::plugin_backend() const
+{
+    return caps_.plugins ? plugins_.get() : nullptr;
+}
+
+FakePluginBackend& FakeStudioBackend::fake_plugins()
+{
+    return *plugins_;
+}
 
 void FakeStudioBackend::set_lost_ports(std::vector<vss::endpoint_id> ids)
 {

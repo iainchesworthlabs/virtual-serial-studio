@@ -88,6 +88,10 @@ public:
     /// Opens "How to renew".
     void show_renew();
 
+    /// The link "Plugins" in the row of the official plugins.
+    QPushButton* plugins_link() const noexcept { return plugins_link_; }
+
+
     QPushButton* import_button() const noexcept { return import_; }
     /// Hidden while no licence of the user's own is in use.
     QPushButton* remove_button() const noexcept { return remove_; }
@@ -99,6 +103,10 @@ public:
     NoteBanner* state_banner() const noexcept { return state_note_; }
     NoteBanner* import_banner() const noexcept { return import_note_; }
     Disclosure* other_licences() const noexcept { return others_; }
+
+Q_SIGNALS:
+    /// "Plugins" was pressed.
+    void plugins_requested();
 
 protected:
     void dragEnterEvent(QDragEnterEvent* event) override;
@@ -153,6 +161,7 @@ private:
     QPushButton* remove_ = nullptr;
     QPushButton* import_ = nullptr;
     QPushButton* close_ = nullptr;
+    QPushButton* plugins_link_ = nullptr;
     std::optional<licence_banner> shown_state_note_;
 };
 

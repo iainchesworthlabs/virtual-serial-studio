@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_BACKEND_FAKE_STUDIO_BACKEND_HPP
 #define VSS_GUI_BACKEND_FAKE_STUDIO_BACKEND_HPP
 
+#include "backend/fake_plugin_backend.hpp"
 #include "backend/studio_backend.hpp"
 
 #include <QByteArray>
@@ -17,6 +18,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <memory>
 #include <mutex>
 #include <optional>
 #include <utility>
@@ -35,8 +37,14 @@ class FakeStudioBackend final : public StudioBackend
 {
 public:
     explicit FakeStudioBackend(QObject* parent = nullptr);
+    ~FakeStudioBackend() override;
 
     void set_capabilities(const capabilities& value) { caps_ = value; }
+
+    /// The plugin host of the fake: any plugin state, and a record of every
+    /// request. Present only while `capabilities::plugins` is on.
+    PluginBackend* plugin_backend() const override;
+    FakePluginBackend& fake_plugins();
     void set_peer_state(vss::endpoint_id id, peer_state state);
     /// COM numbers that another device has, so a driver port cannot take them.
     void set_taken_com_numbers(QSet<unsigned> numbers)
@@ -309,6 +317,7 @@ private:
                           const vss::link_options& options);
 
     capabilities caps_;
+    std::unique_ptr<FakePluginBackend> plugins_;
     licence_view licence_;
     licence_import_result import_result_;
     std::optional<licence_view> licence_after_import_;

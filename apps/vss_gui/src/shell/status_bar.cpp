@@ -9,6 +9,7 @@
 #include "profiling/profiling_controller.hpp"
 #include "shell/format.hpp"
 #include "support/licence_dialog.hpp"
+#include "support/plugin_parts.hpp"
 #include "support/setup_facts.hpp"
 #include "support/update_text.hpp"
 #include "theme/focus_ring_style.hpp"
@@ -148,6 +149,14 @@ StatusBar::StatusBar(StudioBackend& backend, QWidget* parent)
         new StatusChip(tr("Setup ready"), StatusChip::kind::healthy, this);
     addPermanentWidget(readiness_, 0);
 
+    // A plugin that reads data: left of the edition chip, there for as long
+    // as the reading goes on.
+    plugin_chip_ = new ChipButton(this);
+    plugin_chip_->setObjectName(QStringLiteral("pluginTrafficChip"));
+    connect(plugin_chip_, &QAbstractButton::clicked, this,
+            &StatusBar::plugins_requested);
+    addPermanentWidget(plugin_chip_, 0);
+    plugin_chip_->hide();
     // "Update available", left of the edition. It stays hidden until a
     // service is given and says an update is due.
     update_ = new ChipButton(this);
@@ -301,6 +310,33 @@ void StatusBar::update_profiling()
     profiling_->setAccessibleName(controller.summary());
     profiling_->setToolTip(controller.summary());
     profiling_->show();
+}
+
+void StatusBar::set_plugin_backend(PluginBackend* host)
+{
+    plugins_ = host;
+    if (plugins_ != nullptr)
+    {
+        connect(plugins_, &PluginBackend::snapshot_changed, this,
+                [this] { update_plugin_chip(); });
+    }
+    update_plugin_chip();
+}
+
+void StatusBar::update_plugin_chip()
+{
+    const plugin_snapshot_ptr snapshot =
+        plugins_ != nullptr ? plugins_->snapshot() : nullptr;
+    const support::traffic_chip_text look =
+        snapshot ? support::traffic_chip(snapshot->readers)
+                 : support::traffic_chip_text{};
+    plugin_chip_->setVisible(look.shown);
+    if (!look.shown)
+        return;
+    // Recording is a warning with a filled dot; reading is a plain fact.
+    plugin_chip_->set_content(look.recording ? StatusChip::kind::waiting
+                                             : StatusChip::kind::neutral,
+                              look.text, look.accessible_name);
 }
 
 void StatusBar::update_edition()

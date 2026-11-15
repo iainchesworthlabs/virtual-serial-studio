@@ -7,6 +7,7 @@
 #ifndef VSS_GUI_PANES_INSPECTOR_PANEL_HPP
 #define VSS_GUI_PANES_INSPECTOR_PANEL_HPP
 
+#include "backend/plugin_part_view.hpp"
 #include "backend/studio_backend.hpp"
 
 #include <QWidget>
@@ -25,6 +26,7 @@ namespace vss::gui
 class CopyButton;
 class FixtureBehaviours;
 class FixturePanel;
+class NoteBanner;
 class StatusChip;
 class Switch;
 
@@ -38,6 +40,15 @@ public:
 
     void set_advanced(bool advanced);
     void set_selected_port(vss::endpoint_id id);
+    /// What the ports that a plugin provides say about their plugins, from
+    /// the shell. The selected port's is shown as "Provided by", its note and
+    /// its action; a port with none shows nothing of it.
+    void set_plugin_parts(
+        const QHash<vss::endpoint_id, vss::gui::part_description>& parts);
+    /// The "Provided by" block, hidden for a port no plugin provides.
+    QWidget* plugin_block() const noexcept { return plugin_block_; }
+    NoteBanner* plugin_note() const noexcept { return plugin_note_; }
+    QPushButton* plugin_show_button() const noexcept { return plugin_show_; }
     void refresh();
     /// Adds the fixture behaviour section (echo, generator) for a mock
     /// fixture in Advanced mode.
@@ -54,11 +65,15 @@ Q_SIGNALS:
     void com_number_requested(vss::endpoint_id id);
     void release_port_requested(vss::endpoint_id id);
     void error_message(const QString& message);
+    /// "Show in Plugins" or the action of the note: `action` is a
+    /// `vss::gui::part_action`.
+    void plugin_action_requested(const QString& plugin_id, int action);
 
 private:
     void build();
     void update_content();
     void update_lines();
+    void update_plugin_part();
     void set_line(vss::control_line line, bool state);
     QString serial_description() const;
 
@@ -95,6 +110,15 @@ private:
     QLabel* advanced_link_ = nullptr;
     FixturePanel* fixture_panel_ = nullptr;
     QVBoxLayout* content_layout_ = nullptr;
+    QHash<vss::endpoint_id, vss::gui::part_description> plugin_parts_;
+    QWidget* plugin_block_ = nullptr;
+    QLabel* plugin_provided_ = nullptr;
+    StatusChip* plugin_chip_ = nullptr;
+    QPushButton* plugin_show_ = nullptr;
+    NoteBanner* plugin_note_ = nullptr;
+    QLabel* plugin_kept_ = nullptr;
+    QString plugin_id_;
+    vss::gui::part_action plugin_note_action_ = vss::gui::part_action::none;
 };
 
 } // namespace vss::gui

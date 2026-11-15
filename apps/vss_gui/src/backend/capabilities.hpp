@@ -141,6 +141,12 @@ struct capabilities
     /// backend without it is the Community edition: the Licence page says so
     /// and shows Import disabled with "Not available in this build".
     bool licences = false;
+    /// A plugin host: the Plugins page shows the installed plugins and takes
+    /// the user's decisions about them (`StudioBackend::plugin_backend`). A
+    /// backend without it shows Tools, Plugins disabled with "Not available
+    /// in this build". A build that has the host and cannot yet start a
+    /// plugin has this on and shows every plugin that may run as Off.
+    bool plugins = false;
     /// Name the driver behind each serial device in the support bundle. No
     /// backend can yet, so the bundle writes "not known" and never guesses.
     bool device_driver_names = false;

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<!-- Translation origin: Written by Claude for the flow usability pass -->
+<!-- Translation origin: Plugin notice strings -->
 <TS version="2.1" language="he">
     <context>
         <name>About</name>
@@ -2891,6 +2891,21 @@ Networks: %5</source>
             <location filename="../src/panes/inspector_panel.cpp" line="540" />
             <source>%1, %2</source>
             <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>Provided by</source>
+            <translation>מסופק על ידי</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>הצגה בתוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/inspector_panel.cpp" line="1" />
+            <source>These settings are kept. They apply again when the plugin is available.</source>
+            <translation>ההגדרות האלה נשמרות. הן יחולו שוב כשהתוסף יהיה זמין.</translation>
         </message>
     </context>
     <context>
@@ -9621,6 +9636,21 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="3097" />
             <source>This build cannot check for updates.</source>
             <translation>הבנייה הזו אינה יכולה לבדוק עדכונים.</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Plugins...</source>
+            <translation>תוספים...</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>plugin plugins extension fixture generator trust</source>
+            <translation>תוסף תוספים הרחבה מתקן מחולל אמון plugin plugins</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="1" />
+            <source>Started again.</source>
+            <translation>הופעל מחדש.</translation>
         </message>
     </context>
     <context>
@@ -20034,6 +20064,16 @@ Networks: %5</source>
             <source>Bundles</source>
             <translation>חבילות</translation>
         </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>תוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/topology/toolbox.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>הצגה בתוספים</translation>
+        </message>
     </context>
     <context>
         <name>TopologyView</name>
@@ -20638,6 +20678,11 @@ Networks: %5</source>
             <source>licence number</source>
             <translation>מספר רישיון</translation>
         </message>
+        <message>
+            <location filename="../src/support/licence_dialog.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>תוספים</translation>
+        </message>
     </context>
     <context>
         <name>LicenceImport</name>
@@ -20902,7 +20947,7 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
-            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service&apos;s state and the results of the setup check.</source>
+            <source>Whether the Studio driver and com0com are present, their versions, how the driver is signed, the helper service's state and the results of the setup check.</source>
             <translation>האם מנהל ההתקן של Studio ו-com0com קיימים, הגרסאות שלהם, איך מנהל ההתקן חתום, מצב שירות העזר ותוצאות בדיקת ההגדרות.</translation>
         </message>
         <message>
@@ -20932,7 +20977,7 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/support/support_bundle_dialog.cpp" line="1" />
-            <source>This computer&apos;s name</source>
+            <source>This computer's name</source>
             <translation>שם מחשב זה</translation>
         </message>
         <message>
@@ -21431,6 +21476,1494 @@ Networks: %5</source>
             <location filename="../src/support/update_text.cpp" line="25" />
             <source>%1 MB</source>
             <translation>%1 MB</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginDecisionDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Switch on %1?</source>
+            <translation>להפעיל את %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run a plugin from %1?</source>
+            <translation>להפעיל תוסף מ-%1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run an unofficial plugin?</source>
+            <translation>להפעיל תוסף לא רשמי?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>חתום על ידי Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1, whose plugins you have approved before. Not verified by Virtual Serial Studio.</source>
+            <translation>חתום על ידי %1, שאישרת תוספים שלו בעבר. לא אומת על ידי Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio. Only run it if you know who that is.</source>
+            <translation>חתום על ידי %1. לא אומת על ידי Virtual Serial Studio. הפעל אותו רק אם אתה יודע מי זה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Unofficial plugin. It can do anything Studio can.</source>
+            <translation>תוסף לא רשמי. הוא יכול לעשות כל מה ש-Studio יכול.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio אינו יכול לדעת מי יצר אותו או אם הוא שונה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It is signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>הוא חתום במפתח שאין ל-Studio (%1), ולכן אי אפשר היה לבדוק את החתימה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>הפעלה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run this plugin</source>
+            <translation>הפעלת התוסף הזה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run anyway</source>
+            <translation>להפעיל בכל זאת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio runs it apart from your files and other programs.</source>
+            <translation>Studio מפעיל אותו בנפרד מהקבצים שלך ומתוכנות אחרות.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio can only partly keep it apart on this computer: %1.</source>
+            <translation>Studio יכול להפריד אותו במחשב הזה רק חלקית: %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer. It runs with your own access to files and the network.</source>
+            <translation>Studio אינו יכול להפריד אותו במחשב הזה. הוא פועל עם הגישה שלך לקבצים ולרשת.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep it apart on this computer, so it will not run here.</source>
+            <translation>Studio אינו יכול להפריד אותו במחשב הזה, ולכן הוא לא יפעל כאן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>ייבוא המפתח של המחבר...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This is a different version from the one you approved.</source>
+            <translation>זו גרסה שונה מזו שאישרת.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks for more than before:</source>
+            <translation>הוא מבקש יותר מקודם:</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>גרסה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>טביעת אצבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>מה הוא מוסיף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It asks to:</source>
+            <translation>הוא מבקש:</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Needed</source>
+            <translation>נדרש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Decide anyway</source>
+            <translation>להחליט בכל זאת</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginInstallDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add %1?</source>
+            <translation>להוסיף את %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add a plugin</source>
+            <translation>הוספת תוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio copies the folder into your own plugin folder. Nothing runs.</source>
+            <translation>Studio מעתיק את התיקייה לתיקיית התוספים שלכם. שום דבר לא פועל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot add this plugin.</source>
+            <translation>Studio לא יכול להוסיף את התוסף הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Nothing is wrong with it.</source>
+            <translation>אין בו שום תקלה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>To install it for everyone on this computer, an administrator runs this command. Studio never asks for administrator rights.</source>
+            <translation>כדי להתקין אותו לכל המשתמשים במחשב הזה, מנהל המערכת מריץ את הפקודה הזו. Studio אף פעם לא מבקש הרשאות מנהל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Install command</source>
+            <translation>פקודת התקנה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Add plugin</source>
+            <translation>הוספת התוסף</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginKeyImportDialog</name>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve the key of %1?</source>
+            <translation>לאשר את המפתח של %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Plugins signed with this key will be shown as signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>תוספים החתומים במפתח הזה יוצגו כחתומים על ידי %1. לא אומת על ידי Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Author</source>
+            <translation>מחבר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Key id</source>
+            <translation>מזהה מפתח</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>טביעת אצבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>טביעת האצבע הועתקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>טביעת אצבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>File</source>
+            <translation>קובץ</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Compare the fingerprint with the one the author published, on their website or in a message from them. If they differ, do not approve the key.</source>
+            <translation>השווה את טביעת האצבע לזו שהמחבר פרסם, באתר שלו או בהודעה ממנו. אם הן שונות, אל תאשר את המפתח.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This key file came with the plugin. Anyone who changed the plugin could have changed this file too, so compare the fingerprint with one from somewhere else.</source>
+            <translation>קובץ המפתח הזה הגיע עם התוסף. מי ששינה את התוסף יכול היה לשנות גם את הקובץ הזה, ולכן השווה את טביעת האצבע לאחת ממקום אחר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>The fingerprint is the one the author published</source>
+            <translation>טביעת האצבע היא זו שהמחבר פרסם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Approve this key</source>
+            <translation>אישור המפתח הזה</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNoIsolationDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run %1 without isolation?</source>
+            <translation>להפעיל את %1 בלי הפרדה?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>It will run with your own access to your files, the network and other programs.</source>
+            <translation>הוא יפעל עם הגישה שלך לקבצים, לרשת ולתוכנות אחרות.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio cannot tell who made it or whether it was changed.</source>
+            <translation>Studio אינו יכול לדעת מי יצר אותו או אם הוא שונה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>גרסה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>טביעת אצבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>This applies to this version of this plugin only. A changed plugin asks again.</source>
+            <translation>זה חל רק על הגרסה הזאת של התוסף הזה. תוסף ששונה ישאל שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>I understand that Studio is not keeping this plugin apart</source>
+            <translation>אני מבין ש-Studio אינו מפריד את התוסף הזה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Run without isolation</source>
+            <translation>הפעלה בלי הפרדה</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginPart</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Switch on</source>
+            <translation>הפעלה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>בדיקה והחלטה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Licence</source>
+            <translation>רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Start again</source>
+            <translation>הפעלה מחדש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Show in Plugins</source>
+            <translation>הצגה בתוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2 (%3)</source>
+            <translation>%1, מהתוסף %2 (%3)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, from the plugin %2</source>
+            <translation>%1, מהתוסף %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Plugin not available</source>
+            <translation>התוסף אינו זמין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, %2, plugin not available</source>
+            <translation>%1, %2, התוסף אינו זמין</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The generator %1 is not running.</source>
+            <translation>המחולל %1 אינו פועל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link is being dropped.</source>
+            <translation>התנהגות הקישור %1 אינה פועלת, ולכן נתונים בקישור הזה נזרקים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The link behaviour %1 is not running, so data on this link passes unchanged.</source>
+            <translation>התנהגות הקישור %1 אינה פועלת, ולכן נתונים בקישור הזה עוברים ללא שינוי.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is switched off. The port stays open and sends nothing.</source>
+            <translation>התקן הדמה הזה מגיע מהתוסף %1, שכבוי. היציאה נשארת פתוחה ואינה שולחת דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which is waiting for your decision. The port stays open and sends nothing.</source>
+            <translation>התקן הדמה הזה מגיע מהתוסף %1, שממתין להחלטתכם. היציאה נשארת פתוחה ואינה שולחת דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which your administrator has blocked. The port stays open and sends nothing.</source>
+            <translation>התקן הדמה הזה מגיע מהתוסף %1, שמנהל המערכת חסם. היציאה נשארת פתוחה ואינה שולחת דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1. %2 The port stays open and sends nothing.</source>
+            <translation>התקן הדמה הזה מגיע מהתוסף %1. %2 היציאה נשארת פתוחה ואינה שולחת דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped. This fixture still sends its fixed replies. Anything the plugin worked out itself has stopped.</source>
+            <translation>התוסף %1 הפסיק לפעול. התקן הדמה הזה עדיין שולח את התשובות הקבועות שלו. כל מה שהתוסף חישב בעצמו הפסיק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>The plugin %1 has stopped, so this fixture sends nothing.</source>
+            <translation>התוסף %1 הפסיק לפעול, ולכן התקן הדמה הזה אינו שולח דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture comes from the plugin %1, which cannot run in this version of Studio. The port stays open and sends nothing.</source>
+            <translation>התקן הדמה הזה מגיע מהתוסף %1, שאינו יכול לפעול בגרסה הזו של Studio. היציאה נשארת פתוחה ואינה שולחת דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>This fixture needs the plugin %1, which is not installed on this computer. The port stays open and sends nothing.</source>
+            <translation>התקן הדמה הזה זקוק לתוסף %1, שאינו מותקן במחשב הזה. היציאה נשארת פתוחה ואינה שולחת דבר.</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginsDialog</name>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Virtual Serial Studio</source>
+            <translation>Virtual Serial Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Official</source>
+            <translation>רשמי</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1</source>
+            <translation>חתום על ידי %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Unsigned</source>
+            <translation>לא חתום</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by an author you have not approved</source>
+            <translation>חתום על ידי מחבר שלא אישרת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>On</source>
+            <translation>פועל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Starting</source>
+            <translation>מתחיל</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Off</source>
+            <translation>כבוי</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Needs your decision</source>
+            <translation>דורש את החלטתך</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Blocked</source>
+            <translation>חסום</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not isolated</source>
+            <translation>לא מופרד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not used</source>
+            <translation>לא בשימוש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Needs a licence</source>
+            <translation>דורש רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Stopped</source>
+            <translation>נעצר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not compatible</source>
+            <translation>אינו תואם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Can't be used</source>
+            <translation>אי אפשר להשתמש בו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not installed</source>
+            <translation>לא מותקן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1, %2, %3</source>
+            <translation>%1, %2, %3</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1, version %2</source>
+            <translation>%1, גרסה %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not available in this build</source>
+            <translation>לא זמין בגרסה זו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>See your ports and links, their state and their counters.</source>
+            <translation>הצגת היציאות והקישורים שלך, המצב שלהם והמונים שלהם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Read the data that passes through the ports and links you use it on.</source>
+            <translation>קריאת הנתונים שעוברים דרך היציאות והקישורים שאתה משתמש בו בהם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Send data from the ports you use it on.</source>
+            <translation>שליחת נתונים מהיציאות שאתה משתמש בו בהן.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Add, remove and connect ports and links.</source>
+            <translation>הוספה והסרה של יציאות וקישורים, וחיבור ביניהם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Hold, change or drop data on the links you use it on.</source>
+            <translation>החזקה, שינוי או השמטה של נתונים בקישורים שאתה משתמש בו בהם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Cause line errors and disconnections, and set timed replies.</source>
+            <translation>גרימת שגיאות בקו וניתוקים, וקביעת תשובות בתזמון.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>See the list of serial devices on this computer.</source>
+            <translation>הצגת רשימת ההתקנים הטוריים במחשב הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Read files in a folder you choose.</source>
+            <translation>קריאת קבצים בתיקייה שתבחר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Write files in a folder you choose.</source>
+            <translation>כתיבת קבצים בתיקייה שתבחר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>, </source>
+            <translation>, </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections from programs on this computer, on %1.</source>
+            <translation>קבלת חיבורים מתוכנות במחשב הזה, ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Accept connections on %1.</source>
+            <translation>קבלת חיבורים ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Connect to %1.</source>
+            <translation>התחברות אל %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start other programs.</source>
+            <translation>הפעלת תוכנות אחרות.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Add a section to a support bundle. You see it and choose whether to include it.</source>
+            <translation>הוספת מקטע לחבילת תמיכה. אתה רואה אותו ובוחר אם לכלול אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by Virtual Serial Studio.</source>
+            <translation>חתום על ידי Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed by %1. Not verified by Virtual Serial Studio.</source>
+            <translation>חתום על ידי %1. לא אומת על ידי Virtual Serial Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Signed with a key that Studio does not have (%1), so the signature could not be checked.</source>
+            <translation>חתום במפתח שאין ל-Studio (%1), ולכן אי אפשר היה לבדוק את החתימה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Not signed. Studio cannot tell who made it or whether it was changed.</source>
+            <translation>לא חתום. Studio אינו יכול לדעת מי יצר אותו או אם הוא שונה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>None. You allowed this on %1.</source>
+            <translation>אין. התרת זאת ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Full</source>
+            <translation>מלא</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Partial: %1</source>
+            <translation>חלקי: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>None on this computer</source>
+            <translation>אין במחשב הזה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Timed by Studio</source>
+            <translation>התזמון על ידי Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>In the path of the data</source>
+            <translation>בנתיב הנתונים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Beside the data</source>
+            <translation>לצד הנתונים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio carries out this plugin's rules itself, so its timing is exact and it keeps working if the plugin stops.</source>
+            <translation>Studio מבצע בעצמו את הכללים של התוסף הזה, ולכן התזמון שלו מדויק והוא ממשיך לפעול גם אם התוסף נעצר.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Data on a link waits for this plugin, for up to %n microseconds each time.</source>
+            <translation>
+                <numerusform>נתונים בקישור ממתינים לתוסף הזה עד %n מיקרו־שנייה בכל פעם.</numerusform>
+                <numerusform>נתונים בקישור ממתינים לתוסף הזה עד %n מיקרו־שניות בכל פעם.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin watches and acts, and data never waits for it.</source>
+            <translation>התוסף הזה צופה ופועל, ונתונים אף פעם לא ממתינים לו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Everyone on this computer</source>
+            <translation>כל מי שמשתמש במחשב הזה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>You only</source>
+            <translation>רק אתה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Came with Studio</source>
+            <translation>הגיע עם Studio</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Fixture: %1</source>
+            <translation>מתקן: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Generator: %1</source>
+            <translation>מחולל: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Link behaviour: %1</source>
+            <translation>התנהגות קישור: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Connection: %1</source>
+            <translation>חיבור: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Uses the %1 on this computer. Those files are not covered by the signature.</source>
+            <translation>משתמש ב-%1 שבמחשב הזה. הקבצים האלה אינם מכוסים בחתימה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugin</source>
+            <translation>תוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start now</source>
+            <translation>התחלה עכשיו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Review and decide</source>
+            <translation>בדיקה והחלטה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Show the copy that is used</source>
+            <translation>הצגת ההעתק שבשימוש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Copy details</source>
+            <translation>העתקת פרטים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Run without isolation...</source>
+            <translation>הפעלה בלי הפרדה...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Licence</source>
+            <translation>רישיון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Start again</source>
+            <translation>הפעלה מחדש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Show log</source>
+            <translation>הצגת היומן</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Starting.</source>
+            <translation>מתחיל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in 1 second (attempt %1 of 5).</source>
+            <translation>הוא נעצר באופן בלתי צפוי. יופעל שוב בעוד שנייה אחת (ניסיון %1 מתוך 5).</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped unexpectedly. Starting again in %n seconds (attempt %1 of 5).</source>
+            <translation>
+                <numerusform>הוא נעצר באופן בלתי צפוי. יופעל שוב בעוד %n שנייה (ניסיון %1 מתוך 5).</numerusform>
+                <numerusform>הוא נעצר באופן בלתי צפוי. יופעל שוב בעוד %n שניות (ניסיון %1 מתוך 5).</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>You have not decided whether to run this plugin.</source>
+            <translation>עוד לא החלטת אם להפעיל את התוסף הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin changed since you approved it. Review it again before it runs.</source>
+            <translation>התוסף הזה השתנה מאז שאישרת אותו. בדוק אותו שוב לפני שיופעל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins. This one is not official.</source>
+            <translation>מנהל המערכת מתיר רק תוספים רשמיים. זה אינו רשמי.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator has blocked this plugin.</source>
+            <translation>מנהל המערכת חסם את התוסף הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator requires more isolation than this computer can give this plugin.</source>
+            <translation>מנהל המערכת דורש הפרדה רבה יותר ממה שהמחשב הזה יכול לתת לתוסף הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run. Only your administrator can allow it.</source>
+            <translation>Studio אינו יכול להפריד את התוסף הזה מהקבצים שלך ומתוכנות אחרות במחשב הזה, ולכן הוא לא יפעל. רק מנהל המערכת יכול להתיר אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Studio cannot keep this plugin apart from your files and other programs on this computer, so it will not run.</source>
+            <translation>Studio אינו יכול להפריד את התוסף הזה מהקבצים שלך ומתוכנות אחרות במחשב הזה, ולכן הוא לא יפעל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy is newer (version %1), and it is still not used. Ask your administrator to update the copy for everyone.</source>
+            <translation>ההעתק המותקן לכולם הוא שבשימוש. ההעתק הזה חדש יותר (גרסה %1), ועדיין אינו בשימוש. בקש ממנהל המערכת לעדכן את ההעתק של כולם.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>The copy installed for everyone is used. This copy, installed for you only, is not.</source>
+            <translation>ההעתק המותקן לכולם הוא שבשימוש. ההעתק הזה, המותקן רק עבורך, אינו בשימוש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Another plugin with the same identifier is installed, %1. This one, %2, is not used. They are not the same plugin.</source>
+            <translation>מותקן תוסף אחר עם אותו מזהה, %1. התוסף הזה, %2, אינו בשימוש. אלה אינם אותו תוסף.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its identifier is one that only official plugins may use, and it is not signed by Virtual Serial Studio. It will not run.</source>
+            <translation>המזהה שלו שמור לתוספים רשמיים בלבד, והוא אינו חתום על ידי Virtual Serial Studio. הוא לא יפעל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%1 Its settings are kept, and it runs again when a licence allows it.</source>
+            <translation>%1 ההגדרות שלו נשמרות, והוא פועל שוב כשרישיון מתיר זאת.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It stopped %n times in 10 minutes, so Studio stopped starting it.</source>
+            <translation>
+                <numerusform>הוא נעצר %n פעם ב-10 דקות, ולכן Studio הפסיק להפעיל אותו.</numerusform>
+                <numerusform>הוא נעצר %n פעמים ב-10 דקות, ולכן Studio הפסיק להפעיל אותו.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It did not answer, so Studio stopped it.</source>
+            <translation>הוא לא ענה, ולכן Studio עצר אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>It sent more than it is allowed to (%1), so Studio stopped it.</source>
+            <translation>הוא שלח יותר ממה שמותר לו (%1), ולכן Studio עצר אותו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs a newer version of Studio. This is version %1.</source>
+            <translation>התוסף הזה דורש גרסה חדשה יותר של Studio. זו גרסה %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin needs something this build does not have: %1.</source>
+            <translation>התוסף הזה דורש משהו שאין בגרסה הזאת: %1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was made for an older version of Studio. Ask its author for a newer one.</source>
+            <translation>התוסף הזה נוצר לגרסה ישנה יותר של Studio. בקש מהמחבר שלו גרסה חדשה יותר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its description file is not valid, so Studio cannot tell what it is.</source>
+            <translation>קובץ התיאור שלו אינו תקין, ולכן Studio אינו יכול לדעת מה הוא.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Its signature does not match its files. They may have been changed. Get the plugin again from its author.</source>
+            <translation>החתימה שלו אינה תואמת לקבצים שלו. ייתכן שהם שונו. הורד את התוסף שוב מהמחבר שלו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin was withdrawn by Virtual Serial Studio. It will not run.</source>
+            <translation>התוסף הזה נמשך על ידי Virtual Serial Studio. הוא לא יפעל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>This plugin expired on %1. Look for a newer version.</source>
+            <translation>התוסף הזה פג ב-%1. חפש גרסה חדשה יותר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>A setup uses this plugin, and it is not installed on this computer. Its parts of the setup are kept.</source>
+            <translation>הגדרה משתמשת בתוסף הזה, והוא אינו מותקן במחשב הזה. החלקים שלו בהגדרה נשמרים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>A policy file was found on this computer and could not be trusted, so only official plugins will run.</source>
+            <translation>נמצא במחשב הזה קובץ מדיניות שלא ניתן לסמוך עליו, ולכן יפעלו רק תוספים רשמיים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator allows only official plugins on this computer.</source>
+            <translation>מנהל המערכת מתיר במחשב הזה רק תוספים רשמיים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer. Plugins in your own plugin folder are not used.</source>
+            <translation>מנהל המערכת מתקין את התוספים במחשב הזה. תוספים בתיקיית התוספים שלך אינם בשימוש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Official plugins need a Pro licence.</source>
+            <translation>תוספים רשמיים דורשים רישיון Pro.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugins</source>
+            <translation>תוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>Plugins add fixtures, generators, link behaviours and connections to other tools. Each one runs as its own program, apart from Studio.</source>
+            <translation>תוספים מוסיפים מתקנים, מחוללים, התנהגויות קישור וחיבורים לכלים אחרים. כל אחד פועל כתוכנה נפרדת, בנפרד מ-Studio.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>1 needs attention</source>
+            <translation>1 דורש תשומת לב</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%n need attention</source>
+            <translation>
+                <numerusform>%n דורש תשומת לב</numerusform>
+                <numerusform>%n דורשים תשומת לב</numerusform>
+            </translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_text.cpp" line="1" />
+            <source>%n on</source>
+            <translation>
+                <numerusform>%n מופעל</numerusform>
+                <numerusform>%n מופעלים</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>The plugin says: %1</source>
+            <translation>התוסף אומר: %1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Version</source>
+            <translation>גרסה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Fingerprint</source>
+            <translation>טביעת אצבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove %1?</source>
+            <translation>להסיר את %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Also delete its saved data</source>
+            <translation>למחוק גם את הנתונים השמורים שלו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Cancel</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Remove plugin</source>
+            <translation>הסרת התוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Check again</source>
+            <translation>בדיקה חוזרת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Close</source>
+            <translation>סגירה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, %2</source>
+            <translation>%1, %2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>What it adds</source>
+            <translation>מה הוא מוסיף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Import the author's key...</source>
+            <translation>ייבוא המפתח של המחבר...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>fingerprint</source>
+            <translation>טביעת אצבע</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Fingerprint copied.</source>
+            <translation>טביעת האצבע הועתקה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Undo</source>
+            <translation>ביטול</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Show in folder</source>
+            <translation>הצגה בתיקייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Copy</source>
+            <translation>העתקה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Details copied.</source>
+            <translation>הפרטים הועתקו.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. %n plugins found.</source>
+            <translation>
+                <numerusform>נבדק. נמצא תוסף %n.</numerusform>
+                <numerusform>נבדק. נמצאו %n תוספים.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>That folder is not a plugin. A plugin's folder holds a file named plugin.json.</source>
+            <translation>התיקייה הזו אינה תוסף. בתיקייה של תוסף יש קובץ בשם plugin.json.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>%1 is already installed for you. Remove it first to add a different copy.</source>
+            <translation>%1 כבר מותקן עבורכם. הסירו אותו קודם כדי להוסיף עותק אחר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Your administrator installs the plugins on this computer.</source>
+            <translation>מנהל המערכת מתקין את התוספים במחשב הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Made by</source>
+            <translation>נוצר על ידי</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Signature</source>
+            <translation>חתימה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Signing key</source>
+            <translation>מפתח חתימה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_dialogs.cpp" line="1" />
+            <source>Studio deletes the plugin's folder. Setups that use it keep their parts, which stop working until the plugin is installed again. Its saved data is kept unless you tick the box.</source>
+            <translation>Studio מוחק את תיקיית התוסף. הגדרות שמשתמשות בו שומרות על החלקים שלהן, והם לא יעבדו עד שהתוסף יותקן שוב. הנתונים השמורים שלו נשארים, אלא אם תסמנו את התיבה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Filter plugins</source>
+            <translation>סינון תוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed plugins</source>
+            <translation>תוספים מותקנים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>No plugins are installed</source>
+            <translation>לא מותקנים תוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugins are folders that you or your administrator put in the plugin folder. Studio does not download anything.</source>
+            <translation>תוספים הם תיקיות שאתם או מנהל המערכת שמים בתיקיית התוספים. Studio לא מוריד דבר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Open the plugin folder</source>
+            <translation>פתיחת תיקיית התוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Add a plugin...</source>
+            <translation>הוספת תוסף...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Import a key...</source>
+            <translation>ייבוא מפתח...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Path copied.</source>
+            <translation>הנתיב הועתק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugin details</source>
+            <translation>פרטי התוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove plugin...</source>
+            <translation>הסרת התוסף...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>To install a plugin for everyone on this computer, an administrator puts its folder in %1.</source>
+            <translation>כדי להתקין תוסף לכל המשתמשים במחשב הזה, מנהל המערכת מניח את התיקייה שלו ב-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>folder path</source>
+            <translation>נתיב התיקייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>No plugin matches %1.</source>
+            <translation>אין תוסף שמתאים ל-%1.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed by your administrator</source>
+            <translation>הותקן על ידי מנהל המערכת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Select a plugin to see its details.</source>
+            <translation>בחרו תוסף כדי לראות את פרטיו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Description</source>
+            <translation>תיאור</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>A signature shows who made a plugin and that its files are unchanged. It does not show that the plugin is safe.</source>
+            <translation>חתימה מראה מי יצר תוסף ושהקבצים שלו לא השתנו. היא לא מראה שהתוסף בטוח.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1, approved on %2</source>
+            <translation>%1, אושר ב-%2</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove this key...</source>
+            <translation>הסרת המפתח הזה...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Expires</source>
+            <translation>תוקף עד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Included in your licence</source>
+            <translation>כלול ברישיון שלכם</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Timing</source>
+            <translation>תזמון</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Isolation</source>
+            <translation>בידוד</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Installed for</source>
+            <translation>הותקן עבור</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Folder</source>
+            <translation>תיקייה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>What it may do</source>
+            <translation>מה מותר לו לעשות</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Not allowed</source>
+            <translation>לא מותר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Change what it may do...</source>
+            <translation>שינוי מה שמותר לו לעשות...</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Set by your administrator</source>
+            <translation>נקבע על ידי מנהל המערכת</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Used in this setup</source>
+            <translation>בשימוש בהגדרה הזו</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Not used in this setup.</source>
+            <translation>לא בשימוש בהגדרה הזו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Show</source>
+            <translation>הצגה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Recent messages (%1)</source>
+            <translation>הודעות אחרונות (%1)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Messages from %1</source>
+            <translation>הודעות מ-%1</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Copied.</source>
+            <translation>הועתק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>These lines come from the plugin.</source>
+            <translation>השורות האלה מגיעות מהתוסף.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 started again.</source>
+            <translation>%1 הופעל מחדש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is on.</source>
+            <translation>%1 פועל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>%1 is off.</source>
+            <translation>%1 כבוי.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove the key of %1?</source>
+            <translation>להסיר את המפתח של %1?</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugins signed with this key stop running and ask again.</source>
+            <translation>תוספים החתומים במפתח הזה מפסיקים לפעול ומבקשים אישור שוב.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Remove key</source>
+            <translation>הסרת המפתח</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Choose a plugin's folder</source>
+            <translation>בחרו את התיקייה של תוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Choose an author's public key file</source>
+            <translation>בחרו את קובץ המפתח הציבורי של יוצר</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Plugin key files (*.vsskey.json)</source>
+            <translation>קובצי מפתח של תוספים (*.vsskey.json)</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>That file is not a plugin key file.</source>
+            <translation>הקובץ הזה אינו קובץ מפתח של תוסף.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>A key with the id %1 is already approved. An id cannot change its key.</source>
+            <translation>מפתח עם המזהה %1 כבר אושר. מזהה לא יכול לשנות את המפתח שלו.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>The id %1 belongs to a key that is already on this computer.</source>
+            <translation>המזהה %1 שייך למפתח שכבר נמצא במחשב הזה.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Checked. 1 plugin found.</source>
+            <translation>הבדיקה הסתיימה. נמצא תוסף אחד.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Added for you only. Review it before it runs.</source>
+            <translation>נוסף עבורכם בלבד. בדקו אותו לפני שהוא פועל.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>The key of %1 is approved.</source>
+            <translation>המפתח של %1 אושר.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Status</source>
+            <translation>מצב</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugins_dialog.cpp" line="1" />
+            <source>Looking for plugins...</source>
+            <translation>מחפש תוספים...</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginToolbox</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is starting.</source>
+            <translation>%1 מתחיל לפעול.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 has stopped. Open Plugins to start it again.</source>
+            <translation>%1 הפסיק לפעול. פתחו את התוספים כדי להפעיל אותו מחדש.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1, plugin</source>
+            <translation>%1, תוסף</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Fixture from the plugin %1. %2.</source>
+            <translation>התקן דמה מהתוסף %1. %2.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1
+From the plugin %2
+%3</source>
+            <translation>%1
+מהתוסף %2
+%3</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginTrafficChip</name>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Recording</source>
+            <translation>הקלטה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>Reading data</source>
+            <translation>קריאת נתונים</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%n plugins are reading data. Open Plugins.</source>
+            <translation>
+                <numerusform>תוסף אחד (%n) קורא נתונים. פתחו את התוספים.</numerusform>
+                <numerusform>%n תוספים קוראים נתונים. פתחו את התוספים.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on 1 port. Open Plugins.</source>
+            <translation>%1 מקליט נתונים ביציאה אחת. פתחו את התוספים.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is recording data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 מקליט נתונים ביציאה אחת (%n). פתחו את התוספים.</numerusform>
+                <numerusform>%1 מקליט נתונים ב-%n יציאות. פתחו את התוספים.</numerusform>
+            </translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on 1 port. Open Plugins.</source>
+            <translation>%1 קורא נתונים ביציאה אחת. פתחו את התוספים.</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../src/support/plugin_parts.cpp" line="1" />
+            <source>%1 is reading data on %n ports. Open Plugins.</source>
+            <translation>
+                <numerusform>%1 קורא נתונים ביציאה אחת (%n). פתחו את התוספים.</numerusform>
+                <numerusform>%1 קורא נתונים ב-%n יציאות. פתחו את התוספים.</numerusform>
+            </translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginSandbox</name>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no containment</source>
+            <translation>ללא הכלה</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no file isolation</source>
+            <translation>ללא בידוד קבצים</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no network isolation</source>
+            <translation>ללא בידוד רשת</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>other programs are not kept out of reach</source>
+            <translation>תוכנות אחרות אינן מרוחקות מהישג יד</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>system calls are not limited</source>
+            <translation>קריאות מערכת אינן מוגבלות</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>the desktop is not kept out of reach</source>
+            <translation>שולחן העבודה אינו מרוחק מהישג יד</translation>
+        </message>
+        <message>
+            <location filename="../src/backend/service_mapping.cpp" line="1" />
+            <source>no limits on resources</source>
+            <translation>ללא הגבלת משאבים</translation>
+        </message>
+    </context>
+    <context>
+        <name>PluginNotice</name>
+        <message>
+            <location filename="../src/shell/plugin_notice.cpp" line="57" />
+            <source>Dismiss</source>
+            <translation>הסתרה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="489" />
+            <source>A new plugin was found: %1. It will not run until you decide.</source>
+            <translation>נמצא תוסף חדש: %1. הוא לא יופעל עד שתחליט.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="494" />
+            <location filename="../src/support/plugin_parts.cpp" line="512" />
+            <source>Review and decide</source>
+            <translation>בדיקה והחלטה</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="508" />
+            <source>%1 changed since you approved it and has been stopped.</source>
+            <translation>%1 השתנה מאז שאישרת אותו והופסק.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="523" />
+            <source>The plugin %1 has stopped. Parts of this setup that use it are not running.</source>
+            <translation>התוסף %1 נעצר. חלקים בהגדרה הזו שמשתמשים בו אינם פועלים.</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="529" />
+            <location filename="../src/support/plugin_parts.cpp" line="546" />
+            <source>Plugins</source>
+            <translation>תוספים</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="531" />
+            <source>Start again</source>
+            <translation>הפעלה מחדש</translation>
+        </message>
+        <message>
+            <location filename="../src/support/plugin_parts.cpp" line="540" />
+            <source>%1 was withdrawn by Virtual Serial Studio and has been stopped.</source>
+            <translation>%1 נמשך על ידי Virtual Serial Studio והופסק.</translation>
         </message>
     </context>
 </TS>
