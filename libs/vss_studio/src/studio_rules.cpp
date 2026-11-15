@@ -9,10 +9,16 @@
 // knows the ports.
 //
 
+#include <vss/core/bytes.hpp>
+#include <vss/studio/rules_build.hpp>
 #include <vss/studio/studio.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -44,99 +50,95 @@ fault_kind fault_for(rules::line_error error)
     return fault_kind::disconnect;
 }
 
-/// What this build cannot do for a set, found before anything is installed.
-class install_check
+/// How a set is named in a line of the Log: `rule set "meter"`, or `rule set`
+/// when it has no name.  The name is any text of the document's, so its line
+/// feeds and other control characters are written out or replaced: a name
+/// must not be able to start a line of its own.
+std::string label_of(std::string_view name)
 {
-public:
-    install_check(const rules::compiled_rule_set& set, bool takes_faults,
-                  std::vector<rules::problem>& problems)
-        : set_(set), takes_faults_(takes_faults), problems_(problems)
-    {
-    }
+    if (name.empty())
+        return "rule set";
+    return "rule set \"" + to_printable(as_bytes(name)) + "\"";
+}
 
-    void run()
-    {
-        for (std::size_t i = 0; i < set_.rules.size(); ++i)
-        {
-            const rules::compiled_rule& rule = set_.rules[i];
-            const std::string path = "rules[" + std::to_string(i) + "]";
-            switch (rule.kind)
-            {
-            case rules::trigger_kind::bytes:
-            case rules::trigger_kind::quiet:
-            case rules::trigger_kind::signal:
-                break;
-            case rules::trigger_kind::lines:
-                bad(path + ".when.lines",
-                    "a rule on \"lines\" cannot be installed in this build");
-                break;
-            case rules::trigger_kind::port:
-                bad(path + ".when.port",
-                    "a rule on \"port\" cannot be installed in this build");
-                break;
-            }
-            // The path the writer of the document will find the action at.
-            for (std::size_t s = 0; s < rule.sequence.size(); ++s)
-                actions(rule.sequence[s].actions,
-                        rule.written_as_do
-                            ? path + ".do"
-                            : path + ".sequence[" + std::to_string(s) +
-                                  "].do");
-        }
-        for (std::size_t i = 0; i < set_.timeline.size(); ++i)
-            actions(set_.timeline[i].actions,
-                    "timeline[" + std::to_string(i) + "].do");
-    }
+/// Says `message` in the Log, on the port.  Posts to the hub's dispatcher, so
+/// it may be called from any thread, and from a scheduler's strand.
+void say(hub& engine, endpoint_id id, std::string port, std::string message)
+{
+    endpoint_event event;
+    event.kind = event_kind::log_message;
+    event.endpoint = id;
+    event.name = std::move(port);
+    event.message = std::move(message);
+    event.when = engine.now();
+    engine.publish(std::move(event));
+}
 
-private:
-    void bad(std::string path, std::string message)
-    {
-        problems_.push_back(
-            rules::problem{std::move(path), std::move(message)});
-    }
-
-    void actions(const std::vector<rules::compiled_action>& list,
-                 const std::string& path)
-    {
-        for (std::size_t i = 0; i < list.size(); ++i)
-        {
-            const rules::compiled_action& action = list[i];
-            const std::string here = path + "[" + std::to_string(i) + "]";
-            switch (action.kind)
-            {
-            case rules::action_kind::ask:
-                bad(here, "\"ask\" cannot be installed in this build");
-                break;
-            case rules::action_kind::raise_error:
-                if (!takes_faults_)
-                    bad(here + ".line_error",
-                        "the port does not take line errors: only a fixture "
-                        "and a port of the Windows driver do");
-                break;
-            case rules::action_kind::set_lines:
-                for (const rules::line_value& line : action.lines)
-                {
-                    if ((line_mask(line.which) &
-                         control_lines::input_bits()) == 0)
-                        bad(here + ".lines",
-                            "a rule sets the lines a device drives: CTS, "
-                            "DSR, DCD and RI");
-                }
-                break;
-            case rules::action_kind::reply:
-            case rules::action_kind::pass:
-            case rules::action_kind::set_state:
-            case rules::action_kind::set_slot:
-            case rules::action_kind::mark:
-                break;
-            }
-        }
-    }
-
-    const rules::compiled_rule_set& set_;
-    const bool takes_faults_;
-    std::vector<rules::problem>& problems_;
+/// The late actions of a set that have not been told yet.  Owned by the
+/// `done` hook of one scheduler, which calls it one action at a time.
+struct late_report
+{
+    std::uint64_t count = 0;
+    clock_type::duration worst{0};
+    std::optional<time_point> told_at;
 };
+
+/// How seldom a set says that actions were late.
+constexpr clock_type::duration late_line_interval = std::chrono::seconds(1);
+
+/// Gives a scheduler's hooks what makes a suspension and a late action
+/// visible: a line in the Log on the port.  Both hooks run on the scheduler's
+/// strand and only publish.  They hold the hub as `hooks.now` does: a
+/// scheduler is closed before the hub goes.
+void observe_set(rules::scheduler_hooks& hooks, hub* engine, endpoint_id id,
+                 const std::weak_ptr<endpoint>& port,
+                 const std::string& set_name, std::uint32_t firings_per_second)
+{
+    const std::string label = label_of(set_name);
+    const std::uint32_t limit = std::max<std::uint32_t>(firings_per_second, 1);
+
+    hooks.suspended =
+        [engine, id, port, label, limit](rules::suspend_reason why, time_point)
+    {
+        const std::shared_ptr<endpoint> place = port.lock();
+        if (!place)
+            return;
+        std::string text = label + " suspended";
+        if (why == rules::suspend_reason::budget)
+            text += ": it fired more than " + std::to_string(limit) +
+                    " times a second. It stays suspended until it is "
+                    "resumed.";
+        else
+            text += ".";
+        say(*engine, id, place->name(), std::move(text));
+    };
+
+    hooks.done =
+        [engine, id, port, label, state = std::make_shared<late_report>()](
+            const rules::action_report& report)
+    {
+        if (!report.late)
+            return;
+        ++state->count;
+        state->worst = std::max(state->worst, report.done - report.due);
+        if (state->told_at &&
+            report.done - *state->told_at < late_line_interval)
+            return;
+        const std::shared_ptr<endpoint> place = port.lock();
+        if (!place)
+            return;
+        const auto worst =
+            std::chrono::duration_cast<std::chrono::microseconds>(state->worst)
+                .count();
+        say(*engine, id, place->name(),
+            label + ": " + std::to_string(state->count) +
+                " action(s) late, the worst by " + std::to_string(worst) +
+                " microseconds");
+        state->told_at = report.done;
+        state->count = 0;
+        state->worst = clock_type::duration{0};
+    };
+}
 
 } // namespace
 
@@ -145,11 +147,10 @@ result<studio::rules_plan> studio::plan_rules(
 {
     if (set == nullptr)
         return make_error_code(errc::invalid_argument);
+    // The role is looked at before the port: the port may be there or not.
     if (set->attach.as != rules::role::peer)
     {
-        found.push_back(rules::problem{
-            "attach.role",
-            "only a \"peer\" set can be installed in this build"});
+        check_rules_for_build(*set, found);
         return make_error_code(errc::unsupported);
     }
     rules_plan plan;
@@ -170,7 +171,7 @@ result<studio::rules_plan> studio::plan_rules(
             takes_faults = !it->second.fixture.expired() ||
                            !it->second.driver.expired();
     }
-    install_check(*set, takes_faults, found).run();
+    check_rules_for_build(*set, found, takes_faults);
     if (!found.empty())
         return make_error_code(errc::unsupported);
 
@@ -205,6 +206,10 @@ result<rules_installation> studio::install_rules(
     const std::shared_ptr<endpoint> place = std::move(plan->place);
     const endpoint_id id = place->id();
     rules::scheduler_hooks hooks = std::move(plan->hooks);
+    observe_set(hooks, hub_.get(), id, place, set->name,
+                options.limits.firings_per_second);
+    const std::string label = label_of(set->name);
+    const std::size_t rule_count = set->rules.size();
 
     rules_installation installed;
     installed.place = id;
@@ -247,6 +252,11 @@ result<rules_installation> studio::install_rules(
         made->start(hub_->now());
         place->set_read_stage(made);
     }
+    say(*hub_, id, place->name(),
+        label + " installed: generation " +
+            std::to_string(installed.generation) + ", seed " +
+            std::to_string(installed.seed) + ", " + std::to_string(rule_count) +
+            " rule(s)");
     if (problems != nullptr)
         problems->clear();
     return installed;
@@ -269,6 +279,10 @@ result<rules_installation> studio::replace_rules(
     if (!plan)
         return refuse(plan.error());
     const endpoint_id id = plan->place->id();
+    observe_set(plan->hooks, hub_.get(), id, plan->place, set->name,
+                options.limits.firings_per_second);
+    const std::string label = label_of(set->name);
+    std::uint64_t replaced_generation = 0;
 
     rules_installation installed;
     installed.place = id;
@@ -317,12 +331,18 @@ result<rules_installation> studio::replace_rules(
                       });
         record.replaced.push_back(std::move(record.scheduler));
         record.scheduler = made;
+        replaced_generation = record.generation;
         record.generation = next_rules_generation_++;
         installed.generation = record.generation;
         installed.seed = made->seed();
     }
     for (const auto& each : finished)
         each->close();
+    say(*hub_, id, plan->place->name(),
+        label + " installed in place of generation " +
+            std::to_string(replaced_generation) + ": generation " +
+            std::to_string(installed.generation) + ", seed " +
+            std::to_string(installed.seed));
     if (problems != nullptr)
         problems->clear();
     return installed;
@@ -332,6 +352,8 @@ result<void> studio::remove_rules(endpoint_id place)
 {
     std::shared_ptr<rules::scheduler> removed;
     std::vector<std::shared_ptr<rules::scheduler>> replaced;
+    std::uint64_t generation = 0;
+    std::optional<std::string> port_name;
     {
         std::lock_guard lock(rules_mutex_);
         const auto it = rules_.find(place);
@@ -339,12 +361,16 @@ result<void> studio::remove_rules(endpoint_id place)
             return make_error_code(errc::not_found);
         removed = std::move(it->second.scheduler);
         replaced = std::move(it->second.replaced);
+        generation = it->second.generation;
         rules_.erase(it);
         rules_bytes_ -= removed->set().size_bytes;
         // Asked under the lock, so that the stage of a set installed right
         // after this one is not the one taken off.
         if (const auto endpoint = hub_->find_endpoint(place))
+        {
             endpoint->set_read_stage(nullptr);
+            port_name = endpoint->name();
+        }
     }
     // Nothing of the set is done after this returns.  The endpoint lets go
     // of the stage at its next turn; until then the stage ignores what it
@@ -352,6 +378,10 @@ result<void> studio::remove_rules(endpoint_id place)
     removed->close();
     for (const auto& each : replaced)
         each->close();
+    if (port_name)
+        say(*hub_, place, *port_name,
+            label_of(removed->set().name) + " removed: generation " +
+                std::to_string(generation));
     return {};
 }
 
@@ -402,7 +432,12 @@ result<void> studio::resume_rules(endpoint_id place)
     const std::shared_ptr<rules::scheduler> rules = rules_of(place);
     if (!rules)
         return make_error_code(errc::not_found);
-    static_cast<void>(rules->resume(hub_->now()));
+    if (rules->resume(hub_->now()))
+    {
+        if (const auto endpoint = hub_->find_endpoint(place))
+            say(*hub_, place, endpoint->name(),
+                label_of(rules->set().name) + " resumed");
+    }
     return {};
 }
 
