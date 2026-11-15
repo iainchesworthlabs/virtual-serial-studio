@@ -117,9 +117,9 @@ struct rig
         context.executor = io.get_executor();
         context.link.answer = [this](std::uint64_t re, api_message message)
         { answers.push_back(answered{re, std::move(message)}); };
-        handler = make_capture_point(
-            context, *hub,
-            [this](std::string_view name) { return find(name); });
+        handler =
+            make_capture_point(context, *hub, [this](std::string_view name)
+                               { return find(name); });
     }
 
     rig(const rig&) = delete;
@@ -719,9 +719,9 @@ TEST_CASE("plugin capture: a change of a control line is a line event")
     event_recorder seen;
     event_filter filter;
     filter.kind = event_kind::lines;
-    const subscription_guard guard(
-        *fixture.hub, filter,
-        [seen](const endpoint_event& event) { seen.record(event); });
+    const subscription_guard guard(*fixture.hub, filter,
+                                   [seen](const endpoint_event& event)
+                                   { seen.record(event); });
     REQUIRE(!fixture.wire->set_line(control_line::dtr, true));
     REQUIRE(wait_until([&] { return seen.count(event_kind::lines) >= 1; },
                        20000ms));

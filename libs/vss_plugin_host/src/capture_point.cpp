@@ -113,6 +113,8 @@ private:
         std::vector<std::uint64_t> last_ns;
         time_point started{};
         bool ring = false;
+        /// The longest the recording runs, in seconds; 0 for a ring.
+        std::uint64_t limit_seconds = 0;
         /// The recording's folder, relative to the data directory.
         std::string place;
         /// Set once the recording is finished.
@@ -186,8 +188,16 @@ private:
                 place_spec{name, found->kind, std::move(found->settings)});
             watched.push_back(std::move(found->tap));
         }
-        options.origin_utc = std::chrono::floor<std::chrono::seconds>(
-            std::chrono::system_clock::now());
+        // The origin is a whole second, so the times of the recording
+        // are counted from that second and not from this moment.
+        const auto now_utc = std::chrono::system_clock::now();
+        options.origin_utc = std::chrono::floor<std::chrono::seconds>(now_utc);
+        const time_point started =
+            clock_type::now() -
+            std::chrono::duration_cast<clock_type::duration>(
+                now_utc - options.origin_utc);
+        const std::uint64_t limit_seconds =
+            asked->ring > 0 ? 0 : asked->limit_seconds;
         options.made_by.plugin = context_.plugin_id;
         options.made_by.version = context_.plugin_version;
         const bool ring = asked->ring > 0;
@@ -224,7 +234,8 @@ private:
         run.names = asked->places;
         run.lines.resize(run.names.size());
         run.last_ns.resize(run.names.size(), 0);
-        run.started = clock_type::now();
+        run.started = started;
+        run.limit_seconds = limit_seconds;
         run.ring = ring;
         run.place = *folder;
         run.tap = std::make_unique<traffic_tap>(*hub_, std::move(watched));
@@ -336,14 +347,15 @@ private:
                                                   *item.bytes));
         case tap_item_kind::lines:
         {
+            // The break signal has no place in a recording.
+            control_lines now;
+            now.bits = item.lines.bits & recorded_lines;
             control_lines changed;
-            changed.bits =
-                (item.lines.bits ^ run.lines[index].bits) & recorded_lines;
-            run.lines[index] = item.lines;
+            changed.bits = now.bits ^ run.lines[index].bits;
+            run.lines[index] = now;
             if (changed.bits == 0)
                 return true;
-            return took(run,
-                        run.writer->add_line(index, when, item.lines, changed));
+            return took(run, run.writer->add_line(index, when, now, changed));
         }
         case tap_item_kind::error:
             return took(run, run.writer->add_fault(index, when, "error"));
@@ -427,6 +439,14 @@ private:
         }
         // A recording that reached a limit is finished when it is asked
         // about, so that the plugin learns its size.
+        // So is one whose time is up while nothing happens at its places.
+        if (!current_->over && current_->limit_seconds != 0 &&
+            nanoseconds_between(current_->started, clock_type::now()) /
+                    1'000'000'000ULL >=
+                current_->limit_seconds)
+        {
+            current_->over = true;
+        }
         if (current_->over)
             end_recording();
         const recording_run& run = *current_;

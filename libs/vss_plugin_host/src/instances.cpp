@@ -13,6 +13,8 @@
 #include <vss/plugin/manifest.hpp>
 #include <vss/plugin/protocol.hpp>
 
+#include <boost/json.hpp>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -38,6 +40,20 @@ constexpr std::size_t longest_reason = 400;
 /// The number a request is written with.  The session gives every request
 /// its real number when it is sent; a message cannot be written with none.
 constexpr std::uint64_t placeholder_id = 1;
+
+/// Parameters as a message carries them: the same JSON with no spaces
+/// between its parts.  A message is only written when it reads back as it
+/// was given, so parameters that were typed with spaces would never be
+/// sent.  Text that is not JSON is returned as it is, and the message is
+/// then refused where it is written.
+std::string as_sent(const std::string& params)
+{
+    boost::system::error_code failed;
+    const boost::json::value parsed = boost::json::parse(params, failed);
+    if (failed || !parsed.is_object())
+        return params;
+    return boost::json::serialize(parsed);
+}
 
 /// One instance, wanted or on its way out.
 struct entry
@@ -273,7 +289,7 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
             create.instance = number;
             create.kind = item.spec.kind;
             create.type = item.spec.type;
-            create.params = item.spec.params;
+            create.params = as_sent(item.spec.params);
             ask(number, instance_create_message::op(),
                 encode_as(create, placeholder_id));
             return;
@@ -283,7 +299,7 @@ struct plugin_instances::state : std::enable_shared_from_this<state>
         {
             params_changed_message change;
             change.instance = number;
-            change.params = item.spec.params;
+            change.params = as_sent(item.spec.params);
             ask(number, params_changed_message::op(),
                 encode_as(change, placeholder_id));
         }
