@@ -1463,6 +1463,102 @@ German, Hebrew, Yiddish, Japanese, Simplified Chinese and Arabic). It follows
 the system language, and there is no language setting in the window. See
 [i18n.md](i18n.md).
 
+## Plugins
+
+**Tools, Plugins...** lists the plugins installed on this computer. A plugin
+adds fixtures, generators, link behaviours or connections to other tools, and
+each one runs as its own program, apart from Studio. Studio never downloads a
+plugin. A plugin is a folder that you or your administrator put in a plugin
+folder.
+
+This build does not run plugins yet. You can see what is installed, decide
+about each one, approve an author's key and say that you want a plugin on.
+Studio keeps those choices, and shows a plugin that is allowed to run as Off,
+with "Not available in this build", until a version of Studio can start it.
+
+### The list and the detail
+
+The list is on the left, with a box to filter it by name. A row shows the
+plugin's name, who stands behind it, its version, its state and a switch. The
+rows that need attention are first. Choose a row to see its detail on the
+right. F6 moves between the list and the detail.
+
+The line under the name says who stands behind the plugin:
+
+| Line | Meaning |
+|---|---|
+| Official | Signed by Virtual Serial Studio. Only these show the Virtual Serial Studio badge |
+| Signed by *name* | Signed with a key that you or your administrator approved. Not verified by Virtual Serial Studio |
+| Signed by an author you have not approved | Signed with a key that is not on this computer, so the signature could not be checked |
+| Unsigned | Nobody signed it. Studio cannot tell who made it or whether it was changed |
+
+A signature shows who made a plugin and that its files are unchanged. It does
+not show that the plugin is safe. Everything a plugin says about itself, such as
+its name, its description and its messages, is shown as plain text and is never
+used to decide what Studio shows about it.
+
+The state of a plugin is one of On, Starting, Off, Needs your decision,
+Blocked, Not isolated, Not used, Needs a licence, Stopped, Not compatible,
+Can't be used and Not installed. Under the name of the plugin the page says why
+and what you can do about it.
+
+### Deciding about a plugin
+
+A plugin that Studio has not seen before, or whose files changed since you
+approved it, needs your decision before it can run. Switch it on, or choose
+**Review and decide**. The question lists the plugin's name, version and
+fingerprint, what it adds and each permission it asks for. A permission that the
+plugin needs is a row. A permission that the plugin marks as optional has a
+check box, ticked, that you can untick. The permissions that give a plugin the
+most are marked with a warning.
+
+The dialog starts on **Cancel**, and Enter alone cancels. Your answer is kept for
+that version of the plugin only. If its files change, Studio asks again, and says
+when the new version asks for more than the one you approved.
+
+### Approving an author's key
+
+An author of plugins publishes a small public key file, which ends in
+`.vsskey.json`. Choose **Import a key...** and pick the file. Studio shows the
+author's name, the key's id and its fingerprint in groups of four. Compare the
+fingerprint with the one the author published on their website or sent you, tick
+the box and choose **Approve this key**. Studio never looks for key files in a
+plugin's folder, and approving a key never switches a plugin on: each plugin
+still needs its own decision. **Remove this key...** in the detail of a plugin
+takes it back, and the plugins signed with it ask again.
+
+### Running a plugin without isolation
+
+Studio runs a plugin apart from your files and other programs when this computer
+can. When it cannot, a plugin that is not official is shown as Not isolated.
+Where your administrator allows it, **Run without isolation...** lets you run
+that version of that plugin with your own access to your files and the network.
+**Undo** in the Isolation row takes it back.
+
+### Plugins in the rest of the window
+
+- **Toolbox (Advanced).** A **Plugins** group under Ports and Bundles has a tile for each fixture type of a plugin that is switched on. A plugin that is starting, that needs a licence or that stopped keeps its tile, disabled, and the tile says why. A plugin that is switched off, waiting for your decision, blocked or not compatible has no tile. A tile's top right corner has the plugin mark, and its menu has **Show in Plugins**.
+- **Ports.** A port that a plugin provides says so in the Inspector (**Provided by**). While its plugin is not available the port stays open and sends nothing, the canvas marks it **Plugin not available**, and the Inspector says why and offers the action that helps: **Switch on**, **Review and decide**, **Licence**, **Start again** or **Show in Plugins**. Its settings are kept.
+- **Notices.** One notice at a time appears at the top of the window when a new plugin is found, when a plugin changed and was stopped, when a plugin that your setup uses stopped, or when a plugin was withdrawn. A notice never takes the focus and **Dismiss** hides it.
+- **Status bar.** While a plugin reads the data of ports or links, a chip reads **Reading data**, or **Recording** when it records. It opens Plugins, and it cannot be dismissed.
+- **Licence.** The row of the official plugins on the Licence page has a **Plugins** link.
+
+### Adding and removing a plugin
+
+**Add a plugin...** asks for a plugin's folder and looks into it first. A
+question shows the plugin's version, who made it, what its signature says, its
+fingerprint and whether it can be used, and copies nothing until you choose
+**Add plugin**. A plugin that cannot be used cannot be added. The copy goes into
+your own plugin folder, for you only, and the new row is selected. Nothing runs.
+The same question shows the command for installing it for everyone,
+`vss_cli plugin install <folder> --for-everyone`, as text to copy: Studio never
+asks for administrator rights. **Remove plugin...** asks first and moves the
+folder to the bin; the plugin's saved data is kept unless you tick the box. An
+administrator can also put a plugin's folder in the machine plugin folder, which
+the page shows under the list. If your
+administrator has turned your own plugin folder off, those two buttons are
+disabled.
+
 ## Licences
 
 A licence is one signed file with the extension `.vsslic`. Studio checks it on

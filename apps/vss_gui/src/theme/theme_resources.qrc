@@ -10,6 +10,7 @@
     <file alias="fonts/NotoSansHebrew-Regular.ttf">../../assets/fonts/NotoSansHebrew-Regular.ttf</file>
     <file alias="fonts/NotoSansHebrew-SemiBold.ttf">../../assets/fonts/NotoSansHebrew-SemiBold.ttf</file>
     <file alias="icons/port.svg">resources/icons/port.svg</file>
+    <file alias="icons/plugin.svg">resources/icons/plugin.svg</file>
     <file alias="icons/loopback.svg">resources/icons/loopback.svg</file>
     <file alias="icons/network.svg">resources/icons/network.svg</file>
     <file alias="icons/pair.svg">resources/icons/pair.svg</file>
