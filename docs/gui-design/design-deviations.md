@@ -1045,11 +1045,12 @@ runs. CTest uses the default (no captures) so CI does not write artifacts.
 ### RFC 2217 server
 
 `rfc2217-listen://host:port` is an access server. The listen transport accepts
-any number of TCP clients as before; for each one a `vss::rfc2217::session`
-speaks Telnet and negotiates the COM-PORT option (RFC 2217). The session holds
-no socket, so its protocol is tested on its own. Payload bytes pass through
-with 0xFF doubled in both directions, and each client has a write queue,
-because the protocol replies and the payload share one socket.
+up to 32 TCP clients at once (see `listen_limits`); for each one a
+`vss::rfc2217::session` speaks Telnet and negotiates the COM-PORT option (RFC
+2217). The session holds no socket, so its protocol is tested on its own.
+Payload bytes pass through with 0xFF doubled in both directions, and each client
+has a write queue, because the protocol replies and the payload share one
+socket.
 
 What the client asks for is accepted and reported, as a serial port would, but
 changes no real device: baud rate, data bits, parity, stop bits and flow control

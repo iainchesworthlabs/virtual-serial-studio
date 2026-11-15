@@ -13,13 +13,13 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
-namespace vss
-{
+namespace vss {
 
 enum class listen_protocol
 {
@@ -44,8 +44,7 @@ struct listen_address
     /// ignored.
     std::vector<std::string> allow;
 
-    friend bool operator==(const listen_address&,
-                           const listen_address&) = default;
+    friend bool operator==(const listen_address&, const listen_address&) = default;
 };
 
 /// What a listening port puts up with from its clients. The defaults suit the
@@ -54,25 +53,29 @@ struct listen_limits
 {
     /// Clients connected at once. A connection over the limit is closed as
     /// soon as it is accepted. Each client costs a descriptor, a 4 KiB read
-    /// buffer and up to #max_client_queue_bytes of queued output, so 32 is
-    /// at most 32 MiB of queues. That is more computers than one serial
+    /// buffer and its queue (see #max_client_queue_bytes), which is at most
+    /// the bound plus one write from the hub, shared by every client, plus the
+    /// bound again in RFC 2217 replies. That is more computers than one serial
     /// device is shared with, and few enough that a script opening
     /// connections cannot use up the process's descriptors.
     std::size_t max_clients = 32;
 
-    /// Bytes waiting to be sent to one client, payload and RFC 2217 replies
-    /// together. A client that falls further behind is disconnected, so one
-    /// client that stops reading cannot hold memory without limit or stop the
-    /// others. The endpoint holds up to 8 MiB for the whole port
-    /// (`endpoint_options::max_write_queue_bytes`); one client may be 1 MiB
-    /// behind, which is about 90 seconds of a serial line running flat out at
-    /// 115200 baud.
+    /// Bytes waiting to be sent to one client. A write from the hub is queued
+    /// for every client and is not finished while every client is further
+    /// behind than this, so the source is slowed to the pace of the fastest
+    /// client, as it is for a single slow reader. Once one client is within
+    /// the bound, the clients still over it are disconnected: they are the ones
+    /// holding the others back. The RFC 2217 replies waiting for one client
+    /// are bound the same way: a client that asks and does not read is
+    /// disconnected. The endpoint holds up to 8 MiB for the whole port
+    /// (`endpoint_options::max_write_queue_bytes`); 1 MiB is about 90 seconds
+    /// of a serial line running flat out at 115200 baud.
     std::size_t max_client_queue_bytes = std::size_t{1} << 20;
 
     /// How long a client with data waiting may take none of it. Not a limit on
-    /// how long a transfer lasts: every part the client takes starts the time
-    /// again. A hung program is found in half a minute, and a slow link is
-    /// not mistaken for one, since a part is 64 KiB at most.
+    /// how long a transfer lasts: every part the client takes, however small,
+    /// starts the time again. A hung program is found in half a minute, and a
+    /// slow link is not mistaken for one.
     std::chrono::milliseconds write_deadline{30000};
 
     /// The wait after the first failed accept (for example when the process is
@@ -81,6 +84,11 @@ struct listen_limits
     /// backlog and accept fails again at once, using a whole processor.
     std::chrono::milliseconds accept_retry_first{100};
     std::chrono::milliseconds accept_retry_last{5000};
+
+    /// For tests: called each time accept succeeds, on the transport's
+    /// strand. An error it returns is treated as a failed accept, and the
+    /// connection is closed.
+    std::function<error_code()> accept_fault;
 };
 
 /// The wait before accept is tried again after `failures` failures in a row
@@ -120,11 +128,14 @@ std::string make_listen_uri(const listen_address& address);
 /// is read by the hub in the order it arrives, and what the hub writes goes to
 /// every client that is connected at that moment. With no client connected a
 /// write succeeds and the bytes are dropped, as on a serial port with nothing
-/// plugged in. A write completes when its bytes are queued for the clients,
-/// not when they have been taken. A client that falls behind
-/// #listen_limits::max_client_queue_bytes, or takes nothing for
-/// #listen_limits::write_deadline, is disconnected with a notice (see
-/// #transport::set_notice_sink); the others are not held back.
+/// plugged in. A write is queued for every client. It completes once at least
+/// one client is within #listen_limits::max_client_queue_bytes of taking it,
+/// and not before, so a source faster than every client is slowed to the
+/// fastest. It means the bytes were accepted for the clients, not that a
+/// client's computer has them: closing the port discards what is still
+/// queued. A client still over the bound when another is within it, or that
+/// takes nothing for #listen_limits::write_deadline, is disconnected with a
+/// notice (see #transport::set_notice_sink); the others are not held back.
 ///
 /// UDP: datagrams from anyone are read, and a write is sent to every sender
 /// heard from lately (up to sixteen).
@@ -180,8 +191,9 @@ public:
     std::size_t refused_count() const noexcept;
 
     /// Reports the clients the transport disconnects or refuses, and a failing
-    /// accept, by their addresses. Called on the transport's strand; not called
-    /// after close().
+    /// accept, by their addresses. Called on the transport's strand. Once
+    /// close() has returned no notice is started, but one that was already
+    /// running may finish.
     void set_notice_sink(notice_sink sink) override;
 
 private:

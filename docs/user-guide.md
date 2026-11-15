@@ -1150,13 +1150,21 @@ waiting for more data.
 ### Clients that do not keep up
 
 A `tcp-listen` or `rfc2217-listen` port keeps what it has to send to each
-client separately. A client that falls more than 1 MiB behind, or takes no data
-for 30 seconds, is disconnected, and the port's log says which address and why.
-The other clients and the device are not held back. A port takes up to 32
-clients at once; the next is closed as soon as it connects and the log says so
-(once every 10 seconds at most). If the system cannot accept a connection, for
-example because it has run out of file descriptors, the port waits 100 ms and
-then longer, up to 5 seconds, before it tries again, and says so once.
+client separately. While every client is more than 1 MiB behind, the port
+slows the device or program that sends to it, as it would for one slow reader.
+When one client has caught up to within 1 MiB, any client still further behind
+is disconnected, and so is a client that takes no data for 30 seconds. In
+Studio, the port's log says which address and why. A client that sends RFC 2217
+requests and does not read the replies is disconnected when the replies waiting
+for it pass 1 MiB. The other clients and the device are not held back. A write
+counts as done when the port has accepted it for the clients, so what is still
+waiting is lost when the port closes.
+
+A port takes up to 32 clients at once. The next is closed as soon as it
+connects, and the log says so (once every 10 seconds at most). If the computer
+cannot accept a connection, for example because the program has used up the
+open connections and files the system allows it, the port waits 100 ms and then
+longer, up to 5 seconds, before it tries again, and says so in the log.
 
 ### A device on another computer
 
