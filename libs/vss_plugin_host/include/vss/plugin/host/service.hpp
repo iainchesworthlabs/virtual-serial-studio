@@ -93,6 +93,11 @@ struct service_plugin
     /// decided, as the trust store holds it.
     bool decided = false;
     std::optional<plugin_decision> decision;
+    /// When nobody has decided about this copy and the user decided about
+    /// an earlier copy of the same plugin: that decision.  It is what
+    /// "this plugin changed since you approved it" compares with, for
+    /// example which permissions are new.
+    std::optional<plugin_decision> earlier_decision;
     /// The manifest, when it could be read: what the plugin says of
     /// itself.  Every text in it is the plugin's own and untrusted.
     std::optional<manifest> declared;

@@ -357,7 +357,18 @@ private:
             }
             shown.decided = decision != nullptr;
             if (decision != nullptr)
+            {
                 shown.decision = *decision;
+            }
+            else if (context.trust.has_value() &&
+                     checked.declared.has_value())
+            {
+                const plugin_decision* const earlier =
+                    context.trust->previous(checked.declared->id,
+                                            checked.hash, checked.key_id);
+                if (earlier != nullptr)
+                    shown.earlier_decision = *earlier;
+            }
 
             std::string detail;
             auto planned = plan_start(checked, decision, plan, &detail);
