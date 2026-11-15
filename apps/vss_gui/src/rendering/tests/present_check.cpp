@@ -50,10 +50,10 @@ constexpr int kSkip = 77;
 
 bool close_to(QColor a, QColor b)
 {
-    constexpr int tolerance = 24;
-    return std::abs(a.red() - b.red()) <= tolerance &&
-           std::abs(a.green() - b.green()) <= tolerance &&
-           std::abs(a.blue() - b.blue()) <= tolerance;
+    constexpr int kTolerance = 24;
+    return std::abs(a.red() - b.red()) <= kTolerance &&
+           std::abs(a.green() - b.green()) <= kTolerance &&
+           std::abs(a.blue() - b.blue()) <= kTolerance;
 }
 
 void pump(int milliseconds)
