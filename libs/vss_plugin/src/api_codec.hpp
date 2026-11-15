@@ -28,6 +28,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <vector>
 
 namespace vss::plugin::detail
 {
@@ -118,10 +119,35 @@ std::string object_text_of(reading& state, const json::object& object,
                            std::string_view where, std::string_view key,
                            bool required);
 
-/// The bytes of a member written as lower-case hex, 1 to `most` bytes.
-byte_buffer hex_of(reading& state, const json::object& object,
-                   std::string_view where, std::string_view key,
-                   std::size_t most, bool required);
+/// What a failed `parse_strict` says, without anything the plugin sent: a
+/// repeated key is quoted in the reason that the parser gives.
+std::string json_problem(const std::string& what);
+
+/// A plain text of 1 to `max_api_name` bytes: the name of a place.  Empty when
+/// the member is absent or wrong.
+std::string place_of(reading& state, const json::object& object,
+                     std::string_view where, std::string_view key,
+                     bool required);
+
+/// A list of at most `most` names of places (`place_of`), none twice.  Empty
+/// when the member is absent or wrong; an absent member is an error only when
+/// `required`, and an empty list only when `not_empty` is false.
+std::vector<std::string> place_list_of(reading& state,
+                                       const json::object& object,
+                                       std::string_view where,
+                                       std::string_view key, std::size_t most,
+                                       bool required, bool not_empty);
+
+/// A path inside the plugin's data directory, by the rules of
+/// `check_relative_path`, of 1 to `most` bytes.  Empty when the member is
+/// absent or wrong.
+std::string relative_path_of(reading& state, const json::object& object,
+                             std::string_view where, std::string_view key,
+                             std::size_t most, bool required);
+
+/// Whether two names are the same when the case of ASCII letters is ignored.
+bool same_name_ignoring_case(std::string_view first,
+                             std::string_view second) noexcept;
 
 /// The member as one of `names`, and which one.  `what` completes the
 /// sentence "must be ".
@@ -189,9 +215,6 @@ void put_optional(json::object& header, std::string_view key,
 bool put_object_text(json::object& header, std::string_view key,
                      const std::string& text);
 
-/// The bytes as lower-case hex.
-std::string hex_text(const byte_buffer& bytes);
-
 // -- the two functions every message goes through
 // -------------------------------
 
@@ -250,8 +273,10 @@ result<M> decode_with(const api_message& message, std::string* explain,
 }
 
 /// `Write` is `bool(json::object&, const M&)`.  It returns false for a value
-/// that cannot be written.  What is written is read back, so that whatever
-/// the reader would refuse is refused here.
+/// that cannot be written.  What is written is read back, and the value read
+/// must be the one written: whatever the reader would refuse, or would read
+/// as something else, is refused here.  The header is held to the limit of
+/// `max_header_size`, as `encode_message` holds it.
 template <class M, class Write>
 result<api_message> encode_with(const M& body, std::uint64_t number,
                                 Write write)
@@ -270,8 +295,14 @@ result<api_message> encode_with(const M& body, std::uint64_t number,
             M::op(), M::role(), number, std::move(header), std::move(blob));
         if (out.has_error())
             return out;
-        if (const auto again = decode_as<M>(out.value()); again.has_error())
+        if (std::get<other_message>(out.value().body).header.size() >
+            max_header_size)
+            return make_error_code(api_errc::bad_request);
+        const auto again = decode_as<M>(out.value());
+        if (again.has_error())
             return again.error();
+        if (!(again.value() == body))
+            return make_error_code(api_errc::bad_request);
         return out;
     }
     catch (...)

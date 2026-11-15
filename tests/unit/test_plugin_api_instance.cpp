@@ -248,3 +248,38 @@ TEST_CASE("plugin api: a typed message is not read as another")
     loose.id = 0;
     REQUIRE(decode_as<instance_stop_message>(loose).has_error());
 }
+
+TEST_CASE("plugin api: a message is written only as it is read back")
+{
+    // The reader writes a JSON object compactly, so a text with spaces in it
+    // is not what would be read, and is not written.
+    instance_create_message body;
+    body.instance = 1;
+    body.type = "t";
+    body.params = R"({"a": 1})";
+    require_not_written(body, 1);
+    body.params = R"({"a":1})";
+    (void)round_trip(body, 1);
+}
+
+TEST_CASE("plugin api: a header over 64 KiB is not written")
+{
+    instance_create_message body;
+    body.instance = 1;
+    body.type = "t";
+    // One long text in params: the object is 64 KiB with its braces and key.
+    body.params = R"({"k":")" + std::string(max_header_size, 'v') + R"("})";
+    require_not_written(body, 1);
+    // Just inside the limit.
+    const std::string frame_text = R"({"op":"instance.create","id":1,)"
+                                   R"("instance":1,"kind":"generator",)"
+                                   R"("type":"t","params":)";
+    const std::size_t room = max_header_size - frame_text.size() - 1;
+    body.params = R"({"k":")" + std::string(room - 8, 'v') + R"("})";
+    const auto written = encode_as(body, 1);
+    REQUIRE(written.has_value());
+    REQUIRE_EQ(std::get<other_message>(written.value().body).header.size(),
+               max_header_size);
+    body.params = R"({"k":")" + std::string(room - 7, 'v') + R"("})";
+    require_not_written(body, 1);
+}

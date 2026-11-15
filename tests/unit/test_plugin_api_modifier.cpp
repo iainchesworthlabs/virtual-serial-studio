@@ -50,7 +50,7 @@ std::string member_text(std::string_view key, const std::string& value)
 struct create_text
 {
     std::string instance = "3";
-    std::string link = "9";
+    std::string place = R"("link-9")";
     std::string direction = R"("a_to_b")";
     std::string params;
     std::string budget = "2000";
@@ -64,7 +64,7 @@ struct create_text
     {
         std::string out = R"({"op":"modifier.create")" + id;
         out += member_text("instance", instance);
-        out += member_text("link", link);
+        out += member_text("place", place);
         out += member_text("direction", direction);
         out += member_text("params", params);
         out += member_text("budget_us", budget);
@@ -125,7 +125,7 @@ modifier_create_message create_body()
 {
     modifier_create_message body;
     body.instance = 3;
-    body.link = 9;
+    body.place = "link-9";
     body.direction = modifier_direction::b_to_a;
     body.params = R"({"rate":9600})";
     body.budget_us = 2000;
@@ -209,7 +209,7 @@ TEST_CASE("plugin api: modifier.create is written and read")
     REQUIRE(written.has_value());
     REQUIRE_EQ(header_of(written.value()),
                std::string(R"({"op":"modifier.create","id":5,"instance":3,)"
-                           R"("link":9,"direction":"b_to_a",)"
+                           R"("place":"link-9","direction":"b_to_a",)"
                            R"("params":{"rate":9600},"budget_us":2000,)"
                            R"("max_batch_bytes":4096,"max_batch_us":200,)"
                            R"("on_timeout":"fail_closed","flush_on":10})"));
@@ -247,12 +247,13 @@ TEST_CASE("plugin api: modifier.create is refused when it is wrong")
     require_refused<message_type>(text.str(),
                                   op + "instance: must be a whole number");
     text = {};
-    text.link.clear();
-    require_refused<message_type>(text.str(), op + "link: is required");
+    text.place.clear();
+    require_refused<message_type>(text.str(), op + "place: is required");
     text = {};
-    text.link = R"("9")";
-    require_refused<message_type>(text.str(),
-                                  op + "link: must be a whole number");
+    text.place = "9";
+    require_refused<message_type>(text.str(), op + "place: must be a string");
+    text.place = R"("")";
+    require_refused<message_type>(text.str(), op + "place: must not be empty");
     text = {};
     text.direction.clear();
     require_refused<message_type>(text.str(), op + "direction: is required");
@@ -337,10 +338,11 @@ TEST_CASE("plugin api: modifier.create has the limits of its members")
     require_refused<message_type>(text.str(),
                                   op + "max_batch_us: must be a whole");
     text = {};
-    text.link = "9007199254740991";
-    REQUIRE_EQ(accepted<message_type>(text.str()).link, max_api_number);
-    text.link = "9007199254740992";
-    require_refused<message_type>(text.str(), op + "link: must be a whole");
+    text.place = "\"" + std::string(max_api_name, 'p') + "\"";
+    REQUIRE_EQ(accepted<message_type>(text.str()).place.size(), max_api_name);
+    text.place = "\"" + std::string(max_api_name + 1, 'p') + "\"";
+    require_refused<message_type>(text.str(),
+                                  op + "place: is longer than 128 bytes");
     text = {};
     text.flush = "0";
     REQUIRE_EQ(static_cast<int>(
@@ -372,7 +374,7 @@ TEST_CASE("plugin api: modifier.create has the limits of its members")
     body.max_batch_us = max_modifier_batch_us + 1;
     require_not_written(body, 5);
     body = create_body();
-    body.link = 0;
+    body.place.clear();
     require_not_written(body, 5);
     body = create_body();
     body.params = "[]";
@@ -628,16 +630,18 @@ TEST_CASE("plugin api: modifier.result has no bytes when no action needs them")
     body.actions = {action_of(modifier_action_kind::pass)};
     const auto read = round_trip(body);
     REQUIRE(read.data.empty());
-    // The blob may be as large as the frame allows an extension point.
-    body.data = bytes_of(max_api_blob);
-    body.actions = {range_of(modifier_action_kind::replace, 0, max_api_blob)};
+    // The blob may be four times the largest batch and 1 KiB.
+    REQUIRE_EQ(max_modifier_result_blob, std::size_t{263168});
+    body.data = bytes_of(max_modifier_result_blob);
+    body.actions = {
+        range_of(modifier_action_kind::replace, 0, max_modifier_result_blob)};
     (void)round_trip(body);
-    body.data = bytes_of(max_api_blob + 1);
+    body.data = bytes_of(max_modifier_result_blob + 1);
     body.actions = {action_of(modifier_action_kind::pass)};
     require_not_written(body);
-    require_refused<modifier_result_message>(result_text{}.str(),
-                                             "has a blob of 262145 bytes",
-                                             bytes_of(max_api_blob + 1));
+    require_refused<modifier_result_message>(
+        result_text{}.str(), "has a blob of 263169 bytes",
+        bytes_of(max_modifier_result_blob + 1));
 }
 
 TEST_CASE("plugin api: modifier.result is refused when its members are wrong")
@@ -747,11 +751,11 @@ TEST_CASE("plugin api: the actions of a modifier.result have their members")
     }
     // A range that is too large for the number is refused before it is added.
     require_refused<message_type>(
-        one(R"({"action":"replace","offset":262144,"length":)"
-            R"(262144})"),
+        one(R"({"action":"replace","offset":263168,"length":)"
+            R"(263168})"),
         "has a range that is not inside the result blob", data);
     require_refused<message_type>(
-        one(R"({"action":"replace","offset":262145,"length":0})"),
+        one(R"({"action":"replace","offset":263169,"length":0})"),
         op + "offset: must be a whole number", data);
     // Delay.
     REQUIRE_EQ(accepted<message_type>(one(R"({"action":"delay_us","us":1})"))
@@ -907,6 +911,35 @@ TEST_CASE("plugin api: a result is within the bounds of the host")
     REQUIRE(!modifier_result_within_bounds(0, body));
     // A batch so large that four times it would wrap.
     REQUIRE(modifier_result_within_bounds(static_cast<std::size_t>(-1), body));
+    body.data.clear();
+
+    // Actions may use the same range of the result blob again and again: what
+    // they send on is bounded, and not only the blob.
+    body.data = bytes_of(2048);
+    body.actions.assign(256,
+                        range_of(modifier_action_kind::insert_after, 0, 2048));
+    REQUIRE(!modifier_result_within_bounds(256, body));
+    // 4 x 256 + 1024 bytes are allowed in all, and the batch itself is 256.
+    body.actions.assign(1,
+                        range_of(modifier_action_kind::insert_after, 0, 1792));
+    REQUIRE(modifier_result_within_bounds(256, body));
+    body.actions.assign(1,
+                        range_of(modifier_action_kind::insert_after, 0, 1793));
+    REQUIRE(!modifier_result_within_bounds(256, body));
+    body.actions = {range_of(modifier_action_kind::replace, 0, 1000),
+                    range_of(modifier_action_kind::insert_before, 0, 793)};
+    REQUIRE(!modifier_result_within_bounds(256, body));
+    body.actions = {range_of(modifier_action_kind::replace, 0, 1000),
+                    range_of(modifier_action_kind::insert_before, 0, 792)};
+    REQUIRE(modifier_result_within_bounds(256, body));
+    // A length that no decoded message has does not wrap the sum.
+    body.actions = {
+        range_of(modifier_action_kind::insert_after, 0, ~std::uint64_t{0}),
+        range_of(modifier_action_kind::insert_after, 0, 2)};
+    REQUIRE(!modifier_result_within_bounds(256, body));
+    // A batch that large has no bound to break, however it is counted.
+    REQUIRE(modifier_result_within_bounds(static_cast<std::size_t>(-1), body));
+    body.data.clear();
 
     // The delays and the gaps of the splits: at most one minute in all.
     body.data.clear();
@@ -948,4 +981,37 @@ TEST_CASE("plugin api: a result is within the bounds of the host")
     // allows, is within the bounds when the batch was large enough.
     const modifier_result_message full = result_body();
     REQUIRE(modifier_result_within_bounds(4, full));
+}
+
+TEST_CASE("plugin api: a modifier result is written only as it is read")
+{
+    // A member that a kind of action does not use is not read, so an action
+    // that has one is not what would be read back, and is not written.
+    modifier_result_message body;
+    body.instance = 1;
+    body.seq = 1;
+    body.actions = {action_of(modifier_action_kind::pass)};
+    (void)round_trip(body);
+    body.actions[0].offset = 4;
+    require_not_written(body);
+    body.actions = {action_of(modifier_action_kind::drop)};
+    body.actions[0].us = 9;
+    require_not_written(body);
+}
+
+TEST_CASE("plugin api: the largest modifier.result is written")
+{
+    // The most that 64 KiB of batch allows: a blob of four times that and
+    // 1 KiB, and 256 actions.
+    modifier_result_message body;
+    body.instance = max_api_number;
+    body.seq = max_api_number;
+    body.data = bytes_of(max_modifier_result_blob);
+    body.actions.assign(max_modifier_chunks,
+                        range_of(modifier_action_kind::replace, 0, 1));
+    const auto written = encode_as(body);
+    REQUIRE(written.has_value());
+    REQUIRE(std::get<other_message>(written.value().body).header.size() <
+            max_header_size);
+    REQUIRE(modifier_result_within_bounds(max_modifier_batch, body));
 }

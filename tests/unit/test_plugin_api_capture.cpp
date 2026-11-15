@@ -151,8 +151,8 @@ TEST_CASE("plugin api: capture.start is refused when it is wrong")
     const std::string head = R"({"op":"capture.start","id":1,"places":)";
     require_refused<message_type>(R"({"op":"capture.start","id":1})",
                                   "capture.start.places: is required");
-    require_refused<message_type>(
-        head + "[]}", "capture.start.places: must have at least 1 entry");
+    require_refused<message_type>(head + "[]}",
+                                  "capture.start.places: must not be empty");
     require_refused<message_type>(head + R"("a"})",
                                   "capture.start.places: must be a list");
     require_refused<message_type>(head + "[1]}",
@@ -168,7 +168,7 @@ TEST_CASE("plugin api: capture.start is refused when it is wrong")
                "b\"]}",
         "capture.start.places[0]: must be plain text");
     require_refused<message_type>(head + R"(["a","b","a"]})",
-                                  "capture.start.places[2]: is given twice");
+                                  "capture.start.places: names a place twice");
     require_refused<message_type>(
         start_head + R"("limit_bytes":"9"})",
         "capture.start.limit_bytes: must be a whole number");
@@ -229,11 +229,11 @@ TEST_CASE("plugin api: capture.start has the limits of its members")
 
     const std::string many = R"({"op":"capture.start","id":1,"places":)";
     REQUIRE_EQ(
-        accepted<message_type>(many + place_list(256) + "}").places.size(),
-        std::size_t{256});
+        accepted<message_type>(many + place_list(128) + "}").places.size(),
+        std::size_t{128});
     require_refused<message_type>(
-        many + place_list(257) + "}",
-        "capture.start.places: has more than 256 entries");
+        many + place_list(129) + "}",
+        "capture.start.places: has more than 128 entries");
     REQUIRE_EQ(
         accepted<message_type>(many + "[\"" + repeated('n', 128) + "\"]}")
             .places[0]
@@ -268,7 +268,7 @@ TEST_CASE("plugin api: capture.start has the limits of its members")
     body.places = {"a", "b", "a"};
     require_not_written(body, 1);
     body.places.clear();
-    for (std::size_t i = 0; i < 256; ++i)
+    for (std::size_t i = 0; i < 128; ++i)
         body.places.push_back("p" + std::to_string(i));
     (void)round_trip(body, 1);
     body.places.push_back("more");
@@ -383,13 +383,13 @@ TEST_CASE("plugin api: the snapshot of capture.start has its limits")
     const std::string with_places =
         head + R"("snapshot_on":{"kinds":["check"],"places":)";
     const auto many =
-        accepted<message_type>(with_places + place_list(256) + "}}");
+        accepted<message_type>(with_places + place_list(128) + "}}");
     REQUIRE(many.snapshot_on.has_value());
     if (many.snapshot_on.has_value())
-        REQUIRE_EQ(many.snapshot_on->places.size(), std::size_t{256});
+        REQUIRE_EQ(many.snapshot_on->places.size(), std::size_t{128});
     require_refused<message_type>(
-        with_places + place_list(257) + "}}",
-        "capture.start.snapshot_on.places: has more than 256 "
+        with_places + place_list(129) + "}}",
+        "capture.start.snapshot_on.places: has more than 128 "
         "entries");
     require_refused<message_type>(
         with_places + R"([""]}})",
@@ -448,7 +448,7 @@ TEST_CASE("plugin api: the snapshot of capture.start has its limits")
     body.snapshot_on = snapshot_spec{{"check"}, {""}};
     require_not_written(body, 1);
     snapshot_spec spec{{"check"}, {}};
-    for (std::size_t i = 0; i < 256; ++i)
+    for (std::size_t i = 0; i < 128; ++i)
         spec.places.push_back("p" + std::to_string(i));
     body.snapshot_on = spec;
     (void)round_trip(body, 1);
@@ -498,57 +498,76 @@ TEST_CASE("plugin api: capture.result is written and read")
     body.seconds = 184;
     body.dropped = 0;
     body.ring = true;
+    body.recording = "recordings/1.jsonl";
+    body.size = 52000;
     (void)round_trip(body, 5);
     const auto written = encode_as(body, 5);
     REQUIRE(written.has_value());
     REQUIRE_EQ(header_of(written.value()),
                std::string(R"({"op":"capture.result","re":5,"running":true,)"
                            R"("bytes":48213,"seconds":184,"dropped":0,)"
-                           R"("ring":true})"));
-    (void)round_trip(capture_result_message{}, 6);
+                           R"("ring":true,"recording":"recordings/1.jsonl",)"
+                           R"("size":52000})"));
+    capture_result_message empty;
+    empty.recording = "r";
+    (void)round_trip(empty, 6);
 }
 
 TEST_CASE("plugin api: capture.result is refused when it is wrong")
 {
     using message_type = capture_result_message;
     const std::string full = R"("running":false,"bytes":1,"seconds":2,)"
-                             R"("dropped":3,"ring":false})";
+                             R"("dropped":3,"ring":false,"recording":"r",)"
+                             R"("size":4})";
     const std::string head = R"({"op":"capture.result","re":1,)";
     (void)accepted<message_type>(head + full);
     require_refused<message_type>(R"({"op":"capture.result","re":1,"bytes":1,)"
-                                  R"("seconds":2,"dropped":3,"ring":false})",
+                                  R"("seconds":2,"dropped":3,"ring":false,)"
+                                  R"("recording":"r","size":4})",
                                   "capture.result.running: is required");
     require_refused<message_type>(
         head + R"("running":false,"seconds":2,"dropped":3,)"
-               R"("ring":false})",
+               R"("ring":false,"recording":"r","size":4})",
         "capture.result.bytes: is required");
     require_refused<message_type>(
         head + R"("running":false,"bytes":1,"dropped":3,)"
-               R"("ring":false})",
+               R"("ring":false,"recording":"r","size":4})",
         "capture.result.seconds: is required");
     require_refused<message_type>(
         head + R"("running":false,"bytes":1,"seconds":2,)"
-               R"("ring":false})",
+               R"("ring":false,"recording":"r","size":4})",
         "capture.result.dropped: is required");
     require_refused<message_type>(
         head + R"("running":false,"bytes":1,"seconds":2,)"
-               R"("dropped":3})",
+               R"("dropped":3,"recording":"r","size":4})",
         "capture.result.ring: is required");
     require_refused<message_type>(
+        head + R"("running":false,"bytes":1,"seconds":2,"dropped":3,)"
+               R"("ring":false,"size":4})",
+        "capture.result.recording: is required");
+    require_refused<message_type>(
+        head + R"("running":false,"bytes":1,"seconds":2,"dropped":3,)"
+               R"("ring":false,"recording":"../x","size":4})",
+        "capture.result.recording: must be a relative path");
+    require_refused<message_type>(
+        head + R"("running":false,"bytes":1,"seconds":2,"dropped":3,)"
+               R"("ring":false,"recording":"r"})",
+        "capture.result.size: is required");
+    require_refused<message_type>(
         head + R"("running":"no","bytes":1,"seconds":2,)"
-               R"("dropped":3,"ring":false})",
+               R"("dropped":3,"ring":false,"recording":"r","size":4})",
         "capture.result.running: must be true or false");
     require_refused<message_type>(
         head + R"("running":false,"bytes":-1,"seconds":2,)"
-               R"("dropped":3,"ring":false})",
+               R"("dropped":3,"ring":false,"recording":"r","size":4})",
         "capture.result.bytes: must be a whole number");
     require_refused<message_type>(
         head + R"("running":false,"bytes":1,"seconds":"2",)"
-               R"("dropped":3,"ring":false})",
+               R"("dropped":3,"ring":false,"recording":"r","size":4})",
         "capture.result.seconds: must be a whole number");
     require_refused<message_type>(
         head + R"("running":false,"bytes":1,"seconds":2,)"
-               R"("dropped":3,"ring":1})",
+               R"("dropped":3,"ring":1,"recording":"r","size":4})",
         "capture.result.ring: must be true or false");
     require_refused<message_type>(head + full, "has no bytes", {1});
     require_refused<message_type>(R"({"op":"capture.result","id":1,)" + full,
@@ -560,30 +579,43 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
     const std::string most = std::to_string(max_api_number);
     const auto edge = accepted<message_type>(
         head + R"("running":false,"bytes":)" + most + R"(,"seconds":)" + most +
-        R"(,"dropped":)" + most + R"(,"ring":false})");
+        R"(,"dropped":)" + most +
+        R"(,"ring":false,"recording":"r",)"
+        R"("size":)" +
+        most + "}");
     REQUIRE_EQ(edge.bytes, max_api_number);
     REQUIRE_EQ(edge.seconds, max_api_number);
     REQUIRE_EQ(edge.dropped, max_api_number);
+    REQUIRE_EQ(edge.size, max_api_number);
     const std::string past = std::to_string(max_api_number + 1);
     require_refused<message_type>(
         head + R"("running":false,"bytes":)" + past +
-            R"(,"seconds":0,"dropped":0,"ring":false})",
+            R"(,"seconds":0,"dropped":0,"ring":false,"recording":"r",)"
+            R"("size":0})",
         "capture.result.bytes: must be a whole number");
     require_refused<message_type>(
         head + R"("running":false,"bytes":0,"seconds":)" + past +
-            R"(,"dropped":0,"ring":false})",
+            R"(,"dropped":0,"ring":false,"recording":"r","size":0})",
         "capture.result.seconds: must be a whole number");
     require_refused<message_type>(
         head +
             R"("running":false,"bytes":0,"seconds":0,)"
             R"("dropped":)" +
-            past + R"(,"ring":false})",
+            past + R"(,"ring":false,"recording":"r","size":0})",
         "capture.result.dropped: must be a whole number");
+    require_refused<message_type>(
+        head +
+            R"("running":false,"bytes":0,"seconds":0,"dropped":0,)"
+            R"("ring":false,"recording":"r","size":)" +
+            past + "}",
+        "capture.result.size: must be a whole number");
 
     message_type body;
     body.bytes = max_api_number;
     body.seconds = max_api_number;
     body.dropped = max_api_number;
+    body.recording = "r";
+    body.size = max_api_number;
     (void)round_trip(body, 1);
     body.bytes = max_api_number + 1;
     require_not_written(body, 1);
@@ -594,6 +626,12 @@ TEST_CASE("plugin api: capture.result is refused when it is wrong")
     body.dropped = max_api_number + 1;
     require_not_written(body, 1);
     body.dropped = 0;
+    body.size = max_api_number + 1;
+    require_not_written(body, 1);
+    body.size = 0;
+    body.recording = "../r";
+    require_not_written(body, 1);
+    body.recording = "r";
     // An answer needs the number of its request.
     require_not_written(body, 0);
 }
@@ -776,17 +814,17 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
             .instance,
         max_api_number);
 
-    REQUIRE_EQ(
-        accepted<message_type>(R"({"op":"timeline.load","id":1,"instance":1,)"
-                               R"("recording":")" +
-                               repeated('r', 1024) + R"(","place":"p"})")
-            .recording.size(),
-        max_recording_path);
+    REQUIRE_EQ(accepted<message_type>(
+                   R"({"op":"timeline.load","id":1,"instance":1,)"
+                   R"("recording":")" +
+                   repeated('r', max_recording_path) + R"(","place":"p"})")
+                   .recording.size(),
+               max_recording_path);
     require_refused<message_type>(
         R"({"op":"timeline.load","id":1,"instance":1,)"
         R"("recording":")" +
-            repeated('r', 1025) + R"(","place":"p"})",
-        "timeline.load.recording: is longer than 1024 bytes");
+            repeated('r', max_recording_path + 1) + R"(","place":"p"})",
+        "timeline.load.recording: is longer than 240 bytes");
     REQUIRE_EQ(
         accepted<message_type>(R"({"op":"timeline.load","id":1,"instance":1,)"
                                R"("recording":"r","place":")" +
@@ -802,7 +840,7 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
     // Written.
     message_type body;
     body.instance = max_api_number;
-    body.recording = repeated('r', 1024);
+    body.recording = repeated('r', max_recording_path);
     body.place = repeated('p', 128);
     body.seed = max_api_number;
     (void)round_trip(body, 1);
@@ -811,7 +849,7 @@ TEST_CASE("plugin api: timeline.load has the limits of its members")
     body.instance = 0;
     require_not_written(body, 1);
     body.instance = 1;
-    body.recording = repeated('r', 1025);
+    body.recording = repeated('r', max_recording_path + 1);
     require_not_written(body, 1);
     body.recording.clear();
     require_not_written(body, 1);
@@ -969,18 +1007,31 @@ TEST_CASE("plugin api: bundle.result is refused when it is wrong")
                                   "must have a re and no id");
 }
 
-TEST_CASE("plugin api: the file names of bundle.result are plain names")
+TEST_CASE("plugin api: the file names of bundle.result are manifest paths")
 {
     using message_type = bundle_result_message;
     const std::string head = R"({"op":"bundle.result","re":1,"files":[)";
     const auto one = [&head](std::string_view name)
     { return head + R"({"name":")" + std::string(name) + R"(","size":1}]})"; };
     for (const std::string_view bad :
-         {"a/b", "/a", "a/", R"(a\\b)", R"(\\a)", "..", "."})
+         {"a/../b", "/a", "a/", "a//b", R"(a\\b)", R"(\\a)", "..", ".", "x..",
+          "NUL", "nul.txt", "a:b", "a*b", "a ", " a"})
     {
         require_refused<message_type>(
-            one(bad), "bundle.result.files[0].name: must be a plain file name");
+            one(bad),
+            "bundle.result.files[0].name: must be a relative path by the rules "
+            "of a manifest path");
     }
+    // A name never repeats what the plugin sent.
+    require_detail_without<message_type>(one("NUL"), "NUL");
+    // The same path twice, or two that differ only in case.
+    require_refused<message_type>(
+        head + R"({"name":"A.txt","size":1},{"name":"a.txt","size":1}]})",
+        "bundle.result.files[1].name: is given twice, or differs from "
+        "another only in case");
+    require_refused<message_type>(
+        head + R"({"name":"d/A","size":1},{"name":"D/a","size":1}]})",
+        "differs from another only in case");
     // A control character is refused, whichever check sees it first.
     for (const std::string_view bad :
          {R"(a\u0001b)", R"(a\nb)", R"(a\tb)", R"(a\u007fb)", R"(a\u0000b)"})
@@ -998,9 +1049,8 @@ TEST_CASE("plugin api: the file names of bundle.result are plain names")
         "\"name\":\"a\xe2\x80\x8f"
         "b\",\"size\":1}]}",
         "bundle.result.files[0].name: must be plain text");
-    for (const std::string_view good :
-         {"a", "recording.json", "..x", "x..", ".hidden", "a b", "a-b_c.d",
-          "\xc3\xa9.txt"})
+    for (const std::string_view good : {"a", "recording.json", "..x", ".hidden",
+                                        "a b", "a-b_c.d", "traffic/1.jsonl"})
     {
         const auto read = accepted<message_type>(one(good));
         REQUIRE_EQ(read.files.size(), std::size_t{1});
@@ -1019,7 +1069,9 @@ TEST_CASE("plugin api: the file names of bundle.result are plain names")
                                   "b");
     const std::string with_nul("a\0b", 3);
     for (const std::string& bad :
-         {std::string("a/b"), std::string("a\\b"), std::string(".."),
+         {std::string("a/../b"), std::string("/a"), std::string("a//b"),
+          std::string("a\\b"), std::string(".."), std::string("x.."),
+          std::string("NUL"), std::string("a:b"), std::string("\xc3\xa9.txt"),
           std::string("."), std::string(), repeated('n', 129),
           std::string("a\nb"), control, delete_char, with_nul,
           std::string("a\xe2\x80\x8f"
@@ -1103,4 +1155,150 @@ TEST_CASE("plugin api: bundle.result has at most 16 files of 256 MiB")
     body.files.clear();
     // An answer needs the number of its request.
     require_not_written(body, 0);
+}
+
+TEST_CASE("plugin api: a time scale that does not read back is not read")
+{
+    // The reader parses numbers with the default precision, which does not
+    // give back every double.  What it reads must be what it can write.
+    using message_type = timeline_load_message;
+    const std::string text =
+        R"({"op":"timeline.load","id":1,"instance":1,"recording":"r",)"
+        R"("place":"p","time_scale":15.782220490529718})";
+    std::string detail;
+    const auto read =
+        decode_as<message_type>(plugin_api_test::message_of(text), &detail);
+    if (read.has_error())
+    {
+        REQUIRE(read.error() == api_errc::bad_request);
+        REQUIRE(detail.find("timeline.load.time_scale: is a number that does "
+                            "not read back the same") != std::string::npos);
+    }
+    else
+    {
+        // If it is read, it is written, and it is the same.
+        (void)plugin_api_test::round_trip(read.value(), 1);
+    }
+    // Whatever the reader accepts it can write.
+    for (int i = 1; i < 400; ++i)
+    {
+        const std::string one =
+            R"({"op":"timeline.load","id":1,"instance":1,"recording":"r",)"
+            R"("place":"p","time_scale":)" +
+            std::to_string(0.01 + i * 0.2499137) + "}";
+        const auto each =
+            decode_as<message_type>(plugin_api_test::message_of(one));
+        if (each.has_value())
+            (void)plugin_api_test::round_trip(each.value(), 1);
+    }
+}
+
+TEST_CASE("plugin api: capture.stop and capture.status are refused when wrong")
+{
+    require_refused<capture_stop_message>(R"({"op":"capture.stop","id":1})",
+                                          "has no bytes", {1, 2});
+    require_refused<capture_status_message>(R"({"op":"capture.stop","id":1})",
+                                            "is not the message in this frame");
+    require_refused<capture_stop_message>(R"({"op":"capture.status","id":1})",
+                                          "is not the message in this frame");
+    require_refused<capture_status_message>(R"({"op":"capture.status"})",
+                                            "must have an id");
+}
+
+TEST_CASE("plugin api: capture.start names its recording")
+{
+    using message_type = capture_start_message;
+    const std::string head = R"({"op":"capture.start","id":1,"places":["a"],)";
+    capture_start_message body = plain_start();
+    body.name = "run-7";
+    const auto read = round_trip(body, 1);
+    REQUIRE_EQ(read.name, std::string("run-7"));
+    REQUIRE_EQ(accepted<message_type>(start_head + R"("name":"x"})").name,
+               std::string("x"));
+    REQUIRE_EQ(accepted<message_type>(R"({"op":"capture.start","id":1,)"
+                                      R"("places":["a"]})")
+                   .name,
+               std::string());
+    REQUIRE_EQ(accepted<message_type>(head + "\"name\":\"" +
+                                      repeated('n', max_capture_name) + "\"}")
+                   .name.size(),
+               max_capture_name);
+    require_refused<message_type>(
+        head + "\"name\":\"" + repeated('n', max_capture_name + 1) + "\"}",
+        "capture.start.name: is longer than 64");
+    for (const std::string_view bad :
+         {"a/b", "..", "x.", "NUL", "a:b", "a*b", " a", "a b "})
+    {
+        require_refused<message_type>(
+            head + "\"name\":\"" + std::string(bad) + "\"}",
+            "capture.start.name: must be a file name stem");
+    }
+    require_detail_without<message_type>(head + R"("name":"NUL"})", "NUL");
+    require_refused<message_type>(head + R"("name":7})",
+                                  "capture.start.name: must be a string");
+    body.name = "a/b";
+    require_not_written(body, 1);
+    body.name = repeated('n', max_capture_name + 1);
+    require_not_written(body, 1);
+}
+
+TEST_CASE("plugin api: no place of capture.start is named twice")
+{
+    using message_type = capture_start_message;
+    require_refused<message_type>(
+        R"({"op":"capture.start","id":1,"places":["a","a"]})",
+        "capture.start.places: names a place twice");
+    require_refused<message_type>(
+        R"({"op":"capture.start","id":1,"places":["a"],"ring":1,)"
+        R"("snapshot_on":{"kinds":["check"],"places":["b","c","b"]}})",
+        "capture.start.snapshot_on.places: names a place twice");
+    capture_start_message body = ring_start();
+    body.snapshot_on = snapshot_spec{{"check"}, {"b", "b"}};
+    require_not_written(body, 1);
+    body.snapshot_on = snapshot_spec{{"check"}, {"b", "c"}};
+    (void)round_trip(body, 1);
+}
+
+TEST_CASE("plugin api: the largest capture.start fits in a header")
+{
+    // 128 places of 128 bytes, a list entry being 128 + 2 quotes + a comma
+    // = 131 bytes, make 16,768 bytes.  Two such lists, the 11 kinds, the
+    // name and the numbers come to under 36,000, inside the 65,536.
+    capture_start_message body;
+    for (std::size_t i = 0; i < max_capture_places; ++i)
+    {
+        std::string name = std::to_string(i);
+        name.resize(max_api_name, 'p');
+        body.places.push_back(name);
+    }
+    body.name = repeated('n', max_capture_name);
+    body.limit_bytes = max_capture_bytes;
+    body.limit_seconds = max_capture_seconds;
+    body.ring = max_capture_ring_minutes;
+    snapshot_spec snapshot;
+    snapshot.kinds.assign(snapshot_kinds.begin(), snapshot_kinds.end());
+    snapshot.places = body.places;
+    body.snapshot_on = snapshot;
+    body.before_s = max_snapshot_seconds;
+    body.after_s = max_snapshot_seconds;
+    const auto written = encode_as(body, max_api_number);
+    REQUIRE(written.has_value());
+    const std::size_t size =
+        std::get<other_message>(written.value().body).header.size();
+    REQUIRE(size < 40'000);
+    (void)round_trip(body, max_api_number);
+}
+
+TEST_CASE("plugin api: capture.result names the recording")
+{
+    capture_result_message body;
+    body.recording = "recordings/run-7.jsonl";
+    body.size = 1234;
+    const auto read = round_trip(body, 3);
+    REQUIRE_EQ(read.recording, std::string("recordings/run-7.jsonl"));
+    REQUIRE_EQ(read.size, std::uint64_t{1234});
+    body.recording.clear();
+    require_not_written(body, 3);
+    body.recording = "a/../b";
+    require_not_written(body, 3);
 }

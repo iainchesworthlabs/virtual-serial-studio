@@ -54,16 +54,14 @@ void read_create(reading& state, const json::object& object,
 {
     constexpr auto where = fixture_create_message::op();
     out.instance = instance_of(state, object, where);
-    out.endpoint =
-        number_of(state, object, where, "endpoint", 1, max_api_number, true)
-            .value_or(0);
+    out.place = place_of(state, object, where, "place", true);
     out.params = object_text_of(state, object, where, "params", false);
 }
 
 bool write_create(json::object& header, const fixture_create_message& body)
 {
     header.emplace("instance", body.instance);
-    header.emplace("endpoint", body.endpoint);
+    header.emplace("place", text_value(body.place));
     return put_object_text(header, "params", body.params);
 }
 
@@ -166,18 +164,18 @@ void read_fault(reading& state, const json::object& object,
     constexpr auto where = fixture_fault_message::op();
     out.instance = instance_of(state, object, where);
     const auto kind = choice_of(
-        state, object, where, "fault_kind", line_fault_names,
+        state, object, where, "fault", line_fault_names,
         "\"parity\", \"framing\", \"overrun\", \"break\", \"hang_up\" or "
         "\"disconnect\"",
         true);
     if (kind.has_value())
-        out.fault_kind = *kind;
+        out.fault = *kind;
 }
 
 bool write_fault(json::object& header, const fixture_fault_message& body)
 {
     header.emplace("instance", body.instance);
-    header.emplace("fault_kind", text_value(to_string(body.fault_kind)));
+    header.emplace("fault", text_value(to_string(body.fault)));
     return true;
 }
 
@@ -200,7 +198,7 @@ void read_rules_set(reading& state, const json::object& object,
     const std::optional<json::value> document =
         parse_strict(text, rules::max_document_depth, what);
     if (!document.has_value())
-        state.fail(member(where, "data"), what);
+        state.fail(member(where, "data"), json_problem(what));
     else if (!document->is_object())
         state.fail(member(where, "data"), "must be a JSON object");
 }
@@ -263,8 +261,7 @@ void read_rules_event(reading& state, const json::object& object,
     out.ts_ns = time_of(state, object, where);
     out.rule = text_of(state, object, where, "rule", max_rule_name, true, true);
     out.action =
-        number_of(state, object, where, "action", 0, max_rule_actions - 1, true)
-            .value_or(0);
+        text_of(state, object, where, "action", max_rule_name, true, true);
 }
 
 bool write_rules_event(json::object& header, const rules_event_message& body)
@@ -272,7 +269,7 @@ bool write_rules_event(json::object& header, const rules_event_message& body)
     header.emplace("instance", body.instance);
     header.emplace("ts_ns", body.ts_ns);
     header.emplace("rule", text_value(body.rule));
-    header.emplace("action", body.action);
+    header.emplace("action", text_value(body.action));
     return true;
 }
 

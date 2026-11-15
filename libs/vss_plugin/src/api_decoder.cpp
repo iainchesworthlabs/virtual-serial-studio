@@ -252,10 +252,11 @@ decoder_bus_fault_item read_bus_fault_item(reading& state,
                                            std::string_view at)
 {
     decoder_bus_fault_item out;
-    out.link = name_member(state, object, at, "link");
+    out.place = name_member(state, object, at, "place");
     out.sender = name_member(state, object, at, "sender");
     out.t_ns = whole_of(state, object, at, "t_ns");
     out.fault = fault_member(state, object, at, "fault");
+    out.event = whole_of(state, object, at, "event");
     out.offset = whole_of(state, object, at, "offset");
     out.length = length_of(state, object, at, "length");
     return out;
@@ -390,10 +391,11 @@ json::object write_item(const decoder_line_error_item& item)
 json::object write_item(const decoder_bus_fault_item& item)
 {
     json::object out = start_item("bus_fault");
-    out.emplace("link", text_value(item.link));
+    out.emplace("place", text_value(item.place));
     out.emplace("sender", text_value(item.sender));
     out.emplace("t_ns", item.t_ns);
     out.emplace("fault", text_value(name_of(fault_names, item.fault)));
+    out.emplace("event", item.event);
     out.emplace("offset", item.offset);
     out.emplace("length", item.length);
     return out;
@@ -503,6 +505,7 @@ void read_data(reading& state, const json::object& object,
                decoder_data_message& out)
 {
     constexpr auto where = decoder_data_message::op();
+    out.instance = instance_of(state, object, where);
     out.seq = whole_of(state, object, where, "seq", 1);
     blob_between(state, where, out.data, 0, max_decoder_blob);
     const json::array* const list =
@@ -527,6 +530,7 @@ bool write_data(json::object& header, const decoder_data_message& body)
 {
     if (body.items.empty() || body.items.size() > max_decoder_items)
         return false;
+    header.emplace("instance", body.instance);
     header.emplace("seq", body.seq);
     json::array items;
     items.reserve(body.items.size());
@@ -545,11 +549,14 @@ bool write_data(json::object& header, const decoder_data_message& body)
 void read_ack(reading& state, const json::object& object,
               decoder_ack_message& out)
 {
-    out.seq = whole_of(state, object, decoder_ack_message::op(), "seq", 1);
+    constexpr auto where = decoder_ack_message::op();
+    out.instance = instance_of(state, object, where);
+    out.seq = whole_of(state, object, where, "seq", 1);
 }
 
 bool write_ack(json::object& header, const decoder_ack_message& body)
 {
+    header.emplace("instance", body.instance);
     header.emplace("seq", body.seq);
     return true;
 }
@@ -682,7 +689,9 @@ void read_trigger_field(reading& state, const json::object& object,
     trigger_field value;
     value.name = label_member(state, *one, at, "name");
     value.offset = whole_of(state, *one, at, "offset");
-    value.length = length_of(state, *one, at, "length");
+    value.length =
+        number_of(state, *one, at, "length", 0, max_decoder_chunk, true)
+            .value_or(0);
     out = std::move(value);
 }
 
@@ -691,16 +700,16 @@ void read_trigger_covers(reading& state, const json::object& object,
                          std::optional<trigger_covers>& out)
 {
     const json::array* const list =
-        list_of(state, object, where, "covers", 2, false);
+        list_of(state, object, where, "covers", trigger_covers_count, false);
     if (list == nullptr)
         return;
     const std::string at = member(where, "covers");
-    if (list->size() != 2)
+    if (list->size() != trigger_covers_count)
     {
         state.fail(at, "must have exactly 2 entries");
         return;
     }
-    std::array<std::uint64_t, 2> numbers{};
+    std::array<std::uint64_t, trigger_covers_count> numbers{};
     for (std::size_t i = 0; i < numbers.size(); ++i)
     {
         const std::optional<std::uint64_t> number = whole_value((*list)[i]);
@@ -728,16 +737,16 @@ void read_trigger_cause(reading& state, const json::object& object,
     if (one == nullptr)
         return;
     const std::string at = member(where, "cause");
-    const bool bus = one->contains("bus_fault");
+    const bool bus = one->contains("fault");
     const bool own = one->contains("own_action");
     if (bus && own)
     {
-        state.fail(at, "must have only one of bus_fault and own_action");
+        state.fail(at, "must have only one of fault and own_action");
     }
     else if (bus)
     {
         trigger_bus_cause value;
-        value.fault = fault_member(state, *one, at, "bus_fault");
+        value.fault = fault_member(state, *one, at, "fault");
         value.event = whole_of(state, *one, at, "event");
         out = trigger_cause{value};
     }
@@ -749,7 +758,7 @@ void read_trigger_cause(reading& state, const json::object& object,
     }
     else
     {
-        state.fail(at, "must have bus_fault or own_action");
+        state.fail(at, "must have fault or own_action");
     }
 }
 
@@ -767,6 +776,28 @@ void read_trigger_request(reading& state, const json::object& object,
     value.length = length_of(state, *one, at, "length");
     value.t_end_ns = whole_of(state, *one, at, "t_end_ns");
     out = value;
+}
+
+/// The field and the covered range of a trigger are bytes of its frame.  The
+/// frame's own offset is the place's, and theirs are counted from its start.
+void check_inside_frame(reading& state, std::string_view where,
+                        const trigger_publish_message& out)
+{
+    if (state.failed() || (!out.field.has_value() && !out.covers.has_value()))
+        return;
+    if (!out.frame.has_value())
+    {
+        state.fail(member(where, out.field.has_value() ? "field" : "covers"),
+                   "needs a frame to lie in");
+        return;
+    }
+    const std::uint64_t length = out.frame->length;
+    if (out.field.has_value() &&
+        (out.field->offset > length ||
+         out.field->length > length - out.field->offset))
+        state.fail(member(where, "field"), "does not lie within the frame");
+    else if (out.covers.has_value() && out.covers->last >= length)
+        state.fail(member(where, "covers"), "does not lie within the frame");
 }
 
 void read_publish(reading& state, const json::object& object,
@@ -803,6 +834,7 @@ void read_publish(reading& state, const json::object& object,
             member(where, object.contains("expected") ? "actual" : "expected"),
             "must be given when the other is");
     read_trigger_covers(state, object, where, out.covers);
+    check_inside_frame(state, where, out);
     read_trigger_cause(state, object, where, out.cause);
     read_trigger_request(state, object, where, out.request);
     out.text = text_of(state, object, where, "text", max_api_text, true, true);
@@ -851,8 +883,7 @@ void write_trigger_options(json::object& header,
         if (const auto* const bus =
                 std::get_if<trigger_bus_cause>(&*body.cause))
         {
-            one.emplace("bus_fault",
-                        text_value(name_of(fault_names, bus->fault)));
+            one.emplace("fault", text_value(name_of(fault_names, bus->fault)));
             one.emplace("event", bus->event);
         }
         else if (const auto* const own =
