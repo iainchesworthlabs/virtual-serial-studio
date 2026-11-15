@@ -524,6 +524,7 @@ TEST_CASE("licence tool: a request holding every payload field is accepted")
     value->updates_until = *vss::license::parse_time("2027-11-13T23:59:59Z");
     value->replaces = "VSS-2026-000100";
     value->clock_reset = "reset-2027-a";
+    value->licensee_email = "lab@example-lab.invalid";
     const auto payload = vss::license::write_payload(*value);
     REQUIRE(payload);
     REQUIRE(dry_run_accepts(json::parse(*payload).as_object()));

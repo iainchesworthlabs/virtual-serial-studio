@@ -649,8 +649,8 @@ constexpr std::array<std::string_view, 15> licence_request_fields{
     "licence_id", "kind",          "edition",    "licensee",    "issued_at",
     "starts_at",  "expires_at",    "grace_days", "seats",       "features",
     "machines",   "updates_until", "replaces",   "clock_reset", "critical"};
-constexpr std::array<std::string_view, 2> licensee_request_fields{"name",
-                                                                  "contact"};
+constexpr std::array<std::string_view, 3> licensee_request_fields{
+    "name", "contact", "email"};
 constexpr std::array<std::string_view, 5> revocation_request_fields{
     "sequence", "issued_at", "licences", "keys", "critical"};
 constexpr std::array<std::string_view, 2> revoked_key_request_fields{"key_id",
