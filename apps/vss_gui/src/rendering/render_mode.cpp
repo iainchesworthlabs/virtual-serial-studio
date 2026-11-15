@@ -60,6 +60,17 @@ request choose_request(render_mode setting, const QString& environment,
     return {setting, request_source::setting};
 }
 
+present_choice choose_present(const QString& vsync, const QString& no_flip)
+{
+    present_choice choice;
+    bool number = false;
+    const int flip_off = no_flip.trimmed().toInt(&number);
+    const bool copying_swap_chain = number && flip_off != 0;
+    choice.no_wait =
+        vsync.trimmed() != QLatin1String("1") && !copying_swap_chain;
+    return choice;
+}
+
 decision decide(render_mode requested, const gpu_report& gpu)
 {
     decision result;

@@ -14,7 +14,9 @@
 #include "rendering/render_state.hpp"
 #include "support/settings.hpp"
 
+#include <QByteArray>
 #include <QSettings>
+#include <QSurfaceFormat>
 
 namespace
 {
@@ -163,6 +165,71 @@ TEST_CASE("rendering: the offscreen platform is software")
     REQUIRE(state.active == renderer::software);
     REQUIRE(!state.fell_back);
     rendering::set_state({});
+}
+
+TEST_CASE("rendering: no wait for the display unless it is asked for")
+{
+    REQUIRE(rendering::choose_present({}, {}).no_wait);
+    REQUIRE(rendering::choose_present({}, QStringLiteral("0")).no_wait);
+    REQUIRE(!rendering::choose_present(QStringLiteral("1"), {}).no_wait);
+    REQUIRE(rendering::choose_present(QStringLiteral("0"), {}).no_wait);
+}
+
+TEST_CASE("rendering: the copying swap chain is never asked for without a wait")
+{
+    // Regression: Studio set QT_D3D_NO_FLIP=1 and swap interval 0 together.
+    // Direct3D will not make a copying swap chain that allows tearing, which
+    // is what Qt asks for at swap interval 0 where tearing is offered, so the
+    // window had no swap chain and stayed white.
+    for (const auto* value : {"1", " 1", "2"})
+    {
+        REQUIRE(
+            !rendering::choose_present({}, QString::fromLatin1(value)).no_wait);
+    }
+}
+
+TEST_CASE("rendering: preparing the GPU window leaves the swap chain to Qt")
+{
+    const QSurfaceFormat saved = QSurfaceFormat::defaultFormat();
+    const bool had_flip = qEnvironmentVariableIsSet("QT_D3D_NO_FLIP");
+    const QByteArray flip = qgetenv("QT_D3D_NO_FLIP");
+    const bool had_vsync = qEnvironmentVariableIsSet("VSS_RENDER_VSYNC");
+    const QByteArray vsync = qgetenv("VSS_RENDER_VSYNC");
+    const auto reset = [&saved]
+    {
+        QSurfaceFormat format = saved;
+        format.setSwapInterval(1);
+        QSurfaceFormat::setDefaultFormat(format);
+    };
+
+    qunsetenv("QT_D3D_NO_FLIP");
+    qunsetenv("VSS_RENDER_VSYNC");
+    reset();
+    rendering::prepare_present();
+    REQUIRE(QSurfaceFormat::defaultFormat().swapInterval() == 0);
+    // The blank window came from Studio setting this variable itself.
+    REQUIRE(!qEnvironmentVariableIsSet("QT_D3D_NO_FLIP"));
+
+    qputenv("QT_D3D_NO_FLIP", QByteArrayLiteral("1"));
+    reset();
+    rendering::prepare_present();
+    REQUIRE(QSurfaceFormat::defaultFormat().swapInterval() == 1);
+
+    qunsetenv("QT_D3D_NO_FLIP");
+    qputenv("VSS_RENDER_VSYNC", QByteArrayLiteral("1"));
+    reset();
+    rendering::prepare_present();
+    REQUIRE(QSurfaceFormat::defaultFormat().swapInterval() == 1);
+
+    if (had_flip)
+        qputenv("QT_D3D_NO_FLIP", flip);
+    else
+        qunsetenv("QT_D3D_NO_FLIP");
+    if (had_vsync)
+        qputenv("VSS_RENDER_VSYNC", vsync);
+    else
+        qunsetenv("VSS_RENDER_VSYNC");
+    QSurfaceFormat::setDefaultFormat(saved);
 }
 
 TEST_CASE("rendering: the preference is remembered")

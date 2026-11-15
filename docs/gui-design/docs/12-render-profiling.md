@@ -22,7 +22,10 @@ fourth were ours.
    wait (swap interval 0) when the canvas is drawn on the GPU.
 2. **Qt's default Direct3D swap chain is slow to resize and stalls.** With the "flip" swap chain a resize step stayed 4
    to 5 ms slower than the CPU path, and about one present in a hundred took 40 to 190 ms, during a resize, a node move
-   or heavy traffic. The older copying swap chain (`QT_D3D_NO_FLIP=1`) does neither. **Fixed**: Studio asks for it.
+   or heavy traffic. The older copying swap chain (`QT_D3D_NO_FLIP=1`) seemed to do neither, and Studio asked for it.
+   **Withdrawn**: with swap interval 0 that swap chain is never made, so the window was never presented and stayed
+   white. The figures for it below measured a window that showed nothing. See *The copying swap chain left the window
+   white*.
 3. **Every frame of the canvas uploaded the canvas's part of the window again.** The view repainted its (empty)
    viewport to ask the GPU canvas for a frame, and Qt then repainted the overlay widgets and sent that rectangle of the
    window to the GPU: 1.2 to 1.5 ms a frame, more than the frame itself. **Fixed** for frames the scene asks for.
@@ -156,7 +159,7 @@ whose route changed.
 | Change | Where | Effect measured |
 |---|---|---|
 | Swap interval 0 when the canvas is drawn on the GPU. `VSS_RENDER_VSYNC=1` keeps the wait. | `rendering::initialise` | A frame 10.0 ms to 1.7 to 2.1 ms; a resize step 40 ms to 20 ms |
-| The copying Direct3D swap chain (`QT_D3D_NO_FLIP=1`, set by Studio unless the variable is already set; `QT_D3D_NO_FLIP=0` keeps Qt's default) | `rendering::initialise` | A resize step 17.2 to 17.7 ms to 12.2 to 12.9 ms; the 40 to 190 ms presents gone |
+| The copying Direct3D swap chain (`QT_D3D_NO_FLIP=1`). Withdrawn after 0.1.0-rc.4: it left the window white | `rendering::initialise` | None that holds: the window was not presented |
 | The view no longer repaints its viewport for a scene change or a scroll in GPU mode (`NoViewportUpdate`); the canvas is asked directly | `TopologyView::enable_gpu`, `scrollContentsBy`, `request_frame` | A frame 1.7 to 2.1 ms to 0.23 to 0.37 ms |
 | An item's texture follows the item's own revision (`rendering::content_revision`), not the scene's changed rectangles; a link ignores a geometry it already has | `GpuCanvas`, `NodeItem`, `LinkItem` | A move 4.3 to 4.8 ms to 2.0 to 2.4 ms; canvas drawing 1.7 ms to 0.11 ms |
 | GPU timing only when asked for: `VSS_PROFILE_GPU=1` for Studio, `--gpu-timing` for the bench | `main.cpp`, the bench | A profiled resize step 33 to 37 ms to 17 to 21 ms |
@@ -169,11 +172,32 @@ captured, and `grab()` does not go through the swap chain). They need one look b
 - Swap interval 0 means a present may happen in the middle of a refresh. Studio's window is not full screen and is
   composed by the desktop, and it only draws when something changes, so a torn frame is not expected. If a display
   shows tearing while the canvas is panned, `VSS_RENDER_VSYNC=1` brings the wait back.
-- `QT_D3D_NO_FLIP` is a switch in Qt's Direct3D backend, read when the device is made. It is not in Qt's documentation,
-  so a later Qt may drop it; the bench would then show the resize step back at 17 ms. The copying swap chain is the
-  older of the two ways Direct3D presents a window.
+- `QT_D3D_NO_FLIP` is a switch in Qt's Direct3D backend, read when the device is made. That one look was not made
+  before 0.1.0-rc.4, and the window was white (next section).
 
 The Software setting avoids both.
+
+## The copying swap chain left the window white
+
+0.1.0-rc.4 on Windows 11 with an NVIDIA RTX 4090 showed a white window with Automatic and Hardware rendering, and a
+correct one with Software. Read from the screen (not `grab()`), one variable changed at a time:
+
+| `QT_D3D_NO_FLIP` | Swap interval | The window |
+|---|---|---|
+| 1 (set by Studio) | 0 (set by Studio) | White |
+| 0 | 0 | Drawn |
+| 1 | 1 (`VSS_RENDER_VSYNC=1`) | Drawn |
+
+With `QT_LOGGING_RULES=qt.rhi.general=true` Qt says `ALLOW_TEARING supported = true, use legacy (non-FLIP) model =
+true`, and then, for every repaint, `Failed to create D3D11 swapchain: COM error 0x887a0001` (`SwapEffect=0`, the
+copying model) and "Failed to create swapchain for window flushed with an RHI-enabled backingstore". At swap interval
+0 Qt asks for a swap chain that allows tearing when the system offers it, and Direct3D allows that only for a flip
+swap chain. The window had no swap chain, so nothing was presented; that is also why its flush looked cheaper than the
+CPU's above. The canvas's own device was made, so the fallback to software never ran.
+
+Studio no longer sets `QT_D3D_NO_FLIP`, and keeps the wait for the display when the variable is set to a number other
+than 0 (`rendering::choose_present`). `gui_present` checks the screen (`11-rendering.md`). The 40 to 190 ms presents of
+the flip swap chain are back and still unexplained (option F below).
 
 ## What was tried and not kept
 
@@ -292,8 +316,8 @@ tracy-csvexport -u hw.tracy > hw.u.csv
 python tools/tracy_phases.py hw.u.csv --gui --phase bench.resize
 ```
 
-`--render=software` gives the other side. `VSS_RENDER_VSYNC=1`, `QT_D3D_NO_FLIP=0` and `--gpu-timing` each bring back
-one of the costs that were removed. The bench prints the display's refresh rate and the swap interval it ran with.
+`--render=software` gives the other side. `VSS_RENDER_VSYNC=1` and `--gpu-timing` each bring back one of the costs
+that were removed. The bench prints the display's refresh rate and the swap interval it ran with.
 
 ## What was not measured
 
@@ -302,7 +326,9 @@ one of the costs that were removed. The bench prints the display's refresh rate 
   interval 0 should matter everywhere, but that is a reading of Qt's source, not a measurement. The swap chain switch
   is Direct3D only.
 - Direct3D 12, Vulkan and OpenGL on this machine: the variable that was meant to choose them had no effect.
-- What the window looks like on the screen with swap interval 0 and the copying swap chain: not looked at.
+- What the window looks like on the screen with swap interval 0 and the copying swap chain: not looked at before
+  0.1.0-rc.4, and it was white (*The copying swap chain left the window white*).
+- The bench again with the flip swap chain after that fix.
 - The call stacks inside Qt: Tracy's sampling needs an administrator and the Qt build here has no symbols. The time
   inside Qt was located by the self times of the events around it and by switching one thing at a time.
 - The traffic phase in the small window with the final build, zone by zone (the traces of those runs were overwritten
