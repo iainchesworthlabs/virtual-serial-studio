@@ -773,9 +773,15 @@ TEST_CASE("plugin instances: a number given with another type is refused")
         REQUIRE(view.problem ==
                 make_error_code(plugin_errc::capability_missing));
 
-        // The original is not created again, and nothing is made of the
-        // new type.
-        REQUIRE_EQ(run.plugin.count(), std::size_t{1});
+        // The plugin lets go of the one it has: the owner no longer wants
+        // it as it was.  It is not created again, and nothing is made of
+        // the new type.
+        REQUIRE(!run.instances.running(1));
+        REQUIRE_EQ(run.plugin.count(), std::size_t{2});
+        REQUIRE_EQ(run.plugin.count_of(stop_op, 1), std::size_t{1});
+        run.plugin.answer_ok(run.plugin.pending(stop_op, 1));
+        REQUIRE_EQ(run.plugin.count(), std::size_t{2});
+        REQUIRE(has_state(run.instances, 1, instance_state::refused));
         for (std::size_t index = 0; index < run.plugin.count(); ++index)
             REQUIRE_NE(run.plugin.at(index).type, "recorder");
     }

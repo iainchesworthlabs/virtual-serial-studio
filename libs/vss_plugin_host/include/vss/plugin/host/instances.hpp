@@ -128,8 +128,9 @@ public:
 
     /// The list the owner wants, replacing the one before.  An entry with
     /// the number of an earlier entry is that instance: its parameters
-    /// may have changed, its kind and type may not (such an entry is
-    /// refused).  A number that comes twice counts once, the first time.
+    /// may have changed, its kind and type may not: such an entry is
+    /// refused, and the plugin is told to stop the instance it has under
+    /// that number.  A number that comes twice counts once, the first time.
     void want(std::vector<instance_spec> wanted);
 
     /// The plugin said hello and is ready: it has no instances yet.
