@@ -62,10 +62,12 @@
 #include <vss/plugin/host/bundle_sections.hpp>
 #include <vss/plugin/host/control_relay.hpp>
 #include <vss/plugin/host/decode_store.hpp>
+#include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/generator_feed.hpp>
 #include <vss/plugin/host/instances.hpp>
 #include <vss/plugin/host/process.hpp>
 #include <vss/plugin/host/runner.hpp>
+#include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
 #include <vss/plugin/host/start_plan.hpp>
 #include <vss/plugin/host/traffic_tap.hpp>

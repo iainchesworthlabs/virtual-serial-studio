@@ -24,8 +24,10 @@
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/error.hpp>
 #include <vss/plugin/hash.hpp>
+#include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/runner.hpp>
 #include <vss/plugin/host/sandbox.hpp>
+#include <vss/plugin/host/secret_point.hpp>
 #include <vss/plugin/host/service.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/lifecycle.hpp>
@@ -45,6 +47,7 @@
 #include "test_plugin_files.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstddef>
@@ -269,6 +272,22 @@ plugin_spec official_plugin(std::string_view id)
     return spec;
 }
 
+/// `text` as it is written inside a JSON string: the quotes and backslashes
+/// have a backslash put before them.  The arguments of a manifest are JSON
+/// strings, so an argument that holds a JSON text needs this.
+std::string json_escaped(std::string_view text)
+{
+    std::string out;
+    out.reserve(text.size());
+    for (const char c : text)
+    {
+        if (c == '"' || c == '\\')
+            out.push_back('\\');
+        out.push_back(c);
+    }
+    return out;
+}
+
 void append_file_entry(std::string& out, std::string_view path,
                        std::uint64_t size, std::string_view sha512)
 {
@@ -314,7 +333,7 @@ std::string manifest_text(const plugin_spec& spec)
     for (const std::string& argument : spec.arguments)
     {
         out.append(", \"");
-        out.append(argument);
+        out.append(json_escaped(argument));
         out.append("\"");
     }
     out.append(", \"--serve\" ],\n");
@@ -1699,4 +1718,278 @@ TEST_CASE("plugin service: instances wanted of a plugin that is not "
         wait_for(service, "the instance to run",
                  instance_is(official_id, 1, instance_state::running));
     REQUIRE_EQ(running->plugins.size(), std::size_t{1});
+}
+
+namespace
+{
+
+/// What a test's extension point saw, shared with the test.
+struct seen_by_extension
+{
+    std::atomic<int> ready{0};
+    std::atomic<int> gone{0};
+    std::atomic<int> taken{0};
+    std::atomic<int> offered{0};
+};
+
+/// An extension point that answers one "op" with `ok` and leaves the rest.
+class answering_extension final : public vss::plugin::host::extension_handler
+{
+public:
+    answering_extension(vss::plugin::host::extension_context context,
+                        std::string op, std::shared_ptr<seen_by_extension> seen)
+        : context_(std::move(context)), op_(std::move(op)),
+          seen_(std::move(seen))
+    {
+    }
+
+    bool take(const vss::plugin::api_message& message) override
+    {
+        ++seen_->offered;
+        if (message.op != op_)
+            return false;
+        ++seen_->taken;
+        context_.link.answer(message.id, vss::plugin::host::ok_answer());
+        return true;
+    }
+
+    void plugin_ready() override { ++seen_->ready; }
+
+    void plugin_gone() override { ++seen_->gone; }
+
+private:
+    vss::plugin::host::extension_context context_;
+    std::string op_;
+    std::shared_ptr<seen_by_extension> seen_;
+};
+
+vss::plugin::host::extension_factory
+answering(std::string op, std::shared_ptr<seen_by_extension> seen)
+{
+    return [op = std::move(op), seen = std::move(seen)](
+               const vss::plugin::host::extension_context& context)
+    {
+        std::vector<std::unique_ptr<vss::plugin::host::extension_handler>>
+            handlers;
+        handlers.push_back(
+            std::make_unique<answering_extension>(context, op, seen));
+        return handlers;
+    };
+}
+
+} // namespace
+
+TEST_CASE("plugin service: an extension point answers a plugin's request")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {"--send-op=test.hello"};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+
+    const auto seen = std::make_shared<seen_by_extension>();
+    service_options options = fixture.options();
+    options.extensions = answering("test.hello", seen);
+    plugin_service& service = fixture.start(std::move(options));
+    service.rescan();
+
+    // The plugin prints the answer it got: `ok`, from the extension point,
+    // and not the error of a message nobody knows.
+    static_cast<void>(wait_for(service, "the plugin to print its answer",
+                               [](const service_snapshot& now)
+                               {
+                                   const service_plugin* const plugin =
+                                       find(now, official_id);
+                                   return plugin != nullptr &&
+                                          plugin->run != nullptr &&
+                                          log_has(*plugin, "answer ok");
+                               }));
+    REQUIRE_EQ(seen->taken.load(), 1);
+    REQUIRE_EQ(seen->ready.load(), 1);
+    REQUIRE_EQ(seen->gone.load(), 0);
+
+    // When the plugin is switched off its extension point is told.
+    service.set_enabled(std::string(official_id), false);
+    static_cast<void>(wait_for(service, "the extension point to be told",
+                               [&](const service_snapshot&)
+                               { return seen->gone.load() == 1; }));
+}
+
+TEST_CASE("plugin service: a request no extension point takes is not known")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {"--send-op=test.hello"};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+
+    const auto seen = std::make_shared<seen_by_extension>();
+    service_options options = fixture.options();
+    options.extensions = answering("test.other", seen);
+    plugin_service& service = fixture.start(std::move(options));
+    service.rescan();
+
+    static_cast<void>(wait_for(service, "the plugin to print its answer",
+                               [](const service_snapshot& now)
+                               {
+                                   const service_plugin* const plugin =
+                                       find(now, official_id);
+                                   return plugin != nullptr &&
+                                          plugin->run != nullptr &&
+                                          log_has(*plugin, "answer error");
+                               }));
+    // It was offered to the extension point, which left it.
+    REQUIRE(seen->offered.load() >= 1);
+    REQUIRE_EQ(seen->taken.load(), 0);
+}
+
+namespace
+{
+
+/// The secret that the plugin of these tests hands to the host.
+constexpr std::string_view secret_text = "1234-5678";
+constexpr std::string_view secret_header =
+    R"(--send-header={"op":"secret.show","label":"Pairing code",)"
+    R"("text":"1234-5678","expires_s":300})";
+
+/// What the shower of a test was given, shared with the test.
+struct shown_secrets
+{
+    std::mutex mutex;
+    std::vector<vss::plugin::host::secret_to_show> items{};
+
+    std::vector<vss::plugin::host::secret_to_show> copy()
+    {
+        const std::lock_guard lock(mutex);
+        return items;
+    }
+};
+
+/// A factory that makes the secret point with a shower that records what it
+/// is given and answers `seen`.
+vss::plugin::host::extension_factory
+showing_secrets(std::shared_ptr<shown_secrets> shown, bool seen)
+{
+    return [shown = std::move(shown),
+            seen](const vss::plugin::host::extension_context& context)
+    {
+        std::vector<std::unique_ptr<vss::plugin::host::extension_handler>>
+            handlers;
+        handlers.push_back(vss::plugin::host::make_secret_point(
+            context,
+            [shown, seen](vss::plugin::host::secret_to_show secret,
+                          std::function<void(bool)> done)
+            {
+                {
+                    const std::lock_guard lock(shown->mutex);
+                    shown->items.push_back(std::move(secret));
+                }
+                done(seen);
+            }));
+        return handlers;
+    };
+}
+
+bool has_secret(std::string_view text)
+{
+    return text.find(secret_text) != std::string_view::npos;
+}
+
+/// Whether the text of a secret is in anything of the snapshot that a person
+/// sees or that is kept: a log line, a status, a detail, a note.
+bool snapshot_holds_secret(const service_snapshot& snapshot)
+{
+    if (std::ranges::any_of(snapshot.notes, has_secret) ||
+        has_secret(describe(snapshot)))
+        return true;
+    for (const service_plugin& plugin : snapshot.plugins)
+    {
+        if (has_secret(plugin.detail) || has_secret(plugin.name))
+            return true;
+        if (plugin.run == nullptr)
+            continue;
+        const auto& run = *plugin.run;
+        if (has_secret(run.detail))
+            return true;
+        if (run.status.has_value() &&
+            (has_secret(run.status->text) || has_secret(run.status->code)))
+            return true;
+        if (std::ranges::any_of(run.log, [](const runner_log_line& line)
+                                { return has_secret(line.text); }))
+            return true;
+    }
+    return false;
+}
+
+} // namespace
+
+TEST_CASE("plugin service: a secret a plugin hands over is shown and kept "
+          "nowhere")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {std::string(secret_header)};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+
+    const auto shown = std::make_shared<shown_secrets>();
+    service_options options = fixture.options();
+    options.extensions = showing_secrets(shown, true);
+    plugin_service& service = fixture.start(std::move(options));
+    service.rescan();
+
+    const snapshot_ptr answered =
+        wait_for_line(service, official_id, "answer ok");
+    REQUIRE(!snapshot_holds_secret(*answered));
+
+    // The shower got what the plugin said, and the plugin's name.
+    const auto items = shown->copy();
+    REQUIRE_EQ(items.size(), std::size_t{1});
+    REQUIRE_EQ(items.front().plugin_id, std::string(official_id));
+    REQUIRE_EQ(items.front().plugin_name, std::string("Test plugin"));
+    REQUIRE_EQ(items.front().label, std::string("Pairing code"));
+    REQUIRE_EQ(items.front().text, std::string(secret_text));
+    REQUIRE(items.front().expires == 300s);
+
+    // Nothing the plugin does or the host says afterwards has it either.
+    service.set_enabled(std::string(official_id), false);
+    const snapshot_ptr off =
+        wait_for(service, "the plugin to be off", is_off(official_id));
+    REQUIRE(!snapshot_holds_secret(*off));
+    REQUIRE_EQ(shown->copy().size(), std::size_t{1});
+}
+
+TEST_CASE("plugin service: a secret the user did not see is answered not "
+          "granted")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {std::string(secret_header)};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+
+    const auto shown = std::make_shared<shown_secrets>();
+    service_options options = fixture.options();
+    options.extensions = showing_secrets(shown, false);
+    plugin_service& service = fixture.start(std::move(options));
+    service.rescan();
+
+    const snapshot_ptr answered =
+        wait_for_line(service, official_id, "answer error");
+    static_cast<void>(
+        wait_for_line(service, official_id, "answer-value not_granted"));
+    REQUIRE_EQ(shown->copy().size(), std::size_t{1});
+    REQUIRE(!snapshot_holds_secret(*answered));
+}
+
+TEST_CASE("plugin service: with no extension point a secret is not known")
+{
+    service_fixture fixture;
+    plugin_spec spec = official_plugin(official_id);
+    spec.arguments = {std::string(secret_header)};
+    static_cast<void>(make_plugin(fixture.plugins_directory(), spec));
+    plugin_service& service = fixture.start();
+    service.rescan();
+
+    const snapshot_ptr answered =
+        wait_for_line(service, official_id, "answer error");
+    static_cast<void>(
+        wait_for_line(service, official_id, "answer-value unknown_op"));
+    REQUIRE(!snapshot_holds_secret(*answered));
 }

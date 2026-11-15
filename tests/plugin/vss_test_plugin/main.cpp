@@ -81,6 +81,14 @@
 //                         answer>" when the answer arrives, and
 //                         "answer-value <value>" as well when it is an
 //                         "error"
+//   --send-header=<text>  after "hello_ack" (and after --send-op) sends a
+//                         request whose header is the text, a JSON object
+//                         that holds an "op" and any other members; the
+//                         plugin puts the "id" in (3, then 4 and so on).
+//                         Prints "answer <op of the answer>" when the answer
+//                         arrives, as --send-op does.  May be given more
+//                         than once.  A manifest writes the text as a JSON
+//                         string, so its quotes are escaped there.
 //   --echo-op=<op>        answers a request with this op with "ok" and
 //                         prints "got <op>"; may be given more than once
 //   --refuse-op=<op>      answers a request with this op with an "error"
@@ -94,7 +102,7 @@
 //   --stderr-each=<text>  after "hello_ack" prints the text once to
 //                         standard error
 // When "hello_ack" arrives the modifiers act in the order of the list above
-// (exit, crash, stderr, status, log, send-op, garbage, flood).
+// (exit, crash, stderr, status, log, send-op, send-header, garbage, flood).
 // An argument it does not know makes it print "unknown argument" to standard
 // error and exit with 2.
 //

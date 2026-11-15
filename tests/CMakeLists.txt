@@ -281,6 +281,7 @@ list(APPEND VSS_SYSTEM_TEST_SOURCES
   system/test_system_plugin_instances.cpp
   system/test_system_plugin_process.cpp
   system/test_system_plugin_runner.cpp
+  system/test_system_plugin_secret.cpp
   system/test_system_plugin_service.cpp
   system/test_system_plugin_start_plan.cpp)
 # `vss_cli plugin run` starts the program as a child process.

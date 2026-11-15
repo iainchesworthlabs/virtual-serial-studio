@@ -62,6 +62,10 @@ constexpr int exit_write_failed = 4;
 /// The id of the request that `--send-op` makes.
 constexpr std::uint64_t own_request_id = 2;
 
+/// The id of the first request that `--send-header` makes; the next ones
+/// count up from it.
+constexpr std::uint64_t first_header_id = 3;
+
 /// How many bytes of garbage `--garbage-after-ready` writes.
 constexpr std::size_t garbage_size = 64;
 
@@ -121,6 +125,32 @@ api_message request_of(std::string_view op, std::uint64_t id)
     message.id = id;
     message.body = other_message{std::move(header)};
     return message;
+}
+
+/// A request whose header is `text`, a JSON object that holds an "op", with
+/// the "id" put in front.  Nothing when the result is not a message.
+std::optional<api_message> request_with_header(std::string_view text,
+                                               std::uint64_t id)
+{
+    const std::size_t open = text.find('{');
+    if (open == std::string_view::npos)
+        return std::nullopt;
+    std::string_view rest = text.substr(open + 1);
+    const std::size_t next = rest.find_first_not_of(" \t\r\n");
+    const bool empty_object =
+        next != std::string_view::npos && rest[next] == '}';
+    std::string header = R"({"id":)";
+    header.append(std::to_string(id));
+    if (!empty_object)
+        header.push_back(',');
+    header.append(rest);
+
+    vss::agent::frame frame;
+    frame.header = std::move(header);
+    auto message = decode_message(frame);
+    if (message.has_error())
+        return std::nullopt;
+    return std::move(message).value();
 }
 
 /// The bytes of a message, or nothing when it cannot be written.
@@ -263,6 +293,15 @@ private:
             if (!channel_.send(request_of(*options_.send_op, own_request_id)))
                 return exit_write_failed;
         }
+        std::uint64_t header_id = first_header_id;
+        for (const std::string& header : options_.send_headers)
+        {
+            const std::optional<api_message> request =
+                request_with_header(header, header_id);
+            if (!request.has_value() || !channel_.send(*request))
+                return exit_write_failed;
+            ++header_id;
+        }
         if (options_.garbage_after_ready)
         {
             // A length prefix that no frame may have, then more of the same.
@@ -328,7 +367,7 @@ private:
         }
         if (message.re != 0)
         {
-            if (options_.send_op.has_value() && message.re == own_request_id)
+            if (is_own_request(message.re))
                 print_answer(message);
             return std::nullopt;
         }
@@ -336,6 +375,16 @@ private:
             std::holds_alternative<other_message>(message.body))
             return take_request(message);
         return std::nullopt;
+    }
+
+    /// Whether `re` is the id of a request that `--send-op` or
+    /// `--send-header` made.
+    bool is_own_request(std::uint64_t re) const
+    {
+        if (options_.send_op.has_value() && re == own_request_id)
+            return true;
+        return re >= first_header_id &&
+               re - first_header_id < options_.send_headers.size();
     }
 
     /// A request of an extension point: "ok" when its op is one that is
@@ -453,6 +502,16 @@ bool take_serve_modifier(std::string_view argument, serve_options& options)
     if (const auto text = value_after(argument, "--send-op="))
     {
         options.send_op = std::string(*text);
+        return true;
+    }
+    if (const auto text = value_after(argument, "--send-header="))
+    {
+        const std::size_t first = text->find_first_not_of(" \t\r\n");
+        const std::size_t last = text->find_last_not_of(" \t\r\n");
+        if (first == std::string_view::npos || (*text)[first] != '{' ||
+            (*text)[last] != '}')
+            return false;
+        options.send_headers.emplace_back(*text);
         return true;
     }
     if (const auto text = value_after(argument, "--echo-op="))
