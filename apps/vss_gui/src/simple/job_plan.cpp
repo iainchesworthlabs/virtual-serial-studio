@@ -490,11 +490,9 @@ job_plan plan_from(const setup_view& setup, const std::vector<port_view>& ports)
         plan.first = ends({setup.device});
         if (const auto listener = find(ports, setup.listener))
         {
-            const unsigned number = listener->path.section(QLatin1Char(':'), -1)
-                                        .section(QLatin1Char('?'), 0, 0)
-                                        .toUInt();
-            if (number != 0)
-                plan.listen_port = number;
+            const int number = network_port_from_uri(listener->path);
+            if (number > 0)
+                plan.listen_port = static_cast<unsigned>(number);
         }
         break;
     }
@@ -519,6 +517,16 @@ plan_changes compare(const job_plan& plan, const setup_view& previous)
 {
     VSS_PROFILE_ZONE("gui.simple.job_plan.compare");
     plan_changes changes;
+    // The network setup is one engine operation that is made again: the
+    // device and the network port close, so the computers connected lose
+    // their connection, and a device and a network port open.
+    if (plan.kind == job::network)
+    {
+        for (const auto id : previous.group.ports)
+            changes.closed.push_back(id);
+        changes.added = 2;
+        return changes;
+    }
     QSet<vss::endpoint_id> kept;
     for (const auto* list : {&plan.first, &plan.second})
     {
@@ -580,7 +588,12 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         {
             for (const auto& end : *ends)
             {
-                if (end.existing == 0 || end.what != end_plan::kind::device)
+                // A device on this PC, or one over RFC 2217, which takes the
+                // new speed.  The engine refuses plain TCP and UDP.
+                const bool takes_settings =
+                    end.what == end_plan::kind::device ||
+                    (end.what == end_plan::kind::network_device && end.rfc2217);
+                if (end.existing == 0 || !takes_settings)
                     continue;
                 if (const auto port = find(before, end.existing);
                     port && port->serial != plan.serial)
@@ -603,15 +616,23 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         changed.clear();
     };
 
-    // The ends are named in the order of the plan, and made with the ones
-    // that chose a COM number first: an Automatic end takes the lowest number
-    // that is free, which may be one a later end chose.
+    // The ends are named in the order of the plan and made in three passes:
+    // devices (and ends that stay) first, so a device that is busy is found
+    // before Windows spends about 27 seconds installing a new port; then the
+    // ports that chose a COM number; then the Automatic ones, which take the
+    // lowest number that is free, which may be one a later end chose.
+    enum class pass
+    {
+        device,
+        chosen_number,
+        automatic
+    };
     struct end_slot
     {
         const end_plan* end = nullptr;
         QString name;
         vss::endpoint_id id = 0;
-        bool chosen_number = false;
+        pass when = pass::device;
     };
     std::vector<end_slot> slots;
     const std::size_t first_count = plan.first.size();
@@ -626,8 +647,10 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
                 if (end.what == end_plan::kind::program)
                 {
                     slot.name = unique_name(end.label, taken);
-                    slot.chosen_number =
-                        end.com_number != 0 && backend.caps().com_numbers;
+                    slot.when =
+                        end.com_number != 0 && backend.caps().com_numbers
+                            ? pass::chosen_number
+                            : pass::automatic;
                 }
                 else
                 {
@@ -650,7 +673,7 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
             return end.existing;
         if (end.what == end_plan::kind::program)
         {
-            auto port = slot.chosen_number
+            auto port = slot.when == pass::chosen_number
                             ? backend.create_driver_port(slot.name, true,
                                                          end.com_number)
                             : backend.create_auto_port(slot.name, true);
@@ -673,11 +696,11 @@ vss::result<vss::endpoint_id> build_setup(StudioBackend& backend,
         return port;
     };
 
-    for (const bool chosen : {true, false})
+    for (const pass when : {pass::device, pass::chosen_number, pass::automatic})
     {
         for (auto& slot : slots)
         {
-            if (slot.chosen_number != chosen)
+            if (slot.when != when)
                 continue;
             const auto id = make_end(slot);
             if (!id)

@@ -125,6 +125,9 @@ bool ipv6_address(const QString& text)
 
     QStringList groups = address.split(QLatin1Char(':'));
     groups.removeAll(QString());
+    // `::` alone is the address that means "any", not one a device has.
+    if (groups.isEmpty())
+        return false;
     int width = 0;
     for (qsizetype index = 0; index < groups.size(); ++index)
     {
@@ -226,7 +229,12 @@ std::optional<device_address> parse_device_address(const QString& text,
     if (has_port)
     {
         int port = 0;
-        if (!parse_port(port_text, port))
+        // `toInt` takes a sign, so `+80` is checked for here.
+        const bool digits =
+            !port_text.isEmpty() &&
+            std::all_of(port_text.begin(), port_text.end(),
+                        [](QChar digit) { return digit.isDigit(); });
+        if (!digits || !parse_port(port_text, port))
             return refuse(network_port_error());
         result.port = port;
     }
