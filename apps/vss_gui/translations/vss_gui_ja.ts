@@ -3302,6 +3302,11 @@ Networks: %5</source>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>設定を変更できませんでした。Studio からの報告：%1。以前の設定を元に戻せませんでした。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Studio could not read which COM numbers Windows keeps, so it picks a free one when the port is made and shows it when the port is ready.</source>
             <translation>Windows が確保している COM 番号を Studio が読み取れなかったため、ポートの作成時に空いている番号を選び、ポートの準備ができたら表示します。</translation>
         </message>
@@ -4224,6 +4229,16 @@ Networks: %5</source>
             <location filename="../src/panes/monitor_panel.cpp" line="622" />
             <source>JSON Lines (*.jsonl)</source>
             <translation>JSON Lines (*.jsonl)</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="356" />
+            <source>Traffic table columns</source>
+            <translation>トラフィック表の列</translation>
+        </message>
+        <message>
+            <location filename="../src/panes/monitor_panel.cpp" line="800" />
+            <source>%1 column is %2 px wide.</source>
+            <translation>%1列の幅は%2 pxです。</translation>
         </message>
     </context>
     <context>
@@ -9413,6 +9428,17 @@ Networks: %5</source>
             <location filename="../src/shell/shell_window.cpp" line="1" />
             <source>Support bundle</source>
             <translation>サポートバンドル</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>実行中だったものをすべて元に戻すことができなかったため、セットアップは変更ありとして表示されています。</translation>
+        </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2090" />
+            <source>The setup needs a device or network endpoint that is not available on this PC. Check the device, then try again.</source>
+            <translation>セットアップに必要なデバイスまたはネットワークエンドポイントが、このPCで利用できません。デバイスを確認して、もう一度やり直してください。</translation>
         </message>
     </context>
     <context>
@@ -18072,6 +18098,11 @@ Networks: %5</source>
             <location filename="../src/simple/job_form.cpp" line="1" />
             <source>Could not change the setup. Studio reported: %1. What was there before was put back where Studio could.</source>
             <translation>設定を変更できませんでした。Studio からの報告：%1。以前の状態は、Studio で可能なところは元に戻しました。</translation>
+        </message>
+        <message>
+            <location filename="../src/simple/job_form.cpp" line="1" />
+            <source>Could not change the setup. Studio reported: %1. The previous setup could not be put back.</source>
+            <translation>設定を変更できませんでした。Studio からの報告：%1。以前の設定を元に戻せませんでした。</translation>
         </message>
         <message>
             <location filename="../src/simple/job_form.cpp" line="1" />

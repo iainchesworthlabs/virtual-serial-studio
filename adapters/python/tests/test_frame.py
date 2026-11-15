@@ -168,9 +168,50 @@ class WireTests(unittest.TestCase):
         long = "é" * 1000
         cut = _wire.clean_text(long)
         self.assertLessEqual(len(cut.encode("utf-8")), 1024)
-        self.assertEqual(cut, "é" * 512)
+        # Two bytes to a character: 1021 bytes are left for text, which is
+        # 510 whole characters, and then the mark.
+        self.assertEqual(cut, "é" * 510 + "...")
         with self.assertRaises(TypeError):
             _wire.clean_text(b"bytes")
+
+    def test_a_text_at_the_limit_is_not_cut(self):
+        for limit in (_wire.MAX_TEXT_SIZE, _wire.MAX_RUN_NAME_SIZE, _wire.MAX_CASE_MESSAGE_SIZE):
+            exact = "x" * limit
+            self.assertEqual(_wire.clean_text(exact, limit), exact)
+            cut = _wire.clean_text(exact + "y", limit)
+            self.assertEqual(cut, "x" * (limit - 3) + "...")
+            self.assertEqual(len(cut.encode("utf-8")), limit)
+
+    def test_a_cut_text_is_valid_utf8_of_the_limit_or_less_and_says_it_was_cut(self):
+        # Characters of one to four bytes, cut at every place that is inside one.
+        for char in ("a", "é", "€", "\U0001f600"):
+            for limit in (_wire.MAX_RUN_NAME_SIZE, _wire.MAX_CASE_MESSAGE_SIZE):
+                for extra in range(0, 6):
+                    text = "z" * extra + char * 2000
+                    cut = _wire.clean_text(text, limit)
+                    raw = cut.encode("utf-8")
+                    self.assertLessEqual(len(raw), limit)
+                    self.assertGreater(len(raw), limit - 3 - 4)
+                    self.assertTrue(cut.endswith(_wire.CUT_MARK))
+                    raw.decode("utf-8", "strict")
+
+    def test_a_limit_shorter_than_the_mark_cuts_and_does_not_mark(self):
+        self.assertEqual(_wire.clean_text("abcdefgh", 2), "ab")
+        self.assertEqual(_wire.clean_text("abcdefgh", 0), "")
+        self.assertEqual(_wire.clean_text("abcdefgh", -1), "")
+        # A character that does not fit whole goes whole.
+        self.assertEqual(_wire.clean_text("ééé", 3), "...")
+        self.assertEqual(_wire.clean_text("ééé", 5), "é...")
+        self.assertEqual(_wire.clean_text("€€", 2), "")
+        # Three is the mark and nothing else.
+        self.assertEqual(_wire.clean_text("abcdefgh", 3), "...")
+
+    def test_the_limits_are_the_gateways(self):
+        # libs/vss_control_proto/include/vss/control/proto/message.hpp:
+        # max_text_size, max_run_name_size, max_case_message_size.
+        self.assertEqual(_wire.MAX_TEXT_SIZE, 1024)
+        self.assertEqual(_wire.MAX_RUN_NAME_SIZE, 128)
+        self.assertEqual(_wire.MAX_CASE_MESSAGE_SIZE, 512)
 
     def test_reply(self):
         reply = _wire.decode_server_message(

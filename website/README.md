@@ -108,6 +108,10 @@ by an agent.
    up to a day to be issued.
 5. **Publish.** The site is published on the next push to `main` (a release), or run the Docs workflow by hand on
    `main`. Run it by hand after a release has been published as well, so the downloads page lists the new files.
+   Before the first release reaches `main`, run the Docs workflow by hand on `develop`
+   (`gh workflow run docs.yml --ref develop`): that publishes what `develop` holds. A push to `develop` never
+   publishes. The `github-pages` environment must allow the branch the run is on (*Settings > Environments >
+   github-pages > Deployment branches*).
 6. **Before launch,** decide: the Pro price, an address for sales, trials and support (the support page says one
    will be published), and have a solicitor read the licence and privacy pages. Links elsewhere that point at the old
    documentation address need `docs/` added.

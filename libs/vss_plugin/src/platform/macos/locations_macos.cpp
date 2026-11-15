@@ -5,61 +5,41 @@
 //
 // Where plugins and the policy are on macOS:
 //
-//   machine   /Library/Application Support/VirtualSerialStudio/plugins
-//   user      $HOME/Library/Application Support/VirtualSerialStudio/plugins
-//   policy    /Library/Application Support/VirtualSerialStudio/policy.json
+//   machine   /Library/Application Support/Virtual Serial Studio/plugins
+//   user      $HOME/Library/Application Support/Virtual Serial Studio/plugins
+//   policy    /Library/Application Support/Virtual Serial Studio/policy.json
 //
-// $HOME counts only when it is an absolute path.
+// The product's folders are `vss::machine`'s.  $HOME counts only when it is
+// an absolute path.
 //
 
 #include "platform/locations_platform.hpp"
 
-#include <cstdlib>
+#include <vss/machine/folders.hpp>
+
 #include <filesystem>
-#include <string>
 
 namespace vss::plugin::platform
 {
 
-namespace
-{
-
 namespace fs = std::filesystem;
-
-/// The value of an environment variable as a path, when it is set and is an
-/// absolute path; an empty path in every other case.  The text comes from
-/// outside, and a relative path would depend on the folder the program runs
-/// in.
-fs::path absolute_environment_path(const char* name)
-{
-    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    const char* value = std::getenv(name);
-    if (value == nullptr || *value == '\0')
-        return {};
-    const fs::path path{std::string(value)};
-    return path.is_absolute() ? path : fs::path{};
-}
-
-} // namespace
 
 fs::path machine_plugin_folder()
 {
-    return fs::path("/Library/Application Support/VirtualSerialStudio/plugins");
+    return machine::machine_folder() / "plugins";
 }
 
 fs::path user_plugin_folder()
 {
-    const fs::path home = absolute_environment_path("HOME");
-    if (home.empty())
+    const fs::path folder = machine::user_folder();
+    if (folder.empty())
         return {};
-    return home / "Library" / "Application Support" / "VirtualSerialStudio" /
-           "plugins";
+    return folder / "plugins";
 }
 
 fs::path policy_file_path()
 {
-    return fs::path(
-        "/Library/Application Support/VirtualSerialStudio/policy.json");
+    return machine::machine_folder() / "policy.json";
 }
 
 } // namespace vss::plugin::platform

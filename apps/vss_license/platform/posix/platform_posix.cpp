@@ -6,6 +6,7 @@
 
 #include "platform.hpp"
 
+#include <cerrno>
 #include <cstddef>
 #include <cstdlib>
 
@@ -47,6 +48,8 @@ bool write_private_file(const std::filesystem::path& path,
     while (written && !text.empty())
     {
         const auto count = ::write(file, text.data(), text.size());
+        if (count < 0 && errno == EINTR)
+            continue;
         if (count <= 0)
             written = false;
         else
@@ -59,6 +62,35 @@ bool write_private_file(const std::filesystem::path& path,
     if (!written)
         ::unlink(path.c_str());
     return written;
+}
+
+std::optional<std::size_t> read_file_into(const std::filesystem::path& path,
+                                          std::span<char> out)
+{
+    const int file = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (file < 0)
+        return std::nullopt;
+
+    std::size_t total = 0;
+    bool failed = false;
+    while (total < out.size())
+    {
+        const auto count = ::read(file, out.data() + total, out.size() - total);
+        if (count < 0 && errno == EINTR)
+            continue;
+        if (count < 0)
+        {
+            failed = true;
+            break;
+        }
+        if (count == 0)
+            break;
+        total += static_cast<std::size_t>(count);
+    }
+    ::close(file);
+    if (failed)
+        return std::nullopt;
+    return total;
 }
 
 std::optional<std::string> read_variable(const std::string& name)

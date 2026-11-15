@@ -60,6 +60,31 @@ bool parse_port(const QString& text, int& port);
 std::optional<network_endpoint> parse_network_uri(const QString& text,
                                                   QString* error = nullptr);
 
+/// True for a host a client can be told to connect to: not empty, with no
+/// space and no slash in it.
+bool valid_remote_host(const QString& host);
+
+/// What a person typed for the address of a device on the network: a host,
+/// which may carry a port and a protocol with it.
+struct device_address
+{
+    /// Set when the text began with `tcp://` or `rfc2217://`.
+    std::optional<network_transport> transport;
+    /// The host alone: a name, an IPv4 address or an IPv6 address without
+    /// brackets.
+    QString host;
+    /// Set when the text gave a port: `host:port` or `[ipv6]:port`.
+    std::optional<int> port;
+};
+
+/// Reads `host`, `host:port`, `[ipv6]`, `[ipv6]:port`, a bare IPv6 address
+/// such as `fd00::5`, and any of them after `tcp://` or `rfc2217://`.  A
+/// second port, a path, a space, an address with two or more colons that is
+/// not an IPv6 address, another protocol and a host over 253 characters are
+/// refused, with `error` set to the sentence for it.
+std::optional<device_address> parse_device_address(const QString& text,
+                                                   QString* error = nullptr);
+
 /// True for `127.0.0.0/8`, `::1` and `localhost`: an address only this
 /// computer can reach. `0.0.0.0`, `::` and an empty host are not.
 bool is_loopback_host(const QString& host);

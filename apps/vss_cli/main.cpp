@@ -10,10 +10,14 @@
 //
 
 #include "agent_command.hpp"
+#include "build_version.hpp"
+#include "command_line.hpp"
 #include "control_command.hpp"
+#include "devices_json.hpp"
 #include "licence_command.hpp"
 #include "permissions_command.hpp"
 #include "plugin_command.hpp"
+#include "stop_signals.hpp"
 
 #include <vss/core/profile.hpp>
 #include <vss/core/profiling.hpp>
@@ -29,17 +33,17 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
-#include <csignal>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <exception>
-#include <iterator>
-#include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace
@@ -49,54 +53,25 @@ using namespace std::chrono_literals;
 using vss::endpoint_id;
 using vss::studio;
 
-struct arguments
-{
-    std::vector<std::string> positional;
-    std::map<std::string, std::string> options;
-    /// Every value an option was given, for the ones that may repeat.
-    std::map<std::string, std::vector<std::string>> repeated;
-    std::vector<std::string> flags;
+using vss_cli::arguments;
 
-    bool has(const std::string& flag) const
-    {
-        return std::find(flags.begin(), flags.end(), flag) != flags.end();
-    }
-
-    std::string get(const std::string& key,
-                    const std::string& fallback = {}) const
-    {
-        const auto it = options.find(key);
-        return it == options.end() ? fallback : it->second;
-    }
-
-    std::vector<std::string> all(const std::string& key) const
-    {
-        const auto it = repeated.find(key);
-        return it == repeated.end() ? std::vector<std::string>{} : it->second;
-    }
-
-    int number(const std::string& key, int fallback) const
-    {
-        const auto it = options.find(key);
-        if (it == options.end())
-            return fallback;
-        try
-        {
-            return std::stoi(it->second);
-        }
-        catch (...)
-        {
-            return fallback;
-        }
-    }
-};
-
-void print_usage()
+/// The help text: to standard output when it was asked for, and to standard
+/// error when it comes with a mistake.
+void print_usage(std::FILE* out)
 {
     // One string literal, split across lines.  Only the five %s conversions
     // near the end take arguments; keep a literal % out of the text.
-    std::printf(
+    std::fprintf(
+        out,
         "Virtual Serial Studio command line\n"
+        "\n"
+        "  vss_cli --help | -h | --version\n"
+        "      Show this text, or the version of this build.  An option takes\n"
+        "      its value as --name=value or as --name value.  A mistake in\n"
+        "      the command line is one line on standard error and exit code\n"
+        "      2.  A command that keeps ports open runs until Ctrl-C, SIGTERM\n"
+        "      or SIGHUP (Ctrl-Break or closing the window on Windows), or\n"
+        "      for N seconds with --seconds=N, where N is 1 or more.\n"
         "\n"
         // Commands that open or create ports come first.
         "  vss_cli devices [--json]\n"
@@ -105,7 +80,7 @@ void print_usage()
         "  vss_cli share <uri> [--listeners=N] [--seconds=N]\n"
         "      Open one port and give every listener its own virtual port.\n"
         "\n"
-        "  vss_cli join <uri> <uri> [<uri>...] --target=<uri>\n"
+        "  vss_cli join <uri> <uri> [<uri>...] --target=<uri> [--seconds=N]\n"
         "      Merge several publishers into one serial port.\n"
         "\n"
         "  vss_cli bus [<uri>...] [--virtual=N] [--tap=<uri>|virtual]\n"
@@ -118,7 +93,7 @@ void print_usage()
         "      listen-only port that hears every member and sends to none.\n"
         "      Runs until Ctrl-C or SIGTERM, or for N seconds.\n"
         "\n"
-        "  vss_cli bridge <uri> <uri>\n"
+        "  vss_cli bridge <uri> <uri> [--seconds=N]\n"
         "      Join two transports back to back (for example serial to tcp).\n"
         "      tcp-listen://host:port and udp-listen://host:port wait for "
         "other\n"
@@ -158,8 +133,9 @@ void print_usage()
         "\n"
         // Topology and traffic commands: run, capture, play and respond.
         "  vss_cli run <topology.json> [--seconds=N] [--reconnect]\n"
-        "      Apply a saved topology and keep it alive.  A virtual port with "
-        "a\n"
+        "      Apply a saved topology and keep it alive until Ctrl-C or "
+        "SIGTERM,\n"
+        "      or for N seconds.  A virtual port with a\n"
         "      \"com_number\" gets that COM number from the Windows driver.\n"
         "      --reconnect opens a tcp:// or rfc2217:// client again when its\n"
         "      connection drops, after 1 s and then twice as long up to 30 s.\n"
@@ -194,7 +170,11 @@ void print_usage()
         "      (the default) sends the bytes the recorded port received, W "
         "the\n"
         "      bytes written to it.  --from keeps the records of one recorded\n"
-        "      port.  A loop lasts as long as the capture did.\n"
+        "      port.  A loop lasts as long as the capture did.  Without a "
+        "loop it\n"
+        "      waits until the port has written what it queued, and exits "
+        "with 1\n"
+        "      when the port refused a write or stopped taking bytes.\n"
         "\n"
         "  vss_cli respond <script.json> [<topology.json>]\n"
         "                  (--uri=<uri> | --port=<name>) [--seconds=N]\n"
@@ -345,24 +325,6 @@ void print_topology(studio& app)
     std::fflush(stdout);
 }
 
-void run_for(studio& app, int seconds, bool verbose)
-{
-    if (seconds <= 0)
-        return;
-
-    std::set<std::string> announced;
-    const auto started = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - started <
-           std::chrono::seconds(seconds))
-    {
-        std::this_thread::sleep_for(500ms);
-        announce_format_mismatches(app, announced);
-        if (verbose)
-            print_topology(app);
-    }
-    print_topology(app);
-}
-
 std::atomic<bool> g_stop_requested{false};
 
 extern "C" void request_stop(int)
@@ -370,15 +332,15 @@ extern "C" void request_stop(int)
     g_stop_requested.store(true);
 }
 
-/// Starts catching SIGINT and SIGTERM.  A command that stays alive calls this
-/// before it prints anything: a script that has read the path may signal at
-/// once, and a signal that arrives before the handler exists kills the process
-/// with its links still in place.
+/// Starts catching what ends a command that stays alive: Ctrl-C, SIGTERM and
+/// the signals of a closing terminal (see platform::catch_stop_signals).  The
+/// command calls this before it prints anything: a script that has read the
+/// path may signal at once, and a signal that arrives before the handler exists
+/// kills the process with its links still in place.
 void catch_stop_signals()
 {
     g_stop_requested.store(false);
-    std::signal(SIGINT, request_stop);
-    std::signal(SIGTERM, request_stop);
+    vss_cli::platform::catch_stop_signals(request_stop);
 }
 
 /// Keeps the studio alive until a signal, or for `seconds` when that is more
@@ -410,6 +372,20 @@ bool run_until_stopped(studio& app, int seconds, bool verbose)
     return g_stop_requested.load();
 }
 
+/// What `share`, `join`, `bridge`, `loopback` and `run` do after they have
+/// made their ports: keep them until a signal ends the command, or for
+/// `seconds` when that is more than zero, then show the ports once more.  The
+/// studio takes them down when the command returns.  Needs
+/// catch_stop_signals() first.
+void keep_alive(studio& app, int seconds, bool verbose)
+{
+    // A script that reads this through a pipe needs what the command made
+    // now, not when the buffer fills or the command ends.
+    std::fflush(stdout);
+    run_until_stopped(app, seconds, verbose);
+    print_topology(app);
+}
+
 int command_devices(const arguments& args)
 {
     const auto devices = vss::enumerate_serial_devices();
@@ -417,22 +393,8 @@ int command_devices(const arguments& args)
 
     if (args.has("--json"))
     {
-        std::printf("{\n  \"devices\": [\n");
-        for (std::size_t index = 0; index < devices.size(); ++index)
-        {
-            const auto& device = devices[index];
-            std::printf(
-                "    {\"path\":\"%s\",\"description\":\"%s\",\"virtual\":%s,"
-                "\"com0com\":%s,\"pair\":%d,\"side\":\"%s\"}%s\n",
-                device.path.c_str(), device.description.c_str(),
-                device.virtual_device ? "true" : "false",
-                device.com0com ? "true" : "false", device.com0com_pair,
-                device.com0com_side.c_str(),
-                index + 1 < devices.size() ? "," : "");
-        }
-        std::printf("  ],\n  \"com0com\": {\"found\": %s, \"pairs\": %zu}\n}\n",
-                    installation.found ? "true" : "false",
-                    installation.pairs.size());
+        std::fputs(vss_cli::devices_json(devices, installation).c_str(),
+                   stdout);
         return 0;
     }
 
@@ -459,9 +421,10 @@ int command_share(const arguments& args)
         std::fprintf(stderr, "share needs a URI\n");
         return 2;
     }
+    catch_stop_signals();
 
     const std::string uri = args.positional[1];
-    const int listeners = std::max(1, args.number("--listeners", 2));
+    const int listeners = args.number("--listeners", 2);
     const int seconds = args.number("--seconds", 0);
 
     studio app;
@@ -482,7 +445,7 @@ int command_share(const arguments& args)
                     app.advertised_path(id).c_str());
     }
 
-    run_for(app, seconds, args.has("--verbose"));
+    keep_alive(app, seconds, args.has("--verbose"));
     return 0;
 }
 
@@ -498,6 +461,7 @@ int command_join(const arguments& args)
 
     std::vector<std::string> sources(args.positional.begin() + 1,
                                      args.positional.end());
+    catch_stop_signals();
     studio app;
     const auto link = app.join_ports(sources, target);
     if (!link)
@@ -509,7 +473,7 @@ int command_join(const arguments& args)
 
     std::printf("joined %zu publisher(s) into %s (link %llu)\n", sources.size(),
                 target.c_str(), static_cast<unsigned long long>(*link));
-    run_for(app, args.number("--seconds", 0), args.has("--verbose"));
+    keep_alive(app, args.number("--seconds", 0), args.has("--verbose"));
     return 0;
 }
 
@@ -651,6 +615,7 @@ int command_bridge(const arguments& args)
     warn_if_reachable(args.positional[1]);
     warn_if_reachable(args.positional[2]);
 
+    catch_stop_signals();
     studio app;
     const auto link = app.bridge(args.positional[1], args.positional[2]);
     if (!link)
@@ -663,12 +628,13 @@ int command_bridge(const arguments& args)
     std::printf("bridged %s <-> %s (link %llu)\n", args.positional[1].c_str(),
                 args.positional[2].c_str(),
                 static_cast<unsigned long long>(*link));
-    run_for(app, args.number("--seconds", 0), args.has("--verbose"));
+    keep_alive(app, args.number("--seconds", 0), args.has("--verbose"));
     return 0;
 }
 
 int command_loopback(const arguments& args)
 {
+    catch_stop_signals();
     studio app;
 
     const auto source =
@@ -713,7 +679,7 @@ int command_loopback(const arguments& args)
         }
     }
 
-    run_for(app, args.number("--seconds", 0), args.has("--verbose"));
+    keep_alive(app, args.number("--seconds", 0), args.has("--verbose"));
     return 0;
 }
 
@@ -721,8 +687,6 @@ int command_loopback(const arguments& args)
 /// not a whole number from 1 to 255.
 int com_option(const arguments& args)
 {
-    if (args.has("--com"))
-        return -1;
     const auto found = args.options.find("--com");
     if (found == args.options.end())
         return 0;
@@ -800,14 +764,30 @@ int command_virtual(const arguments& args)
                      kind.c_str());
         return 2;
     }
+    if (com != 0 && !vss::supports(vss::virtual_port_kind::windows_driver))
+    {
+        // Another kind of port on another number is not what was asked for,
+        // so there is nothing to fall back to.
+        std::fprintf(
+            stderr, "cannot create the virtual port: %s\n",
+            com_failure(vss::make_error_code(vss::errc::unsupported), com)
+                .c_str());
+        return 1;
+    }
+    if (com != 0)
+    {
+        // Only the driver gives a port a number, so a number is a request
+        // for the driver, whatever --kind=auto might have chosen.
+        requested = vss::virtual_port_kind::windows_driver;
+        automatic = false;
+    }
 
     studio app;
     const auto created =
-        automatic
-            ? app.create_virtual_port("virtual", vss::virtual_port_kind::pty,
-                                      {}, static_cast<unsigned>(com))
-            : app.create_virtual_port("virtual", requested, {},
-                                      static_cast<unsigned>(com));
+        automatic ? app.create_virtual_port("virtual",
+                                            vss::virtual_port_kind::pty, {}, 0)
+                  : app.create_virtual_port("virtual", requested, {},
+                                            static_cast<unsigned>(com));
     if (!created)
     {
         std::fprintf(stderr, "cannot create the virtual port: %s\n",
@@ -949,6 +929,7 @@ int command_run(const arguments& args)
         return 1;
     }
 
+    catch_stop_signals();
     studio app;
     if (const auto applied = app.apply(*document); !applied)
     {
@@ -966,7 +947,7 @@ int command_run(const arguments& args)
     }
 
     print_topology(app);
-    run_for(app, args.number("--seconds", 0), args.has("--verbose"));
+    keep_alive(app, args.number("--seconds", 0), args.has("--verbose"));
     return 0;
 }
 
@@ -1114,6 +1095,66 @@ std::shared_ptr<vss::endpoint> chosen_port(studio& app, const arguments& args,
     return port;
 }
 
+/// How the wait for a port to write what was queued on it ended.
+enum class write_wait
+{
+    /// The port has written it all.
+    done,
+    /// The port stopped taking bytes before it had written it all.
+    stalled,
+    /// A signal asked the command to end.
+    interrupted,
+};
+
+/// How long a port may go without taking a byte before the rest is given up
+/// on: five seconds, and the time the line needs for the largest record, which
+/// a serial port may write in one piece.
+std::chrono::milliseconds stall_limit(const vss::endpoint& port,
+                                      std::size_t largest_record)
+{
+    const double speed = port.info().serial.characters_per_second();
+    const double record_seconds =
+        speed > 0.0 ? static_cast<double>(largest_record) / speed : 0.0;
+    return 5s + std::chrono::milliseconds(static_cast<long long>(
+                    std::min(record_seconds, 30.0) * 1000.0));
+}
+
+/// Waits until every write the player queued has ended, as written or as
+/// failed.  Gives up when the port has written no more for `limit`, and
+/// returns early for a signal or at `deadline`, when there is one.  The count
+/// is the player's own, so what a link or a program writes to the same port
+/// does not end the wait early.
+write_wait
+wait_for_written(const vss::replay_player& player,
+                 std::chrono::milliseconds limit,
+                 std::optional<std::chrono::steady_clock::time_point> deadline)
+{
+    std::uint64_t seen = player.bytes_written();
+    auto last_progress = std::chrono::steady_clock::now();
+    while (!g_stop_requested.load())
+    {
+        // Read the counts that end the wait before the one that is queued.
+        const std::uint64_t written = player.bytes_written();
+        const std::uint64_t settled = written + player.bytes_failed();
+        if (settled >= player.bytes_sent())
+            return write_wait::done;
+        const auto now = std::chrono::steady_clock::now();
+        if (deadline && now >= *deadline)
+            return write_wait::interrupted;
+        if (written != seen)
+        {
+            seen = written;
+            last_progress = now;
+        }
+        else if (now - last_progress >= limit)
+        {
+            return write_wait::stalled;
+        }
+        std::this_thread::sleep_for(20ms);
+    }
+    return write_wait::interrupted;
+}
+
 int command_play(const arguments& args)
 {
     if (args.positional.size() < 2)
@@ -1142,23 +1183,7 @@ int command_play(const arguments& args)
         }
     }
     if (args.options.count("--speed") != 0)
-    {
-        // Text that does not parse becomes 0, which the check below rejects
-        // together with zero, negative and NaN speeds.
-        try
-        {
-            options.speed = std::stod(args.get("--speed"));
-        }
-        catch (const std::exception&)
-        {
-            options.speed = 0.0;
-        }
-        if (!(options.speed > 0.0))
-        {
-            std::fprintf(stderr, "--speed must be a number above zero\n");
-            return 2;
-        }
-    }
+        options.speed = args.real("--speed", options.speed);
     options.loop = args.has("--loop");
     options.from_port = args.get("--from");
 
@@ -1214,23 +1239,57 @@ int command_play(const arguments& args)
             break;
         std::this_thread::sleep_for(20ms);
     }
-    // The last write is queued on the port; give it a moment to leave.
-    if ((*player)->finished())
-        std::this_thread::sleep_for(200ms);
+
+    // The player counts a record as sent when it has queued it on the port.
+    // When it has queued the last one, the port may still hold most of the
+    // capture (a slow line, a client that reads slowly), and closing the port
+    // now would drop that without a word.  Wait until the port has ended
+    // every write the player queued, for as long as it keeps taking bytes.
+    // Ctrl-C and --seconds ask for the end and bound this wait too.
+    const bool finished = (*player)->finished();
+    auto outcome = write_wait::done;
+    if (finished && !g_stop_requested.load())
+    {
+        std::size_t largest = 0;
+        for (const auto& record : capture->records)
+            largest = std::max(largest, record.data.size());
+        std::optional<std::chrono::steady_clock::time_point> deadline;
+        if (seconds > 0)
+            deadline = started + std::chrono::seconds(seconds);
+        outcome =
+            wait_for_written(**player, stall_limit(*port, largest), deadline);
+    }
 
     // Stop the player first so nothing more is sent while totals are read.
     (*player)->stop();
-    std::printf("sent %llu record(s), %llu byte(s)\n",
-                static_cast<unsigned long long>((*player)->records_sent()),
-                static_cast<unsigned long long>((*player)->bytes_sent()));
-    if ((*player)->write_errors() > 0)
+    const std::uint64_t queued = (*player)->bytes_sent();
+    const std::uint64_t written = (*player)->bytes_written();
+    const std::uint64_t failed_bytes = (*player)->bytes_failed();
+    const auto failed = (*player)->write_errors();
+
+    if (failed == 0 && written >= queued)
     {
-        std::fprintf(
-            stderr, "%llu write(s) failed\n",
-            static_cast<unsigned long long>((*player)->write_errors()));
-        return 1;
+        std::printf("sent %llu record(s), %llu byte(s)\n",
+                    static_cast<unsigned long long>((*player)->records_sent()),
+                    static_cast<unsigned long long>(written));
+        return 0;
     }
-    return 0;
+
+    std::printf("sent %llu of %llu queued byte(s)\n",
+                static_cast<unsigned long long>(written),
+                static_cast<unsigned long long>(queued));
+    if (failed > 0)
+        std::fprintf(stderr, "%llu write(s) failed, %llu byte(s) lost\n",
+                     static_cast<unsigned long long>(failed),
+                     static_cast<unsigned long long>(failed_bytes));
+    if (outcome == write_wait::stalled)
+        std::fprintf(stderr,
+                     "%s took %llu of the %llu byte(s) that were queued; the "
+                     "rest was not written\n",
+                     port->name().c_str(),
+                     static_cast<unsigned long long>(written),
+                     static_cast<unsigned long long>(queued));
+    return failed > 0 || outcome == write_wait::stalled ? 1 : 0;
 }
 
 int command_respond(const arguments& args)
@@ -1401,50 +1460,14 @@ int command_selftest()
     return 0;
 }
 
-/// Options that take a value, so `--out file` means the same as `--out=file`.
-bool takes_value(const std::string& name)
+/// Says that the command is over, on every way out of main.
+struct command_scope
 {
-    static const char* const names[] = {"--out",       "--format",  "--port",
-                                        "--uri",       "--seconds", "--speed",
-                                        "--direction", "--from"};
-    return std::find(std::begin(names), std::end(names), name) !=
-           std::end(names);
-}
-
-arguments parse(int argc, char** argv)
-{
-    arguments parsed;
-    int index = 1;
-    while (index < argc)
-    {
-        const std::string value = argv[index++];
-        if (value.rfind("--", 0) == 0)
-        {
-            const auto equals = value.find('=');
-            if (equals != std::string::npos)
-            {
-                const auto name = value.substr(0, equals);
-                parsed.options[name] = value.substr(equals + 1);
-                parsed.repeated[name].push_back(value.substr(equals + 1));
-            }
-            else if (takes_value(value) && index < argc)
-            {
-                parsed.options[value] = argv[index];
-                parsed.repeated[value].push_back(argv[index]);
-                ++index;
-            }
-            else
-            {
-                parsed.flags.push_back(value);
-            }
-        }
-        else
-        {
-            parsed.positional.push_back(value);
-        }
-    }
-    return parsed;
-}
+    command_scope() = default;
+    command_scope(const command_scope&) = delete;
+    command_scope& operator=(const command_scope&) = delete;
+    ~command_scope() { vss_cli::platform::command_finished(); }
+};
 
 /// Ends the profiler, flushing to a connected one, on every way out of main.
 struct profiling_session
@@ -1480,14 +1503,85 @@ try
     argc = static_cast<int>(filtered.size());
     argv = filtered.data();
 
-    const arguments args = parse(argc, argv);
-    if (args.positional.empty() || args.has("--help") || args.has("-h"))
+    const std::vector<std::string> words(command_line.begin() + 1,
+                                         command_line.end());
+
+    // Help and the version are answers, not errors: standard output, exit
+    // code 0, whatever else is on the line.  They count only before `--`, and
+    // only for a command that exists.  Anything that is wrong with the line is
+    // one line on standard error and exit code 2.
+    if (words.empty())
     {
-        print_usage();
-        return args.positional.empty() ? 2 : 0;
+        print_usage(stderr);
+        return 2;
+    }
+    const auto options_end = std::find(words.begin(), words.end(), "--");
+    const auto asked = [&](const char* word)
+    { return std::find(words.begin(), options_end, word) != options_end; };
+    const bool help = asked("--help") || asked("-h");
+    const bool version = asked("--version");
+
+    const auto command_index = vss_cli::find_command_word(words);
+    if (!command_index)
+    {
+        if (help)
+        {
+            print_usage(stdout);
+            return 0;
+        }
+        if (version)
+        {
+            std::printf("vss_cli %s\n", vss_cli::build_version().c_str());
+            return 0;
+        }
+        std::fprintf(stderr,
+                     "vss_cli: no command (vss_cli --help lists them)\n");
+        return 2;
+    }
+    const std::string& command = words[*command_index];
+
+    // These four read their own options.
+    const bool reads_own_options = command == "agent" || command == "control" ||
+                                   command == "permissions" ||
+                                   command == "plugin";
+    const auto* const spec =
+        reads_own_options ? nullptr : vss_cli::find_command_spec(command);
+    if (!reads_own_options && spec == nullptr)
+    {
+        std::fprintf(stderr,
+                     "vss_cli: unknown command %s (vss_cli --help lists "
+                     "them)\n",
+                     command.c_str());
+        return 2;
+    }
+    if (help)
+    {
+        print_usage(stdout);
+        return 0;
+    }
+    if (version)
+    {
+        std::printf("vss_cli %s\n", vss_cli::build_version().c_str());
+        return 0;
+    }
+
+    arguments args;
+    if (spec != nullptr)
+    {
+        auto parsed = vss_cli::parse_arguments(*spec, words);
+        if (!parsed.ok())
+        {
+            std::fprintf(stderr, "vss_cli %s: %s\n", command.c_str(),
+                         parsed.error.c_str());
+            return 2;
+        }
+        args = std::move(parsed.args);
     }
 
     const profiling_session profiling;
+    // Tells a console handler on Windows, which waits for it, that the
+    // command has returned and its ports are down.
+    const command_scope scope;
     const auto started = vss::profiling::start(profile);
     if (!started)
     {
@@ -1501,7 +1595,6 @@ try
                      vss::profiling::describe(*started).c_str());
     }
 
-    const std::string command = args.positional[0];
     try
     {
         if (command == "devices")
@@ -1611,8 +1704,8 @@ try
         return 1;
     }
 
-    std::fprintf(stderr, "unknown command: %s\n", command.c_str());
-    print_usage();
+    // Every command that was checked above has a branch here.
+    std::fprintf(stderr, "vss_cli: unknown command %s\n", command.c_str());
     return 2;
 }
 catch (const std::exception& error)

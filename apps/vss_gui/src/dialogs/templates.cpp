@@ -55,8 +55,8 @@ QVector<bundled_template> bundled_templates()
 
 vss::result<vss::config::document> load_bundled_template(const QString& id)
 {
-    VSS_PROFILE_ZONE_NAMED(kProfileZone, "gui.dialogs.templates.load");
-    VSS_PROFILE_ZONE_TEXT(kProfileZone, id.toStdString());
+    VSS_PROFILE_ZONE_NAMED(zone, "gui.dialogs.templates.load");
+    VSS_PROFILE_ZONE_TEXT(zone, id.toStdString());
     vss_init_template_resources();
 
     for (const bundled_template& entry : bundled_templates())

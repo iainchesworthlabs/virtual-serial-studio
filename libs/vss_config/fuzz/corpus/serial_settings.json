@@ -1,1 +1,1 @@
-{"ports":[{"name":"a","kind":"virtual","capture":false,"serial":{"baud_rate":115200,"data_bits":8,"parity":"none","stop_bits":"one","flow_control":"none","read_timeout_ms":100,"write_timeout_ms":100,"exclusive":true}}]}
+{"version":1,"ports":[{"name":"a","kind":"virtual","capture":false,"serial":{"baud_rate":115200,"data_bits":8,"parity":"none","stop_bits":"one","flow_control":"none","read_timeout_ms":100,"write_timeout_ms":100,"exclusive":true}}]}

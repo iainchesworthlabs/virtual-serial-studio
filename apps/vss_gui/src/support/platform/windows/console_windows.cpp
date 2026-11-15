@@ -24,7 +24,7 @@ namespace
 /// program of the Windows subsystem gets when nothing was redirected.
 bool is_missing(DWORD which)
 {
-    const HANDLE handle = GetStdHandle(which);
+    const auto handle = GetStdHandle(which);
     return handle == nullptr || handle == INVALID_HANDLE_VALUE;
 }
 
@@ -35,7 +35,9 @@ void reopen(FILE* stream, DWORD which, const char* device)
     FILE* reopened = nullptr;
     if (freopen_s(&reopened, device, "w", stream) != 0 || reopened == nullptr)
         return;
+    // The C runtime hands the operating-system handle back as an integer.
     SetStdHandle(which,
+                 // NOLINTNEXTLINE(performance-no-int-to-ptr)
                  reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(stream))));
 }
 
