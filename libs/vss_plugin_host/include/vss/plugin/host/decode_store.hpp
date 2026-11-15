@@ -54,9 +54,9 @@ inline constexpr std::size_t max_decode_batch = 1024;
 /// The others are this code's choice: 2000 frames a second is the rate of
 /// frames in of section 7.9.
 inline constexpr std::size_t default_max_frames = 10'000;
-inline constexpr std::size_t default_max_frame_bytes = 8U * 1024 * 1024;
+inline constexpr std::size_t default_max_frame_bytes = std::size_t{8} * 1024 * 1024;
 inline constexpr std::size_t default_max_triggers = 10'000;
-inline constexpr std::size_t default_max_trigger_bytes = 4U * 1024 * 1024;
+inline constexpr std::size_t default_max_trigger_bytes = std::size_t{4} * 1024 * 1024;
 inline constexpr std::size_t default_frames_per_second = 2000;
 inline constexpr std::size_t default_triggers_per_second = 200;
 

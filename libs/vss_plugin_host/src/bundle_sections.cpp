@@ -30,7 +30,7 @@ namespace
 namespace fs = std::filesystem;
 
 constexpr std::size_t digest_hex_length = 128;
-constexpr std::size_t read_chunk = 64U * 1024;
+constexpr std::size_t read_chunk = std::size_t{64} * 1024;
 
 bundle_failure failure(bundle_problem problem, const std::string& section,
                        const std::string& path, std::string detail)

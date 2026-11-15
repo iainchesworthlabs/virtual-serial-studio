@@ -580,7 +580,7 @@ struct decode_store::state
 struct decode_store::notice
 {
     std::mutex mutex;
-    std::optional<boost::asio::any_io_executor> executor;
+    boost::asio::any_io_executor executor;
     std::function<void()> function;
     std::atomic<bool> pending{false};
     bool closed = false;
@@ -602,7 +602,7 @@ decode_store::~decode_store()
     const std::lock_guard lock(notice_->mutex);
     notice_->closed = true;
     notice_->function = nullptr;
-    notice_->executor.reset();
+    notice_->executor = nullptr;
 }
 
 std::shared_ptr<const decode_snapshot> decode_store::snapshot() const
@@ -624,20 +624,23 @@ void decode_store::publish(std::shared_ptr<const decode_snapshot> next)
 
 void decode_store::tell()
 {
-    std::optional<boost::asio::any_io_executor> executor;
+    boost::asio::any_io_executor executor;
     {
         const std::lock_guard lock(notice_->mutex);
-        if (notice_->closed || !notice_->function || !notice_->executor)
+        if (notice_->closed || !notice_->function ||
+            !notice_->executor)
         {
             return;
         }
+        // Read before `pending` is set, while the check above still holds.
+        boost::asio::any_io_executor target = notice_->executor;
         if (notice_->pending.exchange(true))
         {
             return;
         }
-        executor = notice_->executor;
+        executor = std::move(target);
     }
-    boost::asio::post(*executor, [shared = notice_] {
+    boost::asio::post(executor, [shared = notice_] {
         std::function<void()> call;
         {
             const std::lock_guard lock(shared->mutex);
@@ -742,7 +745,7 @@ void decode_store::set_notify(boost::asio::any_io_executor executor,
     }
     else
     {
-        notice_->executor.reset();
+        notice_->executor = nullptr;
         notice_->function = nullptr;
     }
 }

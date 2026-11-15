@@ -129,14 +129,16 @@ TEST_CASE("bundle sections: ids")
     REQUIRE_EQ(found->section, "traffic");
 
     std::vector<offered_section> many;
+    many.reserve(max_offered_sections + 1);
     for (std::size_t i = 0; i < max_offered_sections; ++i)
     {
         many.push_back(section("com.example.diag.s" + std::to_string(i), {}));
     }
     REQUIRE(!check_sections(many, rules()));
     many.push_back(section("com.example.diag.over", {}));
-    REQUIRE(check_sections(many, rules())->problem ==
-            bundle_problem::too_many_sections);
+    const auto over = check_sections(many, rules());
+    REQUIRE(over.has_value());
+    REQUIRE(over->problem == bundle_problem::too_many_sections);
 }
 
 TEST_CASE("bundle sections: titles")
@@ -152,7 +154,9 @@ TEST_CASE("bundle sections: titles")
     REQUIRE(listed(value) == bundle_problem::title_bad);
     value.title = "line\nbreak";
     REQUIRE(listed(value) == bundle_problem::title_bad);
-    value.title = "gnp\xE2\x80\xAE";
+    // A right-to-left override, U+202E, put together byte by byte.
+    value.title = "gnp\xE2\x80";
+    value.title += static_cast<char>(0xAE);
     REQUIRE(listed(value) == bundle_problem::title_bad);
     // Markup is text.
     value.title = "<b>x</b> & \xD7\xA9";
@@ -163,6 +167,7 @@ TEST_CASE("bundle sections: the files of a list")
 {
     // 16 files, and one more.
     std::vector<offered_file> files;
+    files.reserve(17);
     for (int i = 0; i < 16; ++i)
     {
         files.push_back(entry("traffic/" + std::to_string(i) + ".bin", "x"));

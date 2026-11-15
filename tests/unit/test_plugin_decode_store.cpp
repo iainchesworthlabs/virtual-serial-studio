@@ -521,7 +521,10 @@ TEST_CASE("decode store: hostile text is kept as it came and flagged")
     add_one(store, control);
 
     decoded_frame bidi = frame();
-    bidi.message = "gnp.exe\xE2\x80\xAE" "txt";  // right-to-left override
+    // A right-to-left override, U+202E, put together byte by byte.
+    bidi.message = "gnp.exe\xE2\x80";
+    bidi.message += static_cast<char>(0xAE);
+    bidi.message += "txt";
     add_one(store, bidi);
 
     decoded_frame markup = frame();
@@ -732,6 +735,7 @@ TEST_CASE("decode store: readers on many threads and one writer")
     std::atomic<std::uint64_t> broken{0};
 
     std::vector<std::thread> readers;
+    readers.reserve(6);
     for (int r = 0; r < 6; ++r)
     {
         readers.emplace_back([&store, &done, &broken] {
