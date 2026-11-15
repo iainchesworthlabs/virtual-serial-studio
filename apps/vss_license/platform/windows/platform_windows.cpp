@@ -67,6 +67,39 @@ bool write_private_file(const std::filesystem::path& path,
     return written;
 }
 
+std::optional<std::size_t> read_file_into(const std::filesystem::path& path,
+                                          std::span<char> out)
+{
+    const HANDLE file =
+        ::CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr,
+                      OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE)
+        return std::nullopt;
+
+    std::size_t total = 0;
+    bool failed = false;
+    while (total < out.size())
+    {
+        constexpr std::size_t most = std::numeric_limits<DWORD>::max();
+        const std::size_t want =
+            out.size() - total < most ? out.size() - total : most;
+        DWORD count = 0;
+        if (::ReadFile(file, out.data() + total, static_cast<DWORD>(want),
+                       &count, nullptr) == 0)
+        {
+            failed = true;
+            break;
+        }
+        if (count == 0)
+            break;
+        total += count;
+    }
+    ::CloseHandle(file);
+    if (failed)
+        return std::nullopt;
+    return total;
+}
+
 std::optional<std::string> read_variable(const std::string& name)
 {
     char* buffer = nullptr;

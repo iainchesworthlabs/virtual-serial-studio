@@ -27,7 +27,8 @@ int main(int argc, char** argv)
         vss::license::tool::surroundings where{
             std::cout, std::cerr, vss::license::tool::platform::read_variable,
             std::chrono::floor<std::chrono::seconds>(
-                std::chrono::system_clock::now())};
+                std::chrono::system_clock::now()),
+            vss::license::builtin_revocations()};
         return vss::license::tool::run(arguments, where);
     }
     catch (const std::exception& failure)

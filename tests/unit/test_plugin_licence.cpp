@@ -13,6 +13,8 @@
 #include "test_framework.hpp"
 
 #include <chrono>
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -357,4 +359,39 @@ TEST_CASE("plugin licence: the error is not_licensed")
     REQUIRE(checked.has_error());
     REQUIRE(checked.error() == make_error_code(plugin_errc::not_licensed));
     REQUIRE(checked.error() == plugin_errc::not_licensed);
+}
+
+TEST_CASE("plugin licence: a licence can name the longest plugin id")
+{
+    // The licence library cannot see the plugin library, so its longest
+    // feature name is a number of its own. It has to hold `plugins.` and the
+    // longest plugin id, or a licence for that plugin could not be issued.
+    const std::string longest_id = std::string(max_id_length - 2, 'a') + ".b";
+    REQUIRE_EQ(longest_id.size(), max_id_length);
+    const std::string feature = plugin_feature(longest_id);
+    REQUIRE_EQ(feature.size(), license::max_feature_length);
+
+    // Whoever raises the plugin id limit raises the licence's too.
+    REQUIRE_EQ(license::max_feature_length,
+               plugin_feature(std::string(max_id_length, 'a')).size());
+
+    // The licence is written and read back with that feature, and answers
+    // for it.
+    const auto payload = license::write_payload(licence_with({feature}));
+    REQUIRE(payload);
+    const auto read = license::parse_payload(
+        {reinterpret_cast<const std::uint8_t*>(payload->data()),
+         payload->size()});
+    REQUIRE(read);
+    REQUIRE_EQ(read->features.size(), std::size_t{1});
+    REQUIRE_EQ(read->features.front(), feature);
+
+    manifest declared = plugin_with(longest_id, "pro");
+    REQUIRE(
+        check_licence(trust_level::official, declared, valid_with({feature}))
+            .has_value());
+
+    // One character more is not a feature of any plugin.
+    const std::string too_long = plugin_feature(longest_id + "a");
+    REQUIRE(!license::write_payload(licence_with({too_long})));
 }
