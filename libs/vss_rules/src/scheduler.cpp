@@ -60,21 +60,36 @@ void scheduler::start(time_point origin)
     wake_if_sooner();
 }
 
-void scheduler::on_read(endpoint_id, bytes_view data, time_point when) noexcept
+void scheduler::on_read(endpoint_id from, bytes_view data,
+                        time_point when) noexcept
 {
     // The stage is on the path of the port's bytes and must not throw.  The
     // one thing that can go wrong here is memory, and then the chunk goes on
     // its way unmatched and is counted.
     try
     {
+        // One look under one lock: a set is either still matching or has a
+        // successor, and a chunk goes to exactly one of the two.
+        std::shared_ptr<scheduler> successor;
         {
             std::lock_guard lock(mutex_);
-            if (!started_ || closed_ ||
-                suspended_ != suspend_reason::none)
-                return;
-            scratch_.clear();
-            machine_.feed(data, when, scratch_);
-            schedule(scratch_, when);
+            // Asked before anything else: a set that was replaced and then
+            // closed still stands in for the one that replaced it.
+            successor = successor_;
+            if (!successor)
+            {
+                if (!started_ || closed_ || retired_ ||
+                    suspended_ != suspend_reason::none)
+                    return;
+                scratch_.clear();
+                machine_.feed(data, when, scratch_);
+                schedule(scratch_, when);
+            }
+        }
+        if (successor)
+        {
+            successor->on_read(from, data, when);
+            return;
         }
         wake_if_sooner();
     }
@@ -89,7 +104,8 @@ void scheduler::lines_changed(control_lines before, control_lines after,
 {
     {
         std::lock_guard lock(mutex_);
-        if (!started_ || closed_ || suspended_ != suspend_reason::none)
+        if (!started_ || closed_ || retired_ ||
+            suspended_ != suspend_reason::none)
             return;
         scratch_.clear();
         machine_.lines_changed(before, after, when, scratch_);
@@ -102,7 +118,8 @@ void scheduler::port_changed(port_event what, time_point when)
 {
     {
         std::lock_guard lock(mutex_);
-        if (!started_ || closed_ || suspended_ != suspend_reason::none)
+        if (!started_ || closed_ || retired_ ||
+            suspended_ != suspend_reason::none)
             return;
         scratch_.clear();
         machine_.port_changed(what, when, scratch_);
@@ -118,7 +135,8 @@ result<void> scheduler::signal(std::size_t index, bytes_view carried,
         return make_error_code(errc::not_found);
     {
         std::lock_guard lock(mutex_);
-        if (!started_ || closed_ || suspended_ != suspend_reason::none)
+        if (!started_ || closed_ || retired_ ||
+            suspended_ != suspend_reason::none)
             return {};
         scratch_.clear();
         machine_.signal(index, carried, cause, when, scratch_);
@@ -128,10 +146,51 @@ result<void> scheduler::signal(std::size_t index, bytes_view carried,
     return {};
 }
 
+void scheduler::start_in_place_of(scheduler& old, time_point when,
+                                  bool keep_actions, bool carry)
+{
+    {
+        // The old set's lock first, then this one's.  Nothing else holds
+        // two schedulers' locks, and nothing else knows this scheduler yet.
+        std::lock_guard theirs(old.mutex_);
+        std::lock_guard lock(mutex_);
+        if (started_ || closed_)
+            return;
+        started_ = true;
+        budget_at_ = when;
+        if (old.started_ && !old.closed_ && !old.retired_)
+        {
+            machine_.take_over(old.machine_, carry);
+            // A suspended set was not shown the stream, so what it last saw
+            // is not the start of anything.
+            if (old.suspended_ != suspend_reason::none)
+                machine_.resync();
+            old.retired_ = true;
+            old.successor_ = shared_from_this();
+            // The heap is rebuilt from what is kept.
+            std::vector<item> kept;
+            kept.reserve(max_waiting_actions);
+            for (item& each : old.queue_)
+            {
+                if (keep_actions && each.rule != no_index)
+                    kept.push_back(std::move(each));
+                else
+                    ++old.stats_.cancelled;
+            }
+            std::make_heap(kept.begin(), kept.end(), &scheduler::later);
+            old.queue_ = std::move(kept);
+        }
+        std::vector<firing> timeline = machine_.start(when);
+        schedule(timeline, when);
+    }
+    wake_if_sooner();
+}
+
 void scheduler::suspend(time_point when)
 {
     std::lock_guard lock(mutex_);
-    if (!started_ || closed_ || suspended_ != suspend_reason::none)
+    if (!started_ || closed_ || retired_ ||
+        suspended_ != suspend_reason::none)
         return;
     suspend_locked(suspend_reason::asked, when);
 }
@@ -297,7 +356,10 @@ std::optional<time_point> scheduler::next_wake() const
 {
     if (suspended_ != suspend_reason::none)
         return std::nullopt;
-    std::optional<time_point> next = machine_.next_deadline();
+    // A set that was replaced only carries out what it had promised.
+    std::optional<time_point> next;
+    if (!retired_)
+        next = machine_.next_deadline();
     if (!queue_.empty() && (!next || queue_.front().due < *next))
         next = queue_.front().due;
     return next;
@@ -374,9 +436,12 @@ void scheduler::fire()
         const time_point current = hooks_.now();
         // Silence that is complete may fire a rule, whose actions may be
         // due already.
-        scratch_.clear();
-        machine_.tick(current, scratch_);
-        schedule(scratch_, current);
+        if (!retired_)
+        {
+            scratch_.clear();
+            machine_.tick(current, scratch_);
+            schedule(scratch_, current);
+        }
         while (!queue_.empty() && queue_.front().due <= current)
         {
             std::pop_heap(queue_.begin(), queue_.end(), &scheduler::later);

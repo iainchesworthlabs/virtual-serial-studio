@@ -2406,3 +2406,385 @@ TEST_CASE("rules: machine keeps its state, slots and counts across a resync")
     REQUIRE_EQ(each.stats().firings, std::uint64_t{3});
     REQUIRE(bytes_equal(each.slot(0), hex("5c")));
 }
+
+// -- taking over from another set -------------------------------------------
+
+namespace
+{
+
+/// A set with one rule, `pattern` (hex), that marks `mark`.
+std::string marking_set(std::string_view pattern, std::string_view mark)
+{
+    return peer_set(R"j({"name": "frame", "when": {"bytes": ")j" +
+                    std::string(pattern) + R"j("}, "do": [{"mark": ")j" +
+                    std::string(mark) + R"j("}]})j");
+}
+
+/// The index of the slot called `name` in the set of `each`.
+std::size_t slot_of(const machine& each, std::string_view name)
+{
+    const auto& names = each.set().slot_names;
+    const auto found = std::find(names.begin(), names.end(), name);
+    REQUIRE(found != names.end());
+    return static_cast<std::size_t>(found - names.begin());
+}
+
+std::string rule_name(const machine& each, const firing& fired)
+{
+    REQUIRE(fired.rule < each.set().rules.size());
+    return each.set().rules[fired.rule].name;
+}
+
+const char* const carry_old_rules = R"j(
+  {"name": "arm", "when": {"bytes": "10 ??"},
+   "do": [{"set_slot": {"slot": "second", "match": [1, 1]}},
+          {"set_state": "armed"}]},
+  {"name": "twice", "when": {"bytes": "20"}, "count": 2,
+   "do": [{"mark": "T"}]},
+  {"name": "many", "when": {"bytes": "30"}, "do": [{"mark": "M"}]}
+)j";
+
+const char* const carry_old_head =
+    R"j("states": ["idle", "armed"],
+        "slots": {"first": "aa", "second": "bb"}, )j";
+
+/// A machine that went to the state "armed", set the slot "second" to 5c,
+/// matched "twice" twice and "many" three times.
+machine carry_old()
+{
+    machine old(make_set(peer_set(carry_old_rules, carry_old_head)), 1);
+    REQUIRE_EQ(feed(old, "10 5c", ms(1)).size(), std::size_t{1});
+    REQUIRE_EQ(feed(old, "20 20 20", ms(2)).size(), std::size_t{2});
+    REQUIRE_EQ(feed(old, "30 30 30", ms(3)).size(), std::size_t{3});
+    REQUIRE_EQ(old.state(), std::size_t{1});
+    REQUIRE(bytes_equal(old.slot(slot_of(old, "second")), hex("5c")));
+    return old;
+}
+
+} // namespace
+
+TEST_CASE("rules: machine matches a frame that straddles a take over once")
+{
+    const auto make = []
+    { return make_set(marking_set("01 02 03 04", "frame")); };
+    machine old(make(), 1);
+    REQUIRE(feed(old, "aa", ms(5)).empty());
+    REQUIRE(feed(old, "01 02", ms(10)).empty());
+
+    machine next(make(), 1);
+    next.take_over(old, false);
+    REQUIRE_EQ(next.stats().bytes_seen, std::uint64_t{0});
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{0});
+
+    const auto got = feed(next, "03 04", ms(11));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE_EQ(got[0].ordinal, std::uint64_t{1});
+    // The first byte of the frame is the second byte of the stream.
+    REQUIRE_EQ(got[0].offset, std::uint64_t{1});
+    REQUIRE_EQ(got[0].length, std::size_t{4});
+    REQUIRE(got[0].start == ms(10));
+    REQUIRE(got[0].end == ms(11));
+    REQUIRE_EQ(text_of(got[0]), std::string("frame"));
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{1});
+    REQUIRE_EQ(next.stats().bytes_seen, std::uint64_t{2});
+    REQUIRE_EQ(next.stats().bytes_matched, std::uint64_t{4});
+
+    // The old machine is not asked to match what is fed to the new one.
+    REQUIRE_EQ(old.stats().firings, std::uint64_t{0});
+    REQUIRE_EQ(old.stats().bytes_seen, std::uint64_t{3});
+
+    // Offsets go on from the old stream.
+    const auto again = feed(next, "09 01 02 03 04", ms(12));
+    REQUIRE_EQ(again.size(), std::size_t{1});
+    REQUIRE_EQ(again[0].offset, std::uint64_t{6});
+    REQUIRE_EQ(again[0].ordinal, std::uint64_t{2});
+}
+
+TEST_CASE("rules: machine fires nothing for a pattern complete in the bytes "
+          "handed over")
+{
+    machine old(make_set(marking_set("01 02 03 04", "old")), 1);
+    REQUIRE(feed(old, "01 02 03", ms(10)).empty());
+    REQUIRE(old.unmatched_tail() == hex("01 02 03"));
+
+    // The new pattern is the last two bytes the old set saw.
+    machine next(make_set(marking_set("02 03", "new")), 1);
+    next.take_over(old, false);
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{0});
+    REQUIRE_EQ(next.stats().bytes_seen, std::uint64_t{0});
+
+    REQUIRE(feed(next, "09", ms(11)).empty());
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{0});
+    REQUIRE_EQ(next.stats().bytes_matched, std::uint64_t{0});
+
+    // The rule is there: the same bytes after the change are matched.
+    const auto got = feed(next, "02 03", ms(12));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].offset, std::uint64_t{4});
+    REQUIRE_EQ(got[0].ordinal, std::uint64_t{1});
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{1});
+}
+
+TEST_CASE("rules: machine cuts the tail it takes over to what the new set "
+          "needs")
+{
+    machine old(make_set(marking_set("01 02 03 04 05 06", "old")), 1);
+    REQUIRE(feed(old, "11 22 33 44 55", ms(10)).empty());
+    REQUIRE(old.unmatched_tail() == hex("11 22 33 44 55"));
+
+    // Its longest pattern is 3: the last two bytes the old set saw are the
+    // start of a match, and the next byte ends it.
+    machine near(make_set(marking_set("44 55 66", "near")), 1);
+    near.take_over(old, false);
+    const auto got = feed(near, "66", ms(11));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].offset, std::uint64_t{3});
+    REQUIRE_EQ(got[0].length, std::size_t{3});
+    REQUIRE(got[0].start == ms(10));
+    REQUIRE(got[0].end == ms(11));
+    REQUIRE_EQ(near.stats().bytes_seen, std::uint64_t{1});
+
+    // A pattern whose first bytes are further back is complete inside the
+    // old bytes, and does not fire for them or for the next byte.
+    machine far(make_set(marking_set("33 44 55", "far")), 1);
+    far.take_over(old, false);
+    REQUIRE(feed(far, "66", ms(11)).empty());
+    REQUIRE_EQ(far.stats().firings, std::uint64_t{0});
+    // It is not left half done either: it still matches a whole frame.
+    const auto whole = feed(far, "33 44 55", ms(12));
+    REQUIRE_EQ(whole.size(), std::size_t{1});
+    REQUIRE_EQ(whole[0].offset, std::uint64_t{6});
+    REQUIRE_EQ(whole[0].ordinal, std::uint64_t{1});
+}
+
+TEST_CASE("rules: machine counts silence from the last byte the old set saw")
+{
+    machine old(make_set(marking_set("01 02 03", "old")), 1);
+    REQUIRE(feed(old, "aa bb", ms(10)).empty());
+    REQUIRE(feed(old, "cc", ms(12)).empty());
+
+    machine next(make_set(peer_set(
+                     R"j({"name": "q", "when": {"quiet_us": 5000},
+                          "do": [{"mark": "Q"}]})j")),
+                 1);
+    REQUIRE(!next.next_deadline().has_value());
+    next.take_over(old, false);
+    REQUIRE(next.next_deadline() == ms(17));
+
+    REQUIRE(tick(next, ms(15)).empty());
+    REQUIRE(tick(next, ms(17) - 1us).empty());
+    const auto got = tick(next, ms(17));
+    REQUIRE_EQ(got.size(), std::size_t{1});
+    REQUIRE_EQ(got[0].rule, std::size_t{0});
+    REQUIRE_EQ(got[0].ordinal, std::uint64_t{1});
+    REQUIRE(got[0].start == ms(17));
+    REQUIRE(got[0].end == ms(17));
+    REQUIRE(!next.next_deadline().has_value());
+    // Once for the silence.
+    REQUIRE(tick(next, ms(100)).empty());
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{1});
+}
+
+TEST_CASE("rules: machine carries the state, the slots and the counts that "
+          "have a name in both sets")
+{
+    const machine old = carry_old();
+    machine next(make_set(peer_set(
+                     R"j(
+      {"name": "fresh", "when": {"bytes": "40"}, "do": [{"mark": "F"}]},
+      {"name": "many", "when": {"bytes": "30"}, "do": [{"mark": "M"}]},
+      {"name": "twice", "when": {"bytes": "20"}, "count": 2,
+       "do": [{"mark": "T"}]},
+      {"name": "gated", "when": {"bytes": "50", "state": "armed"},
+       "do": [{"mark": "G"}]}
+    )j",
+                     R"j("states": ["extra", "idle", "armed"],
+        "slots": {"third": "cc", "second": "00", "first": "00"}, )j")),
+                 1);
+    REQUIRE_EQ(next.state(), std::size_t{0});
+    next.take_over(old, true);
+
+    // The state "armed" is the third of the new set, and the one it is in.
+    REQUIRE_EQ(next.state(), std::size_t{2});
+    REQUIRE(bytes_equal(next.slot(slot_of(next, "first")), hex("aa")));
+    REQUIRE(bytes_equal(next.slot(slot_of(next, "second")), hex("5c")));
+    // A slot the old set did not have keeps its value.
+    REQUIRE(bytes_equal(next.slot(slot_of(next, "third")), hex("cc")));
+
+    // A rule that was at its count is finished, one that went on goes on,
+    // one that is new starts at the first match.
+    REQUIRE(feed(next, "20", ms(10)).empty());
+    const auto many = feed(next, "30", ms(11));
+    REQUIRE_EQ(many.size(), std::size_t{1});
+    REQUIRE_EQ(rule_name(next, many[0]), std::string("many"));
+    REQUIRE_EQ(many[0].ordinal, std::uint64_t{4});
+    const auto fresh = feed(next, "40", ms(12));
+    REQUIRE_EQ(fresh.size(), std::size_t{1});
+    REQUIRE_EQ(rule_name(next, fresh[0]), std::string("fresh"));
+    REQUIRE_EQ(fresh[0].ordinal, std::uint64_t{1});
+    // The rule that is for the state "armed" is in its state.
+    const auto gated = feed(next, "50", ms(13));
+    REQUIRE_EQ(gated.size(), std::size_t{1});
+    REQUIRE_EQ(rule_name(next, gated[0]), std::string("gated"));
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{3});
+
+    // A state the new set does not have leaves it in its first state.  The
+    // slots are still carried.
+    machine other(make_set(peer_set(
+                      R"j(
+      {"name": "many", "when": {"bytes": "30"}, "do": [{"mark": "M"}]}
+    )j",
+                      R"j("states": ["x", "y"], "slots": {"first": "00"}, )j")),
+                  1);
+    other.take_over(old, true);
+    REQUIRE_EQ(other.state(), std::size_t{0});
+    REQUIRE(bytes_equal(other.slot(slot_of(other, "first")), hex("aa")));
+    const auto after = feed(other, "30", ms(10));
+    REQUIRE_EQ(after.size(), std::size_t{1});
+    REQUIRE_EQ(after[0].ordinal, std::uint64_t{4});
+}
+
+TEST_CASE("rules: machine starts the state, the slots and the counts afresh "
+          "when it does not carry, and still matches the straddling frame")
+{
+    const char* const rules_text = R"j(
+      {"name": "arm", "when": {"bytes": "10 ??"},
+       "do": [{"set_slot": {"slot": "s", "match": [1, 1]}},
+              {"set_state": "armed"}]},
+      {"name": "once", "when": {"bytes": "30"}, "count": 1,
+       "do": [{"mark": "O"}]},
+      {"name": "frame", "when": {"bytes": "60 61 62"},
+       "do": [{"mark": "frame"}]},
+      {"name": "gated", "when": {"bytes": "50", "state": "armed"},
+       "do": [{"mark": "G"}]}
+    )j";
+    const char* const head = R"j("states": ["idle", "armed"],
+                                 "slots": {"s": "aa"}, )j";
+    machine old(make_set(peer_set(rules_text, head)), 1);
+    REQUIRE_EQ(feed(old, "10 5c 30", ms(1)).size(), std::size_t{2});
+    REQUIRE(feed(old, "60 61", ms(2)).empty());
+    REQUIRE_EQ(old.state(), std::size_t{1});
+    REQUIRE(bytes_equal(old.slot(0), hex("5c")));
+
+    machine next(make_set(peer_set(rules_text, head)), 1);
+    next.take_over(old, false);
+    REQUIRE_EQ(next.state(), std::size_t{0});
+    REQUIRE(bytes_equal(next.slot(0), hex("aa")));
+
+    // The frame is matched, by the new set, from the old set's first byte.
+    const auto frame = feed(next, "62", ms(3));
+    REQUIRE_EQ(frame.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(frame[0]), std::string("frame"));
+    REQUIRE_EQ(frame[0].offset, std::uint64_t{3});
+    REQUIRE_EQ(frame[0].length, std::size_t{3});
+    REQUIRE(frame[0].start == ms(2));
+    REQUIRE_EQ(frame[0].ordinal, std::uint64_t{1});
+
+    // The rule that had its one match matches once more, as the first match.
+    const auto once = feed(next, "30", ms(4));
+    REQUIRE_EQ(once.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(once[0]), std::string("O"));
+    REQUIRE_EQ(once[0].ordinal, std::uint64_t{1});
+    // The rule for the state "armed" is not in it.
+    REQUIRE(feed(next, "50", ms(5)).empty());
+    REQUIRE_EQ(next.stats().firings, std::uint64_t{2});
+}
+
+TEST_CASE("rules: machine carries the match count of a rule whose sequence "
+          "has another number of steps")
+{
+    const auto steps = [](std::size_t count, std::string_view then)
+    {
+        std::string text = R"j({"name": "q", "when": {"bytes": "01"},
+                                 "sequence": [)j";
+        for (std::size_t i = 0; i < count; ++i)
+        {
+            if (i != 0)
+                text += ", ";
+            text +=
+                R"j({"do": [{"mark": "s)j" + std::to_string(i) + R"j("}]})j";
+        }
+        text += R"j(], "then": ")j" + std::string(then) + R"j("})j";
+        return make_set(peer_set(text));
+    };
+    const auto feed_n = [](machine& each, int times)
+    {
+        for (int i = 0; i < times; ++i)
+            REQUIRE_EQ(feed(each, "01", ms(i + 1)).size(), std::size_t{1});
+    };
+
+    // Repeat: three matches of two steps, then a set of three steps.  The
+    // fourth match is the fourth, and the step comes from the count.
+    {
+        machine old(steps(2, "repeat"), 1);
+        feed_n(old, 3);
+        machine next(steps(3, "repeat"), 1);
+        next.take_over(old, true);
+        const auto got = feed(next, "01", ms(10));
+        REQUIRE_EQ(got.size(), std::size_t{1});
+        REQUIRE_EQ(got[0].ordinal, std::uint64_t{4});
+        REQUIRE_EQ(got[0].step, std::size_t{0});
+        REQUIRE_EQ(text_of(got[0]), std::string("s0"));
+        const auto more = feed(next, "01", ms(11));
+        REQUIRE_EQ(more.size(), std::size_t{1});
+        REQUIRE_EQ(more[0].ordinal, std::uint64_t{5});
+        REQUIRE_EQ(text_of(more[0]), std::string("s1"));
+    }
+    // Hold: five matches of two steps, and the new set has three: the last.
+    {
+        machine old(steps(2, "hold"), 1);
+        feed_n(old, 5);
+        machine next(steps(3, "hold"), 1);
+        next.take_over(old, true);
+        const auto got = feed(next, "01", ms(10));
+        REQUIRE_EQ(got.size(), std::size_t{1});
+        REQUIRE_EQ(got[0].ordinal, std::uint64_t{6});
+        REQUIRE_EQ(got[0].step, std::size_t{2});
+        REQUIRE_EQ(text_of(got[0]), std::string("s2"));
+    }
+    // Fewer steps than before: the step is the last one the new set has.
+    {
+        machine old(steps(3, "hold"), 1);
+        feed_n(old, 3);
+        machine next(steps(2, "hold"), 1);
+        next.take_over(old, true);
+        const auto got = feed(next, "01", ms(10));
+        REQUIRE_EQ(got.size(), std::size_t{1});
+        REQUIRE_EQ(got[0].ordinal, std::uint64_t{4});
+        REQUIRE_EQ(got[0].step, std::size_t{1});
+    }
+    // Stop: a rule that had run its two steps has not run the three of the
+    // new set, and runs the third; one that had run three has run the two.
+    {
+        machine old(steps(2, "stop"), 1);
+        feed_n(old, 2);
+        REQUIRE(feed(old, "01", ms(5)).empty());
+        machine next(steps(3, "stop"), 1);
+        next.take_over(old, true);
+        const auto got = feed(next, "01", ms(10));
+        REQUIRE_EQ(got.size(), std::size_t{1});
+        REQUIRE_EQ(got[0].ordinal, std::uint64_t{3});
+        REQUIRE_EQ(got[0].step, std::size_t{2});
+        REQUIRE(feed(next, "01", ms(11)).empty());
+    }
+    {
+        machine old(steps(3, "stop"), 1);
+        feed_n(old, 3);
+        machine next(steps(2, "stop"), 1);
+        next.take_over(old, true);
+        REQUIRE(feed(next, "01", ms(10)).empty());
+        REQUIRE_EQ(next.stats().firings, std::uint64_t{0});
+    }
+    // Not carried: the count starts at the first match.
+    {
+        machine old(steps(2, "repeat"), 1);
+        feed_n(old, 3);
+        machine next(steps(3, "repeat"), 1);
+        next.take_over(old, false);
+        const auto got = feed(next, "01", ms(10));
+        REQUIRE_EQ(got.size(), std::size_t{1});
+        REQUIRE_EQ(got[0].ordinal, std::uint64_t{1});
+        REQUIRE_EQ(got[0].step, std::size_t{0});
+    }
+}

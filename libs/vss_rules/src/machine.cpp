@@ -484,6 +484,75 @@ time_point machine::time_of(std::uint64_t offset) const
     return boundaries_.empty() ? time_point{} : boundaries_.front().when;
 }
 
+void machine::take_over(const machine& old, bool carry)
+{
+    const std::size_t longest = set_->longest_pattern;
+    byte_buffer tail = old.unmatched_tail();
+    if (longest < 2)
+        tail.clear();
+    else if (tail.size() > longest - 1)
+        tail.erase(tail.begin(),
+                   tail.end() - static_cast<std::ptrdiff_t>(longest - 1));
+
+    // The stream as `old` knew it, less the bytes that are fed again below.
+    seen_ = old.seen_ - tail.size();
+    boundaries_ = old.boundaries_;
+    any_seen_ = old.any_seen_;
+    last_arrival_ = old.last_arrival_;
+    last_due_ = old.last_due_;
+    for (const byte value : tail)
+    {
+        ++seen_;
+        recent_.push_back(value);
+        for (std::size_t index = 0; index < rules_.size(); ++index)
+        {
+            if (set_->rules[index].kind == trigger_kind::bytes)
+                static_cast<void>(advance(index, value));
+        }
+    }
+
+    if (!carry)
+        return;
+    const compiled_rule_set& before = *old.set_;
+    if (old.state_ < before.states.size())
+    {
+        const auto same = std::find(set_->states.begin(), set_->states.end(),
+                                    before.states[old.state_]);
+        if (same != set_->states.end())
+            state_ = static_cast<std::size_t>(same - set_->states.begin());
+    }
+    for (std::size_t slot = 0; slot < set_->slot_names.size(); ++slot)
+    {
+        const auto same =
+            std::find(before.slot_names.begin(), before.slot_names.end(),
+                      set_->slot_names[slot]);
+        if (same != before.slot_names.end())
+            slots_[slot] = old.slots_[static_cast<std::size_t>(
+                same - before.slot_names.begin())];
+    }
+    for (std::size_t index = 0; index < rules_.size(); ++index)
+    {
+        const compiled_rule& compiled = set_->rules[index];
+        const auto same =
+            std::find_if(before.rules.begin(), before.rules.end(),
+                         [&](const compiled_rule& each)
+                         { return each.name == compiled.name; });
+        if (same == before.rules.end())
+            continue;
+        const rule_state& was =
+            old.rules_[static_cast<std::size_t>(same - before.rules.begin())];
+        rule_state& runtime = rules_[index];
+        runtime.matches = was.matches;
+        if (was.step_runs.size() == runtime.step_runs.size())
+            runtime.step_runs = was.step_runs;
+        const std::uint64_t steps = compiled.sequence.size();
+        runtime.finished =
+            (compiled.count != 0 && runtime.matches >= compiled.count) ||
+            (compiled.then == after_sequence::stop &&
+             runtime.matches >= steps);
+    }
+}
+
 void machine::resync()
 {
     consume();

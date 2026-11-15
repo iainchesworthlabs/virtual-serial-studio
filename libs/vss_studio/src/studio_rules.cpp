@@ -140,6 +140,48 @@ private:
 
 } // namespace
 
+result<studio::rules_plan> studio::plan_rules(
+    const rules::compiled_rule_set* set, std::vector<rules::problem>& found)
+{
+    if (set == nullptr)
+        return make_error_code(errc::invalid_argument);
+    if (set->attach.as != rules::role::peer)
+    {
+        found.push_back(rules::problem{
+            "attach.role",
+            "only a \"peer\" set can be installed in this build"});
+        return make_error_code(errc::unsupported);
+    }
+    rules_plan plan;
+    plan.place = hub_->find_endpoint(set->attach.port);
+    if (!plan.place)
+    {
+        found.push_back(rules::problem{
+            "attach.port", "there is no port named \"" + set->attach.port +
+                               "\""});
+        return make_error_code(errc::not_found);
+    }
+    const endpoint_id id = plan.place->id();
+
+    bool takes_faults = false;
+    {
+        std::lock_guard lock(record_mutex_);
+        if (const auto it = records_.find(id); it != records_.end())
+            takes_faults = !it->second.fixture.expired() ||
+                           !it->second.driver.expired();
+    }
+    install_check(*set, takes_faults, found).run();
+    if (!found.empty())
+        return make_error_code(errc::unsupported);
+
+    plan.hooks.now = [hub = hub_.get()] { return hub->now(); };
+    plan.hooks.poll_clock = static_cast<bool>(options_.hub.clock);
+    plan.hooks.act = [this, id, target = std::weak_ptr<endpoint>(plan.place)](
+                         const rules::planned_action& action)
+    { carry_out_rule_action(id, target.lock(), action); };
+    return plan;
+}
+
 result<rules_installation> studio::install_rules(
     std::shared_ptr<const rules::compiled_rule_set> set,
     const rules_install_options& options,
@@ -153,43 +195,16 @@ result<rules_installation> studio::install_rules(
         return make_error_code(code);
     };
 
-    if (!set)
-        return refuse(errc::invalid_argument);
-    if (set->attach.as != rules::role::peer)
+    result<rules_plan> plan = plan_rules(set.get(), found);
+    if (!plan)
     {
-        found.push_back(rules::problem{
-            "attach.role",
-            "only a \"peer\" set can be installed in this build"});
-        return refuse(errc::unsupported);
+        if (problems != nullptr)
+            *problems = std::move(found);
+        return plan.error();
     }
-    const std::shared_ptr<endpoint> place =
-        hub_->find_endpoint(set->attach.port);
-    if (!place)
-    {
-        found.push_back(rules::problem{
-            "attach.port", "there is no port named \"" + set->attach.port +
-                               "\""});
-        return refuse(errc::not_found);
-    }
+    const std::shared_ptr<endpoint> place = std::move(plan->place);
     const endpoint_id id = place->id();
-
-    bool takes_faults = false;
-    {
-        std::lock_guard lock(record_mutex_);
-        if (const auto it = records_.find(id); it != records_.end())
-            takes_faults = !it->second.fixture.expired() ||
-                           !it->second.driver.expired();
-    }
-    install_check(*set, takes_faults, found).run();
-    if (!found.empty())
-        return refuse(errc::unsupported);
-
-    rules::scheduler_hooks hooks;
-    hooks.now = [hub = hub_.get()] { return hub->now(); };
-    hooks.poll_clock = static_cast<bool>(options_.hub.clock);
-    hooks.act = [this, id, target = std::weak_ptr<endpoint>(place)](
-                    const rules::planned_action& action)
-    { carry_out_rule_action(id, target.lock(), action); };
+    rules::scheduler_hooks hooks = std::move(plan->hooks);
 
     rules_installation installed;
     installed.place = id;
@@ -223,7 +238,7 @@ result<rules_installation> studio::install_rules(
             std::move(hooks), options.limits);
         installed.generation = next_rules_generation_++;
         installed.seed = made->seed();
-        rules_.emplace(id, rules_record{made, installed.generation});
+        rules_.emplace(id, rules_record{made, installed.generation, {}});
 
         // The set's run starts now.  It sees the chunks from the next one
         // the port reads: the stage is put on the endpoint's strand, between
@@ -237,15 +252,93 @@ result<rules_installation> studio::install_rules(
     return installed;
 }
 
+result<rules_installation> studio::replace_rules(
+    std::shared_ptr<const rules::compiled_rule_set> set,
+    const rules_replace_options& options,
+    std::vector<rules::problem>* problems)
+{
+    std::vector<rules::problem> found;
+    const auto refuse = [&](std::error_code code) -> result<rules_installation>
+    {
+        if (problems != nullptr)
+            *problems = std::move(found);
+        return code;
+    };
+
+    result<rules_plan> plan = plan_rules(set.get(), found);
+    if (!plan)
+        return refuse(plan.error());
+    const endpoint_id id = plan->place->id();
+
+    rules_installation installed;
+    installed.place = id;
+    // Sets replaced earlier that have nothing left to do.  Closed after the
+    // lock is let go: a close waits for an action under way.
+    std::vector<std::shared_ptr<rules::scheduler>> finished;
+    {
+        std::lock_guard lock(rules_mutex_);
+        const auto it = rules_.find(id);
+        if (it == rules_.end())
+        {
+            found.push_back(rules::problem{
+                "attach.port", "\"" + set->attach.port +
+                                   "\" has no rule set to replace"});
+            return refuse(make_error_code(errc::not_found));
+        }
+        rules_record& record = it->second;
+        const std::size_t others =
+            rules_bytes_ - record.scheduler->set().size_bytes;
+        if (set->size_bytes > rules::max_hub_bytes - others)
+        {
+            found.push_back(rules::problem{
+                "", "the rule sets of the studio would take more than " +
+                        std::to_string(rules::max_hub_bytes) + " bytes"});
+            return refuse(make_error_code(errc::queue_full));
+        }
+        rules_bytes_ = others + set->size_bytes;
+
+        const auto made = std::make_shared<rules::scheduler>(
+            hub_->executor(), std::move(set), options.run_seed,
+            std::move(plan->hooks), options.limits);
+        // From here the old set hands what it is shown to the new one, so
+        // it does not matter which of the two the port shows a chunk to
+        // before its stage is changed, at its next turn.
+        made->start_in_place_of(*record.scheduler, hub_->now(),
+                                options.keep_actions, options.carry_state);
+        plan->place->set_read_stage(made);
+
+        std::erase_if(record.replaced,
+                      [&](std::shared_ptr<rules::scheduler>& each)
+                      {
+                          if (each->waiting() != 0)
+                              return false;
+                          finished.push_back(std::move(each));
+                          return true;
+                      });
+        record.replaced.push_back(std::move(record.scheduler));
+        record.scheduler = made;
+        record.generation = next_rules_generation_++;
+        installed.generation = record.generation;
+        installed.seed = made->seed();
+    }
+    for (const auto& each : finished)
+        each->close();
+    if (problems != nullptr)
+        problems->clear();
+    return installed;
+}
+
 result<void> studio::remove_rules(endpoint_id place)
 {
     std::shared_ptr<rules::scheduler> removed;
+    std::vector<std::shared_ptr<rules::scheduler>> replaced;
     {
         std::lock_guard lock(rules_mutex_);
         const auto it = rules_.find(place);
         if (it == rules_.end())
             return make_error_code(errc::not_found);
         removed = std::move(it->second.scheduler);
+        replaced = std::move(it->second.replaced);
         rules_.erase(it);
         rules_bytes_ -= removed->set().size_bytes;
         // Asked under the lock, so that the stage of a set installed right
@@ -257,6 +350,8 @@ result<void> studio::remove_rules(endpoint_id place)
     // of the stage at its next turn; until then the stage ignores what it
     // is shown.
     removed->close();
+    for (const auto& each : replaced)
+        each->close();
     return {};
 }
 
@@ -339,6 +434,8 @@ void studio::close_all_rules()
     for (auto& [id, record] : all)
     {
         record.scheduler->close();
+        for (const auto& each : record.replaced)
+            each->close();
         if (const auto endpoint = hub_->find_endpoint(id))
             endpoint->set_read_stage(nullptr);
     }

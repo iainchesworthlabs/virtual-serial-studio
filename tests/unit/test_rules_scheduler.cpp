@@ -1625,3 +1625,525 @@ TEST_CASE("rules scheduler: a rule on silence does not fire while the set is "
     REQUIRE_EQ(stats.suspensions, std::uint64_t{1});
     REQUIRE(stats.suspended == suspend_reason::none);
 }
+
+// -- one set in the place of another ----------------------------------------
+
+namespace
+{
+
+/// A list of one rule that answers the bytes `match` (hex) with `reply` (hex),
+/// `delay_us` after the match.
+std::string answering(std::string_view match, std::string_view reply,
+                      int delay_us = 0)
+{
+    std::string text = R"j([{"name": "answer", "when": {"bytes": ")j";
+    text += match;
+    text += R"j("}, "do": [{"reply": [")j";
+    text += reply;
+    text += '"';
+    text += ']';
+    if (delay_us != 0)
+    {
+        text += R"j(, "delay": {"fixed_us": )j";
+        text += std::to_string(delay_us);
+        text += '}';
+    }
+    text += "}]}]";
+    return text;
+}
+
+/// A scheduler for the port of `b` that is started at the hub's time in the
+/// place of `old`.  It is not put on the port: the port goes on showing its
+/// chunks to whatever stage it has.  Its actions are logged in `log`.
+std::shared_ptr<scheduler> replace_with(const bench& b, scheduler& old,
+                                        std::string_view set_text,
+                                        const report_log& log,
+                                        bool keep_actions = true,
+                                        bool carry = false)
+{
+    auto made = make_scheduler(*b.hub, b.port, set_text, log, true);
+    made->start_in_place_of(old, b.hub->now(), keep_actions, carry);
+    return made;
+}
+
+/// The device sends `hex_text`, and this returns once `target` has been shown
+/// it, whichever stage the port has.
+void send_to(const bench& b, const scheduler& target, std::string_view hex_text)
+{
+    const std::string data = raw(hex_text);
+    const std::uint64_t want = target.stats().machine.bytes_seen + data.size();
+    b.port.inject_read(data);
+    REQUIRE(wait_until(
+        [&] { return target.stats().machine.bytes_seen >= want; }, 5000ms));
+}
+
+/// Nothing more than `hex_text` was written to the port.
+void require_written(const bench& b, std::string_view hex_text)
+{
+    bench::settle();
+    REQUIRE_EQ(b.port.written(), raw(hex_text));
+}
+
+} // namespace
+
+TEST_CASE("rules scheduler: a set that was replaced hands the chunks it is "
+          "shown to the new set")
+{
+    bench b(peer_set(answering("01", "aa")));
+    b.send("01");
+    b.wait_reports(1);
+    b.wait_written("aa");
+
+    const report_log log;
+    const auto next =
+        replace_with(b, *b.rules, peer_set(answering("01", "cc")), log);
+
+    // The port still shows its chunks to the old set.  The new set answers
+    // them, and the old set does not.
+    send_to(b, *next, "01");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    b.wait_written("aa cc");
+    require_written(b, "aa cc");
+    REQUIRE_EQ(b.log.size(), std::size_t{1});
+
+    scheduler_stats old_stats = b.rules->stats();
+    scheduler_stats new_stats = next->stats();
+    REQUIRE_EQ(old_stats.machine.bytes_seen, std::uint64_t{1});
+    REQUIRE_EQ(old_stats.machine.firings, std::uint64_t{1});
+    REQUIRE_EQ(old_stats.done, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.machine.bytes_seen, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.machine.firings, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.done, std::uint64_t{1});
+    REQUIRE(new_stats.suspended == suspend_reason::none);
+
+    // Once the port shows its chunks to the new set, the same.
+    put_stage(b.port, next);
+    send_to(b, *next, "01 01");
+    b.wait_written("aa cc cc cc");
+    require_written(b, "aa cc cc cc");
+    old_stats = b.rules->stats();
+    new_stats = next->stats();
+    REQUIRE_EQ(old_stats.machine.bytes_seen, std::uint64_t{1});
+    REQUIRE_EQ(old_stats.machine.firings, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.machine.bytes_seen, std::uint64_t{3});
+    REQUIRE_EQ(new_stats.machine.firings, std::uint64_t{3});
+    REQUIRE_EQ(b.log.size(), std::size_t{1});
+}
+
+TEST_CASE("rules scheduler: a frame that straddles the replacement is "
+          "answered once, by the new set")
+{
+    bench b(peer_set(answering("01 02 03", "aa")));
+    b.send("01 02");
+    b.require_still(0, "");
+
+    const report_log log;
+    const auto next =
+        replace_with(b, *b.rules, peer_set(answering("01 02 03", "cc")), log);
+
+    send_to(b, *next, "03");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    b.wait_written("cc");
+    require_written(b, "cc");
+    REQUIRE_EQ(log.size(), std::size_t{1});
+    REQUIRE_EQ(b.log.size(), std::size_t{0});
+
+    const scheduler_stats old_stats = b.rules->stats();
+    const scheduler_stats new_stats = next->stats();
+    REQUIRE_EQ(old_stats.machine.bytes_seen, std::uint64_t{2});
+    REQUIRE_EQ(old_stats.machine.firings, std::uint64_t{0});
+    REQUIRE_EQ(old_stats.scheduled, std::uint64_t{0});
+    REQUIRE_EQ(new_stats.machine.bytes_seen, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.machine.firings, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.scheduled, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.done, std::uint64_t{1});
+}
+
+TEST_CASE("rules scheduler: with keep_actions a reply the old set promised is "
+          "still written, and the new set answers new frames")
+{
+    bench b(peer_set(answering("01 02", "aa bb", 5000)));
+    b.send("01 02");
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{1});
+
+    const report_log log;
+    const auto next =
+        replace_with(b, *b.rules, peer_set(answering("03", "cc")), log, true);
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{1});
+    REQUIRE_EQ(b.rules->stats().cancelled, std::uint64_t{0});
+
+    b.clock.advance(4999us);
+    b.require_still(0, "");
+    b.clock.advance(1us);
+    b.wait_reports(1);
+    b.wait_written("aa bb");
+    b.require_still(1, "aa bb");
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+    const scheduler_stats old_stats = b.rules->stats();
+    REQUIRE_EQ(old_stats.scheduled, std::uint64_t{1});
+    REQUIRE_EQ(old_stats.done, std::uint64_t{1});
+    REQUIRE_EQ(old_stats.cancelled, std::uint64_t{0});
+    REQUIRE(b.log.snapshot()[0].due == b.at(5000us));
+
+    send_to(b, *next, "03");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    b.wait_written("aa bb cc");
+    REQUIRE_EQ(next->stats().done, std::uint64_t{1});
+    REQUIRE_EQ(b.rules->stats().done, std::uint64_t{1});
+}
+
+TEST_CASE("rules scheduler: without keep_actions what the old set promised is "
+          "discarded and counted")
+{
+    bench b(peer_set(answering("01 02", "aa bb", 5000)));
+    b.send("01 02");
+    b.send("01 02");
+    b.send("01 02");
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{3});
+
+    const report_log log;
+    const auto next =
+        replace_with(b, *b.rules, peer_set(answering("03", "cc")), log, false);
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+    scheduler_stats old_stats = b.rules->stats();
+    REQUIRE_EQ(old_stats.scheduled, std::uint64_t{3});
+    REQUIRE_EQ(old_stats.cancelled, std::uint64_t{3});
+    REQUIRE_EQ(old_stats.done, std::uint64_t{0});
+
+    // The time comes and goes, and nothing is written for the old set.
+    b.clock.advance(5000us);
+    b.require_still(0, "");
+    b.clock.advance(10s);
+    b.require_still(0, "");
+    old_stats = b.rules->stats();
+    REQUIRE_EQ(old_stats.cancelled, std::uint64_t{3});
+    REQUIRE_EQ(old_stats.done, std::uint64_t{0});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+
+    // The new set answers.
+    send_to(b, *next, "03");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    b.wait_written("cc");
+    REQUIRE_EQ(next->stats().cancelled, std::uint64_t{0});
+}
+
+TEST_CASE("rules scheduler: the old timeline is discarded, and the new one is "
+          "counted from the hand over")
+{
+    bench b(peer_set(answering("01 02", "aa bb", 5000), R"j("timeline": [
+      {"at_us": 10000, "do": [{"reply": ["dd"]}]}
+    ], )j"));
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{1});
+    b.send("01 02");
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{2});
+
+    b.clock.advance(2000us);
+    const report_log log;
+    const auto next = replace_with(b, *b.rules, peer_set("[]", R"j("timeline": [
+      {"at_us": 4000, "do": [{"reply": ["ee"]}]}
+    ], )j"),
+                                   log, true);
+    // The kept reply is waiting, the timeline entry is gone and counted.
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{1});
+    REQUIRE_EQ(b.rules->stats().cancelled, std::uint64_t{1});
+    REQUIRE_EQ(next->waiting(), std::size_t{1});
+    REQUIRE_EQ(next->stats().scheduled, std::uint64_t{1});
+
+    // 4 ms from the start of the run would be now: it is 4 ms from the hand
+    // over, which is at 2 ms.
+    b.clock.advance(2000us);
+    require_written(b, "");
+    b.clock.advance(1000us);
+    b.wait_written("aa bb");
+    b.clock.advance(999us);
+    require_written(b, "aa bb");
+    REQUIRE_EQ(log.size(), std::size_t{0});
+    b.clock.advance(1us);
+    b.wait_written("aa bb ee");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    REQUIRE(log.snapshot()[0].due == b.at(6000us));
+    REQUIRE_EQ(log.snapshot()[0].rule, no_index);
+
+    // The old entry's time comes, and it is not done.
+    b.clock.advance(10s);
+    require_written(b, "aa bb ee");
+    const scheduler_stats old_stats = b.rules->stats();
+    REQUIRE_EQ(old_stats.scheduled, std::uint64_t{2});
+    REQUIRE_EQ(old_stats.done, std::uint64_t{1});
+    REQUIRE_EQ(old_stats.cancelled, std::uint64_t{1});
+    REQUIRE_EQ(b.log.size(), std::size_t{1});
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+}
+
+TEST_CASE("rules scheduler: the old set's rule on silence does not fire after "
+          "the hand over, and the new one counts from the last byte the old "
+          "one saw")
+{
+    bench b(peer_set(R"j([
+      {"name": "quiet", "when": {"quiet_us": 5000},
+       "do": [{"reply": ["ee"]}]}
+    ])j"));
+    b.send("01");
+    b.clock.advance(2000us);
+
+    const report_log log;
+    const auto next = replace_with(b, *b.rules, peer_set(R"j([
+      {"name": "later", "when": {"quiet_us": 8000},
+       "do": [{"reply": ["ff"]}]}
+    ])j"),
+                                   log);
+
+    // The old set's silence is complete at 5 ms, and nothing is done.
+    b.clock.advance(3000us);
+    b.clock.advance(1us);
+    require_written(b, "");
+    REQUIRE_EQ(b.rules->stats().machine.firings, std::uint64_t{0});
+
+    // The new one's is complete 8 ms after the byte, and not after the hand
+    // over.
+    b.clock.advance(2998us);
+    require_written(b, "");
+    REQUIRE_EQ(next->stats().machine.firings, std::uint64_t{0});
+    b.clock.advance(1us);
+    b.wait_written("ff");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    REQUIRE(log.snapshot()[0].due == b.at(8000us));
+    REQUIRE_EQ(next->stats().machine.firings, std::uint64_t{1});
+
+    // Once, and the old set stays quiet.
+    b.clock.advance(10s);
+    require_written(b, "ff");
+    REQUIRE_EQ(next->stats().machine.firings, std::uint64_t{1});
+    REQUIRE_EQ(b.rules->stats().machine.firings, std::uint64_t{0});
+    REQUIRE_EQ(b.log.size(), std::size_t{0});
+}
+
+TEST_CASE("rules scheduler: a set that was suspended hands over no stream, and "
+          "the new set is not suspended")
+{
+    bench b(peer_set(answering("01 02 03", "aa")));
+    b.send("01 02");
+    b.rules->suspend(b.clock.now());
+    REQUIRE(b.rules->stats().suspended == suspend_reason::asked);
+
+    const report_log log;
+    const auto next =
+        replace_with(b, *b.rules, peer_set(answering("01 02 03", "cc")), log);
+    scheduler_stats new_stats = next->stats();
+    REQUIRE(new_stats.suspended == suspend_reason::none);
+    REQUIRE_EQ(new_stats.suspensions, std::uint64_t{0});
+
+    // The first half arrived before the suspension: the frame is not
+    // completed.
+    send_to(b, *next, "03");
+    require_written(b, "");
+    REQUIRE_EQ(next->stats().machine.firings, std::uint64_t{0});
+
+    // A whole frame is answered.
+    send_to(b, *next, "01 02 03");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    b.wait_written("cc");
+    require_written(b, "cc");
+    new_stats = next->stats();
+    REQUIRE(new_stats.suspended == suspend_reason::none);
+    REQUIRE_EQ(new_stats.machine.firings, std::uint64_t{1});
+    REQUIRE_EQ(new_stats.machine.bytes_seen, std::uint64_t{4});
+    REQUIRE_EQ(b.rules->stats().machine.bytes_seen, std::uint64_t{2});
+}
+
+TEST_CASE("rules scheduler: closing the old set drops what it kept, and the "
+          "chunks it is shown still reach the new one")
+{
+    bench b(peer_set(answering("01 02", "aa bb", 5000)));
+    b.send("01 02");
+    b.send("01 02");
+
+    const report_log log;
+    const auto next =
+        replace_with(b, *b.rules, peer_set(answering("03", "cc")), log, true);
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{2});
+    REQUIRE_EQ(b.rules->stats().cancelled, std::uint64_t{0});
+
+    b.rules->close();
+    REQUIRE_EQ(b.rules->waiting(), std::size_t{0});
+    REQUIRE_EQ(b.rules->stats().cancelled, std::uint64_t{2});
+    REQUIRE_EQ(b.rules->stats().done, std::uint64_t{0});
+
+    b.clock.advance(10s);
+    require_written(b, "");
+    REQUIRE_EQ(b.log.size(), std::size_t{0});
+
+    // The port still shows its chunks to the old set, which is closed.
+    send_to(b, *next, "03");
+    REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+    b.wait_written("cc");
+    send_to(b, *next, "03");
+    b.wait_written("cc cc");
+    require_written(b, "cc cc");
+    REQUIRE_EQ(b.rules->stats().machine.bytes_seen, std::uint64_t{4});
+    REQUIRE_EQ(next->stats().machine.firings, std::uint64_t{2});
+}
+
+TEST_CASE("rules scheduler: a set started in the place of one that was closed "
+          "starts afresh, and in the place of one that was replaced it "
+          "does not take its chunks")
+{
+    // An old set that was closed has nothing to hand over.
+    {
+        bench b(peer_set(answering("01 02 03", "aa")));
+        b.send("01 02");
+        b.rules->close();
+
+        const report_log log;
+        const auto next = replace_with(
+            b, *b.rules, peer_set(answering("01 02 03", "cc")), log);
+        put_stage(b.port, next);
+        REQUIRE(next->stats().suspended == suspend_reason::none);
+
+        // The half frame the old set saw is not there.
+        send_to(b, *next, "03");
+        require_written(b, "");
+        REQUIRE_EQ(next->stats().machine.firings, std::uint64_t{0});
+        send_to(b, *next, "01 02 03");
+        REQUIRE(wait_until([&] { return log.size() == 1; }, 5000ms));
+        b.wait_written("cc");
+        require_written(b, "cc");
+        REQUIRE_EQ(next->stats().machine.bytes_seen, std::uint64_t{4});
+        REQUIRE_EQ(next->stats().done, std::uint64_t{1});
+    }
+
+    // A replaced set forwards to the set that replaced it, and to no other.
+    {
+        bench b(peer_set(answering("01 02 03", "aa")));
+        b.send("01 02");
+
+        const report_log second;
+        const report_log third;
+        const auto next = replace_with(
+            b, *b.rules, peer_set(answering("01 02 03", "bb")), second);
+        const auto last = replace_with(
+            b, *b.rules, peer_set(answering("01 02 03", "cc")), third);
+
+        send_to(b, *next, "03");
+        REQUIRE(wait_until([&] { return second.size() == 1; }, 5000ms));
+        b.wait_written("bb");
+        require_written(b, "bb");
+        REQUIRE_EQ(last->stats().machine.bytes_seen, std::uint64_t{0});
+        REQUIRE_EQ(last->stats().machine.firings, std::uint64_t{0});
+        REQUIRE_EQ(third.size(), std::size_t{0});
+
+        // The third set started afresh: it was not given the half frame.
+        put_stage(b.port, last);
+        send_to(b, *last, "03");
+        require_written(b, "bb");
+        REQUIRE_EQ(last->stats().machine.firings, std::uint64_t{0});
+        send_to(b, *last, "01 02 03");
+        REQUIRE(wait_until([&] { return third.size() == 1; }, 5000ms));
+        b.wait_written("bb cc");
+        require_written(b, "bb cc");
+        REQUIRE_EQ(next->stats().machine.bytes_seen, std::uint64_t{1});
+        REQUIRE_EQ(b.rules->stats().machine.bytes_seen, std::uint64_t{2});
+    }
+}
+
+TEST_CASE("rules scheduler: a chain of replacements answers a frame once, by "
+          "the last set")
+{
+    bench b(peer_set(answering("01 02 03", "aa")));
+    b.send("01 02");
+
+    const report_log second;
+    const report_log third;
+    const auto middle = replace_with(
+        b, *b.rules, peer_set(answering("01 02 03", "bb")), second);
+    const auto last =
+        replace_with(b, *middle, peer_set(answering("01 02 03", "cc")), third);
+
+    // The endpoint still shows its chunks to the first set.  The frame that
+    // began under it is answered by the last.
+    send_to(b, *last, "03");
+    REQUIRE(wait_until([&] { return third.size() == 1; }, 5000ms));
+    b.wait_written("cc");
+    require_written(b, "cc");
+
+    send_to(b, *last, "01 02 03");
+    REQUIRE(wait_until([&] { return third.size() == 2; }, 5000ms));
+    b.wait_written("cc cc");
+    require_written(b, "cc cc");
+
+    REQUIRE_EQ(b.rules->stats().machine.bytes_seen, std::uint64_t{2});
+    REQUIRE_EQ(b.rules->stats().machine.firings, std::uint64_t{0});
+    REQUIRE_EQ(middle->stats().machine.bytes_seen, std::uint64_t{0});
+    REQUIRE_EQ(middle->stats().machine.firings, std::uint64_t{0});
+    REQUIRE_EQ(last->stats().machine.bytes_seen, std::uint64_t{4});
+    REQUIRE_EQ(last->stats().machine.firings, std::uint64_t{2});
+    REQUIRE_EQ(b.log.size(), std::size_t{0});
+    REQUIRE_EQ(second.size(), std::size_t{0});
+}
+
+TEST_CASE("rules scheduler: replacing the set again and again while frames "
+          "arrive misses no frame and matches none twice")
+{
+    const std::string rules_text = peer_set(answering("01 02", "aa"));
+    bench b(rules_text, bench::clock_mode::steady, 4);
+
+    constexpr std::size_t frames = 3000;
+    constexpr std::size_t fewest = 100;
+    constexpr std::size_t most = 400;
+    const std::string frame = raw("01 02");
+    std::atomic<bool> failed{false};
+    std::atomic<bool> writing{true};
+    joined_thread writer(
+        [&]
+        {
+            try
+            {
+                for (std::size_t number = 0; number < frames; ++number)
+                    b.port.inject_read(frame);
+            }
+            catch (...)
+            {
+                failed.store(true);
+            }
+            writing.store(false);
+        });
+
+    // Every set is kept: what an old one promised is still done by it.
+    std::vector<std::shared_ptr<scheduler>> all{b.rules};
+    while ((writing.load() || all.size() <= fewest) && all.size() <= most)
+    {
+        const auto next =
+            make_scheduler(*b.hub, b.port, rules_text, b.log, false);
+        next->start_in_place_of(*all.back(), b.hub->now(), true,
+                                all.size() % 2 == 0);
+        put_stage(b.port, next);
+        all.push_back(next);
+        std::this_thread::yield();
+    }
+    writer.join();
+    REQUIRE(!failed.load());
+
+    REQUIRE(
+        wait_until([&] { return b.port.written().size() >= frames; }, 5000ms));
+    bench::settle();
+    REQUIRE_EQ(b.port.written(), std::string(frames, '\xaa'));
+
+    std::uint64_t seen = 0;
+    std::uint64_t fired = 0;
+    std::uint64_t done = 0;
+    for (const auto& each : all)
+    {
+        const scheduler_stats stats = each->stats();
+        seen += stats.machine.bytes_seen;
+        fired += stats.machine.firings;
+        done += stats.done;
+        REQUIRE(stats.suspended == suspend_reason::none);
+        REQUIRE_EQ(stats.cancelled, std::uint64_t{0});
+        REQUIRE_EQ(stats.overrun, std::uint64_t{0});
+        REQUIRE_EQ(each->waiting(), std::size_t{0});
+    }
+    REQUIRE_EQ(seen, std::uint64_t{frames * 2});
+    REQUIRE_EQ(fired, std::uint64_t{frames});
+    REQUIRE_EQ(done, std::uint64_t{frames});
+    REQUIRE_EQ(b.log.size(), frames);
+}

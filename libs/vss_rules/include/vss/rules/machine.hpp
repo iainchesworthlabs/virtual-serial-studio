@@ -179,6 +179,25 @@ public:
     /// replaces this one is fed them first.
     byte_buffer unmatched_tail() const;
 
+    /// Takes the place of `old`, whose set this one replaces.  Call it before
+    /// #start and before anything is fed.
+    ///
+    /// The stream goes on where it was: offsets continue, silence is counted
+    /// from the last byte `old` saw, and the bytes `old` had not matched
+    /// (#unmatched_tail, cut to what this set's longest pattern needs) count
+    /// as the start of a pattern here, so a frame that straddles the change
+    /// is matched once, by this set.  Nothing fires for a pattern that is
+    /// complete inside those bytes: they arrived under the old rules.  A
+    /// rule of `old` that was waiting for silence after its pattern is not
+    /// carried.
+    ///
+    /// With `carry`, what has the same name in both sets is kept: the state
+    /// the set is in, the value of each slot, and for each rule how often it
+    /// matched and, when it has as many steps as before, how often each step
+    /// ran.  Whether a rule is finished is worked out again from this set's
+    /// `count`.  Draws are not carried: this set draws from its own seed.
+    void take_over(const machine& old, bool carry);
+
     /// The set was not shown what arrived for a while (it was suspended).
     /// Forgets every partial match and the time of the last byte, so that
     /// nothing is matched across the gap and no silence is counted from

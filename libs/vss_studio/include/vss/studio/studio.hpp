@@ -66,6 +66,23 @@ struct rules_install_options
     rules::scheduler_limits limits;
 };
 
+/// What `studio::replace_rules` is told besides the new set.
+struct rules_replace_options
+{
+    /// The seed for a new set that has none of its own.
+    std::uint64_t run_seed = 0;
+    /// How fast the new set may fire before it is suspended.
+    rules::scheduler_limits limits;
+    /// What a rule of the old set had scheduled is still done when it is
+    /// due (a reply that was promised is sent).  When false it is discarded
+    /// and counted.
+    bool keep_actions = true;
+    /// The state the set is in, the slots' values and the rules' counts
+    /// carry over to what has the same name in the new set.  When false the
+    /// new set starts fresh.
+    bool carry_state = false;
+};
+
 /// A rule set that was installed.
 struct rules_installation
 {
@@ -216,6 +233,25 @@ public:
     result<rules_installation> install_rules(
         std::shared_ptr<const rules::compiled_rule_set> set,
         const rules_install_options& options = {},
+        std::vector<rules::problem>* problems = nullptr);
+
+    /// Puts a new rule set in the place of the one its port has, without
+    /// missing or repeating a byte of what the port reads.  The new set is
+    /// checked as `install_rules` checks it, and nothing changes if it is
+    /// refused.  Bytes the old set had seen and not matched count as the
+    /// start of a pattern for the new one, so a frame that straddles the
+    /// change is matched once, by the new rules.  The new set's run starts
+    /// at the call, with a new generation and a full budget; it is not
+    /// suspended even if the old one was.  What is left of the old set's
+    /// timeline is discarded.  `options` says what happens to the actions
+    /// the old set's rules had scheduled and to its state.
+    ///
+    /// `errc::not_found` for a port with no set, or no port of that name;
+    /// `errc::queue_full` when the new set would take the compiled sizes
+    /// past `rules::max_hub_bytes`; otherwise as `install_rules`.
+    result<rules_installation> replace_rules(
+        std::shared_ptr<const rules::compiled_rule_set> set,
+        const rules_replace_options& options = {},
         std::vector<rules::problem>* problems = nullptr);
 
     /// Removes the rule set of a port.  What it had scheduled is discarded,
@@ -503,7 +539,22 @@ private:
     {
         std::shared_ptr<rules::scheduler> scheduler;
         std::uint64_t generation = 0;
+        /// Sets that were replaced and may still have promised actions to
+        /// carry out.  Closed with the set.
+        std::vector<std::shared_ptr<rules::scheduler>> replaced;
     };
+
+    /// What a set needs checked and made before it goes on its port.
+    struct rules_plan
+    {
+        std::shared_ptr<endpoint> place;
+        rules::scheduler_hooks hooks;
+    };
+
+    /// Checks a set against this build and its port.  On a refusal `found`
+    /// says what and where.
+    result<rules_plan> plan_rules(const rules::compiled_rule_set* set,
+                                  std::vector<rules::problem>& found);
 
     /// The set of a port, if it has one.
     std::shared_ptr<rules::scheduler> rules_of(endpoint_id place) const;

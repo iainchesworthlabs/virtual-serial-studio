@@ -1166,3 +1166,433 @@ TEST_CASE("studio rules: a studio takes no more than rules::max_hub_bytes of "
     REQUIRE_EQ(app.install_rules(again, {}, &problems).error(), queue_full);
     REQUIRE_EQ(problems.size(), std::size_t{1});
 }
+
+// -- replacing a set ---------------------------------------------------------
+
+namespace
+{
+
+/// A list of one rule that answers the bytes `match` (hex) with `reply` (hex),
+/// `delay_us` after the match.
+std::string answering(std::string_view match, std::string_view reply,
+                      int delay_us = 0)
+{
+    std::string text = R"j([{"name": "answer", "when": {"bytes": ")j";
+    text += match;
+    text += R"j("}, "do": [{"reply": [")j";
+    text += reply;
+    text += '"';
+    text += ']';
+    if (delay_us != 0)
+    {
+        text += R"j(, "delay": {"fixed_us": )j";
+        text += std::to_string(delay_us);
+        text += '}';
+    }
+    text += "}]}]";
+    return text;
+}
+
+/// A set that answers `match` with `reply`, for the port "device".
+std::shared_ptr<const rules::compiled_rule_set>
+answering_set(std::string_view match, std::string_view reply, int delay_us = 0)
+{
+    return make_set(peer_set(answering(match, reply, delay_us)));
+}
+
+/// `count` times the byte aa, which is what a set that answers "aa" wrote.
+std::string aa_times(std::size_t count)
+{
+    return std::string(count, '\xaa');
+}
+
+} // namespace
+
+TEST_CASE("studio rules: replace_rules puts a new set in the place of the old "
+          "one, with a new generation")
+{
+    studio_bench b;
+    const auto first = b.install(peer_set(answering("01", "aa")));
+    REQUIRE(first);
+    b.speak("01");
+    b.wait_sent("aa");
+
+    rules_replace_options options;
+    options.run_seed = 99;
+    std::vector<rules::problem> problems;
+    problems.push_back(rules::problem{"left", "over"});
+    const auto second =
+        b.app.replace_rules(answering_set("01", "cc"), options, &problems);
+    REQUIRE(second);
+    REQUIRE(problems.empty());
+    REQUIRE_EQ(second->place, b.id);
+    REQUIRE(second->generation > first->generation);
+    REQUIRE_EQ(second->seed, std::uint64_t{99});
+    REQUIRE(b.app.rules_generation(b.id) == second->generation);
+
+    // What the program writes now is answered by the new set only.
+    b.speak("01");
+    b.wait_sent("aa cc");
+    b.require_quiet("aa cc");
+    auto stats = b.app.rule_stats(b.id);
+    REQUIRE(stats);
+    REQUIRE_EQ(stats->machine.bytes_seen, std::uint64_t{1});
+    REQUIRE_EQ(stats->machine.firings, std::uint64_t{1});
+    REQUIRE(
+        wait_until([&] { return b.app.rule_stats(b.id)->done == 1; }, 5000ms));
+
+    // And the set that replaced it can be replaced.
+    const auto third = b.app.replace_rules(answering_set("01", "dd"));
+    REQUIRE(third);
+    REQUIRE(third->generation > second->generation);
+    REQUIRE_EQ(third->seed, std::uint64_t{0});
+    REQUIRE(b.app.rules_generation(b.id) == third->generation);
+    b.speak("01");
+    b.wait_sent("aa cc dd");
+}
+
+TEST_CASE("studio rules: replace_rules refuses what install_rules refuses, "
+          "and a port with no set, and changes nothing")
+{
+    studio_bench b;
+    std::vector<rules::problem> problems;
+
+    // No set to replace.
+    const auto none =
+        b.app.replace_rules(answering_set("01", "cc"), {}, &problems);
+    REQUIRE(!none);
+    REQUIRE_EQ(none.error(), not_found);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].path, std::string("attach.port"));
+    REQUIRE(!b.app.rules_generation(b.id).has_value());
+    REQUIRE_EQ(b.app.rule_stats(b.id).error(), not_found);
+
+    const auto first = b.install(peer_set(answering("01", "aa")));
+    REQUIRE(first);
+    std::size_t answered = 0;
+    const auto still_answers = [&]
+    {
+        REQUIRE(b.app.rules_generation(b.id) == first->generation);
+        b.speak("01");
+        ++answered;
+        const std::string want = aa_times(answered);
+        REQUIRE(wait_until([&] { return b.sent() == want; }, 5000ms));
+    };
+    still_answers();
+
+    // A port that is not there.
+    problems.clear();
+    const auto nowhere = b.app.replace_rules(
+        make_set(peer_set(idle_rules, "", "nowhere")), {}, &problems);
+    REQUIRE(!nowhere);
+    REQUIRE_EQ(nowhere.error(), not_found);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].path, std::string("attach.port"));
+    still_answers();
+
+    // A set this build refuses.
+    problems.clear();
+    const auto lines = b.app.replace_rules(
+        make_set(peer_set(
+            one_step(R"j({"lines": {"dtr": true}})j", R"j({"mark": "x"})j"))),
+        {}, &problems);
+    REQUIRE(!lines);
+    REQUIRE_EQ(lines.error(), unsupported);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].path, std::string("rules[0].when.lines"));
+    still_answers();
+
+    // A set for another role.
+    problems.clear();
+    const auto role = b.app.replace_rules(
+        make_set(R"j({"attach": {"role": "inline", "from": "device",
+                                 "to": "other"},
+                      "rules": [{"name": "r", "when": {"bytes": "01"},
+                                 "do": [{"mark": "x"}]}]})j"),
+        {}, &problems);
+    REQUIRE(!role);
+    REQUIRE_EQ(role.error(), unsupported);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE_EQ(problems[0].path, std::string("attach.role"));
+    still_answers();
+
+    // No set at all.
+    const auto null_set = b.app.replace_rules(nullptr);
+    REQUIRE(!null_set);
+    REQUIRE_EQ(null_set.error(), invalid_argument);
+    still_answers();
+    REQUIRE_EQ(b.app.rule_stats(b.id)->machine.firings,
+               static_cast<std::uint64_t>(answered));
+}
+
+TEST_CASE("studio rules: what the old set promised is written after a "
+          "replacement unless keep_actions is false")
+{
+    // By default it is kept.
+    {
+        studio_bench b;
+        REQUIRE(b.install(peer_set(reply_after_5ms)));
+        const time_point read_at = b.clock.now();
+        b.speak("01 02");
+
+        REQUIRE(b.app.replace_rules(answering_set("03", "cc")));
+        b.require_quiet("");
+        b.clock.advance(4999us);
+        b.require_quiet("");
+        b.clock.advance(1us);
+        b.wait_sent("aa bb");
+        const auto writes = sent_to(b.events, "device");
+        REQUIRE_EQ(writes.size(), std::size_t{1});
+        REQUIRE(writes[0].when == read_at + 5ms);
+
+        // The new set is the one the studio reports on and the one that
+        // answers.
+        b.speak("03");
+        b.wait_sent("aa bb cc");
+        const auto stats = b.app.rule_stats(b.id);
+        REQUIRE(stats);
+        REQUIRE_EQ(stats->machine.firings, std::uint64_t{1});
+    }
+
+    // Asked not to, it is discarded.
+    {
+        studio_bench b;
+        REQUIRE(b.install(peer_set(reply_after_5ms)));
+        b.speak("01 02");
+        b.speak("01 02");
+
+        rules_replace_options options;
+        options.keep_actions = false;
+        REQUIRE(b.app.replace_rules(answering_set("03", "cc"), options));
+        b.clock.advance(5ms);
+        b.require_quiet("");
+        b.clock.advance(1s);
+        b.require_quiet("");
+
+        b.speak("03");
+        b.wait_sent("cc");
+        b.require_quiet("cc");
+    }
+}
+
+TEST_CASE("studio rules: carry_state keeps the state of the set by name, and "
+          "without it the new set starts in its first state")
+{
+    const std::string rules_text = R"j([
+      {"name": "arm", "when": {"bytes": "01"}, "do": [{"set_state": "armed"}]},
+      {"name": "ask", "when": {"bytes": "02", "state": "armed"},
+       "do": [{"reply": ["aa"]}]}
+    ])j";
+    const char* const head = R"j("states": ["idle", "armed"], )j";
+
+    studio_bench b;
+    REQUIRE(b.install(peer_set(rules_text, head)));
+    b.speak("02");
+    b.require_quiet("");
+    b.speak("01");
+
+    // Not carried: the new set is in "idle", and does not answer.
+    REQUIRE(b.app.replace_rules(make_set(peer_set(rules_text, head))));
+    b.speak("02");
+    b.require_quiet("");
+
+    // Arm it, and carry the state over to a third.
+    b.speak("01");
+    rules_replace_options options;
+    options.carry_state = true;
+    REQUIRE(b.app.replace_rules(make_set(peer_set(rules_text, head)), options));
+    b.speak("02");
+    b.wait_sent("aa");
+    b.require_quiet("aa");
+
+    // The state is found by its name, wherever the new set lists it.
+    REQUIRE(b.app.replace_rules(
+        make_set(
+            peer_set(rules_text, R"j("states": ["idle", "armed", "x"], )j")),
+        options));
+    b.speak("02");
+    b.wait_sent("aa aa");
+}
+
+TEST_CASE("studio rules: a frame that straddles a replacement is answered "
+          "once, by the new set")
+{
+    studio_bench b;
+    REQUIRE(b.install(peer_set(answering("01 02 03", "aa"))));
+    b.speak("01 02");
+    b.require_quiet("");
+
+    REQUIRE(b.app.replace_rules(answering_set("01 02 03", "cc")));
+    b.speak("03");
+    b.wait_sent("cc");
+    b.require_quiet("cc");
+
+    const auto stats = b.app.rule_stats(b.id);
+    REQUIRE(stats);
+    REQUIRE_EQ(stats->machine.bytes_seen, std::uint64_t{1});
+    REQUIRE_EQ(stats->machine.firings, std::uint64_t{1});
+    REQUIRE(
+        wait_until([&] { return b.app.rule_stats(b.id)->done == 1; }, 5000ms));
+
+    // The next frame is whole, and answered once.
+    b.speak("01 02 03");
+    b.wait_sent("cc cc");
+    b.require_quiet("cc cc");
+}
+
+TEST_CASE("studio rules: a replacement counts the size of the new set and "
+          "gives back the size of the old one")
+{
+    constexpr std::size_t rule_count = 120;
+    const auto sample = make_set(heavy_set(heavy_name(0), rule_count));
+    const std::size_t size = sample->size_bytes;
+    const std::size_t fit = rules::max_hub_bytes / size;
+    REQUIRE(fit >= 2);
+    REQUIRE(fit + 3 < 100);
+    const auto tiny_of = [](std::string_view port)
+    { return make_set(peer_set(idle_rules, "", port)); };
+    // The studio is filled with `fit` large sets and has room left for a
+    // small one, but not for another large one.
+    const std::size_t small = tiny_of(heavy_name(fit))->size_bytes;
+    REQUIRE(rules::max_hub_bytes - fit * size >= 2 * small);
+
+    studio app;
+    std::vector<endpoint_id> ids;
+    for (std::size_t i = 0; i <= fit + 1; ++i)
+    {
+        const auto created = app.create_mock_port(heavy_name(i));
+        REQUIRE(created);
+        ids.push_back((*created)->id());
+    }
+    for (std::size_t i = 0; i < fit; ++i)
+        REQUIRE(
+            app.install_rules(make_set(heavy_set(heavy_name(i), rule_count))));
+    REQUIRE(app.install_rules(tiny_of(heavy_name(fit))));
+    const auto small_generation = app.rules_generation(ids[fit]);
+    REQUIRE(small_generation.has_value());
+
+    // A large set in the place of the small one would take the sets past the
+    // limit.  Nothing changes.
+    std::vector<rules::problem> problems;
+    const auto over = app.replace_rules(
+        make_set(heavy_set(heavy_name(fit), rule_count)), {}, &problems);
+    REQUIRE(!over);
+    REQUIRE_EQ(over.error(), queue_full);
+    REQUIRE_EQ(problems.size(), std::size_t{1});
+    REQUIRE(!problems[0].message.empty());
+    REQUIRE(app.rules_generation(ids[fit]) == small_generation);
+    REQUIRE(app.rule_stats(ids[fit]));
+    // Nor is there room for a large set on a port that has none.
+    REQUIRE_EQ(
+        app.install_rules(make_set(heavy_set(heavy_name(fit + 1), rule_count)))
+            .error(),
+        queue_full);
+
+    // A large set in the place of a large one of the same size is fine: the
+    // old one is given back first, and it can be done again.
+    for (std::size_t round = 0; round < 3; ++round)
+    {
+        const auto before = app.rules_generation(ids[0]);
+        REQUIRE(before.has_value());
+        problems.push_back(rules::problem{"left", "over"});
+        const auto same = app.replace_rules(
+            make_set(heavy_set(heavy_name(0), rule_count)), {}, &problems);
+        REQUIRE(same);
+        REQUIRE(problems.empty());
+        REQUIRE(same->generation > *before);
+        REQUIRE(app.rules_generation(ids[0]) == same->generation);
+    }
+    // The small set still has no room to grow.
+    REQUIRE_EQ(
+        app.replace_rules(make_set(heavy_set(heavy_name(fit), rule_count)))
+            .error(),
+        queue_full);
+
+    // A small set in the place of a large one frees what the large one took,
+    // and an install can use it.
+    REQUIRE(app.replace_rules(tiny_of(heavy_name(0))));
+    REQUIRE(app.install_rules(
+        make_set(heavy_set(heavy_name(fit + 1), rule_count))));
+    REQUIRE(app.rules_generation(ids[fit + 1]).has_value());
+}
+
+TEST_CASE("studio rules: removing the set or the port after a replacement "
+          "closes the set that was replaced")
+{
+    // The set is removed.
+    {
+        studio_bench b;
+        REQUIRE(b.install(peer_set(reply_after_5ms)));
+        b.speak("01 02");
+        REQUIRE(b.app.replace_rules(answering_set("03", "cc")));
+
+        REQUIRE(b.app.remove_rules(b.id));
+        REQUIRE(!b.app.rules_generation(b.id).has_value());
+        REQUIRE_EQ(b.app.rule_stats(b.id).error(), not_found);
+        REQUIRE_EQ(b.app.remove_rules(b.id), not_found);
+
+        // The reply the old set had kept is not written, and the port no
+        // longer answers.
+        b.clock.advance(1s);
+        b.require_quiet("");
+        REQUIRE(b.app.inject_data(b.id, as_bytes(raw("03"))));
+        REQUIRE(wait_until([&] { return b.device->stats().bytes_rx == 3; },
+                           5000ms));
+        b.clock.advance(1s);
+        b.require_quiet("");
+
+        // A new set takes the port.
+        REQUIRE(b.install(peer_set(reply_after_5ms)));
+        b.speak("01 02");
+        b.clock.advance(5ms);
+        b.wait_sent("aa bb");
+    }
+
+    // The port is removed.
+    {
+        studio_bench b;
+        REQUIRE(b.install(peer_set(reply_after_5ms)));
+        b.speak("01 02");
+        REQUIRE(b.app.replace_rules(answering_set("03", "cc")));
+
+        const endpoint_id old_id = b.id;
+        REQUIRE(b.app.remove_port(old_id));
+        REQUIRE(!b.app.rules_generation(old_id).has_value());
+        REQUIRE_EQ(b.app.rule_stats(old_id).error(), not_found);
+        REQUIRE_EQ(b.app.remove_rules(old_id), not_found);
+        b.clock.advance(1s);
+        b.require_quiet("");
+    }
+}
+
+TEST_CASE("studio rules: a set can be replaced many times while its replies "
+          "are being done")
+{
+    studio_bench b;
+    const auto first = b.install(peer_set(answering("01", "aa", 1000)));
+    REQUIRE(first);
+    std::uint64_t generation = first->generation;
+
+    constexpr std::size_t rounds = 50;
+    for (std::size_t round = 0; round < rounds; ++round)
+    {
+        b.speak("01");
+        b.clock.advance(1ms);
+        const std::string want = aa_times(round + 1);
+        REQUIRE(wait_until([&] { return b.sent() == want; }, 5000ms));
+
+        const auto next = b.app.replace_rules(answering_set("01", "aa", 1000));
+        REQUIRE(next);
+        REQUIRE_EQ(next->generation, generation + 1);
+        generation = next->generation;
+        REQUIRE(b.app.rules_generation(b.id) == generation);
+    }
+
+    // The last set answers.
+    b.speak("01");
+    b.clock.advance(1ms);
+    const std::string want = aa_times(rounds + 1);
+    REQUIRE(wait_until([&] { return b.sent() == want; }, 5000ms));
+    std::this_thread::sleep_for(30ms);
+    REQUIRE_EQ(b.sent(), want);
+}

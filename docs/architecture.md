@@ -394,6 +394,23 @@ takes the time of the event the signal answers, which must be on the hub's
 clock, not in the future and not more than a minute old. A signal uses the
 budget like any firing.
 
+`replace_rules` puts a new set in the place of the one a port has. The new set
+is checked first, and a set that is refused changes nothing. The new scheduler
+takes over under the old one's lock: from that instant the old one matches
+nothing and hands every chunk it is shown to the new one, so it does not matter
+which of the two the endpoint shows a chunk to before its stage is changed at
+its next turn. No chunk is missed and none is matched twice. The bytes the old
+set had seen and not matched count as the start of a pattern for the new set,
+so a frame that straddles the change is matched once, by the new rules; nothing
+fires for a pattern that is already complete inside those bytes. Offsets go on,
+and silence is counted from the last byte the old set saw. The old set still
+carries out what its rules had scheduled unless the call says to discard it;
+what is left of its timeline is discarded either way. The state, the slots and
+the rules' counts carry over by name when the call asks. The new set has a new
+generation and a full budget, and is not suspended even if the old one was. A
+set that was replaced is closed when its port's set is removed, or at a later
+replace once it has nothing left to do.
+
 ### Link delay
 
 `connect`, `split`, `join`, `redirect` and `bus` take `link_options` with
