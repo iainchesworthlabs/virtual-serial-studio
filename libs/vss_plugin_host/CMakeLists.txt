@@ -10,7 +10,8 @@
 add_library(vss_plugin_host
   src/process.cpp
   src/runner.cpp
-  src/sandbox.cpp)
+  src/sandbox.cpp
+  src/start_plan.cpp)
 add_library(Vss::plugin_host ALIAS vss_plugin_host)
 
 target_include_directories(vss_plugin_host PUBLIC
