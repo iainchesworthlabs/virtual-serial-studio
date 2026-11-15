@@ -62,6 +62,23 @@ vss::endpoint_kind kind_for_uri(const QString& uri)
     return vss::endpoint_kind::physical;
 }
 
+/// Whether a running port is the one a document entry describes, as far as
+/// the fake knows a port: the same name, kind, address and serial settings.
+/// `replace` keeps such a port, as the engine does.
+bool port_is_entry(const port_view& view, const vss::config::port_entry& entry)
+{
+    if (view.name.toStdString() != entry.name || !(view.serial == entry.serial))
+        return false;
+    if (entry.kind == "virtual")
+        return view.kind == vss::endpoint_kind::virtual_port &&
+               view.studio_only == (entry.virtual_kind == "loopback");
+    if (entry.kind == "mock")
+        return view.kind == vss::endpoint_kind::mock &&
+               view.path.toStdString() == entry.mock_target;
+    const auto kind = vss::config::to_endpoint_kind(entry.kind);
+    return kind && view.kind == *kind && view.path.toStdString() == entry.uri;
+}
+
 } // namespace
 
 FakeStudioBackend::FakeStudioBackend(QObject* parent) : StudioBackend(parent) {}
@@ -1094,30 +1111,92 @@ vss::config::document FakeStudioBackend::snapshot() const
 vss::result<void>
 FakeStudioBackend::apply(const vss::config::document& document, bool)
 {
+    return build_document(document, true);
+}
+
+vss::result<void>
+FakeStudioBackend::replace(const vss::config::document& document)
+{
+    return build_document(document, false);
+}
+
+vss::result<void>
+FakeStudioBackend::build_document(const vss::config::document& document,
+                                  bool additive)
+{
     if (create_delay_.count() > 0)
         std::this_thread::sleep_for(create_delay_);
     const std::lock_guard<std::recursive_mutex> lock(mutex_);
     // Fail first if a test queued an error, then reject an invalid document.
     // Nothing is changed until the whole document has been built.
     if (const auto error = take_error())
+    {
+        if (!additive && !lose_on_failed_replace_.isEmpty())
+        {
+            const auto lost = std::find_if(
+                ports_.begin(), ports_.end(), [this](const port_view& view)
+                { return view.name == lose_on_failed_replace_; });
+            if (lost != ports_.end())
+                static_cast<void>(remove_port(lost->id));
+        }
         return *error;
+    }
     if (const vss::error_code invalid = vss::config::validate(document))
         return invalid;
 
     // Build the new ports and links on the side.  names maps each port name
-    // in the document to the id it was given, for resolving links.
+    // in the document to the id it was given, for resolving links.  Adding
+    // goes on from what is there, as the engine does.  Replacing starts
+    // again, but keeps a port that is the same as one of the document's, as
+    // the engine does, and no id is used twice.
     std::vector<port_view> next_ports;
     std::vector<link_view> next_links;
+    if (additive)
+    {
+        next_ports = ports_;
+        next_links = links_;
+    }
     std::vector<std::pair<std::string, vss::endpoint_id>> names;
-    vss::endpoint_id next_port = 1;
+    vss::endpoint_id next_port = next_port_;
 
-    // Ports: every port starts open, numbered from 1.  A mock port has no
-    // control lines.
+    // Ports: every new port starts open.  A mock port has no control lines.
+    std::vector<bool> reused(ports_.size(), false);
     for (const auto& entry : document.ports)
     {
+        if (!additive)
+        {
+            const auto same = std::find_if(
+                ports_.begin(), ports_.end(),
+                [&](const port_view& view)
+                {
+                    const auto index =
+                        static_cast<std::size_t>(&view - ports_.data());
+                    return !reused[index] && port_is_entry(view, entry);
+                });
+            if (same != ports_.end())
+            {
+                reused[static_cast<std::size_t>(same - ports_.begin())] = true;
+                names.emplace_back(entry.name, same->id);
+                next_ports.push_back(*same);
+                continue;
+            }
+        }
         port_view view;
         view.id = next_port++;
         view.name = QString::fromStdString(entry.name);
+        if (additive)
+        {
+            // A name that is taken gets a number, as in the engine.
+            const auto taken = [&next_ports](const QString& candidate)
+            {
+                return std::any_of(next_ports.begin(), next_ports.end(),
+                                   [&candidate](const port_view& other)
+                                   { return other.name == candidate; });
+            };
+            const QString base = view.name;
+            for (int suffix = 2; taken(view.name); ++suffix)
+                view.name = QStringLiteral("%1-%2").arg(base).arg(suffix);
+        }
         view.serial = entry.serial;
         view.state = vss::endpoint_state::open;
         view.open = true;
@@ -1152,9 +1231,9 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         next_ports.push_back(std::move(view));
     }
 
-    // Links: numbered from 1, with ports looked up by name.  A name that no
+    // Links: with ports looked up by name.  A name that no
     // port has is a config error.
-    vss::link_id next_link = 1;
+    vss::link_id next_link = next_link_;
     for (const auto& entry : document.links)
     {
         const auto resolve =
@@ -1231,11 +1310,13 @@ FakeStudioBackend::apply(const vss::config::document& document, bool)
         next_links.push_back(std::move(view));
     }
 
-    // Success: replace the old state in one step, so a failure above leaves
-    // it untouched.  The old wiring belongs to the old links, so drop it.
+    // Success: change the state in one step, so a failure above leaves it
+    // untouched.  When replacing, the old wiring belongs to the old links, so
+    // drop it.
     ports_ = std::move(next_ports);
     links_ = std::move(next_links);
-    wiring_.clear();
+    if (!additive)
+        wiring_.clear();
     next_port_ = next_port;
     next_link_ = next_link;
     refresh();

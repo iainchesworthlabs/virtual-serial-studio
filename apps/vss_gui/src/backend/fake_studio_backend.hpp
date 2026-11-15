@@ -98,6 +98,13 @@ public:
         next_error_ = error;
         calls_before_error_ = 0;
     }
+    /// When a `replace` fails because of `fail_next`, the port of this name
+    /// is gone afterwards, as it is when the engine cannot put back a port it
+    /// had to remove.
+    void lose_port_on_failed_replace(const QString& name)
+    {
+        lose_on_failed_replace_ = name;
+    }
     /// The fallible call after `calls` more fallible calls returns this
     /// error and consumes it, so a test can fail the second step of an
     /// operation that makes several backend calls.
@@ -251,6 +258,7 @@ public:
     vss::config::document snapshot() const override;
     vss::result<void> apply(const vss::config::document& document,
                             bool rollback_on_error) override;
+    vss::result<void> replace(const vss::config::document& document) override;
 
     vss::result<share_view> share_serial(const QString& uri,
                                          int listeners) override;
@@ -280,6 +288,10 @@ public:
     void set_refresh_interval(int milliseconds) override;
 
 private:
+    /// The work of `apply` (`additive`) and `replace`: the state is changed in
+    /// one step, or not at all.
+    vss::result<void> build_document(const vss::config::document& document,
+                                     bool additive);
     QString unique_name(const QString& base) const;
     std::optional<vss::error_code> take_error();
     port_view* find_port(vss::endpoint_id id);
@@ -311,6 +323,7 @@ private:
     std::vector<vss::fault_kind> injected_;
     QHash<vss::link_id, line_wiring> wiring_;
     std::chrono::milliseconds create_delay_{0};
+    QString lose_on_failed_replace_;
     /// Guards the ports and links: a job on a worker thread changes them while
     /// the GUI thread reads them.  Recursive, as the mutators call each other.
     mutable std::recursive_mutex mutex_;

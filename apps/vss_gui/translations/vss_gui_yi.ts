@@ -9425,6 +9425,12 @@ Networks: %5</source>
             <source>Support bundle</source>
             <translation>שטיצע־פּעקל</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>ניט אַלץ וואָס איז געלאָפֿן האָט מען געקענט צוריקשטעלן, דרום איז די אײַנשטעלונג אָנגעצייכנט ווי געענדערט.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

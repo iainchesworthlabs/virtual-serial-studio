@@ -9449,6 +9449,12 @@ Networks: %5</source>
             <source>Support bundle</source>
             <translation>حزمة الدعم</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>تعذّرت إعادة كل ما كان يعمل، لذلك تم وضع علامة على الإعداد بأنه تغيّر.</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>

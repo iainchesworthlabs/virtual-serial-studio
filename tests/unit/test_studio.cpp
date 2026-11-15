@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace vss;
 using namespace vss::testkit;
@@ -1322,6 +1323,24 @@ config::port_entry loopback_entry(const std::string& name)
     return port;
 }
 
+config::link_entry duplex_entry(std::string from, std::string to)
+{
+    config::link_entry link;
+    link.mode = "duplex";
+    link.sources = {std::move(from)};
+    link.targets = {std::move(to)};
+    return link;
+}
+
+std::vector<std::string> port_names(const studio& app)
+{
+    std::vector<std::string> names;
+    for (const auto& info : app.endpoint_infos())
+        names.push_back(info.name);
+    std::ranges::sort(names);
+    return names;
+}
+
 /// A setup with ports in an order that is not the order of their names, a
 /// fixture with a target other than the default, a name and a description.
 config::document ordered_setup()
@@ -1348,6 +1367,173 @@ config::document ordered_setup()
 }
 
 } // namespace
+
+TEST_CASE("studio: apply adds to the running setup, it does not replace it")
+{
+    config::document document;
+    document.ports = {loopback_entry("a"), loopback_entry("b")};
+    document.links = {duplex_entry("a", "b")};
+
+    studio app;
+    REQUIRE(app.apply(document));
+    REQUIRE(app.apply(document));
+    // The second apply made both ports again under numbered names.
+    REQUIRE(
+        (port_names(app) == std::vector<std::string>{"a", "a-2", "b", "b-2"}));
+    REQUIRE_EQ(app.link_infos().size(), std::size_t{2});
+}
+
+TEST_CASE("studio: replace keeps identical ports and swaps the others")
+{
+    config::port_entry changed = loopback_entry("b");
+    changed.capture = false;
+
+    config::document first;
+    first.name = "first";
+    first.description = "the first one";
+    first.ports = {loopback_entry("a"), loopback_entry("b"),
+                   loopback_entry("c")};
+    first.links = {duplex_entry("a", "b"), duplex_entry("b", "c")};
+
+    config::document second;
+    second.name = "second";
+    second.description = "the second one";
+    second.ports = {loopback_entry("a"), changed, loopback_entry("d")};
+    second.links = {duplex_entry("a", "d"), duplex_entry("d", "b")};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    const auto kept = app.find("a");
+    const auto swapped = app.find("b");
+    REQUIRE(kept != nullptr);
+    REQUIRE(swapped != nullptr);
+    const endpoint_id kept_id = kept->id();
+    const endpoint_id swapped_id = swapped->id();
+
+    REQUIRE(app.replace(second));
+
+    // The port that did not change is the same endpoint: the same object and
+    // the same id.  The one whose settings changed is a new endpoint, the one
+    // the document leaves out is gone and the new one is there.
+    REQUIRE((port_names(app) == std::vector<std::string>{"a", "b", "d"}));
+    REQUIRE(app.find("a") == kept);
+    REQUIRE_EQ(app.find("a")->id(), kept_id);
+    REQUIRE(app.find("b") != swapped);
+    REQUIRE(app.find("b")->id() != swapped_id);
+    REQUIRE(app.find("c") == nullptr);
+    REQUIRE(app.find("d") != nullptr);
+
+    // Only the links of the document run, and the saved setup is the document,
+    // with its name and description although a port was kept.
+    REQUIRE_EQ(app.link_infos().size(), std::size_t{2});
+    const auto saved = app.snapshot();
+    REQUIRE_EQ(saved.name, std::string("second"));
+    REQUIRE_EQ(saved.description, std::string("the second one"));
+    REQUIRE((saved.links == second.links));
+    REQUIRE_EQ(saved.ports.size(), std::size_t{3});
+    for (const auto& port : second.ports)
+        REQUIRE((port_named(saved, port.name) == port));
+
+    // Replacing with the setup that runs changes nothing at all.
+    const auto ids_before = app.endpoint_infos().size();
+    const auto link_ids = app.link_infos();
+    REQUIRE(app.replace(saved));
+    REQUIRE_EQ(app.endpoint_infos().size(), ids_before);
+    REQUIRE((port_names(app) == std::vector<std::string>{"a", "b", "d"}));
+    REQUIRE_EQ(app.link_infos().size(), link_ids.size());
+    REQUIRE(app.find("a") == kept);
+}
+
+TEST_CASE("studio: replace with an empty setup removes everything")
+{
+    config::document first;
+    first.ports = {loopback_entry("a"), loopback_entry("b")};
+    first.links = {duplex_entry("a", "b")};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    REQUIRE(app.replace(config::document{}));
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{0});
+    REQUIRE_EQ(app.link_infos().size(), std::size_t{0});
+    REQUIRE_EQ(app.snapshot().name, std::string("untitled"));
+    REQUIRE(app.snapshot().description.empty());
+}
+
+TEST_CASE("studio: replace refuses an invalid setup and changes nothing")
+{
+    config::document first;
+    first.ports = {loopback_entry("a"), loopback_entry("b")};
+    first.links = {duplex_entry("a", "b")};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    const auto kept = app.find("a");
+
+    config::document invalid;
+    config::port_entry port = loopback_entry("x");
+    port.kind = "nonsense";
+    invalid.ports = {port};
+    REQUIRE_EQ(app.replace(invalid), make_error_code(errc::config_error));
+
+    REQUIRE((port_names(app) == std::vector<std::string>{"a", "b"}));
+    REQUIRE(app.find("a") == kept);
+    REQUIRE_EQ(app.link_infos().size(), std::size_t{1});
+}
+
+TEST_CASE("studio: a failed replace puts the running setup back")
+{
+    config::port_entry changed = loopback_entry("b");
+    changed.capture = false;
+
+    config::document first;
+    first.ports = {loopback_entry("a"), loopback_entry("b"),
+                   loopback_entry("c")};
+    first.links = {duplex_entry("a", "b"), duplex_entry("b", "c")};
+
+    // `a` stays, `b` changes, `c` goes, `n` is made, and `bad` cannot be.
+    config::port_entry bad;
+    bad.name = "bad";
+    bad.kind = "physical";
+    bad.uri = "serial://no-such-device-for-tests";
+    config::document second;
+    second.ports = {loopback_entry("a"), changed, loopback_entry("n"), bad};
+    second.links = {duplex_entry("a", "n")};
+
+    first.name = "first";
+    first.description = "the first one";
+    studio app;
+    REQUIRE(app.apply(first));
+    const auto kept = app.find("a");
+    const auto before = app.snapshot();
+    REQUIRE_EQ(before.name, std::string("first"));
+
+    second.name = "second";
+    second.description = "the second one";
+    const auto replaced = app.replace(second);
+    REQUIRE(!replaced);
+
+    // The setup is still the first one, by name and by the order of its ports.
+    const auto restored = app.snapshot();
+    REQUIRE_EQ(restored.name, std::string("first"));
+    REQUIRE_EQ(restored.description, std::string("the first one"));
+    REQUIRE((restored.ports == before.ports));
+
+    // What was made is gone, what was removed is back, and the port that was
+    // never touched is the same endpoint.
+    REQUIRE((port_names(app) == std::vector<std::string>{"a", "b", "c"}));
+    REQUIRE(app.find("n") == nullptr);
+    REQUIRE(app.find("a") == kept);
+    const auto after = app.snapshot();
+    for (const auto& port : before.ports)
+        REQUIRE((port_named(after, port.name) == port));
+    REQUIRE_EQ(after.ports.size(), before.ports.size());
+    REQUIRE_EQ(after.links.size(), std::size_t{2});
+    for (const auto& link : before.links)
+        REQUIRE(std::ranges::find(after.links, link) != after.links.end());
+
+    // The setup that runs again works as before: it can be replaced.
+    REQUIRE(app.replace(first));
+}
 
 TEST_CASE("studio: a snapshot passes validation for a port that holds a uri")
 {
@@ -1478,4 +1664,215 @@ TEST_CASE("studio: a fixture made from an address is saved with its target")
     REQUIRE_EQ(snapshot.ports[0].kind, std::string("mock"));
     REQUIRE_EQ(snapshot.ports[0].mock_target, std::string("modem"));
     REQUIRE(!config::validate(snapshot));
+}
+
+TEST_CASE("studio: a replace that failed after removing every port keeps the "
+          "name")
+{
+    config::document first;
+    first.name = "first";
+    first.description = "the first one";
+    first.ports = {loopback_entry("a"), loopback_entry("b")};
+    first.links = {duplex_entry("a", "b")};
+
+    config::port_entry bad;
+    bad.name = "bad";
+    bad.kind = "physical";
+    bad.uri = "serial://no-such-device-for-tests";
+    config::document second;
+    second.name = "second";
+    second.ports = {loopback_entry("x"), bad};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    REQUIRE(!app.replace(second));
+    // Every port was removed on the way, which makes the setup `untitled`; the
+    // put-back gives the name back.
+    const auto after = app.snapshot();
+    REQUIRE_EQ(after.name, std::string("first"));
+    REQUIRE_EQ(after.description, std::string("the first one"));
+    REQUIRE_EQ(after.ports.size(), std::size_t{2});
+    REQUIRE_EQ(after.links.size(), std::size_t{1});
+}
+
+TEST_CASE("studio: replace gives the setup its name when no port is kept")
+{
+    config::document first;
+    first.name = "first";
+    first.ports = {loopback_entry("a")};
+    config::document second;
+    second.name = "second";
+    second.description = "other ports";
+    second.ports = {loopback_entry("z")};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    REQUIRE(app.replace(second));
+    REQUIRE_EQ(app.snapshot().name, std::string("second"));
+    REQUIRE_EQ(app.snapshot().description, std::string("other ports"));
+}
+
+TEST_CASE("studio: after a replace the ports are in the order of the document")
+{
+    config::document first;
+    first.ports = {loopback_entry("m"), loopback_entry("c"),
+                   loopback_entry("x"), loopback_entry("a")};
+    first.links = {duplex_entry("m", "c")};
+
+    // An edited copy: one port gone, one new in the middle and one at the
+    // front, the others kept.  The kept ports have the lowest ids.
+    config::document second;
+    second.ports = {loopback_entry("new-first"), loopback_entry("c"),
+                    loopback_entry("new-middle"), loopback_entry("a"),
+                    loopback_entry("m")};
+    second.links = {duplex_entry("m", "c"), duplex_entry("a", "new-middle")};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    REQUIRE(app.replace(second));
+    const auto saved = app.snapshot();
+    REQUIRE((saved.ports == second.ports));
+
+    // Saved and opened again, it is the same text.
+    const auto text = config::to_json(saved);
+    REQUIRE(text.has_value());
+    const auto reread = config::from_json(*text);
+    REQUIRE(reread.has_value());
+    studio again;
+    REQUIRE(again.replace(*reread));
+    REQUIRE((again.snapshot().ports == second.ports));
+}
+
+TEST_CASE("studio: a virtual port keeps its serial settings and is kept")
+{
+    config::port_entry port = loopback_entry("fast");
+    port.serial.baud_rate = 9600;
+    port.serial.parity = parity_mode::even;
+
+    config::document document;
+    document.ports = {port, loopback_entry("plain")};
+    document.links = {duplex_entry("fast", "plain")};
+
+    studio app;
+    REQUIRE(app.apply(document));
+    REQUIRE((port_named(app.snapshot(), "fast") == port));
+
+    // Opened again, the port is the same endpoint, not one made again.
+    const auto kept = app.find("fast");
+    REQUIRE(app.replace(document));
+    REQUIRE(app.find("fast") == kept);
+}
+
+TEST_CASE("studio: replace keeps a link between kept ports that did not change")
+{
+    config::document first;
+    first.ports = {loopback_entry("a"), loopback_entry("b"),
+                   loopback_entry("c")};
+    first.links = {duplex_entry("a", "b"), duplex_entry("b", "c")};
+    config::link_entry slow = duplex_entry("b", "c");
+    slow.delay_ms = 30;
+
+    config::document second = first;
+    second.ports.push_back(loopback_entry("d"));
+    second.links = {duplex_entry("a", "b"), slow, duplex_entry("c", "d")};
+
+    studio app;
+    REQUIRE(app.apply(first));
+    std::optional<link_id> same;
+    for (const auto& link : app.link_infos())
+    {
+        if (link.sources.front() == app.find("a")->id())
+            same = link.id;
+    }
+    REQUIRE(same.has_value());
+
+    REQUIRE(app.replace(second));
+    // The link that is the same is the same link: its id is the one it had.
+    // The one with a new delay and the new one were made.
+    const auto links = app.link_infos();
+    REQUIRE_EQ(links.size(), std::size_t{3});
+    REQUIRE(std::ranges::any_of(links, [&](const link_info& link)
+                                { return link.id == *same; }));
+    const auto saved = app.snapshot();
+    REQUIRE_EQ(saved.links.size(), std::size_t{3});
+    REQUIRE(std::ranges::find(saved.links, slow) != saved.links.end());
+}
+
+TEST_CASE("studio: two replaces at once leave the ports of one document")
+{
+    config::document one;
+    one.name = "one";
+    one.ports = {loopback_entry("a"), loopback_entry("b")};
+    one.links = {duplex_entry("a", "b")};
+    config::document two;
+    two.name = "two";
+    two.ports = {loopback_entry("c"), loopback_entry("d")};
+    two.links = {duplex_entry("c", "d")};
+
+    studio app;
+    for (int round = 0; round < 20; ++round)
+    {
+        result<void> first = make_error_code(errc::internal);
+        result<void> second = make_error_code(errc::internal);
+        std::thread left([&] { first = app.replace(one); });
+        std::thread right([&] { second = app.replace(two); });
+        left.join();
+        right.join();
+        REQUIRE(first);
+        REQUIRE(second);
+
+        // Whichever ran last, its ports are all there is.
+        const auto names = port_names(app);
+        const bool is_one = names == std::vector<std::string>{"a", "b"};
+        const bool is_two = names == std::vector<std::string>{"c", "d"};
+        REQUIRE(is_one || is_two);
+        REQUIRE_EQ(app.link_infos().size(), std::size_t{1});
+        REQUIRE_EQ(app.snapshot().name,
+                   is_one ? std::string("one") : std::string("two"));
+    }
+}
+
+TEST_CASE("studio: a COM number that was just freed is tried again")
+{
+    studio app;
+    int calls = 0;
+    const auto made = retry_while_number_busy(
+        [&]() -> result<std::shared_ptr<endpoint>>
+        {
+            if (++calls < 3)
+                return make_error_code(errc::already_exists);
+            return app.create_virtual_port("late", virtual_port_kind::loopback);
+        },
+        std::chrono::steady_clock::now(), std::chrono::milliseconds(1),
+        std::chrono::seconds(30));
+    REQUIRE(made);
+    REQUIRE_EQ(calls, 3);
+    REQUIRE(app.find("late") != nullptr);
+
+    // Any other answer ends it at once.
+    calls = 0;
+    const auto refused = retry_while_number_busy(
+        [&]() -> result<std::shared_ptr<endpoint>>
+        {
+            ++calls;
+            return make_error_code(errc::permission_denied);
+        },
+        std::chrono::steady_clock::now(), std::chrono::milliseconds(1),
+        std::chrono::seconds(30));
+    REQUIRE(!refused);
+    REQUIRE_EQ(calls, 1);
+
+    // A number that does not come free in time gives up with the last answer.
+    calls = 0;
+    const auto given_up = retry_while_number_busy(
+        [&]() -> result<std::shared_ptr<endpoint>>
+        {
+            ++calls;
+            return make_error_code(errc::already_exists);
+        },
+        std::chrono::steady_clock::now() - std::chrono::seconds(10),
+        std::chrono::milliseconds(1), std::chrono::seconds(5));
+    REQUIRE(!given_up);
+    REQUIRE_EQ(given_up.error(), make_error_code(errc::already_exists));
+    REQUIRE_EQ(calls, 1);
 }

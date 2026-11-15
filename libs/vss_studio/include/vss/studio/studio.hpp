@@ -22,7 +22,10 @@
 #include <vss/studio/format_check.hpp>
 #include <vss/studio/reconnect.hpp>
 
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -36,6 +39,23 @@ namespace vss
 {
 
 class reconnector;
+
+/// How long Windows may take to give a COM number back after the port that
+/// had it was removed.  The driver refuses the number with
+/// `errc::already_exists` until then.
+inline constexpr std::chrono::seconds com_number_removal_wait{90};
+
+/// Calls `make` again for as long as it fails with `errc::already_exists`,
+/// which is what the driver says for a COM number that was freed a moment ago
+/// and is not free yet.  `since` is when the number was freed; the tries stop
+/// `limit` after it, and the last answer is returned.  Any other answer
+/// ends it at once.  It sleeps `step` between tries, so call it off the GUI
+/// thread.
+result<std::shared_ptr<endpoint>> retry_while_number_busy(
+    const std::function<result<std::shared_ptr<endpoint>>()>& make,
+    std::chrono::steady_clock::time_point since,
+    std::chrono::milliseconds step = std::chrono::milliseconds(500),
+    std::chrono::milliseconds limit = com_number_removal_wait);
 
 /// A fault `studio::inject_fault` can raise.
 ///
@@ -492,6 +512,11 @@ public:
     /// `snapshot` writes the list back.  A list goes when its port or link
     /// is removed, and a port or link made in any other way has none.
     ///
+    /// `apply` only adds: the ports and links of the setup are made on top of
+    /// what runs, and a name that is taken gets a number (`a-2`).  It is for a
+    /// studio that has nothing yet, such as the start of `vss_cli run` or the
+    /// restore of the running setup at start-up.
+    ///
     /// A mock port keeps its `mock_target`; for a fixture made from an
     /// address such as `mock://modem` it is the part after `mock://`.  A
     /// document applied to a studio with no ports gives the setup its `name`
@@ -504,6 +529,31 @@ public:
     /// name and description itself, and put the old ones back if it fails.
     result<void> apply(const config::document& value,
                        bool rollback_on_error = true);
+
+    /// Makes what runs equal to `value`: after it, the ports and links are
+    /// the setup's and no others, and the setup has its name and description.
+    /// Ports are kept in the order of the document.
+    ///
+    /// A running port that has the same record as a port of the setup (the
+    /// same name and every field, as `snapshot` writes it) is kept as it is,
+    /// so its endpoint, its id and, on Windows, its COM number stay.  A link
+    /// between kept ports that is the same as a link of the setup is kept
+    /// too, with its id, wiring, owner and counters, and the data on it is not
+    /// interrupted.  Every other link is removed and the setup's are made;
+    /// data a port sends while its links are being changed is lost.  The
+    /// other running ports are removed.  Windows does not give a COM number
+    /// back for a while after its port was removed, so a port that the call
+    /// removes and makes again with the same number is tried again until
+    /// Windows lets go, for up to `com_number_removal_wait`.
+    ///
+    /// A setup that `config::validate` refuses changes nothing.  When
+    /// anything else fails, what the call made is removed, what it removed is
+    /// made again from what ran as far as that is possible (a port that comes
+    /// back is a new endpoint, and rule sets, echo and link wiring of what
+    /// was removed are lost), the name and description are put back, and the
+    /// first error is returned.  `apply` and `replace` run one at a time.  It
+    /// can block while ports open, so do not call it from the GUI thread.
+    result<void> replace(const config::document& value);
     /// The setup as it is now.  Ports are written in the order they were
     /// made, so a setup that is opened and saved again keeps its order.  The
     /// result always passes `config::validate`.
@@ -547,6 +597,10 @@ private:
         /// The port was opened with settings given apart from its address, so
         /// a reopen gives them again; otherwise the address alone describes it.
         bool settings_given = false;
+        /// Where the port is in the setup: `snapshot` writes ports in this
+        /// order, then by id.  `register_port` gives the next number, and
+        /// `apply` and `replace` set it from the place in the document.
+        std::size_t order = 0;
     };
 
     struct rules_record
@@ -597,6 +651,27 @@ private:
     /// for one, and points the record's advertised path at it.
     result<void> link_pty(port_record& record);
 
+    /// Makes one port of a setup by the call that matches its kind, and keeps
+    /// the plugin bindings of the entry with it.  Used by `apply` and
+    /// `replace`.
+    result<std::shared_ptr<endpoint>> make_port(const config::port_entry& port);
+
+    /// Makes the links of a setup.  `ids` says which port each name is, and
+    /// the id of every link that was made is added to `made`, also when a later
+    /// one fails.  A name that is not in `ids` is `errc::config_error`.
+    result<void>
+    make_links(const std::vector<config::link_entry>& links,
+               const std::unordered_map<std::string, endpoint_id>& ids,
+               std::vector<link_id>& made);
+
+    /// The entry `snapshot` writes for a record, and what a running port is
+    /// compared with when a setup replaces it.
+    static config::port_entry entry_of(const port_record& record);
+
+    /// Gives the ports the order numbers `snapshot` sorts by: the order of
+    /// `ids`, after every number given before.
+    void set_order(const std::vector<endpoint_id>& ids);
+
     std::string unique_name(std::string_view base) const;
     std::vector<endpoint_id> resolve_all(const std::vector<std::string>& names,
                                          error_code& ec) const;
@@ -624,6 +699,11 @@ private:
     /// `apply` made it from.  Guarded by `record_mutex_`.
     std::string setup_name_ = "untitled";
     std::string setup_description_;
+    /// The next order number of a port.  Guarded by `record_mutex_`.
+    std::size_t next_order_ = 0;
+    /// Held for the whole of `apply` and `replace`, so that two of them never
+    /// work on the ports at once.  Taken before `record_mutex_`.
+    std::mutex change_mutex_;
     /// The plugin bindings of links, by link, kept for `snapshot` as a
     /// port's are.  Guarded by `record_mutex_`.
     std::unordered_map<link_id, std::vector<config::plugin_binding>>

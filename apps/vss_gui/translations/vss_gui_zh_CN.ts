@@ -9419,6 +9419,12 @@ Networks: %5</source>
             <source>Support bundle</source>
             <translation>支持包</translation>
         </message>
+        <message>
+            <location filename="../src/shell/shell_window.cpp" line="2030" />
+            <location filename="../src/shell/shell_window.cpp" line="3148" />
+            <source>Not everything that was running could be put back, so the setup is marked as changed.</source>
+            <translation>无法恢复之前运行的所有内容，因此该配置已标记为已更改。</translation>
+        </message>
     </context>
     <context>
         <name>Shortcuts</name>
