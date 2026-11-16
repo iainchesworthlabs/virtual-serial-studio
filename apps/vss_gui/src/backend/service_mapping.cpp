@@ -445,6 +445,7 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
                         made.point_name = point.type_name;
                 }
                 made.settings_pending = each.params_pending;
+                made.decoder = each.spec.kind == plug::extension_kind::decoder;
                 if (!alive)
                 {
                     made.state = plugin_instance_state::not_running;
@@ -696,6 +697,90 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
                  inputs.licence.state == vss::license::state::none)
             out.banner = plugin_banner::no_licence_for_official;
     }
+    return out;
+}
+
+plugin_found_ptr map_decode_snapshot(const host::decode_snapshot& window)
+{
+    auto out = std::make_shared<plugin_found>();
+    if (!window.frames || !window.triggers)
+        return out;
+    constexpr std::size_t kRows = 300;
+    for (const auto& item : window.frames->items)
+    {
+        plugin_found_row row;
+        row.time_ns = item->value.t_start_ns;
+        row.place = QString::fromStdString(item->value.place);
+        row.received = item->value.direction == host::decode_direction::rx;
+        row.what = QString::fromStdString(item->value.summary);
+        row.kind = QString::fromStdString(item->value.message);
+        out->rows.push_back(std::move(row));
+    }
+    for (const auto& item : window.triggers->items)
+    {
+        plugin_found_row row;
+        row.time_ns = item->value.when_ns;
+        row.place = QString::fromStdString(item->value.place);
+        row.received = item->value.direction == host::decode_direction::rx;
+        row.what = QString::fromStdString(item->value.text);
+        row.trigger = true;
+        switch (item->value.kind)
+        {
+        case host::decode_trigger_kind::framing:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Framing");
+            break;
+        case host::decode_trigger_kind::unknown_type:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Unknown type");
+            break;
+        case host::decode_trigger_kind::unknown_value:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Unknown value");
+            break;
+        case host::decode_trigger_kind::check:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Check");
+            break;
+        case host::decode_trigger_kind::length:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Length");
+            break;
+        case host::decode_trigger_kind::timeout:
+            row.kind = QCoreApplication::translate("PluginsDialog", "Timeout");
+            break;
+        case host::decode_trigger_kind::sequence:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Sequence");
+            break;
+        case host::decode_trigger_kind::contention:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Contention");
+            break;
+        case host::decode_trigger_kind::line_error:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Line error");
+            break;
+        case host::decode_trigger_kind::decoder_lost:
+            row.kind =
+                QCoreApplication::translate("PluginsDialog", "Decoder lost");
+            break;
+        case host::decode_trigger_kind::custom:
+            row.kind = QString::fromStdString(item->value.code);
+            break;
+        }
+        out->rows.push_back(std::move(row));
+    }
+    std::stable_sort(out->rows.begin(), out->rows.end(),
+                     [](const plugin_found_row& a, const plugin_found_row& b)
+                     { return a.time_ns > b.time_ns; });
+    out->held = out->rows.size();
+    if (out->rows.size() > kRows)
+        out->rows.resize(kRows);
+    out->dropped = window.frames->dropped + window.triggers->dropped;
+    out->refused = window.frames->rejected + window.triggers->rejected;
+    out->over_budget =
+        window.frames->over_budget + window.triggers->over_budget;
+    out->revision = window.frames->next_sequence * 1000003ULL +
+                    window.triggers->next_sequence + out->dropped +
+                    out->refused + out->over_budget;
     return out;
 }
 

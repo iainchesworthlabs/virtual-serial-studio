@@ -19,6 +19,7 @@
 #include "widgets/notes.hpp"
 
 #include <QDialog>
+#include <QPointer>
 #include <QString>
 
 #include <functional>
@@ -30,6 +31,8 @@ class QListWidget;
 class QListWidgetItem;
 class QPushButton;
 class QScrollArea;
+class QTableWidget;
+class QTimer;
 class QKeyEvent;
 class QVBoxLayout;
 class QWidget;
@@ -156,6 +159,20 @@ private:
     bool waiting_for_add_ = false;
     void add_instance_of(const plugin_view& plugin,
                          const plugin_addition& point);
+    void refresh_found();
+
+    /// The table of what one decoder instance found, and what it showed last.
+    struct found_view
+    {
+        QString plugin_id;
+        quint64 number = 0;
+        QPointer<QTableWidget> table;
+        QPointer<QLabel> counts;
+        QPointer<QLabel> empty;
+        quint64 revision = ~quint64{0};
+    };
+    std::vector<found_view> found_views_;
+    QTimer* found_timer_ = nullptr;
 
     bool rebuilding_ = false;
     quint64 pending_key_request_ = 0;

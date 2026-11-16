@@ -323,6 +323,69 @@ void ServicePluginBackend::save_instances() const
     static_cast<void>(file.commit());
 }
 
+std::optional<host::capture_place>
+ServicePluginBackend::find_place(std::string_view name) const
+{
+    std::shared_ptr<const plugin_place_table> table;
+    {
+        const std::scoped_lock lock(mutex_);
+        table = places_;
+    }
+    if (!table)
+        return std::nullopt;
+    const auto found = table->find(name);
+    if (found == table->end())
+        return std::nullopt;
+    return found->second;
+}
+
+std::shared_ptr<host::decode_store>
+ServicePluginBackend::store_for(const std::string& plugin_id,
+                                std::uint64_t instance, bool make)
+{
+    const std::scoped_lock lock(mutex_);
+    const auto key = std::make_pair(plugin_id, instance);
+    const auto found = stores_.find(key);
+    if (found != stores_.end())
+        return found->second;
+    if (!make)
+        return nullptr;
+    auto store = std::make_shared<host::decode_store>();
+    stores_.emplace(key, store);
+    return store;
+}
+
+void ServicePluginBackend::forget_stores(const std::string& plugin_id,
+                                         std::optional<std::uint64_t> instance)
+{
+    const std::scoped_lock lock(mutex_);
+    for (auto each = stores_.begin(); each != stores_.end();)
+    {
+        if (each->first.first == plugin_id &&
+            (!instance.has_value() || each->first.second == *instance))
+            each = stores_.erase(each);
+        else
+            ++each;
+    }
+}
+
+plugin_found_ptr ServicePluginBackend::found(const QString& plugin_id,
+                                             quint64 instance) const
+{
+    std::shared_ptr<host::decode_store> store;
+    {
+        const std::scoped_lock lock(mutex_);
+        const auto each =
+            stores_.find(std::make_pair(plugin_id.toStdString(), instance));
+        if (each == stores_.end())
+            return nullptr;
+        store = each->second;
+    }
+    // The store's own windows: nothing here waits on the plugin or its
+    // strand.
+    return map_decode_snapshot(*store->snapshot());
+}
+
 QStringList ServicePluginBackend::place_names() const
 {
     std::shared_ptr<const plugin_place_table> table;
@@ -417,6 +480,7 @@ void ServicePluginBackend::remove_instance(const QString& plugin_id,
                               found->second.list,
                               [number](const host::instance_spec& spec)
                               { return spec.instance == number; });
+                          forget_stores(id, number);
                           save_instances();
                           service_->set_instances(id, found->second.list);
                       });
@@ -444,19 +508,50 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
     {
         handlers.push_back(host::make_capture_point(
             context, *options_.hub,
-            [this](std::string_view name) -> std::optional<host::capture_place>
+            [this](std::string_view name) { return find_place(name); }));
+        // Decoding: the places an instance reads come from its settings, and
+        // what it finds goes to a store of its own that the page reads.
+        handlers.push_back(host::make_decoder_point(
+            context, *options_.hub,
+            [this](std::string_view name) { return find_place(name); },
+            [this, id = context.plugin_id, instances = context.instances](
+                std::uint64_t number) -> std::optional<host::decoder_target>
             {
-                std::shared_ptr<const plugin_place_table> table;
+                if (!instances)
+                    return std::nullopt;
+                const auto view = instances->find(number);
+                if (!view.has_value())
+                    return std::nullopt;
+                const QJsonObject settings =
+                    QJsonDocument::fromJson(
+                        QByteArray::fromStdString(view->spec.params))
+                        .object();
+                host::decoder_target target;
+                const auto add = [&target](const QString& name)
                 {
-                    const std::scoped_lock lock(mutex_);
-                    table = places_;
+                    const std::string text = name.trimmed().toStdString();
+                    if (!text.empty() &&
+                        std::find(target.places.begin(), target.places.end(),
+                                  text) == target.places.end())
+                        target.places.push_back(text);
+                };
+                for (const QString key :
+                     {QStringLiteral("places"), QStringLiteral("place"),
+                      QStringLiteral("port")})
+                {
+                    const QJsonValue value = settings.value(key);
+                    if (value.isString())
+                        add(value.toString());
+                    else if (value.isArray())
+                    {
+                        for (const QJsonValue item : value.toArray())
+                            add(item.toString());
+                    }
                 }
-                if (!table)
+                if (target.places.empty() || target.places.size() > 64)
                     return std::nullopt;
-                const auto found = table->find(name);
-                if (found == table->end())
-                    return std::nullopt;
-                return found->second;
+                target.store = store_for(id, number, true);
+                return target;
             }));
     }
     if (options_.hub != nullptr)
@@ -1303,6 +1398,7 @@ void ServicePluginBackend::process_removals()
                 continue;
             }
         }
+        forget_stores(each.id, std::nullopt);
         // The plugin's data folder is named by its id. It goes once the
         // plugin has gone from the list.
         const bool plain_name =

@@ -37,6 +37,7 @@
 #include <QLocale>
 #include <QComboBox>
 #include <QMenu>
+#include <QTableWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -2210,4 +2211,78 @@ TEST_CASE("plugins page: what the plugin said of its licence, and licence.read")
                QStringLiteral("Read your licence file. The file holds your "
                               "name."));
     REQUIRE(!is_amber_permission(QStringLiteral("licence.read")));
+}
+
+
+TEST_CASE("plugins page: what a decoder found is a plain table that follows the "
+          "store")
+{
+    plugin_view plugin = plugin_with_points();
+    plugin_instance_view decoder;
+    decoder.number = 3;
+    decoder.point_id = QStringLiteral("pulse");
+    decoder.point_name = QStringLiteral("Pulse");
+    decoder.state = plugin_instance_state::running;
+    decoder.decoder = true;
+    plugin.instances = {decoder};
+    fixture env({plugin});
+    PluginsDialog dialog(env.backend);
+    dialog.show();
+    settle();
+    dialog.select(plugin.id);
+    settle();
+    QWidget* detail = dialog.detail();
+    // Nothing yet.
+    auto* empty = detail->findChild<QLabel*>(QStringLiteral("pluginFoundEmpty"));
+    REQUIRE(empty != nullptr);
+    REQUIRE_EQ(empty->text(), QStringLiteral("Nothing found yet."));
+
+    auto what = std::make_shared<plugin_found>();
+    plugin_found_row frame;
+    frame.time_ns = 12'345'000'000;
+    frame.place = QStringLiteral("Alpha");
+    frame.received = true;
+    frame.what = QStringLiteral("<b>hello</b>") + QChar(0x202e);
+    frame.kind = QStringLiteral("greeting");
+    plugin_found_row trigger;
+    trigger.time_ns = 13'000'000'000;
+    trigger.place = QStringLiteral("Alpha");
+    trigger.received = false;
+    trigger.trigger = true;
+    trigger.what = QStringLiteral("no end byte");
+    trigger.kind = QStringLiteral("Framing");
+    what->rows = {trigger, frame};
+    what->held = 5;
+    what->dropped = 2;
+    what->refused = 1;
+    what->revision = 7;
+    env.backend.set_found(plugin.id, 3, what);
+    // The table follows on the timer.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            auto* table = detail->findChild<QTableWidget*>(
+                QStringLiteral("pluginFoundTable"));
+            return table != nullptr && table->rowCount() == 2;
+        },
+        5000));
+    auto* table =
+        detail->findChild<QTableWidget*>(QStringLiteral("pluginFoundTable"));
+    REQUIRE_EQ(table->accessibleName(), QStringLiteral("What Pulse found"));
+    REQUIRE_EQ(table->columnCount(), 5);
+    REQUIRE_EQ(table->item(0, 0)->text(), QStringLiteral("13.000 s"));
+    REQUIRE_EQ(table->item(0, 2)->text(), QStringLiteral("Sent"));
+    REQUIRE_EQ(table->item(0, 3)->text(), QStringLiteral("no end byte"));
+    REQUIRE_EQ(table->item(1, 0)->text(), QStringLiteral("12.345 s"));
+    REQUIRE_EQ(table->item(1, 2)->text(), QStringLiteral("Received"));
+    // The plugin's words are text, with the direction mark gone.
+    REQUIRE_EQ(table->item(1, 3)->text(), QStringLiteral("<b>hello</b>"));
+    REQUIRE(table->editTriggers() == QAbstractItemView::NoEditTriggers);
+    auto* counts =
+        detail->findChild<QLabel*>(QStringLiteral("pluginFoundCounts"));
+    REQUIRE(counts != nullptr);
+    REQUIRE(counts->isVisibleTo(detail));
+    REQUIRE(counts->text().contains(QStringLiteral("2 dropped")));
+    REQUIRE(counts->text().contains(QStringLiteral("1 refused")));
+    REQUIRE(counts->text().contains(QStringLiteral("Showing the newest 2 of 5.")));
 }

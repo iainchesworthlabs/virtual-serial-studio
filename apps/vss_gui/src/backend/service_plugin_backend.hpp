@@ -24,6 +24,8 @@
 #include <vss/plugin/discover.hpp>
 #include <vss/plugin/host/capture_point.hpp>
 #include <vss/plugin/host/control_point.hpp>
+#include <vss/plugin/host/decode_store.hpp>
+#include <vss/plugin/host/decoder_point.hpp>
 #include <vss/plugin/host/generator_point.hpp>
 #include <vss/plugin/host/licence_point.hpp>
 #include <vss/plugin/host/secret_point.hpp>
@@ -145,6 +147,8 @@ public:
     void add_instance(const QString& plugin_id, const QString& point_id,
                       const QMap<QString, QString>& values) override;
     QStringList place_names() const override;
+    plugin_found_ptr found(const QString& plugin_id,
+                           quint64 instance) const override;
     void remove_instance(const QString& plugin_id, quint64 number) override;
     void answer_secret(quint64 id, bool seen) override;
     void answer_control(quint64 id, bool allowed) override;
@@ -169,6 +173,13 @@ private:
                      std::function<void(bool)> done);
     void answer_all_prompts_no();
     void load_instances();
+    std::optional<vss::plugin::host::capture_place>
+    find_place(std::string_view name) const;
+    std::shared_ptr<vss::plugin::host::decode_store>
+    store_for(const std::string& plugin_id, std::uint64_t instance,
+              bool make);
+    void forget_stores(const std::string& plugin_id,
+                       std::optional<std::uint64_t> instance);
     void restart_waiting_plugins();
     void save_instances() const;
     vss::plugin::inspect_context context_now() const;
@@ -210,6 +221,10 @@ private:
         std::vector<vss::plugin::host::instance_spec> list;
     };
     std::map<std::string, kept_instances> instances_;
+    /// What each decoder instance found, kept while the plugin is installed.
+    std::map<std::pair<std::string, std::uint64_t>,
+             std::shared_ptr<vss::plugin::host::decode_store>>
+        stores_;
     /// The bytes of the licence file in use, read on the slow thread; empty
     /// for none. Swapped whole, so the service's strand copies a snapshot.
     std::shared_ptr<const vss::byte_buffer> licence_bytes_;

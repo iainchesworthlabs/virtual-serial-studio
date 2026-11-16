@@ -15,6 +15,7 @@
 #include "backend/plugin_view.hpp"
 
 #include <vss/license/license.hpp>
+#include <vss/plugin/host/decode_store.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/host/service.hpp>
 #include <vss/plugin/manifest.hpp>
@@ -56,6 +57,11 @@ map_service_snapshot(const vss::plugin::host::service_snapshot& snapshot,
 /// is timed, what it asks for and its expiry.
 void fill_view_from_manifest(plugin_view& view,
                              const vss::plugin::manifest& declared);
+
+/// The rows of the page's table of what a decoder found, newest first, from a
+/// window of its store. The plugin's words are kept as they were given.
+plugin_found_ptr
+map_decode_snapshot(const vss::plugin::host::decode_snapshot& window);
 
 /// "no network isolation, ..." for the parts that were not applied.
 QString sandbox_missing_text(const vss::plugin::host::sandbox_report& report);

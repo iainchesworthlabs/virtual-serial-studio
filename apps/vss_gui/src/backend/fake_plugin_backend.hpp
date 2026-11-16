@@ -66,6 +66,18 @@ public:
     void add_instance(const QString& plugin_id, const QString& point_id,
                       const QMap<QString, QString>& values) override;
     QStringList place_names() const override { return place_names_; }
+    plugin_found_ptr found(const QString& plugin_id,
+                           quint64 instance) const override
+    {
+        return found_.value(plugin_id + QLatin1Char('#') +
+                            QString::number(instance));
+    }
+    void set_found(const QString& plugin_id, quint64 instance,
+                   plugin_found_ptr what)
+    {
+        found_.insert(plugin_id + QLatin1Char('#') + QString::number(instance),
+                      std::move(what));
+    }
     void set_place_names(QStringList names) { place_names_ = std::move(names); }
     void remove_instance(const QString& plugin_id, quint64 number) override;
     void answer_secret(quint64 id, bool seen) override;
@@ -122,6 +134,7 @@ private:
     std::shared_ptr<plugin_snapshot> snapshot_;
     std::vector<fake_plugin_request> requests_;
     QStringList place_names_;
+    QHash<QString, plugin_found_ptr> found_;
     std::vector<std::pair<quint64, bool>> secret_answers_;
     std::vector<std::pair<quint64, bool>> control_answers_;
     QHash<QString, plugin_key_file_view> key_files_;
