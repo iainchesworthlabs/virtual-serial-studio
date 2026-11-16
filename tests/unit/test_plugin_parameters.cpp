@@ -797,6 +797,35 @@ TEST_CASE("plugin parameters: from_json reads an object of plain values in the o
     REQUIRE(std::get<std::int64_t>((*read)[4].value) == -3);
 }
 
+TEST_CASE("plugin parameters: a number with many digits reads back as the same number")
+{
+    const std::vector<parameter> declared =
+        one(R"j("type": "number", "default": 0)j");
+    for (const char* const digits :
+         {"-92.75833703685477580674407370955161",
+          "0.1000000000000000055511151231257827021181583404541015625",
+          "123456789.12345678901234567890", "2.2250738585072011e-308",
+          "1.7976931348623157e308", "0.30000000000000004",
+          "9007199254740993.5"})
+    {
+        const std::string first_text =
+            std::string(R"({"p":)") + digits + "}";
+        std::string problem;
+        const auto first_read = from_json(first_text, problem);
+        REQUIRE(first_read.has_value());
+        const validation first = validate(declared, *first_read);
+        REQUIRE(first.ok());
+
+        const std::string written = to_json(first.values, value_source::user);
+        const auto second_read = from_json(written, problem);
+        REQUIRE(second_read.has_value());
+        const validation second = validate(declared, *second_read);
+        REQUIRE(second.ok());
+        REQUIRE(second.values == first.values);
+        REQUIRE_EQ(to_json(second.values, value_source::user), written);
+    }
+}
+
 TEST_CASE("plugin parameters: from_json refuses what is not an object of plain values")
 {
     for (const char* bad :
