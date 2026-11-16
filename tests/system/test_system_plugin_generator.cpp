@@ -319,8 +319,9 @@ struct rig
             20000ms);
     }
 
-    std::shared_ptr<vss::hub> hub;
+    /// Before the hub, so that it outlives what the hub's endpoints post.
     boost::asio::io_context io{};
+    std::shared_ptr<vss::hub> hub;
     mock_endpoint first;
     mock_endpoint second;
     std::vector<asked> creates{};

@@ -92,7 +92,16 @@ public:
     ~generator_handler() override
     {
         *alive_ = false;
-        stop_all();
+        try
+        {
+            stop_all();
+        }
+        catch (...)
+        {
+            // Nothing more can be done for a generator that cannot be
+            // stopped; the feeds go with the object.
+            runs_.clear();
+        }
     }
 
     bool take(const api_message& message) override
@@ -225,12 +234,12 @@ private:
     /// One generator: an instance's feed and what it writes to.
     struct generator_run
     {
-        generator_run(std::uint64_t number_, std::uint64_t generation_,
-            feed_options options, std::shared_ptr<endpoint> target,
-            boost::asio::any_io_executor executor)
-            : number(number_), generation(generation_),
-              feed(std::move(options)), writer(std::move(target)),
-              timer(std::move(executor))
+        generator_run(std::uint64_t instance, std::uint64_t epoch,
+                      const feed_options& options,
+                      std::shared_ptr<endpoint> target,
+                      const boost::asio::any_io_executor& executor)
+            : number(instance), generation(epoch), feed(options),
+              writer(std::move(target)), timer(executor)
         {
         }
 
@@ -314,12 +323,14 @@ private:
         auto made = std::make_unique<generator_run>(spec.instance, generation, options,
                                           std::move(target), context_.executor);
         made->writer.on_done = [alive = alive_, this, number = spec.instance,
-                                generation](std::size_t count, bool failed)
+                                generation, executor = context_.executor](
+                                   std::size_t count, bool failed)
         {
-            // Called on the endpoint's strand: the result goes to the
-            // service's.
+            // Called on the endpoint's strand, possibly after this object
+            // has gone: the result goes to the service's, and nothing of
+            // this object is touched before the flag is read there.
             boost::asio::post(
-                context_.executor,
+                executor,
                 [alive, this, number, generation, count, failed]()
                 {
                     if (*alive)
@@ -427,9 +438,10 @@ private:
         if (!allowed(message.id, asked->instance))
             return;
         const auto found = context_.instances->find(asked->instance);
-        const feed_timing timing = owner_.timing_of
-                                       ? owner_.timing_of(found->spec.type)
-                                       : feed_timing::async;
+        const feed_timing timing =
+            owner_.timing_of && found.has_value()
+                ? owner_.timing_of(found->spec.type)
+                : feed_timing::async;
         if (timing != feed_timing::rules)
         {
             refuse(message.id, api_errc::not_declared,
