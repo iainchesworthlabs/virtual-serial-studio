@@ -167,6 +167,16 @@ public:
                                          int listeners) override;
     vss::result<vss::link_id> bridge(const QString& from_uri,
                                      const QString& to_uri) override;
+    vss::result<network_attach_view> attach_network(vss::endpoint_id existing,
+                                                    const QString& name,
+                                                    const QString& uri,
+                                                    bool keep_trying) override;
+    vss::result<void> set_network_address(vss::endpoint_id id,
+                                          const QString& uri,
+                                          bool keep_trying) override;
+    vss::result<void> check_listen_free(const QString& uri,
+                                        vss::endpoint_id ignore,
+                                        bool probe) const override;
     vss::result<void> create_com0com_pair() override;
 
     bool hub_running() const override;

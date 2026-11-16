@@ -10,6 +10,9 @@
 #include <QStringList>
 #include <QThread>
 
+#include <boost/system/errc.hpp>
+#include <vss/studio/studio.hpp>
+
 #include <algorithm>
 #include <cstddef>
 #include <mutex>
@@ -1426,6 +1429,104 @@ vss::result<share_view> FakeStudioBackend::share_serial(const QString& uri,
     return view;
 }
 
+vss::result<void> FakeStudioBackend::check_listen_free(const QString& uri,
+                                                       vss::endpoint_id ignore,
+                                                       bool) const
+{
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    for (const port_view& view : ports_)
+    {
+        if (view.id != ignore &&
+            vss::listen_uris_overlap(view.path.toStdString(),
+                                     uri.toStdString()))
+            return boost::system::errc::make_error_code(
+                boost::system::errc::address_in_use);
+    }
+    return {};
+}
+
+vss::result<network_attach_view>
+FakeStudioBackend::attach_network(vss::endpoint_id existing,
+                                  const QString& name, const QString& uri,
+                                  bool keep_trying)
+{
+    network_attach_view view;
+    if (existing == 0)
+    {
+        const auto made =
+            create_virtual_port(name, vss::virtual_port_kind::loopback, true);
+        if (!made)
+            return made.error();
+        existing = *made;
+        view.created = *made;
+    }
+    else if (!port(existing))
+    {
+        return vss::make_error_code(vss::errc::not_found);
+    }
+    const auto undo = [this, &view]
+    {
+        if (view.created != 0)
+            static_cast<void>(remove_port(view.created));
+    };
+
+    if (const auto taken = check_listen_free(uri, 0, false); !taken)
+    {
+        undo();
+        return taken.error();
+    }
+    // A test makes the next client refuse with `fail_next`; with `keep_trying`
+    // it is made anyway and waits.
+    const auto refused = take_error();
+    if (refused && !keep_trying)
+    {
+        undo();
+        return *refused;
+    }
+    auto added = attach_serial(name, uri, vss::serial_settings{}, true);
+    if (!added)
+    {
+        undo();
+        return added.error();
+    }
+    view.port = *added;
+    view.waiting = refused.has_value();
+    const auto link = connect_ports(existing, view.port, vss::link_options{});
+    if (!link)
+    {
+        static_cast<void>(remove_port(view.port));
+        undo();
+        return link.error();
+    }
+    view.link = *link;
+    return view;
+}
+
+vss::result<void> FakeStudioBackend::set_network_address(vss::endpoint_id id,
+                                                         const QString& uri,
+                                                         bool)
+{
+    if (const auto error = take_error())
+        return *error;
+    const std::lock_guard<std::recursive_mutex> lock(mutex_);
+    const auto it =
+        std::find_if(ports_.begin(), ports_.end(),
+                     [id](const port_view& view) { return view.id == id; });
+    if (it == ports_.end())
+        return vss::make_error_code(vss::errc::not_found);
+    if (it->kind != vss::endpoint_kind::tcp &&
+        it->kind != vss::endpoint_kind::udp &&
+        it->kind != vss::endpoint_kind::rfc2217)
+        return vss::make_error_code(vss::errc::unsupported);
+    if (const auto taken = check_listen_free(uri, id, false); !taken)
+        return taken.error();
+    it->path = uri;
+    it->description = uri;
+    it->kind = kind_for_uri(uri);
+    refresh();
+    return {};
+}
+
 vss::result<vss::link_id> FakeStudioBackend::bridge(const QString& from_uri,
                                                     const QString& to_uri)
 {
@@ -1504,8 +1605,8 @@ void FakeStudioBackend::refresh()
     // thread's, like the engine adapter's.
     if (QThread::currentThread() != thread())
     {
-        QMetaObject::invokeMethod(this, [this] { refresh(); },
-                                  Qt::QueuedConnection);
+        QMetaObject::invokeMethod(
+            this, [this] { refresh(); }, Qt::QueuedConnection);
         return;
     }
     Q_EMIT ports_changed();
@@ -1543,8 +1644,9 @@ bool FakeStudioBackend::remove_licence(const QString& file_name)
 {
     removed_licences_ << file_name;
     const auto before = licence_.files.size();
-    std::erase_if(licence_.files, [&](const licence_file_view& file)
-                  { return file.file_name == file_name && !file.machine_wide; });
+    std::erase_if(
+        licence_.files, [&](const licence_file_view& file)
+        { return file.file_name == file_name && !file.machine_wide; });
     if (licence_.files.size() == before)
         return false;
     // The fake keeps no folders: with the file in use gone, what is left is
