@@ -13,7 +13,7 @@ import sys
 import threading
 import time
 import unittest
-from unittest import mock
+import unittest.mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir))
 
@@ -850,7 +850,7 @@ class LoopbackPrefaceTests(unittest.TestCase):
             return real(sock, address)
 
         _seen, thread = self.start_server(reply(1, "hello", **HELLO))
-        with mock.patch.object(socket.socket, "connect", spy):
+        with unittest.mock.patch.object(socket.socket, "connect", spy):
             Client.connect(loopback_port=self.port, token="vsst1_zzz", timeout=5.0).close()
         thread.join(10)
         self.assertEqual(connected, [("127.0.0.1", self.port)])
@@ -881,6 +881,8 @@ class SocketTransportTests(unittest.TestCase):
             try:
                 data = self.transport.recv_some(10, time.monotonic() - 1)
             except TimeoutError:
+                # Nothing has crossed yet; the loop tries again until the
+                # deadline.
                 pass
         self.assertEqual(data, b"abc")
 
@@ -914,7 +916,7 @@ class PipeTransportTests(unittest.TestCase):
     def setUp(self):
         import ctypes
         import secrets
-        from ctypes import wintypes
+        import ctypes.wintypes
 
         from vss_control import _win32
 
@@ -923,20 +925,20 @@ class PipeTransportTests(unittest.TestCase):
         kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         kernel.CreateNamedPipeW.restype = ctypes.c_void_p
         kernel.CreateNamedPipeW.argtypes = [
-            wintypes.LPCWSTR,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            wintypes.DWORD,
-            wintypes.DWORD,
+            ctypes.wintypes.LPCWSTR,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
+            ctypes.wintypes.DWORD,
             ctypes.c_void_p,
         ]
-        kernel.WriteFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]
-        kernel.ReadFile.argtypes = [ctypes.c_void_p, ctypes.c_void_p, wintypes.DWORD, ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p]
+        kernel.WriteFile.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_void_p]
+        kernel.ReadFile.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.wintypes.DWORD, ctypes.POINTER(ctypes.wintypes.DWORD), ctypes.c_void_p]
         kernel.CloseHandle.argtypes = [ctypes.c_void_p]
         self.kernel = kernel
-        self.wintypes = wintypes
+        self.wintypes = ctypes.wintypes
         self.name = "\\\\.\\pipe\\vsspy-test-%s" % secrets.token_hex(6)
         # Small buffers, so that a write that nobody reads cannot finish.
         server = kernel.CreateNamedPipeW(self.name, 3, 0, 1, 4096, 4096, 0, None)

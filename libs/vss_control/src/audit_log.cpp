@@ -520,6 +520,14 @@ result<std::unique_ptr<audit_log>> audit_log::open(audit_options options)
     if (options.max_files == 0)
         options.max_files = 1;
 
+    // The directory comes from the command line or the environment.  A `..`
+    // part could name a place other than the one meant, so it is refused.
+    for (const std::filesystem::path& part : options.directory)
+    {
+        if (part == "..")
+            return make_error_code(errc::invalid_argument);
+    }
+
     if (const error_code failed =
             platform::ensure_private_directory(options.directory))
         return failed;

@@ -8,6 +8,7 @@
 
 #include "reader.hpp"
 
+#include <boost/json/parse.hpp>
 #include <boost/json/serialize.hpp>
 #include <boost/json/value.hpp>
 
@@ -601,6 +602,28 @@ json::value json_of(const checked_parameter& item)
     return json::value(nullptr);
 }
 
+/// The reader of Boost.JSON is not exact for a number with many digits, and a
+/// number it has read may be written as text that it reads as a neighbour.
+/// This takes the number to one that reads back as itself, which is what
+/// `to_json` writes for it, so a value is the same after being written and
+/// read again.  False when no such number is found, which does not happen
+/// for any number tried.
+bool settle(double& value)
+{
+    for (int round = 0; round < 8; ++round)
+    {
+        const std::string written = json::serialize(json::value(value));
+        boost::system::error_code failed;
+        const json::value again = json::parse(written, failed);
+        if (failed || !again.is_double())
+            return false;
+        if (again.as_double() == value)
+            return true;
+        value = again.as_double();
+    }
+    return false;
+}
+
 } // namespace
 
 std::string_view to_string(parameter_errc value) noexcept
@@ -782,11 +805,16 @@ std::optional<raw_parameters> from_json(std::string_view text,
         }
         else if (value.is_double())
         {
-            const double real = value.as_double();
+            double real = value.as_double();
             if (!(real >= std::numeric_limits<double>::lowest() &&
                   real <= std::numeric_limits<double>::max()))
             {
                 problem = "has a number that is too large";
+                return std::nullopt;
+            }
+            if (!settle(real))
+            {
+                problem = "has a number that cannot be kept exactly";
                 return std::nullopt;
             }
             item.value = real;

@@ -199,9 +199,6 @@ class Client:
         except BaseException:
             client._abort()
             raise
-        finally:
-            token = None
-            fields = None
         return client
 
     # -- the connection ------------------------------------------------------
@@ -218,6 +215,8 @@ class Client:
             try:
                 self._call("session.close")
             except Exception:
+                # The session is ended below whether or not the gateway
+                # heard about it.
                 pass
         self._abort()
 
@@ -306,7 +305,7 @@ class Client:
                 # The gateway may have said why before it closed the
                 # connection (`busy`), so what it sent is still read.
                 send_failed = True
-            data = None
+            del data
 
             while True:
                 try:
