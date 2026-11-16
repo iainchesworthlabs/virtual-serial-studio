@@ -21,6 +21,11 @@ class QRadioButton;
 class QSlider;
 class QStackedWidget;
 
+namespace vss::gui::updates
+{
+class UpdateService;
+} // namespace vss::gui::updates
+
 namespace vss::gui::support
 {
 
@@ -33,10 +38,17 @@ class SettingsDialog final : public QDialog
 public:
     SettingsDialog(StudioBackend& backend, const ui_settings& current,
                    QWidget* parent = nullptr);
+    /// With `updates`, the General page ends with the Updates group. Null
+    /// means no such group. `updates` outlives the dialog.
+    SettingsDialog(StudioBackend& backend, const ui_settings& current,
+                   updates::UpdateService* updates, QWidget* parent = nullptr);
 
     const ui_settings& settings() const noexcept { return settings_; }
 
     /// Restores every preference to its default and applies it immediately.
+    /// The update settings are not preferences of this dialog: they are the
+    /// service's, and an answer given to the question of the first start
+    /// must not be undone here, so they stay as they are.
     void reset_to_defaults();
 
     /// Opens on a page: 0 General, 1 Running, 2 Appearance, 3 Performance.
@@ -55,6 +67,9 @@ private:
     void apply_refresh();
     void sync_profiling();
     void sync_render_status();
+    /// Reads the update service again: the check boxes and the line that
+    /// says why they are disabled.
+    void sync_updates();
     void persist();
 
     StudioBackend& backend_;
@@ -79,6 +94,10 @@ private:
     Switch* profiling_ = nullptr;
     Switch* profiling_remote_ = nullptr;
     QLabel* profiling_status_ = nullptr;
+    updates::UpdateService* updates_ = nullptr;
+    QCheckBox* update_automatic_ = nullptr;
+    QCheckBox* update_prerelease_ = nullptr;
+    QLabel* update_note_ = nullptr;
     QStackedWidget* pages_ = nullptr;
     QButtonGroup* nav_ = nullptr;
 };

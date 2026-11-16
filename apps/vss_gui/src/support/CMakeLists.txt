@@ -34,6 +34,16 @@ add_library(vss_gui_support STATIC
   licence_text.hpp
   permission_dialog.cpp
   permission_dialog.hpp
+  plugin_parts.cpp
+  plugin_parts.hpp
+  plugin_dialogs.cpp
+  plugin_dialogs.hpp
+  plugin_text.cpp
+  plugin_text.hpp
+  plugin_widgets.cpp
+  plugin_widgets.hpp
+  plugins_dialog.cpp
+  plugins_dialog.hpp
   permission_rows.cpp
   permission_rows.hpp
   redact.cpp
@@ -62,6 +72,10 @@ add_library(vss_gui_support STATIC
   troubleshoot.hpp
   troubleshoot_dialog.cpp
   troubleshoot_dialog.hpp
+  update_dialog.cpp
+  update_dialog.hpp
+  update_text.cpp
+  update_text.hpp
   third_party.cpp
   third_party.hpp
   third_party.qrc
@@ -81,6 +95,7 @@ target_link_libraries(vss_gui_support PUBLIC
   vss_gui_backend
   vss_gui_profiling
   vss_gui_rendering
+  vss_gui_updates
   Qt6::Widgets)
 
 if(WIN32)

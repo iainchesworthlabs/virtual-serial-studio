@@ -21,6 +21,36 @@ namespace
 /// it, as the delay line does.
 constexpr std::chrono::milliseconds foreign_clock_poll{1};
 
+/// The firings a scheduler keeps room for between calls, so that the path of
+/// the bytes does not allocate each time.  A burst that needed more gives the
+/// room back when its call ends.
+constexpr std::size_t scratch_firings_kept = 64;
+
+/// Empties a call's list of firings when the call ends, whichever way it
+/// ends, and lets go of its room when that is large.  What a call decided is
+/// scheduled or counted by then, so a set that the call suspended, and is not
+/// called again, holds nothing of it.
+class scratch_release
+{
+public:
+    explicit scratch_release(std::vector<firing>& list) noexcept : list_(list)
+    {
+    }
+
+    scratch_release(const scratch_release&) = delete;
+    scratch_release& operator=(const scratch_release&) = delete;
+
+    ~scratch_release()
+    {
+        list_.clear();
+        if (list_.capacity() > scratch_firings_kept)
+            std::vector<firing>().swap(list_);
+    }
+
+private:
+    std::vector<firing>& list_;
+};
+
 } // namespace
 
 scheduler::scheduler(const boost::asio::any_io_executor& executor,
@@ -54,8 +84,8 @@ void scheduler::start(time_point origin)
             return;
         started_ = true;
         budget_at_ = origin;
-        std::vector<firing> timeline = machine_.start(origin);
-        schedule(timeline, origin);
+        std::vector<firing> timeline = machine_.start(origin, open_gate());
+        schedule(timeline);
     }
     wake_if_sooner();
 }
@@ -81,9 +111,9 @@ void scheduler::on_read(endpoint_id from, bytes_view data,
                 if (!started_ || closed_ || retired_ ||
                     suspended_ != suspend_reason::none)
                     return;
-                scratch_.clear();
-                machine_.feed(data, when, scratch_);
-                schedule(scratch_, when);
+                const scratch_release release(scratch_);
+                machine_.feed(data, when, scratch_, open_gate());
+                schedule(scratch_);
             }
         }
         if (successor)
@@ -107,9 +137,9 @@ void scheduler::lines_changed(control_lines before, control_lines after,
         if (!started_ || closed_ || retired_ ||
             suspended_ != suspend_reason::none)
             return;
-        scratch_.clear();
-        machine_.lines_changed(before, after, when, scratch_);
-        schedule(scratch_, when);
+        const scratch_release release(scratch_);
+        machine_.lines_changed(before, after, when, scratch_, open_gate());
+        schedule(scratch_);
     }
     wake_if_sooner();
 }
@@ -121,9 +151,9 @@ void scheduler::port_changed(port_event what, time_point when)
         if (!started_ || closed_ || retired_ ||
             suspended_ != suspend_reason::none)
             return;
-        scratch_.clear();
-        machine_.port_changed(what, when, scratch_);
-        schedule(scratch_, when);
+        const scratch_release release(scratch_);
+        machine_.port_changed(what, when, scratch_, open_gate());
+        schedule(scratch_);
     }
     wake_if_sooner();
 }
@@ -138,9 +168,9 @@ result<void> scheduler::signal(std::size_t index, bytes_view carried,
         if (!started_ || closed_ || retired_ ||
             suspended_ != suspend_reason::none)
             return {};
-        scratch_.clear();
-        machine_.signal(index, carried, cause, when, scratch_);
-        schedule(scratch_, when);
+        const scratch_release release(scratch_);
+        machine_.signal(index, carried, cause, when, scratch_, open_gate());
+        schedule(scratch_);
     }
     wake_if_sooner();
     return {};
@@ -180,8 +210,8 @@ void scheduler::start_in_place_of(scheduler& old, time_point when,
             std::make_heap(kept.begin(), kept.end(), &scheduler::later);
             old.queue_ = std::move(kept);
         }
-        std::vector<firing> timeline = machine_.start(when);
-        schedule(timeline, when);
+        std::vector<firing> timeline = machine_.start(when, open_gate());
+        schedule(timeline);
     }
     wake_if_sooner();
 }
@@ -232,6 +262,7 @@ scheduler_stats scheduler::stats() const
     std::lock_guard lock(mutex_);
     scheduler_stats out = stats_;
     out.machine = machine_.stats();
+    out.suspended_firings = out.machine.refused;
     out.missed_chunks = missed_chunks_.load(std::memory_order_relaxed);
     out.suspended = suspended_;
     return out;
@@ -241,6 +272,51 @@ std::size_t scheduler::waiting() const
 {
     std::lock_guard lock(mutex_);
     return queue_.size();
+}
+
+std::size_t scheduler::scratch_size() const
+{
+    std::lock_guard lock(mutex_);
+    return scratch_.size();
+}
+
+std::size_t scheduler::scratch_capacity() const
+{
+    std::lock_guard lock(mutex_);
+    return scratch_.capacity();
+}
+
+// Called with `mutex_` held, by the machine, before it fires a rule.  The
+// firing that finds the budget spent suspends the set, and it and those
+// behind it are refused: nothing of them is built.
+bool scheduler::admit_firing(time_point when)
+{
+    if (suspended_ != suspend_reason::none)
+        return false;
+    if (take_firing(when))
+        return true;
+    suspend_locked(suspend_reason::budget, when);
+    return false;
+}
+
+// Called with `mutex_` held, by the machine, before it builds an action that
+// has to wait.  The queue's free room, less what this call has been given.
+bool scheduler::admit_action()
+{
+    if (queue_.size() + admitted_ >= max_waiting_actions)
+    {
+        ++stats_.overrun;
+        return false;
+    }
+    ++admitted_;
+    return true;
+}
+
+// Called with `mutex_` held.
+firing_gate* scheduler::open_gate() noexcept
+{
+    admitted_ = 0;
+    return this;
 }
 
 // Called with `mutex_` held.  True when the set may fire once more at
@@ -305,25 +381,15 @@ void scheduler::suspend_locked(suspend_reason why, time_point when)
                       });
 }
 
-// Called with `mutex_` held.
-void scheduler::schedule(std::vector<firing>& firings, time_point when)
+// Called with `mutex_` held, with what the machine decided in one call.  The
+// budget and the queue's room were applied as it decided, so what is here is
+// bounded.  When the set was suspended during the call, what the call planned
+// before the suspension is discarded and counted, as the queue's content is.
+void scheduler::schedule(std::vector<firing>& firings)
 {
     for (firing& fired : firings)
     {
         const bool timeline = fired.rule == no_index;
-        // The timeline is the set's own plan and is not counted.  A rule's
-        // firing is, and the one that finds the budget spent suspends the
-        // set: it and those behind it are decided but not scheduled.
-        if (!timeline)
-        {
-            if (suspended_ == suspend_reason::none && !take_firing(when))
-                suspend_locked(suspend_reason::budget, when);
-            if (suspended_ != suspend_reason::none)
-            {
-                ++stats_.suspended_firings;
-                continue;
-            }
-        }
         for (planned_action& planned : fired.actions)
         {
             // A rule's state and slot changed at the match, in the machine.
@@ -332,9 +398,10 @@ void scheduler::schedule(std::vector<firing>& firings, time_point when)
                                  planned.kind == action_kind::set_slot;
             if (instant && !timeline)
                 continue;
-            if (queue_.size() >= max_waiting_actions)
+            if (suspended_ != suspend_reason::none)
             {
-                ++stats_.overrun;
+                ++stats_.scheduled;
+                ++stats_.cancelled;
                 continue;
             }
             item entry;
@@ -438,9 +505,9 @@ void scheduler::fire()
         // due already.
         if (!retired_)
         {
-            scratch_.clear();
-            machine_.tick(current, scratch_);
-            schedule(scratch_, current);
+            const scratch_release release(scratch_);
+            machine_.tick(current, scratch_, open_gate());
+            schedule(scratch_);
         }
         while (!queue_.empty() && queue_.front().due <= current)
         {

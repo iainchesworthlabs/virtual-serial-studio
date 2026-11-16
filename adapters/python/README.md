@@ -72,15 +72,27 @@ another `Client` of the same user may add checks to it and end it. One run is
 open at a time (`conflict` for a second), and only its owner can read its
 report.
 
+The gateway takes a run name or a check name of 128 bytes at most and a check
+message of 512, and it refuses more. The client cuts a longer text to that
+length between two characters and ends it in `...`, so `record_in_run` with
+the text of a failed assertion records the check and never raises because of
+the length. The limits are in `vss_control/_wire.py`.
+
 `Client.connect(instance=None, token=None, token_file=None, name="python",
 timeout=10.0, loopback_port=None)` connects. `instance` is the name given to
 `vss_gate --instance=`. `token` is a token as text, `token_file` the path of a file whose first line is
 one (`vss_cli control token create --label=rig --role=control --out=rig.token`).
-With neither, the connection is the local user. `timeout` is the seconds one
+With neither, the connection is the local user. `--out` needs a name that is not
+a file yet: `vss_cli` makes the file first, so that only you can read it, and
+never replaces a file or follows a link. When the file cannot be made no token
+is made and nothing is shown, so a second run with the same name fails and
+needs another name (or the old file removed). `timeout` is the seconds one
 call may take.
 
-Calls: `status()`, `list_ports()`, `create_port(name)`, `remove_port(id)`,
-`connect_ports(first, second, one_way=False)`, `send(port, data)`,
+Calls: `status()`, `list_ports()`, `get_port(id)`, `list_links()`,
+`get_link(id)`, `ping()`, `create_port(name)`, `remove_port(id)`,
+`rename_port(id, name)`, `connect_ports(first, second, one_way=False)`,
+`disconnect_link(id)`, `send(port, data)`,
 `expect_bytes(port, pattern, timeout_ms=1000, send_port=None, send=b"",
 label=None, direction=None)`, `subscribe_events(interval_ms=250, ports=None)`,
 `subscribe_traffic(...)`, `unsubscribe_events()`, `unsubscribe_traffic()`,
@@ -88,7 +100,10 @@ label=None, direction=None)`, `subscribe_events(interval_ms=250, ports=None)`,
 message="", duration_ms=0)`, `end_run()` and `report_junit(run=None)`. Each
 call needs the scope that the gateway asks for (see the table in section 9 of
 `docs/remote-control.md`) and raises `ControlError` with the code `forbidden`
-without it.
+without it. `get_port`, `list_links` and `get_link` need `monitor`; `ping` needs
+no scope and does not ask the agent. `close()` first asks the gateway to end the
+session, ignores any error from that, and then closes the connection; it never
+raises.
 
 `next_events` returns a dict with `seq`, `revision`, `dropped`, `mono_ns`,
 `wall_ms` and `events`, or None when no batch came in time. Each event has

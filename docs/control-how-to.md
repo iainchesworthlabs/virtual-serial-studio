@@ -164,7 +164,7 @@ with Client.connect() as c:
 Before it sends anything, the client checks that the pipe or socket is served by your own user account, and refuses
 to connect when it cannot check. An error from the gateway is a `ControlError` with the code the gateway gave, and an
 `EngineError` when the code starts with `engine.`. The calls are listed in
-[the client's README](../adapters/python/README.md).
+[the client's README](https://github.com/iainchesworthlabs/virtual-serial-studio/blob/develop/adapters/python/README.md).
 
 ## Let another program in with a token
 

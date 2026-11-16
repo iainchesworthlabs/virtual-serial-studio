@@ -1,1 +1,1 @@
-{"ports":[{"name":"a","kind":"virtual","virtual_kind":"pty","com_number":256}]}
+{"version":1,"ports":[{"name":"a","kind":"virtual","virtual_kind":"pty","com_number":256}]}

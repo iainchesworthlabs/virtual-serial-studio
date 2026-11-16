@@ -9,6 +9,7 @@
 
 #include "support/test_support.hpp"
 
+#include <vss/ports/vcom_driver.hpp>
 #include <vss/studio/studio.hpp>
 
 #include <boost/asio/io_context.hpp>
@@ -156,6 +157,12 @@ TEST_CASE("system: a TCP bridge carries bytes both ways")
 
 TEST_CASE("system: a TCP bridge shared through a virtual port reaches an application")
 {
+    // The listener is an automatic virtual port, which is a real COM port
+    // where the driver is installed; a test does not make one on the machine
+    // it runs on.
+    if (vss::driver_available())
+        VSS_SKIP("the Windows driver is installed; it would make a real port");
+
     tcp_probe probe;
     studio app;
 

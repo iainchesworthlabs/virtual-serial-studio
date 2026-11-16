@@ -1,0 +1,1 @@
+**The control gateway reads the licence on this computer.** `vss_gate` reads the licence folders as it starts and once a minute after that, so the `Edition:` line of `vss_cli control status` now agrees with `vss_cli licence`; before, it always said `community`. The gateway only reads the folders and writes nothing there. No command of the gateway needs a licence.

@@ -334,6 +334,22 @@ result<link_id> client::connect_ports(endpoint_id first, endpoint_id second,
     return linked->link;
 }
 
+result<void> client::disconnect(link_id link)
+{
+    const auto answer = impl_->call(disconnect_request{link});
+    if (!answer)
+        return answer.error();
+    return {};
+}
+
+result<void> client::rename_port(endpoint_id endpoint, const std::string& name)
+{
+    const auto answer = impl_->call(rename_port_request{endpoint, name});
+    if (!answer)
+        return answer.error();
+    return {};
+}
+
 result<void> client::write(endpoint_id endpoint, bytes_view data)
 {
     write_request body;

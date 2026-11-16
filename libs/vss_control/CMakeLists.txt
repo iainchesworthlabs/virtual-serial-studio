@@ -12,9 +12,12 @@ add_library(vss_control_core
   src/failure_limiter.cpp
   src/gateway.cpp
   src/junit.cpp
+  src/licence_watch.cpp
   src/loopback.cpp
+  src/private_file.cpp
   src/token_file.cpp
-  src/token_store.cpp)
+  src/token_store.cpp
+  src/token_to_file.cpp)
 add_library(Vss::control_core ALIAS vss_control_core)
 
 target_include_directories(vss_control_core PUBLIC

@@ -1492,14 +1492,14 @@ driver_fact package_installed(bool control_device)
 /// Asks the service control manager about the helper. Any user may ask.
 helper_service_state helper_service(DWORD& code)
 {
-    const SC_HANDLE manager =
+    const auto manager =
         ::OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (manager == nullptr)
     {
         code = ::GetLastError();
         return helper_service_state::unknown;
     }
-    const SC_HANDLE service =
+    const auto service =
         ::OpenServiceW(manager, VssComHelperServiceName, SERVICE_QUERY_STATUS);
     if (service == nullptr)
     {

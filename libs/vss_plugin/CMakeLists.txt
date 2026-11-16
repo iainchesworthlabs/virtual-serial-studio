@@ -3,21 +3,32 @@
 # Plugins: the manifest of a plugin, and the checks made on a plugin before
 # any of its code runs. It starts no process. Its I/O is the load and save of
 # the trust store, the reading of a plugin's directory and of the policy file,
-# and asking who may write to a file; the rest works on bytes it is given, so
+# and asking who may write to a file (through vss_machine); the rest works on bytes it is given, so
 # it can be tested and fuzzed alone. See docs/plugins.md.
 #
 
 add_library(vss_plugin
   src/access.cpp
+  src/api_adapter.cpp
+  src/api_capture.cpp
+  src/api_codec.cpp
+  src/api_decoder.cpp
+  src/api_fixture.cpp
+  src/api_generator.cpp
+  src/api_instance.cpp
+  src/api_modifier.cpp
+  src/api_ops.cpp
   src/discover.cpp
   src/error.cpp
   src/hash.cpp
+  src/install.cpp
   src/licence.cpp
   src/lifecycle.cpp
   src/locations.cpp
   src/manifest.cpp
   src/measure.cpp
   src/official_roots.cpp
+  src/parameters.cpp
   src/policy.cpp
   src/protocol.cpp
   src/revocations.cpp
@@ -26,6 +37,18 @@ add_library(vss_plugin
   src/trust_store.cpp
   src/verify.cpp)
 add_library(Vss::plugin ALIAS vss_plugin)
+
+# The signed official key list is built into the library, so that a command
+# line that checks a plugin has the list without a file to look for.  It is
+# public keys only.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  ${CMAKE_CURRENT_SOURCE_DIR}/keys/official-keys.json)
+file(READ ${CMAKE_CURRENT_SOURCE_DIR}/keys/official-keys.json
+  VSS_OFFICIAL_KEY_LIST)
+configure_file(src/official_key_list.cpp.in
+  ${CMAKE_CURRENT_BINARY_DIR}/official_key_list.cpp @ONLY)
+target_sources(vss_plugin PRIVATE
+  ${CMAKE_CURRENT_BINARY_DIR}/official_key_list.cpp)
 
 target_include_directories(vss_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -36,23 +59,17 @@ target_compile_features(vss_plugin PUBLIC cxx_std_23)
 # plugin signature is that envelope with a purpose of its own.  licence.hpp
 # takes a licence status in its interface, so the licence library is public.
 # protocol.hpp carries a message in the agent's frame, so the frame library is
-# public too; it does not link this library back.
+# public too; it does not link this library back.  access.hpp names
+# `vss::machine::write_access`, so the machine library is public.
 target_link_libraries(vss_plugin PUBLIC vss_core Vss::agent_proto Vss::license
-  PRIVATE Vss::BoostJson)
+  Vss::machine
+  PRIVATE Vss::BoostJson Vss::rules)
 
-# Where the plugin folders and the policy file are, and who owns a file and
-# who may write to it, are asked of the operating system.  CMake picks the
-# files in src/platform/<windows|linux|macos>.  Linux and macOS share one
-# implementation of the access check.
+# Where the plugin folders and the policy file are is asked of the operating
+# system.  CMake picks the files in src/platform/<windows|linux|macos>.  The
+# product's folders and the check of who may write to a path are in
+# vss_machine.
 icl_platform_sources(vss_plugin)
-if(UNIX)
-  target_sources(vss_plugin PRIVATE src/platform/posix/access_posix.cpp)
-endif()
-if(WIN32)
-  # advapi32 for owners and access lists; shell32 and ole32 for the folders
-  # Windows names (ProgramData, LocalAppData).
-  target_link_libraries(vss_plugin PRIVATE advapi32 shell32 ole32)
-endif()
 
 vss_set_warnings(vss_plugin)
 # boost::system::error_category deliberately has a non-virtual destructor and

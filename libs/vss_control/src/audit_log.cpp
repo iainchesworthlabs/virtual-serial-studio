@@ -431,6 +431,12 @@ public:
         return failed_.load(std::memory_order_relaxed);
     }
 
+    result<audit_verdict> verify()
+    {
+        const std::lock_guard<std::mutex> lock(mutex_);
+        return verify_audit_log(options_.directory);
+    }
+
     const std::filesystem::path& current_path() const noexcept
     {
         return current_;
@@ -590,6 +596,11 @@ std::uint64_t audit_log::failed_records() const noexcept
 std::filesystem::path audit_log::current_file() const
 {
     return impl_->current_path();
+}
+
+result<audit_verdict> audit_log::verify()
+{
+    return impl_->verify();
 }
 
 // -- verification ------------------------------------------------------------

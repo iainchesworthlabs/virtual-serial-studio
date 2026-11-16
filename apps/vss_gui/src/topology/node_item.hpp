@@ -38,6 +38,11 @@ struct node_data
     bool unlinked = false;
     bool owner = false;
     bool dropped = false;
+    /// "Plugin not available" for a port whose plugin cannot run, else empty.
+    /// It stands in the place of the "Fixture" chip of a plugin fixture.
+    QString plugin_badge;
+    /// "<port name>, <type name>, plugin not available", or empty.
+    QString accessible_name;
     QString tooltip;
     /// The kind tile at the card's left (design language rule 8): the icon,
     /// and its tint.  No tile in the compact size.
