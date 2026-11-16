@@ -158,9 +158,9 @@ struct rig
           store(std::make_shared<decode_store>()),
           instances(std::make_shared<plugin_instances>(
               declared(), [this](api_message message,
-                                 plugin_instances::answer_handler handler)
+                                 plugin_instances::answer_handler reply)
               { instance_requests.push_back({std::move(message),
-                                             std::move(handler)}); }))
+                                             std::move(reply)}); }))
     {
         extension_context context;
         context.plugin_id = "com.example.decoder";
@@ -175,9 +175,9 @@ struct rig
         { notes.push_back(std::move(message)); };
         context.link.request =
             [this](api_message message,
-                   vss::plugin::host::plugin_link::answer_handler handler,
+                   vss::plugin::host::plugin_link::answer_handler reply,
                    std::chrono::milliseconds)
-        { requests.push_back({std::move(message), std::move(handler)}); };
+        { requests.push_back({std::move(message), std::move(reply)}); };
         handler = make_decoder_point(
             context, *hub,
             [this](std::string_view name) { return find(name); },

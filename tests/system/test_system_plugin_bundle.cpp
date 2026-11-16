@@ -138,9 +138,9 @@ struct rig
         context.executor = io.get_executor();
         context.link.request =
             [this](api_message message,
-                   vss::plugin::host::plugin_link::answer_handler handler,
+                   vss::plugin::host::plugin_link::answer_handler reply,
                    std::chrono::milliseconds)
-        { requests.push_back({std::move(message), std::move(handler)}); };
+        { requests.push_back({std::move(message), std::move(reply)}); };
         handler = make_bundle_point(context, pool.get_executor(),
                                     std::move(reserved));
     }
