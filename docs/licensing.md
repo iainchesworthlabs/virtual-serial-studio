@@ -360,9 +360,11 @@ A deterrent only, as decided.
   its per-user application data folder, and updates it when it starts and once
   an hour. The file is a small JSON object with `latest_seen` (a time) and
   `applied_resets` (the reset tokens already used). Studio does not pass the
-  stored time to a plugin, and a confined plugin cannot read Studio's folder.
-  So an official plugin keeps its own latest time seen in its own data
-  directory, and applies a `clock_reset` token to its own file in the same way.
+  stored time to a plugin. A plugin runs confined and cannot read Studio's
+  folder, so a plugin that checks the licence keeps its own latest time in its
+  own data directory, uses its release date and the licence's `issued_at` as
+  the other lower bounds, and applies a `clock_reset` token to its own file in
+  the same way, once.
 * Two more lower bounds cost nothing: the build date of Studio itself and the
   `issued_at` of the licence.
 * If the clock reads more than 48 hours before the highest of those, the state
