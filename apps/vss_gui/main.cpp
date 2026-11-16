@@ -5,9 +5,9 @@
 //
 
 #include "backend/engine_studio_backend.hpp"
-#include "backend/service_plugin_backend.hpp"
 #include "backend/licence_store.hpp"
 #include "backend/plugin_places.hpp"
+#include "backend/service_plugin_backend.hpp"
 #include "language/language_choice.hpp"
 #include "profiling/profiled_application.hpp"
 #include "profiling/profiling_controller.hpp"
@@ -368,12 +368,13 @@ try
             auto* places_timer = new QTimer(host);
             places_timer->setSingleShot(true);
             places_timer->setInterval(100);
-            QObject::connect(places_timer, &QTimer::timeout, host,
-                             [&backend, host]
-                             {
-                                 host->set_places(
-                                     vss::gui::make_plugin_place_table(backend));
-                             });
+            QObject::connect(
+                places_timer, &QTimer::timeout, host,
+                [&backend, host]
+                {
+                    host->set_places(
+                        vss::gui::make_plugin_place_table(backend));
+                });
             for (auto signal : {&vss::gui::StudioBackend::ports_changed,
                                 &vss::gui::StudioBackend::links_changed})
             {

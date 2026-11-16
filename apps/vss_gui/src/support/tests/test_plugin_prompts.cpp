@@ -87,23 +87,28 @@ TEST_CASE("plugin secret dialog: what it shows, the countdown and Copy")
     bool named = false;
     for (QLabel* each : dialog.findChildren<QLabel*>())
     {
-        if (each->text() == QStringLiteral("Pairing helper asks you to read this."))
+        if (each->text() ==
+            QStringLiteral("Pairing helper asks you to read this."))
             named = true;
     }
     REQUIRE(named);
-    REQUIRE_EQ(dialog.findChild<QLabel*>(QStringLiteral("secretPluginId"))->text(),
-               QStringLiteral("org.example.pair"));
+    REQUIRE_EQ(
+        dialog.findChild<QLabel*>(QStringLiteral("secretPluginId"))->text(),
+        QStringLiteral("org.example.pair"));
     REQUIRE_EQ(dialog.code_box()->toPlainText(), QStringLiteral("483 920"));
     REQUIRE(dialog.code_box()->isReadOnly());
-    REQUIRE_EQ(dialog.code_box()->accessibleName(), QStringLiteral("Pairing code"));
+    REQUIRE_EQ(dialog.code_box()->accessibleName(),
+               QStringLiteral("Pairing code"));
     REQUIRE_EQ(dialog.label_text()->text(), QStringLiteral("Pairing code"));
     REQUIRE(dialog.label_text()->textFormat() == Qt::PlainText);
-    REQUIRE_EQ(dialog.time_line()->text(), QStringLiteral("Good for 2 min 5 s."));
+    REQUIRE_EQ(dialog.time_line()->text(),
+               QStringLiteral("Good for 2 min 5 s."));
     REQUIRE(dialog.close_button()->isDefault());
     REQUIRE(dialog.close_button()->hasFocus());
 
     dialog.tick();
-    REQUIRE_EQ(dialog.time_line()->text(), QStringLiteral("Good for 2 min 4 s."));
+    REQUIRE_EQ(dialog.time_line()->text(),
+               QStringLiteral("Good for 2 min 4 s."));
 
     // Copy puts the code on the clipboard, and says so.
     QGuiApplication::clipboard()->clear();
@@ -111,7 +116,8 @@ TEST_CASE("plugin secret dialog: what it shows, the countdown and Copy")
     REQUIRE_EQ(QGuiApplication::clipboard()->text(), QStringLiteral("483 920"));
     REQUIRE_EQ(dialog.copy_button()->text(), QStringLiteral("Copied"));
     REQUIRE(dialog.seen());
-    REQUIRE_EQ(dialog.code_box()->accessibleName(), QStringLiteral("Pairing code"));
+    REQUIRE_EQ(dialog.code_box()->accessibleName(),
+               QStringLiteral("Pairing code"));
     REQUIRE_EQ(dialog.code_box()->accessibleDescription(),
                QStringLiteral("4 8 3   9 2 0"));
 
@@ -126,9 +132,10 @@ TEST_CASE("plugin secret dialog: what it shows, the countdown and Copy")
     REQUIRE(dialog.code_box()->toPlainText().isEmpty());
     REQUIRE(!dialog.code_box()->isVisibleTo(&dialog));
     REQUIRE(!dialog.copy_button()->isEnabled());
-    REQUIRE_EQ(dialog.time_line()->text(),
-               QStringLiteral("This code is no longer good. Ask the plugin for a "
-                              "new one."));
+    REQUIRE_EQ(
+        dialog.time_line()->text(),
+        QStringLiteral("This code is no longer good. Ask the plugin for a "
+                       "new one."));
 }
 
 TEST_CASE("plugin secret dialog: a plugin's words are plain text")
@@ -145,7 +152,8 @@ TEST_CASE("plugin secret dialog: a plugin's words are plain text")
                QStringLiteral("<b>ABC</b> <a href=\"x\">go</a>"));
     REQUIRE(dialog.label_text()->textFormat() == Qt::PlainText);
     REQUIRE(!dialog.label_text()->text().contains(QChar(0x202e)));
-    REQUIRE(dialog.label_text()->text().contains(QStringLiteral("<i>Code</i>")));
+    REQUIRE(
+        dialog.label_text()->text().contains(QStringLiteral("<i>Code</i>")));
     bool named = false;
     for (QLabel* each : dialog.findChildren<QLabel*>())
     {
@@ -240,8 +248,9 @@ TEST_CASE("plugin control dialog: what it says and how it is answered")
     auto* why = dialog.findChild<QLabel*>(QStringLiteral("controlWhy"));
     REQUIRE(who != nullptr);
     REQUIRE(why != nullptr);
-    REQUIRE_EQ(who->text(),
-               QStringLiteral("It says the other computer is: Alex at the lab"));
+    REQUIRE_EQ(
+        who->text(),
+        QStringLiteral("It says the other computer is: Alex at the lab"));
     REQUIRE(why->text().contains(QStringLiteral("To run tonight's test.")));
     REQUIRE(who->textFormat() == Qt::PlainText);
     REQUIRE(dialog.data_note() != nullptr);
@@ -253,7 +262,8 @@ TEST_CASE("plugin control dialog: what it says and how it is answered")
                               "stops. You are asked again each time."));
     // Rows that let the other side see or send data carry a description.
     int amber = 0;
-    for (QFrame* row : dialog.findChildren<QFrame*>(QStringLiteral("controlScope")))
+    for (QFrame* row :
+         dialog.findChildren<QFrame*>(QStringLiteral("controlScope")))
     {
         if (!row->accessibleDescription().isEmpty())
             ++amber;
@@ -331,7 +341,8 @@ TEST_CASE("plugin prompts: a second request waits for the first")
     backend.ask_control(control_of(2));
     backend.ask_secret(secret_of(3));
     settle();
-    REQUIRE(qobject_cast<PluginSecretDialog*>(queue.current_dialog()) != nullptr);
+    REQUIRE(qobject_cast<PluginSecretDialog*>(queue.current_dialog()) !=
+            nullptr);
     REQUIRE_EQ(queue.waiting(), std::size_t{2});
     REQUIRE(backend.secret_answers().empty());
     REQUIRE(backend.control_answers().empty());

@@ -31,8 +31,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QMenu>
 #include <QLocale>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -1337,8 +1337,7 @@ void PluginsDialog::refresh_detail()
     {
         QString text =
             QCoreApplication::translate(
-                "PluginsDialog",
-                "This plugin did not accept the licence: %1")
+                "PluginsDialog", "This plugin did not accept the licence: %1")
                 .arg(reason_sentence(view.licence_report_reason,
                                      view.licence_status));
         // Studio looked and found nothing wrong, so one of them is wrong.
@@ -1367,10 +1366,10 @@ void PluginsDialog::refresh_detail()
         layout->addWidget(runs_heading);
         if (view.instances.empty())
         {
-            auto* none = make_muted_label(
-                QCoreApplication::translate("PluginsDialog",
-                                            "Nothing is set up yet."),
-                root);
+            auto* none =
+                make_muted_label(QCoreApplication::translate(
+                                     "PluginsDialog", "Nothing is set up yet."),
+                                 root);
             none->setObjectName(QStringLiteral("pluginDetailNoInstances"));
             layout->addWidget(none);
         }
@@ -1381,11 +1380,11 @@ void PluginsDialog::refresh_detail()
             auto* row_line = new QHBoxLayout();
             row_line->setSpacing(8);
             auto* point_label = make_plain_label(instance.point_name, root,
-                                          text_style::body, true);
+                                                 text_style::body, true);
             point_label->setObjectName(QStringLiteral("pluginInstanceName"));
             row_line->addWidget(point_label, 1);
-            auto* state_label = make_muted_label(instance_state_text(instance.state),
-                                           root);
+            auto* state_label =
+                make_muted_label(instance_state_text(instance.state), root);
             state_label->setObjectName(QStringLiteral("pluginInstanceState"));
             row_line->addWidget(state_label, 0, Qt::AlignTop);
             QPushButton* take_away = make_button(
@@ -1403,8 +1402,8 @@ void PluginsDialog::refresh_detail()
             row_box->addLayout(row_line);
             if (instance.state == plugin_instance_state::refused)
             {
-                row_box->addWidget(make_muted_label(
-                    instance.refusal, root, text_style::caption));
+                row_box->addWidget(make_muted_label(instance.refusal, root,
+                                                    text_style::caption));
                 if (!instance.reason.trimmed().isEmpty())
                 {
                     auto* says = make_plain_label(
@@ -1427,9 +1426,9 @@ void PluginsDialog::refresh_detail()
         }
         // What can still be added: the points that have room, and can be
         // started without settings Studio cannot ask for yet.
-        QPushButton* add_instance = make_button(
-            QCoreApplication::translate("PluginsDialog", "Add..."), "quiet",
-            root, QStringLiteral("pluginInstanceAdd"));
+        QPushButton* add_instance =
+            make_button(QCoreApplication::translate("PluginsDialog", "Add..."),
+                        "quiet", root, QStringLiteral("pluginInstanceAdd"));
         auto* menu = new QMenu(add_instance);
         int offered = 0;
         for (const plugin_addition& point : view.adds)

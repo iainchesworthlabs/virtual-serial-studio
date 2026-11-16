@@ -23,9 +23,9 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QSaveFile>
 #include <QMetaMethod>
 #include <QMetaObject>
+#include <QSaveFile>
 
 #include <algorithm>
 #include <chrono>
@@ -243,9 +243,9 @@ void ServicePluginBackend::load_instances()
                 item.value(QStringLiteral("kind")).toString().toStdString();
             bool known = false;
             for (const plug::extension_kind each :
-                 {plug::extension_kind::generator, plug::extension_kind::fixture,
-                  plug::extension_kind::modifier, plug::extension_kind::adapter,
-                  plug::extension_kind::decoder})
+                 {plug::extension_kind::generator,
+                  plug::extension_kind::fixture, plug::extension_kind::modifier,
+                  plug::extension_kind::adapter, plug::extension_kind::decoder})
             {
                 if (plug::to_string(each) == kind_text)
                 {
@@ -334,10 +334,10 @@ void ServicePluginBackend::add_instance(const QString& plugin_id,
             if (point == nullptr)
                 return;
             kept_instances& kept = instances_[id];
-            const auto have = std::count_if(
-                kept.list.begin(), kept.list.end(),
-                [point](const host::instance_spec& spec)
-                { return spec.type == point->id; });
+            const auto have =
+                std::count_if(kept.list.begin(), kept.list.end(),
+                              [point](const host::instance_spec& spec)
+                              { return spec.type == point->id; });
             if (static_cast<std::uint64_t>(have) >= point->max_instances)
                 return;
             // The settings a plugin starts with are its defaults. A point
@@ -361,20 +361,20 @@ void ServicePluginBackend::add_instance(const QString& plugin_id,
 void ServicePluginBackend::remove_instance(const QString& plugin_id,
                                            quint64 number)
 {
-    boost::asio::post(
-        slow_,
-        [this, plugin_id, number]
-        {
-            const std::string id = plugin_id.toStdString();
-            const auto found = instances_.find(id);
-            if (found == instances_.end())
-                return;
-            std::erase_if(found->second.list,
-                          [number](const host::instance_spec& spec)
-                          { return spec.instance == number; });
-            save_instances();
-            service_->set_instances(id, found->second.list);
-        });
+    boost::asio::post(slow_,
+                      [this, plugin_id, number]
+                      {
+                          const std::string id = plugin_id.toStdString();
+                          const auto found = instances_.find(id);
+                          if (found == instances_.end())
+                              return;
+                          std::erase_if(
+                              found->second.list,
+                              [number](const host::instance_spec& spec)
+                              { return spec.instance == number; });
+                          save_instances();
+                          service_->set_instances(id, found->second.list);
+                      });
 }
 
 void ServicePluginBackend::set_places(
@@ -408,14 +408,12 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
             }));
     }
     handlers.push_back(host::make_secret_point(
-        context,
-        [this](const host::secret_to_show& secret,
-               std::function<void(bool)> done)
+        context, [this](const host::secret_to_show& secret,
+                        std::function<void(bool)> done)
         { ask_secret(secret, std::move(done)); }));
     handlers.push_back(host::make_control_point(
-        context,
-        [this](const host::control_approval_request& request,
-               std::function<void(bool)> done)
+        context, [this](const host::control_approval_request& request,
+                        std::function<void(bool)> done)
         { ask_control(request, std::move(done)); }));
     return handlers;
 }

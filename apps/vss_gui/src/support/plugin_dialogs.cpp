@@ -17,8 +17,8 @@
 #include <QCheckBox>
 #include <QClipboard>
 #include <QCoreApplication>
-#include <QFormLayout>
 #include <QFontMetrics>
+#include <QFormLayout>
 #include <QFrame>
 #include <QGuiApplication>
 #include <QHBoxLayout>
@@ -819,8 +819,7 @@ QString time_text(int seconds)
     const int minutes = clamped / 60;
     const int rest = clamped % 60;
     if (minutes > 0 && rest > 0)
-        return QCoreApplication::translate("PluginSecretDialog",
-                                           "%1 min %2 s")
+        return QCoreApplication::translate("PluginSecretDialog", "%1 min %2 s")
             .arg(minutes)
             .arg(rest);
     if (minutes > 0)
@@ -867,23 +866,23 @@ PluginSecretDialog::PluginSecretDialog(const plugin_secret_request& request,
 {
     setObjectName(QStringLiteral("pluginSecretDialog"));
     frame parts = build_frame(
-        this, QCoreApplication::translate("PluginSecretDialog",
-                                          "Code from a plugin"),
+        this,
+        QCoreApplication::translate("PluginSecretDialog", "Code from a plugin"),
         QCoreApplication::translate("PluginSecretDialog",
                                     "%1 asks you to read this.")
             .arg(plain_text(request.plugin_name)),
         480);
     QVBoxLayout* body = parts.body;
 
-    auto* id = make_muted_label(request.plugin_id, this, text_style::caption,
-                                true);
+    auto* id =
+        make_muted_label(request.plugin_id, this, text_style::caption, true);
     id->setObjectName(QStringLiteral("secretPluginId"));
     body->addWidget(id);
 
     QVBoxLayout* inside = nullptr;
     QFrame* box = make_plugin_says_box(
-        this, QCoreApplication::translate("PluginSecretDialog",
-                                          "The plugin says"),
+        this,
+        QCoreApplication::translate("PluginSecretDialog", "The plugin says"),
         inside);
     box->setObjectName(QStringLiteral("secretBox"));
     label_ = make_plain_label(request.label, box, text_style::body, true);
@@ -924,9 +923,8 @@ PluginSecretDialog::PluginSecretDialog(const plugin_secret_request& request,
     body->addStretch(1);
 
     copy_ = footer_button(
-        parts.footer,
-        QCoreApplication::translate("PluginSecretDialog", "Copy"), "quiet",
-        QStringLiteral("secretCopy"));
+        parts.footer, QCoreApplication::translate("PluginSecretDialog", "Copy"),
+        "quiet", QStringLiteral("secretCopy"));
     close_ = footer_button(
         parts.footer,
         QCoreApplication::translate("PluginSecretDialog", "Close"), "primary",
@@ -953,8 +951,8 @@ PluginSecretDialog::PluginSecretDialog(const plugin_secret_request& request,
                     return;
                 QGuiApplication::clipboard()->setText(copy_text_);
                 seen_ = true;
-                copy_->setText(
-                    QCoreApplication::translate("PluginSecretDialog", "Copied"));
+                copy_->setText(QCoreApplication::translate("PluginSecretDialog",
+                                                           "Copied"));
                 copied_clock_->start();
             });
     setTabOrder(code_, copy_);
@@ -1113,9 +1111,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
         peer.isEmpty()
             ? QCoreApplication::translate("PluginControlDialog",
                                           "It did not say which computer.")
-            : QCoreApplication::translate(
-                  "PluginControlDialog",
-                  "It says the other computer is: %1")
+            : QCoreApplication::translate("PluginControlDialog",
+                                          "It says the other computer is: %1")
                   .arg(peer),
         this, text_style::body, true);
     who->setObjectName(QStringLiteral("controlWho"));
@@ -1126,11 +1123,13 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
     {
         QVBoxLayout* inside = nullptr;
         QFrame* box = make_plugin_says_box(
-            this, QCoreApplication::translate("PluginControlDialog",
-                                              "The plugin's own words"),
+            this,
+            QCoreApplication::translate("PluginControlDialog",
+                                        "The plugin's own words"),
             inside);
         box->setObjectName(QStringLiteral("controlBox"));
-        auto* why = make_plain_label(quoted(reason), box, text_style::body, true);
+        auto* why =
+            make_plain_label(quoted(reason), box, text_style::body, true);
         why->setObjectName(QStringLiteral("controlWhy"));
         inside->addWidget(why);
         body->addWidget(box);
@@ -1176,8 +1175,8 @@ PluginControlDialog::PluginControlDialog(const plugin_control_request& request,
         (life % 3600 == 0 && life >= 3600)
             ? QCoreApplication::translate("PluginControlDialog", "%n hour(s)",
                                           nullptr, life / 3600)
-            : QCoreApplication::translate("PluginControlDialog",
-                                          "%n minute(s)", nullptr,
+            : QCoreApplication::translate("PluginControlDialog", "%n minute(s)",
+                                          nullptr,
                                           std::max(1, (life + 59) / 60));
     life_ = make_plain_label(
         QCoreApplication::translate(

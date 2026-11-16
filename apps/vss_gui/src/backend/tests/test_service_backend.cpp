@@ -74,9 +74,8 @@ fs::path make_plugin(const fs::path& root, const std::string& more_args = {})
     manifest += "  \"run\": { \"executable\": \"" + name +
                 "\", \"args\": [ "
                 "\"--hello-id=" +
-                std::string(kPluginId) +
-                "\", \"--hello-version=1.2.0\"" + more_args +
-                ", \"--serve\" ],\n";
+                std::string(kPluginId) + "\", \"--hello-version=1.2.0\"" +
+                more_args + ", \"--serve\" ],\n";
     manifest += "    \"platforms\": [ \"windows-x64\", \"windows-arm64\", "
                 "\"linux-x64\", \"linux-arm64\", \"macos-x64\", "
                 "\"macos-arm64\" ] },\n";
@@ -281,7 +280,8 @@ void run_the_plugin(ServicePluginBackend& backend, const QString& id)
         [&]
         {
             const plugin_view* view = find_view(backend.snapshot(), id);
-            return view != nullptr && view->state == plugin_state::needs_decision &&
+            return view != nullptr &&
+                   view->state == plugin_state::needs_decision &&
                    !view->adds.empty();
         },
         30000));
@@ -311,7 +311,8 @@ TEST_CASE("service backend: a code a plugin asks to show reaches the page and "
                      [&asked](const plugin_secret_request& request)
                      { asked.push_back(request); });
     run_the_plugin(backend, QString::fromLatin1(kPluginId));
-    const bool came = vss_test::wait_until([&] { return !asked.empty(); }, 60000);
+    const bool came =
+        vss_test::wait_until([&] { return !asked.empty(); }, 60000);
     if (!came)
     {
         const plugin_view* now =
@@ -417,8 +418,9 @@ TEST_CASE("service backend: a control session a plugin asks for reaches the "
     backend.shut_down();
 }
 
-TEST_CASE("service backend: instances are asked for, kept, and come back at the "
-          "next start")
+TEST_CASE(
+    "service backend: instances are asked for, kept, and come back at the "
+    "next start")
 {
     QTemporaryDir dir;
     const fs::path root = fs::path(dir.path().toStdWString());
@@ -434,7 +436,8 @@ TEST_CASE("service backend: instances are asked for, kept, and come back at the 
             [&]
             {
                 const plugin_view* view = find_view(backend.snapshot(), id);
-                return view != nullptr && view->state == plugin_state::available;
+                return view != nullptr &&
+                       view->state == plugin_state::available;
             },
             60000));
         backend.add_instance(id, QStringLiteral("pulse"));

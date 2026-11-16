@@ -76,7 +76,8 @@ public:
     {
         return secret_answers_;
     }
-    const std::vector<std::pair<quint64, bool>>& control_answers() const noexcept
+    const std::vector<std::pair<quint64, bool>>&
+    control_answers() const noexcept
     {
         return control_answers_;
     }

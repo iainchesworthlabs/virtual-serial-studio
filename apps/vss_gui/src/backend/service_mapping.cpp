@@ -140,8 +140,8 @@ QString permission_id(plug::permission value)
 QString refusal_text(const vss::error_code& problem)
 {
     if (is_plugin_code(problem, plug::plugin_errc::capability_missing))
-        return QCoreApplication::translate(
-            "PluginsDialog", "The plugin does not offer this.");
+        return QCoreApplication::translate("PluginsDialog",
+                                           "The plugin does not offer this.");
     if (is_plugin_code(problem, plug::plugin_errc::too_many))
         return QCoreApplication::translate(
             "PluginsDialog", "The plugin allows no more of these.");
@@ -182,7 +182,7 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
         // no default cannot be started.
         addition.needs_settings =
             !plug::validate(point.parameters,
-                           std::span<const plug::raw_parameter>{})
+                            std::span<const plug::raw_parameter>{})
                  .ok();
         addition.description =
             from_std(std::string(point.description.best("")));

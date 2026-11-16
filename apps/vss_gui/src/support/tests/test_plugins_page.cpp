@@ -34,8 +34,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
-#include <QMenu>
 #include <QLocale>
+#include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QScrollArea>
@@ -1666,9 +1666,9 @@ TEST_CASE("plugins page: every control has an accessible name and the right "
                 QAccessible::queryAccessibleInterface(button);
             REQUIRE(interface != nullptr);
             // A button that opens a menu is a menu button.
-            REQUIRE(interface->role() ==
-                    (button->menu() != nullptr ? QAccessible::ButtonMenu
-                                               : QAccessible::Button));
+            REQUIRE(interface->role() == (button->menu() != nullptr
+                                              ? QAccessible::ButtonMenu
+                                              : QAccessible::Button));
         }
         for (QCheckBox* box : root.findChildren<QCheckBox*>())
         {
@@ -1928,7 +1928,8 @@ TEST_CASE("plugins page: until the first scan has finished it says it is "
     REQUIRE_EQ(title->text(), QStringLiteral("No plugins are installed"));
 }
 
-// -- what a plugin runs, and what it said of its licence ------------------------
+// -- what a plugin runs, and what it said of its licence
+// ------------------------
 
 namespace
 {
