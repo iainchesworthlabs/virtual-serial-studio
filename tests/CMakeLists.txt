@@ -279,6 +279,7 @@ endif()
 list(APPEND VSS_SYSTEM_TEST_SOURCES
   system/test_system_plugin_capture.cpp
   system/test_system_plugin_control_relay.cpp
+  system/test_system_plugin_generator.cpp
   system/test_system_plugin_instances.cpp
   system/test_system_plugin_process.cpp
   system/test_system_plugin_recording.cpp

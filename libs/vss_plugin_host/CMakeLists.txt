@@ -14,6 +14,7 @@ add_library(vss_plugin_host
   src/decode_store.cpp
   src/extension.cpp
   src/generator_feed.cpp
+  src/generator_point.cpp
   src/instances.cpp
   src/process.cpp
   src/recording.cpp

@@ -18,7 +18,7 @@ namespace vss::plugin::host
 namespace
 {
 
-constexpr std::uint32_t max_window_batches = 4096;
+constexpr std::uint32_t max_window_batches = 65536;
 
 std::uint32_t clamp_part(std::uint32_t part) noexcept
 {
