@@ -81,6 +81,24 @@ struct bundle_made
     QVector<vss::link_id> links;
 };
 
+/// True when a port has a baud rate and framing of its own to compare: a real
+/// device, an RFC 2217 client, a Studio port and a fixture.  A TCP or UDP pipe,
+/// a listener and a monitor's copy have none.
+bool has_line_format(const port_view& port);
+
+/// The ports that run as one with `port`: every port reached over links that
+/// carry its data, both ways or from it (a two-way link, a one-way link, a
+/// split, a join, a bus), as far as they go, that has a line format.  A
+/// monitor link carries a copy only and is not followed.  `port` is not in
+/// the answer.
+QVector<vss::endpoint_id> connected_set(const StudioBackend& backend,
+                                        vss::endpoint_id port);
+
+/// True when every port in `ports` that has a line format runs at the same
+/// baud rate, data bits, parity and stop bits.
+bool same_line_format(const StudioBackend& backend,
+                      const QVector<vss::endpoint_id>& ports);
+
 /// The tiles that are bundles the canvas builds itself (not Device, Network
 /// or Share, which open their own dialogs).
 bool is_bundle(canvas_item item);

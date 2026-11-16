@@ -7,6 +7,7 @@
 #include "advanced/add_fixture_dialog.hpp"
 
 #include "advanced/chrome.hpp"
+#include "backend/canvas_edit.hpp"
 #include "widgets/common.hpp"
 #include "widgets/controls.hpp"
 #include "widgets/notes.hpp"
@@ -33,6 +34,10 @@ AddFixtureDialog::AddFixtureDialog(StudioBackend& backend,
     : QDialog(parent), backend_(backend), selected_port_(selected_port)
 {
     build();
+    // A fixture added next to a port runs at that port's speed.
+    if (const auto port = backend_.port(selected_port_);
+        port && has_line_format(*port))
+        set_baud_rate(static_cast<int>(port->serial.baud_rate));
     update_result();
 }
 
@@ -53,10 +58,10 @@ void AddFixtureDialog::build()
     auto* layout = new QVBoxLayout(this);
     layout->setContentsMargins(24, 24, 24, 0);
     layout->setSpacing(14);
-    layout->addWidget(make_header(
-        tr("Add a mock fixture"),
-        tr("A simulated device for testing without hardware."),
-        this, true, {}));
+    layout->addWidget(
+        make_header(tr("Add a mock fixture"),
+                    tr("A simulated device for testing without hardware."),
+                    this, true, {}));
 
     // Name and baud rate share one row; the name column takes the spare width.
     auto* fields = new QGridLayout();
