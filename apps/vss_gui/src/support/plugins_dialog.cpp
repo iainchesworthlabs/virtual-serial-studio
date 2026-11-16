@@ -1594,10 +1594,8 @@ void PluginsDialog::refresh_detail()
                     "PluginsDialog", "The plugin allows no more of these."));
             if (room && !point.needs_settings)
                 ++offered;
-            const plugin_view plugin_copy = view;
-            const plugin_addition point_copy = point;
             connect(entry, &QAction::triggered, this,
-                    [this, plugin_copy, point_copy]
+                    [this, plugin_copy = view, point_copy = point]
                     { add_instance_of(plugin_copy, point_copy); });
         }
         add_instance->setMenu(menu);

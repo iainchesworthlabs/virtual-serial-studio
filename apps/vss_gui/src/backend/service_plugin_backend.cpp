@@ -536,9 +536,10 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
                                   text) == target.places.end())
                         target.places.push_back(text);
                 };
-                for (const QString key :
-                     {QStringLiteral("places"), QStringLiteral("place"),
-                      QStringLiteral("port")})
+                const QStringList keys{QStringLiteral("places"),
+                                       QStringLiteral("place"),
+                                       QStringLiteral("port")};
+                for (const QString& key : keys)
                 {
                     const QJsonValue value = settings.value(key);
                     if (value.isString())
