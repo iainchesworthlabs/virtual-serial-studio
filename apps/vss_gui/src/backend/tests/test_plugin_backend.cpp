@@ -11,7 +11,9 @@
 //
 
 #include "backend/fake_plugin_backend.hpp"
+#include "backend/fake_studio_backend.hpp"
 #include "backend/plugin_mapping.hpp"
+#include "backend/plugin_places.hpp"
 
 #include <vss/license/sign.hpp>
 #include <vss/plugin/trust_store.hpp>
@@ -196,4 +198,53 @@ TEST_CASE("plugin backend: a burst of changes is announced once, and every "
     REQUIRE_EQ(backend.requests().size(), std::size_t{2});
     REQUIRE(backend.requests()[1].kind == plugin_request_kind::set_enabled);
     REQUIRE(backend.requests()[1].flag);
+}
+
+TEST_CASE("plugin places: ports by name, links by the names of their ends")
+{
+    FakeStudioBackend studio;
+    const auto first = studio.create_virtual_port(
+        QStringLiteral("Alpha"), vss::virtual_port_kind::loopback, false);
+    const auto second = studio.create_virtual_port(
+        QStringLiteral("Beta"), vss::virtual_port_kind::loopback, false);
+    REQUIRE(first.has_value());
+    REQUIRE(second.has_value());
+    REQUIRE(studio.connect_ports(*first, *second, {}).has_value());
+    const auto table = make_plugin_place_table(studio);
+    REQUIRE(table != nullptr);
+    const std::vector<port_view> ports = studio.ports();
+    REQUIRE(!ports.empty());
+    for (const port_view& port : ports)
+    {
+        const auto found = table->find(port.name.toStdString());
+        REQUIRE(found != table->end());
+        REQUIRE(found->second.kind == vss::plugin::host::place_kind::port);
+        REQUIRE_EQ(found->second.tap.endpoints.size(), std::size_t{1});
+        REQUIRE_EQ(found->second.tap.endpoints[0], port.id);
+        REQUIRE_EQ(found->second.settings, vss::to_label(port.serial));
+    }
+    int links = 0;
+    for (const link_view& link : studio.links())
+    {
+        if (link.sources.isEmpty() || link.targets.isEmpty())
+            continue;
+        ++links;
+        bool found_link = false;
+        for (const auto& each : *table)
+        {
+            if (each.second.kind == vss::plugin::host::place_kind::link &&
+                each.second.tap.link == link.id)
+            {
+                found_link = true;
+                REQUIRE(each.first.find(" - ") != std::string::npos);
+                REQUIRE_EQ(each.second.tap.endpoints.size(),
+                           static_cast<std::size_t>(link.sources.size() +
+                                                    link.targets.size()));
+            }
+        }
+        REQUIRE(found_link);
+    }
+    REQUIRE(links > 0);
+    // A name nobody has is not there.
+    REQUIRE(table->find(std::string("no such place")) == table->end());
 }

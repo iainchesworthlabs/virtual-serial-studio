@@ -38,6 +38,8 @@ add_library(vss_gui_support STATIC
   plugin_parts.hpp
   plugin_dialogs.cpp
   plugin_dialogs.hpp
+  plugin_prompts.cpp
+  plugin_prompts.hpp
   plugin_text.cpp
   plugin_text.hpp
   plugin_widgets.cpp

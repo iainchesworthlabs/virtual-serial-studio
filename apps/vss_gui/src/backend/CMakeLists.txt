@@ -25,6 +25,8 @@ add_library(vss_gui_backend STATIC
   fake_plugin_backend.hpp
   service_mapping.cpp
   service_mapping.hpp
+  plugin_places.cpp
+  plugin_places.hpp
   service_plugin_backend.cpp
   service_plugin_backend.hpp
   plugin_mapping.cpp

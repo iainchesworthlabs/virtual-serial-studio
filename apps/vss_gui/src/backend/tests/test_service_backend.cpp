@@ -19,6 +19,7 @@
 
 #include <QTemporaryDir>
 
+#include <chrono>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -51,7 +52,7 @@ void write_file(const fs::path& path, const std::string& text)
 /// A plugin folder `root/<id>`: the test plugin program, the runtime library
 /// a build with the address sanitiser of MSVC needs beside it, and a
 /// `plugin.json` that lists them, as the system tests lay one out.
-fs::path make_plugin(const fs::path& root)
+fs::path make_plugin(const fs::path& root, const std::string& more_args = {})
 {
     const fs::path program = fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM));
     const fs::path directory = root / kPluginId;
@@ -74,7 +75,8 @@ fs::path make_plugin(const fs::path& root)
                 "\", \"args\": [ "
                 "\"--hello-id=" +
                 std::string(kPluginId) +
-                "\", \"--hello-version=1.2.0\", \"--serve\" ],\n";
+                "\", \"--hello-version=1.2.0\"" + more_args +
+                ", \"--serve\" ],\n";
     manifest += "    \"platforms\": [ \"windows-x64\", \"windows-arm64\", "
                 "\"linux-x64\", \"linux-arm64\", \"macos-x64\", "
                 "\"macos-arm64\" ] },\n";
@@ -242,4 +244,252 @@ TEST_CASE("service backend: the real service runs an unsigned plugin after a "
 
     // The end of the program: every plugin is stopped, and the call returns.
     backend.shut_down();
+}
+
+namespace
+{
+
+service_plugin_options options_for(const fs::path& root,
+                                   const fs::path& plugins)
+{
+    service_plugin_options options;
+    plug::plugin_root user;
+    user.directory = plugins;
+    user.scope = plug::plugin_scope::for_user;
+    options.roots.push_back(user);
+    options.program_directory =
+        fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM)).parent_path();
+    options.trust_file = root / "settings" / "trust.json";
+    options.data_root = root / "data";
+    options.user_root = plugins;
+    options.seed = 1;
+    return options;
+}
+
+/// The arguments that make the test plugin ask Studio to show a code as soon
+/// as it is ready.
+std::string ask_for_code()
+{
+    return R"(, "--send-header={\"op\":\"secret.show\",\"label\":\"Pairing code\",)"
+           R"(\"text\":\"123456\",\"expires_s\":60}")";
+}
+
+/// Decides about the plugin on the page's behalf and waits for it to run.
+void run_the_plugin(ServicePluginBackend& backend, const QString& id)
+{
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr && view->state == plugin_state::needs_decision &&
+                   !view->adds.empty();
+        },
+        30000));
+    const plugin_view view = *find_view(backend.snapshot(), id);
+    plugin_decision_request request;
+    request.plugin_id = view.id;
+    request.hash = view.hash;
+    request.key_id = view.key_id;
+    request.granted = {QStringLiteral("ports.read")};
+    request.switch_on = true;
+    backend.decide(request);
+}
+
+} // namespace
+
+TEST_CASE("service backend: a code a plugin asks to show reaches the page and "
+          "is answered once")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins, ask_for_code());
+    ServicePluginBackend backend(options_for(root, plugins));
+
+    std::vector<plugin_secret_request> asked;
+    QObject::connect(&backend, &PluginBackend::secret_requested, &backend,
+                     [&asked](const plugin_secret_request& request)
+                     { asked.push_back(request); });
+    run_the_plugin(backend, QString::fromLatin1(kPluginId));
+    const bool came = vss_test::wait_until([&] { return !asked.empty(); }, 60000);
+    if (!came)
+    {
+        const plugin_view* now =
+            find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+        if (now != nullptr)
+        {
+            std::fprintf(stderr, "SECRET state %d reason %s\n",
+                         static_cast<int>(now->state),
+                         now->reason_code.toUtf8().constData());
+            for (const plugin_log_line& line : now->log)
+                std::fprintf(stderr, "SECRET log: %s\n",
+                             line.text.toUtf8().constData());
+        }
+    }
+    REQUIRE(came);
+    REQUIRE_EQ(asked.size(), std::size_t{1});
+    REQUIRE_EQ(asked[0].plugin_id, QString::fromLatin1(kPluginId));
+    REQUIRE_EQ(asked[0].plugin_name, QStringLiteral("Served"));
+    REQUIRE_EQ(asked[0].label, QStringLiteral("Pairing code"));
+    REQUIRE_EQ(asked[0].text, QStringLiteral("123456"));
+    REQUIRE_EQ(asked[0].seconds, 60);
+    REQUIRE(asked[0].id != 0);
+    // The answer goes to the plugin; a second answer for it is ignored.
+    backend.answer_secret(asked[0].id, true);
+    backend.answer_secret(asked[0].id, false);
+    // The code is in no snapshot and no log line the page can read.
+    const plugin_view* view =
+        find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+    REQUIRE(view != nullptr);
+    for (const plugin_log_line& line : view->log)
+        REQUIRE(!line.text.contains(QStringLiteral("123456")));
+    REQUIRE(!view->status_text.contains(QStringLiteral("123456")));
+    backend.shut_down();
+}
+
+TEST_CASE("service backend: with nobody to show a code to, the plugin is told "
+          "no, and shutting down does not wait on a dialog")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins, ask_for_code());
+    ServicePluginBackend backend(options_for(root, plugins));
+    run_the_plugin(backend, QString::fromLatin1(kPluginId));
+    // No dialog is connected: the request is answered no, and the plugin
+    // carries on running.
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view =
+                find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+            return view != nullptr && view->state == plugin_state::available;
+        },
+        60000));
+    // Ending the program does not wait on a plugin or on a dialog.
+    const auto started = std::chrono::steady_clock::now();
+    backend.shut_down();
+    REQUIRE(std::chrono::steady_clock::now() - started <
+            std::chrono::seconds(20));
+}
+
+TEST_CASE("service backend: a control session a plugin asks for reaches the "
+          "page with the plugin's words, and nothing is remembered")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(
+        plugins,
+        R"(, "--send-header={\"op\":\"control.session.request\",)"
+        R"(\"scopes\":[\"monitor\",\"control.data\"],\"peer\":\"Alex\",)"
+        R"(\"reason\":\"To run a test.\"}")");
+    ServicePluginBackend backend(options_for(root, plugins));
+
+    std::vector<plugin_control_request> asked;
+    QObject::connect(&backend, &PluginBackend::control_requested, &backend,
+                     [&asked](const plugin_control_request& request)
+                     { asked.push_back(request); });
+    run_the_plugin(backend, QString::fromLatin1(kPluginId));
+    const bool arrived =
+        vss_test::wait_until([&] { return !asked.empty(); }, 60000);
+    if (!arrived)
+    {
+        const plugin_view* now =
+            find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+        if (now != nullptr)
+        {
+            std::fprintf(stderr, "state %d reason %s\n",
+                         static_cast<int>(now->state),
+                         now->reason_code.toUtf8().constData());
+            for (const plugin_log_line& line : now->log)
+                std::fprintf(stderr, "log: %s\n",
+                             line.text.toUtf8().constData());
+        }
+    }
+    REQUIRE(arrived);
+    REQUIRE_EQ(asked[0].plugin_name, QStringLiteral("Served"));
+    REQUIRE_EQ(asked[0].peer, QStringLiteral("Alex"));
+    REQUIRE_EQ(asked[0].reason, QStringLiteral("To run a test."));
+    REQUIRE_EQ(asked[0].scopes.size(), 2);
+    REQUIRE_EQ(asked[0].life_seconds, 24 * 3600);
+    backend.answer_control(asked[0].id, false);
+    backend.shut_down();
+}
+
+TEST_CASE("service backend: instances are asked for, kept, and come back at the "
+          "next start")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins);
+    const QString id = QString::fromLatin1(kPluginId);
+    {
+        service_plugin_options options = options_for(root, plugins);
+        options.instances_file = root / "settings" / "instances.json";
+        ServicePluginBackend backend(std::move(options));
+        run_the_plugin(backend, id);
+        REQUIRE(vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* view = find_view(backend.snapshot(), id);
+                return view != nullptr && view->state == plugin_state::available;
+            },
+            60000));
+        backend.add_instance(id, QStringLiteral("pulse"));
+        REQUIRE(vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* view = find_view(backend.snapshot(), id);
+                return view != nullptr && view->instances.size() == 1;
+            },
+            60000));
+        const plugin_instance_view made =
+            find_view(backend.snapshot(), id)->instances.front();
+        REQUIRE_EQ(made.number, quint64{1});
+        REQUIRE_EQ(made.point_id, QStringLiteral("pulse"));
+        REQUIRE_EQ(made.point_name, QStringLiteral("Pulse"));
+        // A point the plugin does not declare is not made either.
+        backend.add_instance(id, QStringLiteral("nothing"));
+        backend.shut_down();
+    }
+    REQUIRE(fs::exists(root / "settings" / "instances.json"));
+    {
+        // The next start: the instance is there before the plugin runs.
+        service_plugin_options options = options_for(root, plugins);
+        options.instances_file = root / "settings" / "instances.json";
+        ServicePluginBackend backend(std::move(options));
+        const bool back = vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* view = find_view(backend.snapshot(), id);
+                return view != nullptr && view->instances.size() == 1;
+            },
+            60000);
+        if (!back)
+        {
+            const plugin_view* now = find_view(backend.snapshot(), id);
+            if (now != nullptr)
+                std::fprintf(stderr, "state %d instances %d\n",
+                             static_cast<int>(now->state),
+                             static_cast<int>(now->instances.size()));
+        }
+        REQUIRE(back);
+        const plugin_view* view = find_view(backend.snapshot(), id);
+        REQUIRE_EQ(view->instances.size(), std::size_t{1});
+        // The plugin is not running, so the instance is not either.
+        REQUIRE(view->instances.front().state ==
+                plugin_instance_state::not_running);
+        // Taking it away is kept too.
+        backend.remove_instance(id, view->instances.front().number);
+        REQUIRE(vss_test::wait_until(
+            [&]
+            {
+                const plugin_view* now = find_view(backend.snapshot(), id);
+                return now != nullptr && now->instances.empty();
+            },
+            60000));
+        backend.shut_down();
+    }
 }

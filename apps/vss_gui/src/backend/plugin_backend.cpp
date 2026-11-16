@@ -13,6 +13,8 @@ namespace vss::gui
 
 PluginBackend::PluginBackend(QObject* parent) : QObject(parent)
 {
+    qRegisterMetaType<vss::gui::plugin_secret_request>();
+    qRegisterMetaType<vss::gui::plugin_control_request>();
     qRegisterMetaType<vss::gui::plugin_request_result>();
     qRegisterMetaType<vss::gui::plugin_key_file_view>();
     qRegisterMetaType<vss::gui::plugin_inspection_view>();

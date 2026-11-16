@@ -13,6 +13,7 @@ if(VSS_BUILD_TESTS)
     test_licence.cpp
     test_permission_dialog.cpp
     test_permission_rows.cpp
+    test_plugin_prompts.cpp
     test_plugins_page.cpp
     test_profiling.cpp
     test_render_settings.cpp

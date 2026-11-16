@@ -265,6 +265,9 @@ QString permission_sentence(const plugin_permission_view& permission)
         return QCoreApplication::translate(
             "PluginsDialog",
             "See the list of serial devices on this computer.");
+    if (id == QLatin1String("licence.read"))
+        return QCoreApplication::translate(
+            "PluginsDialog", "Read your licence file. The file holds your name.");
     if (id == QLatin1String("fs.read"))
         return QCoreApplication::translate(
             "PluginsDialog", "Read files in a folder you choose.");

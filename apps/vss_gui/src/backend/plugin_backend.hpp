@@ -62,11 +62,32 @@ public:
     /// Copies a plugin's folder into the user's plugin folder, for this user
     /// only. The page asks for it after the user saw the inspection.
     virtual void add_plugin(const QString& folder) = 0;
-    /// Moves a plugin's folder to the bin.
+    /// Stops a plugin and deletes its folder, and its saved data too when
+    /// `delete_saved_data`.
     virtual void remove_plugin(const QString& plugin_id, const QString& hash,
                                bool delete_saved_data) = 0;
 
+    /// Asks the plugin for one more instance of the extension point with
+    /// this id, with its default settings. Kept for the next start.
+    virtual void add_instance(const QString& plugin_id,
+                              const QString& point_id) = 0;
+    /// Takes the instance with this number away.
+    virtual void remove_instance(const QString& plugin_id, quint64 number) = 0;
+    /// The user's answer to a `secret_requested`: `seen` when the code was on
+    /// the screen, false when it could not be shown. Answer each request
+    /// once.
+    virtual void answer_secret(quint64 id, bool seen) = 0;
+    /// The user's answer to a `control_requested`.
+    virtual void answer_control(quint64 id, bool allowed) = 0;
+
 Q_SIGNALS:
+    /// A running plugin asked Studio to show a secret. On the GUI thread. The
+    /// receiver shows it and calls `answer_secret`; it keeps the text nowhere
+    /// else.
+    void secret_requested(const vss::gui::plugin_secret_request& request);
+    /// A running plugin asked for a control session. On the GUI thread. The
+    /// receiver calls `answer_control`.
+    void control_requested(const vss::gui::plugin_control_request& request);
     /// The snapshot changed. Coalesced; on the GUI thread.
     void snapshot_changed();
     void request_finished(const vss::gui::plugin_request_result& result);

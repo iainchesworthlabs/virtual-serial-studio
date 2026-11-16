@@ -12,12 +12,14 @@
 #include <vss/plugin/hash.hpp>
 #include <vss/plugin/licence.hpp>
 #include <vss/plugin/lifecycle.hpp>
+#include <vss/plugin/parameters.hpp>
 
 #include <QCoreApplication>
 #include <QDate>
 
 #include <algorithm>
 #include <cmath>
+#include <span>
 
 namespace vss::gui
 {
@@ -134,6 +136,22 @@ QString permission_id(plug::permission value)
     return from_std(std::string(plug::to_string(value)));
 }
 
+/// Why Studio, or the plugin, refused an instance, in a sentence.
+QString refusal_text(const vss::error_code& problem)
+{
+    if (is_plugin_code(problem, plug::plugin_errc::capability_missing))
+        return QCoreApplication::translate(
+            "PluginsDialog", "The plugin does not offer this.");
+    if (is_plugin_code(problem, plug::plugin_errc::too_many))
+        return QCoreApplication::translate(
+            "PluginsDialog", "The plugin allows no more of these.");
+    if (is_plugin_code(problem, plug::plugin_errc::unresponsive))
+        return QCoreApplication::translate("PluginsDialog",
+                                           "The plugin did not answer.");
+    return QCoreApplication::translate("PluginsDialog",
+                                       "The plugin turned it down.");
+}
+
 bool contains(const std::vector<plug::permission>& list, plug::permission value)
 {
     return std::find(list.begin(), list.end(), value) != list.end();
@@ -159,6 +177,13 @@ void fill_from_manifest(plugin_view& view, const plug::manifest& declared)
         addition.type_name =
             from_std(best.empty() ? point.id : std::string(best));
         addition.type_id = from_std(point.id);
+        addition.max_instances = static_cast<int>(point.max_instances);
+        // Studio has no form for settings yet, so a point whose settings have
+        // no default cannot be started.
+        addition.needs_settings =
+            !plug::validate(point.parameters,
+                           std::span<const plug::raw_parameter>{})
+                 .ok();
         addition.description =
             from_std(std::string(point.description.best("")));
         view.adds.push_back(addition);
@@ -360,6 +385,73 @@ plugin_snapshot map_service_snapshot(const host::service_snapshot& snapshot,
             view.override_active = decision->run_without_sandbox;
             view.override_on = date_of(decision->decided_on);
         }
+        // A copy nobody has decided about, of a plugin the user decided
+        // about before: what it asks beyond that decision is new.
+        if (decision == nullptr && plugin.earlier_decision.has_value())
+        {
+            view.differs_from_approved = true;
+            for (plugin_permission_view& permission : view.permissions)
+            {
+                permission.is_new = !std::any_of(
+                    plugin.earlier_decision->granted.begin(),
+                    plugin.earlier_decision->granted.end(),
+                    [&permission](plug::permission each)
+                    { return permission_id(each) == permission.id; });
+            }
+        }
+        // What Studio runs of this plugin. A plugin that is not running keeps
+        // its instances, shown as not running.
+        {
+            const bool alive =
+                plugin.run != nullptr &&
+                plugin.run->state != plug::run_state::stopped &&
+                plugin.run->state != plug::run_state::quarantined;
+            for (const host::instance_view& each : plugin.instances)
+            {
+                plugin_instance_view made;
+                made.number = each.spec.instance;
+                made.point_id = from_std(each.spec.type);
+                made.point_name = made.point_id;
+                for (const plugin_addition& point : view.adds)
+                {
+                    if (point.type_id == made.point_id)
+                        made.point_name = point.type_name;
+                }
+                made.settings_pending = each.params_pending;
+                if (!alive)
+                {
+                    made.state = plugin_instance_state::not_running;
+                }
+                else
+                {
+                    switch (each.state)
+                    {
+                    case host::instance_state::waiting:
+                        made.state = plugin_instance_state::waiting;
+                        break;
+                    case host::instance_state::creating:
+                        made.state = plugin_instance_state::starting;
+                        break;
+                    case host::instance_state::running:
+                        made.state = plugin_instance_state::running;
+                        break;
+                    case host::instance_state::stopping:
+                        made.state = plugin_instance_state::stopping;
+                        break;
+                    case host::instance_state::refused:
+                        made.state = plugin_instance_state::refused;
+                        break;
+                    }
+                }
+                if (made.state == plugin_instance_state::refused)
+                {
+                    made.refusal = refusal_text(each.problem);
+                    made.reason = from_std(each.reason);
+                }
+                view.instances.push_back(std::move(made));
+            }
+        }
+
         // What this plugin's sandbox is, or what this computer can give it.
         const host::sandbox_report& report =
             plugin.run ? plugin.run->sandbox : inputs.available;
