@@ -27,12 +27,15 @@
 namespace vss::plugin
 {
 
-namespace
+/// These two are only called while the table below is built by the compiler,
+/// so they have external linkage and are inline: a function with internal
+/// linkage that no code at run time calls is reported as unused.
+namespace detail
 {
 
 /// Calling this in a constant expression does not compile, which is how a
 /// wrong key is refused at build time.  It is not constexpr on purpose.
-[[noreturn]] void a_public_key_is_wrong()
+[[noreturn]] inline void a_public_key_is_wrong()
 {
     std::terminate();
 }
@@ -58,6 +61,13 @@ constexpr key_bytes key_from_hex(std::string_view text)
     }
     return out;
 }
+
+} // namespace detail
+
+namespace
+{
+
+using detail::key_from_hex;
 
 constexpr std::array<root_key, 2> roots{
     root_key{"root-2026",
