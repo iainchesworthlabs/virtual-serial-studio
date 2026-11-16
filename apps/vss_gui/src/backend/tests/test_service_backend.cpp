@@ -52,7 +52,8 @@ void write_file(const fs::path& path, const std::string& text)
 /// A plugin folder `root/<id>`: the test plugin program, the runtime library
 /// a build with the address sanitiser of MSVC needs beside it, and a
 /// `plugin.json` that lists them, as the system tests lay one out.
-fs::path make_plugin(const fs::path& root, const std::string& more_args = {})
+fs::path make_plugin(const fs::path& root, const std::string& more_args = {},
+                     const std::string& more_permissions = {})
 {
     const fs::path program = fs::absolute(fs::path(VSS_TEST_PLUGIN_PROGRAM));
     const fs::path directory = root / kPluginId;
@@ -80,7 +81,8 @@ fs::path make_plugin(const fs::path& root, const std::string& more_args = {})
                 "\"linux-x64\", \"linux-arm64\", \"macos-x64\", "
                 "\"macos-arm64\" ] },\n";
     manifest += "  \"permissions\": [ { \"name\": \"ports.read\", "
-                "\"required\": true, \"reason\": \"To read the ports.\" } ],\n";
+                "\"required\": true, \"reason\": \"To read the ports.\" }" +
+                more_permissions + " ],\n";
     manifest += "  \"extension_points\": [ { \"kind\": \"generator\", "
                 "\"id\": \"pulse\", \"name\": \"Pulse\" } ],\n";
     manifest += "  \"files\": [";
@@ -495,4 +497,146 @@ TEST_CASE(
             60000));
         backend.shut_down();
     }
+}
+
+namespace
+{
+
+/// Whether a log line of the plugin has `text`.
+bool log_has(ServicePluginBackend& backend, const QString& id,
+             const QString& text)
+{
+    const plugin_view* view = find_view(backend.snapshot(), id);
+    if (view == nullptr)
+        return false;
+    for (const plugin_log_line& line : view->log)
+    {
+        if (line.text.contains(text))
+            return true;
+    }
+    return false;
+}
+
+void show_log(ServicePluginBackend& backend, const QString& id)
+{
+    const plugin_view* view = find_view(backend.snapshot(), id);
+    if (view == nullptr)
+        return;
+    for (const plugin_log_line& line : view->log)
+        std::fprintf(stderr, "log: %s\n", line.text.toUtf8().constData());
+}
+
+/// The test plugin asks for the licence file as soon as it is ready, and asks
+/// for `licence.read` as well as the permission every test plugin has.
+void ask_for_licence(const fs::path& plugins)
+{
+    make_plugin(plugins, R"(, "--send-header={\"op\":\"licence.get\"}")",
+                R"(, { "name": "licence.read", "required": false, )"
+                R"("reason": "To check it." })");
+}
+
+void decide_with(ServicePluginBackend& backend, const QString& id,
+                 const QStringList& granted)
+{
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view = find_view(backend.snapshot(), id);
+            return view != nullptr &&
+                   view->state == plugin_state::needs_decision &&
+                   !view->adds.empty();
+        },
+        30000));
+    const plugin_view view = *find_view(backend.snapshot(), id);
+    plugin_decision_request request;
+    request.plugin_id = view.id;
+    request.hash = view.hash;
+    request.key_id = view.key_id;
+    request.granted = granted;
+    request.switch_on = true;
+    backend.decide(request);
+}
+
+vss::license::status a_valid_licence()
+{
+    vss::license::status status;
+    status.state = vss::license::state::valid;
+    status.reason = vss::license::reason::ok;
+    return status;
+}
+
+} // namespace
+
+TEST_CASE("service backend: a plugin allowed to read the licence is handed the "
+          "file Studio uses, and one that is not is refused")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    const fs::path licences = root / "licences";
+    std::error_code ignored;
+    fs::create_directories(licences, ignored);
+    write_file(licences / "studio.vsslic", "the bytes of a licence file");
+    ask_for_licence(plugins);
+    const QString id = QString::fromLatin1(kPluginId);
+
+    {
+        service_plugin_options options = options_for(root, plugins);
+        options.licence_user_directory = licences;
+        ServicePluginBackend backend(std::move(options));
+        backend.set_licence(a_valid_licence(),
+                            licence_file_ref{"studio.vsslic", false});
+        decide_with(backend, id,
+                    {QStringLiteral("ports.read"),
+                     QStringLiteral("licence.read")});
+        const bool answered = vss_test::wait_until(
+            [&] { return log_has(backend, id, QStringLiteral("answer ")); },
+            60000);
+        if (!answered || log_has(backend, id, QStringLiteral("answer error")))
+            show_log(backend, id);
+        REQUIRE(answered);
+        // The answer is the file, not a refusal.
+        REQUIRE(!log_has(backend, id, QStringLiteral("answer error")));
+        backend.shut_down();
+    }
+    {
+        // Not allowed to read it, and not official: refused.
+        fs::remove_all(root / "settings", ignored);
+        service_plugin_options options = options_for(root, plugins);
+        options.licence_user_directory = licences;
+        ServicePluginBackend backend(std::move(options));
+        backend.set_licence(a_valid_licence(),
+                            licence_file_ref{"studio.vsslic", false});
+        decide_with(backend, id, {QStringLiteral("ports.read")});
+        const bool answered = vss_test::wait_until(
+            [&] { return log_has(backend, id, QStringLiteral("answer error")); },
+            60000);
+        if (!answered)
+            show_log(backend, id);
+        REQUIRE(answered);
+        backend.shut_down();
+    }
+}
+
+TEST_CASE("service backend: the licence is the same one until it changes")
+{
+    QTemporaryDir dir;
+    const fs::path root = fs::path(dir.path().toStdWString());
+    const fs::path plugins = root / "plugins";
+    make_plugin(plugins);
+    ServicePluginBackend backend(options_for(root, plugins));
+    // Telling the plugins of the same licence again, and of none, does not
+    // stop anything or fail.
+    backend.set_licence(a_valid_licence(), licence_file_ref{"a.vsslic", false});
+    backend.set_licence(a_valid_licence(), licence_file_ref{"a.vsslic", false});
+    backend.set_licence(vss::license::no_licence(), std::nullopt);
+    REQUIRE(vss_test::wait_until(
+        [&]
+        {
+            const plugin_view* view =
+                find_view(backend.snapshot(), QString::fromLatin1(kPluginId));
+            return view != nullptr && view->state == plugin_state::needs_decision;
+        },
+        30000));
+    backend.shut_down();
 }

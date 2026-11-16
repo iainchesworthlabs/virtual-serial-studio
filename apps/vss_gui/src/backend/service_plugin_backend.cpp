@@ -9,6 +9,7 @@
 #include "backend/plugin_mapping.hpp"
 
 #include <vss/machine/folders.hpp>
+#include <vss/plugin/api_licence.hpp>
 #include <vss/plugin/host/sandbox.hpp>
 #include <vss/plugin/install.hpp>
 #include <vss/plugin/locations.hpp>
@@ -104,6 +105,21 @@ plug::plugin_decision decision_of(const host::service_plugin& plugin)
 }
 
 } // namespace
+
+std::optional<licence_file_ref> licence_file_in_use(const licence_view& view)
+{
+    for (const licence_file_view& each : view.files)
+    {
+        if (each.in_use)
+        {
+            licence_file_ref ref;
+            ref.file_name = each.file_name.toStdString();
+            ref.machine_wide = each.machine_wide;
+            return ref;
+        }
+    }
+    return std::nullopt;
+}
 
 service_plugin_options default_service_plugin_options()
 {
@@ -407,6 +423,21 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
                 return found->second;
             }));
     }
+    // The licence file, as it was read on the slow thread: a copy of bytes
+    // held here, never a read on the service's strand.
+    handlers.push_back(host::make_licence_point(
+        context,
+        [this]() -> std::optional<vss::byte_buffer>
+        {
+            std::shared_ptr<const vss::byte_buffer> bytes;
+            {
+                const std::scoped_lock lock(mutex_);
+                bytes = licence_bytes_;
+            }
+            if (!bytes)
+                return std::nullopt;
+            return *bytes;
+        }));
     handlers.push_back(host::make_secret_point(
         context, [this](const host::secret_to_show& secret,
                         std::function<void(bool)> done)
@@ -544,14 +575,136 @@ void ServicePluginBackend::answer_all_prompts_no()
         each.second(false);
 }
 
-void ServicePluginBackend::set_licence(const vss::license::status& status)
+void ServicePluginBackend::set_licence(
+    const vss::license::status& status, const std::optional<licence_file_ref>& file)
 {
+    // What names the licence: its file, its judging and the licence's own id.
+    // The days left change every day and are not part of it.
+    std::string key = file ? file->file_name + (file->machine_wide ? "|m" : "|u")
+                           : std::string("|none");
+    key += "|" + std::to_string(static_cast<int>(status.state)) + "|" +
+           std::to_string(static_cast<int>(status.reason)) + "|" + status.key_id;
+    if (status.value.has_value())
+        key += "|" + status.value->licence_id;
+    bool changed = false;
     {
         const std::scoped_lock lock(mutex_);
         licence_ = status;
+        changed = licence_key_known_ && licence_key_ != key;
+        licence_key_ = key;
+        licence_key_known_ = true;
     }
-    if (!down_.load())
-        service_->rescan();
+    if (down_.load())
+        return;
+    // The file is read on the slow thread, never on the GUI thread or the
+    // service's strand. None for the Community edition, and none for a file
+    // larger than a licence may be.
+    std::optional<std::filesystem::path> path;
+    if (file && status.state != vss::license::state::none)
+    {
+        const std::filesystem::path& folder = file->machine_wide
+                                                  ? options_.licence_machine_directory
+                                                  : options_.licence_user_directory;
+        if (!folder.empty() && !file->file_name.empty())
+            path = folder / std::filesystem::path(std::u8string(file->file_name.begin(),
+                                                          file->file_name.end()));
+    }
+    boost::asio::post(
+        slow_,
+        [this, path, changed]
+        {
+            std::shared_ptr<const vss::byte_buffer> bytes;
+            if (path.has_value())
+            {
+                constexpr std::size_t kLargest = 65536;
+                std::error_code ignored;
+                const auto size = fs::file_size(*path, ignored);
+                if (!ignored && size <= kLargest)
+                {
+                    std::ifstream stream(*path, std::ios::binary);
+                    auto read = std::make_shared<vss::byte_buffer>(
+                        static_cast<std::size_t>(size));
+                    if (stream &&
+                        stream.read(reinterpret_cast<char*>(read->data()),
+                                    static_cast<std::streamsize>(size)))
+                        bytes = std::move(read);
+                }
+            }
+            {
+                const std::scoped_lock lock(mutex_);
+                licence_bytes_ = std::move(bytes);
+            }
+            if (down_.load())
+                return;
+            service_->rescan();
+            if (!changed)
+                return;
+            // A plugin is not told that the licence changed, so the official
+            // ones that run are stopped and started again; they ask for the
+            // new file when they start. Once for each change.
+            for (const host::service_plugin& plugin :
+                 service_->snapshot()->plugins)
+            {
+                if (plugin.level != plug::trust_level::official ||
+                    plugin.run == nullptr)
+                    continue;
+                const plug::run_state state = plugin.run->state;
+                if (state == plug::run_state::stopped ||
+                    state == plug::run_state::quarantined)
+                    continue;
+                {
+                    const std::scoped_lock lock(mutex_);
+                    restart_.insert(plugin.id);
+                }
+                boost::asio::post(
+                    io_,
+                    [this, id = plugin.id]
+                    {
+                        if (down_.load())
+                            return;
+                        if (const auto runner = service_->runner(id))
+                            runner->stop("The licence changed.");
+                    });
+            }
+            restart_waiting_plugins();
+        });
+}
+
+void ServicePluginBackend::restart_waiting_plugins()
+{
+    std::vector<std::string> waiting;
+    {
+        const std::scoped_lock lock(mutex_);
+        waiting.assign(restart_.begin(), restart_.end());
+    }
+    if (waiting.empty())
+        return;
+    // On the service's strand, where a runner may be asked for.
+    boost::asio::post(
+        io_,
+        [this, waiting]
+        {
+            if (down_.load())
+                return;
+            for (const std::string& id : waiting)
+            {
+                const auto runner = service_->runner(id);
+                if (!runner)
+                {
+                    const std::scoped_lock lock(mutex_);
+                    restart_.erase(id);
+                    continue;
+                }
+                // Started again once it has stopped; until then the change
+                // of state brings us back here.
+                if (runner->snapshot()->state == plug::run_state::stopped)
+                {
+                    runner->start();
+                    const std::scoped_lock lock(mutex_);
+                    restart_.erase(id);
+                }
+            }
+        });
 }
 
 void ServicePluginBackend::after_change()
@@ -566,6 +719,7 @@ void ServicePluginBackend::after_change()
             refresh_extras();
             process_removals();
             delete_data_of_gone_plugins();
+            restart_waiting_plugins();
             if (rescan_asked_.load())
             {
                 const auto now = service_->snapshot();

@@ -358,6 +358,12 @@ try
                 vss::gui::default_service_plugin_options();
             // A plugin that was granted it records from Studio's own hub.
             plugin_options.hub = &studio->engine();
+            const vss::license::store_options licence_folders =
+                vss::license::default_store_options();
+            plugin_options.licence_user_directory =
+                licence_folders.user_directory;
+            plugin_options.licence_machine_directory =
+                licence_folders.machine_directory;
             auto plugins = std::make_unique<vss::gui::ServicePluginBackend>(
                 std::move(plugin_options));
             vss::gui::ServicePluginBackend* host = plugins.get();
@@ -384,10 +390,15 @@ try
             QObject::connect(&backend, &vss::gui::StudioBackend::lines_changed,
                              places_timer, qOverload<>(&QTimer::start));
             host->set_places(vss::gui::make_plugin_place_table(backend));
-            host->set_licence(backend.licence().status);
+            const auto tell_plugins_of_licence = [&backend, host]
+            {
+                const vss::gui::licence_view now = backend.licence();
+                host->set_licence(now.status,
+                                  vss::gui::licence_file_in_use(now));
+            };
+            tell_plugins_of_licence();
             QObject::connect(&backend, &vss::gui::StudioBackend::licence_changed,
-                             host, [&backend, host]
-                             { host->set_licence(backend.licence().status); });
+                             host, tell_plugins_of_licence);
             backend.set_plugin_backend(std::move(plugins));
         }
         if (parser.isSet(screenshot_option))
