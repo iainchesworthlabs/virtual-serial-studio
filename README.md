@@ -282,6 +282,7 @@ libs/vss_agent       the agent's local transport, server and client
 libs/vss_control_proto the control API: messages, errors and the policy table
 libs/vss_control     the control gateway, its audit log and its client
 third_party          Monocypher, vendored unchanged (Ed25519)
+sdk/licence-reader   a licence reader a plugin may copy (BSD-2-Clause) and its test vectors (CC0)
 apps/vss_cli         headless command line
 apps/vss_agent       keeps ports running without the window (a first slice)
 apps/vss_gate        serves the control API to this user's programs (a first slice)

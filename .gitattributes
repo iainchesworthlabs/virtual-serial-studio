@@ -4,3 +4,5 @@
 *.ico binary
 *.icns binary
 *.bin binary
+# Licence test vectors are compared byte for byte.
+sdk/licence-reader/vectors/*.vsslic -text
