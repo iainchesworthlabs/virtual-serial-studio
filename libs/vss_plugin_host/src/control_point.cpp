@@ -53,7 +53,8 @@ std::optional<json::object> header_of(const api_message& message)
     json::value parsed = json::parse(other->header, failed);
     if (failed || !parsed.is_object())
         return std::nullopt;
-    return std::move(parsed.get_object());
+    json::object object = std::move(parsed.get_object());
+    return object;
 }
 
 /// A text member of at most `most` bytes; empty when it is not there.
