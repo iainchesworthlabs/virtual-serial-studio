@@ -165,4 +165,15 @@ verify_sections(const std::filesystem::path& data_directory,
                 std::span<const offered_section> sections,
                 const section_rules& rules);
 
+/// The size and the SHA-512 of one file, taken from one open handle, by the
+/// same rules as `verify_sections`: the path must pass `check_relative_path`,
+/// no part of it below `data_directory` may be a link, and the file must be a
+/// plain file of `listed_size` bytes.  For the host that has to say what a
+/// plugin's file is before it is listed.  `section` names the section in a
+/// failure.  The same caveat about a writer to the data directory holds.
+boost::system::result<verified_file, bundle_failure>
+measure_file(const std::filesystem::path& data_directory,
+             const std::string& section, const std::string& path,
+             std::uint64_t listed_size);
+
 } // namespace vss::plugin::host

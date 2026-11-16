@@ -459,3 +459,65 @@ TEST_CASE("traffic tap: changing the watched set loses and repeats nothing")
     REQUIRE_EQ(seen.size(), sent.size());
     REQUIRE(seen == sent);
 }
+
+TEST_CASE("traffic tap: losses are marked in the queue where they happened")
+{
+    auto hub = start_hub();
+    auto first = add_mock(*hub, "first");
+    auto second = add_mock(*hub, "second");
+    tap_limits limits;
+    limits.max_items = 2;
+    limits.mark_losses = true;
+    traffic_tap tap(*hub, {place_of("A", first), place_of("B", second)},
+                    limits);
+    follower after(*hub);
+
+    after.send(first, "a1");
+    after.send(first, "a2");
+    // The queue is full: these are dropped, and the loss is one item that
+    // names both places.
+    after.send(first, "a3");
+    after.send(second, "bb4");
+    after.send(first, "a5");
+
+    auto got = tap.take(100, 1000);
+    REQUIRE_EQ(got.items.size(), std::size_t{3});
+    REQUIRE(got.items[0].kind == tap_item_kind::data);
+    REQUIRE(got.items[1].kind == tap_item_kind::data);
+    REQUIRE(got.items[2].kind == tap_item_kind::loss);
+    const auto& losses = got.items[2].losses;
+    REQUIRE_EQ(losses.size(), std::size_t{2});
+    REQUIRE_EQ(losses[0].place, std::string("A"));
+    REQUIRE(losses[0].direction == data_direction::rx);
+    REQUIRE_EQ(losses[0].items, std::uint64_t{2});
+    REQUIRE_EQ(losses[0].bytes, std::uint64_t{4});
+    REQUIRE(losses[0].last >= losses[0].first);
+    REQUIRE_EQ(losses[1].place, std::string("B"));
+    REQUIRE_EQ(losses[1].items, std::uint64_t{1});
+    REQUIRE_EQ(losses[1].bytes, std::uint64_t{3});
+    // The totals are still kept as they were.
+    REQUIRE_EQ(got.dropped_items, std::uint64_t{3});
+    REQUIRE_EQ(got.dropped_bytes, std::uint64_t{7});
+
+    // Data that comes when there is room again follows the loss.
+    after.send(first, "a6");
+    got = tap.take(100, 1000);
+    REQUIRE_EQ(got.items.size(), std::size_t{1});
+    REQUIRE_EQ(text_of(got.items[0]), std::string("a6"));
+}
+
+TEST_CASE("traffic tap: without mark_losses a drop leaves no item")
+{
+    auto hub = start_hub();
+    auto port = add_mock(*hub, "port");
+    tap_limits limits;
+    limits.max_items = 1;
+    traffic_tap tap(*hub, {place_of("P", port)}, limits);
+    follower after(*hub);
+    after.send(port, "one");
+    after.send(port, "two");
+    const auto got = tap.take(100, 1000);
+    REQUIRE_EQ(got.items.size(), std::size_t{1});
+    REQUIRE(got.items[0].kind == tap_item_kind::data);
+    REQUIRE_EQ(got.dropped_items, std::uint64_t{1});
+}

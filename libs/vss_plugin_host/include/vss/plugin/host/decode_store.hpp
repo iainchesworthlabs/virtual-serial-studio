@@ -205,7 +205,7 @@ struct decode_trigger_field
 {
     std::string name;              // 1 to 64 bytes
     std::uint64_t offset = 0;
-    std::uint64_t length = 0;      // 1 to 65536
+    std::uint64_t length = 0;      // 0 to 65536
 
     friend bool operator==(const decode_trigger_field&,
                            const decode_trigger_field&) = default;
