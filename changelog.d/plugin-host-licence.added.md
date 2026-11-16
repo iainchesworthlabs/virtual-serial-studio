@@ -1,0 +1,1 @@
+The plugin host hands a plugin the licence file when it asks (`licence.get`): always to an official plugin, and to any other only with the permission `licence.read`. What the plugin then reports of its own check (`licence.report`) is kept for the Plugins page.

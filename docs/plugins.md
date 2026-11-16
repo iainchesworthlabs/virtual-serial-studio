@@ -1091,8 +1091,8 @@ Points taken from that page, so the two stay in step:
 - **The version window** (`updates_until`) needs a release date in the signed manifest. The manifest gains an
   optional `released` date for it (section 13).
 - A third-party or unsigned plugin is never asked about a licence.
-- **The plugin gets the file through the host.** With the permission `licence.read` and the engine capability
-  `licence.file`, a plugin sends `licence.get` and is answered with `licence.file`; it tells the host what it found
+- **The plugin gets the file through the host.** With the engine capability `licence_file`, an official plugin (or one
+  that was granted the permission `licence.read`) sends `licence.get` and is answered with `licence.file`; it tells the host what it found
   with `licence.report`. The host does not act on the report. [The plugin API reference](plugin-api-reference.md)
   has the members and limits.
 

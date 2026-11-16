@@ -16,6 +16,7 @@ add_library(vss_plugin_host
   src/extension.cpp
   src/generator_feed.cpp
   src/instances.cpp
+  src/licence_point.cpp
   src/process.cpp
   src/recording.cpp
   src/runner.cpp

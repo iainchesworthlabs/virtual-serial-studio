@@ -155,7 +155,7 @@ TEST_CASE("plugin api: licence.report names a reason and a licence")
     REQUIRE_EQ(header_of(without.value()),
                std::string(R"({"op":"licence.report","reason":"ok"})"));
     REQUIRE_EQ(std::string(licence_file_capability),
-               std::string("licence.file"));
+               std::string("licence_file"));
 }
 
 TEST_CASE("plugin api: every reason of the licence library has a name")

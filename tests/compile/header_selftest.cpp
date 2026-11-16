@@ -68,6 +68,7 @@
 #include <vss/plugin/host/extension.hpp>
 #include <vss/plugin/host/generator_feed.hpp>
 #include <vss/plugin/host/instances.hpp>
+#include <vss/plugin/host/licence_point.hpp>
 #include <vss/plugin/host/process.hpp>
 #include <vss/plugin/host/recording.hpp>
 #include <vss/plugin/host/runner.hpp>
