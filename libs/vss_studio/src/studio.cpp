@@ -11,10 +11,15 @@
 #include <vss/ports/listen_transport.hpp>
 #include <vss/ports/serial_transport.hpp>
 #include <vss/ports/vcom_driver.hpp>
+#include <vss/ports/waiting_transport.hpp>
 
 #include "reconnector.hpp"
 
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ip/udp.hpp>
 #include <boost/asio/post.hpp>
+#include <boost/system/errc.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -416,7 +421,8 @@ studio::register_port(port_record record, std::shared_ptr<transport> transport,
 
 result<std::shared_ptr<endpoint>>
 studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
-                            const endpoint_options& options, unsigned com_number)
+                            const endpoint_options& options,
+                            unsigned com_number)
 {
     VSS_PROFILE_ZONE("studio.create_virtual_port");
     if (kind == virtual_port_kind::pty && !supports(virtual_port_kind::pty))
@@ -451,7 +457,8 @@ studio::create_virtual_port(const std::string& name, virtual_port_kind kind,
 
 result<std::shared_ptr<endpoint>>
 studio::create_auto_virtual_port(const std::string& name,
-                                 const endpoint_options& options, unsigned com_number)
+                                 const endpoint_options& options,
+                                 unsigned com_number)
 {
     VSS_PROFILE_ZONE("studio.create_auto_virtual_port");
     const std::string final_name = unique_name(name);
@@ -538,6 +545,78 @@ studio::create_auto_virtual_port(const std::string& name,
     return register_port(std::move(record), std::move(created->port), options);
 }
 
+bool listen_uris_overlap(const std::string& first, const std::string& second)
+{
+    const auto left = parse_listen_uri(first);
+    const auto right = parse_listen_uri(second);
+    if (!left || !right || left->port == 0 || left->port != right->port ||
+        (left->protocol == listen_protocol::udp) !=
+            (right->protocol == listen_protocol::udp))
+        return false;
+    const auto every = [](const listen_address& address)
+    { return address.host.empty() || address.host == "0.0.0.0"; };
+    return every(*left) || every(*right) || left->host == right->host;
+}
+
+result<void> studio::check_listen_free(const std::string& uri,
+                                       endpoint_id ignore, bool probe) const
+{
+    VSS_PROFILE_ZONE("studio.check_listen_free");
+    const auto wanted = parse_listen_uri(uri);
+    if (!wanted)
+        return {};
+    const auto in_use = boost::system::errc::make_error_code(
+        boost::system::errc::address_in_use);
+    const auto datagram = [](const listen_address& address)
+    { return address.protocol == listen_protocol::udp; };
+    const auto every = [](const listen_address& address)
+    { return address.host.empty() || address.host == "0.0.0.0"; };
+
+    if (wanted->port != 0)
+    {
+        std::lock_guard lock(record_mutex_);
+        for (const auto& [id, record] : records_)
+        {
+            if (id != ignore && listen_uris_overlap(record.uri, uri))
+                return in_use;
+        }
+    }
+
+    if (probe && wanted->port != 0)
+    {
+        // Another program may hold the port.  Bind it the way the port
+        // would, with nothing listening, and let go at once.
+        boost::asio::io_context io;
+        boost::system::error_code ec;
+        const auto ip =
+            every(*wanted)
+                ? boost::asio::ip::address(boost::asio::ip::address_v4::any())
+                : boost::asio::ip::make_address(wanted->host, ec);
+        if (!ec)
+        {
+            if (datagram(*wanted))
+            {
+                const boost::asio::ip::udp::endpoint where(ip, wanted->port);
+                boost::asio::ip::udp::socket socket(io);
+                socket.open(where.protocol(), ec);
+                if (!ec)
+                    socket.bind(where, ec);
+            }
+            else
+            {
+                const boost::asio::ip::tcp::endpoint where(ip, wanted->port);
+                boost::asio::ip::tcp::acceptor acceptor(io);
+                acceptor.open(where.protocol(), ec);
+                if (!ec)
+                    acceptor.bind(where, ec);
+            }
+            if (ec == boost::asio::error::address_in_use)
+                return in_use;
+        }
+    }
+    return {};
+}
+
 result<std::shared_ptr<endpoint>>
 studio::attach_serial(const std::string& name, const std::string& uri,
                       const endpoint_options& options)
@@ -545,6 +624,8 @@ studio::attach_serial(const std::string& name, const std::string& uri,
     VSS_PROFILE_ZONE_NAMED(zone, "studio.attach_serial");
     if (zone.active())
         zone.text(uri);
+    if (const auto taken = check_listen_free(uri); !taken)
+        return taken.error();
     const std::string final_name = unique_name(name);
 
     boost::system::error_code ec;
@@ -578,6 +659,8 @@ studio::attach_serial(const std::string& name, const std::string& uri,
         return invalid;
 
     options.serial = settings;
+    if (const auto taken = check_listen_free(uri); !taken)
+        return taken.error();
     const std::string final_name = unique_name(name);
 
     boost::system::error_code ec;
@@ -599,6 +682,47 @@ studio::attach_serial(const std::string& name, const std::string& uri,
     record.advertised = transport->public_path();
 
     return register_port(std::move(record), std::move(transport), options);
+}
+
+result<std::shared_ptr<endpoint>>
+studio::attach_waiting(const std::string& name, const std::string& uri,
+                       const serial_settings& settings)
+{
+    VSS_PROFILE_ZONE("studio.attach_waiting");
+    if (const error_code invalid = validate(settings))
+        return invalid;
+    const auto kind = classify_uri(uri);
+    if (!kind ||
+        (*kind != endpoint_kind::tcp && *kind != endpoint_kind::rfc2217) ||
+        is_listen_uri(uri))
+        return make_error_code(errc::invalid_uri);
+
+    endpoint_options options = default_options();
+    options.serial = settings;
+    port_record record;
+    record.name = unique_name(name);
+    record.uri = uri;
+    record.capture = options.capture_traffic;
+    record.serial = settings;
+    record.settings_given = true;
+    record.kind = to_string(*kind);
+
+    auto stand_in = std::make_shared<waiting_transport>(hub_->executor(), uri);
+    auto added = register_port(std::move(record), std::move(stand_in), options);
+    if (!added)
+        return added;
+
+    if (!reconnector_->policy().enabled)
+    {
+        reconnect_policy policy;
+        policy.enabled = true;
+        reconnector_->set_policy(policy);
+    }
+    // The stop that the first read causes may come before the port is allowed
+    // in `register_port`'s caller, so the loss is announced here as well.
+    reconnector_->allow((*added)->id());
+    reconnector_->lost((*added)->id());
+    return added;
 }
 
 result<std::shared_ptr<endpoint>>
@@ -902,8 +1026,7 @@ result<void> studio::reconfigure_port(endpoint_id id,
         return ec;
     if (!fresh)
         return make_error_code(errc::internal);
-    if (const auto reopened = hand_over(id, found, std::move(fresh));
-        !reopened)
+    if (const auto reopened = hand_over(id, found, std::move(fresh)); !reopened)
         return reopened.error();
     store(true);
     return {};
@@ -1267,6 +1390,113 @@ result<void> studio::reopen(endpoint_id id)
     return hand_over(id, found, std::move(fresh));
 }
 
+result<void> studio::set_address(endpoint_id id, const std::string& uri,
+                                 bool keep_trying)
+{
+    VSS_PROFILE_ZONE("studio.set_address");
+    port_record record;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return make_error_code(errc::not_found);
+        record = it->second;
+    }
+    const auto found = hub_->find_endpoint(id);
+    if (!found)
+        return make_error_code(errc::not_found);
+
+    const auto is_network = [](const std::string& address)
+    {
+        const auto kind = classify_uri(address);
+        return kind &&
+               (*kind == endpoint_kind::tcp || *kind == endpoint_kind::udp ||
+                *kind == endpoint_kind::rfc2217);
+    };
+    if (record.uri.empty() || !is_network(record.uri))
+        return make_error_code(errc::unsupported);
+    if (!is_network(uri))
+        return make_error_code(errc::invalid_uri);
+    const auto kind = classify_uri(uri);
+    if (const auto taken = check_listen_free(uri, id); !taken)
+        return taken.error();
+
+    // A listener holds its address until it is closed, and the new one may
+    // want the same address, so the old one goes first.
+    const bool was_listening = is_listen_uri(record.uri);
+    if (was_listening)
+    {
+        auto closed = std::make_shared<std::promise<void>>();
+        auto done = closed->get_future();
+        found->shutdown([closed] { closed->set_value(); });
+        done.wait();
+    }
+
+    const serial_settings* settings =
+        record.settings_given ? &record.serial : nullptr;
+    boost::system::error_code ec;
+    std::shared_ptr<transport> fresh = open_address(uri, settings, ec);
+    bool waiting = false;
+    if (ec && keep_trying && !is_listen_uri(uri) &&
+        (*kind == endpoint_kind::tcp || *kind == endpoint_kind::rfc2217))
+    {
+        fresh = std::make_shared<waiting_transport>(hub_->executor(), uri);
+        waiting = true;
+        ec = {};
+    }
+    if (ec || !fresh)
+    {
+        // Put back what was there, when it was closed to make room.
+        if (was_listening)
+        {
+            boost::system::error_code ignored;
+            if (auto back = open_address(record.uri, settings, ignored))
+                static_cast<void>(hand_over(id, found, std::move(back)));
+        }
+        return ec ? ec : make_error_code(errc::internal);
+    }
+    const std::string path = fresh->public_path();
+    // A port that waits stops at once, as the endpoint starts, and says so.
+    if (const auto handed = hand_over(id, found, std::move(fresh));
+        !handed && !waiting)
+        return handed;
+
+    port_record changed;
+    {
+        std::lock_guard lock(record_mutex_);
+        const auto it = records_.find(id);
+        if (it == records_.end())
+            return {};
+        claimed_paths_.erase(it->second.target);
+        claimed_paths_.erase(it->second.advertised);
+        it->second.uri = uri;
+        it->second.kind = to_string(*kind);
+        it->second.target = path;
+        it->second.advertised = path;
+        if (!path.empty())
+            claimed_paths_.insert(path);
+        changed = it->second;
+    }
+    if (reconnector_)
+    {
+        if (reconnects(changed))
+            reconnector_->allow(id);
+        else
+            reconnector_->disallow(id);
+        if (waiting)
+        {
+            if (!reconnector_->policy().enabled)
+            {
+                reconnect_policy policy;
+                policy.enabled = true;
+                reconnector_->set_policy(policy);
+            }
+            reconnector_->lost(id);
+        }
+    }
+    return {};
+}
+
 result<void> studio::reconnect_attempt(endpoint_id id)
 {
     VSS_PROFILE_ZONE("studio.reconnect_attempt");
@@ -1486,11 +1716,13 @@ void studio::forget_plugins_of_removed_links()
     // no call into the hub is made while the records are locked.
     const auto links = hub_->links();
     std::lock_guard lock(record_mutex_);
-    std::erase_if(link_plugins_, [&links](const auto& kept) {
-        return std::ranges::none_of(links, [&kept](const link_info& link) {
-            return link.id == kept.first;
-        });
-    });
+    std::erase_if(link_plugins_,
+                  [&links](const auto& kept)
+                  {
+                      return std::ranges::none_of(
+                          links, [&kept](const link_info& link)
+                          { return link.id == kept.first; });
+                  });
 }
 
 result<void> studio::add_target(link_id id, std::string_view target)
@@ -1617,6 +1849,55 @@ result<link_id> studio::join_ports(const std::vector<std::string>& source_uris,
         return target.error();
 
     return join(sources, (*target)->name());
+}
+
+result<studio::network_attachment>
+studio::attach_network(endpoint_id existing, const std::string& name,
+                       const std::string& uri, bool keep_trying)
+{
+    VSS_PROFILE_ZONE("studio.attach_network");
+    network_attachment out;
+    if (existing == 0)
+    {
+        auto made = create_auto_virtual_port(name, default_options());
+        if (!made)
+            return made.error();
+        existing = (*made)->id();
+        out.created = existing;
+    }
+    else if (!hub_->find_endpoint(existing))
+    {
+        return make_error_code(errc::not_found);
+    }
+    const auto undo = [this, &out]
+    {
+        if (out.created != 0)
+            static_cast<void>(remove_port(out.created));
+    };
+
+    auto added = attach_serial(name, uri);
+    if (!added && keep_trying && added.error() != errc::invalid_uri &&
+        added.error() != boost::system::errc::address_in_use)
+    {
+        added = attach_waiting(name, uri);
+        out.waiting = static_cast<bool>(added);
+    }
+    if (!added)
+    {
+        undo();
+        return added.error();
+    }
+    out.port = (*added)->id();
+
+    const auto link = hub_->connect(existing, out.port);
+    if (!link)
+    {
+        static_cast<void>(remove_port(out.port));
+        undo();
+        return link.error();
+    }
+    out.link = *link;
+    return out;
 }
 
 result<link_id> studio::bridge(const std::string& from_uri,
@@ -1928,9 +2209,9 @@ result<void> studio::replace(const config::document& value)
         }
         auto made =
             removed_at.has_value()
-                ? retry_while_number_busy(
-                      [&] { return make_port(entry); }, *removed_at,
-                      options_.com_number_step, options_.com_number_wait)
+                ? retry_while_number_busy([&] { return make_port(entry); },
+                                          *removed_at, options_.com_number_step,
+                                          options_.com_number_wait)
                 : make_port(entry);
         if (made && numbered)
             freed.erase(entry.com_number);

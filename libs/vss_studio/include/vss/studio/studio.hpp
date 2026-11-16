@@ -150,6 +150,12 @@ struct studio_options
     std::chrono::milliseconds com_number_step{500};
 };
 
+/// True when two listening addresses would collide: the same port number on
+/// the same kind of socket (TCP and RFC 2217 share one, UDP is the other) and
+/// addresses that overlap (equal, or either is every interface).  False when
+/// either is not a listening address.
+bool listen_uris_overlap(const std::string& first, const std::string& second);
+
 /// The application service shared by the command line tool and the GUI.
 ///
 /// A studio owns a #hub, remembers where every endpoint came from (so the
@@ -186,7 +192,8 @@ public:
     result<std::shared_ptr<endpoint>>
     create_virtual_port(const std::string& name,
                         virtual_port_kind kind = virtual_port_kind::pty,
-                        const endpoint_options& options = {}, unsigned com_number = 0);
+                        const endpoint_options& options = {},
+                        unsigned com_number = 0);
 
     /// Gives a port of the Windows driver a different COM number, as Device
     /// Manager's Advanced > COM Port Number does, and returns the new COM name.
@@ -195,6 +202,18 @@ public:
     /// the port was given, and `snapshot()` saves it.  `errc::not_found` for an
     /// unknown port and `errc::unsupported` for a port the driver did not make.
     result<std::string> set_com_number(endpoint_id id, unsigned com_number);
+
+    /// Says whether `uri` could be opened as a listening port now.  A port
+    /// that listens on the same port number as one the studio already holds,
+    /// on the same kind of socket (TCP and RFC 2217 share one, UDP is the
+    /// other) and an address that overlaps it (the same address, or either one
+    /// is "every interface"), is refused with the system's "address already in
+    /// use" value, and so is a bind another program holds when `probe` is
+    /// true.  `ignore` is a port to leave out, for the port being edited.  An
+    /// address that does not listen is always free.
+    result<void> check_listen_free(const std::string& uri,
+                                   endpoint_id ignore = 0,
+                                   bool probe = false) const;
 
     /// Attaches a real serial port or a network backend from a URI.
     result<std::shared_ptr<endpoint>>
@@ -205,6 +224,30 @@ public:
     attach_serial(const std::string& name, const std::string& uri,
                   const serial_settings& settings,
                   endpoint_options options = {});
+
+    /// Makes a client port (`tcp://` or `rfc2217://`) for a remote end that
+    /// refused the connection, or cannot be reached yet.  The port is made
+    /// without connecting and stops at once, as a lost connection does, and
+    /// the reconnector connects it when the remote end answers.  The policy is
+    /// turned on, with its defaults, when it is off.  `errc::invalid_uri` for
+    /// an address that does not connect out.
+    result<std::shared_ptr<endpoint>>
+    attach_waiting(const std::string& name, const std::string& uri,
+                   const serial_settings& settings = {});
+
+    /// Changes what a network port is: server or client, its address, bind
+    /// port, allow list and every other part of the address.  The port keeps
+    /// its id, its name and its links; its connection is made again from
+    /// `uri`.  A listener lets go of its address first, so a change that keeps
+    /// the address works, and is listening on the old one again when the new
+    /// one cannot be opened.  An address another port listens on is refused
+    /// (`check_listen_free`).  With `keep_trying`, a client whose remote end
+    /// refuses is left waiting, as `attach_waiting` makes it.
+    /// `errc::unsupported` for a port that is not a network port,
+    /// `errc::invalid_uri` for an address that is not one, `errc::not_found`
+    /// for an unknown port.
+    result<void> set_address(endpoint_id id, const std::string& uri,
+                             bool keep_trying = false);
 
     /// Creates a scriptable in-memory device.
     result<std::shared_ptr<endpoint>>
@@ -271,10 +314,10 @@ public:
     /// sets already or the set would take their compiled sizes past
     /// `rules::max_hub_bytes`.  `problems`, when given, says what was
     /// refused and where.
-    result<rules_installation> install_rules(
-        std::shared_ptr<const rules::compiled_rule_set> set,
-        const rules_install_options& options = {},
-        std::vector<rules::problem>* problems = nullptr);
+    result<rules_installation>
+    install_rules(std::shared_ptr<const rules::compiled_rule_set> set,
+                  const rules_install_options& options = {},
+                  std::vector<rules::problem>* problems = nullptr);
 
     /// Puts a new rule set in the place of the one its port has, without
     /// missing or repeating a byte of what the port reads.  The new set is
@@ -290,10 +333,10 @@ public:
     /// `errc::not_found` for a port with no set, or no port of that name;
     /// `errc::queue_full` when the new set would take the compiled sizes
     /// past `rules::max_hub_bytes`; otherwise as `install_rules`.
-    result<rules_installation> replace_rules(
-        std::shared_ptr<const rules::compiled_rule_set> set,
-        const rules_replace_options& options = {},
-        std::vector<rules::problem>* problems = nullptr);
+    result<rules_installation>
+    replace_rules(std::shared_ptr<const rules::compiled_rule_set> set,
+                  const rules_replace_options& options = {},
+                  std::vector<rules::problem>* problems = nullptr);
 
     /// Removes the rule set of a port.  What it had scheduled is discarded,
     /// and when the call returns the set does nothing more: an action that
@@ -522,6 +565,35 @@ public:
     result<link_id> join_ports(const std::vector<std::string>& source_uris,
                                const std::string& target_uri);
 
+    struct network_attachment
+    {
+        endpoint_id port = 0;
+        link_id link = 0;
+        /// The remote end refused and the port waits for it.
+        bool waiting = false;
+        /// The port that was made for the network port to link to, when none
+        /// was given, or 0.
+        endpoint_id created = 0;
+
+        friend bool operator==(const network_attachment&,
+                               const network_attachment&) = default;
+    };
+
+    /// Puts a network port (a server, or a client of another computer) beside
+    /// a port that is already there and links the two, two-way.  The port
+    /// that is already there is used as it is; it is never opened again by
+    /// address.  Either both are made or nothing is: a failure removes the
+    /// network port.  An address that another port listens on is refused by
+    /// `check_listen_free`.  With `keep_trying`, a client whose remote end
+    /// refuses is made as `attach_waiting` makes it.  `errc::not_found` for
+    /// an unknown port.  With 0 for `existing` a Studio port is made first
+    /// (named `name`, the best virtual port the system has) for the network
+    /// port to link to, and goes again with the rest on a failure.
+    result<network_attachment> attach_network(endpoint_id existing,
+                                              const std::string& name,
+                                              const std::string& uri,
+                                              bool keep_trying = false);
+
     /// Connects two endpoints named by URI and returns the link.
     result<link_id> bridge(const std::string& from_uri,
                            const std::string& to_uri);
@@ -667,7 +739,8 @@ private:
                   const endpoint_options& options);
 
     result<std::shared_ptr<endpoint>>
-    create_auto_virtual_port(const std::string& name, const endpoint_options& options,
+    create_auto_virtual_port(const std::string& name,
+                             const endpoint_options& options,
                              unsigned com_number = 0);
 
     /// Makes the stable link for a new pseudo terminal when the options ask

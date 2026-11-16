@@ -1,0 +1,1 @@
+**Putting a network port on a port that is in Studio now links the two instead of opening the device again.** On Windows a Studio port such as COM134 gave "Access is denied" and left a second device beside it. The network port is now made and linked to the port you chose, or to a new Studio port, and a failure removes everything it made.
