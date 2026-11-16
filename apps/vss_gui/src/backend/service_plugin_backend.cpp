@@ -232,7 +232,7 @@ void ServicePluginBackend::load_instances()
         kept_instances kept;
         kept.next = static_cast<std::uint64_t>(
             std::max(1.0, one.value(QStringLiteral("next")).toDouble(1)));
-        for (const QJsonValue& value :
+        for (const QJsonValue value :
              one.value(QStringLiteral("list")).toArray())
         {
             const QJsonObject item = value.toObject();
@@ -409,8 +409,9 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
     }
     handlers.push_back(host::make_secret_point(
         context,
-        [this](host::secret_to_show secret, std::function<void(bool)> done)
-        { ask_secret(std::move(secret), std::move(done)); }));
+        [this](const host::secret_to_show& secret,
+               std::function<void(bool)> done)
+        { ask_secret(secret, std::move(done)); }));
     handlers.push_back(host::make_control_point(
         context,
         [this](const host::control_approval_request& request,
@@ -419,7 +420,7 @@ ServicePluginBackend::make_handlers(const host::extension_context& context)
     return handlers;
 }
 
-void ServicePluginBackend::ask_secret(host::secret_to_show secret,
+void ServicePluginBackend::ask_secret(const host::secret_to_show& secret,
                                       std::function<void(bool)> done)
 {
     const quint64 id = next_prompt_.fetch_add(1);

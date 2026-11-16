@@ -130,7 +130,7 @@ private:
     void process_removals();
     std::vector<std::unique_ptr<vss::plugin::host::extension_handler>>
     make_handlers(const vss::plugin::host::extension_context& context);
-    void ask_secret(vss::plugin::host::secret_to_show secret,
+    void ask_secret(const vss::plugin::host::secret_to_show& secret,
                     std::function<void(bool)> done);
     void ask_control(const vss::plugin::host::control_approval_request& request,
                      std::function<void(bool)> done);
