@@ -309,8 +309,8 @@ public:
 
     void plugin_gone() override
     {
-        for (auto& [instance, run] : runs_)
-            finish(run, "the plugin stopped", false);
+        for (auto& entry : runs_)
+            finish(entry.second, "the plugin stopped", false);
         runs_.clear();
         failed_.clear();
     }
