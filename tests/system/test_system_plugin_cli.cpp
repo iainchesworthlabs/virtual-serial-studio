@@ -413,7 +413,7 @@ TEST_CASE("plugin cli: a root that cannot be looked through is reported")
                              "through: ", 0);
     REQUIRE(problem.has_value());
     REQUIRE_EQ(lines.back(),
-               std::string("1 plugin found. This build does not run plugins."));
+               std::string("1 plugin found."));
 
     const cli_result as_json =
         run_cli({"list", "--json", "--root", file.string(), "--root",
@@ -602,7 +602,7 @@ TEST_CASE("plugin cli: verify says what the checks found and exits 0 for a "
     REQUIRE(has_line(lines, "  Install:      can be installed"));
     const auto may_run = line_starting(lines, "  May run:      no, ", 0);
     REQUIRE(may_run.has_value());
-    REQUIRE_EQ(lines.back(), std::string("This build does not run plugins."));
+    REQUIRE(!has_line(lines, "This build does not run plugins."));
 
     const cli_result as_json =
         run_cli({"verify", "--json", "--allow-unsigned", folder.string()});
@@ -720,7 +720,7 @@ TEST_CASE("plugin cli: an installed plugin is listed with its verdict")
                                 shown(root / "com.example.signed")));
     REQUIRE(has_line(lines, "  Trust:        Signed by an author you have "
                             "not approved"));
-    REQUIRE_EQ(lines.back(), std::string("This build does not run plugins."));
+    REQUIRE(!has_line(lines, "This build does not run plugins."));
     REQUIRE_EQ(read_file(root / "com.example.signed" / "bin" / "prog"),
                std::string("program bytes"));
     REQUIRE_EQ(names_in(root).size(), std::size_t{1});

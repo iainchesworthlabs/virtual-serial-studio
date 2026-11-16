@@ -195,6 +195,32 @@ The items of `decoder.data` are objects with a text `item` that is one of these.
 | `time` | `t_ns` |
 | `lost` | `place`; `direction`; `from_offset`; `bytes` (1 or more); `from_ns`; `to_ns` (not before `from_ns`) |
 
+## Control sessions
+
+Design: 7.7, and `docs/remote-control.md` for the gateway's own protocol. A plugin never holds a token for the control
+gateway and never opens a connection to it. It asks the host for a session; the owner is asked in Studio and must allow
+it each time; the host then makes a token that lasts 24 hours, speaks to the gateway itself and passes frames both ways
+unchanged. `admin` is never given. A plugin that has a session must keep reading: a plugin that lets more than 4 MiB wait
+is ended.
+
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `control.session.request` | plugin | request | `control.session.opened` | `scopes` (list of 1 to 16 scope names of the control API, each 1 to 64 bytes, never `admin`); `peer` (optional: who the plugin says is behind the session, text of 0 to 64 bytes, shown to the owner as the plugin's claim); `reason` (optional: text of 0 to 256 bytes, shown as the plugin's own words). One request at a time and at most 4 sessions. Errors: `bad_request`; `not_granted` (the owner refused, `admin` was asked for, or the program has nobody to ask); `busy`; `plugin_unavailable` (no gateway runs, or it did not answer in time) | 7.7 |
+| `control.session.opened` | host | answer | none | `session` (1 or more: names the session from here on); `scopes` (the scopes the session has); `expires_ms` (when it ends, in milliseconds since 1970-01-01 UTC) | 7.7 |
+| `control.frame` | plugin | notification | none | `session`; `frame` (one request header of the gateway's protocol as a JSON object, with the plugin's own `id`); the request's bytes in the blob. A frame that says `hello`, that is not a header of the gateway or that is for a session that is not open ends the session | 7.7 |
+| `control.frame` | host | notification | none | `session`; `frame` (one reply or event batch of the gateway, unchanged); the gateway frame's bytes in the blob | 7.7 |
+| `control.session.close` | plugin | notification | none | `session` | 7.7 |
+| `control.session.closed` | host | notification | none | `session`; `code` (`revoked`, `expired`, `gateway_closed`, `refused_frame` or `host_stopped`); `reason` (one plain line for a log, at most 256 bytes). A plugin acts on the code and never on the words | 7.7 |
+
+## Secrets shown to the user
+
+A plugin has no window, and its status text and log lines are kept, so a secret such as a pairing code must never
+travel in them. The plugin hands the secret to the host, which shows it once in a dialog of its own and keeps it nowhere.
+
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `secret.show` | plugin | request | `ok` | `label` (what the secret is, plain text of 1 to 64 bytes, such as `Pairing code`); `text` (the secret: 1 to 512 printable characters of ASCII, space to tilde); `expires_s` (how long it is good for, 1 to 3600). Answered `ok` when the user has seen it. Errors: `bad_request`; `not_granted` (the user closed it without looking, or the program cannot show it); `busy` (one at a time for each plugin) | 7.7 |
+
 ## Engine capabilities
 
 `hello_ack.capabilities` lists, by name, what this build of the engine can do. A plugin checks the list for what it
