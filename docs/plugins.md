@@ -27,7 +27,7 @@ what discovery finds.
 | Looking at a plugin folder, installing and removing a plugin | `install.cpp` | `vss_cli plugin verify`, `install` and `remove` |
 | The licence question for an official plugin | `licence.cpp` | Tests only |
 | The messages `hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok` and `error` | `protocol.cpp` | The tests and a fuzz target |
-| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
+| The messages of the extension points (instances and parameters, generators, fixtures and rules, modifiers, adapters, capture, bundle sections, decoders and triggers, and the licence file) | `api_*.cpp`, listed in [the API reference](plugin-api-reference.md) | The tests and a fuzz target |
 | The session with one plugin: who speaks first, the time limits, the size limits | `session.cpp` | Tests only |
 | The restart and quarantine rules | `lifecycle.cpp` | Tests only |
 
@@ -1091,6 +1091,10 @@ Points taken from that page, so the two stay in step:
 - **The version window** (`updates_until`) needs a release date in the signed manifest. The manifest gains an
   optional `released` date for it (section 13).
 - A third-party or unsigned plugin is never asked about a licence.
+- **The plugin gets the file through the host.** With the permission `licence.read` and the engine capability
+  `licence.file`, a plugin sends `licence.get` and is answered with `licence.file`; it tells the host what it found
+  with `licence.report`. The host does not act on the report. [The plugin API reference](plugin-api-reference.md)
+  has the members and limits.
 
 ### 8.8 The verifier's interface
 
@@ -1297,6 +1301,7 @@ name and, for some, a scope.
 | `fs.read` / `fs.write` | Read/write below a named directory chosen by the user (a parameter of type `path`) | Scoped; never `/` or a drive |
 | `data.private` | Read and write its own data directory | Always granted |
 | `bundle.section` | Add a section to a support bundle | The user sees the section, its preview and its tick box in Studio's own dialog (section 19) |
+| `licence.read` | Read the licence file of this computer | May read your licence file, which holds your name. The host sends the file and the plugin checks it with the licence library (section 8.7) |
 | `net.listen` | Listen on a declared address and port | Loopback unless stated; shown |
 | `net.outbound` | Connect to declared hosts | Shown. Not granted by default. A plugin never uses Studio's own connection, which is the update check only, and the policy can deny |
 | `process.spawn` | Start child programs | Child processes are inside the same sandbox and job |

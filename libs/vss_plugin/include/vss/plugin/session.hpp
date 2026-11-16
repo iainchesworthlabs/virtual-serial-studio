@@ -59,7 +59,7 @@ struct session_options
     /// with.
     api_range accepted;
     /// The lowest and highest version this host speaks.
-    api_version host_lowest = plugin_api_version;
+    api_version host_lowest = plugin_api_lowest;
     api_version host_highest = plugin_api_version;
     /// What the host tells the plugin once "hello" is accepted.  The
     /// session fills in the version; `limits` in it are the limits the

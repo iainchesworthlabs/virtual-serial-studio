@@ -10,6 +10,7 @@
 #include <vss/plugin/api_fixture.hpp>
 #include <vss/plugin/api_generator.hpp>
 #include <vss/plugin/api_instance.hpp>
+#include <vss/plugin/api_licence.hpp>
 #include <vss/plugin/api_message.hpp>
 #include <vss/plugin/api_modifier.hpp>
 
@@ -64,7 +65,9 @@ constexpr std::array ops{
     entry<bundle_prepare_message>(),    entry<bundle_result_message>(),
     entry<decoder_create_message>(),    entry<decoder_data_message>(),
     entry<decoder_ack_message>(),       entry<decoder_frame_message>(),
-    entry<trigger_publish_message>(),   entry<decoder_stop_message>()};
+    entry<trigger_publish_message>(),   entry<decoder_stop_message>(),
+    entry<licence_get_message>(),       entry<licence_file_message>(),
+    entry<licence_report_message>()};
 
 } // namespace
 

@@ -191,7 +191,8 @@ enum class permission
     net_listen,
     net_outbound,
     process_spawn,
-    bundle_section
+    bundle_section,
+    licence_read
 };
 
 /// The name a manifest uses, such as `traffic.tap`.

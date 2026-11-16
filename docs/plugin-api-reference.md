@@ -6,6 +6,9 @@ people who write plugins. [The plugin framework design](plugins.md) says why; th
 wire. The definition in code is `libs/vss_plugin/include/vss/plugin/api_*.hpp`, and a test checks that every message
 of the code has a row here. Where this page and the code differ, the code is right and this page has a mistake.
 
+The API version is 1.1. Version 1.1 added the three messages of the section "Licence" and the permission `licence.read`;
+a plugin that needs them writes `"min": "1.1"` in its manifest.
+
 The messages every plugin uses (`hello`, `hello_ack`, `ping`, `pong`, `status`, `log`, `shutdown`, `bye`, `ok`, `error`)
 are in `protocol.hpp` and in section 7.3 of the design, and are not repeated here. Nothing in Studio sends or receives
 the messages on this page yet.
@@ -195,6 +198,25 @@ The items of `decoder.data` are objects with a text `item` that is one of these.
 | `time` | `t_ns` |
 | `lost` | `place`; `direction`; `from_offset`; `bytes` (1 or more); `from_ns`; `to_ns` (not before `from_ns`) |
 
+## Licence
+
+Design: `plugins.md` 8.7 and `licensing.md`. An official plugin checks the licence itself and never takes the host's
+word, so the host hands it the bytes of the licence file and the plugin tells the host what it found. These messages need
+the permission `licence.read` and the engine capability `licence.file`. A plugin that does not have the permission is
+answered with the `error` value `not_granted`; a plugin that is not official is not given it. A host that names the
+capability never answers `unsupported`. Added in version 1.1 of the API.
+
+| Message (op) | From | Kind | Answered by | Members (type, limit) | Design section |
+|---|---|---|---|---|---|
+| `licence.get` | plugin | request | `licence.file` | none; no blob | 8.7 |
+| `licence.file` | host | answer | none | `present` (true or false, required); the bytes of the licence file, exactly as on disk, in the blob: 1 to 65536 bytes when `present` is true, none when it is false | 8.7 |
+| `licence.report` | plugin | notification | none | `reason` (required: `ok`, `no_licence`, `expired`, `not_yet_valid`, `clock_suspect`, `malformed`, `newer_version`, `bad_signature`, `revoked`, `wrong_computer` or `not_in_licence`, the reasons of the licence library); optional `licence_id` (plain text of 1 to 64 bytes) | 8.7 |
+
+**What a plugin may assume of the bytes: nothing.** They are untrusted until the plugin has verified them with the
+licence library. The host does not judge them for the plugin. The plugin sends a reason by its name and no text of its
+own, and Studio shows its own sentence for the reason. The host does not act on a report: it asked its own question
+(section 8.7), and a report changes nothing in it.
+
 ## Engine capabilities
 
 `hello_ack.capabilities` lists, by name, what this build of the engine can do. A plugin checks the list for what it
@@ -209,6 +231,7 @@ whose value is `unsupported`. These are the names:
 | `route_hook` | The engine has the stage on a route that a modifier uses | 7.6 |
 | `events_bus_fault_detail` | A bus fault event has its value, link and time | 20.4 |
 | `timeline` | The engine plays a recording as a timeline (`timeline.load`) | 19.4 |
+| `licence.file` | The host sends the licence file to a plugin that has the permission `licence.read` (`licence.get`) | 8.7 |
 
 `timeline` is not offered in release candidate 6. `timeline.load` is answered with an `error` whose value is
 `unsupported`, and a plugin that replays a recording checks for the capability and shows that it cannot.
