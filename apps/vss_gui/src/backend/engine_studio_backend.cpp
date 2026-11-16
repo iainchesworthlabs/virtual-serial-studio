@@ -280,6 +280,9 @@ capabilities EngineStudioBackend::caps() const
     // `udp-listen://` and `rfc2217-listen://`), which
     // `vss::studio::attach_serial` opens.
     caps.network_server = true;
+    // `vss::studio::set_address` and `attach_waiting`.
+    caps.network_edit = true;
+    caps.network_waiting = true;
     // `vss::run_benchmark` is the core `vss_cli bench` uses, shared with the
     // GUI.
     caps.benchmark = true;
@@ -453,9 +456,9 @@ EngineStudioBackend::create_port_with_com_number(
     // a number it has never had takes Windows about 30 seconds to install.  So
     // a port gets a number it had before: first one this window freed a moment
     // ago, waiting for Windows to finish removing it (about 45 seconds), so
-    // deleting COM17 and making a port again gives COM17; then the lowest kept number the driver
-    // accepts.  Another device's number is refused in about a tenth of a
-    // second.  This runs off the GUI thread.
+    // deleting COM17 and making a port again gives COM17; then the lowest kept
+    // number the driver accepts.  Another device's number is refused in about a
+    // tenth of a second.  This runs off the GUI thread.
     using clock = std::chrono::steady_clock;
     constexpr auto kRemovalWait = vss::com_number_removal_wait;
     std::map<unsigned, clock::time_point> recent;
@@ -1100,6 +1103,40 @@ vss::result<vss::link_id> EngineStudioBackend::bridge(const QString& from_uri,
         return linked.error();
     rebuild();
     return *linked;
+}
+
+vss::result<network_attach_view>
+EngineStudioBackend::attach_network(vss::endpoint_id existing,
+                                    const QString& name, const QString& uri,
+                                    bool keep_trying)
+{
+    const auto made = studio_.attach_network(existing, name.toStdString(),
+                                             uri.toStdString(), keep_trying);
+    if (!made)
+        return made.error();
+    rebuild();
+    network_attach_view view;
+    view.port = made->port;
+    view.link = made->link;
+    view.waiting = made->waiting;
+    view.created = made->created;
+    return view;
+}
+
+vss::result<void> EngineStudioBackend::set_network_address(vss::endpoint_id id,
+                                                           const QString& uri,
+                                                           bool keep_trying)
+{
+    const auto changed =
+        studio_.set_address(id, uri.toStdString(), keep_trying);
+    rebuild();
+    return changed;
+}
+
+vss::result<void> EngineStudioBackend::check_listen_free(
+    const QString& uri, vss::endpoint_id ignore, bool probe) const
+{
+    return studio_.check_listen_free(uri.toStdString(), ignore, probe);
 }
 
 vss::result<void> EngineStudioBackend::create_com0com_pair()

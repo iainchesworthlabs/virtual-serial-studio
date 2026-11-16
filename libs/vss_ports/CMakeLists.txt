@@ -9,6 +9,7 @@ add_library(vss_ports
   src/driver_setup.cpp
   src/listen_transport.cpp
   src/loopback_transport.cpp
+  src/waiting_transport.cpp
   src/native_lines.cpp
   src/peer_open.cpp
   src/permissions.cpp

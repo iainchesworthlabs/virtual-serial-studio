@@ -262,6 +262,15 @@ Q_SIGNALS:
                                  vss::endpoint_id hub,
                                  vss::gui::canvas_item shape);
     void selection_changed(int count);
+    /// A port is put on a bus that is there already, from a line drawn to one
+    /// of its members or the menu of a port.
+    void bus_extend_requested(vss::endpoint_id port, vss::link_id bus);
+    /// "Make a bus with...": the Connect dialog on Shared bus, this port
+    /// ticked.
+    void bus_with_requested(vss::endpoint_id port);
+    /// A network port beside this port: a server that other computers connect
+    /// to, or a client that connects to a server.
+    void network_requested(vss::endpoint_id port, bool server);
 
 protected:
     bool event(QEvent* event) override;
@@ -385,7 +394,8 @@ private:
     bool dragging_ = false;
     bool fitting_ = false;
     bool internal_scroll_ = false;
-    bool resizing_ = false;    /// The scene point at the centre of the view, as the user last left it.
+    bool resizing_ = false; /// The scene point at the centre of the view, as
+                            /// the user last left it.
     QPointF view_centre_;
 
     QVector<vss::link_id> loop_links_;

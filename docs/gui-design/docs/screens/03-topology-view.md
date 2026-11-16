@@ -29,6 +29,20 @@ The view is either automatic or manual. It is automatic when it opens and after 
 Why: re-fitting on every resize is what people expect until they have taken control, and it is wrong after, because it throws away the zoom and position they chose.
 - Nothing may require dragging: the arrow keys move a node, and every link can be made in the Connect ports dialog.
 
+## One line format for a connected set
+The owner set a port to 9600 and the fixture or bus member added next to it came up at 115200. The ports that are connected carry the same bytes, so they should run at one baud rate, data bits, parity and stop bits, and Studio should help keep it so. The engine has no field for this on a link and the JSON schema does not need one: each port keeps its own settings, and the GUI keeps them in step.
+
+Options considered:
+- **A. Neighbours default to each other, and one change goes to the whole set (chosen).** A new port, fixture or loopback that is made already linked to a port runs at that port's settings, and Port Settings can apply the new settings to every port connected to this one. Mismatches already show on the ports ("Differs from X in baud rate or framing", `08-engine-gaps.md`) and stay a warning. No schema change, saved setups open as before, and a mismatch stays possible because testing a mismatch is a real use.
+- B. A canonical format stored on the link (a schema field). Every member would be forced to it. It changes saved setup files and cannot say anything for a TCP pipe or a program that sets its own speed, so it is not done.
+- C. Refuse a link between ports that differ. It would stop users from testing a baud mismatch on purpose, and it cannot work for ports that do not know their speed.
+
+What A does:
+- **Connected set.** The ports reached from a port over links that carry its data: two-way, one-way, split, join and bus, followed as far as they go, not through a monitor link (a monitor's copy has no speed of its own). Only ports with a line format are counted: a real device, an RFC 2217 client, a Studio port, a loopback and a fixture. A TCP or UDP pipe and a listener have none and are left out, as `running_format` leaves them out.
+- **New members inherit.** Adding a bundle (Pair, Split, Join, Bus, Bench, Switch) from the Add sheet or Link selected, with an existing port in it, makes the new ports and fixtures with the first existing port's settings, unless the request chose its own. The Add a mock fixture dialog opens with the baud rate of the port it is added to. The settings chosen in the sheet still win.
+- **Set once for the set.** Port Settings of a port that has linked ports shows a check box "Use these settings for the N port(s) linked to this one". It is on when the set agrees now, so it stays one line, and off when the set differs, so nothing is changed that was not asked for. Applying with it on gives every port of the set the same settings; the undo step restores each port's own.
+- **Mismatch.** Shown as before on the ports and the inspector. It is a warning, never a refusal, with one plain sentence, "Differs from <port> in baud rate or framing", and Port Settings is how it is fixed in one step.
+
 ## Accessibility
 `QGraphicsItem` content is not exposed to screen readers by default. Required: set the view's accessible name "Topology" and accessible description to a generated summary, for example "4 ports, 1 link: split from device to terminal, test-tool and logger". Give each node a `QAccessibleInterface` if practical. In any case the Ports dock plus an optional "Links" list (View, Show links as a list) must expose every port and link with names, roles and states, so the topology is never the only way to read or change the setup.
 

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 
+#include <boost/system/errc.hpp>
 #include <vss/ports/loopback_transport.hpp>
 #include <vss/ports/vcom_driver.hpp>
 #include <vss/studio/studio.hpp>
@@ -13,6 +14,8 @@
 #include "test_framework.hpp"
 
 #include <algorithm>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/ip/tcp.hpp>
 #include <chrono>
 #include <map>
 #include <optional>
@@ -345,13 +348,15 @@ TEST_CASE(
     serial_settings settings;
     settings.baud_rate = 19200;
     REQUIRE(app.reconfigure_port(id, settings));
-    REQUIRE_EQ(vss_test::require_value(app.port_settings(id)).baud_rate, 19200u);
+    REQUIRE_EQ(vss_test::require_value(app.port_settings(id)).baud_rate,
+               19200u);
 
     serial_settings bad;
     bad.data_bits = 3;
     REQUIRE_EQ(app.reconfigure_port(id, bad),
                make_error_code(errc::invalid_argument));
-    REQUIRE_EQ(vss_test::require_value(app.port_settings(id)).baud_rate, 19200u);
+    REQUIRE_EQ(vss_test::require_value(app.port_settings(id)).baud_rate,
+               19200u);
     REQUIRE_EQ(app.reconfigure_port(endpoint_id{4242}, settings),
                make_error_code(errc::not_found));
     REQUIRE(!app.port_settings(endpoint_id{4242}).has_value());
@@ -1167,8 +1172,8 @@ config::document setup_with_plugins()
     config::plugin_binding modifier =
         binding("com.example.noise", "modifier", "flip");
     modifier.on_timeout = "fail_closed";
-    redirect.plugins = {
-        modifier, binding("com.example.second", "modifier", "drop")};
+    redirect.plugins = {modifier,
+                        binding("com.example.second", "modifier", "drop")};
     document.links.push_back(redirect);
 
     config::link_entry bus;
@@ -1183,8 +1188,8 @@ config::document setup_with_plugins()
 const config::port_entry& port_named(const config::document& document,
                                      std::string_view name)
 {
-    const auto found = std::ranges::find(document.ports, name,
-                                         &config::port_entry::name);
+    const auto found =
+        std::ranges::find(document.ports, name, &config::port_entry::name);
     REQUIRE(found != document.ports.end());
     return *found;
 }
@@ -1192,8 +1197,8 @@ const config::port_entry& port_named(const config::document& document,
 const config::link_entry& link_of_mode(const config::document& document,
                                        std::string_view mode)
 {
-    const auto found = std::ranges::find(document.links, mode,
-                                         &config::link_entry::mode);
+    const auto found =
+        std::ranges::find(document.links, mode, &config::link_entry::mode);
     REQUIRE(found != document.links.end());
     return *found;
 }
@@ -1224,8 +1229,7 @@ TEST_CASE("studio: plugin bindings pass through apply and snapshot")
     REQUIRE(text.has_value());
     const auto reread = config::from_json(*text);
     REQUIRE(reread.has_value());
-    REQUIRE(port_named(*reread, "left").plugins ==
-            document.ports[0].plugins);
+    REQUIRE(port_named(*reread, "left").plugins == document.ports[0].plugins);
 
     studio second;
     REQUIRE(second.apply(*reread));
@@ -1807,6 +1811,160 @@ TEST_CASE("studio: a snapshot passes validation for a port that holds a uri")
         REQUIRE(!saved.ports[0].uri.empty());
         REQUIRE(!config::validate(saved));
     }
+}
+
+/// A port number that is free now, found by asking the system.
+std::string free_port_text()
+{
+    static std::vector<unsigned short> given;
+    for (;;)
+    {
+        boost::asio::io_context io;
+        boost::asio::ip::tcp::acceptor acceptor(
+            io, boost::asio::ip::tcp::endpoint(
+                    boost::asio::ip::make_address("127.0.0.1"), 0));
+        const unsigned short port = acceptor.local_endpoint().port();
+        if (std::find(given.begin(), given.end(), port) == given.end())
+        {
+            given.push_back(port);
+            return std::to_string(port);
+        }
+    }
+}
+
+TEST_CASE("studio: two listening ports cannot share an address and a port")
+{
+    const std::string port_47811 = free_port_text();
+    const std::string port_47812 = free_port_text();
+    studio app;
+    const auto first =
+        app.attach_serial("one", "tcp-listen://127.0.0.1:" + port_47811);
+    REQUIRE(first);
+    const std::size_t before = app.endpoint_infos().size();
+
+    // TCP and RFC 2217 are one kind of socket, so the same port is refused.
+    const auto second =
+        app.attach_serial("two", "rfc2217-listen://127.0.0.1:" + port_47811);
+    REQUIRE(!second);
+    REQUIRE_EQ(second.error(), boost::system::errc::make_error_code(
+                                   boost::system::errc::address_in_use));
+    // Every interface overlaps a single one, in both orders.
+    REQUIRE(!app.attach_serial("three", "tcp-listen://0.0.0.0:" + port_47811));
+    REQUIRE(!app.check_listen_free("rfc2217-listen://0.0.0.0:" + port_47811));
+    // The port being edited is left out of the check.
+    REQUIRE(app.check_listen_free("tcp-listen://127.0.0.1:" + port_47811,
+                                  (*first)->id()));
+    // Nothing was made by the refused ones.
+    REQUIRE_EQ(app.endpoint_infos().size(), before);
+
+    // Another port number, UDP on the same number and a client are all free.
+    REQUIRE(app.check_listen_free("tcp-listen://127.0.0.1:" + port_47812));
+    REQUIRE(app.check_listen_free("udp-listen://127.0.0.1:" + port_47811));
+    REQUIRE(app.check_listen_free("tcp://127.0.0.1:" + port_47811));
+}
+
+TEST_CASE("studio: a network port is put beside a port that is there")
+{
+    const std::string port_47831 = free_port_text();
+    const std::string port_47832 = free_port_text();
+    const std::string port_47833 = free_port_text();
+    studio app;
+    const auto device =
+        app.create_virtual_port("device", virtual_port_kind::loopback);
+    REQUIRE(device);
+    const auto id = (*device)->id();
+
+    const auto made =
+        app.attach_network(id, "net", "tcp-listen://127.0.0.1:" + port_47831);
+    REQUIRE(made);
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{2});
+    REQUIRE_EQ(app.link_infos().size(), std::size_t{1});
+    REQUIRE(!made->waiting);
+
+    // The same address again is refused and leaves nothing behind.
+    const auto again = app.attach_network(
+        id, "net", "rfc2217-listen://127.0.0.1:" + port_47831);
+    REQUIRE(!again);
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{2});
+    REQUIRE_EQ(app.link_infos().size(), std::size_t{1});
+
+    // An unknown port is refused before anything is made.
+    REQUIRE_EQ(
+        app.attach_network(9999, "x", "tcp-listen://127.0.0.1:" + port_47832)
+            .error(),
+        make_error_code(errc::not_found));
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{2});
+
+    // With no port given, one is made for it, and goes again on a failure.
+    // Where the driver is installed that port is a real COM port, which a
+    // unit test does not make on the machine it runs on.
+    if (!vss::driver_available())
+    {
+        const auto fresh = app.attach_network(
+            0, "side", "tcp-listen://127.0.0.1:" + port_47833);
+        REQUIRE(fresh);
+        REQUIRE(fresh->created != 0);
+        REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{4});
+        REQUIRE(!app.attach_network(
+            0, "side", "tcp-listen://127.0.0.1:" + port_47833));
+        REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{4});
+    }
+
+    // Taking the network port off again frees the address.
+    REQUIRE(app.remove_port(made->port));
+    REQUIRE(app.check_listen_free("tcp-listen://127.0.0.1:" + port_47831));
+}
+
+TEST_CASE("studio: a network port changes its kind and address and keeps "
+          "its links")
+{
+    const std::string port_47851 = free_port_text();
+    const std::string port_47852 = free_port_text();
+    const std::string port_47853 = free_port_text();
+    const std::string port_47854 = free_port_text();
+    const std::string port_47855 = free_port_text();
+    studio app;
+    const auto device =
+        app.create_virtual_port("device", virtual_port_kind::loopback);
+    REQUIRE(device);
+    const auto made = app.attach_network(
+        (*device)->id(), "net", "tcp-listen://127.0.0.1:" + port_47851);
+    REQUIRE(made);
+    const auto other =
+        app.attach_serial("other", "tcp-listen://127.0.0.1:" + port_47852);
+    REQUIRE(other);
+
+    // The same address, as another kind: the old listener lets go first.
+    REQUIRE(app.set_address(made->port,
+                            "rfc2217-listen://127.0.0.1:" + port_47851));
+    // Another port's address is refused, and nothing changes.
+    REQUIRE_EQ(
+        app.set_address(made->port, "tcp-listen://127.0.0.1:" + port_47852),
+        boost::system::errc::make_error_code(
+            boost::system::errc::address_in_use));
+    // Server to client, and back.
+    // Nothing listens on port 1: refused, and the old listener is back.
+    REQUIRE(!app.set_address(made->port, "tcp://127.0.0.1:1", false));
+    REQUIRE(app.set_address(made->port, "tcp://127.0.0.1:1", true));
+    REQUIRE(
+        app.set_address(made->port, "tcp-listen://127.0.0.1:" + port_47853));
+
+    // The link and the id survived, and the setup says what the port is now.
+    REQUIRE_EQ(app.link_infos().size(), std::size_t{1});
+    const auto saved = app.snapshot();
+    bool found = false;
+    for (const auto& entry : saved.ports)
+        found = found || entry.uri == "tcp-listen://127.0.0.1:" + port_47853;
+    REQUIRE(found);
+
+    // Not a network port, not an address, not a port.
+    REQUIRE_EQ(app.set_address((*device)->id(),
+                               "tcp-listen://127.0.0.1:" + port_47854),
+               make_error_code(errc::unsupported));
+    REQUIRE_EQ(app.set_address(made->port, "serial://COM1"),
+               make_error_code(errc::invalid_uri));
+    REQUIRE_EQ(app.set_address(9999, "tcp-listen://127.0.0.1:" + port_47855),
+               make_error_code(errc::not_found));
 }
 
 TEST_CASE("studio: a setup opened and saved again keeps its order, its fixture "

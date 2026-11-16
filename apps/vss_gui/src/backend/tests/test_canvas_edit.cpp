@@ -287,3 +287,64 @@ TEST_CASE("canvas edit: port settings change on a fixture")
     settings.data_bits = 2;
     REQUIRE(!backend.set_port_settings(*a, settings));
 }
+
+TEST_CASE("canvas edit: a new fixture next to a port runs at that port's "
+          "baud rate")
+{
+    FakeStudioBackend backend;
+    vss::serial_settings slow;
+    slow.baud_rate = 9600;
+    const auto base = backend.create_mock_port(
+        QStringLiteral("base"), slow, QStringLiteral("scripted"));
+    REQUIRE(base.has_value());
+
+    bundle_request request = default_request(canvas_item::pair, {});
+    request.slots[0] = {slot_kind::existing, QStringLiteral("base")};
+    request.slots[1] = {slot_kind::new_fixture, QStringLiteral("probe")};
+    REQUIRE(build_bundle(backend, request).has_value());
+    const auto probe = named(backend, QStringLiteral("probe"));
+    REQUIRE(probe.has_value());
+    REQUIRE_EQ(probe->serial.baud_rate, 9600u);
+
+    // Settings that the request chose win.
+    bundle_request chosen = default_request(canvas_item::pair, {});
+    chosen.settings.baud_rate = 19200;
+    chosen.slots[0] = {slot_kind::existing, QStringLiteral("base")};
+    chosen.slots[1] = {slot_kind::new_fixture, QStringLiteral("probe-2")};
+    REQUIRE(build_bundle(backend, chosen).has_value());
+    REQUIRE_EQ(named(backend, QStringLiteral("probe-2"))->serial.baud_rate,
+               19200u);
+}
+
+TEST_CASE("canvas edit: the connected set follows the links that carry data")
+{
+    FakeStudioBackend backend;
+    const auto a = backend.create_mock_port(
+        QStringLiteral("a"), {}, QStringLiteral("scripted"));
+    const auto b = backend.create_mock_port(
+        QStringLiteral("b"), {}, QStringLiteral("scripted"));
+    const auto c = backend.create_mock_port(
+        QStringLiteral("c"), {}, QStringLiteral("scripted"));
+    const auto d = backend.create_mock_port(
+        QStringLiteral("d"), {}, QStringLiteral("scripted"));
+    REQUIRE(a.has_value());
+    REQUIRE(b.has_value());
+    REQUIRE(c.has_value());
+    REQUIRE(d.has_value());
+    REQUIRE(backend.connect_ports(*a, *b, {}).has_value());
+    REQUIRE(backend.connect_ports(*b, *c, {}).has_value());
+    // A monitor carries a copy, so it is not part of the set.
+    REQUIRE(backend.monitor(*c, *d).has_value());
+
+    const auto set = connected_set(backend, *a);
+    REQUIRE_EQ(set.size(), 2);
+    REQUIRE(set.contains(*b));
+    REQUIRE(set.contains(*c));
+    REQUIRE(!set.contains(*d));
+    REQUIRE(same_line_format(backend, {*a, *b, *c}));
+
+    vss::serial_settings slow;
+    slow.baud_rate = 9600;
+    REQUIRE(backend.set_port_settings(*c, slow).has_value());
+    REQUIRE(!same_line_format(backend, {*a, *b, *c}));
+}

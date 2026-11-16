@@ -407,3 +407,219 @@ TEST_CASE("network dialog: an RFC 2217 server reachable from the network is "
     dialog.set_role(vss::gui::network_role::client);
     REQUIRE(!warned());
 }
+
+namespace
+{
+
+vss::gui::capabilities network_caps()
+{
+    vss::gui::capabilities caps;
+    caps.network_server = true;
+    caps.network_edit = true;
+    caps.network_waiting = true;
+    return caps;
+}
+
+} // namespace
+
+TEST_CASE("network dialog: a port in Studio is served as it is, not opened "
+          "again by its name")
+{
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(network_caps());
+    backend.set_devices({device(QStringLiteral("COM134"))});
+    const auto made =
+        backend.create_driver_port(QStringLiteral("port-3"), true, 134);
+    REQUIRE(made);
+    const auto before = backend.ports().size();
+
+    vss::gui::NetworkEndpointDialog dialog(backend, true, *made);
+    show(dialog);
+    // The port in Studio is chosen, and the device it holds is not listed
+    // again as a real device.
+    REQUIRE_EQ(dialog.selected_port(), *made);
+    REQUIRE(dialog.source_uri().isEmpty());
+    REQUIRE(!dialog.device_paths().contains(QStringLiteral("COM134")));
+
+    dialog.set_transport(vss::gui::network_transport::rfc2217);
+    dialog.set_role(vss::gui::network_role::server);
+    dialog.set_port(4001);
+    REQUIRE(dialog.submit());
+    // One new port, linked to the port that was there: no second COM134.
+    REQUIRE_EQ(backend.ports().size(), before + 1);
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    for (const auto& port : backend.ports())
+        REQUIRE(!port.name.startsWith(QStringLiteral("bridge-")));
+}
+
+TEST_CASE("network dialog: a failed create leaves nothing behind")
+{
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(network_caps());
+    const auto made =
+        backend.create_driver_port(QStringLiteral("port-3"), true, 134);
+    REQUIRE(made);
+    const auto before = backend.ports().size();
+
+    vss::gui::NetworkEndpointDialog dialog(backend, true, *made);
+    show(dialog);
+    dialog.set_port(4001);
+    backend.fail_next(vss::make_error_code(vss::errc::permission_denied));
+    REQUIRE(!dialog.submit());
+    REQUIRE(dialog.error_visible());
+    REQUIRE_EQ(backend.ports().size(), before);
+    REQUIRE(backend.links().empty());
+
+    // The same dialog works when the cause is gone.
+    REQUIRE(dialog.submit());
+    REQUIRE_EQ(backend.ports().size(), before + 1);
+}
+
+TEST_CASE("network dialog: two ports cannot listen on one address")
+{
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(network_caps());
+    const auto first =
+        backend.create_driver_port(QStringLiteral("port-1"), true, 18);
+    const auto second =
+        backend.create_driver_port(QStringLiteral("port-2"), true, 19);
+    REQUIRE(first);
+    REQUIRE(second);
+
+    {
+        vss::gui::NetworkEndpointDialog dialog(backend, true, *first);
+        dialog.set_transport(vss::gui::network_transport::tcp);
+        dialog.set_role(vss::gui::network_role::server);
+        dialog.set_port(4001);
+        REQUIRE(dialog.submit());
+    }
+    const auto ports = backend.ports().size();
+    const auto links = backend.links().size();
+
+    vss::gui::NetworkEndpointDialog dialog(backend, true, *second);
+    show(dialog);
+    dialog.set_transport(vss::gui::network_transport::rfc2217);
+    dialog.set_role(vss::gui::network_role::server);
+    dialog.set_port(4001);
+    REQUIRE(!dialog.submit());
+    REQUIRE(dialog.error_body().contains(QStringLiteral(
+        "Port 4001 is already used by another port in this setup")));
+    REQUIRE_EQ(backend.ports().size(), ports);
+    REQUIRE_EQ(backend.links().size(), links);
+
+    // Another port number is fine.
+    dialog.set_port(4002);
+    REQUIRE(dialog.submit());
+}
+
+TEST_CASE("network dialog: a client the other computer refuses can be made "
+          "anyway")
+{
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(network_caps());
+    const auto made =
+        backend.create_driver_port(QStringLiteral("port-1"), true, 18);
+    REQUIRE(made);
+
+    vss::gui::NetworkEndpointDialog dialog(backend, true, *made);
+    show(dialog);
+    dialog.set_transport(vss::gui::network_transport::rfc2217);
+    dialog.set_role(vss::gui::network_role::client);
+    dialog.set_server_address(QStringLiteral("192.168.1.50"));
+    dialog.set_port(2217);
+    REQUIRE(!dialog.anyway_button()->isVisibleTo(&dialog));
+
+    backend.fail_next(boost::asio::error::make_error_code(
+        boost::asio::error::connection_refused));
+    REQUIRE(!dialog.submit());
+    REQUIRE_EQ(dialog.error_title(), QStringLiteral("Could not connect"));
+    REQUIRE(dialog.anyway_button()->isVisibleTo(&dialog));
+    REQUIRE_EQ(backend.ports().size(), std::size_t{1});
+
+    // The same refusal again, and then the port is made and waits.
+    backend.fail_next(boost::asio::error::make_error_code(
+        boost::asio::error::connection_refused));
+    REQUIRE(dialog.submit_anyway());
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+
+    // Without the capability the button is never offered.
+    vss::gui::FakeStudioBackend plain;
+    vss::gui::capabilities caps = network_caps();
+    caps.network_waiting = false;
+    plain.set_capabilities(caps);
+    vss::gui::NetworkEndpointDialog without(plain, true);
+    show(without);
+    without.set_role(vss::gui::network_role::client);
+    without.set_server_address(QStringLiteral("192.168.1.50"));
+    plain.fail_next(boost::asio::error::make_error_code(
+        boost::asio::error::connection_refused));
+    REQUIRE(!without.submit());
+    REQUIRE(!without.anyway_button()->isVisibleTo(&without));
+}
+
+TEST_CASE("network dialog: a client needs no COM port of its own")
+{
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(network_caps());
+    vss::gui::NetworkEndpointDialog dialog(backend, true);
+    show(dialog);
+    REQUIRE(dialog.select_new_port());
+    REQUIRE(dialog.new_port_selected());
+    dialog.set_transport(vss::gui::network_transport::rfc2217);
+    dialog.set_role(vss::gui::network_role::client);
+    dialog.set_server_address(QStringLiteral("192.168.1.50"));
+    dialog.set_port(2217);
+    REQUIRE(dialog.submit());
+    // The client and the Studio port made for it, linked.
+    REQUIRE_EQ(backend.ports().size(), std::size_t{2});
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+}
+
+TEST_CASE("network dialog: a network port is changed in place and keeps its "
+          "links")
+{
+    vss::gui::FakeStudioBackend backend;
+    backend.set_capabilities(network_caps());
+    const auto served =
+        backend.create_driver_port(QStringLiteral("port-1"), true, 18);
+    REQUIRE(served);
+    vss::endpoint_id network = 0;
+    {
+        vss::gui::NetworkEndpointDialog dialog(backend, true, *served);
+        dialog.set_transport(vss::gui::network_transport::tcp);
+        dialog.set_role(vss::gui::network_role::server);
+        dialog.set_port(4001);
+        REQUIRE(dialog.submit());
+        for (const auto& port : backend.ports())
+        {
+            if (port.id != *served)
+                network = port.id;
+        }
+    }
+    REQUIRE(network != 0);
+    const auto link = backend.links().front().id;
+
+    vss::gui::NetworkEndpointDialog edit(backend, true);
+    REQUIRE(edit.edit_port(network));
+    show(edit);
+    REQUIRE_EQ(edit.editing_port(), network);
+    REQUIRE_EQ(edit.role(), vss::gui::network_role::server);
+    REQUIRE_EQ(edit.port(), 4001);
+    REQUIRE_EQ(edit.transport(), vss::gui::network_transport::tcp);
+
+    // Server to client of another computer, with the same links.
+    edit.set_role(vss::gui::network_role::client);
+    edit.set_server_address(QStringLiteral("192.168.1.50"));
+    edit.set_port(4010);
+    REQUIRE(edit.submit());
+    const auto after = backend.port(network);
+    REQUIRE(after.has_value());
+    REQUIRE_EQ(after->path, QStringLiteral("tcp://192.168.1.50:4010"));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().id, link);
+
+    // A port that is not a network port cannot be edited here.
+    vss::gui::NetworkEndpointDialog other(backend, true);
+    REQUIRE(!other.edit_port(*served));
+}

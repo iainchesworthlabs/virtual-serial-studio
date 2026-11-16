@@ -1,0 +1,1 @@
+**A port that already has a two-way link, a split or a join can now go on a shared bus.** Making a bus refused it with "That link would create a loop" because the way back along its own two-way link counted as a loop. Only a route that leaves one member and reaches another is a loop now.

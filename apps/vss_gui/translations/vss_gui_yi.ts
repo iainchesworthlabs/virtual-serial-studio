@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS>
-<!-- Translation origin: Decoder table and instance settings -->
+<!-- Translation origin: Studio network, bus and line format strings -->
 <TS version="2.1" language="yi">
     <context>
         <name>About</name>
@@ -4805,6 +4805,81 @@ Networks: %5</source>
             <location filename="../src/dialogs/network_endpoint.cpp" line="835" />
             <source>The address may be in use, or the other computer refused the connection. Check the address and try again.</source>
             <translation>דער אַדרעס איז אפֿשר אין באַנוץ, אָדער דער אַנדערער קאָמפּיוטער האָט אָפּגעזאָגט די פֿאַרבינדונג. קאָנטראָלירט דעם אַדרעס און פּרובירט נאָך אַ מאָל.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="172" />
+            <source>Port to share</source>
+            <translation>פּאָרט צו טיילן</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="173" />
+            <source>A network port is one end of a link. The other end is a port that programs open, so choose a port that is in Studio, a real device, or let Studio make a new port.</source>
+            <translation>אַ נעץ־פּאָרט איז איין עק פֿון אַ פֿאַרבינדונג. דאָס אַנדערע עק איז אַ פּאָרט וואָס פּראָגראַמען עפֿענען, דרום קלײַבט אויס אַ פּאָרט וואָס איז אין Studio, אַ ריכטיקע מכשיר, אָדער לאָזט Studio מאַכן אַ נײַעם פּאָרט.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="406" />
+            <source>Create anyway and keep trying</source>
+            <translation>מאַכן סײַ ווי סײַ און ווײַטער פּרובירן</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="411" />
+            <source>Makes the port now. It waits, and connects when the other computer answers.</source>
+            <translation>מאַכט דעם פּאָרט איצט. ער ווארט און פֿאַרבינדט זיך ווען דער אַנדערער קאָמפּיוטער ענטפֿערט.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="557" />
+            <source>%1, %2 (in Studio)</source>
+            <translation>%1, %2 (אין Studio)</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="566" />
+            <source>A new port in Studio</source>
+            <translation>אַ נײַער פּאָרט אין Studio</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="724" />
+            <source>the port</source>
+            <translation>דער פּאָרט</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="728" />
+            <source>a new port in Studio</source>
+            <translation>אַ נײַער פּאָרט אין Studio</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="821" />
+            <source>Network port settings</source>
+            <translation>נעץ־פּאָרט־סעטינגס</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="823" />
+            <source>Apply anyway and keep trying</source>
+            <translation>אָנווענדן סײַ ווי סײַ און ווײַטער פּרובירן</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="825" />
+            <source>Apply</source>
+            <translation>אָנווענדן</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="991" />
+            <source>Port %1 is in use by another program. Choose another port, or stop that program.</source>
+            <translation>פּאָרט %1 ווערט גענוצט פֿון אַן אַנדער פּראָגראַם. קלײַבט אויס אַן אַנדער פּאָרט, אָדער שטעלט אָפּ יענע פּראָגראַם.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="1000" />
+            <source>Port %1 is already used by another port in this setup. Choose another port.</source>
+            <translation>פּאָרט %1 ווערט שוין גענוצט פֿון אַן אַנדער פּאָרט אין דער דאָזיקער סעטאַפּ. קלײַבט אויס אַן אַנדער פּאָרט.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="1074" />
+            <source>Could not connect</source>
+            <translation>האָט נישט געקענט פֿאַרבינדן</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/dialogs/network_endpoint.cpp" line="1075" />
+            <source>The other computer did not answer or refused the connection. You can create the port anyway. It waits, and connects when the other computer answers.</source>
+            <translation>דער אַנדערער קאָמפּיוטער האָט נישט געענטפֿערט אָדער אָפּגעלייגט די פֿאַרבינדונג. איר קענט מאַכן דעם פּאָרט סײַ ווי סײַ. ער ווארט און פֿאַרבינדט זיך ווען דער אַנדערער קאָמפּיוטער ענטפֿערט.</translation>
         </message>
     </context>
     <context>
@@ -20334,6 +20409,26 @@ Networks: %5</source>
             <source>Link settings changed.</source>
             <translation>פּאַראַמעטערס פֿון דער פֿאַרבינדונג זענען געביטן געוואָרן.</translation>
         </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="260" />
+            <source>Could not add %1 to the bus: %2</source>
+            <translation>האָט נישט געקענט צולייגן %1 צום באַס: %2</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="293" />
+            <source>Add to bus</source>
+            <translation>צולייגן צום באַס</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="315" />
+            <source>Put %1 on the bus with %2.</source>
+            <translation>אַרויפֿלייגן %1 אויפֿן באַס מיט %2.</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/shell/canvas_controller.cpp" line="721" />
+            <source>Network port changed.</source>
+            <translation>נעץ־פּאָרט געביטן.</translation>
+        </message>
     </context>
     <context>
         <name>PaneHeader</name>
@@ -20525,6 +20620,13 @@ Networks: %5</source>
             <location filename="../src/advanced/port_settings_dialog.cpp" line="479" />
             <source>The port could not take these settings: %1</source>
             <translation>דער פּאָרט האָט נישט געקענט אָננעמען די פּאַראַמעטערס: %1</translation>
+        </message>
+        <message numerus="yes">
+            <location filename="../../../../../../../apps/vss_gui/src/advanced/port_settings_dialog.cpp" line="296" />
+            <source>Use these settings for the %n port(s) linked to this one</source>
+            <translation>
+                <numerusform>נוצן די סעטינגס פֿאַר די %n פּאָרט(ן) וואָס זענען פֿאַרבונדן מיט דעם דאָזיקן</numerusform>
+            </translation>
         </message>
     </context>
     <context>
@@ -20930,6 +21032,46 @@ Networks: %5</source>
             <location filename="../src/topology/topology_view.cpp" line="209" />
             <source>Zoom in</source>
             <translation>פארגרעסערן</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2823" />
+            <source>Add %1 to the bus with %2</source>
+            <translation>צולייגן %1 צום באַס מיט %2</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2837" />
+            <source>Shared bus for %1 and %2</source>
+            <translation>געמיינזאַמער באַס פֿאַר %1 און %2</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2883" />
+            <source>Share %1 over the network...</source>
+            <translation>טיילן %1 איבערן נעץ...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2887" />
+            <source>Not available in this build</source>
+            <translation>נישט פֿאַראַנען אין דער דאָזיקער ווערסיע</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2888" />
+            <source>Connect %1 to a server...</source>
+            <translation>פֿאַרבינדן %1 מיט אַ סערווער...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2957" />
+            <source>Share over the network...</source>
+            <translation>טיילן איבערן נעץ...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2962" />
+            <source>Connect to a server...</source>
+            <translation>פֿאַרבינדן זיך מיט אַ סערווער...</translation>
+        </message>
+        <message>
+            <location filename="../../../../../../../apps/vss_gui/src/topology/topology_view.cpp" line="2966" />
+            <source>Make a bus with...</source>
+            <translation>מאַכן אַ באַס מיט...</translation>
         </message>
     </context>
     <context>

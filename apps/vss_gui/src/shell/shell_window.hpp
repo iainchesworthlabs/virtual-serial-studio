@@ -187,6 +187,10 @@ private:
     void open_connect_ports();
     void open_share_wizard();
     void open_network_endpoint();
+    /// The network dialog for a port, as a server or a client.
+    void open_network_endpoint_for(vss::endpoint_id port, bool server);
+    /// The Connect dialog on Shared bus with a port ticked.
+    void open_bus_with(vss::endpoint_id port);
     void open_templates();
     void show_monitor();
     /// Shows the Send dock and puts the cursor in its input.
@@ -246,8 +250,8 @@ private:
     void open_licence();
     /// Opens Plugins, on the plugin with this id (and folder) when given, and
     /// asks for the decision about it when `decide` is set.
-    void open_plugins(const QString& plugin_id = {},
-                      const QString& folder = {}, bool decide = false);
+    void open_plugins(const QString& plugin_id = {}, const QString& folder = {},
+                      bool decide = false);
     /// Shows what the plugin host reports in the toolbox, on the canvas and
     /// in the Inspector.
     void update_plugin_surfaces();

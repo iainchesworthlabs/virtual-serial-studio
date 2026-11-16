@@ -27,6 +27,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QCheckBox>
 #include <QContextMenuEvent>
 #include <QDialog>
 #include <QDir>
@@ -454,6 +455,177 @@ TEST_CASE("canvas: port Settings change a fixture and say what they do")
         QStringLiteral("m"), {}, QStringLiteral("scripted"));
     vss::gui::PortSettingsDialog degraded(limited, {*fixture_id});
     REQUIRE(!degraded.apply_button()->isEnabled());
+}
+
+TEST_CASE("canvas: port Settings can give the same settings to every port "
+          "linked to this one")
+{
+    canvas_fixture fixture;
+    {
+        vss::gui::PortSettingsDialog dialog(fixture.backend, {fixture.rx});
+        // rx and tx are linked and agree, so the set stays one line.
+        REQUIRE(dialog.whole_set_check() != nullptr);
+        REQUIRE(dialog.whole_set_check()->isChecked());
+        vss::serial_settings slow;
+        slow.baud_rate = 9600;
+        dialog.set_settings(slow);
+        dialog.show();
+        dialog.apply();
+        QElapsedTimer timer;
+        timer.start();
+        while (dialog.isVisible() && timer.elapsed() < 5000)
+            QApplication::processEvents();
+        REQUIRE(dialog.result() == QDialog::Accepted);
+        // The undo step knows both ports.
+        REQUIRE_EQ(dialog.before().size(), 2);
+    }
+    REQUIRE_EQ(vss_test::require_value(fixture.backend.port(fixture.rx))
+                   .serial.baud_rate,
+               9600u);
+    REQUIRE_EQ(vss_test::require_value(fixture.backend.port(fixture.tx))
+                   .serial.baud_rate,
+               9600u);
+
+    // When the set differs now, nothing is changed that was not asked for.
+    vss::serial_settings fast;
+    fast.baud_rate = 57600;
+    REQUIRE(fixture.backend.set_port_settings(fixture.tx, fast).has_value());
+    vss::gui::PortSettingsDialog differs(fixture.backend, {fixture.rx});
+    REQUIRE(differs.whole_set_check() != nullptr);
+    REQUIRE(!differs.whole_set_check()->isChecked());
+
+    // A port with nothing linked has no such choice.
+    vss::gui::PortSettingsDialog lone(fixture.backend, {fixture.lone});
+    REQUIRE(lone.whole_set_check() == nullptr);
+}
+
+TEST_CASE("canvas: a port's menu offers the network and a bus, and a line to a "
+          "bus member offers the bus")
+{
+    canvas_fixture fixture;
+    vss::gui::capabilities caps = fixture.backend.caps();
+    caps.shared_bus = true;
+    caps.network_server = true;
+    fixture.backend.set_capabilities(caps);
+    const auto bus_a = *fixture.backend.create_mock_port(
+        QStringLiteral("bus-a"), {}, QStringLiteral("scripted"));
+    const auto bus_b = *fixture.backend.create_mock_port(
+        QStringLiteral("bus-b"), {}, QStringLiteral("scripted"));
+    const auto bus = fixture.backend.bus({bus_a, bus_b}, {});
+    REQUIRE(bus.has_value());
+
+    topo::TopologyView view;
+    view.resize(1000, 700);
+    view.show();
+    view.set_capabilities(caps);
+    view.set_editing(true);
+    view.set_topology(fixture.backend.ports(), fixture.backend.links());
+    QApplication::processEvents();
+
+    const QStringList labels = view.node_menu_labels(fixture.lone);
+    REQUIRE(labels.contains(QStringLiteral("Share over the network...")));
+    REQUIRE(labels.contains(QStringLiteral("Connect to a server...")));
+    REQUIRE(labels.contains(QStringLiteral("Make a bus with...")));
+
+    vss::endpoint_id network_port = 0;
+    bool network_server = false;
+    vss::endpoint_id bus_port = 0;
+    vss::link_id bus_link = 0;
+    QObject::connect(&view, &topo::TopologyView::network_requested,
+                     [&](vss::endpoint_id port, bool server)
+                     {
+                         network_port = port;
+                         network_server = server;
+                     });
+    QObject::connect(&view, &topo::TopologyView::bus_extend_requested,
+                     [&](vss::endpoint_id port, vss::link_id link)
+                     {
+                         bus_port = port;
+                         bus_link = link;
+                     });
+
+    // A line drawn from one port's handle to another port.
+    const auto draw = [&view](vss::endpoint_id from, vss::endpoint_id to)
+    {
+        const QRectF rect = view.node_rect(from);
+        const QPoint handle =
+            view.mapFromScene(QPointF(rect.right(), rect.center().y()));
+        const QPoint target = view.mapFromScene(view.node_rect(to).center());
+        mouse(view.viewport(), QEvent::MouseButtonPress, handle,
+              Qt::LeftButton, Qt::LeftButton);
+        mouse(view.viewport(), QEvent::MouseMove, target, Qt::NoButton,
+              Qt::LeftButton);
+        mouse(view.viewport(), QEvent::MouseButtonRelease, target,
+              Qt::LeftButton, Qt::NoButton);
+        QApplication::processEvents();
+    };
+    // A line from the lone port to a member of the bus.
+    draw(fixture.lone, bus_a);
+    QMenu* chooser = view.findChild<QMenu*>();
+    REQUIRE(chooser != nullptr);
+    QAction* extend = nullptr;
+    QAction* make = nullptr;
+    for (QAction* action : chooser->actions())
+    {
+        if (action->text() ==
+            QStringLiteral("Add port-1 to the bus with bus-a"))
+            extend = action;
+        if (action->text().startsWith(QStringLiteral("Shared bus for")))
+            make = action;
+    }
+    REQUIRE(extend != nullptr);
+    REQUIRE(make == nullptr);
+    extend->trigger();
+    chooser->close();
+    QApplication::processEvents();
+    REQUIRE_EQ(bus_port, fixture.lone);
+    REQUIRE_EQ(bus_link, *bus);
+
+    // Between two ports that are on no bus, the chooser offers to make one.
+    draw(fixture.lone, fixture.rx);
+    chooser = view.findChild<QMenu*>();
+    REQUIRE(chooser != nullptr);
+    bool offered = false;
+    for (QAction* action : chooser->actions())
+        offered = offered ||
+                  action->text().startsWith(QStringLiteral("Shared bus for"));
+    REQUIRE(offered);
+    chooser->close();
+    REQUIRE_EQ(network_port, vss::endpoint_id{0});
+    REQUIRE(!network_server);
+}
+
+TEST_CASE("canvas: a bus is extended in place and the step is undone")
+{
+    clear_canvas_settings();
+    vss::gui::FakeStudioBackend backend;
+    vss::gui::capabilities caps = backend.caps();
+    caps.shared_bus = true;
+    backend.set_capabilities(caps);
+    const auto a = *backend.create_mock_port(QStringLiteral("a"), {},
+                                             QStringLiteral("scripted"));
+    const auto b = *backend.create_mock_port(QStringLiteral("b"), {},
+                                             QStringLiteral("scripted"));
+    const auto c = *backend.create_mock_port(QStringLiteral("c"), {},
+                                             QStringLiteral("scripted"));
+    const auto bus = backend.bus({a, b}, {});
+    REQUIRE(bus.has_value());
+
+    vss::gui::UndoService undo;
+    vss::gui::CanvasController canvas(backend, undo, nullptr, nullptr, nullptr);
+    REQUIRE(canvas.extend_bus(c, *bus));
+    REQUIRE_EQ(backend.links().size(), std::size_t{1});
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+    REQUIRE_EQ(backend.links().front().id, *bus);
+
+    // A port can be on one bus only, and nothing changes when it is refused.
+    REQUIRE(!canvas.extend_bus(c, *bus));
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
+
+    REQUIRE(undo.undo());
+    REQUIRE_EQ(backend.links().front().sources.size(), 2);
+    REQUIRE(undo.redo());
+    REQUIRE_EQ(backend.links().front().sources.size(), 3);
 }
 
 TEST_CASE("canvas: link Settings keep the jitter within the delay")

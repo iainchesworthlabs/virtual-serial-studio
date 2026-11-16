@@ -109,8 +109,8 @@
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
-#include <QProgressBar>
 #include <QMessageBox>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QResizeEvent>
 #include <QSet>
@@ -494,7 +494,8 @@ void ShellWindow::build_actions()
     add(QStringLiteral("tools.setupCheck"), tr("Setup check"),
         tr("driver com0com permissions"), {}, {}, action_level::simple,
         [this] { open_setup_check(); });
-    add(QStringLiteral("tools.plugins"), tr("Plugins..."),
+    add(
+        QStringLiteral("tools.plugins"), tr("Plugins..."),
         tr("plugin plugins extension fixture generator trust"), {}, {},
         action_level::simple, [this] { open_plugins(); }, false,
         [this] { return backend_.caps().plugins; });
@@ -1056,6 +1057,11 @@ void ShellWindow::build_central()
             });
     connect(canvas_, &CanvasController::driver_setup_requested, this,
             [this] { open_driver_setup(); });
+    connect(canvas_, &CanvasController::network_requested, this,
+            [this](vss::endpoint_id port, bool server)
+            { open_network_endpoint_for(port, server); });
+    connect(canvas_, &CanvasController::bus_with_requested, this,
+            [this](vss::endpoint_id port) { open_bus_with(port); });
     connect(canvas_, &CanvasController::batch_finished, this,
             [this]
             {
@@ -1309,8 +1315,7 @@ void ShellWindow::build_docks()
             [this](const QString& reason)
             {
                 const QString text =
-                    tr("The canvas is drawn on the processor: %1")
-                        .arg(reason);
+                    tr("The canvas is drawn on the processor: %1").arg(reason);
                 if (status_ != nullptr)
                     status_->showMessage(text, 10000);
                 log_local(text);
@@ -1465,9 +1470,10 @@ void ShellWindow::connect_plugins()
     {
         connect(toolbox_, &topology::Toolbox::show_in_plugins_requested, this,
                 [this](const QString& id) { open_plugins(id); });
-        connect(toolbox_, &topology::Toolbox::plugin_add_requested, this,
-                [this](const QString&, const QString&)
-                { status_->showMessage(tr("Not available in this build"), 4000); });
+        connect(
+            toolbox_, &topology::Toolbox::plugin_add_requested, this,
+            [this](const QString&, const QString&)
+            { status_->showMessage(tr("Not available in this build"), 4000); });
     }
     connect(inspector_panel_, &InspectorPanel::plugin_action_requested, this,
             [this](const QString& id, int action)
@@ -2072,14 +2078,43 @@ void ShellWindow::open_share_wizard()
 
 void ShellWindow::open_network_endpoint()
 {
+    open_network_endpoint_for(selection_.port(), true);
+}
+
+void ShellWindow::open_bus_with(vss::endpoint_id port)
+{
+    ConnectPortsDialog dialog(backend_, port, level_.advanced(), this);
+    dialog.set_mode(ConnectPortsDialog::mode::bus);
+    connect(&dialog, &ConnectPortsDialog::advanced_requested, this,
+            [this, &dialog]
+            {
+                level_.set_advanced(true);
+                dialog.set_advanced(true);
+            });
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+    if (const auto created = dialog.created_link())
+    {
+        if (const auto made = backend_.link(*created))
+            undo_.push(connect_step(backend_, *made, tr("Connect ports")));
+    }
+    status_->refresh();
+    if (!dialog.result_summary().isEmpty())
+        ToastManager::instance().show(this, dialog.result_summary());
+}
+
+void ShellWindow::open_network_endpoint_for(vss::endpoint_id port, bool server)
+{
     if (!backend_.caps().bridge)
     {
         status_->showMessage(tr("Networking is not available in this build."),
                              4000);
         return;
     }
-    NetworkEndpointDialog dialog(backend_, level_.advanced(), selection_.port(),
-                                 this);
+    NetworkEndpointDialog dialog(backend_, level_.advanced(), port, this);
+    // The menu of a port says which role it wants; the toolbar's default is
+    // the server, which the dialog starts on where the build has one.
+    dialog.set_role(server ? network_role::server : network_role::client);
     connect(&dialog, &NetworkEndpointDialog::advanced_requested, this,
             [this, &dialog]
             {
@@ -2264,11 +2299,10 @@ void ShellWindow::open_templates()
                 set_dirty(false);
                 const auto ports = backend_.ports();
                 const auto links = backend_.links();
-                add_recent(
-                    document_path_,
-                    tr("%1 ports, %2 links")
-                        .arg(static_cast<qulonglong>(ports.size()))
-                        .arg(static_cast<qulonglong>(links.size())));
+                add_recent(document_path_,
+                           tr("%1 ports, %2 links")
+                               .arg(static_cast<qulonglong>(ports.size()))
+                               .arg(static_cast<qulonglong>(links.size())));
             }
             show_workspace();
             update_title();
@@ -3336,8 +3370,8 @@ void ShellWindow::open_plugins(const QString& plugin_id, const QString& folder,
         QTimer::singleShot(0, &dialog,
                            [&dialog, plugin] { dialog.review(plugin); });
     }
-    connect(&dialog, &PluginsDialog::licence_requested, this,
-            [this] { QTimer::singleShot(0, this, [this] { open_licence(); }); });
+    connect(&dialog, &PluginsDialog::licence_requested, this, [this]
+            { QTimer::singleShot(0, this, [this] { open_licence(); }); });
     connect(&dialog, &PluginsDialog::status_message, this,
             [this](const QString& text) { status_->showMessage(text, 4000); });
     dialog.exec();
@@ -3483,10 +3517,9 @@ void ShellWindow::open_path(const QString& path)
             update_title();
             const auto ports = backend_.ports();
             const auto links = backend_.links();
-            add_recent(path,
-                       tr("%1 ports, %2 links")
-                           .arg(static_cast<qulonglong>(ports.size()))
-                           .arg(static_cast<qulonglong>(links.size())));
+            add_recent(path, tr("%1 ports, %2 links")
+                                 .arg(static_cast<qulonglong>(ports.size()))
+                                 .arg(static_cast<qulonglong>(links.size())));
             log_local(tr("Opened %1.").arg(QFileInfo(path).fileName()));
             show_workspace();
             status_->refresh();
@@ -3730,8 +3763,8 @@ void ShellWindow::update_toolbar_style()
         needed += metrics.horizontalAdvance(action->text()) + icon + 40;
     }
     const bool icons_only = compact_ || needed > toolbar_->width();
-    const auto style = icons_only ? Qt::ToolButtonIconOnly
-                                  : Qt::ToolButtonTextBesideIcon;
+    const auto style =
+        icons_only ? Qt::ToolButtonIconOnly : Qt::ToolButtonTextBesideIcon;
     if (toolbar_->toolButtonStyle() != style)
         toolbar_->setToolButtonStyle(style);
 }

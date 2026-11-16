@@ -520,6 +520,32 @@ TEST_CASE("reconnect: a lost connection is opened again, and it says so")
     REQUIRE(wait_until([&] { return server.received() == "alive"; }, 5000ms));
 }
 
+TEST_CASE("reconnect: a client made while the server refuses connects later")
+{
+    tcp_server server;
+    server.pause();
+    studio app;
+    log_watch watch(app);
+    app.set_reconnect_policy(quick_policy());
+
+    // The ordinary way is refused while the server is down.
+    REQUIRE(!app.attach_serial("remote", uri_of(server)));
+    // The waiting way makes the port and keeps trying.
+    const auto port = app.attach_waiting("remote", uri_of(server));
+    REQUIRE(port);
+    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{1});
+    REQUIRE(
+        wait_until([&] { return watch.saw("could not reconnect"); }, 5000ms));
+
+    server.resume();
+    REQUIRE(wait_until([&] { return server.accepted() == 1; }, 5000ms));
+    REQUIRE(wait_for_state(*port, endpoint_state::open));
+
+    // An address that does not connect out has nothing to wait for.
+    REQUIRE_EQ(app.attach_waiting("net", "tcp-listen://127.0.0.1:0").error(),
+               make_error_code(errc::invalid_uri));
+}
+
 TEST_CASE("reconnect: it keeps trying while the server is down")
 {
     tcp_server server;

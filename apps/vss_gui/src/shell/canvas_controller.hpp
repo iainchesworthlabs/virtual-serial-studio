@@ -79,6 +79,8 @@ public:
     bool add_request(const bundle_request& request,
                      std::optional<QPointF> at = {});
     bool wire(vss::endpoint_id from, vss::endpoint_id to, wire_kind kind);
+    /// Puts `port` on the bus `bus` in place, with an undo step.
+    bool extend_bus(vss::endpoint_id port, vss::link_id bus);
     bool wire_new(vss::endpoint_id from, slot_kind kind, wire_kind wire,
                   std::optional<QPointF> at = {});
     bool duplicate(const QVector<vss::endpoint_id>& ports);
@@ -103,6 +105,11 @@ Q_SIGNALS:
     /// The user chose "Set up Virtual Serial Studio" from an Add that failed
     /// because the driver or helper is not ready.
     void driver_setup_requested();
+    /// The window opens the network dialog for `port`, as a server or a
+    /// client.
+    void network_requested(vss::endpoint_id port, bool server);
+    /// The window opens the Connect dialog on Shared bus with `port` ticked.
+    void bus_with_requested(vss::endpoint_id port);
 
 private:
     template <typename Function> auto batch(Function&& function)
