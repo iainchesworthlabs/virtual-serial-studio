@@ -353,7 +353,10 @@ TEST_CASE("licence vectors: the files are what the generator makes")
     std::size_t files = 0;
     for (const auto& entry : std::filesystem::directory_iterator(folder))
     {
-        files += entry.path().extension() == ".vsslic" ? 1 : 0;
+        if (entry.path().extension() == ".vsslic")
+        {
+            ++files;
+        }
     }
     REQUIRE_EQ(files, all.size());
 }
@@ -567,7 +570,10 @@ TEST_CASE("licence reader: agrees with Studio's library on payloads of many "
         // A name on the list of the payloads that list computers.
         where.computer_name = "lab-7";
         const verdict answer = both(payload, signed_licence(payload), where);
-        accepted += answer.reason == "ok" ? 1 : 0;
+        if (answer.reason == "ok")
+        {
+            ++accepted;
+        }
     }
     // Both kinds are in the list: some are read and some are refused.
     REQUIRE(accepted >= 20);
@@ -616,8 +622,10 @@ TEST_CASE("licence reader: agrees with Studio's library on feature names")
         {
             setting where;
             where.features = {feature};
-            both(entry + " asked for " + feature, signed_licence(payload),
-                 where);
+            std::string what = entry;
+            what += " asked for ";
+            what += feature;
+            both(what, signed_licence(payload), where);
             REQUIRE_EQ(reader::feature_matches(entry, feature),
                        lic::feature_matches(entry, feature));
         }
@@ -644,7 +652,10 @@ TEST_CASE("licence reader: agrees with Studio's library on every small "
             changed[at] = other;
             const verdict answer =
                 both("a changed byte at " + std::to_string(at), changed, where);
-            refused += answer.reason == "ok" ? 0 : 1;
+            if (answer.reason != "ok")
+            {
+                ++refused;
+            }
         }
         std::string shorter = good;
         shorter.erase(at, 1);
@@ -722,17 +733,28 @@ TEST_CASE("licence reader: agrees with Studio's library on envelopes")
          {"", "=", "==", "A", "AA", "AAA", "AAAA", "B", "_", "-", "+", "/", " ",
           "\\n"})
     {
-        std::string text = "{\"format\":1,\"purpose\":\"licence\",\"key_id\":"
-                           "\"test-rfc8032-1\",\"payload\":\"" +
-                           body + std::string(ending) + "\",\"signature\":\"" +
-                           signature + "\"}";
-        both("a payload ending in " + std::string(ending), text, setting{});
-        text = "{\"format\":1,\"purpose\":\"licence\",\"key_id\":"
-               "\"test-rfc8032-1\",\"payload\":\"" +
-               body + "\",\"signature\":\"" +
-               signature.substr(0, signature.size() - 1) + std::string(ending) +
-               "\"}";
-        both("a signature ending in " + std::string(ending), text, setting{});
+        const std::string start =
+            "{\"format\":1,\"purpose\":\"licence\","
+            "\"key_id\":\"test-rfc8032-1\",\"payload\":\"";
+        std::string longer_payload = start;
+        longer_payload += body;
+        longer_payload += ending;
+        longer_payload += "\",\"signature\":\"";
+        longer_payload += signature;
+        longer_payload += "\"}";
+        std::string what = "a payload ending in ";
+        what += ending;
+        both(what, longer_payload, setting{});
+
+        std::string other_signature = start;
+        other_signature += body;
+        other_signature += "\",\"signature\":\"";
+        other_signature += signature.substr(0, signature.size() - 1);
+        other_signature += ending;
+        other_signature += "\"}";
+        what = "a signature ending in ";
+        what += ending;
+        both(what, other_signature, setting{});
     }
 }
 
@@ -752,7 +774,10 @@ TEST_CASE("licence reader: agrees with Studio's library at every time of a "
         setting where;
         where.now = lic::format_time(moment);
         const verdict plain = both("the time " + where.now, file, where);
-        states += plain.state == previous ? 0 : 1;
+        if (plain.state != previous)
+        {
+            ++states;
+        }
         previous = plain.state;
 
         where.latest_seen = "2027-03-01T00:00:00Z";
