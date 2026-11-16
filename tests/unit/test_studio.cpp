@@ -1896,14 +1896,19 @@ TEST_CASE("studio: a network port is put beside a port that is there")
     REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{2});
 
     // With no port given, one is made for it, and goes again on a failure.
-    const auto fresh =
-        app.attach_network(0, "side", "tcp-listen://127.0.0.1:" + port_47833);
-    REQUIRE(fresh);
-    REQUIRE(fresh->created != 0);
-    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{4});
-    REQUIRE(
-        !app.attach_network(0, "side", "tcp-listen://127.0.0.1:" + port_47833));
-    REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{4});
+    // Where the driver is installed that port is a real COM port, which a
+    // unit test does not make on the machine it runs on.
+    if (!vss::driver_available())
+    {
+        const auto fresh = app.attach_network(
+            0, "side", "tcp-listen://127.0.0.1:" + port_47833);
+        REQUIRE(fresh);
+        REQUIRE(fresh->created != 0);
+        REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{4});
+        REQUIRE(!app.attach_network(
+            0, "side", "tcp-listen://127.0.0.1:" + port_47833));
+        REQUIRE_EQ(app.endpoint_infos().size(), std::size_t{4});
+    }
 
     // Taking the network port off again frees the address.
     REQUIRE(app.remove_port(made->port));
