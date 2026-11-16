@@ -126,6 +126,7 @@ include(VssFuzz)
 enable_language(C)
 add_subdirectory(third_party/monocypher)
 add_subdirectory(libs)
+add_subdirectory(sdk/licence-reader)
 
 # The driver core is built for the tests only.
 if(VSS_BUILD_TESTS)

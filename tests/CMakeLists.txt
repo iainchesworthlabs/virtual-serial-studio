@@ -46,6 +46,8 @@ set(VSS_UNIT_TEST_SOURCES
   unit/test_license_signature.cpp
   unit/test_license_store.cpp
   unit/test_license_words.cpp
+  unit/test_licence_reader.cpp
+  support/licence_vectors.cpp
   unit/test_listen_transport.cpp
   unit/test_loopback_transport.cpp
   unit/test_machine.cpp
@@ -198,7 +200,7 @@ target_include_directories(vss_unit_tests PRIVATE
 target_link_libraries(vss_unit_tests PRIVATE vss_studio vss_testkit vsscom_core
   vss_agent_proto vss_agent_core vss_plugin vss_plugin_host vss_machine vss_rules
   vss_control_proto vss_control_core vss_license_test_keys vss_update Vss::BoostJson
-  Vss::Monocypher)
+  Vss::Monocypher vss_licence_reader)
 if(TARGET vss_cli_control)
   target_link_libraries(vss_unit_tests PRIVATE vss_cli_control)
 endif()
@@ -208,9 +210,22 @@ if(WIN32)
     ${PROJECT_SOURCE_DIR}/drivers/windows)
 endif()
 target_compile_definitions(vss_unit_tests PRIVATE
-  VSS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+  VSS_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+  # The licence test vectors a plugin author is given, which the tests read
+  # where they are.
+  VSS_LICENCE_VECTORS_DIR="${PROJECT_SOURCE_DIR}/sdk/licence-reader/vectors")
 vss_set_warnings(vss_unit_tests)
 vss_enable_coverage(vss_unit_tests)
+
+# Writes the licence test vectors of sdk/licence-reader/vectors. A test tool:
+# it signs with the published test key only and is in no package.
+add_executable(vss_licence_vectors support/licence_vectors.cpp
+  support/licence_vectors_main.cpp)
+target_include_directories(vss_licence_vectors PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/support)
+target_link_libraries(vss_licence_vectors PRIVATE vss_license_test_keys
+  Vss::Monocypher)
+vss_set_warnings(vss_licence_vectors)
 
 add_test(NAME unit COMMAND vss_unit_tests
   --verbose --junit=${CMAKE_BINARY_DIR}/unit-tests.xml)
