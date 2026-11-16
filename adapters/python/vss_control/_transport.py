@@ -94,6 +94,8 @@ class SocketTransport:
         try:
             self._sock.close()
         except OSError:
+            # A socket that cannot be closed is already unusable, and
+            # close() is documented to be safe to call again.
             pass
 
 
@@ -151,6 +153,8 @@ def _open_loopback(port, timeout):
             # The preface and the hello are two small writes in a row.
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         except OSError:
+            # Only the delay of small writes is lost; the connection still
+            # works, and a real failure shows on the first read or write.
             pass
         transport = SocketTransport(sock)
         try:
@@ -254,7 +258,6 @@ class PipeTransport:
         raise w.win_error(failure)
 
     def send_all(self, data, deadline):
-        w = self._w
         buffer = ctypes.create_string_buffer(bytes(data), len(data))
         offset = 0
         while offset < len(data):
@@ -288,6 +291,7 @@ class PipeTransport:
         try:
             self.close()
         except Exception:
+            # An exception raised in __del__ cannot be handled by anyone.
             pass
 
 
