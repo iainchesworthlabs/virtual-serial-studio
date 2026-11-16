@@ -9,7 +9,7 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <p><span class="chip info hollow">In development</span></p>
 </div>
 <div class="note warn">
-<p>The plugins on this page are being built and none can be downloaded yet. The page describes what the first version will contain. Details may change. The control endpoint and the Python client below are not plugins and are in the Community edition.</p>
+<p>Studio can run plugins: Tools, Plugins lists the plugins on this computer, and <a href="#trust-title">Plugin isolation and trust</a> says how one is checked and run. The official plugins on this page are being built and none can be downloaded yet. The page describes what the first version will contain. Details may change. The control endpoint and the Python client below are not plugins and are in the Community edition.</p>
 </div>
 </section>
 
@@ -23,6 +23,7 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <div><dt>Where to get them</dt><dd>Both are in the <a href="{{repo_url}}">repository on GitHub</a> and neither is in the installers or the packages yet. The endpoint, <code>vss_gate</code>, and the agent behind it, <code>vss_agent</code>, are built from source. The Python client is in <a href="{{repo_url}}/tree/develop/adapters/python"><code>adapters/python</code></a>: use it from that folder, or install it with <code>pip install ./adapters/python</code>.</dd></div>
 <div><dt>Who can reach the endpoint</dt><dd>Only programs on the same computer. By default that is a local socket for your own account. You can also turn on TCP on the loopback address, where every connection needs a token that you make.</dd></div>
 <div><dt>Reports of a run</dt><dd>A script can open a named run, record what passed and what failed, and ask the endpoint for the result as JUnit XML, for a CI system to collect. This is in the Community edition too.</dd></div>
+<div><dt>From the command line</dt><dd><code>vss_cli control</code> does the same from a shell: <code>status</code>, <code>port create</code>, <code>port rename</code>, <code>port remove</code>, <code>link</code>, <code>unlink</code>, <code>send</code>, <code>expect</code>, <code>watch</code>, <code>run begin</code> and <code>run report</code>, and <code>token create</code>, <code>token list</code> and <code>token revoke</code>. <code>vss_cli</code> is in the installers and packages, but the commands need <code>vss_gate</code> running.</dd></div>
 <div><dt>What the Python client needs</dt><dd>Python 3.9 or later and no other package.</dd></div>
 <div><dt>What they cannot do yet</dt><dd>A port made through the endpoint is a loopback port inside the agent, so another program cannot open it. Faults and response timing cannot be set through it.</dd></div>
 <div><dt>From another computer</dt><dd>Controlling or watching Studio from another computer is a Pro plugin. <a href="#remote-title">Remote control and remote monitoring</a>.</dd></div>
@@ -87,7 +88,7 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <section class="band pane" aria-labelledby="remote-title">
 <div class="head">
 <h2 id="remote-title">Remote control and remote monitoring</h2>
-<p class="lead">A Pro plugin lets one other computer control or watch a running Studio, such as a CI machine or a rig controller. It uses the same control endpoint, which is off until you turn it on. There are three levels of access, and each needs more setup than the one before.</p>
+<p class="lead">A Pro plugin lets one other computer control or watch a running Studio, such as a CI machine or a rig controller. It uses the same control endpoint, which is off until you turn it on. Both computers of a seat hold the same licence file. There are three levels of access, and each needs more setup than the one before.</p>
 </div>
 <ol class="steps">
 <li><span><strong>Local only, the default.</strong> A local socket that only programs on the same computer and account can reach.</span></li>
@@ -99,23 +100,29 @@ description: Drive Virtual Serial Studio from Python and pytest, C and C++, C#, 
 <section class="band plain" aria-labelledby="trust-title">
 <div class="head">
 <h2 id="trust-title">Plugin isolation and trust</h2>
-<p class="lead">A plugin runs in a process of its own. If it crashes it cannot take Studio down, its permissions can be limited, and its code never runs inside the window.</p>
+<p class="lead">A plugin is a folder that you or your administrator add, and Studio never downloads one. It runs as a program of its own, apart from Studio, and only after you have decided about that version. If it crashes it cannot take Studio down, and its code never runs inside the window.</p>
 </div>
 <div class="table-wrap">
 <table>
-<caption class="visually-hidden">Kinds of plugin and what Studio shows for each</caption>
-<thead><tr><th scope="col">Kind of plugin</th><th scope="col">Loads</th><th scope="col">What you see</th></tr></thead>
+<caption class="visually-hidden">Kinds of plugin, when each runs and what the Plugins page shows</caption>
+<thead><tr><th scope="col">Kind of plugin</th><th scope="col">Runs</th><th scope="col">What the Plugins page shows</th></tr></thead>
 <tbody>
-<tr><th scope="row">Official, signed by us</th><td>Yes, with a Pro or Enterprise licence</td><td>A Virtual Serial Studio badge</td></tr>
-<tr><th scope="row">Third-party, signed by its author</th><td>After you approve it</td><td>The author's name and &ldquo;Not verified by Virtual Serial Studio&rdquo;</td></tr>
-<tr><th scope="row">Third-party, unsigned</th><td>After you confirm</td><td>&ldquo;Unofficial plugin. It can do anything Studio can.&rdquo;</td></tr>
+<tr><th scope="row">Official, signed by us</th><td>Where a Pro or Enterprise licence on that computer covers it</td><td>&ldquo;Official&rdquo; and the Virtual Serial Studio badge</td></tr>
+<tr><th scope="row">Third-party, signed with a key you approved</th><td>After you decide about that version</td><td>&ldquo;Signed by&rdquo; and the author's name. Not verified by Virtual Serial Studio</td></tr>
+<tr><th scope="row">Third-party, signed with a key you have not approved</th><td>After you decide about that version</td><td>&ldquo;Signed by an author you have not approved&rdquo;. The signature could not be checked</td></tr>
+<tr><th scope="row">Third-party, unsigned</th><td>After you decide about that version</td><td>&ldquo;Unsigned&rdquo;. Studio cannot tell who made it or whether it was changed</td></tr>
 </tbody>
 </table>
 </div>
 <dl class="rows">
-<div><dt>A changed plugin asks again</dt><dd>Your decision to trust a plugin is tied to the exact file. If the file changes, Studio asks you again.</dd></div>
+<div><dt>Your decision</dt><dd>Review and decide lists the plugin's name, version and fingerprint, what it adds and every permission it asks for. A permission that the plugin marks as optional can be unticked. A signature shows who made a plugin and that its files are unchanged. It does not show that the plugin is safe.</dd></div>
+<div><dt>A changed plugin asks again</dt><dd>Your decision is kept for that version of the plugin only. If its files change, Studio asks you again.</dd></div>
+<div><dt>Isolation on Windows</dt><dd>A plugin is confined in an AppContainer. It can read its own folder and write its data folder, it reaches no other file of yours, and it has no network unless that was granted.</dd></div>
+<div><dt>Isolation on Linux and macOS</dt><dd>Studio does not confine a plugin there yet, and the Plugins page says so. An official plugin runs without confinement. Any other plugin runs only if you choose Run without isolation for that version, where your administrator allows it, and then it has your own access to your files and the network.</dd></div>
+<div><dt>A plugin that fails</dt><dd>Studio starts it again after 1, 2, 4 and 8 seconds, and stops trying after the fifth failure in ten minutes. Start again tries once more.</dd></div>
+<div><dt>Adding and removing</dt><dd>Add a plugin, on the Plugins page, looks into the folder and shows what it found before anything is copied. From a shell, <code>vss_cli plugin</code> has <code>list</code>, <code>verify</code>, <code>install</code>, <code>remove</code> and <code>run</code>.</dd></div>
 <div><dt>Official only, if you want</dt><dd>An administrator can set a policy that allows only official plugins.</dd></div>
-<div><dt>Write your own</dt><dd>The plugin API is documented and free to use in every edition. The official plugins that we build on it are commercial. A plugin declares what it extends, its settings and its permissions in a manifest, and its author chooses its licence. We do not support third-party plugins.</dd></div>
+<div><dt>Write your own</dt><dd>The plugin API is documented and free to use in every edition: <a href="docs/plugins/">the plugin framework</a> and <a href="docs/plugin-api-reference/">the plugin API, message by message</a>. The official plugins that we build on it are commercial. A plugin declares what it extends, its settings and its permissions in a manifest, and its author chooses its licence. We do not support third-party plugins.</dd></div>
 <div><dt>What a plugin can extend</dt><dd>Generators that put bytes or traffic patterns onto a port, fixture types that answer like a real instrument or modem, behaviour modifiers that delay, corrupt, filter or rewrite traffic on a link, and adapters that let other tools drive Studio.</dd></div>
 </dl>
 <div class="actions">
