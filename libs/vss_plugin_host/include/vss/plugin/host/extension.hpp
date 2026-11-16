@@ -125,6 +125,11 @@ public:
     /// The plugin said hello and is ready.  It has no instances yet.
     virtual void plugin_ready() {}
 
+    /// The state of one of the plugin's instances changed: one runs now,
+    /// stopped, or has new parameters.  Called only while the plugin is
+    /// ready, and never from inside a call of this handler.
+    virtual void instances_changed() {}
+
     /// The plugin stopped or failed.  Everything done for it is undone:
     /// recordings are closed, sessions ended, queues dropped.  A plugin
     /// that starts again starts from nothing.

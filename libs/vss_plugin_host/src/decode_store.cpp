@@ -281,7 +281,7 @@ reject_reason validate(const decoded_trigger& trigger, text_marks& marks)
     if (trigger.field)
     {
         const decode_trigger_field& field = *trigger.field;
-        if (!length_ok(field.length) || !span_ok(field.offset, field.length))
+        if (field.length > max_chunk || !span_ok(field.offset, field.length))
         {
             return reject_reason::number_out_of_range;
         }

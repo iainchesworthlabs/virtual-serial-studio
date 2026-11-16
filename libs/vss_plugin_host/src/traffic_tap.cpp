@@ -56,7 +56,7 @@ struct traffic_tap::state
     std::size_t queued_bytes = 0;
     std::uint64_t dropped_items = 0;
     std::uint64_t dropped_bytes = 0;
-    std::vector<tap_drop> dropped;
+    std::vector<tap_drop> dropped_by_place;
     std::shared_ptr<std::function<void()>> notify;
     boost::asio::any_io_executor executor;
 
@@ -132,15 +132,17 @@ struct traffic_tap::state
         {
             ++dropped_items;
             dropped_bytes += cost;
-            auto found =
-                std::ranges::find(dropped, place.name, &tap_drop::place);
-            if (found == dropped.end())
+            auto found = std::ranges::find(dropped_by_place, place.name,
+                                           &tap_drop::place);
+            if (found == dropped_by_place.end())
             {
-                dropped.push_back(tap_drop{place.name, 0, 0});
-                found = dropped.end() - 1;
+                dropped_by_place.push_back(tap_drop{place.name, 0, 0});
+                found = dropped_by_place.end() - 1;
             }
             ++found->items;
             found->bytes += cost;
+            if (limits.mark_losses && item.kind == tap_item_kind::data)
+                mark_loss(place, item, cost);
             return;
         }
         item.place = place.name;
@@ -148,6 +150,47 @@ struct traffic_tap::state
             just_became_non_empty = true;
         queued_bytes += cost;
         queue.push_back(std::move(item));
+    }
+
+    // Caller holds the lock.  Notes a dropped chunk where the queue stands:
+    // in the loss item that ends the queue, or in a new one.
+    void mark_loss(const tap_place& place, const tap_item& dropped,
+                   std::size_t cost)
+    {
+        if (queue.empty() || queue.back().kind != tap_item_kind::loss)
+        {
+            tap_item marker;
+            marker.kind = tap_item_kind::loss;
+            marker.place = place.name;
+            marker.when = dropped.when;
+            if (queue.empty())
+                just_became_non_empty = true;
+            queue.push_back(std::move(marker));
+        }
+        tap_item& marker = queue.back();
+        marker.when = dropped.when;
+        const auto found =
+            std::ranges::find_if(marker.losses,
+                                 [&](const tap_loss& loss)
+                                 {
+                                     return loss.place == place.name &&
+                                            loss.direction == dropped.direction;
+                                 });
+        if (found == marker.losses.end())
+        {
+            tap_loss loss;
+            loss.place = place.name;
+            loss.direction = dropped.direction;
+            loss.first = dropped.when;
+            loss.last = dropped.when;
+            loss.items = 1;
+            loss.bytes = cost;
+            marker.losses.push_back(std::move(loss));
+            return;
+        }
+        ++found->items;
+        found->bytes += cost;
+        found->last = dropped.when;
     }
 };
 
@@ -196,7 +239,7 @@ tap_batch traffic_tap::take(std::size_t max_items, std::size_t max_bytes)
     }
     batch.dropped_items = std::exchange(state_->dropped_items, 0);
     batch.dropped_bytes = std::exchange(state_->dropped_bytes, 0);
-    batch.dropped = std::exchange(state_->dropped, {});
+    batch.dropped = std::exchange(state_->dropped_by_place, {});
     return batch;
 }
 

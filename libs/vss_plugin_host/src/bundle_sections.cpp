@@ -259,7 +259,8 @@ std::optional<bundle_failure> read_file(const fs::path& full,
                        "the bytes read are not the listed size");
     }
     out.sha512 = to_hex(hasher.finish());
-    if (out.sha512 != file.sha512)
+    // A file listed without a hash is being measured, and is not compared.
+    if (!file.sha512.empty() && out.sha512 != file.sha512)
     {
         return failure(bundle_problem::hash_changed, section, file.path,
                        "the file's hash is not the listed hash");
@@ -414,6 +415,60 @@ verify_sections(const std::filesystem::path& data_directory,
         return outcome(boost::system::in_place_error,
                        failure(bundle_problem::file_unreadable, {}, {},
                                "the files could not be checked"));
+    }
+}
+
+boost::system::result<verified_file, bundle_failure>
+measure_file(const std::filesystem::path& data_directory,
+             const std::string& section, const std::string& path,
+             std::uint64_t listed_size)
+{
+    using outcome = boost::system::result<verified_file, bundle_failure>;
+    try
+    {
+        if (const auto why = check_relative_path(path))
+        {
+            std::string detail = "the path ";
+            detail += *why;
+            return outcome(boost::system::in_place_error,
+                           failure(bundle_problem::path_bad, section, path,
+                                   std::move(detail)));
+        }
+        std::error_code ec;
+        const fs::file_status root = fs::symlink_status(data_directory, ec);
+        if (ec || root.type() != fs::file_type::directory)
+        {
+            return outcome(boost::system::in_place_error,
+                           failure(bundle_problem::directory_bad, {}, {},
+                                   "the data directory is missing, a link or "
+                                   "not a folder"));
+        }
+        verified_file checked;
+        checked.path = path;
+        if (auto found = walk(data_directory, section, path,
+                              checked.full_path))
+        {
+            return outcome(boost::system::in_place_error, std::move(*found));
+        }
+        offered_file listed;
+        listed.path = path;
+        listed.size = listed_size;
+        if (auto found = read_file(checked.full_path, listed, section, checked))
+        {
+            return outcome(boost::system::in_place_error, std::move(*found));
+        }
+        fs::path again;
+        if (auto found = walk(data_directory, section, path, again))
+        {
+            return outcome(boost::system::in_place_error, std::move(*found));
+        }
+        return checked;
+    }
+    catch (const std::exception&)
+    {
+        return outcome(boost::system::in_place_error,
+                       failure(bundle_problem::file_unreadable, section, path,
+                               "the file could not be checked"));
     }
 }
 
