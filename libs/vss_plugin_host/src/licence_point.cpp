@@ -74,7 +74,16 @@ private:
         licence_file_message body;
         if (source_)
         {
-            std::optional<byte_buffer> bytes = source_();
+            std::optional<byte_buffer> bytes;
+            try
+            {
+                bytes = source_();
+            }
+            catch (...)
+            {
+                // A source that fails has no licence to give.
+                bytes.reset();
+            }
             if (bytes && !bytes->empty() && bytes->size() <= max_licence_file)
             {
                 body.present = true;

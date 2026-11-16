@@ -512,8 +512,7 @@ TEST_CASE("plugin licence point: a malformed licence.get is bad_request")
         if (fixture.answers.size() != 1)
             throw vss_test::failure("not answered once: " + item.name);
         if (fixture.answers.front().re != first_id)
-            throw vss_test::failure("answered the wrong request: " +
-                                    item.name);
+            throw vss_test::failure("answered the wrong request: " + item.name);
         if (code_of(fixture.answers.front()) !=
             code_name(api_errc::bad_request))
             throw vss_test::failure("not bad_request: " + item.name);
@@ -683,8 +682,7 @@ TEST_CASE("plugin licence point: a malformed report that has an id is "
         if (fixture.answers.size() != 1)
             throw vss_test::failure("not answered once: " + item.name);
         if (fixture.answers.front().re != first_id)
-            throw vss_test::failure("answered the wrong request: " +
-                                    item.name);
+            throw vss_test::failure("answered the wrong request: " + item.name);
         if (code_of(fixture.answers.front()) !=
             code_name(api_errc::bad_request))
             throw vss_test::failure("not bad_request: " + item.name);
